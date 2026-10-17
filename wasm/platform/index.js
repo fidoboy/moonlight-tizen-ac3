@@ -3526,7 +3526,7 @@ function stopMouseMovePropagation(e) {
 function toggleStreamMenuDialog() {
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+  } else if (streamVideoReady && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
     streamMenuDialog();
   }
 }

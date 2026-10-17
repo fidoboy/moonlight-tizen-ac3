@@ -111,6 +111,7 @@ function replaceKnownStatsLabels(text) {
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
+var streamVideoReady = false;
 
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
@@ -490,6 +491,7 @@ function handleMessage(msg) {
   console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    streamVideoReady = false;
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     resetPerformanceStatsGraph();
@@ -617,6 +619,7 @@ function handleMessage(msg) {
     }
 
   } else if (msg === 'Connection Established') {
+    streamVideoReady = false;
     // The direct-launch status must not cover the video while the first frame is arriving.
     if (window._directSmartHubLaunch) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
@@ -637,6 +640,7 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
+    streamVideoReady = true;
     // Hide the lightweight direct-launch status once the stream video is ready.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
@@ -663,7 +667,7 @@ function handleMessage(msg) {
     if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
     $('#performance-stats').css('display', 'inline-block');
-    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.5)');
+    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.55)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
       renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));

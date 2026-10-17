@@ -748,6 +748,8 @@ body {
 #performance-stats {
     color: #fff;
     background: transparent;
+    min-width: 50vw;
+    box-sizing: border-box;
     position: absolute;
     top: 10px;
     left: 10px;
@@ -775,6 +777,7 @@ body {
 }
 
 #performance-stats .performance-stats-label {
+    color: #cfcfcf;
     flex: 0 0 auto;
     text-align: left;
 }
