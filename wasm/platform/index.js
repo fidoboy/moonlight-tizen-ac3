@@ -207,6 +207,7 @@ function attachListeners() {
   $('#quitRunningAppBtn').on('click', quitAppDialog);
   $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
   $('.videoFramerateMenu li').on('click', saveFramerate);
+  $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
@@ -258,6 +259,7 @@ function attachListeners() {
   registerMenu('selectAudio', Views.SelectAudioMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
+  registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
 
   $(window).resize(fullscreenWasmModule);
 
@@ -4316,6 +4318,43 @@ function saveDisableWarnings() {
   }, 100);
 }
 
+const PERFORMANCE_STATS_POSITION_LABEL_KEYS = {
+  'top-left': 'Top left',
+  'top-right': 'Top right',
+  'bottom-left': 'Bottom left',
+  'bottom-right': 'Bottom right'
+};
+
+function setPerformanceStatsPosition(position, persist) {
+  if (!Object.prototype.hasOwnProperty.call(PERFORMANCE_STATS_POSITION_LABEL_KEYS, position)) {
+    position = 'top-left';
+  }
+
+  var labelKey = PERFORMANCE_STATS_POSITION_LABEL_KEYS[position];
+  $('#selectPerformanceStatsPosition')
+    .text(t(labelKey))
+    .attr('data-i18n', labelKey)
+    .attr('data-value', position)
+    .data('value', position);
+
+  var overlay = document.getElementById('performance-stats');
+  if (overlay) {
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach(function(corner) {
+      overlay.classList.remove('performance-stats-position-' + corner);
+    });
+    overlay.classList.add('performance-stats-position-' + position);
+  }
+
+  if (persist) {
+    storeData('performanceStatsPosition', position, null);
+  }
+  return position;
+}
+
+function savePerformanceStatsPosition() {
+  setPerformanceStatsPosition($(this).data('value'), true);
+}
+
 function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked');
@@ -4455,6 +4494,8 @@ function restoreDefaultsSettingsValues() {
   const defaultPerformanceStats = false;
   document.querySelector('#performanceStatsBtn').MaterialSwitch.off();
   storeData('performanceStats', defaultPerformanceStats, null);
+
+  setPerformanceStatsPosition('top-left', true);
 
   const defaultAutomaticUpdateChecks = true;
   document.querySelector('#automaticUpdateChecksBtn').MaterialSwitch.on();
@@ -4900,6 +4941,11 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#disableWarningsBtn').MaterialSwitch.on();
     }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay position.');
+  getData('performanceStatsPosition', function(positionValue) {
+    setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performanceStats preferences.');

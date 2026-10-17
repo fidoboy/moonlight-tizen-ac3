@@ -554,6 +554,24 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       // Send the formatted stats string to the JS frontend for overlay display
       PostToJs(std::string("StatMsg: ") + s_StatString.data());
 
+      // Send host latency only when valid measurements are available. The UI
+      // holds these measurements until the next host sample arrives.
+      if (lastTwoWndStats.framesWithHostProcessingLatency > 0) {
+        char hostLatencyMessage[128];
+        const int hostLatencyMessageLength = snprintf(
+          hostLatencyMessage, sizeof(hostLatencyMessage),
+          "HostLatencyMsg: %.1f,%.1f,%.1f",
+          (float)lastTwoWndStats.minHostProcessingLatency / 10,
+          (float)lastTwoWndStats.maxHostProcessingLatency / 10,
+          (float)lastTwoWndStats.totalHostProcessingLatency / 10 /
+            lastTwoWndStats.framesWithHostProcessingLatency
+        );
+        if (hostLatencyMessageLength > 0 &&
+            hostLatencyMessageLength < (int)sizeof(hostLatencyMessage)) {
+          PostToJs(hostLatencyMessage);
+        }
+      }
+
       // Send one graph sample on the same tick as the textual statistics.
       char graphMessage[96];
       const int graphMessageLength = snprintf(
@@ -808,24 +826,6 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     }
     offset += ret;
   }
-
-  // Always display this row, using N/A when the host has not supplied latency samples.
-  if (stats.framesWithHostProcessingLatency > 0) {
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Host processing latency min/max/average: %.1f/%.1f/%.1f ms\n",
-      (float)stats.minHostProcessingLatency / 10, (float)stats.maxHostProcessingLatency / 10,
-      (float)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency
-    );
-  } else {
-    ret = snprintf(&output[offset], length - offset, "Host processing latency min/max/average: N/A\n");
-  }
-  // Abort if string formatting failed or buffer overflowed
-  if (ret < 0 || ret >= length - offset) {
-    assert(false);
-    return;
-  }
-  offset += ret;
 
   // Show remaining statistics only if some frames have been rendered
   if (stats.renderedFrames != 0) {
