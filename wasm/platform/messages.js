@@ -112,7 +112,7 @@ function replaceKnownStatsLabels(text) {
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
-const PERFORMANCE_STATS_GRAPH_HEIGHT = 84;
+const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
 const PERFORMANCE_STATS_GRAPH_COLORS = {
   good: '#35c879',
@@ -215,8 +215,8 @@ function drawPerformanceStatsGraph() {
 
   var plotLeft = 34;
   var plotRight = width - 4;
-  var plotTop = 22;
-  var plotBottom = 73;
+  var plotTop = 35;
+  var plotBottom = 149;
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);
 
