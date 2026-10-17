@@ -667,7 +667,7 @@ function handleMessage(msg) {
     if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
     $('#performance-stats').css('display', 'inline-block');
-    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.55)');
+    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
       renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));
