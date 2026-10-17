@@ -355,6 +355,7 @@
   "Host processing latency min/max/average:": "Host processing latency min/max/average:",
   "Frames dropped by your network connection:": "Frames dropped by your network connection:",
   "Average network latency:": "Average network latency:",
+  "Network latency (RTT, ms)": "Network latency (RTT, ms)",
   "variance:": "variance:",
   "N/A": "N/A",
   "Average decoding time:": "Average decoding time:",

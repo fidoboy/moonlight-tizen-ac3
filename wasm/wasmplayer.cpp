@@ -809,22 +809,23 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     offset += ret;
   }
 
-  // Only display host processing latency if latency data exists
+  // Always display this row, using N/A when the host has not supplied latency samples.
   if (stats.framesWithHostProcessingLatency > 0) {
-    // Print min, max, and average host processing latency in milliseconds
     ret = snprintf(
       &output[offset], length - offset,
       "Host processing latency min/max/average: %.1f/%.1f/%.1f ms\n",
       (float)stats.minHostProcessingLatency / 10, (float)stats.maxHostProcessingLatency / 10,
       (float)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency
     );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
+  } else {
+    ret = snprintf(&output[offset], length - offset, "Host processing latency min/max/average: N/A\n");
   }
+  // Abort if string formatting failed or buffer overflowed
+  if (ret < 0 || ret >= length - offset) {
+    assert(false);
+    return;
+  }
+  offset += ret;
 
   // Show remaining statistics only if some frames have been rendered
   if (stats.renderedFrames != 0) {

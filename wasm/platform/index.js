@@ -3207,8 +3207,8 @@ function startGame(host, appID) {
       '\n Performance statistics: ' + performanceStats);
 
       // Hide on-screen overlays until the streaming session begins
-      if (typeof resetPerformanceStatsGraph === 'function') {
-        resetPerformanceStatsGraph();
+      if (typeof beginPerformanceStatsStream === 'function') {
+        beginPerformanceStatsStream();
       }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
 

@@ -355,6 +355,7 @@
   "Host processing latency min/max/average:": "Latencia de procesamiento del anfitrión mín./máx./media:",
   "Frames dropped by your network connection:": "Fotogramas perdidos por la conexión de red:",
   "Average network latency:": "Latencia media de red:",
+  "Network latency (RTT, ms)": "Latencia de red (RTT, ms)",
   "variance:": "variación:",
   "N/A": "N/D",
   "Average decoding time:": "Tiempo medio de decodificación:",

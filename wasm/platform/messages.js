@@ -109,6 +109,9 @@ function replaceKnownStatsLabels(text) {
 }
 
 
+// Ignore queued statistics messages after a stream has terminated.
+var performanceStatsStreamTerminated = false;
+
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
@@ -143,7 +146,7 @@ function ensurePerformanceStatsOverlayElements() {
     canvas = document.createElement('canvas');
     canvas.id = 'performance-stats-graph';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'RTT (ms), 60-second history');
+    canvas.setAttribute('aria-label', t('Network latency (RTT, ms)'));
     canvas.style.display = 'block';
     canvas.style.width = '100%';
     canvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
@@ -195,7 +198,8 @@ function drawPerformanceStatsGraph() {
   context.textBaseline = 'middle';
   context.font = '12px sans-serif';
   context.fillStyle = 'rgba(255,255,255,0.95)';
-  context.fillText('RTT (ms)', 4, 9);
+  var graphTitle = t('Network latency (RTT, ms)');
+  context.fillText(graphTitle, 4, 9);
 
   // Numeric thresholds make the color scale legible without adding untranslated UI strings.
   var legend = [
@@ -204,7 +208,7 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
   ];
-  var legendX = 82;
+  var legendX = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     context.fillStyle = item.color;
     context.fillRect(legendX, 5, 8, 8);
@@ -275,6 +279,37 @@ function handlePerformanceStatsGraphMessage(message) {
     performanceStatsGraphSamples.shift();
   }
   drawPerformanceStatsGraph();
+}
+
+
+// Render statistics as two-column rows: labels on the left and values on the right.
+function renderPerformanceStatsText(textElement, text) {
+  textElement.textContent = '';
+  String(text || '').split('\n').forEach(function(line) {
+    if (!line) return;
+    var row = document.createElement('div');
+    var separator = line.indexOf(':');
+    if (separator > 0) {
+      row.className = 'performance-stats-row';
+      var label = document.createElement('span');
+      label.className = 'performance-stats-label';
+      label.textContent = line.slice(0, separator + 1);
+      var value = document.createElement('span');
+      value.className = 'performance-stats-value';
+      value.textContent = line.slice(separator + 1).trim();
+      row.appendChild(label);
+      row.appendChild(value);
+    } else {
+      row.className = 'performance-stats-message';
+      row.textContent = line;
+    }
+    textElement.appendChild(row);
+  });
+}
+
+function beginPerformanceStatsStream() {
+  performanceStatsStreamTerminated = false;
+  resetPerformanceStatsGraph();
 }
 
 function replaceKnownWolErrorLabels(text) {
@@ -455,12 +490,17 @@ function handleMessage(msg) {
   console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Hide and lock the overlay before painting the direct-launch closing status.
+    performanceStatsStreamTerminated = true;
+    resetPerformanceStatsGraph();
+    $('#connection-warnings, #performance-stats').css('display', 'none');
+    $('#performance-stats').text('');
+
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
     // Release the audio scheduler of the Web Audio backend, which is a no-op for the EMSS backend
     stopAudioScheduler();
-    // Remove the on-screen overlays
-    $('#connection-warnings, #performance-stats').css('display', 'none');
+    // Diagnostic overlays were hidden and locked at the start of stream termination.
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('#loadingSpinner').css('display', 'none');
@@ -620,16 +660,17 @@ function handleMessage(msg) {
     $('#performance-stats').css('background', 'transparent');
     $('#performance-stats').text('');
   } else if (msg.indexOf('StatMsg: ') === 0) {
+    if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
     $('#performance-stats').css('display', 'inline-block');
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.5)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
-      statsElements.text.textContent = translateBackendMessage(msg.replace('StatMsg: ', ''));
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));
       drawPerformanceStatsGraph();
     }
   } else if (msg.indexOf('GraphMsg: ') === 0) {
-    handlePerformanceStatsGraphMessage(msg);
+    if (!performanceStatsStreamTerminated) handlePerformanceStatsGraphMessage(msg);
   } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
