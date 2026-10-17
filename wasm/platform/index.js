@@ -379,13 +379,17 @@ function maybeReleaseNativeLaunchScreen() {
 
   document.documentElement.classList.remove('app-starting');
 
-  // Give the browser a rendering opportunity before releasing Tizen's native splash.
+  // Give the browser a rendering opportunity, then allow the native splash a little
+  // extra time to finish its animation and audio before releasing it.
   var releaseSplashAndScheduleRestore = function() {
     var layout = document.querySelector('.mdl-layout');
     if (layout) void layout.getBoundingClientRect();
 
-    hideNativeLaunchScreen();
-    scheduleDeferredNormalStartup();
+    nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
+      nativeLaunchScreenReleaseTimeout = null;
+      hideNativeLaunchScreen();
+      scheduleDeferredNormalStartup();
+    }, 1500);
   };
 
   if (typeof window.requestAnimationFrame === 'function') {
@@ -5575,7 +5579,7 @@ function updateConfigSummaryBar() {
     .replace(/\s+/g, '');
   var resolutionNames = {
     '1280x720': 'HD',
-    '1920x1080': 'HD',
+    '1920x1080': 'FHD',
     '2560x1440': '2K',
     '3840x2160': '4K',
     '7680x4320': '8K'
