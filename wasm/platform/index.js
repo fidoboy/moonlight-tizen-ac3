@@ -5578,6 +5578,7 @@ function updateConfigSummaryBar() {
     .replace(/[:×]/g, 'x')
     .replace(/\s+/g, '');
   var resolutionNames = {
+    '854x480': 'SD',
     '1280x720': 'HD',
     '1920x1080': 'FHD',
     '2560x1440': '2K',
