@@ -177,8 +177,13 @@ function drawPerformanceStatsGraph() {
   if (!elements) return;
 
   var canvas = elements.canvas;
-  var width = Math.round(canvas.getBoundingClientRect().width || elements.container.clientWidth || 480);
-  width = Math.max(300, width);
+  var containerStyle = window.getComputedStyle ? window.getComputedStyle(elements.container) : null;
+  var horizontalPadding = containerStyle
+    ? (parseFloat(containerStyle.paddingLeft) || 0) + (parseFloat(containerStyle.paddingRight) || 0)
+    : 0;
+  var availableWidth = Math.round(elements.container.clientWidth - horizontalPadding);
+  var measuredWidth = Math.round(canvas.getBoundingClientRect().width || 0);
+  var width = Math.max(300, availableWidth, measuredWidth);
   if (canvas.width !== width) canvas.width = width;
   if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
 
@@ -614,7 +619,7 @@ function handleMessage(msg) {
     }
   } else if (msg.indexOf('GraphMsg: ') === 0) {
     handlePerformanceStatsGraphMessage(msg);
-  } else if (msg.indexOf('controllerRumble: ') === 0 {
+  } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
     const weakMagnitude = parseFloat(eventData[1]);
