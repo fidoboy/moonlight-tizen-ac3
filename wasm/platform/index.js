@@ -3207,6 +3207,9 @@ function startGame(host, appID) {
       '\n Performance statistics: ' + performanceStats);
 
       // Hide on-screen overlays until the streaming session begins
+      if (typeof resetPerformanceStatsGraph === 'function') {
+        resetPerformanceStatsGraph();
+      }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
 
       // Shows a loading message to launch the application and start stream mode

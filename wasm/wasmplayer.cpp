@@ -553,6 +553,19 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       FormatVideoStats(lastTwoWndStats, s_StatString.data(), s_StatString.length());
       // Send the formatted stats string to the JS frontend for overlay display
       PostToJs(std::string("StatMsg: ") + s_StatString.data());
+
+      // Send one graph sample on the same tick as the textual statistics.
+      char graphMessage[96];
+      const int graphMessageLength = snprintf(
+        graphMessage, sizeof(graphMessage), "GraphMsg: %u,%u,%u",
+        lastTwoWndStats.lastRtt,
+        lastTwoWndStats.lastRttVariance,
+        m_ActiveWndVideoStats.networkDroppedFrames
+      );
+      if (graphMessageLength > 0 && graphMessageLength < (int)sizeof(graphMessage)) {
+        PostToJs(graphMessage);
+      }
+
       // Clear the stats string buffer for the next use
       std::fill(s_StatString.begin(), s_StatString.end(), 0);
     }

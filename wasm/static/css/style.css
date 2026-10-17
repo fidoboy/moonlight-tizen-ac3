@@ -759,6 +759,17 @@ body {
     line-height: 1.2;
     white-space: pre-wrap;
 }
+
+#performance-stats .performance-stats-text {
+    white-space: pre-wrap;
+}
+
+#performance-stats-graph {
+    display: block;
+    width: 100%;
+    height: 84px;
+    margin-top: 8px;
+}
 /* =============================
    Settings Section
 ============================= */

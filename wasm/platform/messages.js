@@ -108,6 +108,159 @@ function replaceKnownStatsLabels(text) {
     .replace(/Slow connection to PC\.\nReduce your bitrate!/g, t('Slow connection to PC.\nReduce your bitrate!'));
 }
 
+
+// Rolling one-minute history for the performance statistics graph.
+var performanceStatsGraphSamples = [];
+const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
+const PERFORMANCE_STATS_GRAPH_HEIGHT = 84;
+
+const PERFORMANCE_STATS_GRAPH_COLORS = {
+  good: '#35c879',
+  warning: '#f2cc45',
+  elevated: '#ff9638',
+  critical: '#ff4d4f',
+  unavailable: '#858b96'
+};
+
+function resetPerformanceStatsGraph() {
+  performanceStatsGraphSamples.length = 0;
+}
+
+function ensurePerformanceStatsOverlayElements() {
+  var container = document.getElementById('performance-stats');
+  if (!container) return null;
+
+  var textElement = container.querySelector('.performance-stats-text');
+  var canvas = container.querySelector('#performance-stats-graph');
+  if (!textElement || !canvas) {
+    var previousText = textElement ? textElement.textContent : container.textContent;
+    container.textContent = '';
+
+    textElement = document.createElement('div');
+    textElement.className = 'performance-stats-text';
+    textElement.textContent = previousText || '';
+
+    canvas = document.createElement('canvas');
+    canvas.id = 'performance-stats-graph';
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', 'RTT (ms), 60-second history');
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
+    canvas.style.marginTop = '8px';
+
+    container.appendChild(textElement);
+    container.appendChild(canvas);
+  }
+
+  return { container: container, text: textElement, canvas: canvas };
+}
+
+function getPerformanceStatsGraphColor(sample) {
+  if (sample.droppedFrames > 0 || sample.rtt >= 100 || sample.variance >= 50) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.critical;
+  }
+  if (sample.rtt >= 60 || sample.variance >= 25) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.elevated;
+  }
+  if (sample.rtt >= 30 || sample.variance >= 10) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.warning;
+  }
+  if (sample.rtt <= 0) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.unavailable;
+  }
+  return PERFORMANCE_STATS_GRAPH_COLORS.good;
+}
+
+function drawPerformanceStatsGraph() {
+  var elements = ensurePerformanceStatsOverlayElements();
+  if (!elements) return;
+
+  var canvas = elements.canvas;
+  var width = Math.round(canvas.getBoundingClientRect().width || elements.container.clientWidth || 480);
+  width = Math.max(300, width);
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+
+  var context = canvas.getContext('2d');
+  if (!context) return;
+
+  var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'middle';
+  context.font = '12px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.95)';
+  context.fillText('RTT (ms)', 4, 9);
+
+  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
+  var legend = [
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<30' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '30–59' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
+  ];
+  var legendX = 82;
+  legend.forEach(function(item) {
+    context.fillStyle = item.color;
+    context.fillRect(legendX, 5, 8, 8);
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    context.fillText(item.label, legendX + 12, 9);
+    legendX += 22 + context.measureText(item.label).width;
+  });
+
+  var plotLeft = 34;
+  var plotRight = width - 4;
+  var plotTop = 22;
+  var plotBottom = 73;
+  var plotHeight = plotBottom - plotTop;
+  var plotWidth = Math.max(1, plotRight - plotLeft);
+
+  // Grid and axis labels are fixed to a 0–100 ms scale; higher values saturate at the top.
+  context.font = '10px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.85)';
+  context.fillText('100', 2, plotTop);
+  context.fillText('50', 8, plotTop + plotHeight / 2);
+  context.fillText('0', 14, plotBottom);
+
+  context.strokeStyle = 'rgba(255,255,255,0.20)';
+  context.lineWidth = 1;
+  [plotTop + 0.5, plotTop + plotHeight / 2 + 0.5, plotBottom + 0.5].forEach(function(y) {
+    context.beginPath();
+    context.moveTo(plotLeft, y);
+    context.lineTo(plotRight, y);
+    context.stroke();
+  });
+
+  var slotWidth = plotWidth / PERFORMANCE_STATS_GRAPH_SECONDS;
+  var barWidth = Math.max(1, Math.floor(slotWidth * 0.72));
+  var firstSlot = PERFORMANCE_STATS_GRAPH_SECONDS - performanceStatsGraphSamples.length;
+
+  performanceStatsGraphSamples.forEach(function(sample, index) {
+    var rtt = Math.max(0, Math.min(100, sample.rtt));
+    var barHeight = sample.rtt > 0 ? Math.max(2, rtt / 100 * plotHeight) : 2;
+    if (sample.droppedFrames > 0) barHeight = Math.max(4, barHeight);
+
+    var x = plotLeft + (firstSlot + index) * slotWidth + (slotWidth - barWidth) / 2;
+    context.fillStyle = getPerformanceStatsGraphColor(sample);
+    context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
+  });
+}
+
+function handlePerformanceStatsGraphMessage(message) {
+  var values = message.replace('GraphMsg: ', '').split(',').map(Number);
+  if (values.length < 3 || !values.every(Number.isFinite)) return;
+
+  performanceStatsGraphSamples.push({
+    rtt: Math.max(0, values[0]),
+    variance: Math.max(0, values[1]),
+    droppedFrames: Math.max(0, values[2])
+  });
+  if (performanceStatsGraphSamples.length > PERFORMANCE_STATS_GRAPH_SECONDS) {
+    performanceStatsGraphSamples.shift();
+  }
+  drawPerformanceStatsGraph();
+}
+
 function replaceKnownWolErrorLabels(text) {
   const wolErrorLabels = [
     'Invalid MAC address format',
@@ -446,6 +599,7 @@ function handleMessage(msg) {
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
     // Hide the overlay for this streaming session without changing the saved preference.
+    resetPerformanceStatsGraph();
     $('#performance-stats').css('display', 'none');
     $('#performance-stats').css('background', 'transparent');
     $('#performance-stats').text('');
@@ -453,8 +607,14 @@ function handleMessage(msg) {
     // Show the overlay for this streaming session without changing the saved preference.
     $('#performance-stats').css('display', 'inline-block');
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.5)');
-    $('#performance-stats').text(translateBackendMessage(msg.replace('StatMsg: ', '')));
-  } else if (msg.indexOf('controllerRumble: ') === 0) {
+    var statsElements = ensurePerformanceStatsOverlayElements();
+    if (statsElements) {
+      statsElements.text.textContent = translateBackendMessage(msg.replace('StatMsg: ', ''));
+      drawPerformanceStatsGraph();
+    }
+  } else if (msg.indexOf('GraphMsg: ') === 0) {
+    handlePerformanceStatsGraphMessage(msg);
+  } else if (msg.indexOf('controllerRumble: ') === 0 {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
     const weakMagnitude = parseFloat(eventData[1]);
