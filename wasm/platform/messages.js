@@ -147,7 +147,7 @@ function ensurePerformanceStatsOverlayElements() {
     canvas.style.display = 'block';
     canvas.style.width = '100%';
     canvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
-    canvas.style.marginTop = '8px';
+    canvas.style.marginTop = '16px';
 
     container.appendChild(textElement);
     container.appendChild(canvas);
@@ -220,11 +220,22 @@ function drawPerformanceStatsGraph() {
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);
 
-  // Grid and axis labels are fixed to a 0–100 ms scale; higher values saturate at the top.
+  // Adapt the vertical scale to the recent RTT history. The 95th percentile prevents
+  // a single spike from flattening the rest of the graph, while the scale remains
+  // high enough to show occasional peaks distinctly. Higher samples saturate at the top.
+  var validRttValues = performanceStatsGraphSamples
+    .map(function(sample) { return sample.rtt; })
+    .filter(function(rtt) { return rtt > 0; })
+    .sort(function(a, b) { return a - b; });
+  var percentileIndex = Math.max(0, Math.ceil(validRttValues.length * 0.95) - 1);
+  var percentileRtt = validRttValues.length ? validRttValues[percentileIndex] : 0;
+  var scaleMaximum = Math.max(20, Math.ceil((percentileRtt * 1.2) / 10) * 10);
+  var midpointRtt = Math.round(scaleMaximum / 2);
+
   context.font = '10px sans-serif';
   context.fillStyle = 'rgba(255,255,255,0.85)';
-  context.fillText('100', 2, plotTop);
-  context.fillText('50', 8, plotTop + plotHeight / 2);
+  context.fillText(String(scaleMaximum), 2, plotTop);
+  context.fillText(String(midpointRtt), 8, plotTop + plotHeight / 2);
   context.fillText('0', 14, plotBottom);
 
   context.strokeStyle = 'rgba(255,255,255,0.20)';
@@ -241,8 +252,8 @@ function drawPerformanceStatsGraph() {
   var firstSlot = PERFORMANCE_STATS_GRAPH_SECONDS - performanceStatsGraphSamples.length;
 
   performanceStatsGraphSamples.forEach(function(sample, index) {
-    var rtt = Math.max(0, Math.min(100, sample.rtt));
-    var barHeight = sample.rtt > 0 ? Math.max(2, rtt / 100 * plotHeight) : 2;
+    var rtt = Math.max(0, Math.min(scaleMaximum, sample.rtt));
+    var barHeight = sample.rtt > 0 ? Math.max(2, rtt / scaleMaximum * plotHeight) : 2;
     if (sample.droppedFrames > 0) barHeight = Math.max(4, barHeight);
 
     var x = plotLeft + (firstSlot + index) * slotWidth + (slotWidth - barWidth) / 2;
