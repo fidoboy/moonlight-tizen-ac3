@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" role="img" aria-labelledby="title">
+  <title id="title">Dolby double-D symbol, white with transparent cutouts</title>
+  <path
+    fill="#fff"
+    fill-rule="evenodd"
+    transform="translate(0 3.7)"
+    d="M1 3.5H23V20.3H1Z M4.2 6.5166v10.9668h1.6172c3.0212 0 5.4847-2.4622 5.4847-5.4834s-2.4635-5.4834-5.4847-5.4834H4.2z M18.1828 6.5166c-3.0212 0-5.4847 2.4622-5.4847 5.4834s2.4635 5.4834 5.4847 5.4834H19.8V6.5166h-1.6172z"
+  />
+</svg>

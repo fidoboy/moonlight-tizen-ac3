@@ -3,12 +3,20 @@ FROM ubuntu:22.04 AS splash
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
 COPY res/launch-screen.svg /tmp/launch-screen.svg
 COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
-RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --frames /tmp/launch-frames --static-svg /tmp/launch-screen-final.svg && \
-    rsvg-convert -w 1280 -h 720 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
-    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/launch-frames/frame-%03d.png -frames:v 288 \
-    -c:v libx264 -preset veryslow -tune stillimage -crf 18 -pix_fmt yuv420p \
-    -profile:v baseline -level 3.1 -an -movflags +faststart -y /tmp/launch-screen.mp4 && \
-    test -s /tmp/launch-screen.mp4 && test "$(stat -c %s /tmp/launch-screen.mp4)" -lt 2097152
+RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape && \
+    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --frames /tmp/launch-frames-portrait --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait && \
+    rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
+    rsvg-convert -w 1080 -h 1920 --format png -o /tmp/launch-screen-portrait.png /tmp/launch-screen-portrait-final.svg && \
+    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/launch-frames-landscape/frame-%03d.png -frames:v 258 \
+    -c:v libx264 -preset veryslow -tune stillimage -crf 20 -pix_fmt yuv420p \
+    -profile:v baseline -level 4.0 -an -movflags +faststart -y /tmp/launch-screen.mp4 && \
+    test -s /tmp/launch-screen.mp4 && echo "Landscape splash MP4: $(stat -c %s /tmp/launch-screen.mp4) bytes" && test "$(stat -c %s /tmp/launch-screen.mp4)" -lt 2097152 && \
+    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/launch-frames-portrait/frame-%03d.png -frames:v 258 \
+    -c:v libx264 -preset veryslow -tune stillimage -crf 20 -pix_fmt yuv420p \
+    -profile:v baseline -level 4.0 -an -movflags +faststart -y /tmp/launch-screen-portrait.mp4 && \
+    test -s /tmp/launch-screen-portrait.mp4 && echo "Portrait splash MP4: $(stat -c %s /tmp/launch-screen-portrait.mp4) bytes" && test "$(stat -c %s /tmp/launch-screen-portrait.mp4)" -lt 2097152 && \
+    test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
+    test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
 FROM ubuntu:22.04 AS sdk
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -139,6 +147,8 @@ RUN \
 RUN cmake --install build --prefix build
 COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.png
 COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
+COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png
+COPY --from=splash /tmp/launch-screen-portrait.mp4 build/widget/static/res/launch-screen-portrait.mp4
 RUN cp moonlight-tizen/res/icon.png build/widget/
 
 # Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later

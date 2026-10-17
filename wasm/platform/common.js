@@ -7,7 +7,12 @@
 // returns a new object. The new object contains only the exported definitions;
 // all other definitions in the anonymous function are inaccessible to external code.
 var common = (function() {
+  var wasmModuleStarted = false;
+
   function createWASMModule() {
+    if (wasmModuleStarted) return;
+    wasmModuleStarted = true;
+
     Module = {
       onRuntimeInitialized: () => {
         console.log('%c[common.js, createWASMModule]', 'color: gray;', 'WASM runtime initialized.');
@@ -106,7 +111,14 @@ var common = (function() {
     // do not change the status message.
     updateStatus('Page loaded.');
     attachDefaultListeners();
-    createWASMModule();
+
+    if (window._directSmartHubLaunch) {
+      // Preserve the fast direct-launch path: start WebAssembly immediately.
+      createWASMModule();
+    } else {
+      // Normal startup waits until the localized UI has been displayed for 500 ms.
+      window.startNormalStartupWasm = createWASMModule;
+    }
   }
 
   /** Saved text to display in the element with id 'statusField'. */

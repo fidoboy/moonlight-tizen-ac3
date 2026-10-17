@@ -832,6 +832,17 @@ body {
 .setting-option {
     margin: 25px;
 }
+#removeAllHostsOption {
+    box-sizing: border-box;
+    padding: 14px 16px 18px;
+    border: 1px solid rgba(255, 70, 70, 0.72);
+    border-radius: 12px;
+    background-color: rgba(220, 38, 38, 0.14);
+}
+.host-removal-consequences {
+    color: #ff9696;
+    font-weight: 700;
+}
 .settings-options label {
     color: #cfcfcf;
     display: inline-block;
@@ -958,7 +969,7 @@ body {
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
@@ -1090,7 +1101,8 @@ body {
 #continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus, #quitRunningAppBtn:hover, #quitRunningAppBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus, #sortAppsListBtn:hover,
+#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
@@ -1173,7 +1185,7 @@ body {
 .config-summary-item {
     display: inline-flex;
     flex: 0 0 auto;
-    align-items: baseline;
+    align-items: center;
     gap: 5px;
     padding: 0 10px;
     border-right: 1px solid #454955;
@@ -1182,6 +1194,21 @@ body {
 }
 .config-summary-item:first-child { padding-left: 2px; }
 .config-summary-item:last-child { border-right: 0; padding-right: 2px; }
+.config-summary-icon {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    object-fit: contain;
+    vertical-align: middle;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.config-summary-icon--dolby {
+    position: relative;
+    top: -3px;
+}
 .config-summary-label { color: #b9bdc8; }
 .config-summary-label::after { content: ":"; margin-right: 4px; }
 .config-summary-value { color: #fff; font-weight: 600; }

@@ -1118,7 +1118,8 @@ const Views = {
   InterfaceSettings: {
     view: new ListView(() => [
       'selectLanguage',
-      'ipAddressFieldModeBtn'
+      'ipAddressFieldModeBtn',
+      'showConfigSummaryBtn'
     ]),
     up: function() {
       this.view.prevOption();

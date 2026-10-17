@@ -1,6 +1,7 @@
 #include "moonlight_wasm.hpp"
 
 #include <condition_variable>
+#include <chrono>
 #include <functional>
 #include <mutex>
 
@@ -31,6 +32,9 @@ static constexpr TimeStamp kFrameTimeMargin = 0.5ms;
 static constexpr TimeStamp kPacingSpinTime = 1ms;
 static constexpr TimeStamp kTimeWindow = 1s;
 static constexpr uint32_t kSampleRate = 48000;
+
+// Maximum time to wait for a stage of media pipeline setup.
+static constexpr std::chrono::milliseconds kMediaSetupTimeout{5000};
 
 static uint32_t s_VideoFormat = 0;
 static uint32_t s_Width = 0;
@@ -148,14 +152,13 @@ bool MoonlightInstance::InitializeRenderingSurface(int width, int height) {
 int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags) {
   // Bind the media source to the media element
   g_Instance->m_MediaElement.SetSrc(g_Instance->m_Source.get());
+  g_Instance->m_SourceAttached = true;
   ClLogMessage("Waiting to close\n");
 
-  g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
     return g_Instance->m_EmssReadyState == EmssReadyState::kClosed;
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during initial close wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("initial close");
   }
   ClLogMessage("Closed\n");
 
@@ -252,6 +255,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       if (add_track_result) {
         g_Instance->m_AudioTrack = std::move(*add_track_result);
         g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+      } else {
+        ClLogMessage("The TV rejected the audio track\n");
+        return -1;
       }
     }
   }
@@ -302,18 +308,19 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     if (add_track_result) {
       g_Instance->m_VideoTrack = std::move(*add_track_result);
       g_Instance->m_VideoTrack.SetListener(&g_Instance->m_VideoTrackListener);
+    } else {
+      ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      return ERROR_VIDEO_SETUP_FAILED;
     }
   }
 
   ClLogMessage("Inb4 source open\n");
   g_Instance->m_Source->Open([](EmssOperationResult){});
-  g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
-    return g_Instance->m_EmssReadyState == EmssReadyState::kOpenPending || 
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
+    return g_Instance->m_EmssReadyState == EmssReadyState::kOpenPending ||
            g_Instance->m_EmssReadyState == EmssReadyState::kOpen;
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during open wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("open");
   }
 
   ClLogMessage("Source ready to open\n");
@@ -328,16 +335,16 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
   ClLogMessage("Waiting to start\n");
   // Only the EMSS backend opens an audio track, so the Web Audio backend has nothing to wait for
   if (g_Instance->m_AudioBackend == AudioBackend::Emss) {
-    g_Instance->WaitFor(&g_Instance->m_EmssAudioStateChanged, [] {
+    if (!g_Instance->WaitFor(&g_Instance->m_EmssAudioStateChanged, [] {
       return g_Instance->m_AudioStarted.load();
-    });
+    }, kMediaSetupTimeout)) {
+      return MediaSetupWaitFailed("audio start");
+    }
   }
-  g_Instance->WaitFor(&g_Instance->m_EmssVideoStateChanged, [] {
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssVideoStateChanged, [] {
     return g_Instance->m_VideoStarted.load();
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during audio/video wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("video start");
   }
 
   ClLogMessage("Started\n");
@@ -857,9 +864,19 @@ void MoonlightInstance::TogglePerformanceStats() {
   }
 }
 
-void MoonlightInstance::WaitFor(std::condition_variable* variable, std::function<bool()> condition) {
+bool MoonlightInstance::WaitFor(std::condition_variable* variable, std::function<bool()> condition, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(m_Mutex);
-  variable->wait(lock, [&]() { return m_ConnectionCancelled.load() || condition(); });
+  variable->wait_for(lock, timeout, [&]() { return m_ConnectionCancelled.load() || condition(); });
+  return !m_ConnectionCancelled.load() && condition();
+}
+
+int MoonlightInstance::MediaSetupWaitFailed(const char* step) {
+  if (g_Instance->m_ConnectionCancelled) {
+    ClLogMessage("Connection cancelled during %s wait\n", step);
+    return -1;
+  }
+  ClLogMessage("Timed out after %lld ms during %s wait\n", (long long)kMediaSetupTimeout.count(), step);
+  return ERROR_VIDEO_SETUP_FAILED;
 }
 
 DECODER_RENDERER_CALLBACKS MoonlightInstance::s_DrCallbacks = {

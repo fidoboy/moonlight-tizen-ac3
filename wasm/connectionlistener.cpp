@@ -15,6 +15,10 @@ void MoonlightInstance::ClStageFailed(int stage, int errorCode) {
   if (g_Instance && g_Instance->m_ConnectionCancelled) {
     return;
   }
+  // The stream termination message already explains why the video setup failed
+  if (stage == STAGE_VIDEO_STREAM_START && errorCode == ERROR_VIDEO_SETUP_FAILED) {
+    return;
+  }
   PostToJs(std::string("DialogMsg: ") + std::string(LiGetStageName(stage)) + std::string(" failed (error ") + std::to_string(errorCode) + std::string(")"));
 }
 
@@ -23,8 +27,15 @@ void MoonlightInstance::ClConnectionStarted(void) {
 }
 
 void MoonlightInstance::ClConnectionTerminated(int errorCode) {
-  // Teardown the connection
-  LiStopConnection();
+  // A host can terminate during startup while the TV is still waiting for the media
+  // pipeline. Wake those waits so LiStartConnection returns before the stop thread joins it.
+  g_Instance->CancelPendingSetup();
+
+  // LiStopConnection must not run while LiStartConnection is active; the stop thread
+  // handles teardown after startup returns.
+  if (g_Instance->m_Running) {
+    LiStopConnection();
+  }
 
   emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, onConnectionStopped, errorCode);
 }
