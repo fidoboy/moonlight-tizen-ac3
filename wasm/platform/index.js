@@ -3041,8 +3041,6 @@ function quitAppDialog() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // displayVideo marks the first rendered video frame; do not reset readiness here,
-  // because a fast direct Smart Hub launch can render before this UI transition.
   $('#main-header').hide();
   $('#main-content').children().not('#listener, #loadingSpinner').hide();
   $('#main-content').addClass('fullscreen');
@@ -3088,11 +3086,6 @@ function handleOnScreenOverlays() {
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
 function startGame(host, appID) {
-  // Reset readiness when a new session is requested, before asynchronous setup can
-  // deliver displayVideo. Do not reset it later in showStreamMode(), which may run
-  // after the first frame on a fast direct Smart Hub launch.
-  streamVideoReady = false;
-
   if (!host || !host.paired) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Attempted to start a game, but the host was not initialized properly! Host object: ', host);
     if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
@@ -3548,13 +3541,34 @@ function stopMouseMovePropagation(e) {
   e.stopPropagation();
 }
 
+function directSmartHubVideoReady(videoElement) {
+  if (!videoElement || videoElement.readyState < 2 ||
+      videoElement.videoWidth <= 0 || videoElement.videoHeight <= 0) {
+    return false;
+  }
+
+  // Do not expose the menu while either direct-launch connection status is still
+  // visible. The connection callback can precede the first decoded video frame.
+  var directStatus = document.getElementById('directSmartHubStatus');
+  if (directStatus && window.getComputedStyle(directStatus).display !== 'none') {
+    return false;
+  }
+
+  var loadingSpinner = document.getElementById('loadingSpinner');
+  if (loadingSpinner && window.getComputedStyle(loadingSpinner).display !== 'none') {
+    return false;
+  }
+
+  return true;
+}
+
 function toggleStreamMenuDialog() {
+  var videoElement = document.getElementById('wasm_module');
+
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
-    // The WASM view becomes visible when the connection is established. Do not
-    // gate menu access on displayVideo: that notification can be missed or arrive
-    // out of order on the direct Smart Hub PAYLOAD launch path.
+  } else if (videoElement && !isDialogOpen && videoElement.style.display !== 'none' &&
+      (!window._directSmartHubLaunch || directSmartHubVideoReady(videoElement))) {
     streamMenuDialog();
   }
 }
