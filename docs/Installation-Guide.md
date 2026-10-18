@@ -31,13 +31,13 @@ The USB package contains the standard Moonlight variant. If you specifically nee
 
 ## Method B: Apps2Samsung
 
-Apps2Samsung is an option for installing a signed WGT from a computer without using the USB demo package.
+[Apps2Samsung](https://apps2samsung.com/#download) is an option for installing a signed WGT from a computer without using the USB demo package.
 
 1. Connect the TV and computer to the same network.
 2. On the TV, open Apps and enter the Smart Hub remote-control code required by your model to expose the Developer Mode option.
 3. Enable Developer Mode and enter the computer's IP address where requested.
 4. Restart the TV if its Developer Mode screen requests it.
-5. Use the Apps2Samsung installer to connect to the TV and install the downloaded WGT.
+5. Use the [Apps2Samsung](https://apps2samsung.com/#download) installer to connect to the TV and install the downloaded WGT.
 
 The exact menu labels and code-entry behavior vary across Samsung TV generations. Do not change unrelated TV settings when enabling Developer Mode.
 
