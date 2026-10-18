@@ -3041,6 +3041,8 @@ function quitAppDialog() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
+  // Reset readiness per session; displayVideo marks the first rendered video frame.
+  streamVideoReady = false;
   $('#main-header').hide();
   $('#main-content').children().not('#listener, #loadingSpinner').hide();
   $('#main-content').addClass('fullscreen');
@@ -3544,9 +3546,7 @@ function stopMouseMovePropagation(e) {
 function toggleStreamMenuDialog() {
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
-    // The Wasm module is made visible after Connection Established. Do not gate this
-    // on displayVideo: some direct Smart Hub launches do not update that flag reliably.
+  } else if ((!window._directSmartHubLaunch || streamVideoReady) && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
     streamMenuDialog();
   }
 }
