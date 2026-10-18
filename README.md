@@ -62,7 +62,7 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 - [Samsung Tizen OS licensing partnerships (2022)](https://news.samsung.com/uk/samsung-tizen-os-expands-its-global-presence-with-new-licensing-partnerships)
 - [Expansion of the Tizen OS licensing program (2025)](https://news.samsung.com/global/samsung-expands-tizen-os-licensing-program-with-new-global-partners-and-enhanced-offerings)
 
-**Compatibility note:** Moonlight for Tizen has been tested on Samsung Smart TVs. Compatibility with Tizen-powered TVs from other manufacturers has not been verified and may vary by model, firmware, and available platform features.
+**Compatibility note:** Moonlight for Tizen (AC-3) has been tested on Samsung Smart TVs. Compatibility with Tizen-powered TVs from other manufacturers has not been verified and may vary by model, firmware, and available platform features.
 
 ---
 
