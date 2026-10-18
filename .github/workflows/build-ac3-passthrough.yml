@@ -6,17 +6,31 @@ on:
       - master
     paths:
       - 'CMakeLists.txt'
-      - 'res/**'
       - 'Dockerfile'
+      - '.dockerignore'
+      - 'res/**'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
       - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
       - 'wasm/**'
-      - 'tests/**'
-      - 'docs/**'
-      - 'CHANGELOG.md'
       - '.github/workflows/**'
   pull_request:
     branches:
       - master
+    paths:
+      - 'CMakeLists.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'res/**'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'wasm/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
