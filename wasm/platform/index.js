@@ -3380,7 +3380,7 @@ function stopGame(host, callbackFunction) {
             if (typeof(callbackFunction) === "function") callbackFunction();
           });
         }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\\n', host, '\\n' + host.toString());
+          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
           restoreConfigSummaryAfterQuit();
         });
       }, function(failedQuitApp) {
@@ -3392,7 +3392,7 @@ function stopGame(host, callbackFunction) {
       restoreConfigSummaryAfterQuit();
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\\n', host, '\\n' + host.toString());
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
     restoreConfigSummaryAfterQuit();
   });
 }
