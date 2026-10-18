@@ -1143,7 +1143,10 @@ body {
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: #ececec;
-    background-color: rgba(64, 67, 84, 1);
+    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
+}
+
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     background-image: url('../res/ic_arrow_drop_down_48px.svg') !important;
     background-position: 94.8% 50% !important;
     background-repeat: no-repeat !important;

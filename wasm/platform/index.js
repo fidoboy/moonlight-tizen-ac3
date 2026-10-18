@@ -4363,10 +4363,6 @@ function updatePerformanceStatsPositionAvailability(enabled) {
   button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
   button.classList.toggle('is-disabled', !enabled);
 
-  if (!enabled) {
-    closePopupMenu('selectPerformanceStatsPosition');
-    closeActiveVisibleMenu();
-  }
 }
 
 function savePerformanceStats() {
@@ -4375,6 +4371,10 @@ function savePerformanceStats() {
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
     storeData('performanceStats', chosenPerformanceStats, null);
     updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
+    if (!chosenPerformanceStats && Views.SelectPerformanceStatsPositionMenu.isActive()) {
+      closePopupMenu('selectPerformanceStatsPosition');
+      closeActiveVisibleMenu();
+    }
   }, 100);
 }
 
