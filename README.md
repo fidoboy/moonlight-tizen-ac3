@@ -69,11 +69,18 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 
 ## 📦 Installation
 
-Preparing Moonlight for installation is straightforward, although the exact steps depend on your TV's Tizen version and the method you choose.
+**Recommended — USB installation (quickest; no Developer Mode or PC installer required):**
 
-- Download a signed WGT from the [project's Releases](https://github.com/fidoboy/moonlight-tizen-ac3/releases).
-- Follow this project's [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md).
-- Use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
+1. [Download MoonlightUSB.zip](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/MoonlightUSB.zip) from the latest stable release.
+2. Extract the ZIP archive to the root of a USB drive so that `userwidget/app.tmg` and `userwidget/widget.license` are at the drive's root level.
+3. Insert the USB drive into the TV and wait for the installation process to complete.
+
+> [!WARNING]
+> This uses Samsung's temporary USB demo installation mechanism. Its license is time-limited (approximately 30 days), and persistence depends on the TV model and firmware. The USB package is refreshed monthly; if it expires or Moonlight disappears, download the package again from the same link and repeat the steps. For a persistent installation, use Apps2Samsung or Tizen Studio, which require enabling Developer Mode on the TV.
+
+The USB package contains the standard Moonlight variant. If you need the **ForceGM** variant, download `Moonlight-ForceGM.wgt` from the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases) and install it using Apps2Samsung or Tizen Studio.
+
+See the complete [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for the alternative methods. Then use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
 
 ---
 
