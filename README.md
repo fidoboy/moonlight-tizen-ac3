@@ -76,9 +76,9 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 3. Insert the USB drive into the TV and wait for the installation process to complete.
 
 > [!WARNING]
-> This uses Samsung's temporary USB demo installation mechanism. Its license is time-limited (approximately 30 days), and persistence depends on the TV model and firmware. The USB package is refreshed monthly; if it expires or Moonlight disappears, download the package again from the same link and repeat the steps. For a persistent installation, use Apps2Samsung or Tizen Studio, which require enabling Developer Mode on the TV.
+> This uses Samsung's temporary USB demo installation mechanism. Its license is time-limited (approximately 30 days), and persistence depends on the TV model and firmware. The USB package is refreshed monthly; if it expires or Moonlight disappears, download the package again from the same link and repeat the steps. For a persistent installation, use [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio, which require enabling Developer Mode on the TV.
 
-The USB package contains the standard Moonlight variant. If you need the **ForceGM** variant, download `Moonlight-ForceGM.wgt` from the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases) and install it using Apps2Samsung or Tizen Studio.
+The USB package contains the standard Moonlight variant. If you need the **ForceGM** variant, download `Moonlight-ForceGM.wgt` from the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio.
 
 See the complete [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for the alternative methods. Then use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
 
