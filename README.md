@@ -30,7 +30,7 @@ This repository is an **independently maintained project derived from** [Brightc
 - **Faster Smart Hub app launching:** games and applications can now be launched directly from their Samsung Smart Hub shortcuts without loading Moonlight's full interface, significantly reducing startup time. Launching Moonlight from its own app icon retains the normal startup flow.
 - **Streaming configuration summary bar:** the Hosts and Apps screens show the current Moonlight streaming configuration at a glance, including resolution, frame rate, bitrate, HDR, video codec, Dolby audio, channel layout, and Game Mode.
 - **Remote-accessible Stream Menu:** press the TV remote's Play/Pause button while streaming to open the Stream Menu, which provides host keyboard shortcuts, performance-statistics controls, disconnect, and close-menu actions.
-- **Audio stream statistics:** shows the negotiated audio codec, channel layout, channel count, and approximate audio bitrate alongside the existing video and performance statistics.
+- **Audio stream and enhanced statistics:** Displays the negotiated audio codec, channel layout, channel count, and approximate audio bitrate alongside the existing video statistics. Also adds latency graphs and improves the statistics overlay's readability and layout.
 - **Languages localization:** adds the German (de-DE), French (fr-FR), Italian (it-IT), Russian (ru-RU) and Spanish (es-ES) translations for the interface, including the new settings and audio statistics.
 - **Quit host app on disconnect:** an optional setting requests that the running host application quit after a normal disconnection; unexpected connection failures do not trigger it.
 - **Animated native launch screen:** adds an animated Tizen splash screen.
