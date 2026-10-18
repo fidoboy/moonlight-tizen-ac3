@@ -12,6 +12,8 @@
     <icon src="icon.png"/>
     <tizen:video_splash_screen ready_when="custom">
         <tizen:vss_default video="static/res/launch-screen.mp4" background_image="static/res/launch-screen.png" background_color="#000000" image="static/res/launch-screen.png" image_border="0px stretch"/>
+        <tizen:vss_landscape video="static/res/launch-screen.mp4" background_image="static/res/launch-screen.png" background_color="#000000" image="static/res/launch-screen.png" image_border="0px stretch"/>
+        <tizen:vss_portrait video="static/res/launch-screen-portrait.mp4" background_image="static/res/launch-screen-portrait.png" background_color="#000000" image="static/res/launch-screen-portrait.png" image_border="0px stretch"/>
     </tizen:video_splash_screen>
     <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide" value="false"/>
     <tizen:metadata key="http://samsung.com/tv/metadata/floating.navigation" value="false"/>

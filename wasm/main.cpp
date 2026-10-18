@@ -65,7 +65,8 @@ MoonlightInstance::MoonlightInstance()
     m_VideoTrack(),
     m_ConnectionCancelled(false),
     m_StopThread(0),
-    m_SourceClosed(false) {
+    m_SourceClosed(false),
+    m_SourceAttached(false) {
       m_Dispatcher.start();
     }
 
@@ -93,10 +94,7 @@ void MoonlightInstance::OnConnectionStopped(uint32_t error) {
 }
 
 void MoonlightInstance::StopConnection() {
-  m_ConnectionCancelled = true;
-  g_Instance->m_EmssStateChanged.notify_all();
-  g_Instance->m_EmssAudioStateChanged.notify_all();
-  g_Instance->m_EmssVideoStateChanged.notify_all();
+  CancelPendingSetup();
 
   // We'll need to call the listener ourselves since our connection terminated
   // callback won't be invoked for a manually requested termination.
@@ -116,43 +114,63 @@ void* MoonlightInstance::StopThreadFunc(void* context) {
   LiSendKeyboardEvent(0xA4, KEY_ACTION_UP, 0);
   LiSendKeyboardEvent(0xA5, KEY_ACTION_UP, 0);
 
-  // Not running anymore
   g_Instance->m_Running = false;
 
-  // We also need to stop this thread after the connection thread, because it
-  // depends on being initialized there.
-  pthread_join(g_Instance->m_InputThread, NULL);
-
-  // Stop the connection
-  LiStopConnection();
-
-  // Close the media source and release tracks to ensure WebKit garbage collection
-  if (g_Instance && g_Instance->m_Source) {
-    g_Instance->m_Source->Close([](samsung::wasm::OperationResult err) {
-      g_Instance->m_AudioTrack = samsung::wasm::ElementaryMediaTrack();
-      g_Instance->m_VideoTrack = samsung::wasm::ElementaryMediaTrack();
-      
-      std::unique_lock<std::mutex> lock(g_Instance->m_Mutex);
-      g_Instance->m_SourceClosed = true;
-      g_Instance->m_SourceClosedCV.notify_all();
-    });
-    
-    // Synchronously wait for the source to close before exiting,
-    // which prevents the next StartStream from stomping on our teardown.
-    std::unique_lock<std::mutex> lock(g_Instance->m_Mutex);
-    g_Instance->m_SourceClosedCV.wait(lock, [] {
-      return g_Instance->m_SourceClosed.load();
-    });
-    
-    // Reset EMSS state variables for the next stream
-    g_Instance->m_EmssReadyState = EmssReadyState::kDetached;
-    g_Instance->m_AudioStarted = false;
-    g_Instance->m_VideoStarted = false;
-    g_Instance->m_AudioSessionId = 0;
-    g_Instance->m_VideoSessionId = 0;
+  // The input thread only starts after successful connection establishment.
+  if (g_Instance->m_InputThread != 0) {
+    pthread_join(g_Instance->m_InputThread, NULL);
+    g_Instance->m_InputThread = 0;
   }
 
+  LiStopConnection();
+  g_Instance->CloseMediaSource();
   return NULL;
+}
+
+void MoonlightInstance::CancelPendingSetup() {
+  // Set cancellation under the same mutex used by setup waits, so a wait that
+  // is about to start cannot miss the wake-up notification.
+  std::unique_lock<std::mutex> lock(m_Mutex);
+  m_ConnectionCancelled = true;
+  m_EmssStateChanged.notify_all();
+  m_EmssAudioStateChanged.notify_all();
+  m_EmssVideoStateChanged.notify_all();
+}
+
+void MoonlightInstance::CloseMediaSource() {
+  if (!m_Source) {
+    return;
+  }
+
+  {
+    std::unique_lock<std::mutex> lock(m_Mutex);
+    m_SourceClosed = false;
+  }
+
+  m_Source->Close([](samsung::wasm::OperationResult err) {
+    g_Instance->m_AudioTrack = samsung::wasm::ElementaryMediaTrack();
+    g_Instance->m_VideoTrack = samsung::wasm::ElementaryMediaTrack();
+
+    std::unique_lock<std::mutex> lock(g_Instance->m_Mutex);
+    g_Instance->m_SourceClosed = true;
+    g_Instance->m_SourceClosedCV.notify_all();
+  });
+
+  // Bound the wait: the next StartStream waits for teardown, so an unbounded wait
+  // here could freeze the UI if the media source never reports that it closed.
+  std::unique_lock<std::mutex> lock(m_Mutex);
+  if (!m_SourceClosedCV.wait_for(lock, std::chrono::seconds(5), [this] {
+    return m_SourceClosed.load();
+  })) {
+    ClLogMessage("Timed out waiting for the media source to close\n");
+  }
+
+  m_EmssReadyState = EmssReadyState::kDetached;
+  m_AudioStarted = false;
+  m_VideoStarted = false;
+  m_AudioSessionId = 0;
+  m_VideoSessionId = 0;
+  m_SourceAttached = false;
 }
 
 void* MoonlightInstance::InputThreadFunc(void* context) {
@@ -240,6 +258,12 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
   err = LiStartConnection(&serverInfo, &me->m_StreamConfig, &MoonlightInstance::s_ClCallbacks,
     &MoonlightInstance::s_DrCallbacks, &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0);
   if (err != 0) {
+    // A failed media setup may leave the source attached. Clean it up before
+    // telling JavaScript the stream ended, so the next session can start cleanly.
+    if (!me->m_ConnectionCancelled && me->m_SourceAttached) {
+      me->CloseMediaSource();
+    }
+
     // Notify the JS code that the stream has ended!
     // NB: We pass error code 0 here to avoid triggering a "Connection terminated" warning message.
     if (me->m_ConnectionCancelled) {
@@ -276,6 +300,8 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   }
   m_ConnectionCancelled = false;
   m_SourceClosed = false;
+  m_SourceAttached = false;
+  m_InputThread = 0;
 
   PostToJs("Setting the Host address to: " + host + ":" + std::to_string(httpPort));
   PostToJs("Setting the Video resolution to: " + width + "x" + height);
@@ -440,7 +466,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   m_FullRangeEnabled = fullRange;
   m_GameModeEnabled = gameMode;
   m_DisableWarningsEnabled = disableWarnings;
-  m_PerformanceStatsEnabled = performanceStats;
+  m_PerformanceStatsEnabled.store(performanceStats, std::memory_order_relaxed);
 
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {

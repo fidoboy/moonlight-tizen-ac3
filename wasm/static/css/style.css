@@ -752,12 +752,75 @@ body {
     top: 10px;
     left: 10px;
     z-index: 3;
-    padding: 8px;
+    padding: 20px;
     border-radius: 8px;
-    font-size: 1.65rem;
+    font-size: 16px;
     font-weight: 500;
     line-height: 1.2;
     white-space: pre-wrap;
+}
+
+#performance-stats .performance-stats-text {
+    white-space: normal;
+    line-height: 1.3;
+}
+
+#performance-stats .performance-stats-row {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    white-space: nowrap;
+}
+
+#performance-stats .performance-stats-label {
+    color: #aaaaaa;
+    flex: 0 0 auto;
+    margin-right: 2ch;
+    text-align: left;
+}
+
+#performance-stats .performance-stats-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+}
+
+#performance-stats .performance-stats-message {
+    white-space: pre-wrap;
+}
+
+#performance-stats-graph,
+#performance-stats-host-graph {
+    display: block;
+    width: 100%;
+    height: 160px;
+    margin-top: 16px;
+}
+
+#performance-stats.performance-stats-position-top-left {
+    top: 10px;
+    left: 10px;
+    right: auto;
+    bottom: auto;
+}
+#performance-stats.performance-stats-position-top-right {
+    top: 10px;
+    right: 10px;
+    left: auto;
+    bottom: auto;
+}
+#performance-stats.performance-stats-position-bottom-left {
+    bottom: 10px;
+    left: 10px;
+    top: auto;
+    right: auto;
+}
+#performance-stats.performance-stats-position-bottom-right {
+    bottom: 10px;
+    right: 10px;
+    top: auto;
+    left: auto;
 }
 /* =============================
    Settings Section
@@ -831,6 +894,17 @@ body {
 }
 .setting-option {
     margin: 25px;
+}
+#removeAllHostsOption {
+    box-sizing: border-box;
+    padding: 14px 16px 18px;
+    border: 1px solid rgba(255, 70, 70, 0.72);
+    border-radius: 12px;
+    background-color: rgba(220, 38, 38, 0.14);
+}
+.host-removal-consequences {
+    color: #ff9696;
+    font-weight: 700;
 }
 .settings-options label {
     color: #cfcfcf;
@@ -952,17 +1026,17 @@ body {
     border: 1px solid #FFA620;
 }
 #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectAudioJitter, #selectCodec, #navigationGuideBtn,
+#selectAudioBackend, #selectAudio, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
-#selectCodec, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
+#selectCodec, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
     color: #ececec;
     background-color: #404354;
@@ -1017,12 +1091,12 @@ body {
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
-.videoCodecMenu, .mdl-menu__container {
+.videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
-.videoCodecMenu, .mdl-menu__outline {
+.videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
@@ -1066,9 +1140,22 @@ body {
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
 #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
-#audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec {
+#audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: #ececec;
     background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
+}
+
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition {
+    background-image: url('../res/ic_arrow_drop_down_48px.svg') !important;
+    background-position: 94.8% 50% !important;
+    background-repeat: no-repeat !important;
+}
+
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
+    background-color: #484c5f;
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
 #restartApplicationIcon {
@@ -1090,7 +1177,9 @@ body {
 #continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus, #quitRunningAppBtn:hover, #quitRunningAppBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus, #sortAppsListBtn:hover,
+#selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
+#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
@@ -1173,7 +1262,7 @@ body {
 .config-summary-item {
     display: inline-flex;
     flex: 0 0 auto;
-    align-items: baseline;
+    align-items: center;
     gap: 5px;
     padding: 0 10px;
     border-right: 1px solid #454955;
@@ -1182,6 +1271,21 @@ body {
 }
 .config-summary-item:first-child { padding-left: 2px; }
 .config-summary-item:last-child { border-right: 0; padding-right: 2px; }
+.config-summary-icon {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    object-fit: contain;
+    vertical-align: middle;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.config-summary-icon--dolby {
+    position: relative;
+    top: -3px;
+}
 .config-summary-label { color: #b9bdc8; }
 .config-summary-label::after { content: ":"; margin-right: 4px; }
 .config-summary-value { color: #fff; font-weight: 600; }

@@ -1118,7 +1118,8 @@ const Views = {
   InterfaceSettings: {
     view: new ListView(() => [
       'selectLanguage',
-      'ipAddressFieldModeBtn'
+      'ipAddressFieldModeBtn',
+      'showConfigSummaryBtn'
     ]),
     up: function() {
       this.view.prevOption();
@@ -1484,12 +1485,45 @@ const Views = {
       unmark(this.view.current());
     },
   },
+  SelectPerformanceStatsPositionMenu: {
+    isActive: () => isPopupMenuActive('performanceStatsPositionMenu'),
+    view: new ListView(() =>
+      document.getElementById('performanceStatsPositionMenu')
+      .parentNode.children[3].children[1].children),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectPerformanceStatsPosition'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectPerformanceStatsPosition');
+      closeActiveVisibleMenu();
+      focusElement('selectPerformanceStatsPosition');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
   AdvancedSettings: {
     view: new ListView(() => [
       'unlockAllFpsBtn',
       'optimizeBitrateBtn',
       'disableWarningsBtn',
-      'performanceStatsBtn'
+      'performanceStatsBtn',
+      'selectPerformanceStatsPosition'
     ]),
     up: function() {
       this.view.prevOption();

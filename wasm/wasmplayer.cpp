@@ -1,6 +1,7 @@
 #include "moonlight_wasm.hpp"
 
 #include <condition_variable>
+#include <chrono>
 #include <functional>
 #include <mutex>
 
@@ -32,6 +33,9 @@ static constexpr TimeStamp kPacingSpinTime = 1ms;
 static constexpr TimeStamp kTimeWindow = 1s;
 static constexpr uint32_t kSampleRate = 48000;
 
+// Maximum time to wait for a stage of media pipeline setup.
+static constexpr std::chrono::milliseconds kMediaSetupTimeout{5000};
+
 static uint32_t s_VideoFormat = 0;
 static uint32_t s_Width = 0;
 static uint32_t s_Height = 0;
@@ -53,6 +57,7 @@ static bool s_FramePacingEnabled = false;
 
 static uint32_t total_bytes = 0;
 static int m_LastFrameNumber = 0;
+static bool s_PerformanceStatsCollecting = false;
 
 // Fixed-size writable buffer used by FormatVideoStats().
 static std::string s_StatString(2048, '\0');
@@ -148,14 +153,13 @@ bool MoonlightInstance::InitializeRenderingSurface(int width, int height) {
 int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags) {
   // Bind the media source to the media element
   g_Instance->m_MediaElement.SetSrc(g_Instance->m_Source.get());
+  g_Instance->m_SourceAttached = true;
   ClLogMessage("Waiting to close\n");
 
-  g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
     return g_Instance->m_EmssReadyState == EmssReadyState::kClosed;
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during initial close wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("initial close");
   }
   ClLogMessage("Closed\n");
 
@@ -252,6 +256,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       if (add_track_result) {
         g_Instance->m_AudioTrack = std::move(*add_track_result);
         g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+      } else {
+        ClLogMessage("The TV rejected the audio track\n");
+        return -1;
       }
     }
   }
@@ -302,18 +309,19 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     if (add_track_result) {
       g_Instance->m_VideoTrack = std::move(*add_track_result);
       g_Instance->m_VideoTrack.SetListener(&g_Instance->m_VideoTrackListener);
+    } else {
+      ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      return ERROR_VIDEO_SETUP_FAILED;
     }
   }
 
   ClLogMessage("Inb4 source open\n");
   g_Instance->m_Source->Open([](EmssOperationResult){});
-  g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
-    return g_Instance->m_EmssReadyState == EmssReadyState::kOpenPending || 
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
+    return g_Instance->m_EmssReadyState == EmssReadyState::kOpenPending ||
            g_Instance->m_EmssReadyState == EmssReadyState::kOpen;
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during open wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("open");
   }
 
   ClLogMessage("Source ready to open\n");
@@ -328,16 +336,16 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
   ClLogMessage("Waiting to start\n");
   // Only the EMSS backend opens an audio track, so the Web Audio backend has nothing to wait for
   if (g_Instance->m_AudioBackend == AudioBackend::Emss) {
-    g_Instance->WaitFor(&g_Instance->m_EmssAudioStateChanged, [] {
+    if (!g_Instance->WaitFor(&g_Instance->m_EmssAudioStateChanged, [] {
       return g_Instance->m_AudioStarted.load();
-    });
+    }, kMediaSetupTimeout)) {
+      return MediaSetupWaitFailed("audio start");
+    }
   }
-  g_Instance->WaitFor(&g_Instance->m_EmssVideoStateChanged, [] {
+  if (!g_Instance->WaitFor(&g_Instance->m_EmssVideoStateChanged, [] {
     return g_Instance->m_VideoStarted.load();
-  });
-  if (g_Instance->m_ConnectionCancelled) {
-    ClLogMessage("Connection cancelled during audio/video wait\n");
-    return -1;
+  }, kMediaSetupTimeout)) {
+    return MediaSetupWaitFailed("video start");
   }
 
   ClLogMessage("Started\n");
@@ -388,6 +396,7 @@ int MoonlightInstance::VidDecSetup(int videoFormat, int width, int height, int r
 
   // Reset last frame number to prevent massive integer underflow on subsequent streams
   m_LastFrameNumber = 0;
+  s_PerformanceStatsCollecting = false;
 
   // Reset received video and audio byte counts for the new stream.
   total_bytes = 0;
@@ -417,6 +426,23 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
   // Check if video playback has not started
   if (!g_Instance->m_VideoStarted) {
     return DR_OK;
+  }
+
+  // Collect overlay-specific metrics only while the performance statistics are enabled.
+  const bool collectPerformanceStats =
+    g_Instance->m_PerformanceStatsEnabled.load(std::memory_order_relaxed);
+  if (collectPerformanceStats && !s_PerformanceStatsCollecting) {
+    // Start with a clean measurement window when statistics are enabled mid-stream.
+    memset(&m_ActiveWndVideoStats, 0, sizeof(m_ActiveWndVideoStats));
+    memset(&m_LastWndVideoStats, 0, sizeof(m_LastWndVideoStats));
+    memset(&m_GlobalVideoStats, 0, sizeof(m_GlobalVideoStats));
+    m_LastFrameNumber = 0;
+    total_bytes = 0;
+    g_Instance->m_AudioBytesReceived.store(0, std::memory_order_relaxed);
+    std::fill(s_StatString.begin(), s_StatString.end(), '\0');
+    s_PerformanceStatsCollecting = true;
+  } else if (!collectPerformanceStats) {
+    s_PerformanceStatsCollecting = false;
   }
 
   // Declare variables for entry data, offset, and total length
@@ -466,8 +492,11 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     s_hasFirstFrame = true;
   }
 
-  // Calculate the start of the pacing duration in milliseconds
-  uint32_t pacingStart = LiGetMillis();
+  // Measure pacing duration only when it will be used by the statistics overlay.
+  uint32_t pacingStart = 0;
+  if (collectPerformanceStats) {
+    pacingStart = LiGetMillis();
+  }
 
   // Check if the frame pacing is enabled
   if (s_FramePacingEnabled) {
@@ -495,90 +524,108 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     }
   }
 
-  // Calculate the end of the pacing duration in milliseconds
-  uint32_t pacingEnd = LiGetMillis();
-
-  // Measure total pacer time based on calculated pacing duration
-  m_ActiveWndVideoStats.totalPacerTime += pacingEnd - pacingStart;
+  if (collectPerformanceStats) {
+    // Measure total pacer time based on calculated pacing duration.
+    const uint32_t pacingEnd = LiGetMillis();
+    m_ActiveWndVideoStats.totalPacerTime += pacingEnd - pacingStart;
+  }
 
   // Update the timestamp of the last packet append
   s_lastTime = now;
 
-  // Track the total number of bytes received by the decoding unit
-  total_bytes += decodeUnit->fullLength;
+  if (collectPerformanceStats) {
+    // Track the total number of bytes received by the decoding unit.
+    total_bytes += decodeUnit->fullLength;
 
-  // Start performance stats collection if this is the first frame
-  if (!m_LastFrameNumber) {
-    // Record the timestamp when measurement started
-    m_ActiveWndVideoStats.measurementStartTimestamp = LiGetMillis();
-    m_LastFrameNumber = decodeUnit->frameNumber;
-  } else {
-    // Any frame number greater than the last frame number + 1 represents a dropped frame
-    m_ActiveWndVideoStats.networkDroppedFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
-    m_ActiveWndVideoStats.totalFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
-    m_LastFrameNumber = decodeUnit->frameNumber;
-  }
+    // Start performance stats collection if this is the first measured frame.
+    if (!m_LastFrameNumber) {
+      m_ActiveWndVideoStats.measurementStartTimestamp = LiGetMillis();
+      m_LastFrameNumber = decodeUnit->frameNumber;
+    } else {
+      // Any frame number greater than the last frame number + 1 represents a dropped frame.
+      m_ActiveWndVideoStats.networkDroppedFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
+      m_ActiveWndVideoStats.totalFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
+      m_LastFrameNumber = decodeUnit->frameNumber;
+    }
 
-  // Get the current time in milliseconds to check whether the stats window has elapsed
-  uint32_t nowMs = LiGetMillis();
+    const uint32_t nowMs = LiGetMillis();
 
-  // Flip performance stats window roughly every second
-  if (m_ActiveWndVideoStats.measurementStartTimestamp + 1000 < nowMs) {
-    const uint32_t statsIntervalMs = nowMs - m_ActiveWndVideoStats.measurementStartTimestamp;
-    const uint64_t audioBytesReceived = g_Instance != nullptr
-      ? g_Instance->m_AudioBytesReceived.exchange(0, std::memory_order_relaxed)
-      : 0;
-    const float audioBitrateKbps = statsIntervalMs > 0
-      ? (static_cast<float>(audioBytesReceived) * 8.0f) / statsIntervalMs
-      : 0.0f;
+    // Flip the performance stats window roughly every second.
+    if (m_ActiveWndVideoStats.measurementStartTimestamp + 1000 < nowMs) {
+      const uint32_t statsIntervalMs = nowMs - m_ActiveWndVideoStats.measurementStartTimestamp;
+      const uint64_t audioBytesReceived =
+        g_Instance->m_AudioBytesReceived.exchange(0, std::memory_order_relaxed);
+      const float audioBitrateKbps = statsIntervalMs > 0
+        ? (static_cast<float>(audioBytesReceived) * 8.0f) / statsIntervalMs
+        : 0.0f;
 
-    // Update performance stats overlay if it's enabled
-    if (g_Instance->m_PerformanceStatsEnabled == true) {
-      // Create a container to hold aggregated stats for display
       VIDEO_STATS lastTwoWndStats = {};
-      // Calculate the bitrate in megabits per second from the bytes received over the actual length of this window
-      lastTwoWndStats.receivedBitrate = (total_bytes * 8.0f) / ((nowMs - m_ActiveWndVideoStats.measurementStartTimestamp) * 1000.0f);
-      // Add last window and current window to the aggregated stats
+      lastTwoWndStats.receivedBitrate =
+        (total_bytes * 8.0f) / (statsIntervalMs * 1000.0f);
       AddVideoStats(m_LastWndVideoStats, lastTwoWndStats);
       AddVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
       lastTwoWndStats.receivedAudioBitrateKbps = audioBitrateKbps;
-      // Convert the aggregated stats to a display string
+
+      // Format and send text statistics.
       FormatVideoStats(lastTwoWndStats, s_StatString.data(), s_StatString.length());
-      // Send the formatted stats string to the JS frontend for overlay display
       PostToJs(std::string("StatMsg: ") + s_StatString.data());
-      // Clear the stats string buffer for the next use
-      std::fill(s_StatString.begin(), s_StatString.end(), 0);
+
+      // Send host latency only when valid measurements are available.
+      if (lastTwoWndStats.framesWithHostProcessingLatency > 0) {
+        char hostLatencyMessage[128];
+        const int hostLatencyMessageLength = snprintf(
+          hostLatencyMessage, sizeof(hostLatencyMessage),
+          "HostLatencyMsg: %.1f,%.1f,%.1f",
+          (float)lastTwoWndStats.minHostProcessingLatency / 10,
+          (float)lastTwoWndStats.maxHostProcessingLatency / 10,
+          (float)lastTwoWndStats.totalHostProcessingLatency / 10 /
+            lastTwoWndStats.framesWithHostProcessingLatency
+        );
+        if (hostLatencyMessageLength > 0 &&
+            hostLatencyMessageLength < (int)sizeof(hostLatencyMessage)) {
+          PostToJs(hostLatencyMessage);
+        }
+      }
+
+      // Send one graph sample on the same tick as the textual statistics.
+      char graphMessage[96];
+      const int graphMessageLength = snprintf(
+        graphMessage, sizeof(graphMessage), "GraphMsg: %u,%u,%u",
+        lastTwoWndStats.lastRtt,
+        lastTwoWndStats.lastRttVariance,
+        m_ActiveWndVideoStats.networkDroppedFrames
+      );
+      if (graphMessageLength > 0 && graphMessageLength < (int)sizeof(graphMessage)) {
+        PostToJs(graphMessage);
+      }
+
+      std::fill(s_StatString.begin(), s_StatString.end(), '\0');
+      total_bytes = 0;
+      AddVideoStats(m_ActiveWndVideoStats, m_GlobalVideoStats);
+      memcpy(&m_LastWndVideoStats, &m_ActiveWndVideoStats, sizeof(m_ActiveWndVideoStats));
+      memset(&m_ActiveWndVideoStats, 0, sizeof(m_ActiveWndVideoStats));
+      m_ActiveWndVideoStats.measurementStartTimestamp = LiGetMillis();
     }
-    // Reset byte count for the next measurement interval, even while the overlay is hidden,
-    // so that enabling the overlay mid-stream doesn't report every byte since the stream started
-    total_bytes = 0;
-    // Accumulate active window stats into global stats for overall tracking
-    AddVideoStats(m_ActiveWndVideoStats, m_GlobalVideoStats);
-    // Move current active stats to last window stats and reset active window stats for new interval
-    memcpy(&m_LastWndVideoStats, &m_ActiveWndVideoStats, sizeof(m_ActiveWndVideoStats));
-    memset(&m_ActiveWndVideoStats, 0, sizeof(m_ActiveWndVideoStats));
-    m_ActiveWndVideoStats.measurementStartTimestamp = LiGetMillis();
   }
 
-  // Update min host processing latency if a valid value was provided
-  if (decodeUnit->frameHostProcessingLatency != 0) {
-    // Take the minimum of current min latency and new latency
-    if (m_ActiveWndVideoStats.minHostProcessingLatency != 0) {
-      m_ActiveWndVideoStats.minHostProcessingLatency = MIN(m_ActiveWndVideoStats.minHostProcessingLatency, decodeUnit->frameHostProcessingLatency);
-    } else {
-      m_ActiveWndVideoStats.minHostProcessingLatency = decodeUnit->frameHostProcessingLatency;
+  if (collectPerformanceStats) {
+    // Accumulate host processing latency only for the statistics overlay.
+    if (decodeUnit->frameHostProcessingLatency != 0) {
+      if (m_ActiveWndVideoStats.minHostProcessingLatency != 0) {
+        m_ActiveWndVideoStats.minHostProcessingLatency =
+          MIN(m_ActiveWndVideoStats.minHostProcessingLatency, decodeUnit->frameHostProcessingLatency);
+      } else {
+        m_ActiveWndVideoStats.minHostProcessingLatency = decodeUnit->frameHostProcessingLatency;
+      }
+      m_ActiveWndVideoStats.framesWithHostProcessingLatency += 1;
     }
-    // Count how many frames included host processing latency data
-    m_ActiveWndVideoStats.framesWithHostProcessingLatency += 1;
+
+    m_ActiveWndVideoStats.maxHostProcessingLatency =
+      MAX(m_ActiveWndVideoStats.maxHostProcessingLatency, decodeUnit->frameHostProcessingLatency);
+    m_ActiveWndVideoStats.totalHostProcessingLatency += decodeUnit->frameHostProcessingLatency;
+    m_ActiveWndVideoStats.receivedFrames++;
+    m_ActiveWndVideoStats.totalFrames++;
   }
-
-  // Update max and total host processing latency
-  m_ActiveWndVideoStats.maxHostProcessingLatency = MAX(m_ActiveWndVideoStats.maxHostProcessingLatency, decodeUnit->frameHostProcessingLatency);
-  m_ActiveWndVideoStats.totalHostProcessingLatency += decodeUnit->frameHostProcessingLatency;
-
-  // Count the received frame and increment total frames
-  m_ActiveWndVideoStats.receivedFrames++;
-  m_ActiveWndVideoStats.totalFrames++;
 
   // Create an ElementaryMediaPacket and start decoding with the decoded video data
   samsung::wasm::ElementaryMediaPacket pkt {
@@ -595,23 +642,29 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     g_Instance->m_VideoSessionId.load() // session identifier
   };
 
-  // Track total time spent reassembling and decoding this frame
-  m_ActiveWndVideoStats.totalReassemblyTime += (uint32_t)MAX(0, (int32_t)(decodeUnit->enqueueTimeMs - decodeUnit->receiveTimeMs));
-  m_ActiveWndVideoStats.totalDecodeTime += (uint32_t)MAX(0, (int32_t)(LiGetMillis() - decodeUnit->enqueueTimeMs));
-  m_ActiveWndVideoStats.decodedFrames++;
+  if (collectPerformanceStats) {
+    // Track time spent reassembling and decoding this frame.
+    m_ActiveWndVideoStats.totalReassemblyTime +=
+      (uint32_t)MAX(0, (int32_t)(decodeUnit->enqueueTimeMs - decodeUnit->receiveTimeMs));
+    m_ActiveWndVideoStats.totalDecodeTime +=
+      (uint32_t)MAX(0, (int32_t)(LiGetMillis() - decodeUnit->enqueueTimeMs));
+    m_ActiveWndVideoStats.decodedFrames++;
+  }
 
-  // Calculate time before rendering
-  uint32_t beforeRender = LiGetMillis();
+  // Attempt to append the packet to the video track for rendering.
+  uint32_t beforeRender = 0;
+  if (collectPerformanceStats) {
+    beforeRender = LiGetMillis();
+  }
 
-  // Attempt to append the packet to the video track for rendering
   if (g_Instance->m_VideoTrack.AppendPacket(pkt)) {
-    // Calculate time after rendering
-    uint32_t afterRender = LiGetMillis();
-    // Increment packet timestamp for next frame
+    // Increment packet timestamp for next frame.
     s_pktPts += s_frameDuration;
-    // Track total render time and count rendered frames
-    m_ActiveWndVideoStats.totalRenderTime += afterRender - beforeRender;
-    m_ActiveWndVideoStats.renderedFrames++;
+    if (collectPerformanceStats) {
+      const uint32_t afterRender = LiGetMillis();
+      m_ActiveWndVideoStats.totalRenderTime += afterRender - beforeRender;
+      m_ActiveWndVideoStats.renderedFrames++;
+    }
   } else {
     ClLogMessage("Append video packet failed\n");
     return DR_NEED_IDR;
@@ -789,23 +842,6 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     offset += ret;
   }
 
-  // Only display host processing latency if latency data exists
-  if (stats.framesWithHostProcessingLatency > 0) {
-    // Print min, max, and average host processing latency in milliseconds
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Host processing latency min/max/average: %.1f/%.1f/%.1f ms\n",
-      (float)stats.minHostProcessingLatency / 10, (float)stats.maxHostProcessingLatency / 10,
-      (float)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency
-    );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
-  }
-
   // Show remaining statistics only if some frames have been rendered
   if (stats.renderedFrames != 0) {
     char rttString[32];
@@ -846,20 +882,31 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
 }
 
 void MoonlightInstance::TogglePerformanceStats() {
-  // Toggle the performance stats overlay flag
-  m_PerformanceStatsEnabled = !m_PerformanceStatsEnabled;
+  // Toggle the performance stats flag atomically; the video callback reads it on another thread.
+  const bool enabled = !m_PerformanceStatsEnabled.load(std::memory_order_relaxed);
+  m_PerformanceStatsEnabled.store(enabled, std::memory_order_relaxed);
 
-  // Notify the JS code that performance stats overlay is enabled or disabled
-  if (m_PerformanceStatsEnabled) {
-    PostToJs(std::string("StatMsg: ") + s_StatString.data());
+  // Show an empty overlay immediately when enabled. Fresh measurements arrive on the next stats tick.
+  if (enabled) {
+    PostToJs(std::string("StatMsg: "));
   } else {
     PostToJs(std::string("NoStatMsg: "));
   }
 }
 
-void MoonlightInstance::WaitFor(std::condition_variable* variable, std::function<bool()> condition) {
+bool MoonlightInstance::WaitFor(std::condition_variable* variable, std::function<bool()> condition, std::chrono::milliseconds timeout) {
   std::unique_lock<std::mutex> lock(m_Mutex);
-  variable->wait(lock, [&]() { return m_ConnectionCancelled.load() || condition(); });
+  variable->wait_for(lock, timeout, [&]() { return m_ConnectionCancelled.load() || condition(); });
+  return !m_ConnectionCancelled.load() && condition();
+}
+
+int MoonlightInstance::MediaSetupWaitFailed(const char* step) {
+  if (g_Instance->m_ConnectionCancelled) {
+    ClLogMessage("Connection cancelled during %s wait\n", step);
+    return -1;
+  }
+  ClLogMessage("Timed out after %lld ms during %s wait\n", (long long)kMediaSetupTimeout.count(), step);
+  return ERROR_VIDEO_SETUP_FAILED;
 }
 
 DECODER_RENDERER_CALLBACKS MoonlightInstance::s_DrCallbacks = {

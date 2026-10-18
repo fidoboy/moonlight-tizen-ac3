@@ -1,10 +1,4 @@
-// The native splash video contains a 3.6-second animation followed by a 6-second
-// static frame. Keep a deadline as a lower bound, and also give the restored UI
-// a safety window before dismissing the native screen.
-const NATIVE_SPLASH_ANIMATION_DURATION_MS = 3600;
-const NATIVE_SPLASH_FINAL_HOLD_MS = 6000;
-const NATIVE_SPLASH_MIN_RELEASE_AT = Date.now() + NATIVE_SPLASH_ANIMATION_DURATION_MS + NATIVE_SPLASH_FINAL_HOLD_MS;
-const NATIVE_SPLASH_HOLD_AFTER_UI_READY_MS = 5000;
+// Tizen's native splash overlays the normal WebUI until hideNativeLaunchScreen() is called.
 
 // Initialize global variables and constants
 var appInfo = tizen.application.getAppInfo(); // Retrieve the application information
@@ -42,7 +36,14 @@ var isStartupHttpReady = false;
 var isStartupHostsLoaded = false;
 var startupHostsSnackbarVisible = false;
 var isStartupLocaleReady = false;
+var isStartupWindowLoaded = false;
 var isStartupUiRestored = false;
+var isDeferredStartupScheduled = false;
+var isDeferredStartupStarted = false;
+var deferredStartupTimeout = null;
+var isNativeLaunchScreenReleaseStarted = false;
+var isNativeLaunchScreenReleased = false;
+var nativeLaunchScreenReleaseTimeout = null;
 var isSubnetScanFinished = false; // Indicates if the initial subnet scan has completed
 var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
 var pairingCert; // Loads the generated certificate
@@ -95,7 +96,7 @@ var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: 
 var _isSmartHubSupported = false; // Flag indicating if Smart Hub Preview is supported on this device
 
 // Experimental direct launch state for Smart Hub app tiles.
-var _directSmartHubLaunch = null;
+var _directSmartHubLaunch = window._directSmartHubLaunch || null;
 var _directSmartHubHost = null;
 var _directSmartHubHostReady = false;
 var _directSmartHubSettingsReady = false;
@@ -206,9 +207,11 @@ function attachListeners() {
   $('#quitRunningAppBtn').on('click', quitAppDialog);
   $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
   $('.videoFramerateMenu li').on('click', saveFramerate);
+  $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
+  $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
@@ -256,6 +259,7 @@ function attachListeners() {
   registerMenu('selectAudio', Views.SelectAudioMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
+  registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
 
   $(window).resize(fullscreenWasmModule);
 
@@ -327,70 +331,119 @@ function attachListeners() {
 }
 
 function changeUiModeForWasmLoad() {
-  // Startup is covered by Tizen's native launch screen. Do not show the old
-  // full-screen in-app spinner at this stage.
-  $('#main-header').hide();
-  $('#main-header').children().hide();
-  $('#main-content').children().hide();
+  // Tizen's native splash covers the normal WebUI. Keep the full UI visible
+  // and laying out from the start; hide it only for direct Smart Hub launches.
+  if (_directSmartHubLaunch) {
+    document.documentElement.classList.add('app-starting');
+    $('#main-header').hide();
+    $('#main-header').children().hide();
+    $('#main-content').children().hide();
+  }
+
+  // Startup progress is shown in a snackbar, not a full-screen spinner.
   $('#wasmSpinner, #loadingSpinner').hide();
   $('#wasmSpinnerMessage, #loadingSpinnerMessage').empty();
 }
 
-function releaseNativeLaunchScreen(onReleased) {
-  var release = function() {
-    try {
-      if (window.screen && typeof window.screen.show === 'function') {
-        window.screen.show();
-      }
-    } catch (error) {
-      console.warn('%c[index.js, releaseNativeLaunchScreen]', 'color: gray;', 'Could not release the native TV splash screen:', error);
+function hideNativeLaunchScreen() {
+  if (isNativeLaunchScreenReleased) return;
+  isNativeLaunchScreenReleased = true;
+  if (nativeLaunchScreenReleaseTimeout !== null) {
+    window.clearTimeout(nativeLaunchScreenReleaseTimeout);
+    nativeLaunchScreenReleaseTimeout = null;
+  }
+
+  try {
+    if (window.screen && typeof window.screen.show === 'function') {
+      window.screen.show();
     }
-
-    if (typeof onReleased === 'function') {
-      onReleased();
-    }
-  };
-
-  // Let the web UI paint before switching away from the native video splash.
-  // The deadline protects the animation's static tail, while the second limit
-  // prevents an almost-immediate release if initialization outlasts that deadline.
-  var scheduleReleaseAfterPaint = function() {
-    var remainingMinimumTime = Math.max(0, NATIVE_SPLASH_MIN_RELEASE_AT - Date.now());
-    window.setTimeout(
-      release,
-      Math.max(NATIVE_SPLASH_HOLD_AFTER_UI_READY_MS, remainingMinimumTime)
-    );
-  };
-
-  if (typeof window.requestAnimationFrame === 'function') {
-    window.requestAnimationFrame(function() {
-      window.requestAnimationFrame(scheduleReleaseAfterPaint);
-    });
-  } else {
-    scheduleReleaseAfterPaint();
+  } catch (error) {
+    console.warn('%c[index.js, hideNativeLaunchScreen]', 'color: gray;', 'Could not release the native TV splash screen:', error);
   }
 }
 
-function maybeRestoreUiAfterStartup() {
-  // A direct app-tile launch must never restore or navigate through the home UI.
-  if (_directSmartHubLaunch) return;
-
-  // The stored host list is independent of the initial UI: render the interface as
-  // soon as HTTP setup and localization are ready, and populate hosts asynchronously.
-  if (!isStartupHttpReady || !isStartupLocaleReady || isStartupUiRestored) {
+function maybeReleaseNativeLaunchScreen() {
+  // For a normal launch, locales are the only prerequisite for revealing the UI.
+  // Direct Smart Hub launches keep the pre-hidden UI and their existing startup path.
+  if (_directSmartHubLaunch || !isStartupLocaleReady ||
+      isNativeLaunchScreenReleaseStarted || isNativeLaunchScreenReleased) {
     return;
   }
 
-  isStartupUiRestored = true;
-  restoreUiAfterWasmLoad();
+  isNativeLaunchScreenReleaseStarted = true;
 
-  // Show the prepared interface first, then keep the loading notice visible while
-  // the configured host list finishes loading/populating in the background.
-  releaseNativeLaunchScreen(function() {
-    // The host list may finish loading beneath the native splash; avoid showing
-    // a stale loading message after the hosts are already visible.
+  // These operations only prepare the first visible host screen; restoration remains deferred.
+  var headerTitle = document.getElementById('header-title');
+  if (headerTitle) headerTitle.textContent = t('Hosts');
+  $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
+  $('#settingsBtn, #supportBtn, #updateAppBtn').show();
+  $('#settings-list, #game-grid, #wasmSpinner, #loadingSpinner').hide();
+
+  document.documentElement.classList.remove('app-starting');
+
+  // Give the browser a rendering opportunity, then allow the native splash a little
+  // extra time to finish its animation and audio before releasing it.
+  var releaseSplashAndScheduleRestore = function() {
+    var layout = document.querySelector('.mdl-layout');
+    if (layout) void layout.getBoundingClientRect();
+
+    nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
+      nativeLaunchScreenReleaseTimeout = null;
+      hideNativeLaunchScreen();
+      scheduleDeferredNormalStartup();
+    }, 1500);
+  };
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(releaseSplashAndScheduleRestore);
+  } else {
+    window.setTimeout(releaseSplashAndScheduleRestore, 0);
+  }
+}
+
+function scheduleDeferredNormalStartup() {
+  if (_directSmartHubLaunch || isDeferredStartupScheduled || isDeferredStartupStarted) return;
+
+  isDeferredStartupScheduled = true;
+  deferredStartupTimeout = window.setTimeout(startDeferredNormalStartup, 500);
+}
+
+function startDeferredNormalStartup() {
+  if (_directSmartHubLaunch || isDeferredStartupStarted) return;
+
+  isDeferredStartupStarted = true;
+  deferredStartupTimeout = null;
+
+  // Start the remaining work only after the UI is visible and Tizen's splash is released.
+  if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
+    window.componentHandler.upgradeDom();
+  }
+  loadUserData();
+  initializeConfigSummaryBar();
+
+  if (!isStartupUiRestored) {
+    isStartupUiRestored = true;
+    restoreUiAfterWasmLoad();
     if (!isStartupHostsLoaded) showStartupHostsSnackbar();
+  }
+
+  // WebAssembly compilation and host/network initialization are deliberately deferred.
+  if (typeof window.startNormalStartupWasm === 'function') {
+    window.startNormalStartupWasm();
+  } else {
+    console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+  }
+
+  probeSmartHubSupport().then(function() {
+    handleDeepLink();
+    window.addEventListener('appcontrol', handleDeepLink);
   });
+}
+
+function maybeRestoreUiAfterStartup() {
+  // Repeated calls from HTTP/host callbacks are harmless: index.html made the route decision once.
+  if (_directSmartHubLaunch || !isStartupLocaleReady) return;
+  maybeReleaseNativeLaunchScreen();
 }
 
 function moduleDidLoad() {
@@ -699,7 +752,7 @@ function showHosts() {
 }
 
 function restoreUiAfterWasmLoad() {
-  // Release the first-render guard only after HTTP setup, localization, and the stored host list are ready.
+  // Show the localized UI immediately; host restoration and connectivity checks run independently.
   document.documentElement.classList.remove('app-starting');
 
   // Stop navigation before showing the loading screen
@@ -710,11 +763,12 @@ function restoreUiAfterWasmLoad() {
   $('#wasmSpinner').hide();
   $('#loadingSpinner').css('display', 'none');
 
-  // Navigate to the Hosts view
+  // Navigate to the Hosts view and establish the complete initial focus state before paint.
   Navigation.push(Views.Hosts);
   showHostsMode(true);
-  // Set focus to current item and/or scroll to the current host row
-  setTimeout(() => Navigation.switch(), 100);
+  Navigation.switch();
+  Navigation.switch();
+  updateConfigSummaryBar();
 
   // Find mDNS host discovered using ServiceFinder (network service discovery)
   // findNvService(function(finder, opt_error) {
@@ -1716,7 +1770,7 @@ function deleteAllHostsDialog() {
 
     // Change the dialog title and text elements
     document.getElementById('deleteHostDialogTitle').innerHTML = t('Delete All Hosts');
-    document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete all existing hosts?');
+    document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete all existing hosts?') + '<br><br><strong class="host-removal-consequences">' + t('All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.') + '</strong>';
     
     // Show the dialog and push the view
     deleteHostOverlay.style.display = 'flex';
@@ -3155,6 +3209,9 @@ function startGame(host, appID) {
       '\n Performance statistics: ' + performanceStats);
 
       // Hide on-screen overlays until the streaming session begins
+      if (typeof beginPerformanceStatsStream === 'function') {
+        beginPerformanceStatsStream();
+      }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
 
       // Shows a loading message to launch the application and start stream mode
@@ -3295,10 +3352,21 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
+  // Hide the configuration strip while the host app is closing, so it cannot
+  // overlap the full-screen transition shown by the TV.
+  configSummaryTemporarilyHidden = true;
+  updateConfigSummaryBar();
+
+  function restoreConfigSummaryAfterQuit() {
+    configSummaryTemporarilyHidden = false;
+    updateConfigSummaryBar();
+  }
+
   host.refreshServerInfo().then(function(ret) {
     host.getAppById(host.currentGame).then(function(runningApp) {
       if (!runningApp) {
         snackbarLog('No app is currently running.');
+        restoreConfigSummaryAfterQuit();
         return;
       }
       var appTitle = runningApp.title;
@@ -3307,20 +3375,25 @@ function stopGame(host, callbackFunction) {
         snackbarLog('Successfully quit %1$s', appTitle);
         host.refreshServerInfo().then(function(ret3) {
           // Refresh to show no app is currently running
-          showApps(host).finally(() => {
+          showApps(host).finally(function() {
+            restoreConfigSummaryAfterQuit();
             if (typeof(callbackFunction) === "function") callbackFunction();
           });
         }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + '! Failed server was: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
+          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
+          restoreConfigSummaryAfterQuit();
         });
       }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
+        restoreConfigSummaryAfterQuit();
       });
     }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
+      restoreConfigSummaryAfterQuit();
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!');
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
+    restoreConfigSummaryAfterQuit();
   });
 }
 
@@ -3468,10 +3541,34 @@ function stopMouseMovePropagation(e) {
   e.stopPropagation();
 }
 
+function directSmartHubVideoReady(videoElement) {
+  if (!videoElement || videoElement.readyState < 2 ||
+      videoElement.videoWidth <= 0 || videoElement.videoHeight <= 0) {
+    return false;
+  }
+
+  // Do not expose the menu while either direct-launch connection status is still
+  // visible. The connection callback can precede the first decoded video frame.
+  var directStatus = document.getElementById('directSmartHubStatus');
+  if (directStatus && window.getComputedStyle(directStatus).display !== 'none') {
+    return false;
+  }
+
+  var loadingSpinner = document.getElementById('loadingSpinner');
+  if (loadingSpinner && window.getComputedStyle(loadingSpinner).display !== 'none') {
+    return false;
+  }
+
+  return true;
+}
+
 function toggleStreamMenuDialog() {
+  var videoElement = document.getElementById('wasm_module');
+
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+  } else if (videoElement && !isDialogOpen && videoElement.style.display !== 'none' &&
+      (!window._directSmartHubLaunch || directSmartHubVideoReady(videoElement))) {
     streamMenuDialog();
   }
 }
@@ -3831,6 +3928,16 @@ function saveIpAddressFieldMode() {
     const chosenIpAddressFieldMode = $('#ipAddressFieldModeSwitch').parent().hasClass('is-checked');
     console.log('%c[index.js, saveIpAddressFieldMode]', 'color: green;', 'Saving IP address field mode state: ' + chosenIpAddressFieldMode);
     storeData('ipAddressFieldMode', chosenIpAddressFieldMode, null);
+  }, 100);
+}
+
+function saveConfigSummaryVisibility() {
+  setTimeout(() => {
+    const enabled = $('#showConfigSummarySwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveConfigSummaryVisibility]', 'color: green;', 'Saving configuration summary bar visibility: ' + enabled);
+    storeData('showConfigSummaryBar', enabled, null);
+    configSummaryPreferenceLoaded = true;
+    updateConfigSummaryBar();
   }, 100);
 }
 
@@ -4251,11 +4358,63 @@ function saveDisableWarnings() {
   }, 100);
 }
 
+const PERFORMANCE_STATS_POSITION_LABEL_KEYS = {
+  'top-left': 'Top left',
+  'top-right': 'Top right',
+  'bottom-left': 'Bottom left',
+  'bottom-right': 'Bottom right'
+};
+
+function setPerformanceStatsPosition(position, persist) {
+  if (!Object.prototype.hasOwnProperty.call(PERFORMANCE_STATS_POSITION_LABEL_KEYS, position)) {
+    position = 'top-left';
+  }
+
+  var labelKey = PERFORMANCE_STATS_POSITION_LABEL_KEYS[position];
+  $('#selectPerformanceStatsPosition')
+    .text(t(labelKey))
+    .attr('data-i18n', labelKey)
+    .attr('data-value', position)
+    .data('value', position);
+
+  var overlay = document.getElementById('performance-stats');
+  if (overlay) {
+    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach(function(corner) {
+      overlay.classList.remove('performance-stats-position-' + corner);
+    });
+    overlay.classList.add('performance-stats-position-' + position);
+  }
+
+  if (persist) {
+    storeData('performanceStatsPosition', position, null);
+  }
+  return position;
+}
+
+function savePerformanceStatsPosition() {
+  setPerformanceStatsPosition($(this).data('value'), true);
+}
+
+function updatePerformanceStatsPositionAvailability(enabled) {
+  var button = document.getElementById('selectPerformanceStatsPosition');
+  if (!button) return;
+
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  button.classList.toggle('is-disabled', !enabled);
+
+}
+
 function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
     storeData('performanceStats', chosenPerformanceStats, null);
+    updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
+    if (!chosenPerformanceStats && Views.SelectPerformanceStatsPositionMenu.isActive()) {
+      closePopupMenu('selectPerformanceStatsPosition');
+      closeActiveVisibleMenu();
+    }
   }, 100);
 }
 
@@ -4281,6 +4440,12 @@ function restoreDefaultsSettingsValues() {
   const defaultIpAddressFieldMode = false;
   document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off();
   storeData('ipAddressFieldMode', defaultIpAddressFieldMode, null);
+
+  const defaultShowConfigSummaryBar = true;
+  document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
+  storeData('showConfigSummaryBar', defaultShowConfigSummaryBar, null);
+  configSummaryPreferenceLoaded = true;
+  updateConfigSummaryBar();
 
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
@@ -4384,6 +4549,9 @@ function restoreDefaultsSettingsValues() {
   const defaultPerformanceStats = false;
   document.querySelector('#performanceStatsBtn').MaterialSwitch.off();
   storeData('performanceStats', defaultPerformanceStats, null);
+  updatePerformanceStatsPositionAvailability(false);
+
+  setPerformanceStatsPosition('top-left', true);
 
   const defaultAutomaticUpdateChecks = true;
   document.querySelector('#automaticUpdateChecksBtn').MaterialSwitch.on();
@@ -4428,15 +4596,15 @@ function initSpecialKeys() {
     window.addEventListener(eventType, function(e) {
       if (!isInGame) return;
 
-      var isBackKey = e.key === 'XF86Back' ||
+      var keyName = String(e.key || e.code || '').toLowerCase();
+      var eventKeyCode = e.keyCode || e.which;
+      var isBackKey = keyName === 'xf86back' ||
         (typeof tvKey !== 'undefined' &&
-          (e.keyCode === tvKey.KEY_RETURN || e.keyCode === tvKey.KEY_BACK));
-      var isMediaKey = typeof tvKey !== 'undefined' &&
-        (e.keyCode === tvKey.KEY_PLAY_PAUSE ||
-         e.keyCode === tvKey.KEY_PAUSE ||
-         e.keyCode === tvKey.KEY_PLAY);
+          (eventKeyCode === tvKey.KEY_RETURN || eventKeyCode === tvKey.KEY_BACK));
 
-      if (!isBackKey && !isMediaKey) return;
+      // Media keys are handled by remoteControllerHandler on document, where
+      // Tizen delivers the registered MediaPlayPause/MediaPause/MediaPlay events.
+      if (!isBackKey) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -4582,6 +4750,23 @@ function loadUserDataCb() {
     }
     // Handle the IP address field visibility based on switch state
     handleIpAddressFieldMode();
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar visibility preference.');
+  getData('showConfigSummaryBar', function(previousValue) {
+    const storedValue = previousValue.showConfigSummaryBar;
+    const enabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (enabled) {
+      document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#showConfigSummaryBtn').MaterialSwitch.off();
+    }
+    configSummaryPreferenceLoaded = true;
+    if (!_directSmartHubLaunch) {
+      updateConfigSummaryBar();
+      maybeRestoreUiAfterStartup();
+    }
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored sortAppsList preferences.');
@@ -4814,6 +4999,11 @@ function loadUserDataCb() {
     }
   });
 
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay position.');
+  getData('performanceStatsPosition', function(positionValue) {
+    setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performanceStats preferences.');
   getData('performanceStats', function(previousValue) {
     if (previousValue.performanceStats == null) {
@@ -4823,6 +5013,7 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#performanceStatsBtn').MaterialSwitch.on();
     }
+    updatePerformanceStatsPositionAvailability($('#performanceStatsSwitch').parent().hasClass('is-checked'));
 
     _directSmartHubSettingsReady = true;
     maybeStartDirectSmartHubLaunch();
@@ -5259,31 +5450,8 @@ function updatePreviewData() {
   }
 }
 
-function getSmartHubLaunchPayload() {
-  try {
-    var requested = tizen.application.getCurrentApplication().getRequestedAppControl();
-    var data = requested && requested.appControl && requested.appControl.data;
-    if (!data || !Array.isArray(data)) return null;
-    for (var i = 0; i < data.length; i++) {
-      if (data[i].key !== 'PAYLOAD' || !data[i].value || !data[i].value.length) continue;
-      var payload = JSON.parse(data[i].value[0]);
-      var actionData = JSON.parse(payload.values);
-      if (actionData && actionData.serverUid && actionData.appId !== null && actionData.appId !== undefined) {
-        return {
-          serverUid: String(actionData.serverUid),
-          appId: actionData.appId,
-          appName: actionData.appName || actionData.appTitle || actionData.title || actionData.name || null
-        };
-      }
-    }
-  } catch (error) {
-    console.warn('%c[index.js, getSmartHubLaunchPayload]', 'color: gray;', 'Could not read Smart Hub launch payload:', error);
-  }
-  return null;
-}
+// The Smart Hub payload was parsed exactly once by the early script in index.html.
 
-// Capture before WebAssembly can begin host initialization.
-_directSmartHubLaunch = getSmartHubLaunchPayload();
 
 function setDirectSmartHubStatus(message) {
   if (!_directSmartHubLaunch) return;
@@ -5410,9 +5578,84 @@ function probeSmartHubSupport() {
   });
 }
 
+// Do not create the summary bar until the persisted preference has been loaded.
+var configSummaryPreferenceLoaded = false;
+var configSummaryTemporarilyHidden = false;
+
+function createConfigSummaryBar() {
+  var bar = document.createElement('div');
+  bar.id = 'configSummaryBar';
+  bar.setAttribute('aria-label', 'Current Moonlight configuration');
+
+  var items = [
+    { label: 'Resolution', id: 'summaryResolution', icon: 'static/res/ic_summary_resolution.svg' },
+    { label: 'FPS', id: 'summaryFps', icon: 'static/res/ic_summary_fps.svg' },
+    { label: 'Bitrate', id: 'summaryBitrate', icon: 'static/res/ic_summary_bitrate.svg' },
+    { label: 'Optimal bitrate', id: 'summaryOptimalBitrate', toggle: true, icon: 'static/res/ic_summary_optimal_bitrate.svg' },
+    { label: 'HDR', id: 'summaryHdr', toggle: true, icon: 'static/res/ic_summary_hdr.svg' },
+    { label: 'Codec', id: 'summaryCodec', icon: 'static/res/ic_summary_codec.svg' },
+    { label: 'Dolby', id: 'summaryDolby', toggle: true, icon: 'static/res/ic_dolby_double_d.svg' },
+    { label: 'Audio', id: 'summaryAudio', icon: 'static/res/ic_summary_audio.svg' },
+    { label: 'Game mode summary', id: 'summaryGameMode', toggle: true, icon: 'static/res/ic_summary_gamepad.svg' }
+  ];
+
+  items.forEach(function(entry) {
+    var item = document.createElement('div');
+    item.className = 'config-summary-item';
+
+    if (entry.icon) {
+      var icon = document.createElement('img');
+      icon.className = 'config-summary-icon' + (entry.id === 'summaryDolby' ? ' config-summary-icon--dolby' : '');
+      icon.src = entry.icon;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.setAttribute('draggable', 'false');
+      item.appendChild(icon);
+    }
+
+    var label = document.createElement('span');
+    label.className = 'config-summary-label';
+    label.setAttribute('data-i18n', entry.label);
+    label.textContent = typeof t === 'function' ? t(entry.label) : entry.label;
+
+    var value = document.createElement('span');
+    value.id = entry.id;
+    value.className = 'config-summary-value' + (entry.toggle ? ' config-summary-toggle' : '');
+    value.textContent = '—';
+
+    item.appendChild(label);
+    item.appendChild(value);
+    bar.appendChild(item);
+  });
+
+  var mainContent = document.getElementById('main-content');
+  if (mainContent && mainContent.parentNode) {
+    mainContent.parentNode.insertBefore(bar, mainContent);
+  } else {
+    return null;
+  }
+  return bar;
+}
+
 function updateConfigSummaryBar() {
+  var visibilitySwitch = document.getElementById('showConfigSummarySwitch');
+  var summaryEnabled = configSummaryPreferenceLoaded && !!visibilitySwitch && visibilitySwitch.checked;
   var bar = document.getElementById('configSummaryBar');
+
+  // An opt-out removes the element entirely, rather than keeping a hidden DOM subtree.
+  if (!summaryEnabled) {
+    if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+    return;
+  }
+
+  if (!bar) bar = createConfigSummaryBar();
   if (!bar) return;
+
+  // Keep the element in the DOM, but do not paint it over the host-app closing transition.
+  if (configSummaryTemporarilyHidden) {
+    if (bar.style.display !== 'none') bar.style.display = 'none';
+    return;
+  }
 
   function isVisible(element) {
     return !!element && window.getComputedStyle(element).display !== 'none';
@@ -5448,8 +5691,9 @@ function updateConfigSummaryBar() {
     .replace(/[:×]/g, 'x')
     .replace(/\s+/g, '');
   var resolutionNames = {
+    '854x480': 'SD',
     '1280x720': 'HD',
-    '1920x1080': 'HD',
+    '1920x1080': 'FHD',
     '2560x1440': '2K',
     '3840x2160': '4K',
     '7680x4320': '8K'
@@ -5504,12 +5748,12 @@ function initializeConfigSummaryBar() {
 
 function onWindowLoad() {
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Moonlight\'s main window loaded.');
-  initializeConfigSummaryBar();
   initSamsungKeys();
   initSpecialKeys();
-  loadUserData();
 
   if (_directSmartHubLaunch) {
+    // Preserve the existing direct-launch path: it has no deferred-startup delay.
+    loadUserData();
     console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Direct Smart Hub app launch detected: ' + JSON.stringify(_directSmartHubLaunch));
     try {
       if (window.screen && typeof window.screen.show === 'function') window.screen.show();
@@ -5519,11 +5763,11 @@ function onWindowLoad() {
     return;
   }
 
-  // Keep the standard Moonlight icon launch path unchanged.
-  probeSmartHubSupport().then(function() {
-    handleDeepLink();
-    window.addEventListener('appcontrol', handleDeepLink);
-  });
+  isStartupWindowLoaded = true;
+  maybeRestoreUiAfterStartup();
+
+  // Normal startup restoration, including WebAssembly and stored-data loading,
+  // starts 500 ms after the localized UI is revealed and the native splash is released.
 }
 
 window.onload = onWindowLoad;

@@ -97,7 +97,6 @@ function replaceKnownStatsLabels(text) {
     .replace(/Decoding frame rate:/g, t('Decoding frame rate:'))
     .replace(/Rendering frame rate:/g, t('Rendering frame rate:'))
     .replace(/Incoming bitrate from network:/g, t('Incoming bitrate from network:'))
-    .replace(/Host processing latency min\/max\/average:/g, t('Host processing latency min/max/average:'))
     .replace(/Frames dropped by your network connection:/g, t('Frames dropped by your network connection:'))
     .replace(/Average network latency:/g, t('Average network latency:'))
     .replace(/\bvariance:/g, t('variance:'))
@@ -106,6 +105,347 @@ function replaceKnownStatsLabels(text) {
     .replace(/Average frame queue delay:/g, t('Average frame queue delay:'))
     .replace(/Average rendering time:/g, t('Average rendering time:'))
     .replace(/Slow connection to PC\.\nReduce your bitrate!/g, t('Slow connection to PC.\nReduce your bitrate!'));
+}
+
+
+// Ignore queued statistics messages after a stream has terminated.
+var performanceStatsStreamTerminated = false;
+
+// Rolling one-minute history for the performance statistics graph.
+var performanceStatsGraphSamples = [];
+var performanceStatsHostLatencyLatest = null;
+const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
+const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
+
+const PERFORMANCE_STATS_HOST_GRAPH_SERIES = [
+  { key: 'min', color: '#4fc3f7', label: 'Host latency minimum' },
+  { key: 'max', color: '#ff7043', label: 'Host latency maximum' },
+  { key: 'avg', color: '#c084fc', label: 'Host latency average' }
+];
+
+const PERFORMANCE_STATS_GRAPH_COLORS = {
+  good: '#35c879',
+  warning: '#f2cc45',
+  elevated: '#ff9638',
+  critical: '#ff4d4f',
+  unavailable: '#858b96'
+};
+
+function resetPerformanceStatsGraph() {
+  performanceStatsGraphSamples.length = 0;
+  performanceStatsHostLatencyLatest = null;
+}
+
+function ensurePerformanceStatsOverlayElements() {
+  var container = document.getElementById('performance-stats');
+  if (!container) return null;
+
+  var textElement = container.querySelector('.performance-stats-text');
+  var canvas = container.querySelector('#performance-stats-graph');
+  var hostCanvas = container.querySelector('#performance-stats-host-graph');
+  if (!textElement || !canvas || !hostCanvas) {
+    var previousText = textElement ? textElement.textContent : container.textContent;
+    container.textContent = '';
+
+    textElement = document.createElement('div');
+    textElement.className = 'performance-stats-text';
+    textElement.textContent = previousText || '';
+
+    canvas = document.createElement('canvas');
+    canvas.id = 'performance-stats-graph';
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', t('Network latency (RTT, ms)'));
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
+    canvas.style.marginTop = '16px';
+
+    hostCanvas = document.createElement('canvas');
+    hostCanvas.id = 'performance-stats-host-graph';
+    hostCanvas.setAttribute('role', 'img');
+    hostCanvas.setAttribute('aria-label', t('Host processing latency (ms)'));
+    hostCanvas.style.display = 'block';
+    hostCanvas.style.width = '100%';
+    hostCanvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
+    hostCanvas.style.marginTop = '16px';
+
+    container.appendChild(textElement);
+    container.appendChild(canvas);
+    container.appendChild(hostCanvas);
+  }
+
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas };
+}
+
+function getPerformanceStatsGraphColor(sample) {
+  if (sample.droppedFrames > 0 || sample.rtt >= 100 || sample.variance >= 50) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.critical;
+  }
+  if (sample.rtt >= 60 || sample.variance >= 25) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.elevated;
+  }
+  if (sample.rtt >= 30 || sample.variance >= 10) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.warning;
+  }
+  if (sample.rtt <= 0) {
+    return PERFORMANCE_STATS_GRAPH_COLORS.unavailable;
+  }
+  return PERFORMANCE_STATS_GRAPH_COLORS.good;
+}
+
+function drawPerformanceStatsGraph() {
+  var elements = ensurePerformanceStatsOverlayElements();
+  if (!elements) return;
+
+  var canvas = elements.canvas;
+  var containerStyle = window.getComputedStyle ? window.getComputedStyle(elements.container) : null;
+  var horizontalPadding = containerStyle
+    ? (parseFloat(containerStyle.paddingLeft) || 0) + (parseFloat(containerStyle.paddingRight) || 0)
+    : 0;
+  var availableWidth = Math.round(elements.container.clientWidth - horizontalPadding);
+  var measuredWidth = Math.round(canvas.getBoundingClientRect().width || 0);
+  var width = Math.max(300, availableWidth, measuredWidth);
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+
+  var context = canvas.getContext('2d');
+  if (!context) return;
+
+  var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'middle';
+  context.font = '12px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.95)';
+  var graphTitle = t('Network latency (RTT, ms)');
+  context.fillText(graphTitle, 4, 9);
+
+  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
+  var legend = [
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<30' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '30–59' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
+  ];
+  var legendX = 4 + context.measureText(graphTitle).width + 14;
+  legend.forEach(function(item) {
+    context.fillStyle = item.color;
+    context.fillRect(legendX, 5, 8, 8);
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    context.fillText(item.label, legendX + 12, 9);
+    legendX += 22 + context.measureText(item.label).width;
+  });
+
+  var plotLeft = 34;
+  var plotRight = width - 4;
+  var plotTop = 35;
+  var plotBottom = 149;
+  var plotHeight = plotBottom - plotTop;
+  var plotWidth = Math.max(1, plotRight - plotLeft);
+
+  // Adapt the vertical scale to the recent RTT history. The 95th percentile prevents
+  // a single spike from flattening the rest of the graph, while the scale remains
+  // high enough to show occasional peaks distinctly. Higher samples saturate at the top.
+  var validRttValues = performanceStatsGraphSamples
+    .map(function(sample) { return sample.rtt; })
+    .filter(function(rtt) { return rtt > 0; })
+    .sort(function(a, b) { return a - b; });
+  var percentileIndex = Math.max(0, Math.ceil(validRttValues.length * 0.95) - 1);
+  var percentileRtt = validRttValues.length ? validRttValues[percentileIndex] : 0;
+  var scaleMaximum = Math.max(20, Math.ceil((percentileRtt * 1.2) / 10) * 10);
+  var midpointRtt = Math.round(scaleMaximum / 2);
+
+  context.font = '10px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.85)';
+  context.fillText(String(scaleMaximum), 2, plotTop);
+  context.fillText(String(midpointRtt), 8, plotTop + plotHeight / 2);
+  context.fillText('0', 14, plotBottom);
+
+  context.strokeStyle = 'rgba(255,255,255,0.20)';
+  context.lineWidth = 1;
+  [plotTop + 0.5, plotTop + plotHeight / 2 + 0.5, plotBottom + 0.5].forEach(function(y) {
+    context.beginPath();
+    context.moveTo(plotLeft, y);
+    context.lineTo(plotRight, y);
+    context.stroke();
+  });
+
+  var slotWidth = plotWidth / PERFORMANCE_STATS_GRAPH_SECONDS;
+  var barWidth = Math.max(1, Math.floor(slotWidth * 0.72));
+  var firstSlot = PERFORMANCE_STATS_GRAPH_SECONDS - performanceStatsGraphSamples.length;
+
+  performanceStatsGraphSamples.forEach(function(sample, index) {
+    var rtt = Math.max(0, Math.min(scaleMaximum, sample.rtt));
+    var barHeight = sample.rtt > 0 ? Math.max(2, rtt / scaleMaximum * plotHeight) : 2;
+    if (sample.droppedFrames > 0) barHeight = Math.max(4, barHeight);
+
+    var x = plotLeft + (firstSlot + index) * slotWidth + (slotWidth - barWidth) / 2;
+    context.fillStyle = getPerformanceStatsGraphColor(sample);
+    context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
+  });
+}
+
+function handlePerformanceStatsGraphMessage(message) {
+  var values = message.replace('GraphMsg: ', '').split(',').map(Number);
+  if (values.length < 3 || !values.every(Number.isFinite)) return;
+
+  performanceStatsGraphSamples.push({
+    rtt: Math.max(0, values[0]),
+    variance: Math.max(0, values[1]),
+    droppedFrames: Math.max(0, values[2]),
+    hostLatency: performanceStatsHostLatencyLatest
+      ? {
+        min: performanceStatsHostLatencyLatest.min,
+        max: performanceStatsHostLatencyLatest.max,
+        avg: performanceStatsHostLatencyLatest.avg
+      }
+      : null
+  });
+  if (performanceStatsGraphSamples.length > PERFORMANCE_STATS_GRAPH_SECONDS) {
+    performanceStatsGraphSamples.shift();
+  }
+  drawPerformanceStatsGraph();
+  drawHostProcessingLatencyGraph();
+}
+
+function handlePerformanceStatsHostLatencyMessage(message) {
+  var values = message.replace('HostLatencyMsg: ', '').split(',').map(Number);
+  if (values.length < 3 || !values.every(Number.isFinite)) return;
+
+  performanceStatsHostLatencyLatest = {
+    min: Math.max(0, values[0]),
+    max: Math.max(0, values[1]),
+    avg: Math.max(0, values[2])
+  };
+}
+
+// Repeat the most recently reported values on regular graph ticks until another
+// host sample arrives, producing continuous line series even for sparse updates.
+function drawHostProcessingLatencyGraph() {
+  var elements = ensurePerformanceStatsOverlayElements();
+  if (!elements) return;
+
+  var canvas = elements.hostCanvas;
+  var containerStyle = window.getComputedStyle ? window.getComputedStyle(elements.container) : null;
+  var horizontalPadding = containerStyle
+    ? (parseFloat(containerStyle.paddingLeft) || 0) + (parseFloat(containerStyle.paddingRight) || 0)
+    : 0;
+  var availableWidth = Math.round(elements.container.clientWidth - horizontalPadding);
+  var measuredWidth = Math.round(canvas.getBoundingClientRect().width || 0);
+  var width = Math.max(300, availableWidth, measuredWidth);
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+
+  var context = canvas.getContext('2d');
+  if (!context) return;
+
+  var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'middle';
+  context.font = '12px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.95)';
+  var graphTitle = t('Host processing latency (ms)');
+  context.fillText(graphTitle, 4, 9);
+
+  var legendX = 4 + context.measureText(graphTitle).width + 14;
+  PERFORMANCE_STATS_HOST_GRAPH_SERIES.forEach(function(item) {
+    var label = t(item.label);
+    context.fillStyle = item.color;
+    context.fillRect(legendX, 5, 8, 8);
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    context.fillText(label, legendX + 12, 9);
+    legendX += 22 + context.measureText(label).width;
+  });
+
+  var maxLatencyValues = performanceStatsGraphSamples
+    .map(function(sample) { return sample.hostLatency ? sample.hostLatency.max : null; })
+    .filter(function(value) { return Number.isFinite(value); })
+    .sort(function(a, b) { return a - b; });
+  var percentileIndex = Math.max(0, Math.ceil(maxLatencyValues.length * 0.95) - 1);
+  var percentileLatency = maxLatencyValues.length ? maxLatencyValues[percentileIndex] : 0;
+  var scaleMaximum = Math.max(5, Math.ceil((percentileLatency * 1.2) / 5) * 5);
+
+  var plotLeft = 34;
+  var plotRight = width - 4;
+  var plotTop = 35;
+  var plotBottom = 149;
+  var plotHeight = plotBottom - plotTop;
+  var plotWidth = Math.max(1, plotRight - plotLeft);
+  var midpointLatency = Math.round(scaleMaximum / 2);
+
+  context.font = '10px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.85)';
+  context.fillText(String(scaleMaximum), 2, plotTop);
+  context.fillText(String(midpointLatency), 8, plotTop + plotHeight / 2);
+  context.fillText('0', 14, plotBottom);
+
+  context.strokeStyle = 'rgba(255,255,255,0.20)';
+  context.lineWidth = 1;
+  [plotTop + 0.5, plotTop + plotHeight / 2 + 0.5, plotBottom + 0.5].forEach(function(y) {
+    context.beginPath();
+    context.moveTo(plotLeft, y);
+    context.lineTo(plotRight, y);
+    context.stroke();
+  });
+
+  var slotWidth = plotWidth / PERFORMANCE_STATS_GRAPH_SECONDS;
+  var firstSlot = PERFORMANCE_STATS_GRAPH_SECONDS - performanceStatsGraphSamples.length;
+
+  PERFORMANCE_STATS_HOST_GRAPH_SERIES.forEach(function(series) {
+    context.beginPath();
+    context.strokeStyle = series.color;
+    context.lineWidth = 2;
+    var hasPreviousPoint = false;
+
+    performanceStatsGraphSamples.forEach(function(sample, index) {
+      if (!sample.hostLatency || !Number.isFinite(sample.hostLatency[series.key])) {
+        hasPreviousPoint = false;
+        return;
+      }
+
+      var value = Math.max(0, Math.min(scaleMaximum, sample.hostLatency[series.key]));
+      var x = plotLeft + (firstSlot + index + 0.5) * slotWidth;
+      var y = plotBottom - (value / scaleMaximum) * plotHeight;
+      if (hasPreviousPoint) {
+        context.lineTo(x, y);
+      } else {
+        context.moveTo(x, y);
+      }
+      hasPreviousPoint = true;
+    });
+
+    context.stroke();
+  });
+}
+
+
+// Render statistics as two-column rows: labels on the left and values on the right.
+function renderPerformanceStatsText(textElement, text) {
+  textElement.textContent = '';
+  String(text || '').split('\n').forEach(function(line) {
+    if (!line) return;
+    var row = document.createElement('div');
+    var separator = line.indexOf(':');
+    if (separator > 0) {
+      row.className = 'performance-stats-row';
+      var label = document.createElement('span');
+      label.className = 'performance-stats-label';
+      label.textContent = line.slice(0, separator + 1);
+      var value = document.createElement('span');
+      value.className = 'performance-stats-value';
+      value.textContent = line.slice(separator + 1).trim();
+      row.appendChild(label);
+      row.appendChild(value);
+    } else {
+      row.className = 'performance-stats-message';
+      row.textContent = line;
+    }
+    textElement.appendChild(row);
+  });
+}
+
+function beginPerformanceStatsStream() {
+  performanceStatsStreamTerminated = false;
+  resetPerformanceStatsGraph();
 }
 
 function replaceKnownWolErrorLabels(text) {
@@ -286,12 +626,17 @@ function handleMessage(msg) {
   console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Hide and lock the overlay before painting the direct-launch closing status.
+    performanceStatsStreamTerminated = true;
+    resetPerformanceStatsGraph();
+    $('#connection-warnings, #performance-stats').css('display', 'none');
+    $('#performance-stats').text('');
+
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
     // Release the audio scheduler of the Web Audio backend, which is a no-op for the EMSS backend
     stopAudioScheduler();
-    // Remove the on-screen overlays
-    $('#connection-warnings, #performance-stats').css('display', 'none');
+    // Diagnostic overlays were hidden and locked at the start of stream termination.
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('#loadingSpinner').css('display', 'none');
@@ -362,6 +707,9 @@ function handleMessage(msg) {
       case -104: // ML_ERROR_FRAME_CONVERSION
         snackbarLogLong('The host PC reported a fatal video encoding error. Try disabling HDR mode, changing the streaming resolution, or changing your host PC\'s display resolution.');
         break;
+      case -200: // ERROR_VIDEO_SETUP_FAILED
+        snackbarLogLong('The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.');
+        break;
       default:
         snackbarLogLong('Connection terminated');
         break;
@@ -405,7 +753,8 @@ function handleMessage(msg) {
     }
 
   } else if (msg === 'Connection Established') {
-    // The direct-launch status must not cover the video while the first frame is arriving.
+    // This marks connection setup, not the availability of the first decoded video frame.
+    // Keep the direct-launch connection status until this callback arrives.
     if (window._directSmartHubLaunch) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
       if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
@@ -425,7 +774,7 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
-    // Hide the lightweight direct-launch status once the stream video is ready.
+    // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
       var directStatusElement = document.getElementById('directSmartHubStatus');
@@ -443,14 +792,25 @@ function handleMessage(msg) {
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
     // Hide the overlay for this streaming session without changing the saved preference.
+    resetPerformanceStatsGraph();
     $('#performance-stats').css('display', 'none');
     $('#performance-stats').css('background', 'transparent');
     $('#performance-stats').text('');
   } else if (msg.indexOf('StatMsg: ') === 0) {
+    if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
     $('#performance-stats').css('display', 'inline-block');
-    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.5)');
-    $('#performance-stats').text(translateBackendMessage(msg.replace('StatMsg: ', '')));
+    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
+    var statsElements = ensurePerformanceStatsOverlayElements();
+    if (statsElements) {
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));
+      drawPerformanceStatsGraph();
+      drawHostProcessingLatencyGraph();
+    }
+  } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
+    if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
+  } else if (msg.indexOf('GraphMsg: ') === 0) {
+    if (!performanceStatsStreamTerminated) handlePerformanceStatsGraphMessage(msg);
   } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);

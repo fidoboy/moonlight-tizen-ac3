@@ -5,6 +5,35 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="-1">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="text/javascript">
+  // Decide the launch route once, before the page can paint.
+  // The static app-starting class keeps the UI hidden until normal-launch locales are ready.
+  (function() {
+    try {
+      var currentApp = tizen.application.getCurrentApplication();
+      var requested = currentApp && currentApp.getRequestedAppControl();
+      var data = requested && requested.appControl && requested.appControl.data;
+      if (!data || !Array.isArray(data)) return;
+
+      for (var i = 0; i < data.length; i++) {
+        if (data[i].key !== 'PAYLOAD' || !data[i].value || !data[i].value.length) continue;
+        var payload = JSON.parse(data[i].value[0]);
+        var actionData = JSON.parse(payload.values);
+        if (actionData && actionData.serverUid &&
+            actionData.appId !== null && actionData.appId !== undefined) {
+          window._directSmartHubLaunch = {
+            serverUid: String(actionData.serverUid),
+            appId: actionData.appId,
+            appName: actionData.appName || actionData.appTitle || actionData.title || actionData.name || null
+          };
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn('[index.html] Could not inspect Smart Hub launch data early:', error);
+    }
+  })();
+  </script>
   <title data-i18n="Moonlight Game Streaming">Moonlight Game Streaming</title>
   <link rel="icon" href="static/favicon/favicon.png">
   <link rel="stylesheet" href="static/css/roboto.css">
@@ -12,13 +41,17 @@
   <link rel="stylesheet" href="static/css/material.min.css">
   <link rel="stylesheet" href="static/css/style.css">
   <style>
-    /* Keep the web UI completely invisible until localization, HTTP setup, and UI restoration finish. */
+    /* Used only for direct Smart Hub launches, which intentionally bypass the home UI. */
     html.app-starting,
     html.app-starting body {
       background-color: #000 !important;
     }
     html.app-starting .mdl-layout {
       visibility: hidden !important;
+    }
+    /* Keep the stream statistics accessible without revealing the hidden direct-launch UI. */
+    html.app-starting #performance-stats {
+      visibility: visible !important;
     }
     /* Lightweight status surface used only by the experimental direct Smart Hub launch. */
     #directSmartHubStatus {
@@ -80,17 +113,6 @@
         </nav>
       </div>
     </header>
-    <div id="configSummaryBar" aria-label="Current Moonlight configuration">
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Resolution">Resolution</span><span id="summaryResolution" class="config-summary-value">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="FPS">FPS</span><span id="summaryFps" class="config-summary-value">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Bitrate">Bitrate</span><span id="summaryBitrate" class="config-summary-value">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Optimal bitrate">Optimal bitrate</span><span id="summaryOptimalBitrate" class="config-summary-value config-summary-toggle">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="HDR">HDR</span><span id="summaryHdr" class="config-summary-value config-summary-toggle">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Codec">Codec</span><span id="summaryCodec" class="config-summary-value">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Dolby">Dolby</span><span id="summaryDolby" class="config-summary-value config-summary-toggle">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Audio">Audio</span><span id="summaryAudio" class="config-summary-value">—</span></div>
-      <div class="config-summary-item"><span class="config-summary-label" data-i18n="Game mode summary">Game mode</span><span id="summaryGameMode" class="config-summary-value config-summary-toggle">—</span></div>
-    </div>
     <main id="main-content" class="mdl-layout__content">
       <div id="host-grid">
         <div id="addHostContainer" class="host-add-container mdl-card mdl-shadow--4dp" role="link" tabindex="0" aria-label="Add Host">
@@ -225,6 +247,20 @@
                 </label>
               </div>
             </div>
+            <div class="setting-option">
+              <label data-i18n="Configuration summary bar">Configuration summary bar</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Shows the current streaming configuration below the title on the Hosts and Apps screens.">
+                - Shows the current streaming configuration below the title on the Hosts and Apps screens.
+              </span>
+              <div id="configSummaryVisibilityMenu">
+                <label id="showConfigSummaryBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="showConfigSummarySwitch">
+                  <input type="checkbox" id="showConfigSummarySwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Show the configuration summary bar">
+                    Show the configuration summary bar
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
           <div id="hostSettings" class="settings-options">
             <div class="setting-option">
@@ -269,7 +305,7 @@
                 </label>
               </div>
             </div>
-            <div class="setting-option">
+            <div id="removeAllHostsOption" class="setting-option setting-option--danger">
               <label data-i18n="Remove all hosts">Remove all hosts</label>
               <span class="mdl-list__item-text-body"></span>
               <div id="removeAllHostsMenu">
@@ -546,6 +582,21 @@
                   </span>
                 </label>
               </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Performance overlay position">Performance overlay position</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Choose the screen corner where the performance overlay is displayed.">
+                - Choose the screen corner where the performance overlay is displayed.
+              </span>
+              <div id="performanceStatsPositionMenu">
+                <button type="button" id="selectPerformanceStatsPosition" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="top-left" data-i18n="Top left">Top left</button>
+              </div>
+              <ul class="performanceStatsPositionMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectPerformanceStatsPosition">
+                <li class="mdl-menu__item" data-value="top-left" data-i18n="Top left">Top left</li>
+                <li class="mdl-menu__item" data-value="top-right" data-i18n="Top right">Top right</li>
+                <li class="mdl-menu__item" data-value="bottom-left" data-i18n="Bottom left">Bottom left</li>
+                <li class="mdl-menu__item" data-value="bottom-right" data-i18n="Bottom right">Bottom right</li>
+              </ul>
             </div>
           </div>
           <div id="aboutSettings" class="settings-options">
