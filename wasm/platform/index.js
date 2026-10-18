@@ -3352,10 +3352,21 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
+  // Hide the configuration strip while the host app is closing, so it cannot
+  // overlap the full-screen transition shown by the TV.
+  configSummaryTemporarilyHidden = true;
+  updateConfigSummaryBar();
+
+  function restoreConfigSummaryAfterQuit() {
+    configSummaryTemporarilyHidden = false;
+    updateConfigSummaryBar();
+  }
+
   host.refreshServerInfo().then(function(ret) {
     host.getAppById(host.currentGame).then(function(runningApp) {
       if (!runningApp) {
         snackbarLog('No app is currently running.');
+        restoreConfigSummaryAfterQuit();
         return;
       }
       var appTitle = runningApp.title;
@@ -3364,20 +3375,25 @@ function stopGame(host, callbackFunction) {
         snackbarLog('Successfully quit %1$s', appTitle);
         host.refreshServerInfo().then(function(ret3) {
           // Refresh to show no app is currently running
-          showApps(host).finally(() => {
+          showApps(host).finally(function() {
+            restoreConfigSummaryAfterQuit();
             if (typeof(callbackFunction) === "function") callbackFunction();
           });
         }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + '! Failed server was: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
+          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\\n', host, '\\n' + host.toString());
+          restoreConfigSummaryAfterQuit();
         });
       }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
+        restoreConfigSummaryAfterQuit();
       });
     }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
+      restoreConfigSummaryAfterQuit();
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!');
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\\n', host, '\\n' + host.toString());
+    restoreConfigSummaryAfterQuit();
   });
 }
 
@@ -3528,7 +3544,9 @@ function stopMouseMovePropagation(e) {
 function toggleStreamMenuDialog() {
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if ((!window._directSmartHubLaunch || streamVideoReady) && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+    // The Wasm module is made visible after Connection Established. Do not gate this
+    // on displayVideo: some direct Smart Hub launches do not update that flag reliably.
     streamMenuDialog();
   }
 }
@@ -4556,13 +4574,21 @@ function initSpecialKeys() {
     window.addEventListener(eventType, function(e) {
       if (!isInGame) return;
 
-      var isBackKey = e.key === 'XF86Back' ||
+      var keyName = String(e.key || e.code || '').toLowerCase();
+      var eventKeyCode = e.keyCode || e.which;
+      var isBackKey = keyName === 'xf86back' ||
         (typeof tvKey !== 'undefined' &&
-          (e.keyCode === tvKey.KEY_RETURN || e.keyCode === tvKey.KEY_BACK));
-      var isMediaKey = typeof tvKey !== 'undefined' &&
-        (e.keyCode === tvKey.KEY_PLAY_PAUSE ||
-         e.keyCode === tvKey.KEY_PAUSE ||
-         e.keyCode === tvKey.KEY_PLAY);
+          (eventKeyCode === tvKey.KEY_RETURN || eventKeyCode === tvKey.KEY_BACK));
+      var isMediaKey = keyName === 'mediaplaypause' ||
+        keyName === 'mediapause' ||
+        keyName === 'mediaplay' ||
+        keyName === 'xf86audioplaypause' ||
+        keyName === 'xf86audiopause' ||
+        keyName === 'xf86audioplay' ||
+        (typeof tvKey !== 'undefined' &&
+          (eventKeyCode === tvKey.KEY_PLAY_PAUSE ||
+           eventKeyCode === tvKey.KEY_PAUSE ||
+           eventKeyCode === tvKey.KEY_PLAY));
 
       if (!isBackKey && !isMediaKey) return;
 
@@ -5540,6 +5566,7 @@ function probeSmartHubSupport() {
 
 // Do not create the summary bar until the persisted preference has been loaded.
 var configSummaryPreferenceLoaded = false;
+var configSummaryTemporarilyHidden = false;
 
 function createConfigSummaryBar() {
   var bar = document.createElement('div');
@@ -5609,6 +5636,12 @@ function updateConfigSummaryBar() {
 
   if (!bar) bar = createConfigSummaryBar();
   if (!bar) return;
+
+  // Keep the element in the DOM, but do not paint it over the host-app closing transition.
+  if (configSummaryTemporarilyHidden) {
+    if (bar.style.display !== 'none') bar.style.display = 'none';
+    return;
+  }
 
   function isVisible(element) {
     return !!element && window.getComputedStyle(element).display !== 'none';
