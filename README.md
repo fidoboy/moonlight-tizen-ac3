@@ -17,7 +17,7 @@ This repository is an **independently maintained project derived from** [Brightc
 >
 > ## Main purpose: <img src="docs/assets/dolby-double-d.svg" alt="Dolby double-D symbol" width="26" height="26" /> Dolby Digital audio over optical output
 >
-> The principal reason for this independent project is optional **AC-3 (Dolby Digital) and E-AC-3 (Dolby Digital Plus) passthrough** for compatible Samsung Smart TVs connected over optical (TOSLINK) to a receiver or sound system that supports the selected Dolby format. When the host and playback path support it, the client passes the compressed audio stream to Tizen's native EMSS audio renderer, allowing **stereo or 5.1 surround sound** over a supported optical setup.
+> The principal reason for this independent project is optional **AC-3 (Dolby Digital) and E-AC-3 (Dolby Digital Plus) passthrough** for compatible Samsung Smart TVs connected over optical (TOSLINK) to a receiver or sound system that supports the selected Dolby format. When the host and playback path support it, the client passes the compressed audio stream to Tizen's native EMSS audio renderer, allowing **stereo or 5.1 surround sound** over a supported optical or HDMI setup.
 >
 > - **AC-3 is limited to 5.1 channels.** The current matching experimental Sunshine encoder supports stereo and 5.1; the effective output also depends on the TV model, its audio-output settings, and the receiver or soundbar.
 > - **OPUS compatibility is preserved.** Dolby negotiation is optional. If a host only provides OPUS, or does not select AC-3/E-AC-3, Moonlight continues using the normal OPUS path. Hosts that do not implement the optional Dolby extensions remain compatible and do not need to be modified.
