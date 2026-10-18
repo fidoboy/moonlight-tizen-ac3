@@ -236,6 +236,28 @@ body {
     overflow-y: auto;
     overscroll-behavior: contain;
 }
+/* Keep the navigation guide and dynamic warnings within the viewport as well. */
+#navGuideDialog,
+#warningDialog {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-height: 70vh;
+    overflow: hidden;
+}
+#navGuideDialog > .mdl-dialog__title,
+#navGuideDialog > .mdl-dialog__actions,
+#warningDialog > .mdl-dialog__title,
+#warningDialog > .mdl-dialog__actions {
+    flex: 0 0 auto;
+}
+#navGuideDialog > .mdl-dialog__content,
+#warningDialog > .mdl-dialog__content {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
 .large-dialog {
     color: #fff;
     background-color: #333846;
