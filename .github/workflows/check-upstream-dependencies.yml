@@ -117,7 +117,7 @@ jobs:
                 `- Latest commit date: ${latestDate}`,
                 `- Latest commit: ${latestMessage}`,
                 `- Commits ahead of reference: ${count}; comparison status: ${comparisonStatus}`,
-                `- [Review upstream changes] (${compareUrl})`,
+                `- [Review upstream changes](${compareUrl})`,
                 `- Maintainer note: ${dep.note}`
               ].join('\n');
             });
