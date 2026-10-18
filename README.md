@@ -55,7 +55,7 @@ Before proceeding with the installation, please take a moment to ensure that you
 
 ### 📺 Supported TVs
 
-Moonlight for Tizen is designed for Smart TVs running **Tizen OS 5.5 or later**.
+Moonlight for Tizen (AC-3) is designed for Smart TVs running **Tizen OS 5.5 or later**.
 
 Although Tizen is primarily associated with Samsung TVs, Samsung also licenses its Tizen TV platform to other manufacturers. These include brands such as Akai, Bauhn, Linsar, RCA, Vispera, Sunny, Axen, EKO, QBELL, and Axdia.
 
