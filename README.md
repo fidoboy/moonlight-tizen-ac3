@@ -1,5 +1,5 @@
 <p align="center">
-  [<img src="docs/assets/moonlight-tizen-banner.svg" alt="Moonlight for Tizen with Dolby Digital" width="100%" />](https://github.com/fidoboy/moonlight-tizen-ac3)
+  <img src="docs/assets/moonlight-tizen-banner.svg" alt="Moonlight for Tizen with Dolby Digital" width="100%" />
 </p>
 
 # Moonlight Tizen with AC-3 support
