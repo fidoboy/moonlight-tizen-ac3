@@ -37,6 +37,7 @@
       "owner": "moonlight-stream",
       "repo": "moonlight-embedded",
       "branch": "master",
+      "path": "libgamestream",
       "baseline_sha": "274d3db34da764344a7a402ee74e6080350ac0cd",
       "baseline_label": "Known upstream http.c change (2024-03-25; approximate source lineage)",
       "note": "Vendored subset with local changes; this SHA is a monitoring reference, not a verified exact snapshot pin."
