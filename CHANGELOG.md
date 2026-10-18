@@ -27,6 +27,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Localization
 - Added German (`de-DE`), French (`fr-FR`), Italian (`it-IT`), and Russian (`ru-RU`) translations.
 - Updated English, Spanish, and Brazilian Portuguese translations for the new settings, host-removal warning, performance statistics, and interface changes.
+
 ## v1.0.3 — Smart Hub integration and interface improvements
 
 ### Added
