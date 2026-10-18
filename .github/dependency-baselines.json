@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "dependencies": [
+    {
+      "id": "moonlight-common-c",
+      "name": "Moonlight Common C",
+      "owner": "moonlight-stream",
+      "repo": "moonlight-common-c",
+      "branch": "master",
+      "baseline_sha": "8599b6042a4ba27749b0f94134dd614b4328a9bc",
+      "baseline_label": "Best identifiable vendored baseline (2024-06-11)",
+      "note": "The local tree includes Tizen and Dolby changes; review diffs rather than replacing the directory."
+    },
+    {
+      "id": "opus",
+      "name": "Opus",
+      "owner": "xiph",
+      "repo": "opus",
+      "branch": "main",
+      "baseline_sha": "ddbe48383984d56acd9e1ab6a090c54ca6b735a6",
+      "baseline_label": "Release v1.5.2",
+      "note": "Test decoder behavior, latency and audio compatibility before upgrading."
+    },
+    {
+      "id": "h264bitstream",
+      "name": "h264bitstream",
+      "owner": "aizvorski",
+      "repo": "h264bitstream",
+      "branch": "master",
+      "baseline_sha": "70124d3051ba45e6b326264f0b25e6f48a7479e7",
+      "baseline_label": "Upstream reference as of 2024-06-20",
+      "note": "The local copy has project-maintained changes; the monitor tracks upstream commits, not exact file equality."
+    },
+    {
+      "id": "libgamestream",
+      "name": "libgamestream (Moonlight Embedded source)",
+      "owner": "moonlight-stream",
+      "repo": "moonlight-embedded",
+      "branch": "master",
+      "baseline_sha": "274d3db34da764344a7a402ee74e6080350ac0cd",
+      "baseline_label": "Known upstream http.c change (2024-03-25; approximate source lineage)",
+      "note": "Vendored subset with local changes; this SHA is a monitoring reference, not a verified exact snapshot pin."
+    }
+  ]
+}
