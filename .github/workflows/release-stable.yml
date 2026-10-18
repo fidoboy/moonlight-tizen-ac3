@@ -150,24 +150,28 @@ jobs:
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
           body: |
-            ## v1.0.3 — Smart Hub integration and interface improvements
+            ## v1.0.4 — Interface improvements and animated launch screen
             
             ### Added
-            - **Direct app launching from Samsung Smart Hub:** Added support for launching games and applications directly from their Smart Hub shortcuts. Moonlight connects to the selected host and starts the requested application without loading the full interface, restoring the host grid, or navigating through the usual host and app screens. This significantly reduces startup time compared with the previous launch flow.
-            - **Configuration summary:** Added a compact summary to the Hosts and Apps screens showing the current resolution, frame rate, bitrate, optimal bitrate, HDR status, video codec, Dolby audio setting, audio channel configuration, and Game Mode status.
-            - **Direct-launch status feedback:** Added lightweight status messages during direct launches, including host and application information where available.
+            - **Host removal confirmation:** Added a confirmation warning before removing a host to help prevent accidental deletions.
+            - **Configurable configuration summary:** Added a persistent Interface Settings option to show or hide the configuration summary bar on the Hosts and Apps screens.
+            - **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.
+            - **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
+            - **Portrait launch screen support:** Added orientation-specific launch-screen assets for landscape and portrait layouts.
             
             ### Changed
-            - **Unchanged standard startup:** Launching Moonlight from its own Smart Hub application icon retains the normal startup flow. Direct launching applies only when opening a game or application through its Smart Hub shortcut.
-            - **Back/Return navigation:** Pressing the Back/Return key during streaming now opens or closes the Stream Menu. Navigation behavior outside streaming remains unchanged.
-            - **Session-local statistics visibility:** Showing or hiding the performance-statistics overlay no longer modifies or saves the persistent setting. The saved preference continues to determine the default visibility for new streaming sessions.
-            - **Build identification:** Added a visual marker for non-official builds in the system information panel, while official stable releases retain a clean version display.
+            - **Launch-screen transitions:** Refined the handoff between the native launch screen and the web interface to improve startup timing and prevent the wrong interface from appearing briefly during direct Smart Hub launches.
+            - **Configuration summary presentation:** Added dedicated icons for resolution, frame rate, bitrate, optimal bitrate, HDR, video codec, audio and gamepad information. Improved spacing, alignment, and resolution labels.
+            - **Performance statistics overlay:** Improved readability and layout, increased background opacity, refined graph spacing and scaling, and added more padding around the overlay content.
+            - **Streaming controls:** Improved media-key handling and the behavior of the Stream Menu when streaming is launched directly from a Smart Hub game or application shortcut.
             
             ### Fixed
-            - **Stream Menu highlighting:** Fixed an issue that could leave an additional menu item highlighted when navigating with the remote control.
-            - **Direct-launch error handling:** Improved handling of unavailable hosts, saved-configuration errors, connection failures, and application launch or resume failures.
-            - **Direct-launch session termination:** Ensured Moonlight exits cleanly when a direct-launch streaming session ends, rather than returning to the regular host and app screens. The optional setting to quit the host application on normal disconnection is still honored.
-            - **Status overlay behavior:** Refined direct-launch status messages so they do not obscure the video and are hidden when the connection or video becomes available.
+            - **Stream Menu on direct launches:** Fixed an issue that prevented Play/Pause or Back/Return from opening the Stream Menu during streams started through the direct PAYLOAD launch path.
+            - **Premature Stream Menu access:** Prevented the Stream Menu from opening while the connection status message is still displayed and before video is available.
+            - **Stream disconnection handling:** Improved the dismissal of the performance overlay during disconnection and application exit, preventing it from remaining visible over the closing screen.
+            - **Host application exit:** Hid the configuration summary bar while the host application is being closed and restored it when the operation finishes, including error paths.
+            - **Stream setup failures:** Fixed a potential hang when video stream initialization fails.
             
             ### Localization
-            - Updated English, Spanish, and Brazilian Portuguese translations for the configuration summary and the revised navigation guide.
+            - Added German (`de-DE`), French (`fr-FR`), Italian (`it-IT`), and Russian (`ru-RU`) translations.
+            - Updated English, Spanish, and Brazilian Portuguese translations for the new settings, host-removal warning, performance statistics, and interface changes.
