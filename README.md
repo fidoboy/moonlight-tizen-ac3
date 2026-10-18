@@ -9,7 +9,7 @@
 [<img src="https://img.shields.io/badge/Tizen-TV-blue?style=for-the-badge" />](https://www.tizen.org/)
 [![Total Downloads](https://img.shields.io/github/downloads/fidoboy/moonlight-tizen-ac3/total?style=for-the-badge&logo=github)](https://github.com/fidoboy/moonlight-tizen-ac3/releases)
 
-Moonlight Tizen with AC-3 support is a port of [Moonlight ChromeOS](https://github.com/moonlight-stream/moonlight-chrome), an open-source client for NVIDIA GameStream and [Sunshine](https://app.lizardbyte.dev/Sunshine/). It lets you stream games, applications, and your desktop from a PC to a Samsung Smart TV.
+Moonlight Tizen with AC-3 support is a port of [Moonlight ChromeOS](https://github.com/moonlight-stream/moonlight-chrome), an open-source client for NVIDIA GameStream and [Sunshine](https://app.lizardbyte.dev/Sunshine/). It lets you stream games, applications, and your desktop from a PC to a Smart TV running TizenOS.
 
 This repository is an **independently maintained project derived from** [Brightcraft's Moonlight Tizen](https://github.com/brightcraft/moonlight-tizen). It builds on Brightcraft's extensive maintenance and development, as well as the earlier work of [OneLiberty](https://github.com/OneLiberty/moonlight-chrome-tizen) and the other contributors acknowledged below. It follows its own release series and development roadmap. In short, this client is a more advanced version of the original **Moonlight for Tizen**, previously maintained by Brightcraft, with additional features and improvements.
 
@@ -17,7 +17,7 @@ This repository is an **independently maintained project derived from** [Brightc
 >
 > ## Main purpose: <img src="docs/assets/dolby-double-d.svg" alt="Dolby double-D symbol" width="26" height="26" /> Dolby Digital audio over optical output
 >
-> The principal reason for this independent project is optional **AC-3 (Dolby Digital) and E-AC-3 (Dolby Digital Plus) passthrough** for compatible Samsung Smart TVs connected over optical (TOSLINK) to a receiver or sound system that supports the selected Dolby format. When the host and playback path support it, the client passes the compressed audio stream to Tizen's native EMSS audio renderer, allowing **stereo or 5.1 surround sound** over a supported optical or HDMI setup.
+> The principal reason for this independent project is optional **AC-3 (Dolby Digital) and E-AC-3 (Dolby Digital Plus) passthrough** for compatible TizenOS Smart TVs connected over optical (TOSLINK) to a receiver or sound system that supports the selected Dolby format. When the host and playback path support it, the client passes the compressed audio stream to Tizen's native EMSS audio renderer, allowing **stereo or 5.1 surround sound** over a supported optical or HDMI setup.
 >
 > - **AC-3 is limited to 5.1 channels.** The current matching experimental Sunshine encoder supports stereo and 5.1; the effective output also depends on the TV model, its audio-output settings, and the receiver or soundbar.
 > - **OPUS compatibility is preserved.** Dolby negotiation is optional. If a host only provides OPUS, or does not select AC-3/E-AC-3, Moonlight continues using the normal OPUS path. Hosts that do not implement the optional Dolby extensions remain compatible and do not need to be modified.
@@ -27,7 +27,7 @@ This repository is an **independently maintained project derived from** [Brightc
 
 ### Other improvements in this project
 
-- **Faster Smart Hub app launching:** games and applications can now be launched directly from their Samsung Smart Hub shortcuts without loading Moonlight's full interface, significantly reducing startup time. Launching Moonlight from its own app icon retains the normal startup flow.
+- **Faster Smart Hub app launching:** games and applications can now be launched directly from their Smart Hub shortcuts without loading Moonlight's full interface, significantly reducing startup time. Launching Moonlight from its own app icon retains the normal startup flow.
 - **Streaming configuration summary bar:** the Hosts and Apps screens show the current Moonlight streaming configuration at a glance, including resolution, frame rate, bitrate, HDR, video codec, Dolby audio, channel layout, and Game Mode.
 - **Remote-accessible Stream Menu:** press the TV remote's Play/Pause button while streaming to open the Stream Menu, which provides host keyboard shortcuts, performance-statistics controls, disconnect, and close-menu actions.
 - **Audio stream and enhanced statistics:** Displays the negotiated audio codec, channel layout, channel count, and approximate audio bitrate alongside the existing video statistics. Also adds latency graphs and improves the statistics overlay's readability and layout.
@@ -44,12 +44,25 @@ This repository is an **independently maintained project derived from** [Brightc
 ## ⚙️ Prerequisites
 
 Before proceeding with the installation, please take a moment to ensure that your current hardware, network, and input setup fully meet the necessary requirements described below:
-- **Client:** Samsung Smart TV running Tizen OS version 5.5 or newer (model year 2020 onwards).
+- **Client:** Smart TV running Tizen OS version 5.5 or newer (model year 2020 onwards).
 - **Host software:** Install and configure a streaming host compatible with the GameStream protocol. Options include [NVIDIA GameStream (legacy, for SHIELD)](https://www.nvidia.com/en-us/support/gamestream/gamestream-pc-setup/), [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Apollo](https://github.com/ClassicOldSong/Apollo), and [Punktfunk](https://punktfunk.unom.io/) with its GameStream/Moonlight compatibility enabled.
 - **Host hardware:** Gaming PC with a GPU capable of hardware encoding that meets the [system requirements](https://docs.lizardbyte.dev/projects/sunshine/latest/index.html#%EF%B8%8F-system-requirements) for optimal streaming performance.
 - **Dolby audio (optional):** To receive AC-3 (Dolby Digital) or E-AC-3 (Dolby Digital Plus), the host must explicitly support and transmit one of these formats. This is currently available only in the [experimental Sunshine branch maintained for this project](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3) that it's awaiting approval and can be downloaded [here](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip). Other compatible hosts can still stream audio using OPUS.
 - **Network:** Mid-range or high-end wireless router with a stable wireless connection (Wi-Fi 5/6) for the TV and a wired gigabit Ethernet connection (CAT5e or better) for the host PC are strongly recommended.
 - **Input:** [Supported gamepad](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Frequently-Asked-Questions.md#which-controllers-can-i-use) connected to your TV or directly connected to a nearby PC is highly recommended for the best streaming experience.
+
+---
+
+### 📺 Supported TVs
+
+Moonlight for Tizen is designed for Smart TVs running **Tizen OS 5.5 or later**.
+
+Although Tizen is primarily associated with Samsung TVs, Samsung also licenses its Tizen TV platform to other manufacturers. These include brands such as Akai, Bauhn, Linsar, RCA, Vispera, Sunny, Axen, EKO, QBELL, and Axdia.
+
+- [Samsung Tizen OS licensing partnerships (2022)](https://news.samsung.com/uk/samsung-tizen-os-expands-its-global-presence-with-new-licensing-partnerships)
+- [Expansion of the Tizen OS licensing program (2025)](https://news.samsung.com/global/samsung-expands-tizen-os-licensing-program-with-new-global-partners-and-enhanced-offerings)
+
+**Compatibility note:** Moonlight for Tizen has been tested on Samsung Smart TVs. Compatibility with Tizen-powered TVs from other manufacturers has not been verified and may vary by model, firmware, and available platform features.
 
 ---
 
