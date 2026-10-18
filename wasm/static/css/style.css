@@ -770,12 +770,12 @@ body {
     width: 100%;
     align-items: baseline;
     justify-content: space-between;
-    gap: 1.2em;
+    gap: 2ch;
     white-space: nowrap;
 }
 
 #performance-stats .performance-stats-label {
-    color: #cfcfcf;
+    color: #cccccc;
     flex: 0 0 auto;
     text-align: left;
 }
@@ -1143,7 +1143,16 @@ body {
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: #ececec;
-    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
+    background-color: rgba(64, 67, 84, 1);
+    background-image: url('../res/ic_arrow_drop_down_48px.svg') !important;
+    background-position: 94.8% 50% !important;
+    background-repeat: no-repeat !important;
+}
+
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
+    background-color: #484c5f;
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
 #restartApplicationIcon {
@@ -1165,7 +1174,7 @@ body {
 #continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus, #quitRunningAppBtn:hover, #quitRunningAppBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
-#selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus,
+#selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,

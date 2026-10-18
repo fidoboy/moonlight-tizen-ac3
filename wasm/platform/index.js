@@ -3528,7 +3528,7 @@ function stopMouseMovePropagation(e) {
 function toggleStreamMenuDialog() {
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if (streamVideoReady && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+  } else if ((!window._directSmartHubLaunch || streamVideoReady) && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
     streamMenuDialog();
   }
 }
@@ -4355,11 +4355,26 @@ function savePerformanceStatsPosition() {
   setPerformanceStatsPosition($(this).data('value'), true);
 }
 
+function updatePerformanceStatsPositionAvailability(enabled) {
+  var button = document.getElementById('selectPerformanceStatsPosition');
+  if (!button) return;
+
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  button.classList.toggle('is-disabled', !enabled);
+
+  if (!enabled) {
+    closePopupMenu('selectPerformanceStatsPosition');
+    closeActiveVisibleMenu();
+  }
+}
+
 function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
     storeData('performanceStats', chosenPerformanceStats, null);
+    updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
   }, 100);
 }
 
@@ -4494,6 +4509,7 @@ function restoreDefaultsSettingsValues() {
   const defaultPerformanceStats = false;
   document.querySelector('#performanceStatsBtn').MaterialSwitch.off();
   storeData('performanceStats', defaultPerformanceStats, null);
+  updatePerformanceStatsPositionAvailability(false);
 
   setPerformanceStatsPosition('top-left', true);
 
@@ -4957,6 +4973,7 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#performanceStatsBtn').MaterialSwitch.on();
     }
+    updatePerformanceStatsPositionAvailability($('#performanceStatsSwitch').parent().hasClass('is-checked'));
 
     _directSmartHubSettingsReady = true;
     maybeStartDirectSmartHubLaunch();
