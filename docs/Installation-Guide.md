@@ -14,7 +14,7 @@ Find the latest public packages on the [Releases page](https://github.com/fidobo
 
 This is the quickest method for users who do not want to enable Developer Mode or install additional tools on their computer.
 
-1. Download **[MoonlightUSB.zip](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/MoonlightUSB.zip)** from the latest stable release.
+1. Open the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and download **MoonlightUSB.zip** from its assets, when available.
 2. Extract the ZIP archive to the **root of a USB drive**. Do not copy the ZIP itself; the drive must contain this structure:
    ```
    userwidget/
@@ -25,7 +25,7 @@ This is the quickest method for users who do not want to enable Developer Mode o
 4. Wait for the TV's USB installation process to start and complete. This may take a few minutes.
 
 > [!WARNING]
-> This method uses Samsung's temporary USB demo installation mechanism. The license is time-limited (approximately 30 days), and the application may not remain installed on every TV model or firmware. If the package expires or Moonlight disappears, download the freshly refreshed `MoonlightUSB.zip` from the same link and repeat these steps. For a persistent installation, use one of the Developer Mode-based methods below.
+> This method uses Samsung's temporary USB demo installation mechanism. The license is time-limited (approximately 30 days), and the application may not remain installed on every TV model or firmware. The project attempts to refresh this package monthly and after new stable releases, but generation depends on Samsung's external USB packaging service. If `MoonlightUSB.zip` is not listed among the release assets, or if the package expires or Moonlight disappears, use Apps2Samsung or Tizen Studio below when you need to install immediately, or check the release page again later. For a persistent installation, use one of the Developer Mode-based methods below.
 
 The USB package contains the standard Moonlight variant. If you specifically need the **ForceGM** variant, install `Moonlight-ForceGM.wgt` using Apps2Samsung or Tizen Studio instead.
 
