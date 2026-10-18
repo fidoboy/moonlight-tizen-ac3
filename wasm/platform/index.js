@@ -3551,7 +3551,10 @@ function stopMouseMovePropagation(e) {
 function toggleStreamMenuDialog() {
   if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
-  } else if ((!window._directSmartHubLaunch || streamVideoReady) && !isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+  } else if (!isDialogOpen && document.getElementById('wasm_module').style.display !== 'none') {
+    // The WASM view becomes visible when the connection is established. Do not
+    // gate menu access on displayVideo: that notification can be missed or arrive
+    // out of order on the direct Smart Hub PAYLOAD launch path.
     streamMenuDialog();
   }
 }
