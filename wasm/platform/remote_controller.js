@@ -29,6 +29,15 @@ function remoteControllerHandler(e) {
       // Go back or cancel the operation
       Navigation.back();
       break;
+    case tvKey.KEY_PLAY_PAUSE:
+    case tvKey.KEY_PAUSE:
+    case tvKey.KEY_PLAY:
+      // Use the registered Tizen remote-controller events for media keys.
+      if (isInGame) {
+        e.preventDefault();
+        toggleStreamMenuDialog();
+      }
+      break;
     case tvKey.KEY_VOLUME_UP:
       // Increase the volume
       tizen.tvaudiocontrol.setVolumeUp();
