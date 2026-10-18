@@ -256,7 +256,7 @@ class MoonlightInstance {
   bool m_FullRangeEnabled;
   bool m_GameModeEnabled;
   bool m_DisableWarningsEnabled;
-  bool m_PerformanceStatsEnabled;
+  std::atomic<bool> m_PerformanceStatsEnabled {false};
 
   STREAM_CONFIGURATION m_StreamConfig;
   bool m_Running;
