@@ -12,7 +12,6 @@ on:
       - 'wasm/**'
       - 'tests/**'
       - 'docs/**'
-      - 'README.md'
       - 'CHANGELOG.md'
       - '.github/workflows/**'
   pull_request:
