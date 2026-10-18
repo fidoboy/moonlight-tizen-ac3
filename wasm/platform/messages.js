@@ -755,7 +755,8 @@ function handleMessage(msg) {
     }
 
   } else if (msg === 'Connection Established') {
-    streamVideoReady = false;
+    // Do not reset streamVideoReady here. A fast direct Smart Hub launch can report
+    // the first rendered frame before this message; showStreamMode resets it per session.
     // The direct-launch status must not cover the video while the first frame is arriving.
     if (window._directSmartHubLaunch) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
