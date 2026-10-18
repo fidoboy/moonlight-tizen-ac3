@@ -45,7 +45,9 @@ This repository is an **independently maintained project derived from** [Brightc
 
 Before proceeding with the installation, please take a moment to ensure that your current hardware, network, and input setup fully meet the necessary requirements described below:
 - **Client:** Samsung Smart TV running Tizen OS version 5.5 or newer (model year 2020 onwards).
-- **Host:** Gaming PC with a GPU capable of hardware encoding that meets the [system requirements](https://docs.lizardbyte.dev/projects/sunshine/latest/index.html#%EF%B8%8F-system-requirements) for optimal streaming performance.
+- **Host software:** Install and configure a streaming host compatible with the GameStream protocol. Options include [NVIDIA GameStream (legacy, for SHIELD)](https://www.nvidia.com/en-us/support/gamestream/gamestream-pc-setup/), [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Apollo](https://github.com/ClassicOldSong/Apollo), and [Punktfunk](https://punktfunk.unom.io/) with its GameStream/Moonlight compatibility enabled.
+- **Host hardware:** Gaming PC with a GPU capable of hardware encoding that meets the [system requirements](https://docs.lizardbyte.dev/projects/sunshine/latest/index.html#%EF%B8%8F-system-requirements) for optimal streaming performance.
+- **Dolby audio (optional):** To receive AC-3 (Dolby Digital) or E-AC-3 (Dolby Digital Plus), the host must explicitly support and transmit one of these formats. This is currently available only in the [experimental Sunshine branch maintained for this project](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3). Other compatible hosts can still stream audio using OPUS.
 - **Network:** Mid-range or high-end wireless router with a stable wireless connection (Wi-Fi 5/6) for the TV and a wired gigabit Ethernet connection (CAT5e or better) for the host PC are strongly recommended.
 - **Input:** [Supported gamepad](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Frequently-Asked-Questions.md#which-controllers-can-i-use) connected to your TV or directly connected to a nearby PC is highly recommended for the best streaming experience.
 
