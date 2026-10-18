@@ -21,7 +21,7 @@ This repository is an **independently maintained project derived from** [Brightc
 >
 > - **AC-3 is limited to 5.1 channels.** The current matching experimental Sunshine encoder supports stereo and 5.1; the effective output also depends on the TV model, its audio-output settings, and the receiver or soundbar.
 > - **Opus compatibility is preserved.** Dolby negotiation is optional. If a host only provides Opus, or does not select AC-3/E-AC-3, Moonlight continues using the normal Opus path. Hosts that do not implement the optional Dolby extensions remain compatible and do not need to be modified.
-> - **Dolby passthrough requires a compatible host.** The matching experimental implementation is available in [fidoboy/Sunshine — ac3-audio](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3) and this experimental build, already tested with this client, can be [downloaded here](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) (x64) or [here](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) (ARM). With a host that only offers Opus, the client continues to work as usual.
+> - **Dolby passthrough requires a compatible host.** The matching experimental implementation is available in [fidoboy/Sunshine — pr/dolby-ac3-eac3](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3) and this experimental build, already tested with this client, can be [downloaded here](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) (x64) or [here](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) (ARM). With a host that only offers Opus, the client continues to work as usual.
 >
 > The complete path has been tested with an experimental Sunshine host and Moonlight Tizen on a Samsung TV, including AC-3 and E-AC-3 in default and High Quality audio modes. Results depend on the connected TV and audio equipment.
 
@@ -31,7 +31,7 @@ This repository is an **independently maintained project derived from** [Brightc
 - **Streaming configuration summary bar:** the Hosts and Apps screens show the current Moonlight streaming configuration at a glance, including resolution, frame rate, bitrate, HDR, video codec, Dolby audio, channel layout, and Game Mode.
 - **Remote-accessible Stream Menu:** press the TV remote's Play/Pause button while streaming to open the Stream Menu, which provides host keyboard shortcuts, performance-statistics controls, disconnect, and close-menu actions.
 - **Audio stream and enhanced statistics:** Displays the negotiated audio codec, channel layout, channel count, and approximate audio bitrate alongside the existing video statistics. Also adds latency graphs and improves the statistics overlay's readability and layout.
-- **Languages localization:** adds the German (de-DE), French (fr-FR), Italian (it-IT), Russian (ru-RU) and Spanish (es-ES) translations for the interface, including the new settings and audio statistics.
+- **Additional language support:** adds the German (de-DE), French (fr-FR), Italian (it-IT), Russian (ru-RU) and Spanish (es-ES) translations for the interface, including the new settings and audio statistics.
 - **Quit host app on disconnect:** an optional setting requests that the running host application quit after a normal disconnection; unexpected connection failures do not trigger it.
 - **Animated native launch screen:** adds an animated Tizen splash screen.
   
