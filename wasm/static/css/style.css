@@ -754,7 +754,7 @@ body {
     z-index: 3;
     padding: 8px;
     border-radius: 8px;
-    font-size: 1.65rem;
+    font-size: 16px;
     font-weight: 500;
     line-height: 1.2;
     white-space: pre-wrap;
@@ -770,13 +770,13 @@ body {
     width: 100%;
     align-items: baseline;
     justify-content: space-between;
-    gap: 2ch;
     white-space: nowrap;
 }
 
 #performance-stats .performance-stats-label {
-    color: #cccccc;
+    color: #aaaaaa;
     flex: 0 0 auto;
+    margin-right: 2ch;
     text-align: left;
 }
 
