@@ -9,6 +9,7 @@ on:
     paths:
       - 'res/config.xml'
       - '.github/workflows/release-stable.yml'
+      - '.github/release-notes.md'
   workflow_dispatch:
     inputs:
       version:
@@ -21,7 +22,7 @@ permissions:
 
 jobs:
   publish:
-    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || (github.event_name == 'push' && github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[release]'))
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || (github.event_name == 'push' && github.ref == 'refs/heads/master' && (contains(github.event.head_commit.message, '[release]') || contains(github.event.head_commit.message, '[release-notes-fix]')))
     name: Build and publish versioned WGTs
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -34,6 +35,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
+          UPDATE_RELEASE_NOTES: ${{ contains(github.event.head_commit.message, '[release-notes-fix]') }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -54,8 +56,71 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$UPDATE_RELEASE_NOTES" == "true" ]]; then
+            echo "mode=update-notes" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=publish" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate release notes format
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOTES_FILE=".github/release-notes.md"
+          if [[ ! -s "$NOTES_FILE" ]]; then
+            echo "Release notes file $NOTES_FILE is missing or empty." >&2
+            exit 1
+          fi
+          FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
+          case "$FIRST_LINE" in
+            "## Highlights"|"## What's Changed"|"## What's Changed:")
+              ;;
+            *)
+              echo "Invalid release notes heading: '$FIRST_LINE'." >&2
+              echo "The first line must be exactly '## Highlights' or '## What's Changed' (optionally followed by a colon), as required by the in-app update notes parser." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Update existing public release notes
+        if: steps.version.outputs.mode == 'update-notes'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          API_ROOT="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          status="$(curl --silent --show-error --output /tmp/release.json --write-out '%{http_code}' \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$API_ROOT/releases/tags/$RELEASE_TAG")"
+          if [[ "$status" != "200" ]]; then
+            echo "Cannot update notes: release $RELEASE_TAG lookup returned HTTP $status." >&2
+            cat /tmp/release.json >&2
+            exit 1
+          fi
+          RELEASE_ID="$(jq -er '.id' /tmp/release.json)"
+          jq -n --rawfile body .github/release-notes.md '{body: $body}' > /tmp/release-patch.json
+          status="$(curl --silent --show-error --output /tmp/release-updated.json --write-out '%{http_code}' \
+            --request PATCH \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/release-patch.json \
+            "$API_ROOT/releases/$RELEASE_ID")"
+          if [[ "$status" != "200" ]]; then
+            echo "Failed to update release $RELEASE_TAG (HTTP $status)." >&2
+            cat /tmp/release-updated.json >&2
+            exit 1
+          fi
+          jq -e --arg tag "$RELEASE_TAG" '.tag_name == $tag and (.body | startswith("## Highlights"))' /tmp/release-updated.json >/dev/null
+          echo "Updated release notes for $RELEASE_TAG without rebuilding or replacing the WGT assets."
 
       - name: Refuse to overwrite an existing public release
+        if: steps.version.outputs.mode == 'publish'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,9 +143,11 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
+        if: steps.version.outputs.mode == 'publish'
         uses: docker/setup-buildx-action@v3
 
       - name: Build standard WGT
+        if: steps.version.outputs.mode == 'publish'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -97,6 +164,7 @@ jobs:
             FORCE_GAME_MODE=false
 
       - name: Extract standard WGT
+        if: steps.version.outputs.mode == 'publish'
         shell: bash
         run: |
           set -euo pipefail
@@ -108,6 +176,7 @@ jobs:
           sha256sum dist/Moonlight.wgt
 
       - name: Build ForceGM WGT
+        if: steps.version.outputs.mode == 'publish'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -124,6 +193,7 @@ jobs:
             FORCE_GAME_MODE=true
 
       - name: Extract ForceGM WGT
+        if: steps.version.outputs.mode == 'publish'
         shell: bash
         run: |
           set -euo pipefail
@@ -135,6 +205,7 @@ jobs:
           sha256sum dist/Moonlight-ForceGM.wgt
 
       - name: Publish public GitHub Release
+        if: steps.version.outputs.mode == 'publish'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -149,29 +220,4 @@ jobs:
           files: |
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
-          body: |
-            ## v1.0.4 — Interface improvements and animated launch screen
-            
-            ### Added
-            - **Host removal confirmation:** Added a confirmation warning before removing a host to help prevent accidental deletions.
-            - **Configurable configuration summary:** Added a persistent Interface Settings option to show or hide the configuration summary bar on the Hosts and Apps screens.
-            - **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.
-            - **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
-            - **Portrait launch screen support:** Added orientation-specific launch-screen assets for landscape and portrait layouts.
-            
-            ### Changed
-            - **Launch-screen transitions:** Refined the handoff between the native launch screen and the web interface to improve startup timing and prevent the wrong interface from appearing briefly during direct Smart Hub launches.
-            - **Configuration summary presentation:** Added dedicated icons for resolution, frame rate, bitrate, optimal bitrate, HDR, video codec, audio and gamepad information. Improved spacing, alignment, and resolution labels.
-            - **Performance statistics overlay:** Improved readability and layout, increased background opacity, refined graph spacing and scaling, and added more padding around the overlay content.
-            - **Streaming controls:** Improved media-key handling and the behavior of the Stream Menu when streaming is launched directly from a Smart Hub game or application shortcut.
-            
-            ### Fixed
-            - **Stream Menu on direct launches:** Fixed an issue that prevented Play/Pause or Back/Return from opening the Stream Menu during streams started through the direct PAYLOAD launch path.
-            - **Premature Stream Menu access:** Prevented the Stream Menu from opening while the connection status message is still displayed and before video is available.
-            - **Stream disconnection handling:** Improved the dismissal of the performance overlay during disconnection and application exit, preventing it from remaining visible over the closing screen.
-            - **Host application exit:** Hid the configuration summary bar while the host application is being closed and restored it when the operation finishes, including error paths.
-            - **Stream setup failures:** Fixed a potential hang when video stream initialization fails.
-            
-            ### Localization
-            - Added German (`de-DE`), French (`fr-FR`), Italian (`it-IT`), and Russian (`ru-RU`) translations.
-            - Updated English, Spanish, and Brazilian Portuguese translations for the new settings, host-removal warning, performance statistics, and interface changes.
+          body_path: .github/release-notes.md
