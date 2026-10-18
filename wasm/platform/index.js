@@ -4943,11 +4943,6 @@ function loadUserDataCb() {
     }
   });
 
-  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay position.');
-  getData('performanceStatsPosition', function(positionValue) {
-    setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
-  });
-
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performanceStats preferences.');
   getData('performanceStats', function(previousValue) {
     if (previousValue.performanceStats == null) {
@@ -4958,8 +4953,13 @@ function loadUserDataCb() {
       document.querySelector('#performanceStatsBtn').MaterialSwitch.on();
     }
 
-    _directSmartHubSettingsReady = true;
-    maybeStartDirectSmartHubLaunch();
+    // Do not release direct-launch startup until the saved overlay position is applied.
+    console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay position.');
+    getData('performanceStatsPosition', function(positionValue) {
+      setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
+      _directSmartHubSettingsReady = true;
+      maybeStartDirectSmartHubLaunch();
+    });
   });
 }
 
