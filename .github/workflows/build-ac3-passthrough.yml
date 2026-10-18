@@ -15,7 +15,7 @@ on:
       - 'opus/**'
       - 'ports/**'
       - 'wasm/**'
-      - '.github/workflows/**'
+      - '.github/workflows/build-ac3-passthrough.yml'
   pull_request:
     branches:
       - master
@@ -30,7 +30,7 @@ on:
       - 'opus/**'
       - 'ports/**'
       - 'wasm/**'
-      - '.github/workflows/**'
+      - '.github/workflows/build-ac3-passthrough.yml'
   workflow_dispatch:
 
 permissions:
