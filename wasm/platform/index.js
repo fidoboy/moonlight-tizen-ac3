@@ -4579,18 +4579,10 @@ function initSpecialKeys() {
       var isBackKey = keyName === 'xf86back' ||
         (typeof tvKey !== 'undefined' &&
           (eventKeyCode === tvKey.KEY_RETURN || eventKeyCode === tvKey.KEY_BACK));
-      var isMediaKey = keyName === 'mediaplaypause' ||
-        keyName === 'mediapause' ||
-        keyName === 'mediaplay' ||
-        keyName === 'xf86audioplaypause' ||
-        keyName === 'xf86audiopause' ||
-        keyName === 'xf86audioplay' ||
-        (typeof tvKey !== 'undefined' &&
-          (eventKeyCode === tvKey.KEY_PLAY_PAUSE ||
-           eventKeyCode === tvKey.KEY_PAUSE ||
-           eventKeyCode === tvKey.KEY_PLAY));
 
-      if (!isBackKey && !isMediaKey) return;
+      // Media keys are handled by remoteControllerHandler on document, where
+      // Tizen delivers the registered MediaPlayPause/MediaPause/MediaPlay events.
+      if (!isBackKey) return;
 
       e.preventDefault();
       e.stopPropagation();
