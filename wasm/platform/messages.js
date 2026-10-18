@@ -110,7 +110,6 @@ function replaceKnownStatsLabels(text) {
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
-var streamVideoReady = false;
 
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
@@ -627,7 +626,6 @@ function handleMessage(msg) {
   console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
-    streamVideoReady = false;
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     resetPerformanceStatsGraph();
@@ -755,9 +753,8 @@ function handleMessage(msg) {
     }
 
   } else if (msg === 'Connection Established') {
-    // Do not reset streamVideoReady here. A fast direct Smart Hub launch can report
-    // the first rendered frame before this message; showStreamMode resets it per session.
-    // The direct-launch status must not cover the video while the first frame is arriving.
+    // This marks connection setup, not the availability of the first decoded video frame.
+    // Keep the direct-launch connection status until this callback arrives.
     if (window._directSmartHubLaunch) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
       if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
@@ -777,8 +774,7 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
-    streamVideoReady = true;
-    // Hide the lightweight direct-launch status once the stream video is ready.
+    // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
       var directStatusElement = document.getElementById('directSmartHubStatus');
