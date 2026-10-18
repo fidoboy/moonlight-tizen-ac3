@@ -466,7 +466,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   m_FullRangeEnabled = fullRange;
   m_GameModeEnabled = gameMode;
   m_DisableWarningsEnabled = disableWarnings;
-  m_PerformanceStatsEnabled = performanceStats;
+  m_PerformanceStatsEnabled.store(performanceStats, std::memory_order_relaxed);
 
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
