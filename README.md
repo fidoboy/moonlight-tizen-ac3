@@ -35,8 +35,7 @@ This repository is an **independently maintained project derived from** [Brightc
 - **Quit host app on disconnect:** an optional setting requests that the running host application quit after a normal disconnection; unexpected connection failures do not trigger it.
 - **Animated native launch screen:** adds an animated Tizen splash screen.
   
-  <img width="640" height="360" alt="Moonlight-Tizen-Launch-Preview" src="https://github.com/user-attachments/assets/0c0be6c1-36fc-4c5b-ade8-e9e45e27376a" />
-
+  <img width="960" height="540" alt="Moonlight-Tizen-Launch-Preview" src="https://github.com/user-attachments/assets/dde25aae-c907-46ae-a6f7-a77af1684cfa" />
 
 - **Settings and input refinements:** improves optical-output settings, their disabled-state presentation and remote navigation, with related keyboard/input refinements.
 
