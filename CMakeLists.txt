@@ -5,9 +5,13 @@ project(MoonlightWasm VERSION 1.0)
 add_compile_options(-w -s WASM=1 -fno-ident -Os -flto -DSAMSUNG_WRT -DOS_WASM -DNDEBUG)
 
 add_library(moonlight-rs STATIC
-    moonlight-common-c/reedsolomon/rs.c)
+    moonlight-common-c/nanors/rs.c
+    moonlight-common-c/nanors/deps/obl/oblas_common.c
+    moonlight-common-c/nanors/deps/obl/oblas_lite.c)
 target_include_directories(moonlight-rs PUBLIC
-    moonlight-common-c/reedsolomon)
+    moonlight-common-c/nanors
+    moonlight-common-c/nanors/deps
+    moonlight-common-c/nanors/deps/obl)
 target_compile_features(moonlight-rs PUBLIC c_std_99)
 
 add_library(moonlight-enet STATIC
@@ -58,7 +62,9 @@ target_compile_definitions(moonlight-common-c PUBLIC
 target_include_directories(moonlight-common-c PUBLIC
     moonlight-common-c/src
     moonlight-common-c/enet/include
-    moonlight-common-c/reedsolomon)
+    moonlight-common-c/nanors
+    moonlight-common-c/nanors/deps
+    moonlight-common-c/nanors/deps/obl)
 target_compile_features(moonlight-common-c PUBLIC c_std_99)
 set_target_properties(moonlight-common-c
     PROPERTIES
@@ -245,7 +251,9 @@ target_include_directories(moonlight-wasm PUBLIC
     wasm/dispatcher
     moonlight-common-c/src
     moonlight-common-c/enet/include
-    moonlight-common-c/reedsolomon
+    moonlight-common-c/nanors
+    moonlight-common-c/nanors/deps
+    moonlight-common-c/nanors/deps/obl
     libgamestream
     h264bitstream
     opus/include
