@@ -80,7 +80,7 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 
 The USB package contains the standard Moonlight variant. If you need the **ForceGM** variant, download `Moonlight-ForceGM.wgt` from the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio.
 
-See the complete [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for the alternative methods. Then use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
+See the complete [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for detailed instructions. Then use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
 
 ---
 
