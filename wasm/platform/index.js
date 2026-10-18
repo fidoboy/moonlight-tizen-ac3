@@ -3041,8 +3041,8 @@ function quitAppDialog() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Reset readiness per session; displayVideo marks the first rendered video frame.
-  streamVideoReady = false;
+  // displayVideo marks the first rendered video frame; do not reset readiness here,
+  // because a fast direct Smart Hub launch can render before this UI transition.
   $('#main-header').hide();
   $('#main-content').children().not('#listener, #loadingSpinner').hide();
   $('#main-content').addClass('fullscreen');
@@ -3088,6 +3088,11 @@ function handleOnScreenOverlays() {
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
 function startGame(host, appID) {
+  // Reset readiness when a new session is requested, before asynchronous setup can
+  // deliver displayVideo. Do not reset it later in showStreamMode(), which may run
+  // after the first frame on a fast direct Smart Hub launch.
+  streamVideoReady = false;
+
   if (!host || !host.paired) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Attempted to start a game, but the host was not initialized properly! Host object: ', host);
     if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
