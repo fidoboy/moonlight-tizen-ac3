@@ -93,7 +93,19 @@
     }
     .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
-    .nav-links a:hover { color: var(--text); }
+    .nav-links a[data-section], .nav-links a[data-page] {
+      position: relative; display: inline-flex; align-items: center; padding: 7px 0;
+    }
+    .nav-links a[data-section]::after, .nav-links a[data-page]::after {
+      content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 2px;
+      border-radius: 2px; background: linear-gradient(90deg, var(--blue), #b9adff);
+      transform: scaleX(0); transform-origin: center;
+      transition: transform .26s cubic-bezier(.2, .8, .2, 1);
+    }
+    .nav-links a[data-section]:hover, .nav-links a[data-page]:hover,
+    .nav-links a.is-active { color: var(--text); }
+    .nav-links a[data-section]:hover::after, .nav-links a[data-page]:hover::after { transform: scaleX(.45); }
+    .nav-links a[data-section].is-active::after, .nav-links a[data-page].is-active::after { transform: scaleX(1); }
     .nav-links .nav-github { color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; }
 
     .language-picker { position: relative; flex: 0 0 auto; }
@@ -353,10 +365,10 @@
         <span>Moonlight for Tizen<small>Enhanced version · with Dolby Digital audio support</small></span>
       </a>
       <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#install">Install</a>
-        <a href="#download">Downloads</a>
-        <a href="Frequently-Asked-Questions.html">FAQ</a>
+        <a href="#features" data-section="features">Features</a>
+        <a href="#install" data-section="install">Install</a>
+        <a href="#download" data-section="download">Downloads</a>
+        <a href="Frequently-Asked-Questions.html" data-page="faq">FAQ</a>
         <div class="language-picker" id="language-picker">
           <button type="button" id="language-trigger" class="language-trigger" aria-label="Page language" aria-haspopup="listbox" aria-expanded="false" aria-controls="language-menu">
             <img class="language-flag" src="assets/flags/gb.svg" alt="" width="24" height="16">
@@ -635,25 +647,13 @@
   </footer>
   <script src="assets/language-switcher.js"></script>
   <script src="assets/latest-release.js"></script>
+  <script src="assets/site-navigation.js"></script>
   <script>
     (() => {
       const title = document.querySelector('.hero-brand-title');
       const topbar = document.querySelector('.topbar');
 
       if (!topbar) return;
-
-      // Force smooth scrolling for the fixed navigation links, including
-      // browsers whose OS-level reduced-motion preference disables CSS scrolling.
-      document.querySelectorAll('.nav-links a[href^="#"]').forEach(link => {
-        link.addEventListener('click', event => {
-          const target = document.querySelector(link.getAttribute('href'));
-          if (!target) return;
-          event.preventDefault();
-          const hash = link.getAttribute('href');
-          if (window.location.hash !== hash) history.pushState(null, '', hash);
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      });
 
       if (!title) return;
       if (!('IntersectionObserver' in window)) {
