@@ -528,51 +528,89 @@
     <section class="section section-bordered" id="download">
       <div class="wrap">
         <div class="download-heading">
-          <svg class="download-packages" viewBox="0 0 220 220" role="img" aria-label="Illustration of three software packages" xmlns="http://www.w3.org/2000/svg">
+          <svg class="download-packages" viewBox="0 0 220 220" role="img" aria-label="Three taped brown cardboard shipping boxes, one much larger than the others" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <radialGradient id="packageGlow" cx="50%" cy="48%" r="52%">
-                <stop offset="0" stop-color="#438cf5" stop-opacity=".28"/>
+              <radialGradient id="packageGlow" cx="50%" cy="48%" r="55%">
+                <stop offset="0" stop-color="#438cf5" stop-opacity=".19"/>
                 <stop offset="1" stop-color="#438cf5" stop-opacity="0"/>
               </radialGradient>
-              <linearGradient id="packageBlueTop" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#a6d8ff"/><stop offset="1" stop-color="#4f91ed"/>
+              <linearGradient id="cartonTop" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f0c991"/>
+                <stop offset=".48" stop-color="#d9a66a"/>
+                <stop offset="1" stop-color="#b97b45"/>
               </linearGradient>
-              <linearGradient id="packageBlueSide" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#4188e6"/><stop offset="1" stop-color="#234b9c"/>
+              <linearGradient id="cartonFront" x1="0" y1="0" x2=".95" y2="1">
+                <stop offset="0" stop-color="#bd854f"/>
+                <stop offset=".55" stop-color="#a56b3b"/>
+                <stop offset="1" stop-color="#774725"/>
               </linearGradient>
-              <linearGradient id="packageBlueFront" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#72b8ff"/><stop offset="1" stop-color="#326ac4"/>
+              <linearGradient id="cartonSide" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#cb9258"/>
+                <stop offset=".55" stop-color="#a66b3c"/>
+                <stop offset="1" stop-color="#794725"/>
               </linearGradient>
-              <linearGradient id="packageVioletTop" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#d3c7ff"/><stop offset="1" stop-color="#9475ef"/>
+              <linearGradient id="packingTape" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#c69a6c"/>
+                <stop offset=".45" stop-color="#ead0a5"/>
+                <stop offset=".7" stop-color="#d8b587"/>
+                <stop offset="1" stop-color="#b98b5f"/>
               </linearGradient>
-              <linearGradient id="packageVioletSide" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#8c73da"/><stop offset="1" stop-color="#51419e"/>
+              <linearGradient id="tapeShade" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f0d8b0" stop-opacity=".84"/>
+                <stop offset="1" stop-color="#9b6d42" stop-opacity=".52"/>
               </linearGradient>
-              <linearGradient id="packageCyan" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#b0f5ff"/><stop offset="1" stop-color="#31bddf"/>
-              </linearGradient>
+              <filter id="boxShadow" x="-35%" y="-35%" width="175%" height="190%">
+                <feGaussianBlur stdDeviation="5"/>
+              </filter>
+              <pattern id="cartonGrain" width="8" height="8" patternUnits="userSpaceOnUse">
+                <path d="M1 0v8 M5 0v8" stroke="#f4d7ab" stroke-opacity=".08" stroke-width=".6"/>
+              </pattern>
             </defs>
-            <circle cx="110" cy="111" r="103" fill="url(#packageGlow)"/>
-            <ellipse cx="110" cy="188" rx="77" ry="13" fill="#02050c" opacity=".36"/>
-            <g stroke-linejoin="round" stroke-width="1.6">
-              <path d="M105 68 147 46 190 68 148 92Z" fill="url(#packageVioletTop)" stroke="#d8ccff"/>
-              <path d="M105 68 148 92 148 143 105 119Z" fill="#6554b8" stroke="#a698f6"/>
-              <path d="M148 92 190 68 190 119 148 143Z" fill="url(#packageVioletSide)" stroke="#a698f6"/>
-              <path d="M130 56 154 69 154 79 130 66Z" fill="#ede8ff" opacity=".8" stroke="none"/>
-              <path d="M28 91 75 66 121 90 74 117Z" fill="url(#packageBlueTop)" stroke="#c0e4ff"/>
-              <path d="M28 91 74 117 74 176 28 150Z" fill="url(#packageBlueFront)" stroke="#96cbff"/>
-              <path d="M74 117 121 90 121 149 74 176Z" fill="url(#packageBlueSide)" stroke="#79b6ff"/>
-              <path d="M54 77 78 90 78 101 54 87Z" fill="#e3f4ff" opacity=".9" stroke="none"/>
-              <path d="M81 137 119 116 158 137 119 160Z" fill="url(#packageCyan)" stroke="#c0f6ff"/>
-              <path d="M81 137 119 160 119 200 81 178Z" fill="#2299c5" stroke="#80e7fb"/>
-              <path d="M119 160 158 137 158 177 119 200Z" fill="#177ba9" stroke="#71d7f0"/>
-              <path d="M103 126 124 139 124 151 103 138Z" fill="#edfdff" opacity=".9" stroke="none"/>
+            <circle cx="110" cy="111" r="105" fill="url(#packageGlow)"/>
+            <ellipse cx="108" cy="195" rx="91" ry="11" fill="#02050c" opacity=".42" filter="url(#boxShadow)"/>
+
+            <!-- Main shipping carton -->
+            <g stroke="#6f4528" stroke-width="1.15" stroke-linejoin="round">
+              <path d="M14 76 93 35 166 72 86 114Z" fill="url(#cartonTop)"/>
+              <path d="M14 76 86 114 86 194 14 155Z" fill="url(#cartonFront)"/>
+              <path d="M86 114 166 72 166 152 86 194Z" fill="url(#cartonSide)"/>
+              <path d="M14 76 86 114 86 194 14 155Z" fill="url(#cartonGrain)" stroke="none"/>
+              <path d="M86 114 166 72 166 152 86 194Z" fill="url(#cartonGrain)" stroke="none"/>
+              <path d="M20 79 86 114 160 76" fill="none" stroke="#f0c48b" stroke-opacity=".48" stroke-width="1.1"/>
+              <path d="M18 151 86 188 159 149" fill="none" stroke="#56341f" stroke-opacity=".25" stroke-width=".8"/>
+              <!-- Tape running over the top and down the front seam -->
+              <path d="M83 40 101 49 94 110 76 101Z" fill="url(#packingTape)" stroke="#8a613b" stroke-opacity=".62"/>
+              <path d="M76 101 94 110 94 145 76 136Z" fill="url(#tapeShade)" stroke="#80552f" stroke-opacity=".65"/>
+              <path d="M83 42 100 50 M78 99 92 106 M78 104 92 111" fill="none" stroke="#fff0d4" stroke-opacity=".52" stroke-width=".8"/>
+              <!-- A second tape strip over the top seam -->
+              <path d="M95 35 112 44 166 72 148 82Z" fill="url(#tapeShade)" stroke="#8a613b" stroke-opacity=".45"/>
+              <path d="M148 82 166 72 166 97 148 107Z" fill="url(#packingTape)" stroke="#8a613b" stroke-opacity=".45"/>
+              <path d="M99 38 151 81" fill="none" stroke="#fff0d4" stroke-opacity=".38" stroke-width=".8"/>
+              <!-- Corrugated cardboard edge detail -->
+              <path d="M14 155 86 194 166 152" fill="none" stroke="#54331e" stroke-opacity=".55"/>
+              <path d="M18 80 18 151 M162 76 162 149" fill="none" stroke="#f3c78c" stroke-opacity=".28" stroke-width=".8"/>
             </g>
-            <g fill="none" stroke-linecap="round" stroke-width="2.4" opacity=".95">
-              <path d="M15 57 24 51 M20 68 27 66" stroke="#77bbff"/>
-              <path d="M190 34 194 24 M201 43 209 40" stroke="#b4a3ff"/>
-              <path d="M174 166 183 162 M180 177 190 177" stroke="#5fdcf5"/>
+
+            <!-- Medium carton, in front of the main box -->
+            <g stroke="#704729" stroke-width=".9" stroke-linejoin="round">
+              <path d="M116 126 148 109 181 125 149 144Z" fill="url(#cartonTop)"/>
+              <path d="M116 126 149 144 149 177 116 159Z" fill="url(#cartonFront)"/>
+              <path d="M149 144 181 125 181 158 149 177Z" fill="url(#cartonSide)"/>
+              <path d="M140 113 149 118 149 144 140 139Z" fill="url(#packingTape)" stroke="#8a613b" stroke-opacity=".62"/>
+              <path d="M140 139 149 144 149 159 140 154Z" fill="url(#tapeShade)" stroke="#80552f" stroke-opacity=".5"/>
+              <path d="M149 111 158 116 181 127 172 132Z" fill="url(#tapeShade)" stroke="#8a613b" stroke-opacity=".38"/>
+              <path d="M119 129 149 146 178 128" fill="none" stroke="#f0c48b" stroke-opacity=".4" stroke-width=".7"/>
+            </g>
+
+            <!-- Small carton, nearest to the viewer -->
+            <g stroke="#704729" stroke-width=".85" stroke-linejoin="round">
+              <path d="M150 157 179 141 208 157 179 174Z" fill="url(#cartonTop)"/>
+              <path d="M150 157 179 174 179 204 150 187Z" fill="url(#cartonFront)"/>
+              <path d="M179 174 208 157 208 187 179 204Z" fill="url(#cartonSide)"/>
+              <path d="M174 144 183 149 179 174 170 169Z" fill="url(#packingTape)" stroke="#8a613b" stroke-opacity=".55"/>
+              <path d="M170 169 179 174 179 188 170 183Z" fill="url(#tapeShade)" stroke="#80552f" stroke-opacity=".55"/>
+              <path d="M179 142 188 147 208 157 199 162Z" fill="url(#tapeShade)" stroke="#8a613b" stroke-opacity=".38"/>
+              <path d="M153 160 179 176 205 160" fill="none" stroke="#f0c48b" stroke-opacity=".38" stroke-width=".7"/>
             </g>
           </svg>
           <div class="section-head">
