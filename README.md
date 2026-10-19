@@ -15,7 +15,7 @@ Moonlight Tizen with AC-3 support is a port of [Moonlight ChromeOS](https://gith
 
 <p align="center">
   <br>
-  <a href="https://fidoboy.github.io/moonlight-tizen-ac3/">
+  <a href="https://fidoboy.github.io/moonlight-tizen-ac3/" target="_blank">
     <img src="docs/assets/visit-website-button.svg" alt="Visit app website" height="56">
   </a>
   <br><br>
