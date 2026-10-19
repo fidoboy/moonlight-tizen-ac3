@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Features Overview"
+description: "Overview of Moonlight Tizen features, Dolby audio support and configuration."
+---
+
 # Features Overview
 
 This page describes the Moonlight for Tizen client project. Feature availability depends on TV model, Tizen version, host configuration, network and connected peripherals.

@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Installation Guide"
+description: "Installation methods for Moonlight Tizen on Samsung Smart TVs."
+---
+
 # Installation Guide
 
 The client is packaged as a signed Tizen widget (`.wgt`). Choose an installation method that matches your TV, computer and installed Samsung development tools.

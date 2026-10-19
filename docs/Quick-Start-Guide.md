@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Quick Start Guide"
+description: "Quick start instructions for Moonlight Tizen and compatible GameStream hosts."
+---
+
 # Quick Start Guide
 
 This guide covers the shortest path from installation to a working stream on a Samsung Smart TV.

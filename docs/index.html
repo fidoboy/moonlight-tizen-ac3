@@ -60,21 +60,21 @@
       filter: drop-shadow(0 5px 12px rgba(75, 123, 219, .24));
     }
     .hero-brand {
-      display: flex; align-items: center; gap: clamp(10px, 1.8vw, 24px);
+      display: block; position: relative; z-index: 2; overflow: visible;
       width: 100%; margin: 0 0 46px;
       padding: clamp(18px, 2.4vw, 30px) max(22px, calc((100% - var(--content)) / 2));
       border-bottom: 1px solid var(--line);
       background: linear-gradient(105deg, rgba(54, 112, 202, .24), rgba(63, 72, 128, .13) 48%, rgba(8, 13, 25, .04));
       box-shadow: 0 20px 48px rgba(0, 0, 0, .10);
     }
-    .hero-logo { display: block; width: clamp(36px, 5.8vw, 72px); height: clamp(36px, 5.8vw, 72px); flex: 0 0 auto; object-fit: contain; filter: drop-shadow(0 9px 25px rgba(75, 123, 219, .3)); }
-    .hero-brand-copy { min-width: 0; flex: 1 1 auto; }
+    .hero-brand-copy { width: 100%; min-width: 0; margin-inline: auto; }
     .hero-brand-title {
-      display: block; width: 100%;
-      font-size: clamp(24px, 7.6vw, 112px); line-height: .98;
+      position: relative; z-index: 3; display: block; width: 100%; overflow: visible;
+      padding-bottom: .12em;
+      font-size: clamp(24px, 7.6vw, 112px); line-height: 1.12;
       letter-spacing: -.065em; font-weight: 850; white-space: nowrap;
     }
-    .hero-brand-note { margin-top: 8px; color: var(--muted); font-size: clamp(12px, 1.25vw, 16px); font-weight: 650; letter-spacing: .02em; line-height: 1.35; }
+    .hero-brand-note { position: relative; z-index: 2; margin-top: 8px; color: var(--muted); font-size: clamp(12px, 1.25vw, 16px); font-weight: 650; letter-spacing: .02em; line-height: 1.35; }
     .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
     .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
@@ -194,7 +194,6 @@
       .brand { font-size: 13px; }
       .brand-logo { width: 34px; height: 34px; }
       .hero-brand { gap: 10px; margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
-      .hero-logo { width: 36px; height: 36px; }
       .hero-brand-title { font-size: clamp(24px, 7.6vw, 44px); letter-spacing: -.055em; }
       .hero-brand-note { margin-top: 5px; font-size: 12px; }
       h1 { font-size: clamp(40px, 12vw, 58px); }
@@ -233,7 +232,6 @@
   <main id="top">
     <section class="hero">
       <div class="hero-brand">
-        <img class="hero-logo" src="assets/moonlight-logo.png" alt="" width="72" height="72" aria-hidden="true">
         <div class="hero-brand-copy">
           <div class="hero-brand-title gradient-text">Moonlight for Tizen</div>
           <div class="hero-brand-note">Enhanced version · Dolby Digital audio</div>

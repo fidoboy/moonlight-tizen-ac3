@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Troubleshooting Guide"
+description: "Troubleshooting common Moonlight Tizen connection, audio and streaming issues."
+---
+
 # Troubleshooting Guide
 
 ## Moonlight does not find the host
