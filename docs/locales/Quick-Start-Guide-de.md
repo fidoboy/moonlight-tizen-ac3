@@ -19,7 +19,7 @@ Du benötigst:
 - Eine stabile Netzwerkverbindung zwischen Fernseher und PC. Als Ausgangspunkt empfehlen sich Ethernet am Host und zuverlässiges 5-GHz-WLAN oder Ethernet am Fernseher.
 - Ein kompatibles Gamepad, wenn du mit Controller spielen möchtest.
 
-Weitere Informationen findest du unter [Voraussetzungen in der README](README-de.html#voraussetzungen).
+Weitere Informationen findest du unter [Voraussetzungen in der README](../#compatibility).
 
 ## 2. Client installieren
 
@@ -50,4 +50,4 @@ Bietet der Host nur OPUS an, verwendet der Stream weiterhin OPUS. Ein aktivierte
 
 ## 5. Stream optimieren
 
-Sobald der erste Stream funktioniert, passe Auflösung, Bildrate, Bitrate, Videocodec und Audioeinstellungen an die Fähigkeiten von Fernseher und Netzwerk an. Weitere Informationen stehen in der [Funktionsübersicht](Features-Overview-de.html) und den [Häufig gestellten Fragen](Frequently-Asked-Questions-de.html).
+Sobald der erste Stream funktioniert, passe Auflösung, Bildrate, Bitrate, Videocodec und Audioeinstellungen an die Fähigkeiten von Fernseher und Netzwerk an. Weitere Informationen stehen in der [Funktionsübersicht](Features-Overview-de.html) und den [Häufig gestellten Fragen](../Frequently-Asked-Questions.html).

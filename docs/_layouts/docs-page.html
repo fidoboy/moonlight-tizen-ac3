@@ -54,6 +54,16 @@
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
     .nav-links a:hover { color: var(--text); }
     .nav-links .nav-github { color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; }
+
+    .language-select {
+      appearance: auto; color: var(--text); background: var(--panel);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 8px 10px; min-width: 103px; max-width: 130px;
+      font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .language-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .language-select option { color: var(--text); background: var(--panel); }
+
     .doc-main { padding: 54px 0 78px; }
     .doc-content {
       width: min(960px, 100%); margin: 0 auto; padding: clamp(24px, 4.5vw, 54px);
@@ -142,7 +152,17 @@
         <a href="{{ site.baseurl }}/#features">Features</a>
         <a href="{{ site.baseurl }}/#install">Install</a>
         <a href="{{ site.baseurl }}/#download">Downloads</a>
-        <a href="{{ site.baseurl }}/locales/">Translations</a>
+        {% if page.url contains 'Quick-Start-Guide' or page.url contains 'Installation-Guide' or page.url contains 'Features-Overview' or page.url contains 'Development-Guide' %}
+        <select id="language-select" class="language-select" aria-label="Page language">
+          <option value="en">🇬🇧 EN</option>
+          <option value="es">🇪🇸 ES</option>
+          <option value="de">🇩🇪 DE</option>
+          <option value="fr">🇫🇷 FR</option>
+          <option value="it">🇮🇹 IT</option>
+          <option value="ru">🇷🇺 RU</option>
+          <option value="pt-br">🇧🇷 PT-BR</option>
+        </select>
+        {% endif %}
         <a class="nav-github" href="https://github.com/fidoboy/moonlight-tizen-ac3" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
     </nav>
@@ -167,5 +187,6 @@
       </div>
     </div>
   </footer>
+<script src="{{ site.baseurl }}/assets/language-switcher.js"></script>
 </body>
 </html>

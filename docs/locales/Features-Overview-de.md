@@ -20,7 +20,7 @@ Das zentrale Merkmal dieses Projekts ist das optionale Passthrough von Dolby Dig
 - **OPUS-Kompatibilität:** Sendet ein Host nur OPUS, kündigt er die optionale Dolby-Erweiterung nicht an oder wählt kein Dolby-Format, verwendet der Client weiterhin den normalen OPUS-Pfad. Hosts, die nur OPUS unterstützen, müssen nicht geändert werden.
 - **Kompatibler Host:** Für Dolby-Passthrough wird derzeit der passende experimentelle Branch [fidoboy/Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio) benötigt. Ohne diese Host-Funktion bleibt der normale Audio-Pfad verfügbar.
 
-Der optische Audiopfad wurde vollständig mit einem experimentellen Sunshine-Build, einem Samsung-Fernseher und einem kompatiblen optisch angeschlossenen Soundsystem getestet. Ergebnisse können je nach TV-Modell, Firmware und Receiver abweichen. Siehe [Bekannte Probleme und Einschränkungen](Known-Issues-and-Limitations-de.html#dolby-optical-audio).
+Der optische Audiopfad wurde vollständig mit einem experimentellen Sunshine-Build, einem Samsung-Fernseher und einem kompatiblen optisch angeschlossenen Soundsystem getestet. Ergebnisse können je nach TV-Modell, Firmware und Receiver abweichen. Siehe [Bekannte Probleme und Einschränkungen](../Known-Issues-and-Limitations.html#dolby-optical-audio).
 
 ## Statistiken zum Audiostream
 

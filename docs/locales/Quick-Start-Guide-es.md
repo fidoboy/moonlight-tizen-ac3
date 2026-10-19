@@ -19,7 +19,7 @@ Necesitarás:
 - Una conexión de red estable entre el televisor y el PC. Para empezar, se recomienda Ethernet en el host y una conexión Wi-Fi de 5 GHz fiable o Ethernet en el televisor.
 - Un mando compatible si quieres jugar con un controlador.
 
-Consulta los [requisitos previos del README](README-es.html#requisitos-previos) para obtener más información.
+Consulta los [requisitos previos del README](../#compatibility) para obtener más información.
 
 ## 2. Instala el cliente
 
@@ -50,4 +50,4 @@ Si el host solo ofrece OPUS, la transmisión seguirá usando OPUS. Activar un in
 
 ## 5. Ajusta la transmisión
 
-Cuando funcione la primera transmisión, ajusta la resolución, la frecuencia de imagen, la tasa de bits, el códec de vídeo y el audio según las capacidades del televisor y de la red. Consulta el [Resumen de funciones](Features-Overview-es.html) y las [Preguntas frecuentes](Frequently-Asked-Questions-es.html) para más detalles.
+Cuando funcione la primera transmisión, ajusta la resolución, la frecuencia de imagen, la tasa de bits, el códec de vídeo y el audio según las capacidades del televisor y de la red. Consulta el [Resumen de funciones](Features-Overview-es.html) y las [Preguntas frecuentes](../Frequently-Asked-Questions.html) para más detalles.

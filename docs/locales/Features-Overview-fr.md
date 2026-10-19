@@ -20,7 +20,7 @@ La caractéristique principale de ce projet est le passthrough facultatif du Dol
 - **Compatibilité OPUS :** si l'hôte n'envoie que de l'OPUS, n'annonce pas l'extension Dolby facultative ou ne sélectionne pas de format Dolby, le client conserve son chemin OPUS habituel. Les hôtes OPUS uniquement n'ont pas besoin de modification.
 - **Hôte compatible :** le passthrough Dolby nécessite actuellement la branche expérimentale correspondante [fidoboy/Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio). Le chemin audio normal reste disponible en l'absence de cette fonctionnalité côté hôte.
 
-Le chemin audio optique a été testé de bout en bout avec une version expérimentale de Sunshine, un téléviseur Samsung et un système audio compatible relié en optique. Les résultats peuvent varier selon le modèle, le micrologiciel et le récepteur. Consultez [Problèmes connus et limitations](Known-Issues-and-Limitations-fr.html#dolby-optical-audio).
+Le chemin audio optique a été testé de bout en bout avec une version expérimentale de Sunshine, un téléviseur Samsung et un système audio compatible relié en optique. Les résultats peuvent varier selon le modèle, le micrologiciel et le récepteur. Consultez [Problèmes connus et limitations](../Known-Issues-and-Limitations.html#dolby-optical-audio).
 
 ## Statistiques du flux audio
 

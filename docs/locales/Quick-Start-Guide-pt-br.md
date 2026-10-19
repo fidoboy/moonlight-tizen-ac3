@@ -19,7 +19,7 @@ Você precisará de:
 - Uma conexão de rede estável entre a TV e o PC. Ethernet no host e Wi-Fi 5 GHz confiável ou Ethernet na TV são boas opções para começar.
 - Um controle compatível, caso queira jogar com gamepad.
 
-Consulte os [pré-requisitos no README](README-pt-br.html#pré-requisitos) para mais detalhes.
+Consulte os [pré-requisitos no README](../#compatibility) para mais detalhes.
 
 ## 2. Instale o cliente
 
@@ -50,4 +50,4 @@ Se o host oferecer apenas OPUS, a transmissão continuará usando OPUS. Ativar u
 
 ## 5. Ajuste a transmissão
 
-Quando a primeira transmissão estiver funcionando, ajuste resolução, taxa de quadros, bitrate, codec de vídeo e opções de áudio conforme os recursos da TV e da rede. Consulte a [Visão geral dos recursos](Features-Overview-pt-br.html) e as [Perguntas frequentes](Frequently-Asked-Questions-pt-br.html).
+Quando a primeira transmissão estiver funcionando, ajuste resolução, taxa de quadros, bitrate, codec de vídeo e opções de áudio conforme os recursos da TV e da rede. Consulte a [Visão geral dos recursos](Features-Overview-pt-br.html) e as [Perguntas frequentes](../Frequently-Asked-Questions.html).

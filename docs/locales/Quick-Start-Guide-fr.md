@@ -19,7 +19,7 @@ Vous aurez besoin de :
 - Une connexion réseau stable entre le téléviseur et le PC. Ethernet pour l'hôte et un Wi-Fi 5 GHz fiable ou Ethernet pour le téléviseur constituent un bon point de départ.
 - Une manette compatible si vous voulez jouer avec une manette.
 
-Consultez les [prérequis du README](README-fr.html#prérequis) pour plus de détails.
+Consultez les [prérequis du README](../#compatibility) pour plus de détails.
 
 ## 2. Installer le client
 
@@ -50,4 +50,4 @@ Si l'hôte ne propose que OPUS, le flux continuera à utiliser OPUS. Un réglage
 
 ## 5. Ajuster le streaming
 
-Une fois le premier flux fonctionnel, ajustez résolution, fréquence d'images, débit, codec vidéo et réglages audio selon les capacités du téléviseur et du réseau. Consultez la [Présentation des fonctionnalités](Features-Overview-fr.html) et la [FAQ](Frequently-Asked-Questions-fr.html).
+Une fois le premier flux fonctionnel, ajustez résolution, fréquence d'images, débit, codec vidéo et réglages audio selon les capacités du téléviseur et du réseau. Consultez la [Présentation des fonctionnalités](Features-Overview-fr.html) et la [FAQ](../Frequently-Asked-Questions.html).

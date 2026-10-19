@@ -19,7 +19,7 @@ Ti serviranno:
 - Una connessione di rete stabile tra televisore e PC. Ethernet per l'host e una connessione Wi-Fi 5 GHz affidabile o Ethernet per il televisore sono un buon punto di partenza.
 - Un controller compatibile se vuoi giocare con un gamepad.
 
-Consulta i [requisiti in README](README-it.html#requisiti) per altri dettagli.
+Consulta i [requisiti in README](../#compatibility) per altri dettagli.
 
 ## 2. Installa il client
 
@@ -50,4 +50,4 @@ Se l'host offre solo OPUS, lo streaming continuerà a usare OPUS. Un interruttor
 
 ## 5. Regola lo streaming
 
-Quando il primo streaming funziona, adatta risoluzione, frequenza dei fotogrammi, bitrate, codec video e impostazioni audio alle capacità del televisore e della rete. Consulta la [Panoramica delle funzionalità](Features-Overview-it.html) e le [Domande frequenti](Frequently-Asked-Questions-it.html).
+Quando il primo streaming funziona, adatta risoluzione, frequenza dei fotogrammi, bitrate, codec video e impostazioni audio alle capacità del televisore e della rete. Consulta la [Panoramica delle funzionalità](Features-Overview-it.html) e le [Domande frequenti](../Frequently-Asked-Questions.html).

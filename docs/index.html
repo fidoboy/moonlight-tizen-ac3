@@ -94,6 +94,16 @@
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
     .nav-links a:hover { color: var(--text); }
     .nav-links .nav-github { color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; }
+
+    .language-select {
+      appearance: auto; color: var(--text); background: var(--panel);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 8px 10px; min-width: 103px; max-width: 130px;
+      font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .language-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .language-select option { color: var(--text); background: var(--panel); }
+
     .hero { padding: 0 0 54px; position: relative; overflow: hidden; }
     .hero-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 30px; align-items: center; }
     .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #b8d9ff; font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
@@ -304,7 +314,15 @@
         <a href="#features">Features</a>
         <a href="#install">Install</a>
         <a href="#download">Downloads</a>
-        <a href="locales/">Translations</a>
+        <select id="language-select" class="language-select" aria-label="Page language">
+          <option value="en">🇬🇧 EN</option>
+          <option value="es">🇪🇸 ES</option>
+          <option value="de">🇩🇪 DE</option>
+          <option value="fr">🇫🇷 FR</option>
+          <option value="it">🇮🇹 IT</option>
+          <option value="ru">🇷🇺 RU</option>
+          <option value="pt-br">🇧🇷 PT-BR</option>
+        </select>
         <a class="nav-github" href="https://github.com/fidoboy/moonlight-tizen-ac3" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
     </nav>
@@ -569,6 +587,7 @@
       </div>
     </div>
   </footer>
+  <script src="assets/language-switcher.js"></script>
   <script>
     (() => {
       const title = document.querySelector('.hero-brand-title');

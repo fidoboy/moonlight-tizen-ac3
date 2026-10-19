@@ -1,3 +1,10 @@
+---
+layout: docs-page
+lang: en
+title: "Development Guide"
+description: "Build Moonlight Tizen locally, inspect CI artifacts and publish versioned releases."
+---
+
 # Development Guide
 
 ## Repository and dependencies
