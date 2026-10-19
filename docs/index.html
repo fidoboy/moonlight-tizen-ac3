@@ -12,7 +12,8 @@
   <meta property="og:url" content="https://fidoboy.github.io/moonlight-tizen-ac3/">
   <meta property="og:image" content="https://fidoboy.github.io/moonlight-tizen-ac3/assets/moonlight-tizen-banner.svg">
   <title>Moonlight Tizen · Dolby</title>
-  <link rel="icon" type="image/svg+xml" href="assets/dolby-double-d.svg">
+  <link rel="icon" type="image/png" href="assets/moonlight-logo.png">
+  <link rel="apple-touch-icon" href="assets/moonlight-logo.png">
   <style>
     :root {
       color-scheme: dark;
@@ -53,11 +54,15 @@
     }
     .nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
     .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 750; letter-spacing: -.025em; }
-    .brand-icon {
-      display: grid; place-items: center; width: 38px; height: 38px; border-radius: 13px;
-      background: linear-gradient(145deg, #8fc4ff, #4b7bdb 62%, #6756b4);
-      color: #081323; font-size: 27px; line-height: 1; box-shadow: 0 5px 24px rgba(75, 123, 219, .28);
+    .brand-logo {
+      display: block; width: 38px; height: 38px; flex: 0 0 auto;
+      object-fit: contain; border-radius: 10px;
+      filter: drop-shadow(0 5px 12px rgba(75, 123, 219, .24));
     }
+    .hero-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 19px; }
+    .hero-logo { display: block; width: 76px; height: 76px; flex: 0 0 auto; object-fit: contain; filter: drop-shadow(0 9px 25px rgba(75, 123, 219, .3)); }
+    .hero-brand .eyebrow { margin-bottom: 5px; }
+    .hero-brand-note { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .02em; }
     .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
     .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
@@ -67,7 +72,7 @@
     .hero-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(290px, .8fr); gap: 48px; align-items: center; }
     .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #b8d9ff; font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
     .eyebrow:before { content: ""; width: 23px; height: 2px; background: var(--blue); border-radius: 2px; }
-    h1 { max-width: 720px; margin: 19px 0 20px; font-size: clamp(42px, 6vw, 70px); line-height: 1.04; letter-spacing: -.062em; font-weight: 780; }
+    h1 { max-width: 720px; margin: 0 0 20px; font-size: clamp(42px, 6vw, 70px); line-height: 1.04; letter-spacing: -.062em; font-weight: 780; }
     .gradient-text { background: linear-gradient(110deg, #fff 14%, #a7d3ff 56%, #b9adff); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .lead { max-width: 635px; margin: 0; color: var(--muted); font-size: clamp(16px, 1.8vw, 19px); line-height: 1.75; }
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 22px; }
@@ -162,7 +167,9 @@
       .nav-links { gap: 12px; }
       .nav-links a:not(.nav-github) { display: none; }
       .brand { font-size: 13px; }
-      .brand-icon { width: 34px; height: 34px; }
+      .brand-logo { width: 34px; height: 34px; }
+      .hero-brand { gap: 12px; }
+      .hero-logo { width: 62px; height: 62px; }
       h1 { font-size: clamp(40px, 12vw, 58px); }
       .hero { padding: 44px 0 38px; }
       .section { padding: 48px 0; }
@@ -184,7 +191,7 @@
   <header class="topbar">
     <nav class="nav wrap" aria-label="Main navigation">
       <a class="brand" href="#top" aria-label="Moonlight Tizen home">
-        <span class="brand-icon" aria-hidden="true">☾</span>
+        <img class="brand-logo" src="assets/moonlight-logo.png" alt="" width="38" height="38">
         <span>Moonlight Tizen<small>Independent Dolby build</small></span>
       </a>
       <div class="nav-links">
@@ -200,7 +207,10 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <div class="eyebrow">Moonlight for Tizen OS</div>
+          <div class="hero-brand">
+            <img class="hero-logo" src="assets/moonlight-logo.png" alt="" width="76" height="76" aria-hidden="true">
+            <div><div class="eyebrow">Moonlight for Tizen OS</div><div class="hero-brand-note">Independent build · Dolby audio</div></div>
+          </div>
           <h1><span class="gradient-text">Your PC games.</span><br>Your living room.</h1>
           <p class="lead">Stream games, applications, and your desktop from your PC to a Samsung Smart TV. This independent Moonlight build adds optional Dolby Digital audio passthrough while keeping the familiar Opus streaming path compatible.</p>
           <div class="actions">
