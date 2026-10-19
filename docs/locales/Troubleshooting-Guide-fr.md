@@ -47,7 +47,7 @@ Consultez le [Guide d'installation](Installation-Guide-fr.html) et le [guide off
 ## Les statistiques affichent OPUS au lieu de AC-3 ou E-AC-3
 
 1. Vérifiez que **Enable Dolby Digital** est activé dans Moonlight.
-2. Vérifiez que l’hôte utilise la [branche expérimentale ac3-audio de Sunshine](https://github.com/fidoboy/Sunshine/tree/ac3-audio) correspondante, compilée avec l’encodeur Dolby FFmpeg facultatif disponible.
+2. Vérifiez que l’hôte utilise la [version expérimentale de Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826) correspondante, compilée avec l’encodeur Dolby facultatif de FFmpeg. Dans Sunshine, ouvrez **Settings → Audio/Video** et sélectionnez **AC-3 (Dolby Digital)** ou **E-AC-3 (Dolby Digital Plus)** dans la liste déroulante du format audio du flux.
 3. Démarrez un nouveau flux après avoir modifié les paramètres audio de l’hôte.
 4. Vérifiez dans le journal de l’hôte que le codec et le débit AC-3 ou E-AC-3 attendus sont indiqués.
 5. Si Sunshine ne propose pas Dolby ou ne le sélectionne pas, OPUS est le repli de compatibilité attendu.
