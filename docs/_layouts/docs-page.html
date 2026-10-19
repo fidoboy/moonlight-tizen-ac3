@@ -139,6 +139,55 @@
       background: rgba(120, 184, 255, .055); border-radius: 0 10px 10px 0;
     }
     .doc-content blockquote p { margin: 8px 0; }
+    .doc-content blockquote.admonition {
+      --admonition-accent: #78b8ff;
+      --admonition-border: rgba(120, 184, 255, .34);
+      --admonition-surface: rgba(120, 184, 255, .075);
+      margin: 24px 0; padding: 15px 18px;
+      border: 1px solid var(--admonition-border);
+      border-left: 4px solid var(--admonition-accent);
+      border-radius: 12px; background: var(--admonition-surface);
+    }
+    .doc-content blockquote.admonition-note {
+      --admonition-accent: #78b8ff;
+      --admonition-border: rgba(120, 184, 255, .34);
+      --admonition-surface: rgba(120, 184, 255, .075);
+    }
+    .doc-content blockquote.admonition-tip {
+      --admonition-accent: #8de3c0;
+      --admonition-border: rgba(141, 227, 192, .34);
+      --admonition-surface: rgba(141, 227, 192, .07);
+    }
+    .doc-content blockquote.admonition-important {
+      --admonition-accent: #b9adff;
+      --admonition-border: rgba(185, 173, 255, .36);
+      --admonition-surface: rgba(185, 173, 255, .08);
+    }
+    .doc-content blockquote.admonition-warning {
+      --admonition-accent: #ffd083;
+      --admonition-border: rgba(255, 208, 131, .38);
+      --admonition-surface: rgba(255, 208, 131, .075);
+    }
+    .doc-content blockquote.admonition-caution {
+      --admonition-accent: #ff9d8c;
+      --admonition-border: rgba(255, 157, 140, .38);
+      --admonition-surface: rgba(255, 157, 140, .075);
+    }
+    .doc-content .admonition-heading {
+      display: flex; align-items: center; gap: 9px;
+      margin: 0 0 7px; color: var(--admonition-accent);
+      font-size: 13px; font-weight: 800; letter-spacing: .055em;
+      line-height: 1.4; text-transform: uppercase;
+    }
+    .doc-content .admonition-heading svg {
+      display: block; width: 19px; height: 19px; flex: 0 0 auto;
+      fill: none; stroke: currentColor; stroke-width: 1.8;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .doc-content blockquote.admonition > p { margin: 0 0 9px; }
+    .doc-content blockquote.admonition > p:last-child { margin-bottom: 0; }
+    .doc-content blockquote.admonition > ul,
+    .doc-content blockquote.admonition > ol { margin: 8px 0 0; }
     .doc-content code {
       padding: .16em .4em; border-radius: 5px; border: 1px solid rgba(181, 202, 236, .12);
       background: rgba(142, 173, 222, .11); color: #d8e7ff; font-size: .9em; overflow-wrap: anywhere;
@@ -235,5 +284,6 @@
   </footer>
 <script src="{{ site.baseurl }}/assets/language-switcher.js"></script>
 <script src="{{ site.baseurl }}/assets/site-navigation.js"></script>
+<script src="{{ site.baseurl }}/assets/admonitions.js"></script>
 </body>
 </html>
