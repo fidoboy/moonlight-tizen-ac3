@@ -24,7 +24,7 @@ Il percorso audio ottico è stato testato end-to-end con una build sperimentale 
 
 ## Statistiche del flusso audio
 
-L'overlay delle prestazioni, mostrato o nascosto con **Ctrl+Alt+Shift+S**, indica il codec audio negoziato, la disposizione e il numero di canali e un bitrate audio misurato approssimativo, insieme al codec video e alle statistiche di streaming esistenti. Il codec visualizzato riflette la sessione attiva, non soltanto la preferenza selezionata.
+L'overlay delle prestazioni può essere mostrato con **Ctrl+Alt+Shift+S** se è collegata una tastiera al televisore. In alternativa, premi **Play/Pause** o **Indietro** sul telecomando della TV per aprire il menu dello streaming e selezionare l'opzione delle statistiche. Indica il codec audio negoziato, la disposizione e il numero di canali e un bitrate audio misurato approssimativo, insieme al codec video e alle statistiche di streaming esistenti. Il codec visualizzato riflette la sessione attiva, non soltanto la preferenza selezionata.
 
 ## Altri miglioramenti specifici del progetto
 
