@@ -356,6 +356,7 @@
         <a href="#features">Features</a>
         <a href="#install">Install</a>
         <a href="#download">Downloads</a>
+        <a href="Frequently-Asked-Questions.html">FAQ</a>
         <div class="language-picker" id="language-picker">
           <button type="button" id="language-trigger" class="language-trigger" aria-label="Page language" aria-haspopup="listbox" aria-expanded="false" aria-controls="language-menu">
             <img class="language-flag" src="assets/flags/gb.svg" alt="" width="24" height="16">
@@ -639,7 +640,22 @@
       const title = document.querySelector('.hero-brand-title');
       const topbar = document.querySelector('.topbar');
 
-      if (!title || !topbar) return;
+      if (!topbar) return;
+
+      // Force smooth scrolling for the fixed navigation links, including
+      // browsers whose OS-level reduced-motion preference disables CSS scrolling.
+      document.querySelectorAll('.nav-links a[href^="#"]').forEach(link => {
+        link.addEventListener('click', event => {
+          const target = document.querySelector(link.getAttribute('href'));
+          if (!target) return;
+          event.preventDefault();
+          const hash = link.getAttribute('href');
+          if (window.location.hash !== hash) history.pushState(null, '', hash);
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+
+      if (!title) return;
       if (!('IntersectionObserver' in window)) {
         document.body.classList.add('has-scrolled-past-hero');
         return;
