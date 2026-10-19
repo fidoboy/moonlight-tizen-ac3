@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Frequently Asked Questions"
+description: "Frequently asked questions about Moonlight Tizen, Dolby Digital audio passthrough, installation and controller compatibility."
+---
+
 # Frequently Asked Questions
 
 ## Does this project work with ordinary Sunshine hosts?
