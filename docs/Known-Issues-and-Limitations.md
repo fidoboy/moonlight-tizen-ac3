@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Known Issues and Limitations"
+description: "Known compatibility issues and technical limitations of Moonlight Tizen with Dolby audio support."
+---
+
 # Known Issues and Limitations
 
 ## Dolby optical audio
