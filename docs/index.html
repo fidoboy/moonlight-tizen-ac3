@@ -260,9 +260,10 @@
       gap: clamp(22px, 4vw, 48px); align-items: center;
       margin-bottom: 29px;
     }
-    .download-heading .section-head { max-width: 670px; margin: 0; }
+    .download-heading .section-head { max-width: none; margin: 0; }
     .download-packages {
-      display: block; width: 100%; max-width: 220px; height: auto;
+      display: block; position: relative; top: 60px;
+      width: 150%; max-width: 310px; height: auto;
       justify-self: center; overflow: visible;
       filter: drop-shadow(0 10px 22px rgba(45, 119, 220, .17));
     }
@@ -355,7 +356,7 @@
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
       .download-heading { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-      .download-packages { max-width: 220px; }
+      .download-packages { top: 0; width: 100%; max-width: 310px; }
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
       .apps2samsung-logo { width: 84px; height: 84px; }
