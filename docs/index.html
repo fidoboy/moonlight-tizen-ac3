@@ -180,12 +180,42 @@
     .resource-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; font-size: 12px; font-weight: 700; }
     .resource-list a:hover { border-color: rgba(120, 184, 255, .5); background: rgba(120, 184, 255, .05); }
     .resource-list span { color: var(--blue); font-size: 16px; }
+    .download-heading {
+      display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+      gap: clamp(22px, 4vw, 48px); align-items: center;
+      margin-bottom: 29px;
+    }
+    .download-heading .section-head { max-width: 670px; margin: 0; }
+    .download-packages {
+      display: block; width: 100%; max-width: 220px; height: auto;
+      justify-self: center; overflow: visible;
+      filter: drop-shadow(0 10px 22px rgba(45, 119, 220, .17));
+    }
     .download-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
     .download-card { padding: 24px; border-radius: 18px; border: 1px solid var(--line); background: rgba(17, 28, 48, .76); }
     .download-card .mini-label { color: var(--blue); font-size: 10px; text-transform: uppercase; letter-spacing: .14em; font-weight: 800; }
     .download-card h3 { margin: 9px 0 7px; font-size: 19px; }
     .download-card p { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
     .download-card .button { min-height: 42px; width: 100%; }
+    .apps2samsung-cta { display: flex; justify-content: center; margin: 28px 0 0; }
+    .apps2samsung-link {
+      display: inline-flex; align-items: center; justify-content: center; gap: 15px;
+      width: max-content; max-width: 100%; min-height: 82px; padding: 13px 24px;
+      border: 1px solid rgba(45, 196, 234, .42); border-radius: 18px;
+      background: linear-gradient(110deg, rgba(0, 164, 220, .14), rgba(170, 92, 195, .12) 100%);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .06);
+      color: var(--text); text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .apps2samsung-link:hover {
+      transform: translateY(-2px); border-color: rgba(45, 196, 234, .8);
+      background: linear-gradient(110deg, rgba(0, 164, 220, .22), rgba(170, 92, 195, .18) 100%);
+    }
+    .apps2samsung-logo { display: block; width: 54px; height: 54px; flex: 0 0 auto; }
+    .apps2samsung-copy { display: grid; gap: 5px; text-align: left; line-height: 1.35; }
+    .apps2samsung-copy strong { font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+    .apps2samsung-copy small { color: var(--muted); font-size: 12px; font-weight: 550; }
+    .apps2samsung-copy small span { color: #63d3f0; font-size: 16px; vertical-align: -1px; }
     .fine-print { color: #8495ad; font-size: 11px; margin-top: 16px; }
     .notice { padding: 17px 19px; border-left: 3px solid #d6b26e; border-radius: 0 12px 12px 0; background: rgba(214, 178, 110, .07); color: #c1cce0; font-size: 12px; line-height: 1.75; margin-top: 17px; }
     .notice strong { color: #f1d6a0; }
@@ -229,6 +259,13 @@
       .hero { padding: 44px 0 38px; }
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
+      .download-heading { grid-template-columns: 76px minmax(0, 1fr); gap: 14px; margin-bottom: 24px; }
+      .download-packages { max-width: 82px; }
+      .apps2samsung-cta { margin-top: 22px; }
+      .apps2samsung-link { width: 100%; padding: 12px 14px; gap: 12px; }
+      .apps2samsung-logo { width: 44px; height: 44px; }
+      .apps2samsung-copy strong { font-size: 13px; }
+      .apps2samsung-copy small { font-size: 11px; }
       .feature { min-height: initial; }
       .actions { align-items: stretch; flex-direction: column; }
       .button { width: 100%; }
@@ -384,10 +421,59 @@
 
     <section class="section section-bordered" id="download">
       <div class="wrap">
-        <div class="section-head">
-          <div class="kicker">Downloads</div>
-          <h2 class="section-title">Choose your package.</h2>
-          <p class="section-subtitle">For most users, install the <strong>fidoboy · Dolby</strong> entry from the Apps2Samsung catalog. Use the direct WGT downloads as a fallback or when you need a particular build.</p>
+        <div class="download-heading">
+          <svg class="download-packages" viewBox="0 0 220 220" role="img" aria-label="Illustration of three software packages" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="packageGlow" cx="50%" cy="48%" r="52%">
+                <stop offset="0" stop-color="#438cf5" stop-opacity=".28"/>
+                <stop offset="1" stop-color="#438cf5" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="packageBlueTop" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#a6d8ff"/><stop offset="1" stop-color="#4f91ed"/>
+              </linearGradient>
+              <linearGradient id="packageBlueSide" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#4188e6"/><stop offset="1" stop-color="#234b9c"/>
+              </linearGradient>
+              <linearGradient id="packageBlueFront" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#72b8ff"/><stop offset="1" stop-color="#326ac4"/>
+              </linearGradient>
+              <linearGradient id="packageVioletTop" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#d3c7ff"/><stop offset="1" stop-color="#9475ef"/>
+              </linearGradient>
+              <linearGradient id="packageVioletSide" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#8c73da"/><stop offset="1" stop-color="#51419e"/>
+              </linearGradient>
+              <linearGradient id="packageCyan" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#b0f5ff"/><stop offset="1" stop-color="#31bddf"/>
+              </linearGradient>
+            </defs>
+            <circle cx="110" cy="111" r="103" fill="url(#packageGlow)"/>
+            <ellipse cx="110" cy="188" rx="77" ry="13" fill="#02050c" opacity=".36"/>
+            <g stroke-linejoin="round" stroke-width="1.6">
+              <path d="M105 68 147 46 190 68 148 92Z" fill="url(#packageVioletTop)" stroke="#d8ccff"/>
+              <path d="M105 68 148 92 148 143 105 119Z" fill="#6554b8" stroke="#a698f6"/>
+              <path d="M148 92 190 68 190 119 148 143Z" fill="url(#packageVioletSide)" stroke="#a698f6"/>
+              <path d="M130 56 154 69 154 79 130 66Z" fill="#ede8ff" opacity=".8" stroke="none"/>
+              <path d="M28 91 75 66 121 90 74 117Z" fill="url(#packageBlueTop)" stroke="#c0e4ff"/>
+              <path d="M28 91 74 117 74 176 28 150Z" fill="url(#packageBlueFront)" stroke="#96cbff"/>
+              <path d="M74 117 121 90 121 149 74 176Z" fill="url(#packageBlueSide)" stroke="#79b6ff"/>
+              <path d="M54 77 78 90 78 101 54 87Z" fill="#e3f4ff" opacity=".9" stroke="none"/>
+              <path d="M81 137 119 116 158 137 119 160Z" fill="url(#packageCyan)" stroke="#c0f6ff"/>
+              <path d="M81 137 119 160 119 200 81 178Z" fill="#2299c5" stroke="#80e7fb"/>
+              <path d="M119 160 158 137 158 177 119 200Z" fill="#177ba9" stroke="#71d7f0"/>
+              <path d="M103 126 124 139 124 151 103 138Z" fill="#edfdff" opacity=".9" stroke="none"/>
+            </g>
+            <g fill="none" stroke-linecap="round" stroke-width="2.4" opacity=".95">
+              <path d="M15 57 24 51 M20 68 27 66" stroke="#77bbff"/>
+              <path d="M190 34 194 24 M201 43 209 40" stroke="#b4a3ff"/>
+              <path d="M174 166 183 162 M180 177 190 177" stroke="#5fdcf5"/>
+            </g>
+          </svg>
+          <div class="section-head">
+            <div class="kicker">Downloads</div>
+            <h2 class="section-title">Choose your package.</h2>
+            <p class="section-subtitle">For most users, install the <strong>fidoboy · Dolby</strong> entry from the Apps2Samsung catalog. Use the direct WGT downloads as a fallback or when you need a particular build.</p>
+          </div>
         </div>
         <div class="download-grid">
           <article class="download-card">
@@ -402,6 +488,30 @@
             <p>Includes additional Game Mode metadata. It cannot enable Game Mode on TVs or firmware that do not support the feature.</p>
             <a class="button button-secondary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight-ForceGM.wgt">Download ForceGM WGT <span class="arrow" aria-hidden="true">↓</span></a>
           </article>
+        </div>
+        <div class="apps2samsung-cta">
+          <a class="apps2samsung-link" href="https://apps2samsung.com/" target="_blank" rel="noopener noreferrer">
+            <svg class="apps2samsung-logo" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Apps2Samsung logo">
+              <circle cx="150" cy="150" r="140" fill="none" stroke="#2DC4EA" stroke-width="10" stroke-dasharray="345 20" transform="rotate(45 150 150)"/>
+              <circle cx="150" cy="30" r="7" fill="#2DC4EA"/>
+              <circle cx="270" cy="150" r="7" fill="#2DC4EA"/>
+              <circle cx="150" cy="150" r="90" fill="url(#apps2samsungOuter)"/>
+              <circle cx="150" cy="150" r="60" fill="url(#apps2samsungInner)"/>
+              <circle cx="150" cy="150" r="30" fill="#fff"/>
+              <defs>
+                <linearGradient id="apps2samsungOuter" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#00A4DC"/><stop offset="1" stop-color="#AA5CC3"/>
+                </linearGradient>
+                <linearGradient id="apps2samsungInner" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#00A4DC"/><stop offset="1" stop-color="#5B2C83"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <span class="apps2samsung-copy">
+              <strong>Get Moonlight through Apps2Samsung</strong>
+              <small>Browse the catalog and install directly on your TV <span aria-hidden="true">↗</span></small>
+            </span>
+          </a>
         </div>
         <p class="fine-print">Packages are hosted by GitHub Releases. No installer, paid hosting, or separate account is required to download them.</p>
       </div>
