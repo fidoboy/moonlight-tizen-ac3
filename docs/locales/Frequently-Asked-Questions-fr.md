@@ -21,7 +21,7 @@ Il vous faut tous les éléments suivants :
 - Des réglages audio du téléviseur configurés dans un mode passthrough/bitstream compatible.
 - Un récepteur ou un système audio qui prend en charge AC-3 et la disposition des canaux envoyée.
 
-Pour la configuration initiale, choisissez 5.1 et vérifiez la ligne **Audio stream** de l'overlay de statistiques (`Ctrl+Alt+Shift+S`).
+Pour la configuration initiale, choisissez 5.1 et vérifiez la ligne **Audio stream** de l'overlay de statistiques. Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher les statistiques. Sinon, appuyez sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming, puis choisissez l’option d’affichage des statistiques.
 
 ## Activer Dolby Digital force-t-il Dolby sur tous les hôtes ?
 
