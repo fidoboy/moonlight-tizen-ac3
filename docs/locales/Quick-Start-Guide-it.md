@@ -23,10 +23,14 @@ Consulta i [requisiti in README](../#compatibility) per altri dettagli.
 
 ## 2. Installa il client
 
-Scarica il pacchetto standard `Moonlight.wgt` dalla [pagina delle release](https://github.com/fidoboy/moonlight-tizen-ac3/releases). Scegli il pacchetto ForceGM solo se ti servono specificamente i metadati alternativi di Game Mode.
+**Metodo consigliato: installazione dal sito ufficiale di [Apps2Samsung](https://apps2samsung.com/).** Scarica e avvia Apps2Samsung sul computer, seleziona il televisore e installa **Moonlight** dal catalogo delle app. È il metodo più semplice perché Apps2Samsung prepara e firma il pacchetto per te.
 
-Segui la [Guida all'installazione](Installation-Guide-it.html) per Apps2Samsung, Tizen Studio o un altro metodo supportato.
+**Alternativa: installazione manuale del WGT.** Scarica `Moonlight.wgt` dall'[ultima versione stabile](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest), quindi installalo con uno di questi metodi:
 
+- **Apps2Samsung:** scegli **Custom WGT / TPK** e seleziona il file scaricato.
+- **Tizen Studio:** connetti il televisore con la modalità sviluppatore attiva e installa il pacchetto con gli strumenti di distribuzione Tizen e un profilo di certificato accettato dal televisore. Per i dettagli, consulta la [Guida all'installazione](Installation-Guide-it.html).
+
+Usa `Moonlight-ForceGM.wgt` solo se il tuo televisore richiede specificamente i metadati alternativi di Game Mode.
 ## 3. Configura l'host e abbina il client
 
 1. Installa e avvia Sunshine sul PC host.
