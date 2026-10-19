@@ -9,15 +9,15 @@ description: "Respostas sobre compatibilidade de hosts, áudio Dolby e configura
 
 ## Este projeto funciona com Sunshine ou outros hosts compatíveis com GameStream?
 
-Sim. A extensão Dolby é opcional. Se o host não anunciar ou selecionar AC-3/E-AC-3, o cliente mantém o caminho OPUS normal. Um host que transmite somente OPUS não precisa de alterações específicas para Dolby.
+Sim. Este cliente Moonlight deve funcionar corretamente com o antigo NVIDIA GameStream, Sunshine, Apollo, Punktfunk e outros servidores compatíveis com o mesmo protocolo. A extensão Dolby é opcional. Se o host não anunciar ou selecionar AC-3/E-AC-3, o cliente mantém o caminho OPUS normal. Um host que transmite somente OPUS não precisa de alterações específicas para Dolby.
 
-## Como obter Dolby Digital 5.1 pela saída óptica?
+## Como obter Dolby Digital 5.1 pelas saídas óptica ou HDMI da TV?
 
 Você precisa de todos os itens a seguir:
 
 - Este projeto com **Enable Dolby Digital** ativado.
-- Uma build correspondente do Sunshine com a implementação `ac3-audio` e um encoder Dolby disponível.
-- Uma TV capaz de transmitir o bitstream Dolby selecionado pela saída óptica.
+- Uma build correspondente do Sunshine com a implementação `ac3-audio`, um encoder Dolby disponível e o formato de áudio (AC-3 ou E-AC-3) selecionado na página de configurações de áudio.
+- Uma TV capaz de transmitir o bitstream Dolby selecionado pela saída óptica ou HDMI.
 - Configurações de áudio da TV ajustadas para um modo de passthrough/bitstream compatível.
 - Um receiver ou sistema de som compatível com AC-3 e com o layout de canais enviado.
 
