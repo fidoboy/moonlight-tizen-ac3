@@ -69,7 +69,7 @@
     }
     .hero-brand-inner { display: flex; align-items: center; gap: 10px; width: min(var(--content), 100%); margin: 0 auto; }
     .hero-brand-logo { display: block; flex: 0 0 128px; width: 128px; height: 128px; object-fit: contain; }
-    .hero-brand-copy { flex: 1 1 auto; width: 100%; max-width: 100%; min-width: 0; margin: 0; }
+    .hero-brand-copy { flex: 0 1 auto; width: max-content; max-width: 100%; min-width: 0; margin: 0; }
     .hero-brand-title {
       position: relative; z-index: 3; display: block; width: max-content; max-width: 100%; overflow: visible;
       padding-bottom: .12em;
@@ -285,9 +285,9 @@
       transform: translateY(-2px); border-color: rgba(45, 196, 234, .8);
       background: linear-gradient(110deg, rgba(0, 164, 220, .22), rgba(170, 92, 195, .18) 100%);
     }
-    .apps2samsung-logo { display: block; width: 68px; height: 68px; flex: 0 0 auto; }
+    .apps2samsung-logo { display: block; width: 84px; height: 84px; flex: 0 0 auto; }
     .apps2samsung-copy { display: grid; gap: 7px; text-align: left; line-height: 1.4; }
-    .apps2samsung-copy strong { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+    .apps2samsung-copy strong { font-size: 27px; font-weight: 800; letter-spacing: -.01em; }
     .apps2samsung-copy small { color: var(--muted); font-size: 13.5px; font-weight: 550; }
     .apps2samsung-copy small span { color: #63d3f0; font-size: 16px; vertical-align: -1px; }
     .fine-print { color: #8495ad; font-size: 11px; margin-top: 16px; text-align: center; }
@@ -345,8 +345,8 @@
       .download-packages { max-width: 82px; }
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
-      .apps2samsung-logo { width: 56px; height: 56px; }
-      .apps2samsung-copy strong { font-size: 14px; }
+      .apps2samsung-logo { width: 84px; height: 84px; }
+      .apps2samsung-copy strong { font-size: 27px; }
       .apps2samsung-copy small { font-size: 12px; }
       .feature { min-height: initial; }
       .actions { align-items: stretch; flex-direction: column; }
