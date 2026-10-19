@@ -10,13 +10,13 @@ description: "Frequently asked questions about Moonlight Tizen, Dolby Digital au
 
 Yes. This Moonlight client should work correctly with legacy NVIDIA GameStream, Sunshine, Apollo, Punktfunk, and other servers compatible with the same protocol. The Dolby extension is optional. If the host does not advertise or select AC-3/E-AC-3, the client retains the normal OPUS path. No Dolby-specific host change is required for an OPUS-only stream.
 
-## How do I get Dolby Digital 5.1 over optical?
+## How do I get Dolby Digital 5.1 over optical or HDMI TV outputs?
 
 You need all of the following:
 
 - This project with **Enable Dolby Digital** enabled.
-- A matching Sunshine build with the `ac3-audio` implementation and an available Dolby encoder.
-- A TV that can pass the selected Dolby bitstream over its optical connection.
+- A matching Sunshine build with the `ac3-audio` implementation and an available Dolby encoder, with the audio format (AC-3 or E-AC-3) selected on the audio settings page.
+- A TV that can pass the selected Dolby bitstream over its optical or HDMI output.
 - TV sound settings configured for a compatible passthrough/bitstream mode.
 - A receiver or sound system that supports AC-3 and the channel layout being sent.
 
