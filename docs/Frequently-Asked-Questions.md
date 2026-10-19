@@ -20,7 +20,7 @@ You need all of the following:
 - TV sound settings configured for a compatible passthrough/bitstream mode.
 - A receiver or sound system that supports AC-3 and the channel layout being sent.
 
-For the initial setup, choose 5.1 and check the **Audio stream** line in the statistics overlay (`Ctrl+Alt+Shift+S`).
+For the initial setup, choose 5.1 and check the **Audio stream** line in the statistics overlay. If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show the statistics. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics.
 
 ## Does enabling Dolby Digital force Dolby on every host?
 
