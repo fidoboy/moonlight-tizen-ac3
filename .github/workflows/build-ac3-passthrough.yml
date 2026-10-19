@@ -20,7 +20,6 @@ on:
       - '.github/release-notes.md'
       - '.github/workflows/build-ac3-passthrough.yml'
       - '.github/workflows/release-stable.yml'
-      - '.github/workflows/release-usb.yml'
   pull_request:
     branches:
       - master
@@ -40,7 +39,6 @@ on:
       - '.github/release-notes.md'
       - '.github/workflows/build-ac3-passthrough.yml'
       - '.github/workflows/release-stable.yml'
-      - '.github/workflows/release-usb.yml'
   workflow_dispatch:
 
 permissions:
