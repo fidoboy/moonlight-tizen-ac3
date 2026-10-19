@@ -23,7 +23,7 @@ The optical-audio path has been tested end-to-end with an experimental Sunshine 
 
 ## Audio stream statistics
 
-The performance overlay, toggled with **Ctrl+Alt+Shift+S**, reports the negotiated audio codec, the channel layout and channel count, and an approximate measured audio bitrate alongside the existing video codec and streaming statistics. The codec label reflects the active session, not merely the selected preference.
+The performance overlay can be opened with **Ctrl+Alt+Shift+S** when a keyboard is connected to the TV. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu and select the statistics option. It reports the negotiated audio codec, the channel layout and channel count, and an approximate measured audio bitrate alongside the existing video codec and streaming statistics. The codec label reflects the active session, not merely the selected preference.
 
 ## Other improvements specific to this project
 
