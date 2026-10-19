@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">How to enter the Samsung TV Developer Mode code</title>
+  <desc id="desc">On a traditional remote, press the physical number keys 1, 2, 3, 4, 5. On a Samsung Smart Remote, press the 123 or equivalent virtual-key button, then select 1, 2, 3, 4, 5 from the on-screen keypad.</desc>
+  <defs>
+    <style>
+      .title { font: 700 32px Arial, Helvetica, sans-serif; fill: #13233b; }
+      .subtitle { font: 400 18px Arial, Helvetica, sans-serif; fill: #43546b; }
+      .heading { font: 700 22px Arial, Helvetica, sans-serif; fill: #13233b; }
+      .body { font: 400 17px Arial, Helvetica, sans-serif; fill: #43546b; }
+      .small { font: 700 16px Arial, Helvetica, sans-serif; fill: #13233b; }
+      .keytext { font: 700 18px Arial, Helvetica, sans-serif; fill: #13233b; text-anchor: middle; dominant-baseline: middle; }
+      .whitekey { font: 700 19px Arial, Helvetica, sans-serif; fill: #ffffff; text-anchor: middle; dominant-baseline: middle; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#1685d1"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="620" rx="24" fill="#f4f8fc"/>
+  <text x="42" y="56" class="title">Enter the Developer Mode code: 12345</text>
+  <text x="42" y="88" class="subtitle">Use whichever method matches your remote control.</text>
+
+  <rect x="32" y="118" width="590" height="466" rx="20" fill="#ffffff" stroke="#d7e1ed" stroke-width="2"/>
+  <text x="62" y="160" class="heading">1. Remote with number keys</text>
+  <text x="62" y="190" class="body">Press the physical keys in this order:</text>
+  <rect x="74" y="218" width="172" height="324" rx="38" fill="#17263c"/>
+  <circle cx="160" cy="251" r="13" fill="#dfe8f2"/>
+  <rect x="100" y="286" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="142" y="286" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="184" y="286" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="100" y="325" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="142" y="325" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="184" y="325" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="100" y="364" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="142" y="364" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="184" y="364" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <rect x="142" y="403" width="38" height="34" rx="8" fill="#eef4fa"/>
+  <g class="keytext">
+    <text x="119" y="303">1</text><text x="161" y="303">2</text><text x="203" y="303">3</text>
+    <text x="119" y="342">4</text><text x="161" y="342">5</text><text x="203" y="342">6</text>
+    <text x="119" y="381">7</text><text x="161" y="381">8</text><text x="203" y="381">9</text>
+    <text x="161" y="420">0</text>
+  </g>
+  <path d="M272 365 H344" stroke="#1685d1" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <text x="370" y="320" class="body">Press</text>
+  <g>
+    <rect x="356" y="343" width="42" height="52" rx="10" fill="#1685d1"/>
+    <rect x="404" y="343" width="42" height="52" rx="10" fill="#1685d1"/>
+    <rect x="452" y="343" width="42" height="52" rx="10" fill="#1685d1"/>
+    <rect x="500" y="343" width="42" height="52" rx="10" fill="#1685d1"/>
+    <rect x="548" y="343" width="42" height="52" rx="10" fill="#1685d1"/>
+    <text x="377" y="369" class="whitekey">1</text><text x="425" y="369" class="whitekey">2</text><text x="473" y="369" class="whitekey">3</text><text x="521" y="369" class="whitekey">4</text><text x="569" y="369" class="whitekey">5</text>
+  </g>
+  <text x="356" y="426" class="small">1 → 2 → 3 → 4 → 5</text>
+  <text x="356" y="455" class="body">No other code is needed.</text>
+
+  <rect x="658" y="118" width="590" height="466" rx="20" fill="#ffffff" stroke="#d7e1ed" stroke-width="2"/>
+  <text x="688" y="160" class="heading">2. Samsung Smart Remote</text>
+  <text x="688" y="190" class="body">No number row? Use the virtual keypad.</text>
+  <rect x="704" y="218" width="116" height="324" rx="42" fill="#17263c"/>
+  <circle cx="762" cy="250" r="12" fill="#dfe8f2"/>
+  <rect x="720" y="276" width="84" height="43" rx="13" fill="#ffcf58" stroke="#fff0bc" stroke-width="2"/>
+  <text x="762" y="298" class="keytext">123</text>
+  <circle cx="762" cy="372" r="39" fill="#dfe8f2"/>
+  <circle cx="762" cy="372" r="17" fill="#92a6bd"/>
+  <rect x="722" y="427" width="80" height="32" rx="10" fill="#dfe8f2"/>
+  <text x="762" y="443" class="keytext" style="font-size:15px">HOME</text>
+  <path d="M832 297 H884" stroke="#1685d1" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <rect x="898" y="216" width="316" height="240" rx="14" fill="#e8f1fa" stroke="#bfd0e2" stroke-width="2"/>
+  <text x="1056" y="246" class="small" text-anchor="middle">ON-SCREEN NUMBER PAD</text>
+  <g>
+    <rect x="925" y="264" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1017" y="264" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1109" y="264" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="925" y="311" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1017" y="311" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1109" y="311" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="925" y="358" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1017" y="358" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <rect x="1109" y="358" width="78" height="39" rx="7" fill="#ffffff" stroke="#c4d4e4"/>
+    <g class="keytext">
+      <text x="964" y="284">1</text><text x="1056" y="284">2</text><text x="1148" y="284">3</text>
+      <text x="964" y="331">4</text><text x="1056" y="331">5</text><text x="1148" y="331">6</text>
+      <text x="964" y="378">7</text><text x="1056" y="378">8</text><text x="1148" y="378">9</text>
+    </g>
+  </g>
+  <text x="898" y="488" class="small">Press 123, then select 1 → 2 → 3 → 4 → 5</text>
+  <text x="898" y="517" class="body">Move with the arrows; confirm each digit with OK.</text>
+  <text x="898" y="545" class="body">Some remotes label this key 123/Color or … .</text>
+</svg>
