@@ -154,6 +154,16 @@
     .kicker { margin-bottom: 10px; color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
     h2.section-title { margin: 0; font-size: clamp(29px, 4vw, 43px); line-height: 1.14; letter-spacing: -.045em; }
     .section-subtitle { color: var(--muted); margin: 13px 0 0; font-size: 15px; }
+    .install-intro {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
+      gap: clamp(24px, 4vw, 48px); align-items: start; margin-bottom: 29px;
+    }
+    .install-intro .section-head { margin-bottom: 0; }
+    .install-gamepad-remote {
+      display: block; width: 100%; max-width: 390px; height: auto; justify-self: end;
+      object-fit: contain; margin-top: 2px;
+      filter: drop-shadow(0 12px 22px rgba(0, 0, 0, .24));
+    }
     .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
     .feature {
       min-height: 190px; padding: 22px; border: 1px solid var(--line); border-radius: 17px;
@@ -234,6 +244,8 @@
       .tv-stage { max-width: 760px; margin-inline: auto; }
     }
     @media (max-width: 820px) {
+      .install-intro { grid-template-columns: minmax(0, 1fr) minmax(190px, 34%); gap: 20px; }
+      .install-gamepad-remote { max-width: 300px; }
       .install-layout { grid-template-columns: 1fr; }
       .hero { padding-top: 54px; }
       .tv-stage { max-width: 600px; margin-inline: auto; }
@@ -242,6 +254,8 @@
       .side-card { max-width: 560px; }
     }
     @media (max-width: 580px) {
+      .install-intro { grid-template-columns: minmax(0, 1fr) 112px; gap: 12px; margin-bottom: 24px; }
+      .install-gamepad-remote { max-width: 112px; margin-top: 5px; }
       .wrap { width: min(var(--content), calc(100% - 30px)); }
       .nav { min-height: 64px; }
       .nav-links { gap: 12px; }
@@ -383,10 +397,15 @@
 
     <section class="section section-bordered" id="install">
       <div class="wrap">
-        <div class="section-head">
-          <div class="kicker">Get started</div>
-          <h2 class="section-title">From download to your first stream.</h2>
-          <p class="section-subtitle">Apps2Samsung is the recommended installation route. Once Developer Mode is enabled, the app catalog can download and install the build for you.</p>
+        <div class="install-intro">
+          <div class="section-head">
+            <div class="kicker">Get started</div>
+            <h2 class="section-title">From download to your first stream.</h2>
+            <p class="section-subtitle">Apps2Samsung is the recommended installation route. Once Developer Mode is enabled, the app catalog can download and install the build for you.</p>
+          </div>
+          <img class="install-gamepad-remote" src="assets/gamepad-remote.webp"
+               alt="Game controller and Smart TV remote control" width="600" height="251"
+               loading="lazy" decoding="async">
         </div>
         <div class="install-layout">
           <div class="steps">
