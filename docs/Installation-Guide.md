@@ -9,18 +9,80 @@ The client is packaged as a signed Tizen widget (`.wgt`). Choose an installation
 
 Find the latest public packages on the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases). Development builds may also be available as temporary artifacts from [GitHub Actions](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-ac3-passthrough.yml); those artifacts are intended for testing and expire according to the workflow's retention policy.
 
-## Method A: Apps2Samsung
+## Method A: Install with Apps2Samsung
 
-[Apps2Samsung](https://apps2samsung.com/#download) installs a signed WGT from a computer over the local network. Developer Mode must be enabled on the TV.
+[Apps2Samsung](https://apps2samsung.com/#download) installs a `.wgt` package on a Samsung Tizen TV over your local network. It handles signing certificates for you, so you do not need to use Tizen Studio or manually create certificates in Seller Office.
 
-1. Connect the TV and computer to the same network.
-2. On the TV, open Apps and enter the Smart Hub remote-control code required by your model to expose the Developer Mode option.
-3. Enable Developer Mode and enter the computer's IP address where requested.
-4. Restart the TV if its Developer Mode screen requests it.
-5. Use the [Apps2Samsung](https://apps2samsung.com/#download) installer to connect to the TV and install the downloaded WGT.
+> [!IMPORTANT]
+> This procedure is for **Samsung Smart TVs running Tizen**. Other manufacturers also use Tizen-based TV platforms, but their menus and support for developer-mode installation may differ.
 
-The exact menu labels and code-entry behavior vary across Samsung TV generations. Do not change unrelated TV settings when enabling Developer Mode.
+### Before you start
 
+- Download `Moonlight.wgt` (standard version) or `Moonlight-ForceGM.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest).
+- Download and run the version of [Apps2Samsung](https://apps2samsung.com/#download) for your computer.
+- Connect the TV and computer to the **same local network**. They can use Wi-Fi or Ethernet, as long as they can communicate with each other.
+
+### 1. Find your computer's local IP address
+
+The TV needs the IP address of the computer that will run Apps2Samsung. On Windows:
+
+1. Press `Win + R`, type `cmd`, and press Enter.
+2. In the Command Prompt, run:
+   ```bat
+   ipconfig
+   ```
+3. Under the network adapter you are actually using (Wi-Fi or Ethernet), note **IPv4 Address**, for example `192.168.1.37`.
+
+Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP address, `127.0.0.1`, or your public Internet address. Keep this address handy for the next step.
+
+### 2. Open the hidden Developer Mode settings on the TV
+
+1. Turn on the TV and press **Home** (or **Smart Hub**) on the remote.
+2. Open **Apps**.
+3. On newer TV interfaces, move to **App Settings** (usually a gear icon near the bottom of the Apps screen) and open it. On some older models, you can enter the code while the Apps screen is open.
+4. With Apps/App Settings on screen, enter this exact sequence:
+
+   <div align="center">
+
+   **`1` → `2` → `3` → `4` → `5`**
+
+   </div>
+
+   **How to enter the digits**
+
+   - **Remote with a physical number pad:** press the five number keys `1`, `2`, `3`, `4`, `5` in that order.
+   - **Samsung Smart Remote without number keys:** press the button marked **123** (on some remotes it is labelled **123/Color** or uses a **…** symbol) to show the on-screen number pad. Use the directional ring to highlight each digit and press the centre **OK/Select** button to enter it. Repeat until you have entered `12345`.
+
+   The diagram below shows the two input methods. You do not need five physical number keys if your remote uses the on-screen keypad.
+
+   ![Entering the Developer Mode code using a standard remote or a Samsung Smart Remote](assets/developer-mode-number-pad.svg)
+
+5. A **Developer Mode** dialog should appear. Set **Developer Mode** to **On**.
+6. In **Host PC IP** (or similarly named field), enter the computer's IPv4 address from step 1.
+7. Select **OK** and accept the TV's restart prompt.
+
+> [!TIP]
+> After restarting, return to **Apps**. Many Samsung TVs show a **Develop Mode** indicator near the top of the screen. This confirms that Developer Mode is enabled.
+
+### 3. Install Moonlight with Apps2Samsung
+
+1. Open Apps2Samsung on the computer.
+2. Let it scan for TVs. Select your TV when it appears. If automatic discovery does not find it, enter the TV's IP address manually if that option is available.
+3. Choose the option to install a custom `.wgt` file, then select the package you downloaded:
+   - `Moonlight.wgt` — standard version.
+   - `Moonlight-ForceGM.wgt` — alternative build with additional Game Mode metadata.
+4. Start the installation and wait for Apps2Samsung to report success.
+5. Open the TV's **Apps** screen and launch Moonlight.
+
+On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow the prompts in Apps2Samsung and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. This is separate from enabling Developer Mode on the TV; you do not need to visit Seller Office to make a temporary USB certificate.
+
+### Troubleshooting
+
+- **The Developer Mode dialog does not appear:** make sure the TV is on the Apps screen, or on App Settings if your model has that panel. Enter `12345` there—not in the TV's normal Settings menu. With a Smart Remote, open the on-screen keypad using its **123** (or equivalent virtual-key) button first.
+- **Apps2Samsung cannot find or connect to the TV:** confirm Developer Mode is still on, both devices are on the same local network, and the Host PC IP configured on the TV exactly matches the computer's current IPv4 address. Guest Wi-Fi or router client isolation can prevent devices from seeing each other.
+- **It still does not connect after a restart:** fully unplug the TV from power, wait 10–15 seconds, reconnect it, and try again. This can help on models where the developer connection has not opened correctly.
+- **The installation fails because of a signature/certificate mismatch:** follow the message shown by Apps2Samsung. If you are moving from the Brightcraft base app, see [Moving from the Brightcraft base application](#moving-from-the-brightcraft-base-application) below before uninstalling anything.
+ 
 ## Method B: Tizen Studio
 
 Tizen Studio is the official Samsung/Tizen development environment and is useful for developers and more involved troubleshooting.
