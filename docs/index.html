@@ -161,6 +161,10 @@
     .arrow { font-size: 17px; line-height: .8; }
     .hero-note { display: flex; flex-wrap: wrap; gap: 8px 16px; color: #8496b1; font-size: 12px; }
     .hero-note span:before { content: "✓"; margin-right: 7px; color: var(--green); font-weight: 800; }
+    .latest-release { margin-top: 8px; color: #8496b1; font-size: 12px; line-height: 1.5; }
+    .latest-release a { color: inherit; text-decoration: none; }
+    .latest-release a:hover { color: var(--text); text-decoration: underline; }
+    .latest-release strong { color: #dce8fa; font-weight: 750; }
     .tv-stage {
       position: relative; z-index: 0; display: flex; flex-direction: column; align-items: center;
       width: 100%; min-width: 0; padding-top: 12px; isolation: isolate;
@@ -384,6 +388,9 @@
             <span>Tizen OS 5.5+</span>
             <span>Open source</span>
             <span>Standard Opus supported</span>
+          </div>
+          <div class="latest-release" id="latest-release" aria-live="polite">
+            <span>Latest release </span><a id="latest-release-link" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/tag/v1.0.4" target="_blank" rel="noopener noreferrer"><strong id="latest-release-version">v1.0.4</strong></a><span aria-hidden="true"> · </span><strong id="latest-release-date">18 Oct 2026</strong>
           </div>
         </div>
         <aside class="tv-stage" aria-label="Animated Moonlight Tizen splash screen shown on a television with two game controllers">
