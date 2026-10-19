@@ -12,6 +12,14 @@
 
 Moonlight Tizen with AC-3 support is a port of [Moonlight ChromeOS](https://github.com/moonlight-stream/moonlight-chrome), an open-source client for NVIDIA GameStream and [Sunshine](https://app.lizardbyte.dev/Sunshine/). It lets you stream games, applications, and your desktop from a PC to a Smart TV running TizenOS.
 
+<p align="center">
+  <br>
+  <a href="https://fidoboy.github.io/moonlight-tizen-ac3/">
+    <img src="docs/assets/visit-website-button.svg" alt="Visit app website" height="56">
+  </a>
+  <br><br>
+</p>
+
 This repository is an **independently maintained project derived from** [Brightcraft's Moonlight Tizen](https://github.com/brightcraft/moonlight-tizen). It builds on Brightcraft's extensive maintenance and development, as well as the earlier work of [OneLiberty](https://github.com/OneLiberty/moonlight-chrome-tizen) and the other contributors acknowledged below. It follows its own release series and development roadmap. In short, this client is a more advanced version of the original **Moonlight for Tizen**, previously maintained by Brightcraft, with additional features and improvements.
 
 > [!IMPORTANT]
