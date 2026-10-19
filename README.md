@@ -69,18 +69,7 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 
 ## 📦 Installation
 
-**Recommended — USB installation (quickest; no Developer Mode or PC installer required):**
-
-1. Open the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and download **MoonlightUSB.zip** from its assets, when available.
-2. Extract the ZIP archive to the root of a USB drive so that `userwidget/app.tmg` and `userwidget/widget.license` are at the drive's root level.
-3. Insert the USB drive into the TV and wait for the installation process to complete.
-
-> [!WARNING]
-> This uses Samsung's temporary USB demo installation mechanism. Its license is time-limited (approximately 30 days), and persistence depends on the TV model and firmware. The workflow attempts to refresh the USB package monthly and after new stable releases, but generation depends on Samsung's external USB packaging service. If `MoonlightUSB.zip` is not listed among the release assets, or if it expires or Moonlight disappears, use [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio to install immediately, or check the release page again later. Persistent installation with those methods requires enabling Developer Mode on the TV.
-
-The USB package contains the standard Moonlight variant. If you need the **ForceGM** variant, download `Moonlight-ForceGM.wgt` from the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio.
-
-See the complete [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for detailed instructions. Then use the [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md) to pair the TV with a streaming host.
+Download `Moonlight.wgt` or `Moonlight-ForceGM.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio. Both methods require enabling Developer Mode on the TV. See the [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for step-by-step instructions.
 
 ---
 
