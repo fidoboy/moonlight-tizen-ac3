@@ -67,7 +67,9 @@
       background: linear-gradient(105deg, rgba(54, 112, 202, .24), rgba(63, 72, 128, .13) 48%, rgba(8, 13, 25, .04));
       box-shadow: 0 20px 48px rgba(0, 0, 0, .10);
     }
-    .hero-brand-copy { width: max-content; max-width: 100%; min-width: 0; margin-inline: 0 auto; }
+    .hero-brand-inner { display: flex; align-items: center; gap: 10px; width: min(var(--content), 100%); margin: 0 auto; }
+    .hero-brand-logo { display: block; flex: 0 0 128px; width: 128px; height: 128px; object-fit: contain; }
+    .hero-brand-copy { flex: 1 1 auto; width: 100%; max-width: 100%; min-width: 0; margin: 0; }
     .hero-brand-title {
       position: relative; z-index: 3; display: block; width: max-content; max-width: 100%; overflow: visible;
       padding-bottom: .12em;
@@ -326,9 +328,11 @@
       .brand > span { font-size: 15px; }
       .brand small { font-size: 8px; letter-spacing: .015em; }
       .brand-logo { width: 34px; height: 34px; }
-      .hero-brand { gap: 10px; margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
-      .hero-brand-title { font-size: clamp(24px, 7.6vw, 44px); letter-spacing: -.055em; }
-      .hero-brand-note { font-size: 12px; }
+      .hero-brand { margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
+      .hero-brand-inner { gap: 10px; }
+      .hero-brand-logo { flex-basis: 64px; width: 64px; height: 64px; }
+      .hero-brand-title { font-size: clamp(20px, 6vw, 36px); letter-spacing: -.055em; }
+      .hero-brand-note { margin-top: -6px; font-size: 12px; }
       .hero-headline {
         flex-direction: column; align-items: center; justify-content: flex-start;
         gap: 0; white-space: normal; text-align: center;
@@ -385,9 +389,12 @@
   <main id="top">
     <section class="hero">
       <div class="hero-brand">
-        <div class="hero-brand-copy">
-          <div class="hero-brand-title gradient-text">Moonlight for Tizen</div>
-          <div class="hero-brand-note">Enhanced version · with Dolby Digital audio support</div>
+        <div class="hero-brand-inner">
+          <img class="hero-brand-logo" src="assets/moonlight-logo.png" alt="" width="128" height="128">
+          <div class="hero-brand-copy">
+            <div class="hero-brand-title gradient-text">Moonlight for Tizen</div>
+            <div class="hero-brand-note">Enhanced version · with Dolby Digital audio support</div>
+          </div>
         </div>
       </div>
       <div class="wrap hero-grid">
