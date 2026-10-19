@@ -33,11 +33,11 @@ Nein. E-AC-3 hängt vom Samsung-TV-Modell, der Firmware, dem Audio-Ausgabemodus 
 
 ## Kann Dolby-Passthrough 7.1-Audio übertragen?
 
-Der aktuelle experimentelle Sunshine-Encoderpfad ist für Stereo oder 5.1 vorgesehen. AC-3 selbst ist auf 5.1 begrenzt. Normales OPUS-Streaming kann andere Kanalbelegungen anbieten, wenn Host und Client sie unterstützen.
+Die aktuelle Implementierung ist auf Stereo und 5.1-Kanäle begrenzt. E-AC-3 unterstützt theoretisch 7.1, aber der in diesem Build verwendete FFmpeg-Encoderpfad bietet diese Option derzeit nicht an. Falls FFmpeg die Unterstützung künftig ergänzt, könnte 7.1 für E-AC-3 auswählbar werden. AC-3 bleibt auf 5.1 begrenzt. Standardmäßiges OPUS-Streaming kann andere Kanalbelegungen anbieten, wenn Host und Client sie unterstützen.
 
 ## Wie sehe ich den aktiven Audiocodec?
 
-Drücke während des Streamings **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Die Audiozeile zeigt den ausgehandelten Codec, die Kanalbelegung, Kanalanzahl und ungefähre Bitrate.
+Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken. Die Audiozeile zeigt den ausgehandelten Codec, die Kanalbelegung, Kanalanzahl und ungefähre Bitrate.
 
 ## Was ist der Unterschied zwischen Moonlight.wgt und Moonlight-ForceGM.wgt?
 
