@@ -18,7 +18,7 @@ You will need:
 - A stable network connection between the TV and PC. Ethernet for the host and a reliable 5 GHz Wi-Fi or Ethernet connection for the TV are good starting points.
 - A compatible gamepad if you intend to play games with a controller.
 
-See [Prerequisites in the README](../README.md#-prerequisites) for more details.
+See [Prerequisites in the README](https://github.com/fidoboy/moonlight-tizen-ac3#-prerequisites) for more details.
 
 ## 2. Install the client
 
