@@ -2,12 +2,14 @@
 
 The client is packaged as a signed Tizen widget (`.wgt`). Choose an installation method that matches your TV, computer and installed Samsung development tools.
 
-## Download a package
+## Available packages
 
-- **Moonlight.wgt:** standard signed widget for installation with Apps2Samsung or Tizen Studio.
+Apps2Samsung's app catalog is the recommended way to install the standard **fidoboy · Dolby** build; you do not need to download a WGT first. Manual WGT downloads are only needed if the catalog installation fails, or if you specifically want the **ForceGM** variant.
+
+- **Moonlight.wgt:** standard signed widget, available from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). Use it for the manual fallback or with Tizen Studio.
 - **Moonlight-ForceGM.wgt:** alternative signed widget with additional Game Mode metadata. It does not enable Game Mode on models or Tizen versions where the platform does not support it.
 
-Find the latest public packages on the [Releases page](https://github.com/fidoboy/moonlight-tizen-ac3/releases). Development builds may also be available as temporary artifacts from [GitHub Actions](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-ac3-passthrough.yml); those artifacts are intended for testing and expire according to the workflow's retention policy.
+Development builds may also be available as temporary artifacts from [GitHub Actions](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-ac3-passthrough.yml); those artifacts are intended for testing and expire according to the workflow's retention policy.
 
 ## Method A: Install with Apps2Samsung
 
@@ -60,18 +62,20 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 > [!TIP]
 > After restarting, return to **Apps**. Many Samsung TVs show a **Develop Mode** indicator near the top of the screen. This confirms that Developer Mode is enabled. For model-specific screenshots, see [Samsung's official TV Device guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html); the [Apps2Samsung FAQ](https://github.com/Apps2Samsung/Apps2Samsung/wiki/FAQ#-how-to-enable-developer-mode-on-your-tv) also explains entering the code with a Smart Remote.
 
-### 3. Install Moonlight with Apps2Samsung
+### 3. Install Moonlight from the Apps2Samsung catalog
 
-1. Open Apps2Samsung on the computer.
-2. Let it scan for TVs. Select your TV when it appears. If automatic discovery does not find it, enter the TV's IP address manually if that option is available.
-3. Choose the option to install a custom `.wgt` file, then select the package you downloaded:
-   - `Moonlight.wgt` — standard version.
-   - `Moonlight-ForceGM.wgt` — alternative build with additional Game Mode metadata.
-4. Start the installation and wait for Apps2Samsung to report success.
-5. Open the TV's **Apps** screen and launch Moonlight.
+1. Open Apps2Samsung on your computer.
+2. Select your TV after it appears in the scan results. If it is not discovered automatically, enter the TV's IP address manually if that option is available.
+3. Open the app catalog and find **Moonlight**.
+4. Select **Moonlight**, then choose the **`fidoboy · Dolby`** variant.
+5. Start the installation and wait for Apps2Samsung to report success. Apps2Samsung downloads and prepares the package itself.
+6. Open the TV's **Apps** screen and launch Moonlight.
 
-On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow the prompts in Apps2Samsung and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. This is separate from enabling Developer Mode on the TV; you do not need to configure certificates manually in Seller Office.
+**This is the recommended method.** You do not need to visit the GitHub Releases page or download `Moonlight.wgt` manually. On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow its prompts and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. You do not need to configure certificates manually in Seller Office.
 
+> [!WARNING]
+> **Use manual WGT installation only if the catalog method fails.** Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung, choose **Custom WGT / TPK**, select the downloaded file, and start the installation. Do not use this fallback unless needed. If you specifically want the ForceGM variant, download `Moonlight-ForceGM.wgt` from the same release page and install it with **Custom WGT / TPK** instead.
+ 
 ### Troubleshooting
 
 - **The Developer Mode dialog does not appear:** make sure the TV is on the Apps screen, or on App Settings if your model has that panel. Enter `12345` there—not in the TV's normal Settings menu. With a Smart Remote, open the on-screen keypad using its **123** (or equivalent virtual-key) button first.
