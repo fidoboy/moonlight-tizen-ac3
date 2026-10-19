@@ -55,14 +55,45 @@
     .nav-links a:hover { color: var(--text); }
     .nav-links .nav-github { color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; }
 
-    .language-select {
-      appearance: auto; color: var(--text); background: var(--panel);
-      border: 1px solid var(--line); border-radius: 999px;
-      padding: 8px 10px; min-width: 103px; max-width: 130px;
-      font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+    .language-picker { position: relative; flex: 0 0 auto; }
+    .language-trigger {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 37px; min-width: 95px; padding: 7px 10px;
+      color: var(--text); background: var(--panel); border: 1px solid var(--line);
+      border-radius: 999px; font: inherit; font-size: 12px; font-weight: 750;
+      cursor: pointer; white-space: nowrap;
     }
-    .language-select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-    .language-select option { color: var(--text); background: var(--panel); }
+    .language-trigger:hover, .language-trigger[aria-expanded="true"] {
+      background: var(--panel-2); border-color: rgba(120, 184, 255, .48);
+    }
+    .language-trigger:focus-visible, .language-option:focus-visible {
+      outline: 2px solid var(--blue); outline-offset: 2px;
+    }
+    .language-flag {
+      display: block; width: 23px; height: 16px; flex: 0 0 auto;
+      object-fit: cover; border-radius: 3px; border: 1px solid rgba(181, 202, 236, .24);
+      box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    }
+    .language-code { letter-spacing: .035em; }
+    .language-chevron { display: block; width: 10px; height: 7px; margin-left: 1px; opacity: .72; }
+    .language-menu {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 30;
+      display: grid; gap: 3px; width: 205px; padding: 6px;
+      border: 1px solid var(--line); border-radius: 13px;
+      background: var(--panel); box-shadow: 0 16px 45px rgba(0,0,0,.42);
+    }
+    .language-menu[hidden] { display: none; }
+    .language-option {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      border: 0; border-radius: 8px; padding: 9px 10px;
+      color: var(--text); background: transparent; text-align: left;
+      font: inherit; font-size: 12px; cursor: pointer;
+    }
+    .language-option:hover, .language-option[aria-selected="true"] {
+      background: rgba(120, 184, 255, .12);
+    }
+    .language-option-code { min-width: 43px; font-weight: 800; letter-spacing: .025em; }
+    .language-option-name { color: var(--muted); font-size: 12px; }
 
     .doc-main { padding: 54px 0 78px; }
     .doc-content {
@@ -153,15 +184,14 @@
         <a href="{{ site.baseurl }}/#install">Install</a>
         <a href="{{ site.baseurl }}/#download">Downloads</a>
         {% if page.url contains 'Quick-Start-Guide' or page.url contains 'Installation-Guide' or page.url contains 'Features-Overview' or page.url contains 'Development-Guide' %}
-        <select id="language-select" class="language-select" aria-label="Page language">
-          <option value="en">🇬🇧 EN</option>
-          <option value="es">🇪🇸 ES</option>
-          <option value="de">🇩🇪 DE</option>
-          <option value="fr">🇫🇷 FR</option>
-          <option value="it">🇮🇹 IT</option>
-          <option value="ru">🇷🇺 RU</option>
-          <option value="pt-br">🇧🇷 PT-BR</option>
-        </select>
+        <div class="language-picker" id="language-picker">
+          <button type="button" id="language-trigger" class="language-trigger" aria-label="Page language" aria-haspopup="listbox" aria-expanded="false" aria-controls="language-menu">
+            <img class="language-flag" src="{{ site.baseurl }}/assets/flags/gb.svg" alt="" width="24" height="16">
+            <span class="language-code">EN</span>
+            <svg class="language-chevron" viewBox="0 0 12 8" aria-hidden="true"><path d="m1 1.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div id="language-menu" class="language-menu" role="listbox" aria-label="Page language" hidden></div>
+        </div>
         {% endif %}
         <a class="nav-github" href="https://github.com/fidoboy/moonlight-tizen-ac3" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
