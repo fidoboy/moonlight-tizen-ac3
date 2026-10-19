@@ -85,23 +85,57 @@
     .arrow { font-size: 17px; line-height: .8; }
     .hero-note { display: flex; flex-wrap: wrap; gap: 8px 16px; color: #8496b1; font-size: 12px; }
     .hero-note span:before { content: "✓"; margin-right: 7px; color: var(--green); font-weight: 800; }
-    .showcase {
-      position: relative; border: 1px solid rgba(166, 197, 246, .22); border-radius: 26px; overflow: hidden;
-      background: linear-gradient(150deg, rgba(25, 43, 73, .94), rgba(12, 20, 37, .96));
-      box-shadow: 0 30px 90px rgba(0, 0, 0, .28);
+    .tv-stage {
+      position: relative; z-index: 0; display: flex; flex-direction: column; align-items: center;
+      width: 100%; min-width: 0; padding-top: 12px; isolation: isolate;
     }
-    .showcase:before { content: ""; position: absolute; right: -80px; top: -100px; width: 260px; height: 260px; background: rgba(86, 151, 255, .12); border-radius: 50%; filter: blur(8px); }
-    .showcase-top { position: relative; padding: 24px 24px 18px; display: flex; justify-content: space-between; align-items: center; gap: 15px; border-bottom: 1px solid var(--line); }
-    .showcase-top strong { font-size: 14px; }
-    .showcase-top span { color: #93a6c2; text-transform: uppercase; letter-spacing: .13em; font-weight: 800; font-size: 9px; }
-    .showcase-body { padding: 25px; position: relative; }
-    .dolby-mark { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); margin-bottom: 20px; }
-    .dolby-mark img { width: 33px; height: 33px; object-fit: contain; }
-    .showcase h2 { margin: 0 0 8px; font-size: 24px; line-height: 1.2; letter-spacing: -.035em; }
-    .showcase p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
-    .audio-tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 21px; }
-    .tag { padding: 6px 9px; border-radius: 8px; border: 1px solid rgba(141, 227, 192, .22); background: rgba(141, 227, 192, .07); color: #a7f0d2; font-size: 11px; font-weight: 750; }
-    .showcase-foot { padding-top: 15px; border-top: 1px solid var(--line); color: #7f92ad; font-size: 11px; line-height: 1.6; }
+    .tv-stage::before {
+      content: ""; position: absolute; z-index: -1; inset: 5% -10% 17%; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(67, 132, 239, .25), rgba(92, 80, 190, .09) 42%, transparent 72%);
+      filter: blur(24px);
+    }
+    .tv-frame {
+      width: 100%; padding: 7px 7px 0; border-radius: 15px 15px 11px 11px;
+      background: linear-gradient(145deg, #566071 0%, #1b202a 9%, #090b10 35%, #171c25 73%, #050609 100%);
+      border: 1px solid rgba(198, 216, 244, .34);
+      box-shadow: 0 28px 54px rgba(0, 0, 0, .48), 0 0 0 1px rgba(0, 0, 0, .8),
+        inset 0 1px 0 rgba(255, 255, 255, .16);
+    }
+    .tv-screen {
+      width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px;
+      background: #03050a; border: 1px solid #000;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .035);
+    }
+    .tv-screen img {
+      display: block; width: 100%; height: 100%; object-fit: contain; object-position: center;
+      background: #03050a;
+    }
+    .tv-lower-bezel {
+      position: relative; height: 19px; display: flex; align-items: center; justify-content: center;
+    }
+    .tv-brand {
+      color: #7f8794; font-size: 7px; line-height: 1; font-weight: 800; letter-spacing: .19em;
+      text-shadow: 0 1px 0 #000; user-select: none;
+    }
+    .tv-status-dot {
+      position: absolute; right: 8px; width: 4px; height: 4px; border-radius: 50%;
+      background: #79b9ff; box-shadow: 0 0 7px rgba(121, 185, 255, .7);
+    }
+    .tv-stand-neck {
+      width: 54px; height: 25px; margin-top: -1px;
+      background: linear-gradient(90deg, #121620, #424957 50%, #11151d);
+      clip-path: polygon(23% 0, 77% 0, 94% 100%, 6% 100%);
+    }
+    .tv-stand-base {
+      width: min(48%, 180px); height: 9px; margin-top: -1px; border-radius: 50% 50% 35% 35%;
+      background: linear-gradient(180deg, #525b6b 0%, #252b36 42%, #0b0d12 100%);
+      box-shadow: 0 8px 17px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .2);
+    }
+    .tv-caption {
+      align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 6px 14px; margin-top: 19px; color: #889ab4; font-size: 11px; letter-spacing: .015em;
+    }
+    .tv-caption strong { color: #dbe9ff; font-weight: 700; }
     .section { padding: 66px 0; }
     .section-bordered { border-top: 1px solid var(--line); }
     .section-head { max-width: 670px; margin-bottom: 29px; }
@@ -223,15 +257,18 @@
             <span>Standard Opus supported</span>
           </div>
         </div>
-        <aside class="showcase" aria-label="Dolby audio feature">
-          <div class="showcase-top"><strong>Designed for your big screen</strong><span>Moonlight · Tizen</span></div>
-          <div class="showcase-body">
-            <div class="dolby-mark"><img src="assets/dolby-double-d.svg" alt="Dolby Double-D symbol"></div>
-            <h2>Optional Dolby audio.<br>Full-screen gaming.</h2>
-            <p>For compatible TVs and sound systems, pass compressed multichannel audio through the TV's native audio renderer to supported optical or HDMI equipment.</p>
-            <div class="audio-tags"><span class="tag">AC-3 · Dolby Digital</span><span class="tag">E-AC-3 · Dolby Digital Plus</span><span class="tag">Up to 5.1 channels</span></div>
-            <div class="showcase-foot">Dolby passthrough requires a compatible host and playback path. If Dolby is not negotiated, normal Opus audio remains available.</div>
+        <aside class="tv-stage" aria-label="Moonlight shown on a Samsung-style television">
+          <div class="tv-frame">
+            <div class="tv-screen">
+              <img src="https://github.com/user-attachments/assets/dde25aae-c907-46ae-a6f7-a77af1684cfa"
+                   alt="Moonlight Tizen visual displayed on the television screen"
+                   decoding="async" fetchpriority="high">
+            </div>
+            <div class="tv-lower-bezel"><span class="tv-brand" aria-hidden="true">SAMSUNG</span><span class="tv-status-dot" aria-hidden="true"></span></div>
           </div>
+          <div class="tv-stand-neck" aria-hidden="true"></div>
+          <div class="tv-stand-base" aria-hidden="true"></div>
+          <div class="tv-caption"><span>Moonlight for Tizen OS</span><strong>PC gaming on the big screen</strong></div>
         </aside>
       </div>
     </section>
