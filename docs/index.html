@@ -75,7 +75,8 @@
       letter-spacing: -.065em; font-weight: 850; white-space: nowrap;
     }
     .hero-brand-note { position: relative; z-index: 2; width: 100%; margin-top: -20px; text-align: right; color: var(--muted); font-size: clamp(12px, 1.25vw, 16px); font-weight: 650; letter-spacing: .02em; line-height: 1.35; }
-    .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
+    .brand > span { display: block; font-size: 18px; line-height: 1.12; font-weight: 800; letter-spacing: -.025em; }
+    .brand small { display: block; color: var(--muted); font-size: 9px; font-weight: 650; letter-spacing: .045em; line-height: 1.25; text-transform: none; }
 
     /* Keep the sticky brand hidden while the large hero title is visible. */
     .home-page .topbar .brand {
@@ -248,7 +249,10 @@
     .download-card h3 { margin: 9px 0 7px; font-size: 19px; }
     .download-card p { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
     .download-card .button { min-height: 42px; width: 100%; }
-    .apps2samsung-cta { display: flex; justify-content: center; margin: 28px 0 0; }
+    .apps2samsung-cta { display: flex; justify-content: center; margin: 18px 0 0; }
+    .download-divider { display: flex; align-items: center; gap: 15px; margin: 25px 0 22px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+    .download-divider::before, .download-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+    .download-divider span { min-width: 24px; text-align: center; }
     .apps2samsung-link {
       display: inline-flex; align-items: center; justify-content: center; gap: 15px;
       width: max-content; max-width: 100%; min-height: 82px; padding: 13px 24px;
@@ -302,6 +306,8 @@
       .nav-links { gap: 12px; }
       .nav-links a:not(.nav-github) { display: none; }
       .brand { font-size: 13px; }
+      .brand > span { font-size: 15px; }
+      .brand small { font-size: 8px; letter-spacing: .015em; }
       .brand-logo { width: 34px; height: 34px; }
       .hero-brand { gap: 10px; margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
       .hero-brand-title { font-size: clamp(24px, 7.6vw, 44px); letter-spacing: -.055em; }
@@ -337,9 +343,9 @@
 <body class="home-page">
   <header class="topbar">
     <nav class="nav wrap" aria-label="Main navigation">
-      <a class="brand" href="#top" aria-label="Moonlight Tizen home">
+      <a class="brand" href="#top" aria-label="Moonlight for Tizen home">
         <img class="brand-logo" src="assets/moonlight-logo.png" alt="" width="38" height="38">
-        <span>Moonlight Tizen<small>Independent Dolby build</small></span>
+        <span>Moonlight for Tizen<small>Enhanced version · Dolby Digital audio</small></span>
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
@@ -543,20 +549,6 @@
             <p class="section-subtitle">For most users, install the <strong>fidoboy · Dolby</strong> entry from the Apps2Samsung catalog. Use the direct WGT downloads as a fallback or when you need a particular build.</p>
           </div>
         </div>
-        <div class="download-grid">
-          <article class="download-card">
-            <div class="mini-label">Recommended build</div>
-            <h3>Moonlight.wgt</h3>
-            <p>Standard release. Install with Apps2Samsung's catalog or use Custom WGT / TPK if catalog installation fails.</p>
-            <a class="button button-primary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight.wgt">Download standard WGT <span class="arrow" aria-hidden="true">↓</span></a>
-          </article>
-          <article class="download-card">
-            <div class="mini-label">Alternative build</div>
-            <h3>Moonlight-ForceGM.wgt</h3>
-            <p>Includes additional Game Mode metadata. It cannot enable Game Mode on TVs or firmware that do not support the feature.</p>
-            <a class="button button-secondary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight-ForceGM.wgt">Download ForceGM WGT <span class="arrow" aria-hidden="true">↓</span></a>
-          </article>
-        </div>
         <div class="apps2samsung-cta">
           <a class="apps2samsung-link" href="https://apps2samsung.com/" target="_blank" rel="noopener noreferrer">
             <svg class="apps2samsung-logo" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Apps2Samsung logo">
@@ -580,6 +572,21 @@
               <small>Browse the catalog and install directly on your TV <span aria-hidden="true">↗</span></small>
             </span>
           </a>
+        </div>
+        <div class="download-divider" aria-hidden="true"><span>OR</span></div>
+        <div class="download-grid">
+          <article class="download-card">
+            <div class="mini-label">Recommended build</div>
+            <h3>Moonlight.wgt</h3>
+            <p>Standard release. Install with Apps2Samsung's catalog or use Custom WGT / TPK if catalog installation fails.</p>
+            <a class="button button-primary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight.wgt">Download standard WGT <span class="arrow" aria-hidden="true">↓</span></a>
+          </article>
+          <article class="download-card">
+            <div class="mini-label">Alternative build</div>
+            <h3>Moonlight-ForceGM.wgt</h3>
+            <p>Includes additional Game Mode metadata. It cannot enable Game Mode on TVs or firmware that do not support the feature.</p>
+            <a class="button button-secondary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight-ForceGM.wgt">Download ForceGM WGT <span class="arrow" aria-hidden="true">↓</span></a>
+          </article>
         </div>
         <p class="fine-print">Packages are hosted by GitHub Releases. No installer, paid hosting, or separate account is required to download them.</p>
       </div>
