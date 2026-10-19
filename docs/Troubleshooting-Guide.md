@@ -6,6 +6,15 @@ description: "Troubleshooting common Moonlight Tizen connection, audio and strea
 
 # Troubleshooting Guide
 
+## Apps2Samsung does not list the TV
+
+1. Make sure **Developer Mode** is enabled on the Samsung TV. Press **Home**, open **Apps**, then open **App Settings** (usually the gear icon). On some older models, you can enter the code while the Apps screen is open.
+2. Enter **12345** using the remote's number keys. If your Smart Remote has no number keys, open its on-screen keypad with the **123** button and enter the digits there. When the **Developer Mode** dialog appears, turn Developer Mode **On**.
+3. In **Host PC IP**, enter the local IPv4 address of the computer running Apps2Samsung. It must match that computer's current address exactly. Use the IPv4 address of its active Wi-Fi or Ethernet adapter—not the TV's IP address, router gateway, `127.0.0.1` or public Internet address. Save the setting and restart the TV.
+4. Confirm that the TV and computer are on the same local network, then scan for the TV again in Apps2Samsung. Guest Wi-Fi or router client isolation can block communication.
+
+See the [Installation Guide](Installation-Guide.html) and [Samsung's official TV Device guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html) for more details.
+
 ## Moonlight does not find the host
 
 1. Confirm that Sunshine is running and that the TV and PC are reachable on the same network.
@@ -53,4 +62,4 @@ An enabled setting alone does not prove a Dolby stream was negotiated. The audio
 
 ## Collecting useful diagnostic information
 
-Record the Moonlight project version, TV model/Tizen version, Sunshine version and branch, codec and channel layout shown in statistics, resolution/FPS/bitrate settings, and whether the issue reproduces with OPUS. Avoid posting public IP addresses, PINs, private keys or other secrets.
+Record the Moonlight project version, TV model/Tizen version, Sunshine version and branch, codec and channel layout shown in statistics, resolution/FPS/bitrate settings, and whether the issue reproduces with OPUS. Then [open an issue on GitHub](https://github.com/fidoboy/moonlight-tizen-ac3/issues) and include the relevant information. Do not post public IP addresses, PINs, private keys or other secrets.
