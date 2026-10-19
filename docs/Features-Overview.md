@@ -8,9 +8,9 @@ description: "Overview of Moonlight Tizen features, Dolby audio support and conf
 
 This page describes the Moonlight for Tizen client project. Feature availability depends on TV model, Tizen version, host configuration, network and connected peripherals.
 
-## Primary feature over other clients: Dolby audio over optical output
+## Primary feature over other clients: Dolby audio over digital output
 
-The defining feature of this project is optional passthrough of Dolby Digital and Dolby Digital Plus audio for compatible Samsung TVs connected to a receiver or sound system over optical (TOSLINK).
+The defining feature of this project is optional passthrough of Dolby Digital and Dolby Digital Plus audio for compatible Samsung TVs connected to a receiver or sound system over optical (TOSLINK) or HDMI.
 
 - **AC-3 (Dolby Digital):** stereo or 5.1-channel compressed audio can be sent to Tizen's native EMSS audio renderer when the host negotiates AC-3 successfully.
 - **E-AC-3 (Dolby Digital Plus):** supported where the host, TV firmware, audio-output configuration and receiving equipment accept the format. E-AC-3 over optical is not guaranteed on every TV.
@@ -27,10 +27,13 @@ The performance overlay can be opened with **Ctrl+Alt+Shift+S** when a keyboard 
 
 ## Other improvements specific to this project
 
-- **Spanish localization:** includes an `es-ES` interface translation alongside the existing locales.
+- **Interface localization:** the interface is available in English, Spanish, German, French, Italian, Russian, and Brazilian Portuguese.
+- **Remote-accessible streaming menu:** open the streaming menu with **Play/Pause** or **Back** on the TV remote to reach streaming controls and statistics without needing a keyboard.
+- **Enhanced real-time statistics overlay:** includes live graphs for host latency and connection quality/throughput, helping identify latency spikes, degraded reception, insufficient bandwidth, and other communication problems.
+- **Smart Hub direct-launch shortcuts:** launch configured applications on the remote host directly from Smart Hub, bypassing the usual Moonlight interface, update check, and host-discovery steps.
 - **Quit host app on disconnect:** optional best-effort request to close the running host application after a normal disconnection. Unexpected connection failures do not trigger it.
 - **Animated native launch screen:** adds a generated animated splash screen for supported Tizen startup behavior.
-- **Optical-output settings refinements:** improves setting state, channel choices and remote-control navigation when the Dolby option is enabled.
+- **Digital-output settings refinements:** improves setting state, channel choices and remote-control navigation when the Dolby option is enabled.
 - **Startup behavior:** improves the transition from the native launch screen to the host list and avoids an unnecessary full-screen loading overlay.
 - **Input and UI refinements:** includes keyboard-handling, focus and settings-navigation improvements.
 
