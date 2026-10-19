@@ -21,7 +21,7 @@ Necesitas todo lo siguiente:
 - Los ajustes de sonido del televisor configurados en un modo de passthrough/flujo de bits compatible.
 - Un receptor o sistema de sonido que admita AC-3 y la distribución de canales enviada.
 
-Para la configuración inicial, selecciona 5.1 y comprueba la línea **Audio stream** de la superposición de estadísticas (`Ctrl+Alt+Shift+S`).
+Para la configuración inicial, selecciona 5.1 y comprueba la línea **Audio stream** de la superposición de estadísticas. Si hay un teclado conectado al televisor, pulsa **Ctrl+Alt+Shift+S** para mostrar las estadísticas. También puedes pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas.
 
 ## ¿Activar Dolby Digital fuerza Dolby en todos los hosts?
 
