@@ -15,7 +15,6 @@
 - Game Mode and high refresh-rate options may be restricted by the OS or TV capabilities even if a setting is visible.
 - Some TVs have a 100 Mbps Ethernet port. At high resolutions or bitrates, bursty frame traffic may cause packet loss on wired Ethernet. Testing a reliable 5 GHz Wi-Fi connection can help distinguish this from a host problem.
 - Video resolution, frame rate, HDR, AV1 and high bitrates depend on the TV decoder and host GPU encoder. Unsupported combinations may fall back or fail to start.
-- USB installation workflows and developer-mode behavior may vary across Tizen generations.
 
 ## Independent project and release status
 
