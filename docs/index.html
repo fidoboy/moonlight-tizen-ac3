@@ -76,6 +76,20 @@
     }
     .hero-brand-note { position: relative; z-index: 2; margin-top: 8px; color: var(--muted); font-size: clamp(12px, 1.25vw, 16px); font-weight: 650; letter-spacing: .02em; line-height: 1.35; }
     .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
+
+    /* Keep the sticky brand hidden while the large hero title is visible. */
+    .home-page .topbar .brand {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .2s ease, visibility 0s linear .2s;
+    }
+    .home-page.has-scrolled-past-hero .topbar .brand {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity .2s ease, visibility 0s;
+    }
     .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; }
     .nav-links a:hover { color: var(--text); }
@@ -213,7 +227,7 @@
     }
   </style>
 </head>
-<body>
+<body class="home-page">
   <header class="topbar">
     <nav class="nav wrap" aria-label="Main navigation">
       <a class="brand" href="#top" aria-label="Moonlight Tizen home">
@@ -405,5 +419,36 @@
       </div>
     </div>
   </footer>
+  <script>
+    (() => {
+      const title = document.querySelector('.hero-brand-title');
+      const topbar = document.querySelector('.topbar');
+
+      if (!title || !topbar) return;
+      if (!('IntersectionObserver' in window)) {
+        document.body.classList.add('has-scrolled-past-hero');
+        return;
+      }
+
+      let titleObserver;
+      const observeHeroTitle = () => {
+        if (titleObserver) titleObserver.disconnect();
+
+        const topbarHeight = Math.ceil(topbar.getBoundingClientRect().height);
+        titleObserver = new IntersectionObserver(([entry]) => {
+          document.body.classList.toggle('has-scrolled-past-hero', !entry.isIntersecting);
+        }, {
+          root: null,
+          rootMargin: `-${topbarHeight}px 0px 0px 0px`,
+          threshold: 0
+        });
+
+        titleObserver.observe(title);
+      };
+
+      observeHeroTitle();
+      window.addEventListener('resize', observeHeroTitle, { passive: true });
+    })();
+  </script>
 </body>
 </html>
