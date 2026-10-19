@@ -33,7 +33,7 @@ The TV needs the IP address of the computer that will run Apps2Samsung. On Windo
    ```
 3. Under the network adapter you are actually using (Wi-Fi or Ethernet), note **IPv4 Address**, for example `192.168.1.37`.
 
-Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP address, `127.0.0.1`, or your public Internet address. Keep this address handy for the next step.
+Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP address, `127.0.0.1`, or your public Internet address. On macOS, find the active adapter's address in **System Settings → Network**; on Linux, run `ip addr` and look for the `inet` address on the active network interface. Keep this address handy for the next step.
 
 ### 2. Open the hidden Developer Mode settings on the TV
 
@@ -74,7 +74,7 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 4. Start the installation and wait for Apps2Samsung to report success.
 5. Open the TV's **Apps** screen and launch Moonlight.
 
-On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow the prompts in Apps2Samsung and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. This is separate from enabling Developer Mode on the TV; you do not need to visit Seller Office to make a temporary USB certificate.
+On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow the prompts in Apps2Samsung and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. This is separate from enabling Developer Mode on the TV; you do not need to configure certificates manually in Seller Office.
 
 ### Troubleshooting
 
