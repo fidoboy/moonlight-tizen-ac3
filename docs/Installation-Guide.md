@@ -2,21 +2,7 @@
 
 The client is packaged as a signed Tizen widget (`.wgt`). Choose an installation method that matches your TV, computer and installed Samsung development tools.
 
-## Available packages
-
-Apps2Samsung's app catalog is the recommended way to install the standard **fidoboy · Dolby** build; you do not need to download a WGT first. Manual WGT downloads are only needed if the catalog installation fails, or if you specifically want the **ForceGM** variant.
-
-- **Moonlight.wgt:** standard signed widget, available from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). Use it for the manual fallback or with Tizen Studio.
-- **Moonlight-ForceGM.wgt:** alternative signed widget with additional Game Mode metadata. It does not enable Game Mode on models or Tizen versions where the platform does not support it.
-
-Development builds may also be available as temporary artifacts from [GitHub Actions](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-ac3-passthrough.yml); those artifacts are intended for testing and expire according to the workflow's retention policy.
-
 ## Method A: Install with Apps2Samsung
-
-[Apps2Samsung](https://apps2samsung.com/#download) installs a `.wgt` package on a Samsung Tizen TV over your local network. It handles signing certificates for you, so you do not need to use Tizen Studio or manually create certificates in Seller Office.
-
-> [!IMPORTANT]
-> This procedure is for **Samsung Smart TVs running Tizen**. Other manufacturers also use Tizen-based TV platforms, but their menus and support for developer-mode installation may differ.
 
 ### Before you start
 
@@ -57,6 +43,10 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 5. A **Developer Mode** dialog should appear. Set **Developer Mode** to **On**.
 6. In **Host PC IP** (or similarly named field), enter the computer's IPv4 address from step 1.
 7. Select **OK** and accept the TV's restart prompt.
+
+> [!IMPORTANT]
+> This procedure is for **Samsung Smart TVs running Tizen**. Other manufacturers also use Tizen-based TV platforms, but their menus and support for developer-mode installation may differ.
+
 
 > [!TIP]
 > After restarting, return to **Apps**. Many Samsung TVs show a **Develop Mode** indicator near the top of the screen. This confirms that Developer Mode is enabled. For model-specific screenshots, see [Samsung's official TV Device guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html); the [Apps2Samsung FAQ](https://github.com/Apps2Samsung/Apps2Samsung/wiki/FAQ#-how-to-enable-developer-mode-on-your-tv) also explains entering the code with a Smart Remote.
