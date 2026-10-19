@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ page.lang | default: 'en' | escape }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#080d19">
   <meta name="description" content="{{ page.description | default: 'Moonlight Tizen documentation.' | escape }}">
   <title>{{ page.title | default: 'Moonlight Tizen Documentation' | escape }} · Moonlight Tizen</title>
-  <link rel="icon" type="image/png" href="assets/moonlight-logo.png">
+  <link rel="icon" type="image/png" href="{{ site.baseurl }}/assets/moonlight-logo.png">
   <link rel="apple-touch-icon" href="assets/moonlight-logo.png">
   <style>
     :root {
@@ -134,14 +134,15 @@
 <body>
   <header class="topbar">
     <nav class="nav wrap" aria-label="Main navigation">
-      <a class="brand" href="./#top" aria-label="Moonlight Tizen home">
-        <img class="brand-logo" src="assets/moonlight-logo.png" alt="" width="38" height="38">
+      <a class="brand" href="{{ site.baseurl }}/#top" aria-label="Moonlight Tizen home">
+        <img class="brand-logo" src="{{ site.baseurl }}/assets/moonlight-logo.png" alt="" width="38" height="38">
         <span>Moonlight Tizen<small>Enhanced Dolby audio</small></span>
       </a>
       <div class="nav-links">
-        <a href="./#features">Features</a>
-        <a href="./#install">Install</a>
-        <a href="./#download">Downloads</a>
+        <a href="{{ site.baseurl }}/#features">Features</a>
+        <a href="{{ site.baseurl }}/#install">Install</a>
+        <a href="{{ site.baseurl }}/#download">Downloads</a>
+        <a href="{{ site.baseurl }}/locales/">Translations</a>
         <a class="nav-github" href="https://github.com/fidoboy/moonlight-tizen-ac3" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
       </div>
     </nav>
