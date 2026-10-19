@@ -7,9 +7,9 @@ description: "Respuestas sobre compatibilidad, audio Dolby y configuración de M
 
 # Preguntas frecuentes
 
-## ¿Funciona este proyecto con instalaciones normales de Sunshine?
+## ¿Funciona este proyecto con Sunshine u otros hosts compatibles con GameStream?
 
-Sí. La extensión Dolby es opcional. Si el host no anuncia ni selecciona AC-3/E-AC-3, el cliente conserva la ruta OPUS habitual. No hace falta modificar el host para una transmisión que solo utilice OPUS.
+Sí. Este cliente Moonlight debería funcionar correctamente con el antiguo NVIDIA GameStream, Sunshine, Apollo, Punktfunk y otros servidores compatibles con el mismo protocolo. La extensión Dolby es opcional. Si el host no anuncia ni selecciona AC-3/E-AC-3, el cliente conserva la ruta OPUS habitual. No hace falta modificar el host para una transmisión que solo utilice OPUS.
 
 ## ¿Cómo consigo Dolby Digital 5.1 por salida óptica?
 
