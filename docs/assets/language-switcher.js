@@ -82,7 +82,7 @@
     const localeAt = path.indexOf(localeMarker);
     const root = localeAt >= 0 ? path.slice(0, localeAt + 1) : path.slice(0, path.lastIndexOf("/") + 1);
     const file = path.slice(path.lastIndexOf("/") + 1);
-    const match = file.match(/^(Quick-Start-Guide|Installation-Guide|Features-Overview|Development-Guide|Frequently-Asked-Questions)(?:-(de|es|fr|it|ru|pt-br))?\.html?$/i);
+    const match = file.match(/^(Quick-Start-Guide|Installation-Guide|Features-Overview|Development-Guide|Frequently-Asked-Questions|Troubleshooting-Guide)(?:-(de|es|fr|it|ru|pt-br))?\.html?$/i);
     return {root, file, localized: localeAt >= 0, match};
   }
   function destination(code, route) {
