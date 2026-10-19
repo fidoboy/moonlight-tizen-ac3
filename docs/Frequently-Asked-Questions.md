@@ -32,11 +32,11 @@ No. E-AC-3 support depends on the particular Samsung TV, firmware, sound-output 
 
 ## Can Dolby passthrough carry 7.1 audio?
 
-The current experimental Sunshine encoder path is intended for Stereo or 5.1. AC-3 itself is limited to 5.1. Normal OPUS streaming can offer other channel layouts when supported by the host and client.
+The current implementation is limited to Stereo and 5.1 channels. E-AC-3 theoretically supports 7.1, but the current FFmpeg encoder path used by this build does not expose that option. If FFmpeg adds support in the future, it may become possible to select 7.1 for E-AC-3. AC-3 itself remains limited to 5.1. Standard OPUS streaming may offer other channel layouts when supported by the host and client.
 
 ## How do I view the active audio codec?
 
-During streaming, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. The audio line reports the negotiated codec, layout, channel count and approximate bitrate.
+If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics. The audio line reports the negotiated codec, layout, channel count and approximate bitrate.
 
 ## What is the difference between Moonlight.wgt and Moonlight-ForceGM.wgt?
 
