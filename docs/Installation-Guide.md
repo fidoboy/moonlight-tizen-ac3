@@ -42,11 +42,7 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 3. On newer TV interfaces, move to **App Settings** (usually a gear icon near the bottom of the Apps screen) and open it. On some older models, you can enter the code while the Apps screen is open.
 4. With Apps/App Settings on screen, enter this exact sequence:
 
-   <div align="center">
-
    **`1` → `2` → `3` → `4` → `5`**
-
-   </div>
 
    **How to enter the digits**
 
@@ -62,7 +58,7 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 7. Select **OK** and accept the TV's restart prompt.
 
 > [!TIP]
-> After restarting, return to **Apps**. Many Samsung TVs show a **Develop Mode** indicator near the top of the screen. This confirms that Developer Mode is enabled.
+> After restarting, return to **Apps**. Many Samsung TVs show a **Develop Mode** indicator near the top of the screen. This confirms that Developer Mode is enabled. For model-specific screenshots, see [Samsung's official TV Device guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html); the [Apps2Samsung FAQ](https://github.com/Apps2Samsung/Apps2Samsung/wiki/FAQ#-how-to-enable-developer-mode-on-your-tv) also explains entering the code with a Smart Remote.
 
 ### 3. Install Moonlight with Apps2Samsung
 
