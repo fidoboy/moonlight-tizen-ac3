@@ -24,7 +24,7 @@ La ruta de audio óptica se ha probado de extremo a extremo con una compilación
 
 ## Estadísticas del flujo de audio
 
-El panel de rendimiento, que se muestra u oculta con **Ctrl+Alt+Shift+S**, indica el códec de audio negociado, la distribución y el número de canales y una tasa de bits de audio medida aproximada, junto con el códec de vídeo y las estadísticas de transmisión existentes. La etiqueta del códec refleja la sesión activa, no solo la preferencia seleccionada.
+El panel de rendimiento puede mostrarse con **Ctrl+Alt+Shift+S** si hay un teclado conectado al televisor. También puedes pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y seleccionar la opción de estadísticas. El panel indica el códec de audio negociado, la distribución y el número de canales y una tasa de bits de audio medida aproximada, junto con el códec de vídeo y las estadísticas de transmisión existentes. La etiqueta del códec refleja la sesión activa, no solo la preferencia seleccionada.
 
 ## Otras mejoras específicas de este proyecto
 
