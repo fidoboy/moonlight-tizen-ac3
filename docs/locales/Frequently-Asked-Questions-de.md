@@ -21,7 +21,7 @@ Du benötigst alle folgenden Voraussetzungen:
 - TV-Audioeinstellungen in einem kompatiblen Passthrough-/Bitstream-Modus.
 - Einen Receiver oder ein Soundsystem, das AC-3 und die gesendete Kanalbelegung unterstützt.
 
-Wähle für die Ersteinrichtung 5.1 und prüfe in der Statistik-Einblendung (`Ctrl+Alt+Shift+S`) die Zeile **Audio stream**.
+Wähle für die Ersteinrichtung 5.1 und prüfe in der Statistik-Einblendung die Zeile **Audio stream**. Wenn eine Tastatur mit dem Fernseher verbunden ist, drücke **Ctrl+Alt+Shift+S**, um die Statistik anzuzeigen. Alternativ öffnest du mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählst dort die Option zum Anzeigen der Statistiken.
 
 ## Erzwingt die Aktivierung von Dolby Digital Dolby auf jedem Host?
 
