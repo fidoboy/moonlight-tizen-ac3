@@ -106,42 +106,21 @@
       background: radial-gradient(ellipse, rgba(67, 132, 239, .25), rgba(92, 80, 190, .09) 42%, transparent 72%);
       filter: blur(24px);
     }
-    .tv-frame {
-      position: relative; width: 100%; padding: 7px 7px 0; border-radius: 15px 15px 11px 11px;
-      background: linear-gradient(145deg, #566071 0%, #1b202a 9%, #090b10 35%, #171c25 73%, #050609 100%);
-      border: 1px solid rgba(198, 216, 244, .34);
-      box-shadow: 0 28px 54px rgba(0, 0, 0, .48), 0 0 0 1px rgba(0, 0, 0, .8),
-        inset 0 1px 0 rgba(255, 255, 255, .16);
+    .tv-composite {
+      position: relative; width: 100%; aspect-ratio: 3 / 2;
+      isolation: isolate; flex: 0 0 auto;
+      filter: drop-shadow(0 25px 30px rgba(0, 0, 0, .42));
     }
-    .tv-screen {
-      width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px;
-      background: #03050a; border: 1px solid #000;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .035);
-    }
-    .tv-screen img {
-      display: block; width: 100%; height: 100%; object-fit: contain; object-position: center;
+    .tv-animation {
+      position: absolute; z-index: 0;
+      left: 5.5%; top: 7.7%; width: 89%; height: 64.3%;
+      display: block; object-fit: cover; object-position: center;
       background: #03050a;
     }
-    .tv-lower-bezel {
-      position: relative; height: 19px; display: flex; align-items: center; justify-content: center;
-    }
-    .tv-brand {
-      color: #7f8794; font-size: 7px; line-height: 1; font-weight: 800; letter-spacing: .19em;
-      text-shadow: 0 1px 0 #000; user-select: none;
-    }
-    .tv-status-dot {
-      position: absolute; right: 8px; width: 4px; height: 4px; border-radius: 50%;
-      background: #79b9ff; box-shadow: 0 0 7px rgba(121, 185, 255, .7);
-    }
-    .tv-stand-neck {
-      width: 54px; height: 25px; margin-top: -1px;
-      background: linear-gradient(90deg, #121620, #424957 50%, #11151d);
-      clip-path: polygon(23% 0, 77% 0, 94% 100%, 6% 100%);
-    }
-    .tv-stand-base {
-      width: min(48%, 180px); height: 9px; margin-top: -1px; border-radius: 50% 50% 35% 35%;
-      background: linear-gradient(180deg, #525b6b 0%, #252b36 42%, #0b0d12 100%);
-      box-shadow: 0 8px 17px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .2);
+    .tv-overlay {
+      position: absolute; z-index: 1; inset: 0;
+      display: block; width: 100%; height: 100%;
+      object-fit: fill; pointer-events: none; user-select: none;
     }
     .tv-caption {
       align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
@@ -274,17 +253,18 @@
             <span>Standard Opus supported</span>
           </div>
         </div>
-        <aside class="tv-stage" aria-label="Moonlight shown on a Samsung-style television">
-          <div class="tv-frame">
-            <div class="tv-screen">
-              <img src="https://github.com/user-attachments/assets/dde25aae-c907-46ae-a6f7-a77af1684cfa"
-                   alt="Moonlight Tizen visual displayed on the television screen"
-                   decoding="async" fetchpriority="high">
-            </div>
-            <div class="tv-lower-bezel"><span class="tv-brand" aria-hidden="true">SAMSUNG</span><span class="tv-status-dot" aria-hidden="true"></span></div>
+        <aside class="tv-stage" aria-label="Animated Moonlight Tizen splash screen shown on a television with two game controllers">
+          <div class="tv-composite">
+            <img class="tv-animation"
+                 src="https://github.com/user-attachments/assets/dde25aae-c907-46ae-a6f7-a77af1684cfa"
+                 alt="Animated Moonlight Tizen splash screen"
+                 decoding="async" fetchpriority="high">
+            <img class="tv-overlay"
+                 src="assets/moonlight-tv-overlay.webp"
+                 alt=""
+                 aria-hidden="true"
+                 decoding="async" fetchpriority="high">
           </div>
-          <div class="tv-stand-neck" aria-hidden="true"></div>
-          <div class="tv-stand-base" aria-hidden="true"></div>
           <div class="tv-caption"><span>Moonlight for Tizen OS</span><strong>PC gaming on the big screen</strong></div>
         </aside>
       </div>
