@@ -221,6 +221,9 @@ add_library(opus STATIC
     opus/src/opus_multistream.c
     opus/src/opus_multistream_decoder.c
     opus/src/opus_multistream_encoder.c
+    opus/src/opus_projection_encoder.c
+    opus/src/opus_projection_decoder.c
+    opus/src/mapping_matrix.c
     opus/src/repacketizer.c
 )
 target_include_directories(opus PUBLIC
