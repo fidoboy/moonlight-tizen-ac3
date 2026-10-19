@@ -3,25 +3,33 @@
 
   const alerts = {
     NOTE: {
-      label: "Note",
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 7h.01"></path></svg>'
     },
     TIP: {
-      label: "Tip",
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M8.5 14.5A7 7 0 1 1 15.5 14.5c-.9.7-1.3 1.6-1.5 2.5h-4c-.2-.9-.6-1.8-1.5-2.5Z"></path><path d="M12 4v1M5.5 7l.8.8M18.5 7l-.8.8"></path></svg>'
     },
     IMPORTANT: {
-      label: "Important",
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>'
     },
     WARNING: {
-      label: "Warning",
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.4 2.7 18a1.8 1.8 0 0 0 1.6 2.7h15.4a1.8 1.8 0 0 0 1.6-2.7L13.7 4.4a1.95 1.95 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 16.5h.01"></path></svg>'
     },
     CAUTION: {
-      label: "Caution",
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6l8-3Z"></path><path d="M12 8v5M12 16h.01"></path></svg>'
     }
+  };
+
+  const language = document.documentElement.lang.toLowerCase();
+  const labelSet = ({
+    en: { NOTE: "Note", TIP: "Tip", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Caution" },
+    es: { NOTE: "Nota", TIP: "Consejo", IMPORTANT: "Importante", WARNING: "Advertencia", CAUTION: "Precaución" },
+    de: { NOTE: "Hinweis", TIP: "Tipp", IMPORTANT: "Wichtig", WARNING: "Warnung", CAUTION: "Vorsicht" },
+    fr: { NOTE: "Remarque", TIP: "Conseil", IMPORTANT: "Important", WARNING: "Avertissement", CAUTION: "Attention" },
+    it: { NOTE: "Nota", TIP: "Suggerimento", IMPORTANT: "Importante", WARNING: "Avvertenza", CAUTION: "Attenzione" },
+    ru: { NOTE: "Примечание", TIP: "Совет", IMPORTANT: "Важно", WARNING: "Предупреждение", CAUTION: "Осторожно" },
+    "pt-br": { NOTE: "Nota", TIP: "Dica", IMPORTANT: "Importante", WARNING: "Aviso", CAUTION: "Cuidado" }
+  })[language] || {
+    NOTE: "Note", TIP: "Tip", IMPORTANT: "Important", WARNING: "Warning", CAUTION: "Caution"
   };
 
   function stripMarker(paragraph) {
@@ -66,7 +74,7 @@
     heading.className = "admonition-heading";
     heading.innerHTML = alert.icon;
     const label = document.createElement("span");
-    label.textContent = alert.label;
+    label.textContent = labelSet[type];
     heading.appendChild(label);
     blockquote.insertBefore(heading, blockquote.firstChild);
   });
