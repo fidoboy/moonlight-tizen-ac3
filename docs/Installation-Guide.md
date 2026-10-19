@@ -56,7 +56,7 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 1. Open Apps2Samsung on your computer.
 2. Select your TV after it appears in the scan results. If it is not discovered automatically, enter the TV's IP address manually if that option is available.
 3. Open the app catalog and find **Moonlight**.
-4. Select **Moonlight**, then choose the **`fidoboy · Dolby`** variant or if your TV model requires it the **`fidoboy · Dolby ForceGM`** variant.
+4. Select **Moonlight**, then choose the **`fidoboy · Enhanced · Dolby`** variant or if your TV model requires it the **`fidoboy · Enhanced · Dolby · ForceGM`** variant.
 5. Start the installation and wait for Apps2Samsung to report success. Apps2Samsung downloads and prepares the package itself.
 6. Open the TV's **Apps** screen and launch Moonlight.
 
