@@ -38,7 +38,7 @@ For a new setup, begin with conservative default resolution, frame rate and bitr
 
 ## 4. Enable Dolby optical output (optional)
 
-Dolby passthrough requires the matching experimental [Sunshine ac3-audio build](https://github.com/fidoboy/Sunshine/tree/ac3-audio), a compatible TV audio path, and a receiver or sound system that supports the format.
+Dolby passthrough requires the matching experimental [Sunshine ac3-audio build](https://github.com/fidoboy/Sunshine/tree/ac3-audio) — download the Windows [x64 build](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) or [ARM64 build](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) — plus a compatible TV audio path and a receiver or sound system that supports the format.
 
 1. Connect the TV's optical output to the receiver or sound system.
 2. In the TV's sound settings, choose an output mode that passes through a supported Dolby bitstream rather than forcing PCM stereo. The exact labels vary by model.
