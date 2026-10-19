@@ -24,7 +24,7 @@ Le chemin audio optique a été testé de bout en bout avec une version expérim
 
 ## Statistiques du flux audio
 
-L'overlay de performances, affiché ou masqué avec **Ctrl+Alt+Shift+S**, indique le codec audio négocié, la disposition et le nombre de canaux ainsi qu'un débit audio mesuré approximatif, en plus du codec vidéo et des statistiques de streaming existantes. Le codec affiché correspond à la session active, pas seulement à la préférence sélectionnée.
+L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un clavier est connecté au téléviseur. Vous pouvez également appuyer sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming et choisir l'option des statistiques. Il indique le codec audio négocié, la disposition et le nombre de canaux ainsi qu'un débit audio mesuré approximatif, en plus du codec vidéo et des statistiques de streaming existantes. Le codec affiché correspond à la session active, pas seulement à la préférence sélectionnée.
 
 ## Autres améliorations propres à ce projet
 
