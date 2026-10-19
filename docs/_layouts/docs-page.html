@@ -49,7 +49,8 @@
     .nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
     .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 750; letter-spacing: -.025em; color: var(--text); }
     .brand-logo { display: block; width: 38px; height: 38px; flex: 0 0 auto; object-fit: contain; border-radius: 10px; filter: drop-shadow(0 5px 12px rgba(75, 123, 219, .24)); }
-    .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-transform: uppercase; }
+    .brand > span { display: block; font-size: 18px; line-height: 1.12; font-weight: 800; letter-spacing: -.025em; }
+    .brand small { display: block; color: var(--muted); font-size: 9px; font-weight: 650; letter-spacing: .045em; line-height: 1.25; text-transform: none; }
     .nav-links { display: flex; align-items: center; gap: 22px; }
     .nav-links a { color: var(--muted); font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
     .nav-links a:hover { color: var(--text); }
@@ -156,6 +157,8 @@
       .wrap { width: min(var(--content), calc(100% - 30px)); }
       .nav { min-height: 64px; }
       .brand { font-size: 13px; }
+      .brand > span { font-size: 15px; }
+      .brand small { font-size: 8px; letter-spacing: .015em; }
       .brand-logo { width: 34px; height: 34px; }
       .nav-links { gap: 12px; }
       .nav-links a:not(.nav-github) { display: none; }
@@ -175,15 +178,15 @@
 <body>
   <header class="topbar">
     <nav class="nav wrap" aria-label="Main navigation">
-      <a class="brand" href="{{ site.baseurl }}/#top" aria-label="Moonlight Tizen home">
+      <a class="brand" href="{{ site.baseurl }}/#top" aria-label="Moonlight for Tizen home">
         <img class="brand-logo" src="{{ site.baseurl }}/assets/moonlight-logo.png" alt="" width="38" height="38">
-        <span>Moonlight Tizen<small>Enhanced Dolby audio</small></span>
+        <span>Moonlight for Tizen<small>Enhanced version · Dolby Digital audio</small></span>
       </a>
       <div class="nav-links">
         <a href="{{ site.baseurl }}/#features">Features</a>
         <a href="{{ site.baseurl }}/#install">Install</a>
         <a href="{{ site.baseurl }}/#download">Downloads</a>
-        {% if page.url contains 'Quick-Start-Guide' or page.url contains 'Installation-Guide' or page.url contains 'Features-Overview' or page.url contains 'Development-Guide' %}
+        {% if page.url contains 'Quick-Start-Guide' or page.url contains 'Installation-Guide' or page.url contains 'Features-Overview' or page.url contains 'Development-Guide' or page.url contains 'Frequently-Asked-Questions' %}
         <div class="language-picker" id="language-picker">
           <button type="button" id="language-trigger" class="language-trigger" aria-label="Page language" aria-haspopup="listbox" aria-expanded="false" aria-controls="language-menu">
             <img class="language-flag" src="{{ site.baseurl }}/assets/flags/gb.svg" alt="" width="24" height="16">
