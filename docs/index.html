@@ -325,18 +325,21 @@
       .install-intro { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
       .install-gamepad-remote { order: -1; align-self: center; max-width: 300px; margin: -85px auto; }
       .wrap { width: min(var(--content), calc(100% - 30px)); }
-      .nav { min-height: 64px; }
-      .nav-links { gap: 12px; }
+      .nav { min-height: 64px; gap: 8px; }
+      .nav .brand { flex: 1 1 0; min-width: 0; gap: 7px; }
+      .nav-links { flex: 0 0 auto; gap: 8px; }
       .nav-links a:not(.nav-github) { display: none; }
-      .brand { font-size: 13px; }
-      .brand > span { font-size: 15px; }
-      .brand small { font-size: 8px; letter-spacing: .015em; }
+      .nav .brand > span { min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+      .nav .brand small { display: none; }
       .brand-logo { width: 34px; height: 34px; }
+      .language-trigger { min-width: 0; gap: 5px; padding-inline: 7px; }
+      .nav-links .nav-github { padding: 7px 8px; font-size: 12px; white-space: nowrap; }
       .hero-brand { margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
-      .hero-brand-inner { gap: 10px; }
-      .hero-brand-logo { flex-basis: 64px; width: 64px; height: 64px; }
-      .hero-brand-title { font-size: clamp(20px, 6vw, 36px); letter-spacing: -.055em; }
-      .hero-brand-note { margin-top: -6px; font-size: 12px; }
+      .hero-brand-inner { gap: 8px; }
+      .hero-brand-logo { flex: 0 0 52px; width: 52px; height: 52px; }
+      .hero-brand-copy { flex: 1 1 0; width: auto; min-width: 0; }
+      .hero-brand-title { width: auto; max-width: 100%; white-space: normal; overflow-wrap: break-word; font-size: clamp(18px, 5.8vw, 34px); letter-spacing: -.055em; }
+      .hero-brand-note { margin-top: -2px; font-size: 11px; overflow-wrap: anywhere; }
       .hero-headline {
         flex-direction: column; align-items: center; justify-content: flex-start;
         gap: 0; white-space: normal; text-align: center;
@@ -350,8 +353,9 @@
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
       .apps2samsung-logo { width: 84px; height: 84px; }
-      .apps2samsung-copy strong { font-size: 27px; }
-      .apps2samsung-copy small { font-size: 12px; }
+      .apps2samsung-copy { min-width: 0; }
+      .apps2samsung-copy strong { font-size: clamp(20px, 6vw, 24px); overflow-wrap: anywhere; }
+      .apps2samsung-copy small { font-size: 12px; overflow-wrap: anywhere; }
       .feature { min-height: initial; }
       .actions { align-items: stretch; flex-direction: column; }
       .button { width: 100%; }
