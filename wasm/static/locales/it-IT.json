@@ -417,6 +417,6 @@
   "FEC failed": "falliti",
   "FEC failed (singular)": "fallito",
   "FEC out-of-order": "fuori sequenza",
-  "FEC recovery / out-of-order": "Recupero FEC / fuori sequenza",
-  "FEC recovery failed": "Recupero FEC non riuscito"
+  "FEC recovery / out-of-order": "evento FEC",
+  "FEC recovery failed": "errore FEC"
 }

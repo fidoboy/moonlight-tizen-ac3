@@ -210,19 +210,12 @@ function drawPerformanceStatsGraph() {
   var availableWidth = Math.round(elements.container.clientWidth - horizontalPadding);
   var measuredWidth = Math.round(canvas.getBoundingClientRect().width || 0);
   var width = Math.max(300, availableWidth, measuredWidth);
-  if (canvas.width !== width) canvas.width = width;
-  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
 
   var context = canvas.getContext('2d');
   if (!context) return;
 
-  var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
-  context.clearRect(0, 0, width, height);
-  context.textBaseline = 'middle';
   context.font = '12px sans-serif';
-  context.fillStyle = 'rgba(255,255,255,0.95)';
   var graphTitle = t('Network latency (RTT, ms)');
-  context.fillText(graphTitle, 4, 9);
 
   // Numeric thresholds make the color scale legible without adding untranslated UI strings.
   var legend = [
@@ -231,6 +224,38 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
   ];
+  var fecLegend = [
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+  ];
+
+  // Widen the overlay only when necessary to keep the complete one-line legend visible.
+  var requiredLegendWidth = 4 + context.measureText(graphTitle).width + 14;
+  legend.forEach(function(item) {
+    requiredLegendWidth += 22 + context.measureText(item.label).width;
+  });
+  requiredLegendWidth += context.measureText('|').width + 20;
+  fecLegend.forEach(function(item) {
+    requiredLegendWidth += 22 + context.measureText(item.label).width;
+  });
+  requiredLegendWidth = Math.ceil(requiredLegendWidth + 4);
+  if (requiredLegendWidth > width) {
+    elements.container.style.width = requiredLegendWidth + 'px';
+    width = requiredLegendWidth;
+  }
+
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context = canvas.getContext('2d');
+  if (!context) return;
+
+  var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'middle';
+  context.font = '12px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.95)';
+  context.fillText(graphTitle, 4, 9);
+
   var legendX = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     context.fillStyle = item.color;
@@ -240,23 +265,23 @@ function drawPerformanceStatsGraph() {
     legendX += 22 + context.measureText(item.label).width;
   });
 
-  // FEC markers have their own permanent two-row legend, independent of recent activity.
-  // This avoids mixing FEC status into the RTT bar colors and keeps long translations readable.
-  [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order'), y: 23 },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed'), y: 36 }
-  ].forEach(function(item) {
+  // FEC markers share the RTT legend row; RTT bars keep their existing latency colors.
+  context.fillStyle = 'rgba(255,255,255,0.92)';
+  context.fillText('|', legendX + 2, 9);
+  legendX += context.measureText('|').width + 16;
+  fecLegend.forEach(function(item) {
     context.beginPath();
     context.fillStyle = item.color;
-    context.arc(8, item.y, 3, 0, Math.PI * 2);
+    context.arc(legendX + 3, 9, 3, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = 'rgba(255,255,255,0.92)';
-    context.fillText(item.label, 17, item.y);
+    context.fillText(item.label, legendX + 10, 9);
+    legendX += 22 + context.measureText(item.label).width;
   });
 
   var plotLeft = 34;
   var plotRight = width - 4;
-  var plotTop = 48;
+  var plotTop = 35;
   var plotBottom = 138;
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);

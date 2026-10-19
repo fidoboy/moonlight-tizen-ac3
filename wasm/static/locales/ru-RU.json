@@ -417,6 +417,6 @@
   "FEC failed": "ошибок",
   "FEC failed (singular)": "ошибка",
   "FEC out-of-order": "не по порядку",
-  "FEC recovery / out-of-order": "Восстановление FEC / не по порядку",
-  "FEC recovery failed": "Ошибка восстановления FEC"
+  "FEC recovery / out-of-order": "событие FEC",
+  "FEC recovery failed": "ошибка FEC"
 }
