@@ -20,7 +20,6 @@ Development builds may also be available as temporary artifacts from [GitHub Act
 
 ### Before you start
 
-- Download `Moonlight.wgt` (standard version) or `Moonlight-ForceGM.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest).
 - Download and run the version of [Apps2Samsung](https://apps2samsung.com/#download) for your computer.
 - Connect the TV and computer to the **same local network**. They can use Wi-Fi or Ethernet, as long as they can communicate with each other.
 
