@@ -7,6 +7,15 @@ description: "Risoluzione dei problemi comuni di connessione, audio e streaming 
 
 # Guida alla risoluzione dei problemi
 
+## Apps2Samsung non mostra il televisore nell'elenco
+
+1. Verifica che il **Developer Mode (modalità sviluppatore)** sia attivato sul televisore Samsung. Premi **Home**, apri **Apps** e poi **App Settings** (di solito l'icona a forma di ingranaggio). Su alcuni modelli meno recenti, puoi inserire il codice mentre la schermata Apps è aperta.
+2. Inserisci **12345** con i tasti numerici del telecomando. Se il tuo Smart Remote non ha tasti numerici, apri il tastierino sullo schermo con il pulsante **123** e inserisci lì le cifre. Quando appare la finestra **Developer Mode**, attiva la modalità sviluppatore (**On**).
+3. In **Host PC IP**, inserisci l'indirizzo IPv4 locale del computer su cui viene eseguito Apps2Samsung. Deve corrispondere esattamente all'indirizzo attuale di quel computer. Usa l'IPv4 dell'adattatore Wi-Fi o Ethernet attivo, non l'IP del televisore, il gateway del router, `127.0.0.1` o l'indirizzo Internet pubblico. Salva l'impostazione e riavvia il televisore.
+4. Verifica che televisore e computer siano sulla stessa rete locale, quindi cerca di nuovo il televisore in Apps2Samsung. Una rete Wi-Fi ospiti o l'isolamento client del router possono impedire la comunicazione.
+
+Per maggiori dettagli, consulta la [Guida all'installazione](Installation-Guide-it.html) e la [guida ufficiale Samsung TV Device](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html).
+
 ## Moonlight non trova l'host
 
 1. Verifica che Sunshine sia in esecuzione e che TV e PC siano raggiungibili sulla stessa rete.
@@ -44,3 +53,7 @@ description: "Risoluzione dei problemi comuni di connessione, audio e streaming 
 5. Se Sunshine non offre Dolby o non lo seleziona, OPUS è il fallback di compatibilità previsto.
 
 L'attivazione dell'impostazione da sola non dimostra che sia stato negoziato uno stream Dolby. La riga delle statistiche audio mostra il formato attivo durante la sessione.
+
+## Raccogliere informazioni diagnostiche utili
+
+Annota la versione del progetto Moonlight, il modello del televisore e la versione di Tizen, la versione e il ramo di Sunshine, il codec e la disposizione dei canali mostrati nelle statistiche, le impostazioni di risoluzione/FPS/bitrate e se il problema si verifica anche con OPUS. Poi [apri una segnalazione su GitHub](https://github.com/fidoboy/moonlight-tizen-ac3/issues) includendo le informazioni pertinenti. Non pubblicare indirizzi IP pubblici, PIN, chiavi private o altri segreti.
