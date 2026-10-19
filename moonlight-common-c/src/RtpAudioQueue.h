@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Video.h"
+#include "PlatformThreads.h"
 
 typedef struct _reed_solomon reed_solomon;
 
@@ -65,6 +66,10 @@ typedef struct _RTP_AUDIO_QUEUE {
     bool incompatibleServer;
 
     RTP_AUDIO_STATS stats;
+
+    // Protect counters read by the video thread for the statistics overlay.
+    PLT_MUTEX statsMutex;
+    bool statsMutexInitialized;
 } RTP_AUDIO_QUEUE, *PRTP_AUDIO_QUEUE;
 
 #define RTPQ_RET_PACKET_CONSUMED 0x1

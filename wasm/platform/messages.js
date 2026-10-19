@@ -92,6 +92,11 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order/g, function(match, recovered, failed, outOfOrder) {
+      return t('Audio FEC:') + ' ' + recovered + ' ' + t(Number(recovered) === 1 ? 'FEC recovered (singular)' : 'FEC recovered') +
+        ' · ' + failed + ' ' + t(Number(failed) === 1 ? 'FEC failed (singular)' : 'FEC failed') +
+        ' · ' + outOfOrder + ' ' + t('FEC out-of-order');
+    })
     .replace(/Codec:/g, t('Codec:'))
     .replace(/Incoming frame rate from network:/g, t('Incoming frame rate from network:'))
     .replace(/Decoding frame rate:/g, t('Decoding frame rate:'))
@@ -235,10 +240,29 @@ function drawPerformanceStatsGraph() {
     legendX += 22 + context.measureText(item.label).width;
   });
 
+  // Show FEC legend entries only while the rolling minute contains their markers.
+  var hasFecRecovery = performanceStatsGraphSamples.some(function(sample) {
+    return sample.audioFecRecovered > 0 || sample.audioFecOutOfOrder > 0;
+  });
+  var hasFecFailure = performanceStatsGraphSamples.some(function(sample) { return sample.audioFecFailed > 0; });
+  [
+    { visible: hasFecRecovery, color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
+    { visible: hasFecFailure, color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+  ].forEach(function(item) {
+    if (!item.visible) return;
+    context.beginPath();
+    context.fillStyle = item.color;
+    context.arc(legendX + 4, 9, 3, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    context.fillText(item.label, legendX + 12, 9);
+    legendX += 20 + context.measureText(item.label).width;
+  });
+
   var plotLeft = 34;
   var plotRight = width - 4;
   var plotTop = 35;
-  var plotBottom = 149;
+  var plotBottom = 138;
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);
 
@@ -281,6 +305,16 @@ function drawPerformanceStatsGraph() {
     var x = plotLeft + (firstSlot + index) * slotWidth + (slotWidth - barWidth) / 2;
     context.fillStyle = getPerformanceStatsGraphColor(sample);
     context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
+
+    // RTT bar colors remain dedicated to latency; FEC is shown in separate markers below.
+    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0 || sample.audioFecOutOfOrder > 0) {
+      context.beginPath();
+      context.fillStyle = sample.audioFecFailed > 0
+        ? PERFORMANCE_STATS_GRAPH_COLORS.critical
+        : PERFORMANCE_STATS_GRAPH_COLORS.warning;
+      context.arc(plotLeft + (firstSlot + index + 0.5) * slotWidth, 149, 3, 0, Math.PI * 2);
+      context.fill();
+    }
   });
 }
 
@@ -292,6 +326,9 @@ function handlePerformanceStatsGraphMessage(message) {
     rtt: Math.max(0, values[0]),
     variance: Math.max(0, values[1]),
     droppedFrames: Math.max(0, values[2]),
+    audioFecRecovered: Math.max(0, values[3] || 0),
+    audioFecFailed: Math.max(0, values[4] || 0),
+    audioFecOutOfOrder: Math.max(0, values[5] || 0),
     hostLatency: performanceStatsHostLatencyLatest
       ? {
         min: performanceStatsHostLatencyLatest.min,
@@ -419,14 +456,23 @@ function drawHostProcessingLatencyGraph() {
 
 
 // Render statistics as two-column rows: labels on the left and values on the right.
-function renderPerformanceStatsText(textElement, text) {
+function renderPerformanceStatsText(textElement, text, sourceText) {
   textElement.textContent = '';
-  String(text || '').split('\n').forEach(function(line) {
+  var sourceLines = String(sourceText || '').split('\n');
+  String(text || '').split('\n').forEach(function(line, lineIndex) {
     if (!line) return;
     var row = document.createElement('div');
+    if (sourceLines[lineIndex] && sourceLines[lineIndex].indexOf('Audio FEC:') === 0) {
+      var fecMatch = sourceLines[lineIndex].match(/^Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order$/);
+      var recovered = fecMatch ? Number(fecMatch[1]) : 0;
+      var failed = fecMatch ? Number(fecMatch[2]) : 0;
+      var outOfOrder = fecMatch ? Number(fecMatch[3]) : 0;
+      var severity = failed > 0 ? 'critical' : (recovered > 0 || outOfOrder > 0 ? 'warning' : 'normal');
+      row.className = 'performance-stats-row performance-stats-audio-fec performance-stats-audio-fec--' + severity;
+    }
     var separator = line.indexOf(':');
     if (separator > 0) {
-      row.className = 'performance-stats-row';
+      row.className = row.className || 'performance-stats-row';
       var label = document.createElement('span');
       label.className = 'performance-stats-label';
       label.textContent = line.slice(0, separator + 1);
@@ -803,7 +849,8 @@ function handleMessage(msg) {
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));
+      var sourceStatsText = msg.replace('StatMsg: ', '');
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
       drawPerformanceStatsGraph();
       drawHostProcessingLatencyGraph();
     }

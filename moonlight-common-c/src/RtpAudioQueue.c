@@ -22,6 +22,10 @@
 
 void RtpaInitializeQueue(PRTP_AUDIO_QUEUE queue) {
     memset(queue, 0, sizeof(*queue));
+    queue->statsMutexInitialized = PltCreateMutex(&queue->statsMutex) == 0;
+    if (!queue->statsMutexInitialized) {
+        Limelog("Failed to initialize audio FEC statistics mutex; overlay FEC counters will remain zero.\n");
+    }
 
     // We will start in the synchronizing state, where we wait for the first
     // full FEC block before reporting losses, out of order packets, etc.
@@ -58,6 +62,16 @@ void RtpaInitializeQueue(PRTP_AUDIO_QUEUE queue) {
     // constant and known in advance.
     const unsigned char parity[] = { 0x77, 0x40, 0x38, 0x0e, 0xc7, 0xa7, 0x0d, 0x6c };
     memcpy(queue->rs->p, parity, sizeof(parity));
+}
+
+static void incrementFecStat(PRTP_AUDIO_QUEUE queue, uint32_t* counter, uint32_t increment) {
+    if (!queue->statsMutexInitialized) {
+        return;
+    }
+
+    PltLockMutex(&queue->statsMutex);
+    *counter += increment;
+    PltUnlockMutex(&queue->statsMutex);
 }
 
 static void validateFecBlockState(PRTP_AUDIO_QUEUE queue) {
@@ -192,8 +206,12 @@ void RtpaCleanupQueue(PRTP_AUDIO_QUEUE queue) {
 
     reed_solomon_release(queue->rs);
     queue->rs = NULL;
-}
 
+    if (queue->statsMutexInitialized) {
+        PltDeleteMutex(&queue->statsMutex);
+        queue->statsMutexInitialized = false;
+    }
+}
 static PRTPA_FEC_BLOCK getFecBlockForRtpPacket(PRTP_AUDIO_QUEUE queue, PRTP_PACKET packet, uint16_t length) {
     uint32_t fecBlockSsrc;
     uint16_t fecBlockBaseSeqNum;
@@ -217,7 +235,7 @@ static PRTPA_FEC_BLOCK getFecBlockForRtpPacket(PRTP_AUDIO_QUEUE queue, PRTP_PACK
         // this knowledge to more quickly give up on FEC blocks.
         if (!queue->synchronizing && isBefore16(packet->sequenceNumber, queue->oldestRtpBaseSequenceNumber)) {
             queue->lastOosSequenceNumber = packet->sequenceNumber;
-            queue->stats.packetCountOOS++;
+            incrementFecStat(queue, &queue->stats.packetCountOOS, 1);
             if (!queue->receivedOosData) {
                 Limelog("Leaving fast audio recovery mode after OOS audio data (%u < %u)\n",
                         packet->sequenceNumber, queue->oldestRtpBaseSequenceNumber);
@@ -467,7 +485,8 @@ static bool completeFecBlock(PRTP_AUDIO_QUEUE queue, PRTPA_FEC_BLOCK block) {
 
 
     if (block->dataShardsReceived != RTPA_DATA_SHARDS) {
-        queue->stats.packetCountFecRecovered += RTPA_DATA_SHARDS - block->dataShardsReceived;
+        incrementFecStat(queue, &queue->stats.packetCountFecRecovered,
+                         RTPA_DATA_SHARDS - block->dataShardsReceived);
 #ifdef FEC_VERBOSE
         Limelog("Recovered %d audio data shards from block %d\n",
                 RTPA_DATA_SHARDS - block->dataShardsReceived,
@@ -547,7 +566,7 @@ static void handleMissingPackets(PRTP_AUDIO_QUEUE queue) {
     if (!queue->receivedOosData || PltGetMicroseconds() - queue->blockHead->queueTimeUs > ((uint64_t)AudioPacketDuration * RTPA_DATA_SHARDS + RTPQ_OOS_WAIT_TIME_MS) * 1000) {
         LC_ASSERT(!isBefore16(queue->nextRtpSequenceNumber, queue->blockHead->fecHeader.baseSequenceNumber));
 
-        queue->stats.packetCountFecFailed++;
+        incrementFecStat(queue, &queue->stats.packetCountFecFailed, 1);
         Limelog("Unable to recover audio data block %u to %u (%u+%u=%u received < %u needed)\n",
                 queue->blockHead->fecHeader.baseSequenceNumber,
                 queue->blockHead->fecHeader.baseSequenceNumber + RTPA_DATA_SHARDS - 1,

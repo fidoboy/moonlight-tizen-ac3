@@ -65,6 +65,29 @@ static std::string s_StatString(2048, '\0');
 static VIDEO_STATS m_ActiveWndVideoStats;
 static VIDEO_STATS m_LastWndVideoStats;
 static VIDEO_STATS m_GlobalVideoStats;
+static RTP_AUDIO_FEC_STATS s_AudioFecWindowStats = {};
+static RTP_AUDIO_FEC_STATS s_LastAudioFecStats = {};
+static bool s_AudioFecStatsBaselineValid = false;
+
+static uint32_t AudioFecCounterDelta(uint32_t current, uint32_t previous) {
+  // A counter decrease means that the audio queue was reset during the session.
+  return current >= previous ? current - previous : current;
+}
+
+static void UpdateAudioFecWindowStats(void) {
+  RTP_AUDIO_FEC_STATS currentStats = {};
+  LiGetRTPAudioFecStats(&currentStats);
+  s_AudioFecWindowStats = {};
+  if (!s_AudioFecStatsBaselineValid) {
+    s_LastAudioFecStats = currentStats;
+    s_AudioFecStatsBaselineValid = true;
+    return;
+  }
+  s_AudioFecWindowStats.recoveredPackets = AudioFecCounterDelta(currentStats.recoveredPackets, s_LastAudioFecStats.recoveredPackets);
+  s_AudioFecWindowStats.failedBlocks = AudioFecCounterDelta(currentStats.failedBlocks, s_LastAudioFecStats.failedBlocks);
+  s_AudioFecWindowStats.outOfOrderPackets = AudioFecCounterDelta(currentStats.outOfOrderPackets, s_LastAudioFecStats.outOfOrderPackets);
+  s_LastAudioFecStats = currentStats;
+}
 
 MoonlightInstance::SourceListener::SourceListener(
   MoonlightInstance* instance
@@ -401,6 +424,9 @@ int MoonlightInstance::VidDecSetup(int videoFormat, int width, int height, int r
   // Reset received video and audio byte counts for the new stream.
   total_bytes = 0;
   g_Instance->m_AudioBytesReceived.store(0, std::memory_order_relaxed);
+  s_AudioFecWindowStats = {};
+  s_LastAudioFecStats = {};
+  s_AudioFecStatsBaselineValid = false;
 
   // Ensure that StartupVidDecSetup is called every time when VidDecSetup is invoked to reinitialize the media pipeline
   int initVidDec = StartupVidDecSetup(videoFormat, width, height, redrawRate, context, drFlags);
@@ -440,6 +466,8 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     total_bytes = 0;
     g_Instance->m_AudioBytesReceived.store(0, std::memory_order_relaxed);
     std::fill(s_StatString.begin(), s_StatString.end(), '\0');
+    s_AudioFecStatsBaselineValid = false;
+    UpdateAudioFecWindowStats();
     s_PerformanceStatsCollecting = true;
   } else if (!collectPerformanceStats) {
     s_PerformanceStatsCollecting = false;
@@ -559,6 +587,9 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
         ? (static_cast<float>(audioBytesReceived) * 8.0f) / statsIntervalMs
         : 0.0f;
 
+      // Sample audio FEC counters on the same one-second tick as text and graph statistics.
+      UpdateAudioFecWindowStats();
+
       VIDEO_STATS lastTwoWndStats = {};
       lastTwoWndStats.receivedBitrate =
         (total_bytes * 8.0f) / (statsIntervalMs * 1000.0f);
@@ -587,13 +618,16 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
         }
       }
 
-      // Send one graph sample on the same tick as the textual statistics.
-      char graphMessage[96];
+      // Send interval-only audio FEC activity beside each corresponding RTT sample.
+      char graphMessage[128];
       const int graphMessageLength = snprintf(
-        graphMessage, sizeof(graphMessage), "GraphMsg: %u,%u,%u",
+        graphMessage, sizeof(graphMessage), "GraphMsg: %u,%u,%u,%u,%u,%u",
         lastTwoWndStats.lastRtt,
         lastTwoWndStats.lastRttVariance,
-        m_ActiveWndVideoStats.networkDroppedFrames
+        m_ActiveWndVideoStats.networkDroppedFrames,
+        s_AudioFecWindowStats.recoveredPackets,
+        s_AudioFecWindowStats.failedBlocks,
+        s_AudioFecWindowStats.outOfOrderPackets
       );
       if (graphMessageLength > 0 && graphMessageLength < (int)sizeof(graphMessage)) {
         PostToJs(graphMessage);
@@ -824,6 +858,20 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       }
       offset += ret;
     }
+
+    // Keep this row permanently present; severity changes must not shift the overlay.
+    ret = snprintf(
+      &output[offset], length - offset,
+      "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
+      s_AudioFecWindowStats.recoveredPackets,
+      s_AudioFecWindowStats.failedBlocks,
+      s_AudioFecWindowStats.outOfOrderPackets
+    );
+    if (ret < 0 || ret >= length - offset) {
+      assert(false);
+      return;
+    }
+    offset += ret;
 
     // Print frame rates at various stages of the pipeline
     ret = snprintf(

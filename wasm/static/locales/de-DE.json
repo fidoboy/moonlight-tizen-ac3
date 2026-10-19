@@ -410,5 +410,13 @@
   "Audio": "Audio",
   "Game mode summary": "Spielmodus",
   "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.": "— Zur vorherigen Ansicht zurückkehren, aktive Menüs oder Dialoge schließen oder den Vorgang abbrechen. Während des Streamings stattdessen das Stream-Menü öffnen oder schließen. Die App nach Bestätigung verlassen; im Emulationsmodus die rechte Maustaste klicken.",
-  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Alle gespeicherten Host-Einträge werden aus Moonlight entfernt. Um diese Hosts wieder zu verwenden, müssen Sie sie möglicherweise erneut hinzufügen und koppeln. Die Host-PCs und ihre Dateien bleiben unberührt."
+  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Alle gespeicherten Host-Einträge werden aus Moonlight entfernt. Um diese Hosts wieder zu verwenden, müssen Sie sie möglicherweise erneut hinzufügen und koppeln. Die Host-PCs und ihre Dateien bleiben unberührt.",
+  "Audio FEC:": "Audio-FEC:",
+  "FEC recovered": "wiederhergestellt",
+  "FEC recovered (singular)": "wiederhergestellt",
+  "FEC failed": "fehlgeschlagen",
+  "FEC failed (singular)": "fehlgeschlagen",
+  "FEC out-of-order": "außer Reihenfolge",
+  "FEC recovery / out-of-order": "FEC-Wiederherstellung / falsche Reihenfolge",
+  "FEC recovery failed": "FEC-Wiederherstellung fehlgeschlagen"
 }

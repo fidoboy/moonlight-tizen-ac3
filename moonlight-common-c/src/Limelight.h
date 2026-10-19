@@ -903,6 +903,16 @@ typedef struct _RTP_AUDIO_STATS {
 
 const RTP_AUDIO_STATS* LiGetRTPAudioStats(void);
 
+// Thread-safe snapshot of the audio FEC counters used by live statistics overlays.
+// Counters are copied under the RTP audio queue's stats mutex.
+typedef struct _RTP_AUDIO_FEC_STATS {
+    uint32_t recoveredPackets;
+    uint32_t failedBlocks;
+    uint32_t outOfOrderPackets;
+} RTP_AUDIO_FEC_STATS, *PRTP_AUDIO_FEC_STATS;
+
+void LiGetRTPAudioFecStats(PRTP_AUDIO_FEC_STATS stats);
+
 // Returns a pointer to a struct containing various statistics about the RTP video stream.
 // The data should be considered read-only and must not be modified.
 // Right now this is mainly used to track total video and FEC packets, as there are

@@ -482,3 +482,18 @@ int LiGetPendingAudioDuration(void) {
 const RTP_AUDIO_STATS* LiGetRTPAudioStats(void) {
     return &rtpAudioQueue.stats;
 }
+
+void LiGetRTPAudioFecStats(PRTP_AUDIO_FEC_STATS stats) {
+    if (stats == NULL || !rtpAudioQueue.statsMutexInitialized) {
+        if (stats != NULL) {
+            memset(stats, 0, sizeof(*stats));
+        }
+        return;
+    }
+
+    PltLockMutex(&rtpAudioQueue.statsMutex);
+    stats->recoveredPackets = rtpAudioQueue.stats.packetCountFecRecovered;
+    stats->failedBlocks = rtpAudioQueue.stats.packetCountFecFailed;
+    stats->outOfOrderPackets = rtpAudioQueue.stats.packetCountOOS;
+    PltUnlockMutex(&rtpAudioQueue.statsMutex);
+}

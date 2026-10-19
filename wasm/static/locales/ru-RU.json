@@ -410,5 +410,13 @@
   "Audio": "Звук",
   "Game mode summary": "Игровой режим",
   "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.": "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.",
-  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Все сохранённые записи хостов будут удалены из Moonlight. Чтобы использовать эти хосты снова, возможно, потребуется добавить их и выполнить сопряжение заново. Это не затронет сами ПК и их файлы."
+  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Все сохранённые записи хостов будут удалены из Moonlight. Чтобы использовать эти хосты снова, возможно, потребуется добавить их и выполнить сопряжение заново. Это не затронет сами ПК и их файлы.",
+  "Audio FEC:": "FEC аудио:",
+  "FEC recovered": "восстановлено",
+  "FEC recovered (singular)": "восстановлено",
+  "FEC failed": "ошибок",
+  "FEC failed (singular)": "ошибка",
+  "FEC out-of-order": "не по порядку",
+  "FEC recovery / out-of-order": "Восстановление FEC / не по порядку",
+  "FEC recovery failed": "Ошибка восстановления FEC"
 }

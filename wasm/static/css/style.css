@@ -826,6 +826,13 @@ body {
     text-align: right;
 }
 
+#performance-stats .performance-stats-audio-fec--normal .performance-stats-label,
+#performance-stats .performance-stats-audio-fec--normal .performance-stats-value { color: #fff; }
+#performance-stats .performance-stats-audio-fec--warning .performance-stats-label,
+#performance-stats .performance-stats-audio-fec--warning .performance-stats-value { color: #f2cc45; }
+#performance-stats .performance-stats-audio-fec--critical .performance-stats-label,
+#performance-stats .performance-stats-audio-fec--critical .performance-stats-value { color: #ff4d4f; }
+
 #performance-stats .performance-stats-message {
     white-space: pre-wrap;
 }
