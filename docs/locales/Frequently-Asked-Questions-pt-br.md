@@ -21,7 +21,7 @@ Você precisa de todos os itens a seguir:
 - Configurações de áudio da TV ajustadas para um modo de passthrough/bitstream compatível.
 - Um receiver ou sistema de som compatível com AC-3 e com o layout de canais enviado.
 
-Na configuração inicial, selecione 5.1 e confira a linha **Audio stream** no overlay de estatísticas (`Ctrl+Alt+Shift+S`).
+Na configuração inicial, selecione 5.1 e confira a linha **Audio stream** no overlay de estatísticas. Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar as estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas.
 
 ## Ativar Dolby Digital força Dolby em qualquer host?
 
