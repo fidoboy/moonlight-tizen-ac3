@@ -23,7 +23,7 @@ Weitere Informationen findest du unter [Voraussetzungen in der README](../#compa
 
 ## 2. Client installieren
 
-**Empfohlen: Installation über die offizielle [Apps2Samsung-Website](https://apps2samsung.com/).** Lade Apps2Samsung herunter, starte das Programm auf deinem Computer, wähle deinen Fernseher aus und installiere **Moonlight** aus dem App-Katalog. Dies ist die einfachste Methode, da Apps2Samsung das Paket für dich vorbereitet und signiert.
+**Empfohlen: Installation über die offizielle [Apps2Samsung-Website](https://apps2samsung.com/).** Lade Apps2Samsung herunter, starte das Programm auf deinem Computer, wähle deinen Fernseher aus, suche **Moonlight** im App-Katalog und wähle die Variante `fidoboy · Enhanced · Dolby`. Dies ist die einfachste Methode, da Apps2Samsung das Paket für dich vorbereitet und signiert.
 
 **Alternative: manuelle WGT-Installation.** Lade `Moonlight.wgt` aus der [aktuellen stabilen Version](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) herunter und installiere es mit einer der folgenden Methoden:
 
