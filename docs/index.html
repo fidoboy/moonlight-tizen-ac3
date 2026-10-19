@@ -98,7 +98,14 @@
     .hero-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 30px; align-items: center; }
     .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: #b8d9ff; font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
     .eyebrow:before { content: ""; width: 23px; height: 2px; background: var(--blue); border-radius: 2px; }
-    h1 { max-width: 720px; margin: 0 0 20px; font-size: clamp(42px, 6vw, 70px); line-height: 1.04; letter-spacing: -.062em; font-weight: 780; }
+    .hero-title-wrap { padding-top: clamp(18px, 2.6vw, 34px); }
+    .hero-headline {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+      width: 100%; max-width: none; margin: 0;
+      font-size: clamp(34px, 4.6vw, 65px); line-height: 1.04;
+      letter-spacing: -.062em; font-weight: 780; white-space: nowrap;
+    }
+    .hero-headline span { display: block; }
     .gradient-text { background: linear-gradient(110deg, #fff 14%, #a7d3ff 56%, #b9adff); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .lead { max-width: 635px; margin: 0; color: var(--muted); font-size: clamp(16px, 1.8vw, 19px); line-height: 1.75; }
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 22px; }
@@ -214,7 +221,11 @@
       .hero-brand { gap: 10px; margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
       .hero-brand-title { font-size: clamp(24px, 7.6vw, 44px); letter-spacing: -.055em; }
       .hero-brand-note { margin-top: 5px; font-size: 12px; }
-      h1 { font-size: clamp(40px, 12vw, 58px); }
+      .hero-headline {
+        flex-direction: column; align-items: center; justify-content: flex-start;
+        gap: 0; white-space: normal; text-align: center;
+        font-size: clamp(34px, 8.5vw, 48px);
+      }
       .hero { padding: 44px 0 38px; }
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
@@ -257,7 +268,6 @@
       </div>
       <div class="wrap hero-grid">
         <div>
-          <h1><span class="gradient-text">Your PC games.</span><br>Your living room.</h1>
           <p class="lead">Stream games, applications, and your desktop from your PC to a Samsung Smart TV. This independent Moonlight build adds optional Dolby Digital audio passthrough while keeping the familiar Opus streaming path compatible.</p>
           <div class="actions">
             <a class="button button-primary" href="https://apps2samsung.com/#download" target="_blank" rel="noopener noreferrer">Install with Apps2Samsung <span class="arrow" aria-hidden="true">↗</span></a>
@@ -283,6 +293,12 @@
           </div>
           <div class="tv-caption"><span>Moonlight for Tizen OS</span><strong>PC gaming on the big screen</strong></div>
         </aside>
+      </div>
+      <div class="wrap hero-title-wrap">
+        <h1 class="hero-headline">
+          <span class="gradient-text">Your PC games.</span>
+          <span>Your living room.</span>
+        </h1>
       </div>
     </section>
 
