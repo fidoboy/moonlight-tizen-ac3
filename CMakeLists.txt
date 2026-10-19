@@ -212,6 +212,7 @@ add_library(opus STATIC
     opus/silk/fixed/vector_ops_FIX.c
     opus/silk/fixed/warped_autocorrelation_FIX.c
     opus/src/analysis.c
+    opus/src/extensions.c
     opus/src/mlp.c
     opus/src/mlp_data.c
     opus/src/opus.c
