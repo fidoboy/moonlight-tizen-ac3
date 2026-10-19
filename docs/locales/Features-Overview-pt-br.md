@@ -24,7 +24,7 @@ O caminho de áudio óptico foi testado de ponta a ponta com uma build experimen
 
 ## Estatísticas do fluxo de áudio
 
-O overlay de desempenho, exibido ou ocultado com **Ctrl+Alt+Shift+S**, informa o codec de áudio negociado, o layout e o número de canais e uma taxa de bits medida aproximada, junto das estatísticas de vídeo e streaming existentes. O codec mostrado reflete a sessão ativa, não apenas a preferência selecionada.
+O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um teclado conectado à TV. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecionar a opção de estatísticas. Ele informa o codec de áudio negociado, o layout e o número de canais e uma taxa de bits medida aproximada, junto das estatísticas de vídeo e streaming existentes. O codec mostrado reflete a sessão ativa, não apenas a preferência selecionada.
 
 ## Outras melhorias específicas deste projeto
 
