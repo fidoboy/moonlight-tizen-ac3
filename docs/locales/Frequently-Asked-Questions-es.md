@@ -33,11 +33,11 @@ No. La compatibilidad con E-AC-3 depende del televisor Samsung concreto, su firm
 
 ## ¿El passthrough Dolby puede transportar audio 7.1?
 
-La ruta actual del codificador experimental de Sunshine está pensada para estéreo o 5.1. El propio AC-3 está limitado a 5.1. La transmisión OPUS normal puede ofrecer otras distribuciones de canales cuando las admiten el host y el cliente.
+La implementación actual está limitada a estéreo y 5.1 canales. E-AC-3 admite teóricamente 7.1, pero la ruta del codificador de FFmpeg utilizada en esta versión todavía no ofrece esa opción. Si FFmpeg incorpora compatibilidad en el futuro, quizá sea posible seleccionar 7.1 para E-AC-3. AC-3 sigue limitado a 5.1. La transmisión OPUS estándar puede ofrecer otras distribuciones de canales si el host y el cliente las admiten.
 
 ## ¿Cómo veo el códec de audio activo?
 
-Durante la transmisión, pulsa **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. La línea de audio indica el códec negociado, la distribución, el número de canales y la tasa de bits aproximada.
+Si hay un teclado conectado al televisor, pulsa **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puedes pulsar el botón **Play/Pause** o **Volver** del mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas. La línea de audio indica el códec negociado, la distribución, el número de canales y la tasa de bits aproximada.
 
 ## ¿Qué diferencia hay entre Moonlight.wgt y Moonlight-ForceGM.wgt?
 
