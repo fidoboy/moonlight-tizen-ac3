@@ -24,7 +24,7 @@ Der optische Audiopfad wurde vollständig mit einem experimentellen Sunshine-Bui
 
 ## Statistiken zum Audiostream
 
-Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** ein- und ausblenden. Sie zeigt den ausgehandelten Audiocodec, Kanalbelegung und Kanalanzahl sowie eine ungefähre gemessene Audio-Bitrate zusammen mit Video- und Streamingstatistiken an. Die Codec-Anzeige spiegelt die aktive Sitzung wider, nicht nur die ausgewählte Präferenz.
+Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** öffnen, wenn eine Tastatur am Fernseher angeschlossen ist. Alternativ kannst du auf der TV-Fernbedienung **Play/Pause** oder **Zurück** drücken, um das Streaming-Menü zu öffnen und die Statistik-Option auszuwählen. Die Anzeige zeigt den ausgehandelten Audiocodec, Kanalbelegung und Kanalanzahl sowie eine ungefähre gemessene Audio-Bitrate zusammen mit Video- und Streamingstatistiken an. Die Codec-Anzeige spiegelt die aktive Sitzung wider, nicht nur die ausgewählte Präferenz.
 
 ## Weitere projektspezifische Verbesserungen
 
