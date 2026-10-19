@@ -240,28 +240,23 @@ function drawPerformanceStatsGraph() {
     legendX += 22 + context.measureText(item.label).width;
   });
 
-  // Show FEC legend entries only while the rolling minute contains their markers.
-  var hasFecRecovery = performanceStatsGraphSamples.some(function(sample) {
-    return sample.audioFecRecovered > 0 || sample.audioFecOutOfOrder > 0;
-  });
-  var hasFecFailure = performanceStatsGraphSamples.some(function(sample) { return sample.audioFecFailed > 0; });
+  // FEC markers have their own permanent two-row legend, independent of recent activity.
+  // This avoids mixing FEC status into the RTT bar colors and keeps long translations readable.
   [
-    { visible: hasFecRecovery, color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
-    { visible: hasFecFailure, color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order'), y: 23 },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed'), y: 36 }
   ].forEach(function(item) {
-    if (!item.visible) return;
     context.beginPath();
     context.fillStyle = item.color;
-    context.arc(legendX + 4, 9, 3, 0, Math.PI * 2);
+    context.arc(8, item.y, 3, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = 'rgba(255,255,255,0.92)';
-    context.fillText(item.label, legendX + 12, 9);
-    legendX += 20 + context.measureText(item.label).width;
+    context.fillText(item.label, 17, item.y);
   });
 
   var plotLeft = 34;
   var plotRight = width - 4;
-  var plotTop = 35;
+  var plotTop = 48;
   var plotBottom = 138;
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);
