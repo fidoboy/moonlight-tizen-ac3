@@ -327,7 +327,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Refactored Dockerfile to remove unused dependencies and steps
-- Disabled monthly USB package release schedule and enabled manual trigger
 - Replaced the snackbar with a proper dialog in DialogMsg and ignored .DS_Store
 - Optimized Dockerfile to cache backend build layers during frontend changes
 - Improved issue templates and included 'Discussions' link for quick interaction
@@ -347,7 +346,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Updated 'Compatibility Warning' dialog to simplify message for affected Tizen platform
 - Updated 'h264bitstream' library to fix a potential memory leak and improving stability
 - Improved Dockerfile by refining multi-stage build and cleanup to reduce image size
-- Disabled USB package creation due to the USB Demo packaging tool being discontinued by Samsung
 
 ### Removed
 - Eliminated the need to restart Moonlight after selecting a video codec or audio configuration
@@ -388,7 +386,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 ### Changed
 - Refined multiple settings descriptions to provide clearer context and usability
 - Updated the workflow file for stable releases and changed to manual trigger for the master branch
-- Improved the workflow process for USB releases, updated the release notes, and made minor fixes
 
 ### Base client v1.9.0
 
@@ -480,7 +477,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Added
 - Added issue templates for bug report and feature request with selection options
-- Added workflow for scheduled release USB method with associated file
 
 ### Changed
 - Improved pull request template with structured sections and helpful instructions
@@ -580,7 +576,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Changed the default video resolution setting from '1080p' to '720p'
 - Increased the minimum bitrate slider for the bitrate menu from '0 Mbps' to '0.5 Mbps'
 - Changed the default video bitrate setting from '20 Mbps' to '10 Mbps'
-- Improved Dockerfile with the 'wgt-to-usb' tool for generating a USB installer
 
 ### Fixed
 - Minor bug fixes, code refactoring and general improvements
