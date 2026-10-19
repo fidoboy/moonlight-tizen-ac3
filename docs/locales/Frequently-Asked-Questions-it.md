@@ -7,7 +7,7 @@ description: "Risposte sulla compatibilità degli host, l'audio Dolby e le impos
 
 # Domande frequenti
 
-## Questo progetto funziona con host Sunshine normali?
+## Questo progetto funziona con Sunshine o altri host compatibili con GameStream?
 
 Sì. L'estensione Dolby è facoltativa. Se l'host non annuncia o non seleziona AC-3/E-AC-3, il client mantiene il normale percorso OPUS. Non sono necessarie modifiche specifiche Dolby all'host per uno streaming solo OPUS.
 
