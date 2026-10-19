@@ -62,4 +62,4 @@ An enabled setting alone does not prove a Dolby stream was negotiated. The audio
 
 ## Collecting useful diagnostic information
 
-Record the Moonlight project version, TV model/Tizen version, Sunshine version and branch, codec and channel layout shown in statistics, resolution/FPS/bitrate settings, and whether the issue reproduces with OPUS. Then [open an issue on GitHub](https://github.com/fidoboy/moonlight-tizen-ac3/issues) and include the relevant information. Do not post public IP addresses, PINs, private keys or other secrets.
+The Moonlight app version, TV model and Tizen OS version are shown inside Moonlight under **Settings → About**. Open that screen to collect those details. Also record the Sunshine version and branch, the codec and channel layout shown in the streaming statistics, the resolution/FPS/bitrate settings, and whether the problem also occurs with OPUS. Then [open an issue on GitHub](https://github.com/fidoboy/moonlight-tizen-ac3/issues) and include the relevant information. Do not post public IP addresses, PINs, private keys or other secrets.
