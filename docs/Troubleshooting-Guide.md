@@ -46,7 +46,7 @@ See the [Installation Guide](Installation-Guide.html) and [Samsung's official TV
 ## Statistics show OPUS instead of AC-3 or E-AC-3
 
 1. Confirm that **Enable Dolby Digital** is enabled in Moonlight.
-2. Confirm that the host is running the matching experimental [Sunshine ac3-audio branch](https://github.com/fidoboy/Sunshine/tree/ac3-audio) and was built with the optional FFmpeg Dolby encoder available.
+2. Confirm that the host is running the matching [experimental Sunshine build](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826), built with the optional FFmpeg Dolby encoder. In Sunshine, open **Settings → Audio/Video** and select **AC-3 (Dolby Digital)** or **E-AC-3 (Dolby Digital Plus)** from the stream audio format dropdown.
 3. Start a new stream after changing the host's audio settings.
 4. Verify that the host log reports the intended AC-3 or E-AC-3 codec and bitrate.
 5. If Sunshine does not offer or select Dolby, OPUS is the expected compatibility fallback.
