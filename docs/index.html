@@ -95,7 +95,7 @@
       filter: blur(24px);
     }
     .tv-frame {
-      width: 100%; padding: 7px 7px 0; border-radius: 15px 15px 11px 11px;
+      position: relative; width: 100%; padding: 7px 7px 0; border-radius: 15px 15px 11px 11px;
       background: linear-gradient(145deg, #566071 0%, #1b202a 9%, #090b10 35%, #171c25 73%, #050609 100%);
       border: 1px solid rgba(198, 216, 244, .34);
       box-shadow: 0 28px 54px rgba(0, 0, 0, .48), 0 0 0 1px rgba(0, 0, 0, .8),
@@ -109,6 +109,14 @@
     .tv-screen img {
       display: block; width: 100%; height: 100%; object-fit: contain; object-position: center;
       background: #03050a;
+    }
+    .controller-overlays {
+      position: absolute; z-index: 5; left: 50%; bottom: -25px; transform: translateX(-50%);
+      width: min(76%, 460px); line-height: 0; pointer-events: none;
+    }
+    .controller-art {
+      display: block; width: 100%; height: auto; overflow: visible;
+      filter: drop-shadow(0 8px 8px rgba(0, 0, 0, .48));
     }
     .tv-lower-bezel {
       position: relative; height: 19px; display: flex; align-items: center; justify-content: center;
@@ -204,6 +212,7 @@
       .brand-logo { width: 34px; height: 34px; }
       .hero-brand { gap: 12px; }
       .hero-logo { width: 62px; height: 62px; }
+      .controller-overlays { width: 86%; bottom: -20px; }
       h1 { font-size: clamp(40px, 12vw, 58px); }
       .hero { padding: 44px 0 38px; }
       .section { padding: 48px 0; }
@@ -265,6 +274,141 @@
                    decoding="async" fetchpriority="high">
             </div>
             <div class="tv-lower-bezel"><span class="tv-brand" aria-hidden="true">SAMSUNG</span><span class="tv-status-dot" aria-hidden="true"></span></div>
+            <div class="controller-overlays">
+              <svg class="controller-art" viewBox="0 0 800 280" role="img" aria-label="White Xbox-style controller and black PlayStation-style controller" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="xb-shell" x1="0" y1="0" x2=".15" y2="1">
+                    <stop offset="0" stop-color="#fff"/>
+                    <stop offset=".42" stop-color="#f0f2f6"/>
+                    <stop offset="1" stop-color="#bac2cf"/>
+                  </linearGradient>
+                  <linearGradient id="xb-grip" x1="0" y1="0" x2=".7" y2="1">
+                    <stop offset="0" stop-color="#f9fafc"/>
+                    <stop offset="1" stop-color="#c5ccd7"/>
+                  </linearGradient>
+                  <linearGradient id="xb-dark" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#3b414b"/>
+                    <stop offset="1" stop-color="#101319"/>
+                  </linearGradient>
+                  <linearGradient id="ps-shell" x1="0" y1="0" x2=".2" y2="1">
+                    <stop offset="0" stop-color="#4b5260"/>
+                    <stop offset=".25" stop-color="#242a35"/>
+                    <stop offset=".75" stop-color="#10141c"/>
+                    <stop offset="1" stop-color="#05070b"/>
+                  </linearGradient>
+                  <linearGradient id="ps-grip" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#343b47"/>
+                    <stop offset="1" stop-color="#080a0f"/>
+                  </linearGradient>
+                  <linearGradient id="ps-pad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#171c25"/>
+                    <stop offset="1" stop-color="#080a10"/>
+                  </linearGradient>
+                  <linearGradient id="stick-cap" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#515967"/>
+                    <stop offset=".4" stop-color="#242a34"/>
+                    <stop offset="1" stop-color="#07090d"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- White, asymmetric-stick Xbox-style controller -->
+                <g transform="translate(7 12) rotate(-4 195 132)">
+                  <path d="M71 64 C47 58 31 74 24 102 L5 183 C-2 212 15 234 39 226 L104 196 C128 185 151 181 180 183 L221 183 C246 181 270 189 294 201 L345 225 C370 238 394 215 385 188 L358 105 C350 78 331 62 307 68 C275 77 257 88 229 89 L151 89 C121 87 101 74 71 64Z"
+                        fill="url(#xb-shell)" stroke="#f9fbff" stroke-width="2"/>
+                  <path d="M20 185 C14 207 26 222 43 216 L102 189 C127 178 149 176 180 178 L220 178 C248 176 269 185 295 197 L347 218 C363 225 378 208 372 188"
+                        fill="none" stroke="#9ea7b5" stroke-opacity=".65" stroke-width="2"/>
+                  <path d="M64 69 C85 77 105 85 133 86 L246 86 C272 85 292 73 313 72"
+                        fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M39 103 C46 91 62 86 76 93 L94 102 C101 107 101 117 93 123 L77 134 C64 143 47 136 43 124Z"
+                        fill="url(#xb-grip)" stroke="#d7dce5" stroke-width="1.5"/>
+                  <path d="M308 95 C323 87 340 94 344 109 L357 145 C361 158 350 169 337 163 L316 151 C307 146 302 136 304 125Z"
+                        fill="url(#xb-grip)" stroke="#d7dce5" stroke-width="1.5"/>
+
+                  <!-- Left analog stick -->
+                  <circle cx="94" cy="118" r="31" fill="#b0b8c5" opacity=".75"/>
+                  <circle cx="94" cy="116" r="27" fill="url(#xb-dark)" stroke="#fff" stroke-opacity=".65" stroke-width="2"/>
+                  <circle cx="94" cy="114" r="20" fill="#151920" stroke="#515865" stroke-width="2"/>
+                  <circle cx="87" cy="107" r="6" fill="#777f8b" opacity=".25"/>
+
+                  <!-- D-pad -->
+                  <path d="M164 121 Q164 115 171 115 H186 V99 Q186 93 192 93 H204 Q210 93 210 99 V115 H225 Q231 115 231 121 V133 Q231 139 225 139 H210 V155 Q210 161 204 161 H192 Q186 161 186 155 V139 H171 Q164 139 164 133Z"
+                        fill="#161a21" stroke="#717987" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M197 100 V154 M172 127 H224" stroke="#3f4652" stroke-width="1.2"/>
+
+                  <!-- Face buttons -->
+                  <g stroke="#141820" stroke-width="3">
+                    <circle cx="286" cy="106" r="14" fill="#d9e2e9"/>
+                    <circle cx="315" cy="132" r="14" fill="#e6bb46"/>
+                    <circle cx="285" cy="157" r="14" fill="#68b96d"/>
+                    <circle cx="256" cy="132" r="14" fill="#d75a62"/>
+                  </g>
+                  <g fill="#20252d" font-size="16" font-weight="800" text-anchor="middle" dominant-baseline="central">
+                    <text x="286" y="106">X</text><text x="315" y="132">Y</text>
+                    <text x="285" y="157">A</text><text x="256" y="132">B</text>
+                  </g>
+                  <!-- Menu and view buttons -->
+                  <g fill="#dfe4eb" stroke="#aeb6c2" stroke-width="1">
+                    <circle cx="222" cy="77" r="7"/><circle cx="245" cy="77" r="7"/>
+                  </g>
+                  <g stroke="#535b68" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M219 77h6 M219 74h6 M242 75l6 4 M242 79l6-4"/>
+                  </g>
+                  <circle cx="196" cy="66" r="9" fill="#f1f3f7" stroke="#c6ccd5" stroke-width="1.2"/>
+                  <path d="M192 66h8 M196 62v8" stroke="#8a929e" stroke-width="1.2" stroke-linecap="round"/>
+                </g>
+
+                <!-- Black, symmetric-stick PlayStation-style controller -->
+                <g transform="translate(398 11) rotate(3 196 132)">
+                  <path d="M79 67 C56 62 39 78 32 104 L7 187 C-2 218 20 237 45 224 L99 196 C126 182 151 177 179 182 L224 182 C251 178 277 184 303 198 L353 224 C379 238 398 214 389 185 L363 104 C355 79 337 63 315 68 C286 74 266 87 238 88 L155 88 C127 86 106 74 79 67Z"
+                        fill="url(#ps-shell)" stroke="#737b89" stroke-opacity=".8" stroke-width="2"/>
+                  <path d="M22 188 C15 211 31 225 49 214 L104 188 C129 177 153 175 179 179 L224 179 C252 176 278 185 305 199 L354 218 C371 225 386 209 378 186"
+                        fill="none" stroke="#05070b" stroke-width="3"/>
+                  <path d="M78 72 C105 81 129 85 157 85 L238 85 C265 85 290 75 316 73"
+                        fill="none" stroke="#8b93a0" stroke-opacity=".46" stroke-width="2.5" stroke-linecap="round"/>
+                  <!-- Touchpad and light bar -->
+                  <path d="M148 77 Q149 70 160 70 H235 Q246 70 247 78 L241 112 Q240 119 231 120 H165 Q155 119 154 112Z"
+                        fill="url(#ps-pad)" stroke="#090b10" stroke-width="2"/>
+                  <path d="M162 74 H233" stroke="#6b9fff" stroke-width="3" stroke-linecap="round" opacity=".95"/>
+                  <path d="M172 79 L170 109 M184 79 L182 109 M196 79 L194 109 M208 79 L206 109 M220 79 L218 109"
+                        stroke="#505765" stroke-opacity=".2" stroke-width="1"/>
+
+                  <!-- Symmetric thumbsticks -->
+                  <g>
+                    <circle cx="151" cy="158" r="31" fill="#080a0e" stroke="#5a6270" stroke-width="2"/>
+                    <circle cx="151" cy="156" r="25" fill="url(#stick-cap)" stroke="#05070a" stroke-width="2"/>
+                    <circle cx="145" cy="149" r="8" fill="#8a929e" opacity=".15"/>
+                    <circle cx="246" cy="158" r="31" fill="#080a0e" stroke="#5a6270" stroke-width="2"/>
+                    <circle cx="246" cy="156" r="25" fill="url(#stick-cap)" stroke="#05070a" stroke-width="2"/>
+                    <circle cx="240" cy="149" r="8" fill="#8a929e" opacity=".15"/>
+                  </g>
+
+                  <!-- D-pad -->
+                  <path d="M71 117 Q71 111 77 111 H89 V99 Q89 93 95 93 H106 Q112 93 112 99 V111 H124 Q130 111 130 117 V128 Q130 134 124 134 H112 V146 Q112 152 106 152 H95 Q89 152 89 146 V134 H77 Q71 134 71 128Z"
+                        fill="#0b0d12" stroke="#5e6674" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M100 100 V145 M78 123 H123" stroke="#373d48" stroke-width="1.2"/>
+
+                  <!-- PlayStation-style face buttons -->
+                  <g stroke="#8b94a3" stroke-width="2" fill="#10141c">
+                    <circle cx="305" cy="105" r="13"/><circle cx="330" cy="130" r="13"/>
+                    <circle cx="305" cy="155" r="13"/><circle cx="280" cy="130" r="13"/>
+                  </g>
+                  <g fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M301 101 L309 109 M309 101 L301 109" stroke="#6a9dff"/>
+                    <circle cx="330" cy="130" r="5" stroke="#f08e9a"/>
+                    <path d="M300 155 L310 155 M305 150 L305 160" stroke="#85c69a"/>
+                    <path d="M276 126 L284 134 M284 126 L276 134" stroke="#bd9cff"/>
+                  </g>
+                  <!-- System and speaker details -->
+                  <circle cx="196" cy="132" r="3" fill="#7e8796"/>
+                  <g fill="#78818f">
+                    <circle cx="185" cy="138" r="1.5"/><circle cx="193" cy="140" r="1.5"/>
+                    <circle cx="201" cy="140" r="1.5"/><circle cx="209" cy="138" r="1.5"/>
+                  </g>
+                  <path d="M192 169h8" stroke="#697281" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="196" cy="177" r="2" fill="#70a6ff"/>
+                </g>
+              </svg>
+            </div>
           </div>
           <div class="tv-stand-neck" aria-hidden="true"></div>
           <div class="tv-stand-base" aria-hidden="true"></div>
