@@ -216,7 +216,6 @@
       flag.src = new URL(chosen.flag, FLAGS_BASE).href;
       flag.alt = "";
       codeLabel.textContent = chosen.label;
-      trigger.setAttribute("aria-label", translated("Page language", code) + ": " + chosen.name);
       for (const option of options()) {
         const selected = option.dataset.language === chosen.code;
         option.setAttribute("aria-selected", selected ? "true" : "false");
