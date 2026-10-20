@@ -1,0 +1,37 @@
+name: Temporary Opus 1.6.1 sync
+on:
+  push:
+    branches:
+      - 1.0.5-pre
+    paths:
+      - .github/workflows/temporary-opus-161-sync.yml
+permissions:
+  contents: write
+jobs:
+  replace-opus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 1.0.5-pre
+      - name: Download and verify official Opus 1.6.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz -o /tmp/opus-1.6.1.tar.gz
+          echo "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1  /tmp/opus-1.6.1.tar.gz" | sha256sum --check -
+          mkdir /tmp/opus-src
+          tar -xzf /tmp/opus-1.6.1.tar.gz -C /tmp/opus-src --strip-components=1
+          test "$(find /tmp/opus-src -type f | wc -l)" -eq 482
+      - name: Replace only opus/
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf opus
+          mkdir opus
+          cp -a /tmp/opus-src/. opus/
+          git add -A -- opus
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update vendored Opus to 1.6.1"
+          git push origin HEAD:1.0.5-pre
