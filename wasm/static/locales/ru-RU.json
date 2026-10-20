@@ -418,5 +418,6 @@
   "FEC failed (singular)": "ошибка",
   "FEC out-of-order": "не по порядку",
   "FEC recovery / out-of-order": "событие FEC",
-  "FEC recovery failed": "ошибка FEC"
+  "FEC recovery failed": "ошибка FEC",
+  "Color also reflects RTT variance and network-dropped frames.": "Цвет также учитывает колебания RTT и кадры, отброшенные из-за сети."
 }
