@@ -329,8 +329,10 @@
     }
     .notice > p { margin: 0; }
     .notice .download-pill {
-      display: inline-flex; align-items: center; gap: 6px;
+      display: inline-flex; align-items: center; gap: 10px;
       margin: 2px 4px 2px 0; padding: 3px 9px 3px 15px;
+    }
+    .notice .download-pill-first { margin-left: 10px; }
       border: 1px solid rgba(185, 173, 255, .38); border-radius: 8px;
       background: rgba(185, 173, 255, .08); color: #e2dcff;
       font-size: .9em; font-weight: 750; line-height: 1.45;
@@ -593,7 +595,7 @@
                 <span>Important</span>
               </div>
               <p>AC-3/E-AC-3 passthrough needs a compatible host build and audio path. It is currently available only in the <a href="https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3" target="_blank" rel="noopener noreferrer">experimental Sunshine branch maintained for this project</a>, which is awaiting upstream review. Prebuilt Windows builds:
-                <a class="download-pill" href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip" target="_blank" rel="noopener noreferrer" aria-label="Download Windows x64 ZIP build">
+                <a class="download-pill download-pill-first" href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip" target="_blank" rel="noopener noreferrer" aria-label="Download Windows x64 ZIP build">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8.5 4.5v9L12 21l-8.5-4.5v-9L12 3Z"></path><path d="m12 12 8.5-4.5M12 12 3.5 7.5M12 12v9M7.75 5.25l8.5 4.5"></path></svg>
                   x64 ZIP
                 </a>&nbsp;<a class="download-pill" href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip" target="_blank" rel="noopener noreferrer" aria-label="Download Windows ARM64 ZIP build">
