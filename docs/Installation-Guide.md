@@ -96,7 +96,7 @@ The repository's [Development Guide](Development-Guide.md) explains how to build
 
 ## Moving from the Brightcraft base application
 
-The independent release series starts at version 1.0.0, while the base application used a higher 1.18.x version. Tizen may therefore reject an in-place downgrade or treat the package signature differently. If installation fails, uninstall the previous application before installing this project. Uninstalling can remove local application data, so note your settings and host details first.
+The independent release series starts at version 1.0.0, while the base application used a higher 1.18.x version. Tizen may therefore reject an in-place downgrade or treat the package signature differently. If installation fails, uninstall the previous application before installing this project. Uninstalling can remove local application data, so note your settings and host details first. See the [updating guide](Updating-Guide.html) for details.
 
 ## First launch
 
