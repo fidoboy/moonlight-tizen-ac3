@@ -165,10 +165,10 @@
     .eyebrow:before { content: ""; width: 23px; height: 2px; background: var(--blue); border-radius: 2px; }
     .hero-title-wrap { padding-top: clamp(18px, 2.6vw, 34px); }
     .hero-headline {
-      display: block;
+      display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
       width: 100%; max-width: none; margin: 0;
       font-size: clamp(34px, 4.6vw, 65px); line-height: 1.15;
-      letter-spacing: -.062em; font-weight: 780; white-space: normal;
+      letter-spacing: -.062em; font-weight: 780; white-space: nowrap;
     }
     .hero-headline span { display: block; }
     .hero-headline span.gradient-text { padding-bottom: .12em; }
@@ -454,8 +454,8 @@
       </div>
       <div class="wrap hero-title-wrap">
         <h1 class="hero-headline">
-          <span class="gradient-text">Moonlight Tizen</span>
-          <span>for Samsung TVs.</span>
+          <span class="gradient-text">Your PC games.</span>
+          <span>Your living room.</span>
         </h1>
       </div>
     </section>
