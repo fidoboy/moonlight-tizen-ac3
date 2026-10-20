@@ -32,7 +32,6 @@ on:
       - 'opus/**'
       - 'ports/**'
       - 'wasm/**'
-      - 'README.md'
       - '.github/release-notes.md'
       - '.github/workflows/build-ac3-passthrough.yml'
       - '.github/workflows/release-stable.yml'
