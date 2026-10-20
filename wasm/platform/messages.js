@@ -183,13 +183,13 @@ function ensurePerformanceStatsOverlayElements() {
 }
 
 function getPerformanceStatsGraphColor(sample) {
-  if (sample.droppedFrames > 0 || sample.rtt >= 30 || sample.variance >= 50) {
+  if (sample.droppedFrames > 0 || sample.rtt >= 25 || sample.variance >= 50) {
     return PERFORMANCE_STATS_GRAPH_COLORS.critical;
   }
-  if (sample.rtt >= 16 || sample.variance >= 25) {
+  if (sample.rtt >= 15 || sample.variance >= 25) {
     return PERFORMANCE_STATS_GRAPH_COLORS.elevated;
   }
-  if (sample.rtt >= 8 || sample.variance >= 10) {
+  if (sample.rtt >= 5 || sample.variance >= 10) {
     return PERFORMANCE_STATS_GRAPH_COLORS.warning;
   }
   if (sample.rtt <= 0) {
@@ -219,10 +219,10 @@ function drawPerformanceStatsGraph() {
 
   // Numeric thresholds make the color scale legible without adding untranslated UI strings.
   var legend = [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<8' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '8–15' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '16–29' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '30+ !' }
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<5' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '5–14' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '15–24' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '25+ !' }
   ];
   var fecLegend = [
     { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
