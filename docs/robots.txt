@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fidoboy.github.io/moonlight-tizen-ac3/sitemap.xml
