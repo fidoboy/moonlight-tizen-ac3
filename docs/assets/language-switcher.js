@@ -63,14 +63,14 @@
   }
   function translateAttributes(root, code) {
     if (!root) return;
-    const nodes = [root, ...root.querySelectorAll("[aria-label], [alt], [title], meta[name='description'], meta[property='og:description']")];
+    const nodes = [root, ...root.querySelectorAll("[aria-label], [alt], [title], meta[name='description'], meta[property='og:description'], meta[name='twitter:description']")];
     for (const node of nodes) {
       if (!node || !node.getAttribute) continue;
       let originals = originalAttributes.get(node);
       if (!originals) { originals = {}; originalAttributes.set(node, originals); }
       for (const attr of ["aria-label", "alt", "title", "content"]) {
         if (!node.hasAttribute(attr)) continue;
-        if (attr === "content" && !node.matches("meta[name='description'], meta[property='og:description']")) continue;
+        if (attr === "content" && !node.matches("meta[name='description'], meta[property='og:description'], meta[name='twitter:description']")) continue;
         if (originals[attr] === undefined) originals[attr] = node.getAttribute(attr);
         node.setAttribute(attr, translated(originals[attr], code));
       }
