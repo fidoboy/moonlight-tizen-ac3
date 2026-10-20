@@ -217,9 +217,8 @@ function drawPerformanceStatsGraph() {
 
   context.font = '12px sans-serif';
   var graphTitle = t('Network latency (RTT, ms)');
-  var colorHint = t('Color also reflects RTT variance and network-dropped frames.');
 
-  // These RTT bands are provisional heuristics for local-network streaming.
+  // Provisional RTT bands for local-network streaming.
   var legend = [
     { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<10' },
     { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '10–19' },
@@ -231,10 +230,7 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
   ];
 
-  // Widen the overlay only when necessary to keep the complete one-line legend visible.
-  context.font = '10px sans-serif';
-  var colorHintWidth = context.measureText(colorHint).width;
-  context.font = '12px sans-serif';
+  // Widen the overlay only when necessary to keep the one-line legend visible.
   var requiredLegendWidth = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     requiredLegendWidth += 22 + context.measureText(item.label).width;
@@ -243,10 +239,7 @@ function drawPerformanceStatsGraph() {
   fecLegend.forEach(function(item) {
     requiredLegendWidth += 22 + context.measureText(item.label).width;
   });
-  requiredLegendWidth = Math.max(
-    Math.ceil(requiredLegendWidth + 4),
-    Math.ceil(colorHintWidth + 8)
-  );
+  requiredLegendWidth = Math.ceil(requiredLegendWidth + 4);
   if (requiredLegendWidth > width) {
     elements.container.style.width = requiredLegendWidth + 'px';
     width = requiredLegendWidth;
@@ -286,10 +279,6 @@ function drawPerformanceStatsGraph() {
     context.fillText(item.label, legendX + 10, 9);
     legendX += 22 + context.measureText(item.label).width;
   });
-
-  context.font = '10px sans-serif';
-  context.fillStyle = 'rgba(255,255,255,0.78)';
-  context.fillText(colorHint, 4, 23);
 
   var plotLeft = 34;
   var plotRight = width - 4;
