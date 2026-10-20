@@ -3771,7 +3771,7 @@ function warnResolutionFramerate() {
 
 function saveBitrate() {
   var chosenBitrate = $('#bitrateSlider').val();
-  $('#selectBitrate').html(chosenBitrate + ' Mbps');
+  $('#selectBitrate').text(chosenBitrate + ' Mbps');
   console.log('%c[index.js, saveBitrate]', 'color: green;', 'Saving bitrate value: ' + chosenBitrate);
   storeData('bitrate', chosenBitrate, null);
 
@@ -4429,7 +4429,7 @@ function restoreDefaultsSettingsValues() {
   storeData('frameRate', defaultFramerate, null);
 
   const defaultBitrate = '10';
-  $('#selectBitrate').html(defaultBitrate + ' Mbps');
+  $('#selectBitrate').text(defaultBitrate + ' Mbps');
   $('#bitrateSlider')[0].MaterialSlider.change(defaultBitrate);
   storeData('bitrate', defaultBitrate, null);
 
@@ -4725,7 +4725,7 @@ function loadUserDataCb() {
   getData('bitrate', function(previousValue) {
     $('#bitrateSlider')[0].MaterialSlider.change(previousValue.bitrate != null ? previousValue.bitrate : '10');
     // Update the video bitrate field based on the given value
-    $('#selectBitrate').html($('#bitrateSlider').val() + ' Mbps');
+    $('#selectBitrate').text($('#bitrateSlider').val() + ' Mbps');
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored framePacing preferences.');
