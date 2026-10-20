@@ -183,7 +183,6 @@ function ensurePerformanceStatsOverlayElements() {
 }
 
 function getPerformanceStatsGraphColor(sample) {
-  // Provisional RTT bands for local-network streaming, not a universal standard.
   if (sample.droppedFrames > 0 || sample.rtt >= 40 || sample.variance >= 50) {
     return PERFORMANCE_STATS_GRAPH_COLORS.critical;
   }
@@ -218,7 +217,7 @@ function drawPerformanceStatsGraph() {
   context.font = '12px sans-serif';
   var graphTitle = t('Network latency (RTT, ms)');
 
-  // Provisional RTT bands for local-network streaming.
+  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
   var legend = [
     { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<10' },
     { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '10–19' },
@@ -230,7 +229,7 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
   ];
 
-  // Widen the overlay only when necessary to keep the one-line legend visible.
+  // Widen the overlay only when necessary to keep the complete one-line legend visible.
   var requiredLegendWidth = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     requiredLegendWidth += 22 + context.measureText(item.label).width;
