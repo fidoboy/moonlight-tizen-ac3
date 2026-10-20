@@ -96,7 +96,7 @@ La [Guida allo sviluppo](Development-Guide-it.html) spiega come compilare il WGT
 
 ## Passare dall'app base Brightcraft
 
-La serie indipendente di release inizia dalla versione 1.0.0, mentre l'app base usava una versione superiore, 1.18.x. Tizen potrebbe quindi rifiutare un downgrade diretto o trattare diversamente la firma del pacchetto. Se l'installazione fallisce, disinstalla la vecchia applicazione prima di installare questo progetto. La disinstallazione può eliminare dati locali dell'app: annota prima le impostazioni e i dettagli degli host. Per maggiori dettagli, consulta la [guida all'aggiornamento](../Updating-Guide.html).
+La serie indipendente di release inizia dalla versione 1.0.0, mentre l'app base usava una versione superiore, 1.18.x. Tizen potrebbe quindi rifiutare un downgrade diretto o trattare diversamente la firma del pacchetto. Se l'installazione fallisce, disinstalla la vecchia applicazione prima di installare questo progetto. La disinstallazione può eliminare dati locali dell'app: annota prima le impostazioni e i dettagli degli host. Per maggiori dettagli, consulta la [guida all'aggiornamento](Updating-Guide-it.html).
 
 ## Primo avvio
 
