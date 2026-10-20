@@ -183,13 +183,14 @@ function ensurePerformanceStatsOverlayElements() {
 }
 
 function getPerformanceStatsGraphColor(sample) {
-  if (sample.droppedFrames > 0 || sample.rtt >= 100 || sample.variance >= 50) {
+  // Provisional RTT bands for local-network streaming, not a universal standard.
+  if (sample.droppedFrames > 0 || sample.rtt >= 40 || sample.variance >= 50) {
     return PERFORMANCE_STATS_GRAPH_COLORS.critical;
   }
-  if (sample.rtt >= 60 || sample.variance >= 25) {
+  if (sample.rtt >= 20 || sample.variance >= 25) {
     return PERFORMANCE_STATS_GRAPH_COLORS.elevated;
   }
-  if (sample.rtt >= 30 || sample.variance >= 10) {
+  if (sample.rtt >= 10 || sample.variance >= 10) {
     return PERFORMANCE_STATS_GRAPH_COLORS.warning;
   }
   if (sample.rtt <= 0) {
@@ -216,13 +217,14 @@ function drawPerformanceStatsGraph() {
 
   context.font = '12px sans-serif';
   var graphTitle = t('Network latency (RTT, ms)');
+  var colorHint = t('Color also reflects RTT variance and network-dropped frames.');
 
-  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
+  // These RTT bands are provisional heuristics for local-network streaming.
   var legend = [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<30' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '30–59' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<10' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '10–19' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '20–39' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '40+ !' }
   ];
   var fecLegend = [
     { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
@@ -230,6 +232,9 @@ function drawPerformanceStatsGraph() {
   ];
 
   // Widen the overlay only when necessary to keep the complete one-line legend visible.
+  context.font = '10px sans-serif';
+  var colorHintWidth = context.measureText(colorHint).width;
+  context.font = '12px sans-serif';
   var requiredLegendWidth = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     requiredLegendWidth += 22 + context.measureText(item.label).width;
@@ -238,7 +243,10 @@ function drawPerformanceStatsGraph() {
   fecLegend.forEach(function(item) {
     requiredLegendWidth += 22 + context.measureText(item.label).width;
   });
-  requiredLegendWidth = Math.ceil(requiredLegendWidth + 4);
+  requiredLegendWidth = Math.max(
+    Math.ceil(requiredLegendWidth + 4),
+    Math.ceil(colorHintWidth + 8)
+  );
   if (requiredLegendWidth > width) {
     elements.container.style.width = requiredLegendWidth + 'px';
     width = requiredLegendWidth;
@@ -278,6 +286,10 @@ function drawPerformanceStatsGraph() {
     context.fillText(item.label, legendX + 10, 9);
     legendX += 22 + context.measureText(item.label).width;
   });
+
+  context.font = '10px sans-serif';
+  context.fillStyle = 'rgba(255,255,255,0.78)';
+  context.fillText(colorHint, 4, 23);
 
   var plotLeft = 34;
   var plotRight = width - 4;
