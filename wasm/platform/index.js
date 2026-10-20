@@ -4142,7 +4142,7 @@ function saveAudioSync() {
 
 function saveAudioJitter() {
   var chosenAudioJitter = $('#jitterSlider').val();
-  $('#selectAudioJitter').html(chosenAudioJitter + ' ms');
+  $('#selectAudioJitter').text(chosenAudioJitter + ' ms');
   console.log('%c[index.js, saveAudioJitter]', 'color: green;', 'Saving audio jitter buffer: ' + chosenAudioJitter);
   storeData('audioJitter', chosenAudioJitter, null);
 }
@@ -4900,7 +4900,7 @@ function loadUserDataCb() {
   getData('audioJitter', function(previousValue) {
     $('#jitterSlider')[0].MaterialSlider.change(previousValue.audioJitter != null ? previousValue.audioJitter : '100');
     // Update the audio jitter buffer field based on the given value
-    $('#selectAudioJitter').html($('#jitterSlider').val() + ' ms');
+    $('#selectAudioJitter').text($('#jitterSlider').val() + ' ms');
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored playHostAudio preferences.');
