@@ -1245,7 +1245,7 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     // Find the existing overlay and dialog elements
     var pairingOverlay = document.querySelector('#pairingDialogOverlay');
     var pairingDialog = document.querySelector('#pairingDialog');
-    var randomNumber = String('0000' + (Math.random() * 10000 | 0)).slice(-4);
+    var randomNumber = String('0000' + cryptoRand(10000)).slice(-4);
 
     // Rollback to 'Cancel' button text when opening
     $('#cancelPairing').text('Cancel');
