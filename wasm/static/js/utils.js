@@ -29,16 +29,15 @@ function isRandomMacAddress(macAddress) {
 
 function guuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0,
+    var r = cryptoRand(16),
       v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
 }
 
 function uniqueid() {
-  return 'xxxxxxxxxxxxxxxx'.replace(/[x]/g, function(c) {
-    var r = Math.random() * 16 | 0;
-    return r.toString(16);
+  return 'xxxxxxxxxxxxxxxx'.replace(/[x]/g, function() {
+    return cryptoRand(16).toString(16);
   });
 }
 
