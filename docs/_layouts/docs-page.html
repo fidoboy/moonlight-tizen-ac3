@@ -7,8 +7,46 @@
   <meta name="theme-color" content="#080d19">
   <meta name="description" content="{{ page.description | default: 'Moonlight Tizen documentation.' | escape }}">
   <title>{{ page.title | default: 'Moonlight Tizen Documentation' | escape }} · Moonlight Tizen</title>
+  <link rel="canonical" href="https://fidoboy.github.io/moonlight-tizen-ac3{{ page.url | escape }}">
   <link rel="icon" type="image/png" href="{{ site.baseurl }}/assets/moonlight-logo.png">
   <link rel="apple-touch-icon" href="{{ site.baseurl }}/assets/moonlight-logo.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Moonlight Tizen">
+  <meta property="og:title" content="{{ page.title | default: 'Moonlight Tizen Documentation' | escape }} · Moonlight Tizen">
+  <meta property="og:description" content="{{ page.description | default: 'Moonlight Tizen documentation.' | escape }}">
+  <meta property="og:url" content="https://fidoboy.github.io/moonlight-tizen-ac3{{ page.url | escape }}">
+  <meta property="og:image" content="https://repository-images.githubusercontent.com/1416293922/a6a9bb3f-be15-42bb-b407-910d45bc31c8">
+  <meta property="og:image:alt" content="Moonlight Tizen for Samsung TVs with optional Dolby Digital audio support">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ page.title | default: 'Moonlight Tizen Documentation' | escape }} · Moonlight Tizen">
+  <meta name="twitter:description" content="{{ page.description | default: 'Moonlight Tizen documentation.' | escape }}">
+  <meta name="twitter:image" content="https://repository-images.githubusercontent.com/1416293922/a6a9bb3f-be15-42bb-b407-910d45bc31c8">
+  <meta name="twitter:image:alt" content="Moonlight Tizen for Samsung TVs with optional Dolby Digital audio support">
+{% assign seo_page_stem = page.name | remove: ".md" %}
+{% assign seo_page_lang = page.lang | default: "en" | downcase %}
+{% case seo_page_lang %}
+{% when 'es' %}{% assign seo_page_stem = seo_page_stem | split: "-es" | first %}
+{% when 'de' %}{% assign seo_page_stem = seo_page_stem | split: "-de" | first %}
+{% when 'fr' %}{% assign seo_page_stem = seo_page_stem | split: "-fr" | first %}
+{% when 'it' %}{% assign seo_page_stem = seo_page_stem | split: "-it" | first %}
+{% when 'ru' %}{% assign seo_page_stem = seo_page_stem | split: "-ru" | first %}
+{% when 'pt-br' %}{% assign seo_page_stem = seo_page_stem | split: "-pt-br" | first %}
+{% endcase %}
+{% assign seo_hreflang_languages = "en,es,de,fr,it,ru,pt-br" | split: "," %}
+{% for seo_language in seo_hreflang_languages %}
+  {% if seo_language == "en" %}
+    {% assign seo_alternate_path = "/" | append: seo_page_stem | append: ".html" %}
+  {% else %}
+    {% assign seo_alternate_path = "/locales/" | append: seo_page_stem | append: "-" | append: seo_language | append: ".html" %}
+  {% endif %}
+  {% assign seo_alternate_page = site.pages | where: "url", seo_alternate_path | first %}
+  {% if seo_alternate_page %}
+  <link rel="alternate" hreflang="{{ seo_language }}" href="https://fidoboy.github.io/moonlight-tizen-ac3{{ seo_alternate_path | escape }}">
+  {% if seo_language == "en" %}
+  <link rel="alternate" hreflang="x-default" href="https://fidoboy.github.io/moonlight-tizen-ac3{{ seo_alternate_path | escape }}">
+  {% endif %}
+  {% endif %}
+{% endfor %}
   <style>
     :root {
       color-scheme: dark;

@@ -1,0 +1,16 @@
+---
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://fidoboy.github.io/moonlight-tizen-ac3/</loc>
+  </url>
+{% for page in site.pages %}
+  {% if page.layout == "docs-page" and page.url contains ".html" %}
+  <url>
+    <loc>https://fidoboy.github.io/moonlight-tizen-ac3{{ page.url | escape }}</loc>
+  </url>
+  {% endif %}
+{% endfor %}
+</urlset>
