@@ -33,7 +33,6 @@ on:
       - 'ports/**'
       - 'wasm/**'
       - 'README.md'
-      - 'docs/**'
       - '.github/release-notes.md'
       - '.github/workflows/build-ac3-passthrough.yml'
       - '.github/workflows/release-stable.yml'
