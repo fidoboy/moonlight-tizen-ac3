@@ -110,12 +110,15 @@ function startLocalServer() {
         res.end();
       }
     } else {
-      // Fallback for TV reboots when memory routeMap is empty
-      if (route && route.startsWith('/preview-') && route.endsWith('.jpg')) {
-        logAndSend('Attempting fallback disk resolution for: ' + route);
+      // Fallback for TV reboots when memory routeMap is empty.
+      // Accept only a plain preview filename; never use request path segments on disk.
+      var fallbackMatch = /^\/(preview-[A-Za-z0-9_-]+\.jpg)$/.exec(route || '');
+      if (fallbackMatch) {
+        var fallbackFileName = fallbackMatch[1];
+        logAndSend('Attempting fallback disk resolution for: ' + fallbackFileName);
         var fallbackPaths = [
-          '/opt/usr/home/owner/content/Documents' + route,
-          '/home/owner/content/Documents' + route
+          '/opt/usr/home/owner/content/Documents/' + fallbackFileName,
+          '/home/owner/content/Documents/' + fallbackFileName
         ];
         
         for (var i = 0; i < fallbackPaths.length; i++) {
