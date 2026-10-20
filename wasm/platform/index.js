@@ -4495,7 +4495,7 @@ function restoreDefaultsSettingsValues() {
   storeData('audioSync', defaultAudioSync, null);
 
   const defaultAudioJitter = '100';
-  $('#selectAudioJitter').html(defaultAudioJitter + ' ms');
+  $('#selectAudioJitter').text(defaultAudioJitter + ' ms');
   $('#jitterSlider')[0].MaterialSlider.change(defaultAudioJitter);
   storeData('audioJitter', defaultAudioJitter, null);
 
