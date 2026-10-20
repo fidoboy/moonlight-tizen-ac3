@@ -1,3 +1,9 @@
+---
+layout: docs-page
+title: "Updating Guide"
+description: "How to update Moonlight Tizen on a Samsung Smart TV and choose the correct package variant."
+---
+
 # Updating Guide
 
 ## Updating to a newer project release
