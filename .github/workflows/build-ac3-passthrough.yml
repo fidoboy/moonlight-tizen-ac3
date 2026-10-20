@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - 1.0.5-pre
     paths:
       - 'CMakeLists.txt'
       - 'Dockerfile'
@@ -16,10 +15,26 @@ on:
       - 'opus/**'
       - 'ports/**'
       - 'wasm/**'
+      - '.github/release-notes.md'
       - '.github/workflows/build-ac3-passthrough.yml'
+      - '.github/workflows/release-stable.yml'
   pull_request:
     branches:
       - master
+    paths:
+      - 'CMakeLists.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'res/**'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'wasm/**'
+      - '.github/release-notes.md'
+      - '.github/workflows/build-ac3-passthrough.yml'
+      - '.github/workflows/release-stable.yml'
   workflow_dispatch:
 
 permissions:
