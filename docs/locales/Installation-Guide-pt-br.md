@@ -96,7 +96,7 @@ O [Guia de desenvolvimento](Development-Guide-pt-br.html) explica como compilar 
 
 ## Migrar do aplicativo base Brightcraft
 
-A série independente de releases começa na versão 1.0.0, enquanto o aplicativo base usava uma versão superior, 1.18.x. Por isso, o Tizen pode rejeitar um downgrade direto ou tratar a assinatura do pacote de outra forma. Se a instalação falhar, desinstale o aplicativo anterior antes de instalar este projeto. A desinstalação pode apagar dados locais do aplicativo; anote antes as configurações e os dados dos hosts.
+A série independente de releases começa na versão 1.0.0, enquanto o aplicativo base usava uma versão superior, 1.18.x. Por isso, o Tizen pode rejeitar um downgrade direto ou tratar a assinatura do pacote de outra forma. Se a instalação falhar, desinstale o aplicativo anterior antes de instalar este projeto. A desinstalação pode apagar dados locais do aplicativo; anote antes as configurações e os dados dos hosts. Consulte o [guia de atualização](../Updating-Guide.html) para mais detalhes.
 
 ## Primeiro início
 

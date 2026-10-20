@@ -96,7 +96,7 @@ Le [Guide de développement](Development-Guide-fr.html) décrit la compilation d
 
 ## Passer depuis l'application de base Brightcraft
 
-La série de versions indépendante commence à 1.0.0, tandis que l'application de base utilisait une version supérieure, 1.18.x. Tizen peut donc refuser un retour en arrière direct ou traiter différemment la signature du paquet. En cas d'échec, désinstallez l'application précédente avant d'installer ce projet. La désinstallation peut supprimer les données locales de l'application ; notez donc vos réglages et hôtes au préalable.
+La série de versions indépendante commence à 1.0.0, tandis que l'application de base utilisait une version supérieure, 1.18.x. Tizen peut donc refuser un retour en arrière direct ou traiter différemment la signature du paquet. En cas d'échec, désinstallez l'application précédente avant d'installer ce projet. La désinstallation peut supprimer les données locales de l'application ; notez donc vos réglages et hôtes au préalable. Pour plus de détails, consultez le [guide de mise à jour](../Updating-Guide.html).
 
 ## Premier lancement
 

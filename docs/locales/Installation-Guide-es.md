@@ -96,7 +96,7 @@ La [Guía de desarrollo](Development-Guide-es.html) explica cómo compilar el WG
 
 ## Cambiar desde la aplicación base de Brightcraft
 
-La serie de versiones independiente comienza en 1.0.0, mientras que la aplicación base utilizaba una versión superior, 1.18.x. Por ello, Tizen puede rechazar una bajada de versión en el sitio o tratar de forma distinta la firma del paquete. Si falla la instalación, desinstala la aplicación anterior antes de instalar este proyecto. La desinstalación puede borrar los datos locales de la aplicación, así que anota primero tus ajustes y los datos de los hosts.
+La serie de versiones independiente comienza en 1.0.0, mientras que la aplicación base utilizaba una versión superior, 1.18.x. Por ello, Tizen puede rechazar una bajada de versión en el sitio o tratar de forma distinta la firma del paquete. Si falla la instalación, desinstala la aplicación anterior antes de instalar este proyecto. La desinstalación puede borrar los datos locales de la aplicación, así que anota primero tus ajustes y los datos de los hosts. Consulta la [guía de actualización](../Updating-Guide.html) para más detalles.
 
 ## Primer inicio
 

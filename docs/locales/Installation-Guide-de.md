@@ -96,7 +96,7 @@ Der [Entwicklungsleitfaden](Development-Guide-de.html) erklärt den WGT-Build mi
 
 ## Von der Brightcraft-Basis-App wechseln
 
-Die unabhängige Release-Reihe beginnt bei Version 1.0.0, während die Basis-App eine höhere Version 1.18.x verwendete. Tizen kann daher ein direktes Downgrade ablehnen oder die Paketsignatur anders behandeln. Schlägt die Installation fehl, deinstalliere die vorherige App vor der Installation dieses Projekts. Dabei können lokale App-Daten gelöscht werden; notiere daher vorher Einstellungen und Host-Informationen.
+Die unabhängige Release-Reihe beginnt bei Version 1.0.0, während die Basis-App eine höhere Version 1.18.x verwendete. Tizen kann daher ein direktes Downgrade ablehnen oder die Paketsignatur anders behandeln. Schlägt die Installation fehl, deinstalliere die vorherige App vor der Installation dieses Projekts. Dabei können lokale App-Daten gelöscht werden; notiere daher vorher Einstellungen und Host-Informationen. Weitere Informationen findest du in der [Anleitung zur Aktualisierung](../Updating-Guide.html).
 
 ## Erster Start
 
