@@ -23,7 +23,8 @@
   <meta name="twitter:image" content="https://repository-images.githubusercontent.com/1416293922/a6a9bb3f-be15-42bb-b407-910d45bc31c8">
   <meta name="twitter:image:alt" content="Moonlight Tizen for Samsung TVs with optional Dolby Digital audio support">
 {% assign seo_page_stem = page.name | remove: ".md" %}
-{% case page.lang %}
+{% assign seo_page_lang = page.lang | default: "en" | downcase %}
+{% case seo_page_lang %}
 {% when 'es' %}{% assign seo_page_stem = seo_page_stem | split: "-es" | first %}
 {% when 'de' %}{% assign seo_page_stem = seo_page_stem | split: "-de" | first %}
 {% when 'fr' %}{% assign seo_page_stem = seo_page_stem | split: "-fr" | first %}
