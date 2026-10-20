@@ -306,8 +306,28 @@
     .apps2samsung-copy small { color: var(--muted); font-size: 13.5px; font-weight: 550; }
     .apps2samsung-copy small span { color: #63d3f0; font-size: 16px; vertical-align: -1px; }
     .fine-print { color: #8495ad; font-size: 11px; margin-top: 16px; text-align: center; }
-    .notice { padding: 17px 19px; border-left: 3px solid #d6b26e; border-radius: 0 12px 12px 0; background: rgba(214, 178, 110, .07); color: #c1cce0; font-size: 12px; line-height: 1.75; margin-top: 17px; }
-    .notice strong { color: #f1d6a0; }
+    .notice {
+      --admonition-accent: #b9adff;
+      --admonition-border: rgba(185, 173, 255, .36);
+      --admonition-surface: rgba(185, 173, 255, .08);
+      margin: 28px 0 0; padding: 15px 18px;
+      border: 1px solid var(--admonition-border);
+      border-left: 4px solid var(--admonition-accent);
+      border-radius: 12px; background: var(--admonition-surface);
+      color: #c1cce0; font-size: 14px; line-height: 1.75;
+    }
+    .notice .admonition-heading {
+      display: flex; align-items: center; gap: 9px;
+      margin: 0 0 7px; color: var(--admonition-accent);
+      font-size: 13px; font-weight: 800; letter-spacing: .055em;
+      line-height: 1.4; text-transform: uppercase;
+    }
+    .notice .admonition-heading svg {
+      display: block; width: 19px; height: 19px; flex: 0 0 auto;
+      fill: none; stroke: currentColor; stroke-width: 1.8;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .notice > p { margin: 0; }
     .compat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
     .compat-card { padding: 19px; border-radius: 15px; border: 1px solid var(--line); background: rgba(17, 28, 48, .55); }
     .compat-card h3 { margin: 0 0 7px; font-size: 13px; }
@@ -547,7 +567,13 @@
             </div>
           </aside>
         </div>
-            <div class="notice"><strong>Dolby note:</strong> AC-3/E-AC-3 passthrough needs a compatible host build and audio path. It is currently available only in the <a href="https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3" target="_blank" rel="noopener noreferrer">experimental Sunshine branch maintained for this project</a>, which is awaiting upstream review. Prebuilt Windows builds: <a href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip" target="_blank" rel="noopener noreferrer">x64</a> · <a href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip" target="_blank" rel="noopener noreferrer">ARM64</a>.</div>
+            <blockquote class="notice admonition admonition-important">
+              <div class="admonition-heading">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
+                <span>Important</span>
+              </div>
+              <p>AC-3/E-AC-3 passthrough needs a compatible host build and audio path. It is currently available only in the <a href="https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3" target="_blank" rel="noopener noreferrer">experimental Sunshine branch maintained for this project</a>, which is awaiting upstream review. Prebuilt Windows builds: <a href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip" target="_blank" rel="noopener noreferrer">x64</a> · <a href="https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip" target="_blank" rel="noopener noreferrer">ARM64</a>.</p>
+            </blockquote>
       </div>
     </section>
 
