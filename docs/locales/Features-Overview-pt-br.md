@@ -9,9 +9,9 @@ description: "Recursos do Moonlight Tizen, suporte a áudio Dolby e configuraç�
 
 Esta página descreve o projeto do cliente Moonlight para Tizen. A disponibilidade dos recursos depende do modelo da TV, da versão do Tizen, da configuração do host, da rede e dos periféricos conectados.
 
-## Principal diferencial: áudio Dolby pela saída óptica
+## Principal diferencial em relação a outros clientes: áudio Dolby pela saída digital
 
-O principal diferencial do projeto é o passthrough opcional de áudio Dolby Digital e Dolby Digital Plus para TVs Samsung compatíveis conectadas a um receiver ou sistema de som por conexão óptica (TOSLINK).
+O principal diferencial do projeto é o passthrough opcional de áudio Dolby Digital e Dolby Digital Plus para TVs Samsung compatíveis conectadas a um receiver ou sistema de som pela saída óptica (TOSLINK) ou HDMI.
 
 - **AC-3 (Dolby Digital):** áudio comprimido estéreo ou 5.1 pode ser enviado ao renderizador de áudio EMSS nativo do Tizen quando o host negocia AC-3 com sucesso.
 - **E-AC-3 (Dolby Digital Plus):** compatível quando o host, o firmware da TV, a configuração de saída de áudio e o equipamento receptor aceitam o formato. E-AC-3 pela saída óptica não é garantido em todas as TVs.
@@ -28,12 +28,16 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 
 ## Outras melhorias específicas deste projeto
 
-- **Localização para espanhol:** inclui uma tradução de interface `es-ES` além dos idiomas existentes.
+- **Localização da interface:** a interface está disponível em inglês, espanhol, alemão, francês, italiano, russo e português brasileiro.
+- **Menu de streaming acessível pelo controle remoto:** abra o menu de streaming com **Play/Pause** ou **Voltar** no controle remoto da TV para acessar os controles e as estatísticas sem precisar de um teclado.
+- **Overlay de estatísticas em tempo real aprimorado:** inclui gráficos ao vivo da latência do host e da qualidade/velocidade da conexão, ajudando a identificar picos de latência, recepção degradada, largura de banda insuficiente e outros problemas de comunicação.
+- **Atalhos de inicialização direta pelo Smart Hub:** inicie diretamente pelo Smart Hub os aplicativos configurados no host remoto, ignorando a interface usual do Moonlight, a verificação de atualizações e a descoberta de hosts.
 - **Fechar o aplicativo do host ao desconectar:** solicitação opcional, sujeita à disponibilidade, para fechar o aplicativo do host em execução após uma desconexão normal. Falhas inesperadas de conexão não acionam essa opção.
 - **Tela nativa de inicialização animada:** adiciona uma tela de abertura animada para comportamentos de inicialização compatíveis com Tizen.
-- **Ajustes da saída óptica:** melhora o estado das configurações, as opções de canais e a navegação pelo controle remoto quando Dolby está habilitado.
+- **Ajustes da saída digital:** melhora o estado das configurações, as opções de canais e a navegação pelo controle remoto quando Dolby está habilitado.
 - **Inicialização:** melhora a transição da tela nativa de abertura para a lista de hosts e evita um overlay desnecessário de carregamento em tela cheia.
 - **Aprimoramentos de entrada e interface:** inclui melhorias no teclado, foco e navegação pelas configurações.
+
 
 ## Recursos principais herdados do projeto comunitário Moonlight Tizen
 
