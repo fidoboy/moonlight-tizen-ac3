@@ -418,6 +418,5 @@
   "FEC failed (singular)": "failed",
   "FEC out-of-order": "out-of-order",
   "FEC recovery / out-of-order": "FEC event",
-  "FEC recovery failed": "FEC error",
-  "Color also reflects RTT variance and network-dropped frames.": "Color also reflects RTT variance and network-dropped frames."
+  "FEC recovery failed": "FEC error"
 }
