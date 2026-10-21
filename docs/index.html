@@ -255,7 +255,7 @@
       filter: drop-shadow(-10px 5px 37px rgba(120, 184, 255, .54));
     }
     .features-content { position: relative; }
-    .features-remote { display: none; }
+    .features-remote-wrap { display: none; }
     .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
     .feature {
       min-height: 190px; padding: 22px; border: 1px solid var(--line); border-radius: 17px;
@@ -375,13 +375,21 @@
     .footer-links a { color: #b2c0d4; text-decoration: none; }
     .footer-links a:hover { color: white; }
     @media (min-width: 1360px) {
-      .features-content { width: calc(100% + 8px); margin-left: -8px; }
+      .features-content {
+        display: grid; grid-template-columns: 116px minmax(0, 1fr);
+        gap: 18px; align-items: stretch;
+      }
+      .features-remote-wrap {
+        display: block; position: relative; min-width: 0; min-height: 0;
+      }
       .features-remote {
-        display: block; position: absolute; right: calc(100% + 6px); bottom: 2%;
-        width: auto; height: 96%; object-fit: contain; object-position: center bottom;
+        position: absolute; inset: 2% 0;
+        display: block; width: 100%; height: 96%;
+        object-fit: contain; object-position: center top;
         filter: drop-shadow(0 8px 22px rgba(120, 184, 255, .28));
         pointer-events: none; user-select: none;
       }
+      .feature-grid { min-width: 0; }
     }
     @media (max-width: 980px) {
       .hero-grid { grid-template-columns: 1fr; }
@@ -558,7 +566,9 @@
           <p class="section-subtitle">A community-maintained Tizen client focused on smooth streaming, useful feedback, and optional surround sound.</p>
         </div>
         <div class="features-content">
-          <img class="features-remote" src="assets/remote.webp" alt="Samsung TV remote control" loading="lazy" decoding="async">
+          <div class="features-remote-wrap">
+            <img class="features-remote" src="assets/remote.webp" alt="Samsung TV remote control" loading="lazy" decoding="async">
+          </div>
           <div class="feature-grid">
             <article class="feature">
               <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8M12 18v3M8 11h4M10 9v4M16 10h.01M18 13h.01"/></svg></div>
