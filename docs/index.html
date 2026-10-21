@@ -61,7 +61,22 @@
       background: rgba(8, 13, 25, .86);
       backdrop-filter: blur(18px);
     }
-    .nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .nav { position: relative; min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .nav-menu-toggle {
+      display: none; align-items: center; justify-content: center; flex: 0 0 auto;
+      width: 42px; height: 42px; padding: 0; color: var(--text);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+      cursor: pointer;
+    }
+    .nav-menu-toggle:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+    .nav-menu-toggle > span {
+      display: block; width: 19px; height: 2px; border-radius: 2px;
+      background: currentColor; transition: transform .18s ease, opacity .18s ease;
+    }
+    .nav-menu-toggle > span + span { margin-top: 4px; }
+    .nav-menu-toggle[aria-expanded="true"] > span:first-child { transform: translateY(6px) rotate(45deg); }
+    .nav-menu-toggle[aria-expanded="true"] > span:nth-child(2) { opacity: 0; }
+    .nav-menu-toggle[aria-expanded="true"] > span:last-child { transform: translateY(-6px) rotate(-45deg); }
     .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 750; letter-spacing: -.025em; }
     .brand-logo {
       display: block; width: 38px; height: 38px; flex: 0 0 auto;
@@ -381,15 +396,33 @@
       .install-intro { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
       .install-gamepad-remote { order: -1; align-self: center; max-width: 300px; margin: -85px auto; }
       .wrap { width: min(var(--content), calc(100% - 30px)); }
-      .nav { min-height: 64px; gap: 8px; }
-      .nav .brand { flex: 1 1 0; min-width: 0; gap: 7px; }
-      .nav-links { flex: 0 0 auto; gap: 8px; }
-      .nav-links a:not(.nav-github) { display: none; }
-      .nav .brand > span { min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
-      .nav .brand small { display: none; }
+      .nav { position: relative; min-height: 64px; gap: 8px; }
+      .nav .brand { flex: 0 0 auto; min-width: 0; gap: 0; }
+      .nav .brand > span { display: none; }
       .brand-logo { width: 34px; height: 34px; }
+      .nav-menu-toggle { display: inline-flex; flex-direction: column; margin-left: auto; position: relative; z-index: 22; }
+      .nav-links {
+        position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 21;
+        display: none; flex-direction: column; align-items: stretch; gap: 4px;
+        max-height: calc(100vh - 90px); overflow-y: auto; overscroll-behavior: contain;
+        padding: 8px; border: 1px solid var(--line); border-radius: 14px;
+        background: rgba(16, 26, 45, .98); box-shadow: 0 18px 42px rgba(0, 0, 0, .35);
+      }
+      .nav-links.is-open { display: flex; }
+      .nav-links a[data-section], .nav-links a[data-page] {
+        display: flex; width: 100%; align-items: center; padding: 10px 12px; border-radius: 8px;
+      }
+      .nav-links a[data-section]::after, .nav-links a[data-page]::after { display: none; }
+      .nav-links a[data-section]:hover, .nav-links a[data-page]:hover,
+      .nav-links a.is-active { background: var(--panel-2); }
+      .nav-links .nav-github {
+        display: flex; justify-content: center; width: 100%; padding: 10px 12px;
+        font-size: 13px; white-space: nowrap; border-radius: 10px;
+      }
+      .nav-links .language-picker { width: 100%; padding: 3px 0; }
+      .nav-links .language-trigger { width: 100%; min-width: 0; justify-content: flex-start; padding: 7px 10px; }
+      .nav-links .language-menu { left: 0; right: 0; width: auto; }
       .language-trigger { min-width: 0; gap: 5px; padding-inline: 7px; }
-      .nav-links .nav-github { padding: 7px 8px; font-size: 12px; white-space: nowrap; }
       .hero-brand { margin-bottom: 36px; padding-block: 18px; padding-inline: 15px; }
       .hero-brand-inner { gap: 8px; }
       .hero-brand-logo { flex: 0 0 52px; width: 52px; height: 52px; }
@@ -405,7 +438,7 @@
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
       .download-heading { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-      .download-packages { top: 0; width: 100%; max-width: 310px; }
+      .download-packages { top: 0; margin-left: -20px; width: 100%; max-width: 310px; }
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
       .apps2samsung-logo { width: 84px; height: 84px; }
@@ -432,7 +465,10 @@
         <img class="brand-logo" src="assets/moonlight-logo.png" alt="" width="38" height="38">
         <span>Moonlight for Tizen<small>Enhanced version · with Dolby Digital audio support</small></span>
       </a>
-      <div class="nav-links">
+      <button type="button" class="nav-menu-toggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="nav-links">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+      </button>
+      <div class="nav-links" id="nav-links">
         <a href="#features" data-section="features">Features</a>
         <a href="#install" data-section="install">Install</a>
         <a href="#download" data-section="download">Downloads</a>

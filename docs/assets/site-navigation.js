@@ -2,7 +2,38 @@
   "use strict";
 
   const nav = document.querySelector(".nav-links");
+  const menuToggle = document.querySelector(".nav-menu-toggle");
   if (!nav) return;
+
+  function setMobileMenuOpen(open) {
+    if (!menuToggle) return;
+    nav.classList.toggle("is-open", open);
+    menuToggle.setAttribute("aria-expanded", String(open));
+    menuToggle.setAttribute("aria-label", open ? "Close navigation menu" : "Open navigation menu");
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      setMobileMenuOpen(menuToggle.getAttribute("aria-expanded") !== "true");
+    });
+
+    document.addEventListener("click", event => {
+      if (!nav.contains(event.target) && !menuToggle.contains(event.target)) {
+        setMobileMenuOpen(false);
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && menuToggle.getAttribute("aria-expanded") === "true") {
+        setMobileMenuOpen(false);
+        menuToggle.focus();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.matchMedia("(min-width: 581px)").matches) setMobileMenuOpen(false);
+    }, { passive: true });
+  }
 
   const sectionLinks = Array.from(nav.querySelectorAll("a[data-section]"));
   const faqLink = nav.querySelector('a[data-page="faq"]');
@@ -110,6 +141,7 @@
   }
 
   nav.addEventListener("click", event => {
+    if (event.target.closest("a")) setMobileMenuOpen(false);
     const link = event.target.closest("a[data-section]");
     if (!link) return;
 
