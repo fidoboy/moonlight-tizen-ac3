@@ -389,7 +389,9 @@
     @media (max-width: 580px) {
       /* Prevent mobile overflow without creating a separate scroll container. */
       html { width: 100%; min-height: 100%; overflow-x: hidden; }
-      body { width: 100%; min-height: 100%; overflow-x: hidden; overflow-y: visible; touch-action: pan-y pinch-zoom; }
+      body { width: 100%; min-height: 100%; padding-top: 65px; overflow-x: hidden; overflow-y: visible; touch-action: pan-y pinch-zoom; }
+      .topbar { position: fixed; top: 0; left: 0; right: 0; width: 100%; }
+      .home-page .topbar .brand { opacity: 1; visibility: visible; pointer-events: auto; transition: none; }
       main, #compatibility, #compatibility > .wrap, .compat, .footer, .footer-inner {
         height: auto; min-height: 0; max-height: none; overflow: visible;
       }
