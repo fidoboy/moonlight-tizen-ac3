@@ -220,6 +220,13 @@ body {
 }
 /* Keep long release notes inside the viewport while leaving the title and Close button accessible. */
 #updateAppDialog {
+    position: fixed;
+    top: 104px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    margin: 0;
+    transform: translateX(-50%);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -235,6 +242,10 @@ body {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+}
+#updateAppDialogContent:focus {
+    outline: 2px solid rgba(0, 163, 198, 0.8);
+    outline-offset: -2px;
 }
 /* Keep the navigation guide and dynamic warnings within the viewport as well. */
 #navGuideDialog,
