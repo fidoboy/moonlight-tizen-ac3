@@ -2,6 +2,11 @@
 
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
+## v1.0.5.1 — Dialog display fix
+
+### Fixed
+- **Long-dialog handling:** Fixed the display of update dialogs when release notes exceed the available height, keeping the dialog within the viewport and allowing the text to scroll.
+
 ## v1.0.5 — Navigation and diagnostics improvements
 
 ### Added
