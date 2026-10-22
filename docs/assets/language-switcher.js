@@ -262,10 +262,11 @@
     const route = routeInfo();
     if (!route.match) return;
     const pathCode = route.localized ? normalise(route.match[2]) : "en";
-    const code = saved || (route.localized ? pathCode : browserLanguage());
+    // A localized URL is an explicit language choice; never override it with saved browser preference.
+    const code = route.localized ? pathCode : (saved || browserLanguage());
     const target = destination(code, route);
-    const shouldRedirect = (saved && code !== pathCode) ||
-      (!saved && !route.localized && code !== "en");
+    const shouldRedirect = !route.localized &&
+      ((saved && code !== pathCode) || (!saved && code !== "en"));
     if (shouldRedirect && window.location.pathname !== new URL(target, window.location.origin).pathname) {
       window.location.replace(target);
       return;
