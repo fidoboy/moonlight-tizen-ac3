@@ -791,16 +791,8 @@ function showHosts() {
   }, 500);
 
   setTimeout(() => {
-    var lastOpenedHost = localStorage.getItem('lastOpenedHost');
-    if (lastOpenedHost && window.Views && Views.Hosts && Views.Hosts.view) {
-      var children = Views.Hosts.view.func();
-      for (var i = 0; i < children.length; i++) {
-        if (children[i].id === 'host-' + lastOpenedHost) {
-          Views.Hosts.view.index = i;
-          break;
-        }
-      }
-    }
+    // Start the newly loaded host list at its first item.
+    Views.Hosts.view.reset();
     Navigation.switch();
   }, 500);
 }
@@ -816,6 +808,9 @@ function restoreUiAfterWasmLoad() {
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
   $('#loadingSpinner').css('display', 'none');
+
+  // Start at the first host when loading the Hosts view.
+  Views.Hosts.view.reset();
 
   // Navigate to the Hosts view and establish the complete initial focus state before paint.
   Navigation.push(Views.Hosts);
