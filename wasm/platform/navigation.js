@@ -1987,7 +1987,10 @@ const Navigation = (function() {
 
       if (!hasFocus) {
         focus();
-        return;
+        // Directional input should act immediately after restoring navigation focus.
+        if (!['up', 'down', 'left', 'right'].includes(name)) {
+          return;
+        }
       }
 
       const view = Stack.get();
