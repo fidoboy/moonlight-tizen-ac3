@@ -763,6 +763,41 @@ function showHostsMode(skipPollingRestart) {
   }
 }
 
+// Select the first host after the host list has been loaded.
+function selectFirstHostInGrid() {
+  var hostGrid = document.getElementById('host-grid');
+  if (!hostGrid || !window.Views || !Views.Hosts || !Views.Hosts.view) {
+    return;
+  }
+
+  var items = hostGrid.children;
+  var firstHostIndex = -1;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].id.indexOf('host-container-') === 0) {
+      firstHostIndex = i;
+      break;
+    }
+  }
+
+  var targetIndex = firstHostIndex >= 0 ? firstHostIndex : 0;
+  var previousItem = Views.Hosts.view.current();
+  var targetItem = items[targetIndex];
+  if (previousItem && previousItem !== targetItem) {
+    unmark(previousItem);
+  }
+
+  Views.Hosts.view.index = targetIndex;
+  if (!targetItem) {
+    return;
+  }
+
+  mark(targetItem);
+  var target = firstHostIndex >= 0 && targetItem.children.length > 0
+    ? targetItem.children[0]
+    : targetItem;
+  focusElement(target);
+}
+
 // Show the Hosts grid
 function showHosts() {
   // Stop navigation before showing the loading screen
@@ -791,8 +826,8 @@ function showHosts() {
   }, 500);
 
   setTimeout(() => {
-    // Start the newly loaded host list at its first item.
-    Views.Hosts.view.reset();
+    // Select the first host once the loaded list is visible.
+    selectFirstHostInGrid();
     Navigation.switch();
   }, 500);
 }
@@ -5170,6 +5205,8 @@ function loadHTTPCertsCb() {
           hosts[hostUID] = revivedHost;
           addHostToGrid(revivedHost);
         }
+        // Replace the default Add Host selection with the first saved host.
+        selectFirstHostInGrid();
         isHostsLoaded = true;
         // Load stored preview app lists and update Smart Hub Preview tiles.
         // Using the persisted list avoids requiring live host connections at startup.
