@@ -763,39 +763,27 @@ function showHostsMode(skipPollingRestart) {
   }
 }
 
-// Select the first host after the host list has been loaded.
-function selectFirstHostInGrid() {
+// Move once from Add Host to the first loaded host using normal navigation.
+function selectFirstHostAfterAddHost() {
   var hostGrid = document.getElementById('host-grid');
   if (!hostGrid || typeof Views === 'undefined' || !Views.Hosts || !Views.Hosts.view) {
     return;
   }
 
   var items = hostGrid.children;
-  var firstHostIndex = -1;
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].id.indexOf('host-container-') === 0) {
-      firstHostIndex = i;
-      break;
-    }
-  }
-
-  var targetIndex = firstHostIndex >= 0 ? firstHostIndex : 0;
-  var previousItem = Views.Hosts.view.current();
-  var targetItem = items[targetIndex];
-  if (previousItem && previousItem !== targetItem) {
+  var view = Views.Hosts.view;
+  var previousItem = view.current();
+  if (previousItem && previousItem !== items[0]) {
     unmark(previousItem);
   }
+  view.reset();
 
-  Views.Hosts.view.index = targetIndex;
-  if (!targetItem) {
-    return;
+  if (items.length > 1 && items[1].id.indexOf('host-container-') === 0) {
+    Navigation.right();
+  } else {
+    // Keep the default Add Host item selected when the list is empty.
+    Navigation.switch();
   }
-
-  mark(targetItem);
-  var target = firstHostIndex >= 0 && targetItem.children.length > 0
-    ? targetItem.children[0]
-    : targetItem;
-  focusElement(target);
 }
 
 // Show the Hosts grid
@@ -826,9 +814,8 @@ function showHosts() {
   }, 500);
 
   setTimeout(() => {
-    // Select the first host once the loaded list is visible.
-    selectFirstHostInGrid();
-    Navigation.switch();
+    // Make one normal rightward move from Add Host after the list is loaded.
+    selectFirstHostAfterAddHost();
   }, 500);
 }
 
@@ -5206,7 +5193,7 @@ function loadHTTPCertsCb() {
           addHostToGrid(revivedHost);
         }
         // Replace the default Add Host selection with the first saved host.
-        selectFirstHostInGrid();
+        selectFirstHostAfterAddHost();
         isHostsLoaded = true;
         // Load stored preview app lists and update Smart Hub Preview tiles.
         // Using the persisted list avoids requiring live host connections at startup.
