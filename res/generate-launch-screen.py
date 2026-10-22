@@ -54,6 +54,8 @@ STAR_TRAIL_MAX_OPACITY = 0.22
 STAR_TRAIL_MIN_SPEED = 0.35
 MAX_STAR_DEPTH = 1500.0
 STAR_COLOR = "#FFFFFF"
+STAR_MIN_OPACITY = 0.15
+STAR_DEPTH_OPACITY_POWER = 1.3
 STARFIELD_SEED = 0x4D4F4F4E  # Keep the generated splash reproducible between builds.
 
 
@@ -185,6 +187,10 @@ class StarField:
             if point is None:
                 continue
             x, y, radius = point
+            depth_ratio = 1.0 - star.z / MAX_STAR_DEPTH
+            star_opacity = STAR_MIN_OPACITY + (1.0 - STAR_MIN_OPACITY) * (
+                depth_ratio ** STAR_DEPTH_OPACITY_POWER
+            )
 
             # Draw each faint trail inward from the bright star, so every
             # streak points back toward the logo-centered vanishing point.
@@ -210,7 +216,7 @@ class StarField:
                             "stroke": star.color,
                             "stroke-width": f"{stroke_width:.2f}",
                             "stroke-linecap": "round",
-                            "opacity": f"{trail_opacity:.4f}",
+                            "opacity": f"{trail_opacity * star_opacity:.4f}",
                         },
                     )
 
@@ -224,6 +230,7 @@ class StarField:
                     "cy": f"{y:.2f}",
                     "r": f"{radius:.2f}",
                     "fill": star.color,
+                    "fill-opacity": f"{star_opacity:.4f}",
                 },
             )
 
