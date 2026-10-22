@@ -509,9 +509,9 @@ const Views = {
   HostsNav: {
     view: new ListView(() => {
       if (document.getElementById('updateAppBtn')) {
-        return ['updateAppBtn', 'settingsBtn', 'supportBtn'];
+        return ['updateAppBtn', 'settingsBtn', 'refreshHostsBtn', 'supportBtn'];
       } else {
-        return ['settingsBtn', 'supportBtn'];
+        return ['settingsBtn', 'refreshHostsBtn', 'supportBtn'];
       }
     }),
     up: function() {},
