@@ -771,19 +771,17 @@ function selectFirstHostAfterAddHost() {
   }
 
   var items = hostGrid.children;
+  if (items.length < 2 || items[1].id.indexOf('host-container-') !== 0) {
+    return;
+  }
+
   var view = Views.Hosts.view;
   var previousItem = view.current();
   if (previousItem && previousItem !== items[0]) {
     unmark(previousItem);
   }
   view.reset();
-
-  if (items.length > 1 && items[1].id.indexOf('host-container-') === 0) {
-    Navigation.right();
-  } else {
-    // Keep the default Add Host item selected when the list is empty.
-    Navigation.switch();
-  }
+  Navigation.right();
 }
 
 // Show the Hosts grid
@@ -814,8 +812,7 @@ function showHosts() {
   }, 500);
 
   setTimeout(() => {
-    // Make one normal rightward move from Add Host after the list is loaded.
-    selectFirstHostAfterAddHost();
+    Navigation.switch();
   }, 500);
 }
 
