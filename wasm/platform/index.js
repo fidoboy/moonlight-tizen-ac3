@@ -201,6 +201,7 @@ function attachListeners() {
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
+  $('#refreshHostsBtn').on('click', refreshHosts);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
@@ -676,6 +677,58 @@ function dismissStartupHostsSnackbar() {
   startupHostsSnackbarVisible = false;
 }
 
+var isManualHostRefreshRunning = false;
+
+// Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
+function refreshHosts() {
+  if (isManualHostRefreshRunning) return;
+  isManualHostRefreshRunning = true;
+
+  var button = document.getElementById('refreshHostsBtn');
+  if (button) {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+  }
+
+  snackbarLog('Scanning the local network to discover new hosts...');
+
+  // Refresh known-host status first, then pause background polling while scanning the subnet.
+  // This follows startup behavior and helps avoid exhausting Tizen's network stack.
+  stopPollingHosts();
+  Promise.resolve()
+    .then(function() {
+      return startPollingHosts();
+    })
+    .catch(function(error) {
+      console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
+    })
+    .then(function() {
+      stopPollingHosts();
+      if (typeof startSubnetScanner !== 'function') {
+        throw new Error('Subnet scanner is unavailable');
+      }
+      return startSubnetScanner();
+    })
+    .then(function() {
+      isSubnetScanFinished = true;
+      startPollingHosts();
+      snackbarLog('Network scan completed.');
+    })
+    .catch(function(error) {
+      console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
+      isSubnetScanFinished = true;
+      startPollingHosts();
+      snackbarLogLong('Network scan failed.');
+    })
+    .finally(function() {
+      isManualHostRefreshRunning = false;
+      if (button) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+}
+
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
@@ -685,6 +738,7 @@ function showHostsMode(skipPollingRestart) {
   $('.nav-menu-parent').show();
   $('#updateAppBtn').show();
   $('#settingsBtn').show();
+  $('#refreshHostsBtn').show();
   $('#supportBtn').show();
   $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
   $('#settings-list').hide();
@@ -707,6 +761,27 @@ function showHostsMode(skipPollingRestart) {
     stopPollingHosts();
     startPollingHosts();
   }
+}
+
+// Move once from Add Host to the first loaded host using normal navigation.
+function selectFirstHostAfterAddHost() {
+  var hostGrid = document.getElementById('host-grid');
+  if (!hostGrid || typeof Views === 'undefined' || !Views.Hosts || !Views.Hosts.view) {
+    return;
+  }
+
+  var items = hostGrid.children;
+  if (items.length < 2 || items[1].id.indexOf('host-container-') !== 0) {
+    return;
+  }
+
+  var view = Views.Hosts.view;
+  var previousItem = view.current();
+  if (previousItem && previousItem !== items[0]) {
+    unmark(previousItem);
+  }
+  view.reset();
+  Navigation.right();
 }
 
 // Show the Hosts grid
@@ -737,16 +812,6 @@ function showHosts() {
   }, 500);
 
   setTimeout(() => {
-    var lastOpenedHost = localStorage.getItem('lastOpenedHost');
-    if (lastOpenedHost && window.Views && Views.Hosts && Views.Hosts.view) {
-      var children = Views.Hosts.view.func();
-      for (var i = 0; i < children.length; i++) {
-        if (children[i].id === 'host-' + lastOpenedHost) {
-          Views.Hosts.view.index = i;
-          break;
-        }
-      }
-    }
     Navigation.switch();
   }, 500);
 }
@@ -762,6 +827,9 @@ function restoreUiAfterWasmLoad() {
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
   $('#loadingSpinner').css('display', 'none');
+
+  // Start at the first host when loading the Hosts view.
+  Views.Hosts.view.reset();
 
   // Navigate to the Hosts view and establish the complete initial focus state before paint.
   Navigation.push(Views.Hosts);
@@ -1245,7 +1313,7 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     // Find the existing overlay and dialog elements
     var pairingOverlay = document.querySelector('#pairingDialogOverlay');
     var pairingDialog = document.querySelector('#pairingDialog');
-    var randomNumber = String('0000' + (Math.random() * 10000 | 0)).slice(-4);
+    var randomNumber = String('0000' + cryptoRand(10000)).slice(-4);
 
     // Rollback to 'Cancel' button text when opening
     $('#cancelPairing').text('Cancel');
@@ -1945,6 +2013,7 @@ function showSettingsMode() {
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
+  $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#quitRunningAppBtn').hide();
   $('#connection-warnings').css('display', 'none');
@@ -2690,6 +2759,7 @@ function showAppsMode() {
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
+  $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#connection-warnings').css('display', 'none');
@@ -3771,7 +3841,7 @@ function warnResolutionFramerate() {
 
 function saveBitrate() {
   var chosenBitrate = $('#bitrateSlider').val();
-  $('#selectBitrate').html(chosenBitrate + ' Mbps');
+  $('#selectBitrate').text(chosenBitrate + ' Mbps');
   console.log('%c[index.js, saveBitrate]', 'color: green;', 'Saving bitrate value: ' + chosenBitrate);
   storeData('bitrate', chosenBitrate, null);
 
@@ -4142,7 +4212,7 @@ function saveAudioSync() {
 
 function saveAudioJitter() {
   var chosenAudioJitter = $('#jitterSlider').val();
-  $('#selectAudioJitter').html(chosenAudioJitter + ' ms');
+  $('#selectAudioJitter').text(chosenAudioJitter + ' ms');
   console.log('%c[index.js, saveAudioJitter]', 'color: green;', 'Saving audio jitter buffer: ' + chosenAudioJitter);
   storeData('audioJitter', chosenAudioJitter, null);
 }
@@ -4429,7 +4499,7 @@ function restoreDefaultsSettingsValues() {
   storeData('frameRate', defaultFramerate, null);
 
   const defaultBitrate = '10';
-  $('#selectBitrate').html(defaultBitrate + ' Mbps');
+  $('#selectBitrate').text(defaultBitrate + ' Mbps');
   $('#bitrateSlider')[0].MaterialSlider.change(defaultBitrate);
   storeData('bitrate', defaultBitrate, null);
 
@@ -4495,7 +4565,7 @@ function restoreDefaultsSettingsValues() {
   storeData('audioSync', defaultAudioSync, null);
 
   const defaultAudioJitter = '100';
-  $('#selectAudioJitter').html(defaultAudioJitter + ' ms');
+  $('#selectAudioJitter').text(defaultAudioJitter + ' ms');
   $('#jitterSlider')[0].MaterialSlider.change(defaultAudioJitter);
   storeData('audioJitter', defaultAudioJitter, null);
 
@@ -4725,7 +4795,7 @@ function loadUserDataCb() {
   getData('bitrate', function(previousValue) {
     $('#bitrateSlider')[0].MaterialSlider.change(previousValue.bitrate != null ? previousValue.bitrate : '10');
     // Update the video bitrate field based on the given value
-    $('#selectBitrate').html($('#bitrateSlider').val() + ' Mbps');
+    $('#selectBitrate').text($('#bitrateSlider').val() + ' Mbps');
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored framePacing preferences.');
@@ -4900,7 +4970,7 @@ function loadUserDataCb() {
   getData('audioJitter', function(previousValue) {
     $('#jitterSlider')[0].MaterialSlider.change(previousValue.audioJitter != null ? previousValue.audioJitter : '100');
     // Update the audio jitter buffer field based on the given value
-    $('#selectAudioJitter').html($('#jitterSlider').val() + ' ms');
+    $('#selectAudioJitter').text($('#jitterSlider').val() + ' ms');
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored playHostAudio preferences.');
@@ -5119,6 +5189,8 @@ function loadHTTPCertsCb() {
           hosts[hostUID] = revivedHost;
           addHostToGrid(revivedHost);
         }
+        // Replace the default Add Host selection with the first saved host.
+        selectFirstHostAfterAddHost();
         isHostsLoaded = true;
         // Load stored preview app lists and update Smart Hub Preview tiles.
         // Using the persisted list avoids requiring live host connections at startup.

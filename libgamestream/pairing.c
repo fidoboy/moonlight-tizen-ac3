@@ -345,7 +345,7 @@ int gs_pair(int serverMajorVersion, const char* address, unsigned short httpPort
   unsigned char client_secret_data[16];
   RAND_bytes(client_secret_data, 16);
 
-  ASN1_BIT_STRING *asnSignature;
+  const ASN1_BIT_STRING *asnSignature;
   X509_get0_signature(&asnSignature, NULL, g_Cert);
 
   unsigned char challenge_response[16 + 256 + 16];
@@ -353,7 +353,7 @@ int gs_pair(int serverMajorVersion, const char* address, unsigned short httpPort
   unsigned char challenge_response_hash_enc[32];
   char challenge_response_hex[65];
   memcpy(challenge_response, challenge_response_data + hash_length, 16);
-  memcpy(challenge_response + 16, asnSignature->data, 256);
+  memcpy(challenge_response + 16, ASN1_STRING_get0_data(asnSignature), 256);
   memcpy(challenge_response + 16 + 256, client_secret_data, 16);
   if (serverMajorVersion >= 7)
     SHA256(challenge_response, 16 + 256 + 16, challenge_response_hash);

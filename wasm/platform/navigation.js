@@ -509,9 +509,9 @@ const Views = {
   HostsNav: {
     view: new ListView(() => {
       if (document.getElementById('updateAppBtn')) {
-        return ['updateAppBtn', 'settingsBtn', 'supportBtn'];
+        return ['updateAppBtn', 'settingsBtn', 'refreshHostsBtn', 'supportBtn'];
       } else {
-        return ['settingsBtn', 'supportBtn'];
+        return ['settingsBtn', 'refreshHostsBtn', 'supportBtn'];
       }
     }),
     up: function() {},
@@ -1987,7 +1987,10 @@ const Navigation = (function() {
 
       if (!hasFocus) {
         focus();
-        return;
+        // Directional input should act immediately after restoring navigation focus.
+        if (!['up', 'down', 'left', 'right'].includes(name)) {
+          return;
+        }
       }
 
       const view = Stack.get();

@@ -4,6 +4,9 @@
   "Moonlight": "Moonlight",
   "Settings": "Paramètres",
   "Support": "Assistance",
+  "Rescan Network": "Relancer l’analyse du réseau",
+  "Network scan completed.": "Analyse du réseau terminée.",
+  "Network scan failed.": "Échec de l’analyse du réseau.",
   "Restore Defaults": "Rétablir les valeurs par défaut",
   "Quit Running App": "Quitter l’application en cours",
   "Add Host": "Ajouter un hôte",
@@ -410,5 +413,13 @@
   "Audio": "Audio",
   "Game mode summary": "Mode Jeu",
   "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.": "— Revenir à la vue précédente, fermer les menus ou dialogues actifs, ou annuler l’opération. Pendant la diffusion, ouvrir ou fermer le menu de diffusion. Quitter l’application après confirmation ; cliquer avec le bouton droit en mode émulation.",
-  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Toutes les entrées d’hôtes enregistrées seront supprimées de Moonlight. Pour utiliser de nouveau ces hôtes, vous devrez peut-être les ajouter et les associer à nouveau. Les PC hôtes et leurs fichiers ne seront pas affectés."
+  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Toutes les entrées d’hôtes enregistrées seront supprimées de Moonlight. Pour utiliser de nouveau ces hôtes, vous devrez peut-être les ajouter et les associer à nouveau. Les PC hôtes et leurs fichiers ne seront pas affectés.",
+  "Audio FEC:": "FEC audio :",
+  "FEC recovered": "récupérés",
+  "FEC recovered (singular)": "récupéré",
+  "FEC failed": "échoués",
+  "FEC failed (singular)": "échoué",
+  "FEC out-of-order": "hors séquence",
+  "FEC recovery / out-of-order": "événement FEC",
+  "FEC recovery failed": "erreur FEC"
 }

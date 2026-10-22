@@ -92,6 +92,11 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order/g, function(match, recovered, failed, outOfOrder) {
+      return t('Audio FEC:') + ' ' + recovered + ' ' + t(Number(recovered) === 1 ? 'FEC recovered (singular)' : 'FEC recovered') +
+        ' · ' + failed + ' ' + t(Number(failed) === 1 ? 'FEC failed (singular)' : 'FEC failed') +
+        ' · ' + outOfOrder + ' ' + t('FEC out-of-order');
+    })
     .replace(/Codec:/g, t('Codec:'))
     .replace(/Incoming frame rate from network:/g, t('Incoming frame rate from network:'))
     .replace(/Decoding frame rate:/g, t('Decoding frame rate:'))
@@ -178,13 +183,13 @@ function ensurePerformanceStatsOverlayElements() {
 }
 
 function getPerformanceStatsGraphColor(sample) {
-  if (sample.droppedFrames > 0 || sample.rtt >= 100 || sample.variance >= 50) {
+  if (sample.droppedFrames > 0 || sample.rtt >= 20 || sample.variance >= 50) {
     return PERFORMANCE_STATS_GRAPH_COLORS.critical;
   }
-  if (sample.rtt >= 60 || sample.variance >= 25) {
+  if (sample.rtt >= 10 || sample.variance >= 25) {
     return PERFORMANCE_STATS_GRAPH_COLORS.elevated;
   }
-  if (sample.rtt >= 30 || sample.variance >= 10) {
+  if (sample.rtt >= 5 || sample.variance >= 10) {
     return PERFORMANCE_STATS_GRAPH_COLORS.warning;
   }
   if (sample.rtt <= 0) {
@@ -205,10 +210,43 @@ function drawPerformanceStatsGraph() {
   var availableWidth = Math.round(elements.container.clientWidth - horizontalPadding);
   var measuredWidth = Math.round(canvas.getBoundingClientRect().width || 0);
   var width = Math.max(300, availableWidth, measuredWidth);
-  if (canvas.width !== width) canvas.width = width;
-  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
 
   var context = canvas.getContext('2d');
+  if (!context) return;
+
+  context.font = '12px sans-serif';
+  var graphTitle = t('Network latency (RTT, ms)');
+
+  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
+  var legend = [
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<5' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '5–9' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '10–19' },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '20+ !' }
+  ];
+  var fecLegend = [
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+  ];
+
+  // Widen the overlay only when necessary to keep the complete one-line legend visible.
+  var requiredLegendWidth = 4 + context.measureText(graphTitle).width + 14;
+  legend.forEach(function(item) {
+    requiredLegendWidth += 22 + context.measureText(item.label).width;
+  });
+  requiredLegendWidth += context.measureText('|').width + 20;
+  fecLegend.forEach(function(item) {
+    requiredLegendWidth += 22 + context.measureText(item.label).width;
+  });
+  requiredLegendWidth = Math.ceil(requiredLegendWidth + 4);
+  if (requiredLegendWidth > width) {
+    elements.container.style.width = requiredLegendWidth + 'px';
+    width = requiredLegendWidth;
+  }
+
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== PERFORMANCE_STATS_GRAPH_HEIGHT) canvas.height = PERFORMANCE_STATS_GRAPH_HEIGHT;
+  context = canvas.getContext('2d');
   if (!context) return;
 
   var height = PERFORMANCE_STATS_GRAPH_HEIGHT;
@@ -216,16 +254,8 @@ function drawPerformanceStatsGraph() {
   context.textBaseline = 'middle';
   context.font = '12px sans-serif';
   context.fillStyle = 'rgba(255,255,255,0.95)';
-  var graphTitle = t('Network latency (RTT, ms)');
   context.fillText(graphTitle, 4, 9);
 
-  // Numeric thresholds make the color scale legible without adding untranslated UI strings.
-  var legend = [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.good, label: '<30' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: '30–59' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.elevated, label: '60–99' },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '100+ !' }
-  ];
   var legendX = 4 + context.measureText(graphTitle).width + 14;
   legend.forEach(function(item) {
     context.fillStyle = item.color;
@@ -235,10 +265,24 @@ function drawPerformanceStatsGraph() {
     legendX += 22 + context.measureText(item.label).width;
   });
 
+  // FEC markers share the RTT legend row; RTT bars keep their existing latency colors.
+  context.fillStyle = 'rgba(255,255,255,0.92)';
+  context.fillText('|', legendX + 2, 9);
+  legendX += context.measureText('|').width + 16;
+  fecLegend.forEach(function(item) {
+    context.beginPath();
+    context.fillStyle = item.color;
+    context.arc(legendX + 3, 9, 3, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = 'rgba(255,255,255,0.92)';
+    context.fillText(item.label, legendX + 10, 9);
+    legendX += 22 + context.measureText(item.label).width;
+  });
+
   var plotLeft = 34;
   var plotRight = width - 4;
   var plotTop = 35;
-  var plotBottom = 149;
+  var plotBottom = 138;
   var plotHeight = plotBottom - plotTop;
   var plotWidth = Math.max(1, plotRight - plotLeft);
 
@@ -281,6 +325,16 @@ function drawPerformanceStatsGraph() {
     var x = plotLeft + (firstSlot + index) * slotWidth + (slotWidth - barWidth) / 2;
     context.fillStyle = getPerformanceStatsGraphColor(sample);
     context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
+
+    // RTT bar colors remain dedicated to latency; FEC is shown in separate markers below.
+    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0 || sample.audioFecOutOfOrder > 0) {
+      context.beginPath();
+      context.fillStyle = sample.audioFecFailed > 0
+        ? PERFORMANCE_STATS_GRAPH_COLORS.critical
+        : PERFORMANCE_STATS_GRAPH_COLORS.warning;
+      context.arc(plotLeft + (firstSlot + index + 0.5) * slotWidth, 149, 3, 0, Math.PI * 2);
+      context.fill();
+    }
   });
 }
 
@@ -292,6 +346,9 @@ function handlePerformanceStatsGraphMessage(message) {
     rtt: Math.max(0, values[0]),
     variance: Math.max(0, values[1]),
     droppedFrames: Math.max(0, values[2]),
+    audioFecRecovered: Math.max(0, values[3] || 0),
+    audioFecFailed: Math.max(0, values[4] || 0),
+    audioFecOutOfOrder: Math.max(0, values[5] || 0),
     hostLatency: performanceStatsHostLatencyLatest
       ? {
         min: performanceStatsHostLatencyLatest.min,
@@ -419,14 +476,23 @@ function drawHostProcessingLatencyGraph() {
 
 
 // Render statistics as two-column rows: labels on the left and values on the right.
-function renderPerformanceStatsText(textElement, text) {
+function renderPerformanceStatsText(textElement, text, sourceText) {
   textElement.textContent = '';
-  String(text || '').split('\n').forEach(function(line) {
+  var sourceLines = String(sourceText || '').split('\n');
+  String(text || '').split('\n').forEach(function(line, lineIndex) {
     if (!line) return;
     var row = document.createElement('div');
+    if (sourceLines[lineIndex] && sourceLines[lineIndex].indexOf('Audio FEC:') === 0) {
+      var fecMatch = sourceLines[lineIndex].match(/^Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order$/);
+      var recovered = fecMatch ? Number(fecMatch[1]) : 0;
+      var failed = fecMatch ? Number(fecMatch[2]) : 0;
+      var outOfOrder = fecMatch ? Number(fecMatch[3]) : 0;
+      var severity = failed > 0 ? 'critical' : (recovered > 0 || outOfOrder > 0 ? 'warning' : 'normal');
+      row.className = 'performance-stats-row performance-stats-audio-fec performance-stats-audio-fec--' + severity;
+    }
     var separator = line.indexOf(':');
     if (separator > 0) {
-      row.className = 'performance-stats-row';
+      row.className = row.className || 'performance-stats-row';
       var label = document.createElement('span');
       label.className = 'performance-stats-label';
       label.textContent = line.slice(0, separator + 1);
@@ -803,7 +869,8 @@ function handleMessage(msg) {
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(msg.replace('StatMsg: ', '')));
+      var sourceStatsText = msg.replace('StatMsg: ', '');
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
       drawPerformanceStatsGraph();
       drawHostProcessingLatencyGraph();
     }

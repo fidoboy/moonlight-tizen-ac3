@@ -277,7 +277,7 @@ static void AudioReceiveThreadProc(void* context) {
         }
         else if (packet->header.size == 0) {
             // Receive timed out; try again
-            
+
             if (!receivedDataFromPeer) {
                 waitingForAudioMs += UDP_RECV_POLL_TIMEOUT_MS;
             }
@@ -301,6 +301,8 @@ static void AudioReceiveThreadProc(void* context) {
             Limelog("Received first audio packet after %d ms\n", waitingForAudioMs);
 
             if (firstReceiveTime != 0) {
+                // XXX firstReceiveTime is never set here...
+                // We're already dropping 500ms of audio so this probably doesn't matter
                 packetsToDrop += (uint32_t)(PltGetMillis() - firstReceiveTime) / AudioPacketDuration;
             }
 
@@ -368,7 +370,7 @@ static void AudioReceiveThreadProc(void* context) {
                         free(queuedPacket);
                     }
                 }
-                
+
                 // Break on exit
                 if (queuedPacket != NULL) {
                     break;
@@ -376,7 +378,7 @@ static void AudioReceiveThreadProc(void* context) {
             }
         }
     }
-    
+
     if (packet != NULL) {
         free(packet);
     }
@@ -407,12 +409,12 @@ void stopAudioStream(void) {
     AudioCallbacks.stop();
 
     PltInterruptThread(&receiveThread);
-    if ((AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {        
+    if ((AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
         // Signal threads waiting on the LBQ
         LbqSignalQueueShutdown(&packetQueue);
         PltInterruptThread(&decoderThread);
     }
-    
+
     PltJoinThread(&receiveThread);
     if ((AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
         PltJoinThread(&decoderThread);
@@ -475,4 +477,23 @@ int LiGetPendingAudioFrames(void) {
 
 int LiGetPendingAudioDuration(void) {
     return LiGetPendingAudioFrames() * AudioPacketDuration;
+}
+
+const RTP_AUDIO_STATS* LiGetRTPAudioStats(void) {
+    return &rtpAudioQueue.stats;
+}
+
+void LiGetRTPAudioFecStats(PRTP_AUDIO_FEC_STATS stats) {
+    if (stats == NULL || !rtpAudioQueue.statsMutexInitialized) {
+        if (stats != NULL) {
+            memset(stats, 0, sizeof(*stats));
+        }
+        return;
+    }
+
+    PltLockMutex(&rtpAudioQueue.statsMutex);
+    stats->recoveredPackets = rtpAudioQueue.stats.packetCountFecRecovered;
+    stats->failedBlocks = rtpAudioQueue.stats.packetCountFecFailed;
+    stats->outOfOrderPackets = rtpAudioQueue.stats.packetCountOOS;
+    PltUnlockMutex(&rtpAudioQueue.statsMutex);
 }

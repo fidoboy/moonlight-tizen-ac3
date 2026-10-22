@@ -4,6 +4,9 @@
   "Moonlight": "Moonlight",
   "Settings": "Impostazioni",
   "Support": "Supporto",
+  "Rescan Network": "Nuova scansione della rete",
+  "Network scan completed.": "Scansione della rete completata.",
+  "Network scan failed.": "Scansione della rete non riuscita.",
   "Restore Defaults": "Ripristina impostazioni predefinite",
   "Quit Running App": "Chiudi l'app in esecuzione",
   "Add Host": "Aggiungi host",
@@ -410,5 +413,13 @@
   "Audio": "Audio",
   "Game mode summary": "Modalità gioco",
   "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.": "— Return to the previous view, close any active menu or dialog, or cancel the operation. While streaming, open or close the stream menu instead. Exit the application with confirmation, and click the right mouse button in emulation.",
-  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Tutti gli host salvati verranno rimossi da Moonlight. Per utilizzarli di nuovo, potrebbe essere necessario aggiungerli e associarli nuovamente. I PC host e i loro file non verranno modificati."
+  "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Tutti gli host salvati verranno rimossi da Moonlight. Per utilizzarli di nuovo, potrebbe essere necessario aggiungerli e associarli nuovamente. I PC host e i loro file non verranno modificati.",
+  "Audio FEC:": "FEC audio:",
+  "FEC recovered": "recuperati",
+  "FEC recovered (singular)": "recuperato",
+  "FEC failed": "falliti",
+  "FEC failed (singular)": "fallito",
+  "FEC out-of-order": "fuori sequenza",
+  "FEC recovery / out-of-order": "evento FEC",
+  "FEC recovery failed": "errore FEC"
 }
