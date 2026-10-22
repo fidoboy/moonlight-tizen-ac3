@@ -100,7 +100,7 @@ body {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #supportBtn, #restoreDefaultsBtn, #quitRunningAppBtn {
+#settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn, #quitRunningAppBtn {
     background-color: #404354;
     width: 50px;
     height: 50px;
@@ -1218,7 +1218,7 @@ body {
 #closeUpdateApp:hover, #closeUpdateApp:focus, #continueRestoreDefaults:hover, #continueRestoreDefaults:focus, #cancelRestoreDefaults:hover,
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
-#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #supportBtn:hover, #supportBtn:focus,
+#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus, #quitRunningAppBtn:hover, #quitRunningAppBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
