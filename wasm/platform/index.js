@@ -201,6 +201,7 @@ function attachListeners() {
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
+  $('#refreshHostsBtn').on('click', refreshHosts);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
@@ -676,6 +677,58 @@ function dismissStartupHostsSnackbar() {
   startupHostsSnackbarVisible = false;
 }
 
+var isManualHostRefreshRunning = false;
+
+// Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
+function refreshHosts() {
+  if (isManualHostRefreshRunning) return;
+  isManualHostRefreshRunning = true;
+
+  var button = document.getElementById('refreshHostsBtn');
+  if (button) {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+  }
+
+  snackbarLog('Scanning the local network to discover new hosts...');
+
+  // Refresh known-host status first, then pause background polling while scanning the subnet.
+  // This follows startup behavior and helps avoid exhausting Tizen's network stack.
+  stopPollingHosts();
+  Promise.resolve()
+    .then(function() {
+      return startPollingHosts();
+    })
+    .catch(function(error) {
+      console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
+    })
+    .then(function() {
+      stopPollingHosts();
+      if (typeof startSubnetScanner !== 'function') {
+        throw new Error('Subnet scanner is unavailable');
+      }
+      return startSubnetScanner();
+    })
+    .then(function() {
+      isSubnetScanFinished = true;
+      startPollingHosts();
+      snackbarLog('Network scan completed.');
+    })
+    .catch(function(error) {
+      console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
+      isSubnetScanFinished = true;
+      startPollingHosts();
+      snackbarLogLong('Network scan failed.');
+    })
+    .finally(function() {
+      isManualHostRefreshRunning = false;
+      if (button) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+}
+
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
@@ -685,6 +738,7 @@ function showHostsMode(skipPollingRestart) {
   $('.nav-menu-parent').show();
   $('#updateAppBtn').show();
   $('#settingsBtn').show();
+  $('#refreshHostsBtn').show();
   $('#supportBtn').show();
   $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
   $('#settings-list').hide();
@@ -1945,6 +1999,7 @@ function showSettingsMode() {
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
+  $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#quitRunningAppBtn').hide();
   $('#connection-warnings').css('display', 'none');
@@ -2690,6 +2745,7 @@ function showAppsMode() {
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
+  $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#connection-warnings').css('display', 'none');
