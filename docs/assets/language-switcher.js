@@ -62,7 +62,8 @@
       const original = originalText.get(node);
       const trimmed = original.trim();
       if (!trimmed) continue;
-      const replacement = translated(trimmed, code);
+      const lookupText = trimmed.replace(/\s+/g, " ");
+      const replacement = translated(lookupText, code);
       node.nodeValue = original.replace(trimmed, replacement);
     }
   }
