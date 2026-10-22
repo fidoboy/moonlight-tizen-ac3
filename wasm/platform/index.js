@@ -766,7 +766,7 @@ function showHostsMode(skipPollingRestart) {
 // Select the first host after the host list has been loaded.
 function selectFirstHostInGrid() {
   var hostGrid = document.getElementById('host-grid');
-  if (!hostGrid || !window.Views || !Views.Hosts || !Views.Hosts.view) {
+  if (!hostGrid || typeof Views === 'undefined' || !Views.Hosts || !Views.Hosts.view) {
     return;
   }
 
