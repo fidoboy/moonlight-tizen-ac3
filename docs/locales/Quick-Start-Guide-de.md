@@ -33,10 +33,10 @@ Weitere Informationen findest du unter [Voraussetzungen in der README](../#compa
 Verwende `Moonlight-ForceGM.wgt` nur, wenn dein Fernseher ausdrücklich die alternativen Game-Mode-Metadaten benötigt.
 ## 3. Host konfigurieren und koppeln
 
-1. Installiere und starte Sunshine auf dem Host-PC.
+1. Installiere und starte einen beliebigen GameStream-kompatiblen Host-Server auf dem PC. Beispiele sind [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) und [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Auch andere kompatible Host-Programme können funktionieren.
 2. Stelle sicher, dass PC und Fernseher im selben Netzwerk kommunizieren können und die Host-Firewall Streamingverbindungen zulässt.
 3. Starte Moonlight am Fernseher und wähle den Host aus, sobald er erscheint.
-4. Moonlight zeigt eine PIN an. Öffne die Sunshine-Weboberfläche am PC, gib die PIN im Kopplungsbereich ein und bestätige.
+4. Moonlight zeigt eine PIN an. Öffne die Weboberfläche des Hosts am PC, gib die PIN im Kopplungsbereich ein und bestätige.
 5. Wähle ein Spiel oder den Desktop, um das Streaming zu starten.
 
 Beginne bei einer neuen Einrichtung mit vorsichtigen Standardwerten für Auflösung, Bildrate und Bitrate. Erhöhe sie erst, wenn der Stream stabil läuft.
