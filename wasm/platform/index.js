@@ -784,6 +784,54 @@ function selectFirstHostAfterAddHost() {
   Navigation.right();
 }
 
+var initialHostListInteractionLocked = false;
+var initialHostSnackbarObserver = null;
+
+function lockHostListInteraction() {
+  initialHostListInteractionLocked = true;
+  Navigation.stop();
+  $('#host-grid').addClass('host-list-locked');
+}
+
+function unlockHostListInteraction() {
+  if (!initialHostListInteractionLocked) return;
+
+  initialHostListInteractionLocked = false;
+  $('#host-grid').removeClass('host-list-locked');
+  Navigation.start();
+  Navigation.switch();
+
+  if (initialHostSnackbarObserver) {
+    initialHostSnackbarObserver.disconnect();
+    initialHostSnackbarObserver = null;
+  }
+}
+
+function finishInitialHostDiscovery() {
+  snackbarLog('Network scan completed.');
+
+  var snackbarElement = document.querySelector('#snackbar');
+  if (!snackbarElement || !snackbarElement.classList.contains('mdl-snackbar--active') ||
+      typeof MutationObserver !== 'function') {
+    unlockHostListInteraction();
+    return;
+  }
+
+  if (initialHostSnackbarObserver) {
+    initialHostSnackbarObserver.disconnect();
+  }
+
+  initialHostSnackbarObserver = new MutationObserver(function() {
+    if (!snackbarElement.classList.contains('mdl-snackbar--active')) {
+      unlockHostListInteraction();
+    }
+  });
+  initialHostSnackbarObserver.observe(snackbarElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+}
+
 var appListInteractionLocked = false;
 
 function lockAppListInteraction() {
@@ -852,6 +900,7 @@ function restoreUiAfterWasmLoad() {
   showHostsMode(true);
   Navigation.switch();
   Navigation.switch();
+  lockHostListInteraction();
   updateConfigSummaryBar();
 
   // Find mDNS host discovered using ServiceFinder (network service discovery)
@@ -5227,21 +5276,21 @@ function loadHTTPCertsCb() {
         dismissStartupHostsSnackbar();
         maybeRestoreUiAfterStartup();
 
-        initialHostChecks.then(() => {
-          if (typeof startSubnetScanner === 'function') {
-            snackbarLog('Scanning the local network to discover new hosts...');
-            // Stop background polling while sweeping the subnet to prevent network exhaustion
-            stopPollingHosts();
-            startSubnetScanner().then(() => {
-              isSubnetScanFinished = true;
-              startPollingHosts();
-            }).catch(() => {
-              isSubnetScanFinished = true;
-              startPollingHosts();
-            });
-          } else {
-            isSubnetScanFinished = true;
+        initialHostChecks.then(function() {
+          if (typeof startSubnetScanner !== 'function') {
+            return;
           }
+
+          snackbarLog('Scanning the local network to discover new hosts...');
+          // Stop background polling while sweeping the subnet to prevent network exhaustion.
+          stopPollingHosts();
+          return startSubnetScanner();
+        }).catch(function(error) {
+          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet scan failed:', error);
+        }).finally(function() {
+          isSubnetScanFinished = true;
+          startPollingHosts();
+          finishInitialHostDiscovery();
         });
       });
     });
