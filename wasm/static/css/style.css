@@ -578,6 +578,11 @@ body {
     align-items: center;
     justify-content: center;
 }
+#host-grid.host-list-locked {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 #host-grid .mdl-card {
     position: relative;
     width: 285px;
