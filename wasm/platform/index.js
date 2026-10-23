@@ -784,12 +784,24 @@ function selectFirstHostAfterAddHost() {
   Navigation.right();
 }
 
+var viewLoadingSnackbarTimer = null;
+
+function scheduleViewLoadingSnackbar(message) {
+  clearTimeout(viewLoadingSnackbarTimer);
+  viewLoadingSnackbarTimer = setTimeout(function() {
+    snackbarLogLong(message);
+  }, 1000);
+}
+
+function clearViewLoadingSnackbarTimer() {
+  clearTimeout(viewLoadingSnackbarTimer);
+  viewLoadingSnackbarTimer = null;
+}
+
 // Return to the Hosts grid with a short fade transition.
 function showHosts() {
   Navigation.stop();
-
-  // Report the transition in the bottom snackbar instead of using a full-screen spinner.
-  snackbarLogLong('Loading Hosts...');
+  scheduleViewLoadingSnackbar('Loading Hosts...');
 
   // Fade out the Apps grid, then reveal the Hosts grid.
   $('#game-grid').stop(true, true).fadeOut(300, function() {
@@ -799,6 +811,7 @@ function showHosts() {
     showHostsMode();
 
     $('#host-grid').stop(true, true).hide().fadeIn(300, function() {
+      clearViewLoadingSnackbarTimer();
       Navigation.switch();
     });
   });
@@ -2746,6 +2759,7 @@ function showAppsMode() {
   $('#settings-list').hide();
   // Fade in the Apps grid after the Hosts grid has faded out.
   $('#game-grid').stop(true, true).hide().fadeIn(300, function() {
+    clearViewLoadingSnackbarTimer();
     Navigation.switch();
   });
   $('.nav-menu-parent').hide();
@@ -2785,8 +2799,8 @@ function showApps(host) {
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Report progress in the bottom snackbar instead of covering the interface.
-    snackbarLogLong('Loading Apps...');
+    // Show a snackbar only if loading and transitioning takes more than one second.
+    scheduleViewLoadingSnackbar('Loading Apps...');
 
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
     $('#host-grid').stop(true, true).fadeOut(300);
