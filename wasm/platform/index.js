@@ -2789,19 +2789,12 @@ function showApps(host) {
       console.log('%c[index.js, showApps]', 'color: green;', 'Current host object: \n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
     }
 
-    // Stop navigation before showing the loading screen
+    // Keep the current interface visible while the selected host's app list loads.
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Hide the main header before showing a loading screen
-    $('#main-header').children().hide();
-    $('#main-header').css({'backgroundColor': 'transparent', 'boxShadow': 'none'});
-    $('#host-grid, #settings-list').hide();
-
-    // Show a spinner while the app list loads
-    $('#wasmSpinner').css('display', 'inline-block');
-    $('#wasmSpinnerLogo').hide();
-    $('#wasmSpinnerMessage').text(t('Loading Apps...'));
+    // Report progress in the bottom snackbar instead of covering the interface.
+    snackbarLogLong('Loading Apps...');
 
     // Remove all game container elements from the game grid and from any other div elements
     $('#game-grid').empty();
@@ -2809,13 +2802,6 @@ function showApps(host) {
 
     setTimeout(() => {
       host.getAppList().then(function(appList) {
-        // Hide the spinner after the host has successfully retrieved the app list
-        $('#wasmSpinner').hide();
-
-        // Show the main header after the loading screen is complete
-        $('#main-header').children().show();
-        $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
-
         // Show the game grid section
         $('#game-grid').show();
 
@@ -3038,13 +3024,6 @@ function showApps(host) {
           });
         });
       }, function(failedAppList) {
-        // Hide the spinner if the host has failed to retrieve the app list
-        $('#wasmSpinner').hide();
-
-        // Show the main header after the loading screen is complete
-        $('#main-header').children().show();
-        $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
-
         console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
