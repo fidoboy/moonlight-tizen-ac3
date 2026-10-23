@@ -5797,10 +5797,15 @@ function updateConfigSummaryBar() {
     return !!element && window.getComputedStyle(element).display !== 'none';
   }
 
-  // The strip belongs only to the Hosts and Apps grids, never to Settings or streaming.
+  // Keep the strip visible while transitioning between Hosts and Apps.
+  // The destination title is updated before its grid is shown, so relying only
+  // on grid visibility causes the strip to disappear briefly during this gap.
   var onHostsScreen = isVisible(document.getElementById('host-grid'));
   var onAppsScreen = isVisible(document.getElementById('game-grid'));
-  var desiredDisplay = (onHostsScreen || onAppsScreen) &&
+  var headerTitle = document.getElementById('header-title');
+  var titleText = headerTitle ? headerTitle.textContent.trim() : '';
+  var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
+  var desiredDisplay = (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) &&
     !isVisible(document.getElementById('settings-list')) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
