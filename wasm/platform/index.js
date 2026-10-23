@@ -2799,7 +2799,7 @@ function showAppsMode() {
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
   stopPollingHosts();
-  Navigation.start();
+  if (!appListInteractionLocked) Navigation.start();
 }
 
 // Show the Apps grid
