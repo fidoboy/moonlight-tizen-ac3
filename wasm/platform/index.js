@@ -784,36 +784,24 @@ function selectFirstHostAfterAddHost() {
   Navigation.right();
 }
 
-// Show the Hosts grid
+// Return to the Hosts grid with a short fade transition.
 function showHosts() {
-  // Stop navigation before showing the loading screen
   Navigation.stop();
 
-  // Hide the main header and content before showing a loading screen
-  $('#main-header').children().hide();
-  $('#main-header').css({'backgroundColor': 'transparent', 'boxShadow': 'none'});
-  $('#settings-list, #game-grid').hide();
+  // Report the transition in the bottom snackbar instead of using a full-screen spinner.
+  snackbarLogLong('Loading Hosts...');
 
-  // Show a spinner while the host list loads
-  $('#wasmSpinner').css('display', 'inline-block');
-  $('#wasmSpinnerLogo').hide();
-  $('#wasmSpinnerMessage').text(t('Loading Hosts...'));
+  // Fade out the Apps grid, then reveal the Hosts grid.
+  $('#game-grid').stop(true, true).fadeOut(300, function() {
+    $('#settings-list').hide();
 
-  setTimeout(() => {
-    // Hide the spinner after successfully retrieving the host list
-    $('#wasmSpinner').hide();
-
-    // Show the main header after the loading screen is complete
-    $('#main-header').children().show();
-    $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
-
-    // Navigate to the Hosts view
+    // Navigate to the Hosts view once the Apps grid has faded out.
     showHostsMode();
-  }, 500);
 
-  setTimeout(() => {
-    Navigation.switch();
-  }, 500);
+    $('#host-grid').stop(true, true).hide().fadeIn(300, function() {
+      Navigation.switch();
+    });
+  });
 }
 
 function restoreUiAfterWasmLoad() {
