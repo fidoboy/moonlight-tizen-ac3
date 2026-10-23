@@ -688,6 +688,11 @@ body {
 /* =============================
    Games Section
 ============================= */
+#game-grid.app-list-locked {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 #game-grid {
     display: flex;
     flex: 1;
