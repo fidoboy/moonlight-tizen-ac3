@@ -2744,6 +2744,10 @@ function showAppsMode() {
   $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
+  // Fade in the Apps grid after the Hosts grid has faded out.
+  $('#game-grid').stop(true, true).hide().fadeIn(300, function() {
+    Navigation.switch();
+  });
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
@@ -2777,12 +2781,15 @@ function showApps(host) {
       console.log('%c[index.js, showApps]', 'color: green;', 'Current host object: \n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
     }
 
-    // Keep the current interface visible while the selected host's app list loads.
+    // Stop navigation while transitioning from Hosts to Apps.
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
     // Report progress in the bottom snackbar instead of covering the interface.
     snackbarLogLong('Loading Apps...');
+
+    // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
+    $('#host-grid').stop(true, true).fadeOut(300);
 
     // Remove all game container elements from the game grid and from any other div elements
     $('#game-grid').empty();
