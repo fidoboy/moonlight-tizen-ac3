@@ -151,6 +151,8 @@ RUN \
     fi
 
 RUN cmake --install build --prefix build
+COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/
+RUN /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node moonlight-tizen/tools/patch-embind-string.js build/widget/moonlight-wasm.js
 COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.png
 COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
 COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png
