@@ -784,6 +784,21 @@ function selectFirstHostAfterAddHost() {
   Navigation.right();
 }
 
+var appListInteractionLocked = false;
+
+function lockAppListInteraction() {
+  appListInteractionLocked = true;
+  Navigation.stop();
+  $('#game-grid').addClass('app-list-locked');
+}
+
+function unlockAppListInteraction() {
+  appListInteractionLocked = false;
+  $('#game-grid').removeClass('app-list-locked');
+  Navigation.start();
+  Navigation.switch();
+}
+
 var viewLoadingSnackbarTimer = null;
 
 function scheduleViewLoadingSnackbar(message) {
@@ -2760,7 +2775,11 @@ function showAppsMode() {
   // Fade in the Apps grid after the Hosts grid has faded out.
   $('#game-grid').stop(true, true).hide().fadeIn(300, function() {
     clearViewLoadingSnackbarTimer();
-    Navigation.switch();
+    if (appListInteractionLocked) {
+      unlockAppListInteraction();
+    } else {
+      Navigation.switch();
+    }
   });
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
@@ -3410,6 +3429,9 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
+  // Keep the Apps grid dimmed and non-interactive until it has been refreshed.
+  lockAppListInteraction();
+
   // Hide the configuration strip while the host app is closing, so it cannot
   // overlap the full-screen transition shown by the TV.
   configSummaryTemporarilyHidden = true;
@@ -3425,6 +3447,7 @@ function stopGame(host, callbackFunction) {
       if (!runningApp) {
         snackbarLog('No app is currently running.');
         restoreConfigSummaryAfterQuit();
+        unlockAppListInteraction();
         return;
       }
       var appTitle = runningApp.title;
@@ -3440,18 +3463,22 @@ function stopGame(host, callbackFunction) {
         }, function(failedRefreshInfo2) {
           console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
           restoreConfigSummaryAfterQuit();
+          unlockAppListInteraction();
         });
       }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
         restoreConfigSummaryAfterQuit();
+        unlockAppListInteraction();
       });
     }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
       restoreConfigSummaryAfterQuit();
+      unlockAppListInteraction();
     });
   }, function(failedRefreshInfo) {
     console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
     restoreConfigSummaryAfterQuit();
+    unlockAppListInteraction();
   });
 }
 
