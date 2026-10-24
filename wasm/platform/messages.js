@@ -766,6 +766,8 @@ function handleMessage(msg) {
         }, 100);
       });
     } else {
+      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
+      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
       setTimeout(function() {
         $('#loadingSpinner').css('display', 'inline-block');
       }, 100);
@@ -820,9 +822,12 @@ function handleMessage(msg) {
       $('#host-grid').stop(true, true).show();
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
-      $('#loadingSpinner').hide();
       if (typeof hideStreamTransitionBackground === "function") {
-        setTimeout(function() { hideStreamTransitionBackground(); }, 100);
+        hideStreamTransitionBackground();
+      } else {
+        $('#loadingSpinner').hide();
+        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
+        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
       }
       $('#wasm_module').hide();
       $('#main-content').removeClass('fullscreen');
@@ -848,11 +853,14 @@ function handleMessage(msg) {
         if (!window.isDialogOpen) {
           Navigation.change(Views.Apps);
         }
-        // Hide the message first; leave the background visible for another 100 ms.
-        $('#loadingSpinner').hide();
-        setTimeout(function() {
-          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
-        }, 100);
+        // Hide the complete transition layer, then stop the background animation 100 ms later.
+        if (typeof hideStreamTransitionBackground === "function") {
+          hideStreamTransitionBackground();
+        } else {
+          $('#loadingSpinner').hide();
+          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+        }
       }).catch(function(failure) {
         returnToHostsAfterRecoveryFailure(failure);
       });
@@ -907,24 +915,19 @@ function handleMessage(msg) {
         background: 'transparent',
         backgroundColor: 'transparent'
       });
-      // The transition canvas is a fixed, positioned layer. Explicitly place the
-      // decoded stream above it and above the page layout before hiding the transition.
+      // Keep the native video element's stacking level fixed; only the transition
+      // layer is hidden once the decoded host frame has been ready long enough.
       $('#wasm_module').css({
         display: '',
-        position: 'relative',
-        zIndex: 2,
         background: 'transparent',
         backgroundColor: 'transparent'
       });
       $('#listener').addClass('fullscreen');
 
-      // Keep the negotiation text/animation visible for 100 ms after the first decoded
-      // host frame arrives, then leave the starfield visible for another 100 ms.
+      // Keep the complete transition layer visible for 100 ms after the first decoded
+      // host frame arrives, then hide it and stop the starfield 100 ms later.
       setTimeout(function() {
-        $('#loadingSpinner').hide();
-        setTimeout(function() {
-          if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-        }, 100);
+        if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
       }, 100);
     } else {
       $('#listener').addClass('fullscreen');
