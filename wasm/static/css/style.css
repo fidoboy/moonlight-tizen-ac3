@@ -10,6 +10,17 @@ body {
     -moz-user-select: none;
     user-select: none;
 }
+#stream-transition-background {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: 0;
+    background: #000;
+}
 .mdl-grid {
     width: 100%;
 }
