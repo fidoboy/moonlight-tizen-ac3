@@ -3146,32 +3146,96 @@ function quitAppDialog() {
   }
 }
 
-// TEMPORARY DIAGNOSTIC: disable transition-video initialization entirely.
-// This lets us test the native stream with only the original flat background.
-function preloadStreamTransitionBackground() {
-  // Intentionally disabled for the black-screen diagnostic.
+// Create the transition video on demand. After each use, the element is
+// removed completely so Tizen can release its media resources before EMSS starts.
+function createStreamTransitionBackground() {
+  var video = document.getElementById('stream-transition-background');
+  if (video) return video;
+
+  video = document.createElement('video');
+  video.id = 'stream-transition-background';
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.setAttribute('aria-hidden', 'true');
+  video.src = 'static/stream-transition-background.mp4';
+
+  var frame = document.getElementById('stream-transition-frame');
+  if (frame && frame.parentNode) {
+    frame.parentNode.insertBefore(video, frame);
+  } else {
+    document.body.insertBefore(video, document.body.firstChild);
+  }
+  return video;
 }
 
-// TEMPORARY DIAGNOSTIC: keep the flat background; do not play the starfield.
+function preloadStreamTransitionBackground() {
+  var video = createStreamTransitionBackground();
+  video.preload = 'auto';
+  video.load();
+}
+
 function showStreamTransitionBackground(onVisible) {
-  if (typeof onVisible === 'function') onVisible();
+  var video = createStreamTransitionBackground();
+  video.style.display = 'block';
+
+  try {
+    video.currentTime = 0;
+  } catch (error) {
+    // Some Tizen media implementations reject seeking until metadata is ready.
+  }
+
+  var notified = false;
+  var notifyVisible = function() {
+    if (notified) return;
+    notified = true;
+    if (typeof onVisible === 'function') onVisible();
+  };
+
+  var playPromise;
+  try {
+    playPromise = video.play();
+  } catch (error) {
+    console.warn('%c[index.js, showStreamTransitionBackground]', 'color: green;', 'Could not start transition background video:', error);
+    notifyVisible();
+    return;
+  }
+
+  if (playPromise && typeof playPromise.then === 'function') {
+    playPromise.then(notifyVisible, function(error) {
+      console.warn('%c[index.js, showStreamTransitionBackground]', 'color: green;', 'Transition background playback was rejected:', error);
+      notifyVisible();
+    });
+  } else {
+    // Older Tizen WebKit versions may not return a Promise from play().
+    notifyVisible();
+  }
 }
 
 function hideStreamTransitionBackground() {
   var video = document.getElementById('stream-transition-background');
   var frame = document.getElementById('stream-transition-frame');
+
   if (video) {
-    video.pause();
-    video.currentTime = 0;
-    video.style.display = 'none';
+    try {
+      video.pause();
+      video.removeAttribute('src');
+      while (video.firstChild) video.removeChild(video.firstChild);
+      // Calling load() after removing all sources resets the media element.
+      video.load();
+    } catch (error) {
+      console.warn('%c[index.js, hideStreamTransitionBackground]', 'color: green;', 'Could not fully reset transition video before removal:', error);
+    }
+    if (video.parentNode) video.parentNode.removeChild(video);
   }
   if (frame) frame.style.display = 'none';
 }
 
-// TEMPORARY DIAGNOSTIC: no transition video is initialized, so there is no
-// frame to freeze and no media decoder to release before starting EMSS.
+// The native EMSS stream is about to start. Tear down the transition player
+// completely instead of merely pausing it, to avoid retaining a Tizen video surface.
 function freezeStreamTransitionBackground() {
-  // Intentionally disabled for the black-screen diagnostic.
+  hideStreamTransitionBackground();
 }
 
 // Handle layout elements when displaying the Stream view
