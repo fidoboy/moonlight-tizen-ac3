@@ -874,7 +874,7 @@ function refreshHosts() {
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
-  showUiLayer('main-ui-layer');
+
   hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
@@ -891,12 +891,11 @@ function showHostsMode(skipPollingRestart) {
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#quitRunningAppBtn').hide();
-  fadeOutUiElement('connection-warnings');
-  fadeOutUiElement('performance-stats');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
-  Navigation.start();
+  showUiLayer('main-ui-layer');
+    Navigation.start();
   Navigation.pop();
   // Stop any existing polls before starting new ones to prevent setInterval leaks.
   // Without this, navigating back to the host view multiple times accumulates
@@ -2192,7 +2191,7 @@ function appSupportDialog() {
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
-  showUiLayer('main-ui-layer');
+
   hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
@@ -2214,7 +2213,8 @@ function showSettingsMode() {
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
-  stopPollingHosts();
+  showUiLayer('main-ui-layer');
+    stopPollingHosts();
   Navigation.start();
   // Register showSettingsMode to re-run every time the language changes
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
@@ -2942,7 +2942,7 @@ function sortTitles(list, sortOrder) {
 // Handle layout elements when displaying the Apps view
 function showAppsMode() {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
-  showUiLayer('main-ui-layer');
+
   hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
@@ -2974,7 +2974,8 @@ function showAppsMode() {
   $('#listener').removeClass('fullscreen');
   $('body').css('backgroundColor', '#282C38');
 
-  isInGame = false;
+  showUiLayer('main-ui-layer');
+    isInGame = false;
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
   stopPollingHosts();
@@ -3456,7 +3457,7 @@ function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   // Hide the entire main UI layer; its descendants inherit that hidden state.
   hideUiLayer('main-ui-layer');
-  showUiLayer('stream-diagnostics-layer');
+
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
@@ -3470,7 +3471,8 @@ function showStreamMode() {
   isInGame = true;
   fullscreenWasmModule();
   handleOnScreenOverlays();
-  Navigation.stop();
+  showUiLayer('stream-diagnostics-layer');
+    Navigation.stop();
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately

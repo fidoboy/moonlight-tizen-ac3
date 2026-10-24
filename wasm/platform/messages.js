@@ -695,8 +695,10 @@ function handleMessage(msg) {
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     resetPerformanceStatsGraph();
-    fadeOutUiElement('connection-warnings', function() { $('#connection-warnings').text(''); });
-    fadeOutUiElement('performance-stats', function() { $('#performance-stats').text(''); });
+    hideUiLayer('stream-diagnostics-layer', function() {
+      $('#connection-warnings').css('display', 'none').text('');
+      $('#performance-stats').css('display', 'none').text('');
+    });
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
