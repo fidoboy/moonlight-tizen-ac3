@@ -3517,7 +3517,7 @@ function startGame(host, appID) {
               Navigation.switch();
               // Switch to Apps view
               Navigation.change(Views.Apps);
-            hideStreamTransitionBackground();
+            setTimeout(hideStreamTransitionBackground, 100);
             });
             return;
           }
@@ -3542,7 +3542,7 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
-            hideStreamTransitionBackground();
+            setTimeout(hideStreamTransitionBackground, 100);
           });
           return;
         });
@@ -3580,7 +3580,7 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
-            hideStreamTransitionBackground();
+            setTimeout(hideStreamTransitionBackground, 100);
           });
           return;
         }
@@ -3605,7 +3605,7 @@ function startGame(host, appID) {
           Navigation.switch();
           // Switch to Apps view
           Navigation.change(Views.Apps);
-            hideStreamTransitionBackground();
+            setTimeout(hideStreamTransitionBackground, 100);
         });
         return;
       });
