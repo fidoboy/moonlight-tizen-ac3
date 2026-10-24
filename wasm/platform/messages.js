@@ -893,31 +893,18 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
-    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'First decoded host frame received; hiding stream transition layer.');
-    // The first decoded host frame is ready. Put the stream in its final layout and
-    // remove opaque page backgrounds before uncovering the native host video.
+    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
+    // Prefer the browser's shared playback-ready handler. The video element's
+    // "playing" event is also wired as a fallback for builds that omit this message.
     if (!window._directSmartHubLaunch) {
-      window._normalStreamVideoReady = true;
-      // Clear the complete layout ancestry: MDL's wrapper/content layers can
-      // otherwise keep painting an opaque surface over the decoded host video.
-      $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
-        background: 'transparent',
-        backgroundColor: 'transparent'
-      });
-      // Keep the native video element's stacking level fixed; only the transition
-      // layer is hidden once the decoded host frame has been ready long enough.
-      $('#wasm_module').css({
-        display: '',
-        background: 'transparent',
-        backgroundColor: 'transparent'
-      });
-      $('#listener').addClass('fullscreen');
-
-      // Keep the complete transition layer visible for 100 ms after the first decoded
-      // host frame, then hide the layer and all of its children together.
-      setTimeout(function() {
-        if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-      }, 100);
+      if (typeof handleNormalStreamVideoReady === 'function') {
+        handleNormalStreamVideoReady();
+      } else {
+        $('#listener').addClass('fullscreen');
+        setTimeout(function() {
+          if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+        }, 100);
+      }
     } else {
       $('#listener').addClass('fullscreen');
     }
