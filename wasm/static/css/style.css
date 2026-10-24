@@ -29,7 +29,7 @@ body {
     height: 100%;
     box-sizing: border-box;
 }
-#main-ui-layer { z-index: 10; opacity: 0; }
+#main-ui-layer { z-index: 10; opacity: 0; background: #282C38; }
 #main-ui-layer > .mdl-layout {
     position: absolute;
     inset: 0;
@@ -209,7 +209,7 @@ body {
 }
 .mdl-snackbar {
     opacity: 1;
-    transform: translateY(100%);
+    transform: translate(-50%, 100%);
     visibility: hidden;
     transition: transform var(--ui-fade-duration) ease-in-out,
                 visibility 0s linear var(--ui-fade-duration);
@@ -221,7 +221,7 @@ body {
     box-shadow: 0 0 8px 4px rgba(0, 163, 198, 1);
 }
 .mdl-snackbar--active {
-    transform: translateY(0);
+    transform: translate(-50%, 0);
     visibility: visible;
     transition-delay: 0s;
 }
