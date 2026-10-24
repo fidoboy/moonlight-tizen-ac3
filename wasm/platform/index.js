@@ -69,18 +69,20 @@ function showUiLayer(layerId, callback) {
   var layer = resolveUiElement(layerId);
   if (!layer) { if (typeof callback === 'function') callback(); return; }
   var computedDisplay = getComputedStyle(layer).display;
-  var computedOpacity = getComputedStyle(layer).opacity;
-  if (computedDisplay !== 'none' && computedOpacity === '1' && !uiLayerFadeTimers[layerId]) {
+  var computedOpacity = computedDisplay === 'none' ? 0 : (parseFloat(getComputedStyle(layer).opacity) || 0);
+  if (computedDisplay !== 'none' && computedOpacity >= 0.999 && !uiLayerFadeTimers[layerId]) {
     if (typeof callback === 'function') callback();
     return;
   }
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
-  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.transition = 'none';
   layer.style.display = 'block';
   layer.setAttribute('aria-hidden', 'false');
-  layer.style.opacity = '0';
+  layer.style.opacity = String(computedOpacity);
+  layer.offsetWidth;
+  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   window.requestAnimationFrame(function() {
     if (layer._uiFadeToken !== token) return;
     layer.style.opacity = '1';
@@ -118,8 +120,9 @@ function fadeInUiElement(elementOrId, displayValue, callback) {
   var element = resolveUiElement(elementOrId);
   if (!element) { if (typeof callback === 'function') callback(); return; }
   var existingTimer = uiElementFadeTimers.get(element);
-  if (getComputedStyle(element).display !== 'none' &&
-      getComputedStyle(element).opacity === '1' && !existingTimer) {
+  var wasDisplayed = getComputedStyle(element).display !== 'none';
+  var currentOpacity = wasDisplayed ? (parseFloat(getComputedStyle(element).opacity) || 0) : 0;
+  if (wasDisplayed && currentOpacity >= 0.999 && !existingTimer) {
     if (typeof callback === 'function') callback();
     return;
   }
@@ -127,9 +130,11 @@ function fadeInUiElement(elementOrId, displayValue, callback) {
   var token = (element._uiFadeToken || 0) + 1;
   element._uiFadeToken = token;
   element.classList.add('ui-fade-managed');
-  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  element.style.transition = 'none';
   element.style.display = displayValue || '';
-  element.style.opacity = '0';
+  element.style.opacity = String(currentOpacity);
+  element.offsetWidth;
+  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   window.requestAnimationFrame(function() {
     if (element._uiFadeToken !== token) return;
     element.style.opacity = '1';
@@ -175,12 +180,22 @@ function hideStreamDiagnosticsLayer(afterHidden) {
 function showUiDialog(dialogLike) {
   var dlg = resolveUiElement(dialogLike);
   if (!dlg || typeof dlg.show !== 'function') return;
-  if (dlg.open && getComputedStyle(dlg).opacity === '1' && !dlg._uiDialogFadeTimer) return;
   if (dlg._uiDialogFadeTimer) window.clearTimeout(dlg._uiDialogFadeTimer);
   dlg._uiDialogFadeTimer = null;
-  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  if (dlg.open) {
+    var currentOpacity = parseFloat(getComputedStyle(dlg).opacity) || 0;
+    dlg.style.transition = 'none';
+    dlg.style.opacity = String(currentOpacity);
+    dlg.offsetWidth;
+    dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+    window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
+    return;
+  }
+  dlg.style.transition = 'none';
   dlg.style.opacity = '0';
   dlg.show();
+  dlg.offsetWidth;
+  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
 }
 
@@ -853,7 +868,7 @@ function refreshHosts() {
       console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
     })
     .then(function() {
-    stopPollingHosts();
+      stopPollingHosts();
       if (typeof startSubnetScanner !== 'function') {
         throw new Error('Subnet scanner is unavailable');
       }
@@ -2999,7 +3014,7 @@ function showApps(host) {
     }
 
     // Stop navigation while transitioning from Hosts to Apps.
-  Navigation.stop();
+    Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
     // Show a snackbar only if loading and transitioning takes more than one second.
