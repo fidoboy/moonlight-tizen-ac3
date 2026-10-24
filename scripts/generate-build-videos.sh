@@ -13,8 +13,7 @@ python3 res/generate-launch-screen.py \
   --dolby-logo wasm/static/res/ic_dolby_double_d.svg \
   --frames "$WORK_DIR/launch-frames-landscape" \
   --static-svg "$WORK_DIR/launch-screen-final.svg" \
-  --orientation landscape \
-
+  --orientation landscape
 
 python3 res/generate-launch-screen.py \
   --template res/launch-screen.svg \
