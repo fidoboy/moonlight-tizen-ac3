@@ -1,10 +1,9 @@
 # Generate the animated native Samsung TV splash in a tool-only stage.
 FROM ubuntu:22.04 AS splash
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
 COPY res/launch-screen.svg /tmp/launch-screen.svg
 COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
 COPY wasm/static/res/ic_dolby_double_d.svg /tmp/ic_dolby_double_d.svg
-COPY res/launch_screen.wav /tmp/launch-screen.wav
 RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape && \
     python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-portrait --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait && \
     rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
