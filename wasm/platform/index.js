@@ -3165,6 +3165,8 @@ function preloadStreamTransitionBackground() {
 function showStreamTransitionBackground(onVisible) {
   if (window._directSmartHubLaunch) return;
   var video = document.getElementById('stream-transition-background');
+  var frame = document.getElementById('stream-transition-frame');
+  if (frame) frame.style.display = 'none';
   if (!video) {
     if (typeof onVisible === 'function') onVisible();
     return;
@@ -3212,7 +3214,40 @@ function showStreamTransitionBackground(onVisible) {
 
 function hideStreamTransitionBackground() {
   var video = document.getElementById('stream-transition-background');
+  var frame = document.getElementById('stream-transition-frame');
+  if (video) {
+    video.pause();
+    video.currentTime = 0;
+    video.style.display = 'none';
+  }
+  if (frame) frame.style.display = 'none';
+}
+
+// Tizen's native EMSS stream and an HTML5 MP4 can contend for the TV's video
+// playback plane/decoder. Freeze the last transition frame and release the MP4
+// decoder before asking EMSS to start the remote stream.
+function freezeStreamTransitionBackground() {
+  if (window._directSmartHubLaunch) return;
+  var video = document.getElementById('stream-transition-background');
+  var frame = document.getElementById('stream-transition-frame');
   if (!video) return;
+
+  if (frame && video.readyState >= 2) {
+    try {
+      var width = video.videoWidth || 1920;
+      var height = video.videoHeight || 1080;
+      frame.width = width;
+      frame.height = height;
+      var context = frame.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, width, height);
+        frame.style.display = 'block';
+      }
+    } catch (error) {
+      console.warn('Could not freeze the stream transition frame:', error);
+    }
+  }
+
   video.pause();
   video.currentTime = 0;
   video.style.display = 'none';
@@ -3445,6 +3480,8 @@ function startGame(host, appID) {
             });
             return;
           }
+          // Release the transition MP4 decoder before starting Tizen's native EMSS video.
+          freezeStreamTransitionBackground();
           // Start stream request
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
@@ -3507,6 +3544,8 @@ function startGame(host, appID) {
           });
           return;
         }
+        // Release the transition MP4 decoder before starting Tizen's native EMSS video.
+        freezeStreamTransitionBackground();
         // Start stream request
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
