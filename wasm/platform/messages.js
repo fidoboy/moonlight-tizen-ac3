@@ -914,12 +914,11 @@ function handleMessage(msg) {
       $('#listener').addClass('fullscreen');
       $('#loadingSpinner').hide();
 
-      // TEMPORARY DIAGNOSTIC: keep the frozen transition frame visible for 5 seconds
-      // after the host video is ready, to test whether hiding the transition causes
-      // the black screen. Revert this delay after the visibility test.
+      // Keep the original short cleanup delay; the transition background video
+      // is disabled during this diagnostic.
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-      }, 5000);
+      }, 100);
     } else {
       $('#listener').addClass('fullscreen');
     }
