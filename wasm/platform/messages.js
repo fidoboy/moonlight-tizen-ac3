@@ -877,11 +877,13 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
-    // Hide the starfield only when the incoming stream is ready, and explicitly clear
-    // the page background so the received video cannot remain covered by a stale black screen.
-    if (!window._directSmartHubLaunch && typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-    $('body').css('backgroundColor', 'transparent');
-    $('#wasm_module').css({ display: '', backgroundColor: 'transparent' });
+    // Hide the starfield only when the incoming stream is ready, and clear the normal
+    // launch page background so it cannot remain black over the received video.
+    if (!window._directSmartHubLaunch) {
+      if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+      $('body').css('backgroundColor', 'transparent');
+      $('#wasm_module').css({ display: '', backgroundColor: 'transparent' });
+    }
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
