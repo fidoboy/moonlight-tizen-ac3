@@ -736,6 +736,8 @@ function refreshHosts() {
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
+  $('#main-ui-layer').show();
+  $('#stream-diagnostics-layer').hide();
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -1206,7 +1208,7 @@ function addHostDialog() {
   
   // Show the dialog and push the view
   addHostOverlay.style.display = 'flex';
-  addHostDialog.showModal();
+  addHostDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.AddHostDialog);
   updateIpAddressInputValidationState();
@@ -1378,7 +1380,7 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
 
     // Show the dialog and push the view
     pairingOverlay.style.display = 'flex';
-    pairingDialog.showModal();
+    pairingDialog.show();
     isDialogOpen = true;
     Navigation.push(Views.PairingDialog);
 
@@ -1457,7 +1459,7 @@ function autoWolDialog(host, onSuccess, onCancel) {
   });
 
   autoWolOverlay.style.display = 'flex';
-  autoWolDialog.showModal();
+  autoWolDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.AutoWolDialog);
   focusElement('cancelAutoWol');
@@ -1683,7 +1685,7 @@ function hostMenuDialog(host) {
   var hostMenuDialogOverlay = $('<div>', {
     id: 'hostMenuDialogOverlay-' + host.serverUid,
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
 
   // Create the dialog element and append it to the overlay
   var hostMenuDialog = $('<dialog>', {
@@ -1812,7 +1814,7 @@ function hostMenuDialog(host) {
 
   // Show the dialog and push the view
   $(hostMenuDialogOverlay).css('display', 'flex');
-  hostMenuDialog[0].showModal();
+  hostMenuDialog[0].show();
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
   setTimeout(() => Navigation.switch(), 5);
@@ -1830,7 +1832,7 @@ function deleteHostDialog(host) {
 
   // Show the dialog and push the view
   deleteHostOverlay.style.display = 'flex';
-  deleteHostDialog.showModal();
+  deleteHostDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.DeleteHostDialog);
 
@@ -1892,7 +1894,7 @@ function deleteAllHostsDialog() {
     
     // Show the dialog and push the view
     deleteHostOverlay.style.display = 'flex';
-    deleteHostDialog.showModal();
+    deleteHostDialog.show();
     isDialogOpen = true;
     Navigation.push(Views.DeleteHostDialog);
   
@@ -1948,7 +1950,7 @@ function hostDetailsDialog(host) {
   var hostDetailsDialogOverlay = $('<div>', {
     id: 'hostDetailsDialogOverlay-' + host.serverUid,
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
 
   // Create the dialog element and append it to the overlay
   var hostDetailsDialog = $('<dialog>', {
@@ -2019,7 +2021,7 @@ function hostDetailsDialog(host) {
 
   // Show the dialog and push the view
   $(hostDetailsDialogOverlay).css('display', 'flex');
-  hostDetailsDialog[0].showModal();
+  hostDetailsDialog[0].show();
   isDialogOpen = true;
   Navigation.push(Views.HostDetailsDialog);
   setTimeout(() => Navigation.switch(), 5);
@@ -2033,7 +2035,7 @@ function appSupportDialog() {
 
   // Show the dialog and push the view
   appSupportDialogOverlay.style.display = 'flex';
-  appSupportDialog.showModal();
+  appSupportDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.MoonlightSupportDialog);
 
@@ -2052,6 +2054,8 @@ function appSupportDialog() {
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
+  $('#main-ui-layer').show();
+  $('#stream-diagnostics-layer').hide();
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -2200,7 +2204,7 @@ function navigationGuideDialog() {
 
   // Show the dialog and push the view
   navGuideDialogOverlay.style.display = 'flex';
-  navGuideDialog.showModal();
+  navGuideDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.NavigationGuideDialog);
 
@@ -2336,8 +2340,9 @@ function updateAppButton(latestVersion) {
   });
   // Append elements inside the button
   updateAppBtn.append(updateAppBtnBadge, updateAppBtnText);
-  // Insert elements after the existing layout spacer
-  $('.mdl-layout-spacer').after(updateAppBtn, updateAppBtnTooltip, extraLayoutSpacer);
+  // Keep the button in the UI layer and its tooltip in the popup layer.
+  $('.mdl-layout-spacer').after(updateAppBtn, extraLayoutSpacer);
+  $('#popup-layer').append(updateAppBtnTooltip);
   // Upgrade newly added elements for MDL styling
   componentHandler.upgradeElement(updateAppBtn[0]);
   componentHandler.upgradeElement(updateAppBtnTooltip[0]);
@@ -2399,7 +2404,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
 
   // Show the dialog and push the view
   updateAppDialogOverlay.css('display', 'flex');
-  updateAppDialog[0].showModal();
+  updateAppDialog[0].show();
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
 }
@@ -2513,7 +2518,7 @@ function restoreDefaultsDialog() {
 
   // Show the dialog and push the view
   restoreDefaultsDialogOverlay.style.display = 'flex';
-  restoreDefaultsDialog.showModal();
+  restoreDefaultsDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.RestoreDefaultsDialog);
 
@@ -2558,7 +2563,7 @@ function warningDialog(title, message) {
 
   // Show the dialog and push the view
   warningDialogOverlay.style.display = 'flex';
-  warningDialog.showModal();
+  warningDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2594,7 +2599,7 @@ function wakeOnLanWarningDialog(host) {
 
   // Show the dialog and push the view
   warningDialogOverlay.style.display = 'flex';
-  warningDialog.showModal();
+  warningDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2649,7 +2654,7 @@ function restartAppDialog() {
 
   // Show the dialog and push the view
   restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.showModal();
+  restartAppDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2687,7 +2692,7 @@ function requiredRestartAppDialog() {
 
   // Show the dialog and push the view
   restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.showModal();
+  restartAppDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2728,7 +2733,7 @@ function exitAppDialog() {
 
   // Show the dialog and push the view
   exitAppOverlay.style.display = 'flex';
-  exitAppDialog.showModal();
+  exitAppDialog.show();
   isDialogOpen = true;
   Navigation.push(Views.ExitMoonlightDialog);
 
@@ -2799,6 +2804,8 @@ function sortTitles(list, sortOrder) {
 // Handle layout elements when displaying the Apps view
 function showAppsMode() {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
+  $('#main-ui-layer').show();
+  $('#stream-diagnostics-layer').hide();
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -3118,7 +3125,7 @@ function quitAppDialog() {
       
       // Show the dialog and push the view
       quitAppOverlay.style.display = 'flex';
-      quitAppDialog.showModal();
+      quitAppDialog.show();
       isDialogOpen = true;
       Navigation.push(Views.QuitAppDialog);
 
@@ -3318,9 +3325,9 @@ function hideStreamTransitionBackground() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Layer 1 is hidden as a whole during streaming. Dialogs remain outside the content
-  // container so level 4 can still be shown when required.
-  $('.mdl-layout__header, .mdl-layout__content').hide();
+  // Hide the entire main UI layer; its descendants inherit that hidden state.
+  $('#main-ui-layer').hide();
+  $('#stream-diagnostics-layer').show();
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
@@ -3398,7 +3405,7 @@ function startGame(host, appID) {
 
           // Show the dialog and push the view
           quitAppOverlay.style.display = 'flex';
-          quitAppDialog.showModal();
+          quitAppDialog.show();
           isDialogOpen = true;
           Navigation.push(Views.QuitAppDialog);
 
@@ -3755,7 +3762,7 @@ function streamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
   var streamMenuDialog = $('<dialog>', {
     id: 'streamMenuDialog',
     class: 'mdl-dialog'
@@ -3805,7 +3812,7 @@ function streamMenuDialog() {
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
   $(streamMenuDialogOverlay).css('display', 'flex');
-  streamMenuDialog[0].showModal();
+  streamMenuDialog[0].show();
   isDialogOpen = true;
   Views.StreamMenuDialog.view.index = 0;
   Navigation.start();
