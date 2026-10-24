@@ -705,7 +705,6 @@ function handleMessage(msg) {
     // Diagnostic overlays were hidden and locked at the start of stream termination.
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
-    $('#loadingSpinner').css('display', 'none');
     $('body').css('backgroundColor', '#282C38');
     $('#wasm_module').css('display', 'none');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
@@ -755,22 +754,14 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Show the transition starfield first, then reveal its animated message after 100 ms.
+    // Set the message first, then show the complete transition layer.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinner').hide();
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(function() {
-        setTimeout(function() {
-          if (!window._directSmartHubLaunch) $('#loadingSpinner').css('display', 'inline-block');
-        }, 100);
-      });
+      showStreamTransitionBackground();
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-      setTimeout(function() {
-        $('#loadingSpinner').css('display', 'inline-block');
-      }, 100);
     }
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
@@ -889,9 +880,6 @@ function handleMessage(msg) {
     }
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
-    if (window._directSmartHubLaunch) {
-      $('#loadingSpinner').css('display', 'none');
-    }
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
@@ -924,9 +912,8 @@ function handleMessage(msg) {
       });
       $('#listener').addClass('fullscreen');
 
-      // Remove the negotiation text as soon as the first decoded frame is ready.
-      // Keep the starfield visible for another 100 ms, then hide the complete layer.
-      $('#loadingSpinner').hide();
+      // Keep the complete transition layer visible for 100 ms after the first decoded
+      // host frame, then hide the layer and all of its children together.
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
       }, 100);
