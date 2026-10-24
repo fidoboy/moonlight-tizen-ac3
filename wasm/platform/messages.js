@@ -804,7 +804,6 @@ function handleMessage(msg) {
       console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
 
       // A failed app-list request must never leave the UI in fullscreen or with stream navigation active.
-      if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
       if (typeof clearViewLoadingSnackbarTimer === "function") clearViewLoadingSnackbarTimer();
       if (window.isDialogOpen) {
         var openDialogs = document.querySelectorAll('dialog[open]');
@@ -822,6 +821,9 @@ function handleMessage(msg) {
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
       $('#loadingSpinner').hide();
+      if (typeof hideStreamTransitionBackground === "function") {
+        setTimeout(function() { hideStreamTransitionBackground(); }, 100);
+      }
       $('#wasm_module').hide();
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
