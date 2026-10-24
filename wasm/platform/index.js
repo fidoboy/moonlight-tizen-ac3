@@ -5805,7 +5805,7 @@ function updateConfigSummaryBar() {
   var headerTitle = document.getElementById('header-title');
   var titleText = headerTitle ? headerTitle.textContent.trim() : '';
   var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
-  var desiredDisplay = (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) &&
+  var desiredDisplay = !isInGame && (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) &&
     !isVisible(document.getElementById('settings-list')) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
