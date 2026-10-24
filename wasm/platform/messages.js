@@ -756,6 +756,7 @@ function handleMessage(msg) {
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
     // Show the transition video first, then reveal its animated message after 100 ms.
+    window._normalStreamVideoReady = false;
     if (typeof showStreamTransitionBackground === "function") showStreamTransitionBackground();
     $('#loadingSpinner').hide();
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
@@ -887,6 +888,7 @@ function handleMessage(msg) {
     // The first decoded host frame is ready. Put the stream in its final layout and
     // remove opaque page backgrounds before uncovering it with the transition video.
     if (!window._directSmartHubLaunch) {
+      window._normalStreamVideoReady = true;
       $('body, .mdl-layout, #main-content, #listener').css({
         background: 'transparent',
         backgroundColor: 'transparent'
