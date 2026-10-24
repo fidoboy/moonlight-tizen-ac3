@@ -355,6 +355,44 @@ def render_svg(
     output_path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
 
+def generate_starfield_only_frames(output_dir, speed_multiplier=1.0):
+    """Render a 15-second, constant-speed starfield-only sequence for UI transitions."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    speed = STAR_SPEED * speed_multiplier
+    starfield = StarField()
+    svg_path = output_dir / "frame.svg"
+    for frame_number in range(15 * FPS):
+        root = ET.Element(
+            f"{{{SVG_NS}}}svg",
+            {
+                "width": str(FRAME_WIDTH),
+                "height": str(FRAME_HEIGHT),
+                "viewBox": f"0 0 {FRAME_WIDTH} {FRAME_HEIGHT}",
+            },
+        )
+        ET.SubElement(
+            root, f"{{{SVG_NS}}}rect",
+            {"width": str(FRAME_WIDTH), "height": str(FRAME_HEIGHT), "fill": "#000000"},
+        )
+        starfield.update(speed)
+        starfield.append_to_svg(root, speed=speed)
+        svg_path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
+        frame_png = output_dir / f"frame-{frame_number:03d}.png"
+        subprocess.run(
+            [
+                "rsvg-convert", "-w", "1920", "-h", "1080",
+                "--format", "png", "-o", str(frame_png), str(svg_path),
+            ],
+            check=True,
+        )
+    svg_path.unlink(missing_ok=True)
+    print(
+        f"Generated starfield-only background: {15 * FPS} frames, 1920x1080 at "
+        f"{FPS} fps, 15.0 s, no logo, constant speed multiplier {speed_multiplier:g} "
+        f"(star velocity {speed:g})."
+    )
+
+
 def main():
     global FRAME_WIDTH, FRAME_HEIGHT, LOGO_CENTER_X, LOGO_CENTER_Y
 
@@ -366,6 +404,8 @@ def main():
     parser.add_argument(
         "--orientation", choices=("landscape", "portrait"), default="landscape"
     )
+    parser.add_argument("--starfield-only-frames", type=Path)
+    parser.add_argument("--starfield-speed", type=float, default=1.0)
     args = parser.parse_args()
 
     if args.orientation == "portrait":
@@ -429,6 +469,15 @@ def main():
         f"Dolby logo fade starts {DOLBY_LOGO_DELAY_AFTER_TITLE_FRAMES / FPS:.1f} s after title and lasts "
         f"{DOLBY_LOGO_FADE_IN_FRAMES / FPS:.1f} s)."
     )
+
+    if args.starfield_only_frames:
+        if args.orientation != "landscape":
+            raise SystemExit("--starfield-only-frames can only be used with landscape orientation")
+        if args.starfield_speed <= 0:
+            raise SystemExit("--starfield-speed must be greater than zero")
+        # The background vanishing point is the center of the 16:9 canvas.
+        LOGO_CENTER_X, LOGO_CENTER_Y = FRAME_WIDTH / 2.0, FRAME_HEIGHT / 2.0
+        generate_starfield_only_frames(args.starfield_only_frames, args.starfield_speed)
 
 
 if __name__ == "__main__":
