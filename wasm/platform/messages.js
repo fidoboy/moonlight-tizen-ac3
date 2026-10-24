@@ -787,24 +787,53 @@ function handleMessage(msg) {
     var shouldQuitHostApp = errorCode === 0 &&
       $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
 
+    var returnToHostsAfterRecoveryFailure = function(failure) {
+      console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
+
+      // A failed app-list request must never leave the UI in fullscreen or with stream navigation active.
+      if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
+      if (typeof clearViewLoadingSnackbarTimer === "function") clearViewLoadingSnackbarTimer();
+      if (window.isDialogOpen) {
+        var openDialogs = document.querySelectorAll('dialog[open]');
+        openDialogs.forEach(function(dialog) {
+          try { dialog.close(); } catch (error) {}
+        });
+        window.isDialogOpen = false;
+      }
+
+      // Restore the main Hosts screen directly; it does not depend on the failed host API.
+      showHostsMode();
+      $('#host-grid').stop(true, true).show();
+      $('#game-grid').stop(true, true).hide();
+      $('#settings-list').hide();
+      $('#loadingSpinner').hide();
+      $('#wasm_module').hide();
+      $('#main-content').removeClass('fullscreen');
+      $('#listener').removeClass('fullscreen');
+      $('body').css('backgroundColor', '#282C38');
+      isInGame = false;
+      Navigation.change(Views.Hosts);
+      Navigation.start();
+      Navigation.switch();
+      snackbarLogLong('Could not load apps from the host. Returning to Hosts.');
+    };
+
     var refreshHostAndReturnToApps = function() {
-      api.refreshServerInfo().then(function(ret) {
-        showApps(api).then(() => {
-          Navigation.switch();
-          if (!window.isDialogOpen) {
-            Navigation.change(Views.Apps);
-          }
-          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
-        });
-      }, function(failedRefreshInfo) {
-        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!');
-        showApps(api).then(() => {
-          Navigation.switch();
-          if (!window.isDialogOpen) {
-            Navigation.change(Views.Apps);
-          }
-          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
-        });
+      // Refreshing server info is useful, but failure must not prevent recovery.
+      Promise.resolve().then(function() {
+        return api.refreshServerInfo();
+      }).catch(function(failedRefreshInfo) {
+        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
+      }).then(function() {
+        return showApps(api);
+      }).then(function() {
+        Navigation.switch();
+        if (!window.isDialogOpen) {
+          Navigation.change(Views.Apps);
+        }
+        if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
+      }).catch(function(failure) {
+        returnToHostsAfterRecoveryFailure(failure);
       });
     };
 
