@@ -924,8 +924,9 @@ function handleMessage(msg) {
       });
       $('#listener').addClass('fullscreen');
 
-      // Keep the complete transition layer visible for 100 ms after the first decoded
-      // host frame arrives, then hide it and stop the starfield 100 ms later.
+      // Remove the negotiation text as soon as the first decoded frame is ready.
+      // Keep the starfield visible for another 100 ms, then hide the complete layer.
+      $('#loadingSpinner').hide();
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
       }, 100);
