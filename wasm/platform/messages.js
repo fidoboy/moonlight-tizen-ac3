@@ -800,10 +800,10 @@ function handleMessage(msg) {
       if (window.isDialogOpen) {
         var openDialogs = document.querySelectorAll('dialog[open]');
         for (var dialogIndex = 0; dialogIndex < openDialogs.length; dialogIndex++) {
-          try { openDialogs[dialogIndex].close(); } catch (error) {}
+          try { closeUiDialog(openDialogs[dialogIndex]); } catch (error) {}
         }
         var quitAppOverlay = document.getElementById('quitAppDialogOverlay');
-        if (quitAppOverlay) quitAppOverlay.style.display = 'none';
+        if (quitAppOverlay) fadeOutUiElement(quitAppOverlay);
         window.isDialogOpen = false;
       }
 

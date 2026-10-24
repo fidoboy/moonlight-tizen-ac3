@@ -3475,7 +3475,10 @@ function hideStreamTransitionBackground() {
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   // Hide the entire main UI layer; its descendants inherit that hidden state.
-  hideUiLayer('main-ui-layer');
+  hideUiLayer('main-ui-layer', function() {
+    // Stop any in-flight child animations only after the complete layer has faded away.
+    $('#main-ui-layer').find('*').stop(true, false);
+  });
 
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
