@@ -3246,11 +3246,15 @@ function animateStreamTransitionBackground() {
 function showStreamTransitionBackground(onVisible) {
   var canvas = createStreamTransitionBackground();
   if (!canvas) {
+    var missingCanvasLayer = document.getElementById('stream-transition-layer');
+    if (missingCanvasLayer) missingCanvasLayer.style.display = 'block';
     if (typeof onVisible === 'function') onVisible();
     return;
   }
 
   if (streamTransitionVisible) {
+    var existingTransitionLayer = document.getElementById('stream-transition-layer');
+    if (existingTransitionLayer) existingTransitionLayer.style.display = 'block';
     if (typeof onVisible === 'function') onVisible();
     return;
   }
