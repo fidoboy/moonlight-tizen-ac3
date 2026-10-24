@@ -3157,6 +3157,7 @@ var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionFirstFrameCallback = null;
+var streamTransitionTeardownTimeout = null;
 var STREAM_TRANSITION_STAR_COUNT = 2000;
 var STREAM_TRANSITION_MAX_DEPTH = 1500;
 var STREAM_TRANSITION_SPEED = 5;
@@ -3244,6 +3245,12 @@ function animateStreamTransitionBackground() {
 }
 
 function showStreamTransitionBackground(onVisible) {
+  // Cancel delayed teardown if a new transition starts before the previous one finishes.
+  if (streamTransitionTeardownTimeout !== null) {
+    window.clearTimeout(streamTransitionTeardownTimeout);
+    streamTransitionTeardownTimeout = null;
+  }
+
   var canvas = createStreamTransitionBackground();
   if (!canvas) {
     var missingCanvasLayer = document.getElementById('stream-transition-layer');
@@ -3274,7 +3281,9 @@ function showStreamTransitionBackground(onVisible) {
   }
 
   initializeStreamTransitionStars();
-  streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
+  // Draw synchronously before revealing the layer. Some TV WebViews defer the first
+  // animation frame while its parent is display:none, leaving only a flat background.
+  animateStreamTransitionBackground();
 }
 
 function hideStreamTransitionBackground() {
@@ -3283,7 +3292,11 @@ function hideStreamTransitionBackground() {
   var transitionLayer = document.getElementById('stream-transition-layer');
   if (transitionLayer) transitionLayer.style.display = 'none';
 
-  window.setTimeout(function() {
+  if (streamTransitionTeardownTimeout !== null) {
+    window.clearTimeout(streamTransitionTeardownTimeout);
+  }
+  streamTransitionTeardownTimeout = window.setTimeout(function() {
+    streamTransitionTeardownTimeout = null;
     streamTransitionVisible = false;
     if (streamTransitionAnimationFrame !== null) {
       window.cancelAnimationFrame(streamTransitionAnimationFrame);
