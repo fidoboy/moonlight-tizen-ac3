@@ -3232,6 +3232,8 @@ function animateStreamTransitionBackground() {
     var callback = streamTransitionFirstFrameCallback;
     streamTransitionFirstFrameCallback = null;
     try {
+      var transitionLayer = document.getElementById('stream-transition-layer');
+      if (transitionLayer) transitionLayer.style.display = 'block';
       callback();
     } catch (error) {
       console.warn('%c[index.js, animateStreamTransitionBackground]', 'color: green;', 'Transition visibility callback failed:', error);
@@ -3272,26 +3274,31 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground() {
-  // Cancel the pending frame first so no CPU/GPU work continues while hidden.
-  streamTransitionVisible = false;
-  if (streamTransitionAnimationFrame !== null) {
-    window.cancelAnimationFrame(streamTransitionAnimationFrame);
-    streamTransitionAnimationFrame = null;
-  }
+  // Hide the complete transition layer first. Keep the starfield animation alive
+  // for 100 ms after it is no longer visible to avoid a final-frame visual glitch.
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer) transitionLayer.style.display = 'none';
 
-  streamTransitionFirstFrameCallback = null;
-  streamTransitionStars = [];
+  window.setTimeout(function() {
+    streamTransitionVisible = false;
+    if (streamTransitionAnimationFrame !== null) {
+      window.cancelAnimationFrame(streamTransitionAnimationFrame);
+      streamTransitionAnimationFrame = null;
+    }
 
-  var canvas = createStreamTransitionBackground();
-  if (canvas) {
-    canvas.style.display = 'none';
-    // Release the canvas backing store while it is not visible.
-    canvas.width = 0;
-    canvas.height = 0;
-  }
+    streamTransitionFirstFrameCallback = null;
+    streamTransitionStars = [];
 
-  streamTransitionContext = null;
-  streamTransitionCanvas = null;
+    var canvas = createStreamTransitionBackground();
+    if (canvas) {
+      canvas.style.display = 'none';
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+
+    streamTransitionContext = null;
+    streamTransitionCanvas = null;
+  }, 100);
 }
 
 // Handle layout elements when displaying the Stream view
@@ -3315,7 +3322,9 @@ function showStreamMode() {
       }, 100);
     });
   } else {
-    $('#loadingSpinner').css('display', 'inline-block');
+    // Direct Smart Hub launches use their dedicated status surface instead of the
+    // normal transition layer.
+    $('#loadingSpinner').hide();
   }
 
   isInGame = true;
