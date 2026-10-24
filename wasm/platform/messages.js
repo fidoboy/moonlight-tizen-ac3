@@ -757,12 +757,19 @@ function handleMessage(msg) {
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
     // Show the transition video first, then reveal its animated message after 100 ms.
     window._normalStreamVideoReady = false;
-    if (typeof showStreamTransitionBackground === "function") showStreamTransitionBackground();
     $('#loadingSpinner').hide();
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
-    setTimeout(function() {
-      if (!window._directSmartHubLaunch) $('#loadingSpinner').css('display', 'inline-block');
-    }, 100);
+    if (typeof showStreamTransitionBackground === "function") {
+      showStreamTransitionBackground(function() {
+        setTimeout(function() {
+          if (!window._directSmartHubLaunch) $('#loadingSpinner').css('display', 'inline-block');
+        }, 100);
+      });
+    } else {
+      setTimeout(function() {
+        $('#loadingSpinner').css('display', 'inline-block');
+      }, 100);
+    }
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
