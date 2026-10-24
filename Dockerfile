@@ -5,7 +5,7 @@ COPY res/launch-screen.svg /tmp/launch-screen.svg
 COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
 COPY wasm/static/res/ic_dolby_double_d.svg /tmp/ic_dolby_double_d.svg
 COPY res/launch_screen.wav /tmp/launch-screen.wav
-RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape && \
+RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape --starfield-only-frames /tmp/stream-transition-frames --starfield-speed 1.0 && \
     python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-portrait --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait && \
     rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
     rsvg-convert -w 1080 -h 1920 --format png -o /tmp/launch-screen-portrait.png /tmp/launch-screen-portrait-final.svg && \
@@ -21,6 +21,11 @@ RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --d
     -profile:v baseline -level 4.0 \
     -c:a aac -b:a 96k -ar 48000 -ac 2 -shortest -movflags +faststart -y /tmp/launch-screen-portrait.mp4 && \
     test -s /tmp/launch-screen-portrait.mp4 && test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/launch-screen-portrait.mp4)" = "aac" && echo "Portrait splash MP4: $(stat -c %s /tmp/launch-screen-portrait.mp4) bytes (AAC audio)" && test "$(stat -c %s /tmp/launch-screen-portrait.mp4)" -lt 2097152 && \
+    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/stream-transition-frames/frame-%03d.png -frames:v 450 \
+    -an -c:v libx264 -preset veryslow -crf 24 -pix_fmt yuv420p -profile:v baseline -level 4.0 \
+    -movflags +faststart -y /tmp/stream-transition-background.mp4 && \
+    test -s /tmp/stream-transition-background.mp4 && test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 /tmp/stream-transition-background.mp4)" = "1920,1080,30/1,15.000000" && \
+    echo "Stream transition background MP4: $(stat -c %s /tmp/stream-transition-background.mp4) bytes (1920x1080, 15 s, no audio)" && \
     test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
     test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
 FROM ubuntu:22.04 AS sdk
@@ -157,6 +162,7 @@ COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.
 COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
 COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png
 COPY --from=splash /tmp/launch-screen-portrait.mp4 build/widget/static/res/launch-screen-portrait.mp4
+COPY --from=splash /tmp/stream-transition-background.mp4 build/widget/static/res/stream-transition-background.mp4
 RUN cp moonlight-tizen/res/icon.png build/widget/
 
 # Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later
