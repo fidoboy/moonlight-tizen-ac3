@@ -121,6 +121,7 @@ COPY --chown=moonlight res/ ./moonlight-tizen/res/
 COPY --chown=moonlight wasm/index.html ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/platform/ ./moonlight-tizen/wasm/platform/
 COPY --chown=moonlight wasm/static/ ./moonlight-tizen/wasm/static/
+COPY --from=splash /tmp/stream-transition-background.mp4 ./moonlight-tizen/wasm/static/stream-transition-background.mp4
 COPY --chown=moonlight .gi[t]/ ./moonlight-tizen/.git/
 
 # The following steps inject build metadata into the application such as build type, short commit SHA, and repository information by replacing placeholders in the `wasm/platform/index.js` file.
@@ -162,7 +163,6 @@ COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.
 COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
 COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png
 COPY --from=splash /tmp/launch-screen-portrait.mp4 build/widget/static/res/launch-screen-portrait.mp4
-COPY --from=splash /tmp/stream-transition-background.mp4 build/widget/static/res/stream-transition-background.mp4
 RUN cp moonlight-tizen/res/icon.png build/widget/
 
 # Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later
