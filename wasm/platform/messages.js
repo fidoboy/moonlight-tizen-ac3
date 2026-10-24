@@ -816,7 +816,6 @@ function handleMessage(msg) {
       if (typeof hideStreamTransitionBackground === "function") {
         hideStreamTransitionBackground();
       } else {
-        $('#loadingSpinner').hide();
         var failedRecoveryLayer = document.getElementById('stream-transition-layer');
         if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
       }
@@ -848,7 +847,6 @@ function handleMessage(msg) {
         if (typeof hideStreamTransitionBackground === "function") {
           hideStreamTransitionBackground();
         } else {
-          $('#loadingSpinner').hide();
           var returnedToAppsLayer = document.getElementById('stream-transition-layer');
           if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
         }
