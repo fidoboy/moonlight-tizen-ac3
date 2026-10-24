@@ -6,7 +6,7 @@ WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 mkdir -p "$OUTPUT_DIR"
-rm -f "$OUTPUT_DIR/launch-screen.mp4" "$OUTPUT_DIR/launch-screen-portrait.mp4" "$OUTPUT_DIR/stream-transition-background.mp4"
+rm -f "$OUTPUT_DIR/launch-screen.mp4" "$OUTPUT_DIR/launch-screen-portrait.mp4"
 
 python3 res/generate-launch-screen.py \
   --template res/launch-screen.svg \
@@ -14,8 +14,7 @@ python3 res/generate-launch-screen.py \
   --frames "$WORK_DIR/launch-frames-landscape" \
   --static-svg "$WORK_DIR/launch-screen-final.svg" \
   --orientation landscape \
-  --starfield-only-frames "$WORK_DIR/stream-transition-frames" \
-  --starfield-speed 1.0
+
 
 python3 res/generate-launch-screen.py \
   --template res/launch-screen.svg \
@@ -50,14 +49,5 @@ test -s "$OUTPUT_DIR/launch-screen-portrait.mp4"
 test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$OUTPUT_DIR/launch-screen-portrait.mp4")" = "aac"
 test "$(stat -c %s "$OUTPUT_DIR/launch-screen-portrait.mp4")" -lt 2097152
 
-ffmpeg -hide_banner -loglevel error -framerate 30 \
-  -i "$WORK_DIR/stream-transition-frames/frame-%03d.png" -frames:v 240 \
-  -an -c:v libx264 -preset veryslow -tune fastdecode -crf 30 -pix_fmt yuv420p \
-  -profile:v baseline -level 4.0 -movflags +faststart \
-  -y "$OUTPUT_DIR/stream-transition-background.mp4"
-
-test -s "$OUTPUT_DIR/stream-transition-background.mp4"
-test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 "$OUTPUT_DIR/stream-transition-background.mp4")" = "1920,1080,30/1,8.000000"
-
 echo "Generated video assets:"
-ls -lh "$OUTPUT_DIR"/{launch-screen.mp4,launch-screen-portrait.mp4,stream-transition-background.mp4}
+ls -lh "$OUTPUT_DIR"/{launch-screen.mp4,launch-screen-portrait.mp4}
