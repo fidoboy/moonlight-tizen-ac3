@@ -880,9 +880,11 @@ function handleMessage(msg) {
     // Hide the starfield only when the incoming stream is ready, and clear the normal
     // launch page background so it cannot remain black over the received video.
     if (!window._directSmartHubLaunch) {
-      if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-      $('body').css('backgroundColor', 'transparent');
+      // Clear every normal-launch page layer that can paint an opaque background
+      // over the received video. The body alone is not the only possible layer.
+      $('body, .mdl-layout, #main-content').css('backgroundColor', 'transparent');
       $('#wasm_module').css({ display: '', backgroundColor: 'transparent' });
+      if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
     }
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
