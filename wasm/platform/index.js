@@ -3190,8 +3190,21 @@ function showStreamMode() {
   $('#main-content').children().not('#listener, #loadingSpinner').hide();
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
-  $('#loadingSpinner').css('display', 'inline-block');
-  showStreamTransitionBackground();
+
+  // Show the transition video before the animated status message.
+  if (!window._directSmartHubLaunch) {
+    window._normalStreamVideoReady = false;
+    $('#loadingSpinner').hide();
+    showStreamTransitionBackground();
+    setTimeout(function() {
+      // Do not flash the loading message over the host image if video starts quickly.
+      if (!window._normalStreamVideoReady) {
+        $('#loadingSpinner').css('display', 'inline-block');
+      }
+    }, 100);
+  } else {
+    $('#loadingSpinner').css('display', 'inline-block');
+  }
 
   isInGame = true;
   fullscreenWasmModule();
