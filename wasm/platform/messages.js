@@ -755,8 +755,10 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Replace the flat teardown background with the looping starfield until Apps is restored.
+    // Show the looping starfield and the same animated status surface used during stream startup.
     if (typeof showStreamTransitionBackground === "function") showStreamTransitionBackground();
+    $('#loadingSpinnerMessage').text(t('Stopping stream...'));
+    $('#loadingSpinner').css('display', 'inline-block');
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
@@ -875,8 +877,11 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
-    // Keep the starfield visible until the first video frame is ready.
+    // Hide the starfield only when the incoming stream is ready, and explicitly clear
+    // the page background so the received video cannot remain covered by a stale black screen.
     if (!window._directSmartHubLaunch && typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+    $('body').css('backgroundColor', 'transparent');
+    $('#wasm_module').css({ display: '', backgroundColor: 'transparent' });
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
