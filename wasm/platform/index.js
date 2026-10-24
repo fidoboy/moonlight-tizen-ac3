@@ -3162,16 +3162,46 @@ function preloadStreamTransitionBackground() {
 
 // Show the generated starfield behind the normal stream setup/teardown UI.
 // Smart Hub PAYLOAD launches deliberately keep their existing startup/exit flow.
-function showStreamTransitionBackground() {
+function showStreamTransitionBackground(onVisible) {
   if (window._directSmartHubLaunch) return;
   var video = document.getElementById('stream-transition-background');
-  if (!video) return;
+  if (!video) {
+    if (typeof onVisible === 'function') onVisible();
+    return;
+  }
+
+  var notified = false;
+  var notifyVisible = function() {
+    if (notified) return;
+    notified = true;
+    video.removeEventListener('playing', notifyVisible);
+    // Let the browser paint a frame of the background before revealing any text.
+    var schedule = window.requestAnimationFrame || function(callback) { setTimeout(callback, 16); };
+    schedule(function() {
+      schedule(function() {
+        if (typeof onVisible === 'function') onVisible();
+      });
+    });
+  };
+
+  video.addEventListener('playing', notifyVisible);
   video.style.display = 'block';
   try {
     var playPromise = video.play();
-    if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(function() {});
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise.then(function() {
+        // Some older WebKit builds resolve play() without firing "playing" reliably.
+        if (video.readyState >= 2 && !video.paused) notifyVisible();
+      }).catch(function(error) {
+        video.removeEventListener('playing', notifyVisible);
+        console.warn('Could not start stream transition background video:', error);
+        if (typeof onVisible === 'function') onVisible();
+      });
+    }
   } catch (error) {
+    video.removeEventListener('playing', notifyVisible);
     console.warn('Could not start stream transition background video:', error);
+    if (typeof onVisible === 'function') onVisible();
   }
 }
 
@@ -3195,13 +3225,14 @@ function showStreamMode() {
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
     $('#loadingSpinner').hide();
-    showStreamTransitionBackground();
-    setTimeout(function() {
-      // Do not flash the loading message over the host image if video starts quickly.
-      if (!window._normalStreamVideoReady) {
-        $('#loadingSpinner').css('display', 'inline-block');
-      }
-    }, 100);
+    showStreamTransitionBackground(function() {
+      setTimeout(function() {
+        // Do not flash the loading message over the host image if video starts quickly.
+        if (!window._normalStreamVideoReady) {
+          $('#loadingSpinner').css('display', 'inline-block');
+        }
+      }, 100);
+    });
   } else {
     $('#loadingSpinner').css('display', 'inline-block');
   }
