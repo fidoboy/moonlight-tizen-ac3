@@ -889,11 +889,21 @@ function handleMessage(msg) {
     // remove opaque page backgrounds before uncovering it with the transition video.
     if (!window._directSmartHubLaunch) {
       window._normalStreamVideoReady = true;
-      $('body, .mdl-layout, #main-content, #listener').css({
+      // Clear the complete layout ancestry: MDL's wrapper/content layers can
+      // otherwise keep painting an opaque surface over the decoded host video.
+      $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
         background: 'transparent',
         backgroundColor: 'transparent'
       });
-      $('#wasm_module').css({ display: '', background: 'transparent', backgroundColor: 'transparent' });
+      // The transition video is a fixed, positioned layer. Explicitly place the
+      // decoded stream above it and above the page layout before hiding the transition.
+      $('#wasm_module').css({
+        display: '',
+        position: 'relative',
+        zIndex: 2,
+        background: 'transparent',
+        backgroundColor: 'transparent'
+      });
       $('#listener').addClass('fullscreen');
       $('#loadingSpinner').hide();
 
