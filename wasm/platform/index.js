@@ -169,6 +169,7 @@ function initializeDisabledSwitchAppearance() {
 // Called by the common.js module
 function attachListeners() {
   initializeDisabledSwitchAppearance();
+  preloadStreamTransitionBackground();
   changeUiModeForWasmLoad();
 
   // Register loadSystemInfo to run when language is initialized, and every time it changes
@@ -808,28 +809,9 @@ function unlockHostListInteraction() {
 }
 
 function finishInitialHostDiscovery() {
+  // Unlock navigation as soon as the completion snackbar is shown, not when it disappears.
   snackbarLog('Network scan completed.');
-
-  var snackbarElement = document.querySelector('#snackbar');
-  if (!snackbarElement || !snackbarElement.classList.contains('mdl-snackbar--active') ||
-      typeof MutationObserver !== 'function') {
-    unlockHostListInteraction();
-    return;
-  }
-
-  if (initialHostSnackbarObserver) {
-    initialHostSnackbarObserver.disconnect();
-  }
-
-  initialHostSnackbarObserver = new MutationObserver(function() {
-    if (!snackbarElement.classList.contains('mdl-snackbar--active')) {
-      unlockHostListInteraction();
-    }
-  });
-  initialHostSnackbarObserver.observe(snackbarElement, {
-    attributes: true,
-    attributeFilter: ['class']
-  });
+  unlockHostListInteraction();
 }
 
 var appListInteractionLocked = false;
@@ -3161,6 +3143,20 @@ function quitAppDialog() {
         });
       });
     });
+  }
+}
+
+// Preload the generated starfield without displaying or playing it.
+// Direct Smart Hub PAYLOAD launches do not use the normal transition UI.
+function preloadStreamTransitionBackground() {
+  if (window._directSmartHubLaunch) return;
+  var video = document.getElementById('stream-transition-background');
+  if (!video) return;
+  video.preload = 'auto';
+  try {
+    video.load();
+  } catch (error) {
+    console.warn('Could not preload stream transition background video:', error);
   }
 }
 
