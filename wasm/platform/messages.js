@@ -755,7 +755,7 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Show the transition video first, then reveal its animated message after 100 ms.
+    // Show the transition starfield first, then reveal its animated message after 100 ms.
     window._normalStreamVideoReady = false;
     $('#loadingSpinner').hide();
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
@@ -893,7 +893,7 @@ function handleMessage(msg) {
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
     // The first decoded host frame is ready. Put the stream in its final layout and
-    // remove opaque page backgrounds before uncovering it with the transition video.
+    // remove opaque page backgrounds before uncovering the native host video.
     if (!window._directSmartHubLaunch) {
       window._normalStreamVideoReady = true;
       // Clear the complete layout ancestry: MDL's wrapper/content layers can
@@ -902,7 +902,7 @@ function handleMessage(msg) {
         background: 'transparent',
         backgroundColor: 'transparent'
       });
-      // The transition video is a fixed, positioned layer. Explicitly place the
+      // The transition canvas is a fixed, positioned layer. Explicitly place the
       // decoded stream above it and above the page layout before hiding the transition.
       $('#wasm_module').css({
         display: '',
@@ -914,7 +914,7 @@ function handleMessage(msg) {
       $('#listener').addClass('fullscreen');
       $('#loadingSpinner').hide();
 
-      // Keep the original short cleanup delay; the transition background video
+      // Keep the original short cleanup delay; the transition background canvas
       // is disabled during this diagnostic.
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
