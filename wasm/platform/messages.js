@@ -755,6 +755,8 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
+    // Replace the flat teardown background with the looping starfield until Apps is restored.
+    if (typeof showStreamTransitionBackground === "function") showStreamTransitionBackground();
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
@@ -792,6 +794,7 @@ function handleMessage(msg) {
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
           }
+          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
         });
       }, function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!');
@@ -800,6 +803,7 @@ function handleMessage(msg) {
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
           }
+          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
         });
       });
     };
@@ -827,6 +831,7 @@ function handleMessage(msg) {
     }
     // Prepare the screen for video stream
     $('#loadingSpinner').css('display', 'none');
+    if (!window._directSmartHubLaunch && typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
