@@ -706,7 +706,6 @@ function handleMessage(msg) {
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
-    $('#wasm_module').css('display', 'none');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
@@ -819,7 +818,6 @@ function handleMessage(msg) {
         var failedRecoveryLayer = document.getElementById('stream-transition-layer');
         if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
       }
-      $('#wasm_module').hide();
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
       $('body').css('backgroundColor', '#282C38');
