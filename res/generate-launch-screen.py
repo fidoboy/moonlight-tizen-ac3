@@ -239,6 +239,74 @@ class StarField:
         root.insert(1, group)
 
 
+class PeriodicStarField:
+    """A loopable starfield whose complete state repeats after total_frames."""
+
+    # Every period divides 240 frames, so the state closes exactly at 8 seconds.
+    PERIODS = (30, 40, 48, 60, 80, 120, 240)
+
+    def __init__(self, total_frames, speed_multiplier=1.0):
+        rng = random.Random(STARFIELD_SEED)
+        self.stars = [Star(rng) for _ in range(STAR_COUNT)]
+        target_period = (MAX_STAR_DEPTH * math.log(2.0)) / (
+            STAR_SPEED * speed_multiplier
+        )
+        ranked_periods = sorted(self.PERIODS, key=lambda period: abs(period - target_period))
+        # Keep the normal-speed motion close to the original warp speed, while
+        # allowing the CLI speed multiplier to select a suitable loop period.
+        candidate_periods = ranked_periods[:2]
+        self.stars_data = []
+
+        for star in self.stars:
+            period = rng.choice(candidate_periods)
+            cycle_count = total_frames // period
+            phase_frame = rng.randrange(period)
+            cycle_index = rng.randrange(cycle_count)
+
+            # Precompute a different ray for every pass through the camera.
+            # The sequence of rays itself repeats only at the full video loop.
+            positions = []
+            for _ in range(cycle_count):
+                positions.append((star.x, star.y, star.size))
+                star.randomize_position()
+
+            star.x, star.y, star.size = positions[cycle_index]
+            self.stars_data.append({
+                "star": star,
+                "period": period,
+                "phase_frame": phase_frame,
+                "cycle_index": cycle_index,
+                "positions": positions,
+            })
+            self._update_depth(self.stars_data[-1])
+
+    @staticmethod
+    def _update_depth(data):
+        # Exponential depth progression approximates constant forward motion:
+        # z moves from MAX_STAR_DEPTH to zero over each star's period.
+        phase = data["phase_frame"] / data["period"]
+        data["star"].z = MAX_STAR_DEPTH * (2.0 - 2.0 ** phase)
+
+    def update(self, speed):
+        for data in self.stars_data:
+            data["phase_frame"] += 1
+            if data["phase_frame"] >= data["period"]:
+                data["phase_frame"] = 0
+                data["cycle_index"] = (
+                    data["cycle_index"] + 1
+                ) % len(data["positions"])
+                star = data["star"]
+                star.x, star.y, star.size = data["positions"][data["cycle_index"]]
+            self._update_depth(data)
+
+    def append_to_svg(self, root, speed=0.0):
+        # Reuse the established renderer without changing StarField or the
+        # presentation-screen animation. Only the transition video uses this.
+        renderer = object.__new__(StarField)
+        renderer.stars = self.stars
+        renderer.append_to_svg(root, speed=speed)
+
+
 def settling_scale(progress):
     """Bounce clearly below the final size, rebound above it, then settle."""
     if progress <= 0.42:
@@ -355,6 +423,45 @@ def render_svg(
     output_path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
 
+def generate_starfield_only_frames(output_dir, speed_multiplier=1.0):
+    """Render an 8-second, constant-speed starfield-only sequence for UI transitions."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    speed = STAR_SPEED * speed_multiplier
+    total_frames = 8 * FPS
+    starfield = PeriodicStarField(total_frames, speed_multiplier)
+    svg_path = output_dir / "frame.svg"
+    for frame_number in range(total_frames):
+        root = ET.Element(
+            f"{{{SVG_NS}}}svg",
+            {
+                "width": str(FRAME_WIDTH),
+                "height": str(FRAME_HEIGHT),
+                "viewBox": f"0 0 {FRAME_WIDTH} {FRAME_HEIGHT}",
+            },
+        )
+        ET.SubElement(
+            root, f"{{{SVG_NS}}}rect",
+            {"width": str(FRAME_WIDTH), "height": str(FRAME_HEIGHT), "fill": "#000000"},
+        )
+        starfield.update(speed)
+        starfield.append_to_svg(root, speed=speed)
+        svg_path.write_bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
+        frame_png = output_dir / f"frame-{frame_number:03d}.png"
+        subprocess.run(
+            [
+                "rsvg-convert", "-w", "1920", "-h", "1080",
+                "--format", "png", "-o", str(frame_png), str(svg_path),
+            ],
+            check=True,
+        )
+    svg_path.unlink(missing_ok=True)
+    print(
+        f"Generated starfield-only background: {total_frames} frames, 1920x1080 at "
+        f"{FPS} fps, 8.0 s, no logo, constant speed multiplier {speed_multiplier:g} "
+        f"(star velocity {speed:g})."
+    )
+
+
 def main():
     global FRAME_WIDTH, FRAME_HEIGHT, LOGO_CENTER_X, LOGO_CENTER_Y
 
@@ -366,6 +473,8 @@ def main():
     parser.add_argument(
         "--orientation", choices=("landscape", "portrait"), default="landscape"
     )
+    parser.add_argument("--starfield-only-frames", type=Path)
+    parser.add_argument("--starfield-speed", type=float, default=1.0)
     args = parser.parse_args()
 
     if args.orientation == "portrait":
@@ -429,6 +538,15 @@ def main():
         f"Dolby logo fade starts {DOLBY_LOGO_DELAY_AFTER_TITLE_FRAMES / FPS:.1f} s after title and lasts "
         f"{DOLBY_LOGO_FADE_IN_FRAMES / FPS:.1f} s)."
     )
+
+    if args.starfield_only_frames:
+        if args.orientation != "landscape":
+            raise SystemExit("--starfield-only-frames can only be used with landscape orientation")
+        if args.starfield_speed <= 0:
+            raise SystemExit("--starfield-speed must be greater than zero")
+        # The background vanishing point is the center of the 16:9 canvas.
+        LOGO_CENTER_X, LOGO_CENTER_Y = FRAME_WIDTH / 2.0, FRAME_HEIGHT / 2.0
+        generate_starfield_only_frames(args.starfield_only_frames, args.starfield_speed)
 
 
 if __name__ == "__main__":
