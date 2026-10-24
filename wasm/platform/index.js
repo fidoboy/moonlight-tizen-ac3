@@ -77,6 +77,7 @@ function showUiLayer(layerId, callback) {
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
+  layer._uiFadeTarget = 'visible';
   layer.style.transition = 'none';
   layer.style.display = 'block';
   layer.setAttribute('aria-hidden', 'false');
@@ -100,10 +101,11 @@ function hideUiLayer(layerId, callback) {
     if (typeof callback === 'function') callback();
     return;
   }
-  if (layer.style.opacity === '0' && uiLayerFadeTimers[layerId]) return;
+  if (layer.style.opacity === '0' && uiLayerFadeTimers[layerId] && layer._uiFadeTarget === 'hidden') return;
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
+  layer._uiFadeTarget = 'hidden';
   layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   layer.style.opacity = '0';
   uiLayerFadeTimers[layerId] = window.setTimeout(function() {
@@ -129,6 +131,7 @@ function fadeInUiElement(elementOrId, displayValue, callback) {
   if (existingTimer) window.clearTimeout(existingTimer);
   var token = (element._uiFadeToken || 0) + 1;
   element._uiFadeToken = token;
+  element._uiFadeTarget = 'visible';
   element.classList.add('ui-fade-managed');
   element.style.transition = 'none';
   element.style.display = displayValue || '';
@@ -153,10 +156,11 @@ function fadeOutUiElement(elementOrId, callback) {
     return;
   }
   var existingTimer = uiElementFadeTimers.get(element);
-  if (element.style.opacity === '0' && existingTimer) return;
+  if (element.style.opacity === '0' && existingTimer && element._uiFadeTarget === 'hidden') return;
   if (existingTimer) window.clearTimeout(existingTimer);
   var token = (element._uiFadeToken || 0) + 1;
   element._uiFadeToken = token;
+  element._uiFadeTarget = 'hidden';
   element.classList.add('ui-fade-managed');
   element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   element.style.opacity = '0';
