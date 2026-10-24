@@ -795,9 +795,11 @@ function handleMessage(msg) {
       if (typeof clearViewLoadingSnackbarTimer === "function") clearViewLoadingSnackbarTimer();
       if (window.isDialogOpen) {
         var openDialogs = document.querySelectorAll('dialog[open]');
-        openDialogs.forEach(function(dialog) {
-          try { dialog.close(); } catch (error) {}
-        });
+        for (var dialogIndex = 0; dialogIndex < openDialogs.length; dialogIndex++) {
+          try { openDialogs[dialogIndex].close(); } catch (error) {}
+        }
+        var quitAppOverlay = document.getElementById('quitAppDialogOverlay');
+        if (quitAppOverlay) quitAppOverlay.style.display = 'none';
         window.isDialogOpen = false;
       }
 
