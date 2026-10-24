@@ -12,10 +12,8 @@ RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --d
     test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
 COPY generated-videos/launch-screen.mp4 /tmp/launch-screen.mp4
 COPY generated-videos/launch-screen-portrait.mp4 /tmp/launch-screen-portrait.mp4
-COPY generated-videos/stream-transition-background.mp4 /tmp/stream-transition-background.mp4
 RUN test -s /tmp/launch-screen.mp4 && \
-    test -s /tmp/launch-screen-portrait.mp4 && \
-    test -s /tmp/stream-transition-background.mp4
+    test -s /tmp/launch-screen-portrait.mp4
 FROM ubuntu:22.04 AS sdk
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -109,7 +107,6 @@ COPY --chown=moonlight res/ ./moonlight-tizen/res/
 COPY --chown=moonlight wasm/index.html ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/platform/ ./moonlight-tizen/wasm/platform/
 COPY --chown=moonlight wasm/static/ ./moonlight-tizen/wasm/static/
-COPY --from=splash /tmp/stream-transition-background.mp4 ./moonlight-tizen/wasm/static/stream-transition-background.mp4
 COPY --chown=moonlight .gi[t]/ ./moonlight-tizen/.git/
 
 # The following steps inject build metadata into the application such as build type, short commit SHA, and repository information by replacing placeholders in the `wasm/platform/index.js` file.
