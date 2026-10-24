@@ -3164,6 +3164,28 @@ function quitAppDialog() {
   }
 }
 
+// Show the generated starfield behind the normal stream setup/teardown UI.
+// Smart Hub PAYLOAD launches deliberately keep their existing startup/exit flow.
+function showStreamTransitionBackground() {
+  if (window._directSmartHubLaunch) return;
+  var video = document.getElementById('stream-transition-background');
+  if (!video) return;
+  video.style.display = 'block';
+  try {
+    var playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(function() {});
+  } catch (error) {
+    console.warn('Could not start stream transition background video:', error);
+  }
+}
+
+function hideStreamTransitionBackground() {
+  var video = document.getElementById('stream-transition-background');
+  if (!video) return;
+  video.pause();
+  video.style.display = 'none';
+}
+
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
@@ -3172,6 +3194,7 @@ function showStreamMode() {
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
   $('#loadingSpinner').css('display', 'inline-block');
+  showStreamTransitionBackground();
 
   isInGame = true;
   fullscreenWasmModule();
