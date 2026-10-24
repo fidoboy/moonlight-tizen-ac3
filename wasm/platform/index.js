@@ -169,7 +169,10 @@ function initializeDisabledSwitchAppearance() {
 // Called by the common.js module
 function attachListeners() {
   initializeDisabledSwitchAppearance();
-  preloadStreamTransitionBackground();
+  if (!window._streamTransitionResizeListenerAttached) {
+    window.addEventListener('resize', resizeStreamTransitionBackground);
+    window._streamTransitionResizeListenerAttached = true;
+  }
   changeUiModeForWasmLoad();
 
   // Register loadSystemInfo to run when language is initialized, and every time it changes
@@ -3146,96 +3149,149 @@ function quitAppDialog() {
   }
 }
 
-// Create the transition video on demand. After each use, the element is
-// removed completely so Tizen can release its media resources before EMSS starts.
+// Render the transition starfield directly on a canvas. No video decoder or
+// continuously running animation is kept alive while the transition is hidden.
+var streamTransitionCanvas = null;
+var streamTransitionContext = null;
+var streamTransitionStars = [];
+var streamTransitionAnimationFrame = null;
+var streamTransitionVisible = false;
+var streamTransitionFirstFrameCallback = null;
+var STREAM_TRANSITION_STAR_COUNT = 2000;
+var STREAM_TRANSITION_MAX_DEPTH = 1500;
+var STREAM_TRANSITION_SPEED = 5;
+
 function createStreamTransitionBackground() {
-  var video = document.getElementById('stream-transition-background');
-  if (video) return video;
-
-  video = document.createElement('video');
-  video.id = 'stream-transition-background';
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.preload = 'auto';
-  video.setAttribute('aria-hidden', 'true');
-  video.src = 'static/stream-transition-background.mp4';
-
-  var frame = document.getElementById('stream-transition-frame');
-  if (frame && frame.parentNode) {
-    frame.parentNode.insertBefore(video, frame);
-  } else {
-    document.body.insertBefore(video, document.body.firstChild);
-  }
-  return video;
+  return document.getElementById('stream-transition-frame');
 }
 
-function preloadStreamTransitionBackground() {
-  var video = createStreamTransitionBackground();
-  video.preload = 'auto';
-  video.load();
+function resetStreamTransitionStar(star, randomDepth) {
+  var width = streamTransitionCanvas.width;
+  var angle = Math.random() * Math.PI * 2;
+  var distance = Math.sqrt(Math.random()) * (width / 2);
+  star.x = Math.cos(angle) * distance;
+  star.y = Math.sin(angle) * distance;
+  star.z = randomDepth ? Math.random() * STREAM_TRANSITION_MAX_DEPTH : STREAM_TRANSITION_MAX_DEPTH;
+  star.size = (1 - distance / (width / 2)) * 0.1 + 0.5;
 }
 
-function showStreamTransitionBackground(onVisible) {
-  var video = createStreamTransitionBackground();
-  video.style.display = 'block';
+function initializeStreamTransitionStars() {
+  streamTransitionStars = [];
+  if (!streamTransitionCanvas || streamTransitionCanvas.width <= 0) return;
 
-  try {
-    video.currentTime = 0;
-  } catch (error) {
-    // Some Tizen media implementations reject seeking until metadata is ready.
+  for (var i = 0; i < STREAM_TRANSITION_STAR_COUNT; i++) {
+    var star = {};
+    resetStreamTransitionStar(star, true);
+    streamTransitionStars.push(star);
   }
+}
 
-  var notified = false;
-  var notifyVisible = function() {
-    if (notified) return;
-    notified = true;
-    if (typeof onVisible === 'function') onVisible();
-  };
+function resizeStreamTransitionBackground() {
+  if (!streamTransitionVisible || !streamTransitionCanvas) return;
 
-  var playPromise;
-  try {
-    playPromise = video.play();
-  } catch (error) {
-    console.warn('%c[index.js, showStreamTransitionBackground]', 'color: green;', 'Could not start transition background video:', error);
-    notifyVisible();
+  streamTransitionCanvas.width = Math.max(1, window.innerWidth);
+  streamTransitionCanvas.height = Math.max(1, window.innerHeight);
+  initializeStreamTransitionStars();
+}
+
+function animateStreamTransitionBackground() {
+  if (!streamTransitionVisible || !streamTransitionCanvas || !streamTransitionContext) {
+    streamTransitionAnimationFrame = null;
     return;
   }
 
-  if (playPromise && typeof playPromise.then === 'function') {
-    playPromise.then(notifyVisible, function(error) {
-      console.warn('%c[index.js, showStreamTransitionBackground]', 'color: green;', 'Transition background playback was rejected:', error);
-      notifyVisible();
-    });
-  } else {
-    // Older Tizen WebKit versions may not return a Promise from play().
-    notifyVisible();
+  var canvas = streamTransitionCanvas;
+  var ctx = streamTransitionContext;
+  var width = canvas.width;
+  var height = canvas.height;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+  ctx.beginPath();
+
+  for (var i = 0; i < streamTransitionStars.length; i++) {
+    var star = streamTransitionStars[i];
+    star.z -= STREAM_TRANSITION_SPEED * (2 - star.z / STREAM_TRANSITION_MAX_DEPTH);
+    if (star.z <= 1) resetStreamTransitionStar(star, false);
+
+    var x = ((star.x / star.z) * width) / 2 + width / 2;
+    var y = ((star.y / star.z) * height) / 2 + height / 2;
+    var radius = (1 - star.z / STREAM_TRANSITION_MAX_DEPTH) * star.size * 3;
+
+    if (radius > 0.1 && x > -radius && x < width + radius && y > -radius && y < height + radius) {
+      // Append all stars to one path to minimize canvas draw calls on TV hardware.
+      ctx.moveTo(x + radius, y);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+    }
   }
+
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  if (streamTransitionFirstFrameCallback) {
+    var callback = streamTransitionFirstFrameCallback;
+    streamTransitionFirstFrameCallback = null;
+    try {
+      callback();
+    } catch (error) {
+      console.warn('%c[index.js, animateStreamTransitionBackground]', 'color: green;', 'Transition visibility callback failed:', error);
+    }
+  }
+
+  streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
+}
+
+function showStreamTransitionBackground(onVisible) {
+  var canvas = createStreamTransitionBackground();
+  if (!canvas) {
+    if (typeof onVisible === 'function') onVisible();
+    return;
+  }
+
+  if (streamTransitionVisible) {
+    if (typeof onVisible === 'function') onVisible();
+    return;
+  }
+
+  streamTransitionCanvas = canvas;
+  streamTransitionCanvas.style.display = 'block';
+  streamTransitionCanvas.width = Math.max(1, window.innerWidth);
+  streamTransitionCanvas.height = Math.max(1, window.innerHeight);
+  streamTransitionContext = streamTransitionCanvas.getContext('2d');
+  streamTransitionVisible = true;
+  streamTransitionFirstFrameCallback = typeof onVisible === 'function' ? onVisible : null;
+
+  if (!streamTransitionContext) {
+    streamTransitionFirstFrameCallback = null;
+    if (typeof onVisible === 'function') onVisible();
+    return;
+  }
+
+  initializeStreamTransitionStars();
+  streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
 }
 
 function hideStreamTransitionBackground() {
-  var video = document.getElementById('stream-transition-background');
-  var frame = document.getElementById('stream-transition-frame');
-
-  if (video) {
-    try {
-      video.pause();
-      video.removeAttribute('src');
-      while (video.firstChild) video.removeChild(video.firstChild);
-      // Calling load() after removing all sources resets the media element.
-      video.load();
-    } catch (error) {
-      console.warn('%c[index.js, hideStreamTransitionBackground]', 'color: green;', 'Could not fully reset transition video before removal:', error);
-    }
-    if (video.parentNode) video.parentNode.removeChild(video);
+  // Cancel the pending frame first so no CPU/GPU work continues while hidden.
+  streamTransitionVisible = false;
+  if (streamTransitionAnimationFrame !== null) {
+    window.cancelAnimationFrame(streamTransitionAnimationFrame);
+    streamTransitionAnimationFrame = null;
   }
-  if (frame) frame.style.display = 'none';
-}
 
-// The native EMSS stream is about to start. Tear down the transition player
-// completely instead of merely pausing it, to avoid retaining a Tizen video surface.
-function freezeStreamTransitionBackground() {
-  hideStreamTransitionBackground();
+  streamTransitionFirstFrameCallback = null;
+  streamTransitionStars = [];
+
+  var canvas = createStreamTransitionBackground();
+  if (canvas) {
+    canvas.style.display = 'none';
+    // Release the canvas backing store while it is not visible.
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+
+  streamTransitionContext = null;
+  streamTransitionCanvas = null;
 }
 
 // Handle layout elements when displaying the Stream view
@@ -3465,8 +3521,7 @@ function startGame(host, appID) {
             });
             return;
           }
-          // Release the transition MP4 decoder before starting Tizen's native EMSS video.
-          freezeStreamTransitionBackground();
+          // Keep the lightweight canvas running until the first native stream frame is visible.
           // Start stream request
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
@@ -3529,8 +3584,7 @@ function startGame(host, appID) {
           });
           return;
         }
-        // Release the transition MP4 decoder before starting Tizen's native EMSS video.
-        freezeStreamTransitionBackground();
+        // Keep the lightweight canvas running until the first native stream frame is visible.
         // Start stream request
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
