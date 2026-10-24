@@ -178,7 +178,7 @@ body {
     opacity: 0;
     transform: translateY(-10px);
     box-shadow: 0 0 6px 2px rgba(239, 191, 4, 0.5);
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: opacity var(--ui-fade-duration) ease-in-out, transform var(--ui-fade-duration) ease-in-out, box-shadow 0.2s ease-in-out;
 }
 #updateAppBtn:hover, #updateAppBtn:focus {
     background-color: #404354;
@@ -785,7 +785,7 @@ body {
     height: 100%;
     z-index: -1;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
 }
 #game-grid .mdl-card img.fade-in {
     opacity: 1;

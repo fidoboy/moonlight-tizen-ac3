@@ -164,6 +164,14 @@ function fadeOutUiElement(elementOrId, callback) {
   }, UI_FADE_DURATION_MS));
 }
 
+function hideStreamDiagnosticsLayer(afterHidden) {
+  hideUiLayer('stream-diagnostics-layer', function() {
+    $('#connection-warnings').css('display', 'none').text('');
+    $('#performance-stats').css('display', 'none').text('');
+    if (typeof afterHidden === 'function') afterHidden();
+  });
+}
+
 function showUiDialog(dialogLike) {
   var dlg = resolveUiElement(dialogLike);
   if (!dlg || typeof dlg.show !== 'function') return;
@@ -845,7 +853,7 @@ function refreshHosts() {
       console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
     })
     .then(function() {
-      stopPollingHosts();
+    stopPollingHosts();
       if (typeof startSubnetScanner !== 'function') {
         throw new Error('Subnet scanner is unavailable');
       }
@@ -875,7 +883,7 @@ function refreshHosts() {
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
 
-  hideUiLayer('stream-diagnostics-layer');
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -895,7 +903,7 @@ function showHostsMode(skipPollingRestart) {
   $('#listener').removeClass('fullscreen');
 
   showUiLayer('main-ui-layer');
-    Navigation.start();
+  Navigation.start();
   Navigation.pop();
   // Stop any existing polls before starting new ones to prevent setInterval leaks.
   // Without this, navigating back to the host view multiple times accumulates
@@ -992,13 +1000,13 @@ function showHosts() {
   scheduleViewLoadingSnackbar('Loading Hosts...');
 
   // Fade out the Apps grid, then reveal the Hosts grid.
-  $('#game-grid').stop(true, true).fadeOut(300, function() {
+  $('#game-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS, function() {
     $('#settings-list').hide();
 
     // Navigate to the Hosts view once the Apps grid has faded out.
     showHostsMode();
 
-    $('#host-grid').stop(true, true).hide().fadeIn(300, function() {
+    $('#host-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
       clearViewLoadingSnackbarTimer();
       Navigation.switch();
     });
@@ -2192,7 +2200,7 @@ function appSupportDialog() {
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
 
-  hideUiLayer('stream-diagnostics-layer');
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -2208,8 +2216,6 @@ function showSettingsMode() {
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#quitRunningAppBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -2943,7 +2949,7 @@ function sortTitles(list, sortOrder) {
 function showAppsMode() {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
 
-  hideUiLayer('stream-diagnostics-layer');
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -2954,7 +2960,7 @@ function showAppsMode() {
   $('#host-grid').hide();
   $('#settings-list').hide();
   // Fade in the Apps grid after the Hosts grid has faded out.
-  $('#game-grid').stop(true, true).hide().fadeIn(300, function() {
+  $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
     clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
       unlockAppListInteraction();
@@ -2968,14 +2974,12 @@ function showAppsMode() {
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
   $('body').css('backgroundColor', '#282C38');
 
   showUiLayer('main-ui-layer');
-    isInGame = false;
+  isInGame = false;
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
   stopPollingHosts();
@@ -2995,14 +2999,14 @@ function showApps(host) {
     }
 
     // Stop navigation while transitioning from Hosts to Apps.
-    Navigation.stop();
+  Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
     // Show a snackbar only if loading and transitioning takes more than one second.
     scheduleViewLoadingSnackbar('Loading Apps...');
 
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
-    $('#host-grid').stop(true, true).fadeOut(300);
+    $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
     // Remove all game container elements from the game grid and from any other div elements
     $('#game-grid').empty();
