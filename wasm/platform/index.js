@@ -3232,12 +3232,13 @@ function animateStreamTransitionBackground() {
   ctx.fillStyle = '#fff';
   ctx.fill();
 
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer) transitionLayer.style.display = 'block';
+
   if (streamTransitionFirstFrameCallback) {
     var callback = streamTransitionFirstFrameCallback;
     streamTransitionFirstFrameCallback = null;
     try {
-      var transitionLayer = document.getElementById('stream-transition-layer');
-      if (transitionLayer) transitionLayer.style.display = 'block';
       callback();
     } catch (error) {
       console.warn('%c[index.js, animateStreamTransitionBackground]', 'color: green;', 'Transition visibility callback failed:', error);
@@ -3270,7 +3271,6 @@ function showStreamTransitionBackground(onVisible) {
   }
 
   streamTransitionCanvas = canvas;
-  streamTransitionCanvas.style.display = 'block';
   streamTransitionCanvas.width = Math.max(1, window.innerWidth);
   streamTransitionCanvas.height = Math.max(1, window.innerHeight);
   streamTransitionContext = streamTransitionCanvas.getContext('2d');
