@@ -10,15 +10,35 @@ body {
     -moz-user-select: none;
     user-select: none;
 }
-#stream-transition-frame {
+/* Fixed stacking levels: video 0, UI 1, transition 2, diagnostics/snackbar 3, dialogs/menu 4. */
+#wasm_module {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 0;
+    background: transparent;
+}
+#stream-transition-layer {
     display: none;
     position: fixed;
     inset: 0;
-    width: 100vw;
-    height: 100vh;
+    z-index: 20;
     pointer-events: none;
-    z-index: 1;
+    background: transparent;
+}
+#stream-transition-frame {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
     background: #000;
+}
+#stream-transition-layer #loadingSpinner {
+    z-index: 1;
 }
 .mdl-grid {
     width: 100%;
@@ -55,7 +75,7 @@ body {
     bottom: 50%;
     left: 50%;
     margin: 0 auto;
-    z-index: 2;
+    z-index: 1;
     transform: translate(-50%, -50%);
 }
 .mdl-progress > .progressbar,
@@ -165,6 +185,9 @@ body {
     height: 0;
     display: none;
 }
+#snackbar {
+    z-index: 30;
+}
 .mdl-snackbar {
     background: rgba(62, 68, 84, 0.9);
     min-width: 0;
@@ -213,7 +236,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 999;
+    z-index: 40;
     background: rgba(0, 0, 0, 0.4);
     display: none;
     align-items: center;
@@ -796,7 +819,6 @@ body {
 .fullscreen {
     position: relative !important;
     height: 100vh !important;
-    z-index: 1 !important;
     margin: auto !important;
     padding: 0 !important;
     border: none !important;
@@ -808,7 +830,7 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    z-index: 3;
+    z-index: 30;
     padding: 8px;
     border-radius: 8px;
     font-size: 1.85rem;
@@ -822,7 +844,7 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    z-index: 3;
+    z-index: 30;
     padding: 20px;
     border-radius: 8px;
     font-size: 16px;
