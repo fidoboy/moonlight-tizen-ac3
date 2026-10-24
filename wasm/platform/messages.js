@@ -753,6 +753,10 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
+    // Lock and dim the stale Apps grid for the entire asynchronous refresh/recovery period.
+    if (typeof lockAppListInteraction === 'function') {
+      lockAppListInteraction();
+    }
     // Set the message first, then show the complete transition layer.
     window._normalStreamVideoReady = false;
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
@@ -888,7 +892,8 @@ function handleMessage(msg) {
   } else if (msg.indexOf('DialogMsg: ') === 0) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
-  } else if (msg === 'displayVideo') {
+  } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
+    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'First decoded host frame received; hiding stream transition layer.');
     // The first decoded host frame is ready. Put the stream in its final layout and
     // remove opaque page backgrounds before uncovering the native host video.
     if (!window._directSmartHubLaunch) {
