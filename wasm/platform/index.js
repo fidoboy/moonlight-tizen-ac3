@@ -3279,6 +3279,8 @@ function showStreamTransitionBackground(onVisible) {
 
   if (!streamTransitionContext) {
     streamTransitionFirstFrameCallback = null;
+    var unavailableContextLayer = document.getElementById('stream-transition-layer');
+    if (unavailableContextLayer) unavailableContextLayer.style.display = 'block';
     if (typeof onVisible === 'function') onVisible();
     return;
   }
