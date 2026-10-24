@@ -346,7 +346,7 @@ function changeUiModeForWasmLoad() {
   }
 
   // Startup progress is shown in a snackbar, not a full-screen spinner.
-  $('#wasmSpinner, #loadingSpinner').hide();
+  $('#wasmSpinner').hide();
   $('#wasmSpinnerMessage, #loadingSpinnerMessage').empty();
 }
 
@@ -382,7 +382,7 @@ function maybeReleaseNativeLaunchScreen() {
   if (headerTitle) headerTitle.textContent = t('Hosts');
   $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
   $('#settingsBtn, #supportBtn, #updateAppBtn').show();
-  $('#settings-list, #game-grid, #wasmSpinner, #loadingSpinner').hide();
+  $('#settings-list, #game-grid, #wasmSpinner').hide();
 
   document.documentElement.classList.remove('app-starting');
 
@@ -876,7 +876,6 @@ function restoreUiAfterWasmLoad() {
   $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
-  $('#loadingSpinner').css('display', 'none');
 
   // Start at the first host when loading the Hosts view.
   Views.Hosts.view.reset();
@@ -2828,7 +2827,6 @@ function showAppsMode() {
   $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
-  $('#loadingSpinner').css('display', 'none');
   $('body').css('backgroundColor', '#282C38');
   $('#wasm_module').css('display', 'none');
 
