@@ -3146,70 +3146,15 @@ function quitAppDialog() {
   }
 }
 
-// Preload the generated starfield without displaying or playing it.
-// Direct Smart Hub PAYLOAD launches do not use the normal transition UI.
+// TEMPORARY DIAGNOSTIC: disable transition-video initialization entirely.
+// This lets us test the native stream with only the original flat background.
 function preloadStreamTransitionBackground() {
-  if (window._directSmartHubLaunch) return;
-  var video = document.getElementById('stream-transition-background');
-  if (!video) return;
-  video.preload = 'auto';
-  try {
-    video.load();
-  } catch (error) {
-    console.warn('Could not preload stream transition background video:', error);
-  }
+  // Intentionally disabled for the black-screen diagnostic.
 }
 
-// Show the generated starfield behind the normal stream setup/teardown UI.
-// Smart Hub PAYLOAD launches deliberately keep their existing startup/exit flow.
+// TEMPORARY DIAGNOSTIC: keep the flat background; do not play the starfield.
 function showStreamTransitionBackground(onVisible) {
-  if (window._directSmartHubLaunch) return;
-  var video = document.getElementById('stream-transition-background');
-  var frame = document.getElementById('stream-transition-frame');
-  if (frame) frame.style.display = 'none';
-  if (!video) {
-    if (typeof onVisible === 'function') onVisible();
-    return;
-  }
-
-  var notified = false;
-  var notifyVisible = function() {
-    if (notified) return;
-    notified = true;
-    video.removeEventListener('playing', notifyVisible);
-    // Let the browser paint a frame of the background before revealing any text.
-    if (typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(function() {
-        window.requestAnimationFrame(function() {
-          if (typeof onVisible === 'function') onVisible();
-        });
-      });
-    } else {
-      setTimeout(function() {
-        if (typeof onVisible === 'function') onVisible();
-      }, 34);
-    }
-  };
-
-  video.addEventListener('playing', notifyVisible);
-  video.style.display = 'block';
-  try {
-    var playPromise = video.play();
-    if (playPromise && typeof playPromise.then === 'function') {
-      playPromise.then(function() {
-        // Some older WebKit builds resolve play() without firing "playing" reliably.
-        if (video.readyState >= 2 && !video.paused) notifyVisible();
-      }).catch(function(error) {
-        video.removeEventListener('playing', notifyVisible);
-        console.warn('Could not start stream transition background video:', error);
-        if (typeof onVisible === 'function') onVisible();
-      });
-    }
-  } catch (error) {
-    video.removeEventListener('playing', notifyVisible);
-    console.warn('Could not start stream transition background video:', error);
-    if (typeof onVisible === 'function') onVisible();
-  }
+  if (typeof onVisible === 'function') onVisible();
 }
 
 function hideStreamTransitionBackground() {
@@ -3223,34 +3168,10 @@ function hideStreamTransitionBackground() {
   if (frame) frame.style.display = 'none';
 }
 
-// Tizen's native EMSS stream and an HTML5 MP4 can contend for the TV's video
-// playback plane/decoder. Freeze the last transition frame and release the MP4
-// decoder before asking EMSS to start the remote stream.
+// TEMPORARY DIAGNOSTIC: no transition video is initialized, so there is no
+// frame to freeze and no media decoder to release before starting EMSS.
 function freezeStreamTransitionBackground() {
-  if (window._directSmartHubLaunch) return;
-  var video = document.getElementById('stream-transition-background');
-  var frame = document.getElementById('stream-transition-frame');
-  if (!video) return;
-
-  if (frame && video.readyState >= 2) {
-    try {
-      var width = video.videoWidth || 1920;
-      var height = video.videoHeight || 1080;
-      frame.width = width;
-      frame.height = height;
-      var context = frame.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, width, height);
-        frame.style.display = 'block';
-      }
-    } catch (error) {
-      console.warn('Could not freeze the stream transition frame:', error);
-    }
-  }
-
-  video.pause();
-  video.currentTime = 0;
-  video.style.display = 'none';
+  // Intentionally disabled for the black-screen diagnostic.
 }
 
 // Handle layout elements when displaying the Stream view
