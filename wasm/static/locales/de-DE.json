@@ -6,6 +6,7 @@
   "Support": "Support",
   "Rescan Network": "Netzwerk erneut scannen",
   "Network scan completed.": "Netzwerksuche abgeschlossen.",
+  "Stopping stream...": "Stream wird beendet...",
   "Network scan failed.": "Netzwerksuche fehlgeschlagen.",
   "Restore Defaults": "Standardeinstellungen wiederherstellen",
   "Quit Running App": "Laufende Anwendung beenden",
