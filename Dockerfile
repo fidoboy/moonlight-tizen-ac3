@@ -21,11 +21,11 @@ RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --d
     -profile:v baseline -level 4.0 \
     -c:a aac -b:a 96k -ar 48000 -ac 2 -shortest -movflags +faststart -y /tmp/launch-screen-portrait.mp4 && \
     test -s /tmp/launch-screen-portrait.mp4 && test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/launch-screen-portrait.mp4)" = "aac" && echo "Portrait splash MP4: $(stat -c %s /tmp/launch-screen-portrait.mp4) bytes (AAC audio)" && test "$(stat -c %s /tmp/launch-screen-portrait.mp4)" -lt 2097152 && \
-    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/stream-transition-frames/frame-%03d.png -frames:v 450 \
+    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/stream-transition-frames/frame-%03d.png -frames:v 240 \
     -an -c:v libx264 -preset veryslow -crf 30 -pix_fmt yuv420p -profile:v baseline -level 4.0 \
     -movflags +faststart -y /tmp/stream-transition-background.mp4 && \
-    test -s /tmp/stream-transition-background.mp4 && test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 /tmp/stream-transition-background.mp4)" = "1920,1080,30/1,15.000000" && \
-    echo "Stream transition background MP4: $(stat -c %s /tmp/stream-transition-background.mp4) bytes (1920x1080, 15 s, no audio)" && \
+    test -s /tmp/stream-transition-background.mp4 && test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,duration -of csv=p=0 /tmp/stream-transition-background.mp4)" = "1920,1080,30/1,8.000000" && \
+    echo "Stream transition background MP4: $(stat -c %s /tmp/stream-transition-background.mp4) bytes (1920x1080, 8 s, no audio)" && \
     test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
     test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
 FROM ubuntu:22.04 AS sdk
