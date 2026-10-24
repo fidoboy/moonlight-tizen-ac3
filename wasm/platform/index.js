@@ -3302,7 +3302,7 @@ function showStreamMode() {
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
-  // Show the transition video before the animated status message.
+  // Show the transition canvas before the animated status message.
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
     $('#loadingSpinner').hide();
