@@ -4,8 +4,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin fo
 COPY res/launch-screen.svg /tmp/launch-screen.svg
 COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
 COPY wasm/static/res/ic_dolby_double_d.svg /tmp/ic_dolby_double_d.svg
-RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape && \
-    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-portrait --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait && \
+RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-final.svg --orientation landscape --static-only && \
+    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait --static-only && \
     rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
     rsvg-convert -w 1080 -h 1920 --format png -o /tmp/launch-screen-portrait.png /tmp/launch-screen-portrait-final.svg && \
     test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
