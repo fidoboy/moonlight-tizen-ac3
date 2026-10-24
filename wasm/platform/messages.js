@@ -755,10 +755,13 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Show the looping starfield and the same animated status surface used during stream startup.
+    // Show the transition video first, then reveal its animated message after 100 ms.
     if (typeof showStreamTransitionBackground === "function") showStreamTransitionBackground();
+    $('#loadingSpinner').hide();
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
-    $('#loadingSpinner').css('display', 'inline-block');
+    setTimeout(function() {
+      if (!window._directSmartHubLaunch) $('#loadingSpinner').css('display', 'inline-block');
+    }, 100);
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
@@ -835,7 +838,11 @@ function handleMessage(msg) {
         if (!window.isDialogOpen) {
           Navigation.change(Views.Apps);
         }
-        if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
+        // Hide the message first; leave the background visible for another 100 ms.
+        $('#loadingSpinner').hide();
+        setTimeout(function() {
+          if (typeof hideStreamTransitionBackground === "function") hideStreamTransitionBackground();
+        }, 100);
       }).catch(function(failure) {
         returnToHostsAfterRecoveryFailure(failure);
       });
@@ -877,14 +884,24 @@ function handleMessage(msg) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
   } else if (msg === 'displayVideo') {
-    // Hide the starfield only when the incoming stream is ready, and clear the normal
-    // launch page background so it cannot remain black over the received video.
+    // The first decoded host frame is ready. Put the stream in its final layout and
+    // remove opaque page backgrounds before uncovering it with the transition video.
     if (!window._directSmartHubLaunch) {
-      // Clear every normal-launch page layer that can paint an opaque background
-      // over the received video. The body alone is not the only possible layer.
-      $('body, .mdl-layout, #main-content').css('backgroundColor', 'transparent');
-      $('#wasm_module').css({ display: '', backgroundColor: 'transparent' });
-      if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+      $('body, .mdl-layout, #main-content, #listener').css({
+        background: 'transparent',
+        backgroundColor: 'transparent'
+      });
+      $('#wasm_module').css({ display: '', background: 'transparent', backgroundColor: 'transparent' });
+      $('#listener').addClass('fullscreen');
+      $('#loadingSpinner').hide();
+
+      // Keep the transition visible for one short beat after the host video is ready,
+      // avoiding a black flash while the decoded frame reaches the display surface.
+      setTimeout(function() {
+        if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+      }, 100);
+    } else {
+      $('#listener').addClass('fullscreen');
     }
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
@@ -892,8 +909,6 @@ function handleMessage(msg) {
       var directStatusElement = document.getElementById('directSmartHubStatus');
       if (directStatusElement) directStatusElement.style.display = 'none';
     }
-    // Show the video stream now
-    $('#listener').addClass('fullscreen');
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
     $('#connection-warnings').css('background', 'transparent');
