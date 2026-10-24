@@ -1,4 +1,4 @@
-# Generate the animated native Samsung TV splash in a tool-only stage.
+# Generate only the static native Samsung TV splash fallbacks; animated MP4s are versioned separately.
 FROM ubuntu:22.04 AS splash
 RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
 COPY res/launch-screen.svg /tmp/launch-screen.svg
