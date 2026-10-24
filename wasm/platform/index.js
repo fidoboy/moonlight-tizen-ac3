@@ -203,15 +203,19 @@ function showUiDialog(dialogLike) {
   window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
 }
 
-function closeUiDialog(dialogLike) {
+function closeUiDialog(dialogLike, callback) {
   var dlg = resolveUiElement(dialogLike);
-  if (!dlg || typeof dlg.close !== 'function' || !dlg.open) return;
+  if (!dlg || typeof dlg.close !== 'function' || !dlg.open) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
   if (dlg._uiDialogFadeTimer) return;
   dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
   dlg.style.opacity = '0';
   dlg._uiDialogFadeTimer = window.setTimeout(function() {
     dlg._uiDialogFadeTimer = null;
     try { dlg.close(); } finally { dlg.style.opacity = ''; }
+    if (typeof callback === 'function') callback();
   }, UI_FADE_DURATION_MS);
 }
 
@@ -3968,7 +3972,7 @@ function streamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
-  $(streamMenuDialogOverlay).css('display', 'flex');
+  fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
   Views.StreamMenuDialog.view.index = 0;
@@ -3979,24 +3983,29 @@ function streamMenuDialog() {
 
 function closeStreamMenuDialog(returnToStream) {
   var streamMenuDialogOverlay = $('#streamMenuDialogOverlay');
-  if (streamMenuDialogOverlay.length === 0) {
+  if (streamMenuDialogOverlay.length === 0 || streamMenuDialogOverlay[0]._closingUiDialog) {
     return;
   }
+  var overlayElement = streamMenuDialogOverlay[0];
+  var dialogElement = $('#streamMenuDialog')[0];
+  overlayElement._closingUiDialog = true;
   Navigation.pop();
   Navigation.stop();
   window.removeEventListener('mousemove', stopMouseMovePropagation, true);
-  $('#streamMenuDialog')[0].close();
-  streamMenuDialogOverlay.remove();
+  fadeOutUiElement(overlayElement);
   isDialogOpen = false;
-  if (returnToStream) {
-    var videoElement = document.getElementById('wasm_module');
-    videoElement.focus();
-    if (document.pointerLockElement !== videoElement) {
-      videoElement.dispatchEvent(new MouseEvent('mousedown', {
-        bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0
-      }));
+  closeUiDialog(dialogElement, function() {
+    streamMenuDialogOverlay.remove();
+    if (returnToStream) {
+      var videoElement = document.getElementById('wasm_module');
+      videoElement.focus();
+      if (document.pointerLockElement !== videoElement) {
+        videoElement.dispatchEvent(new MouseEvent('mousedown', {
+          bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0
+        }));
+      }
     }
-  }
+  });
 }
 
 function stopMouseMovePropagation(e) {
