@@ -10,7 +10,6 @@ body {
     -moz-user-select: none;
     user-select: none;
 }
-#stream-transition-background,
 #stream-transition-frame {
     display: none;
     position: fixed;
@@ -19,12 +18,6 @@ body {
     height: 100vh;
     pointer-events: none;
     z-index: 0;
-}
-#stream-transition-background {
-    object-fit: cover;
-    background: #000;
-}
-#stream-transition-frame {
     background: #000;
 }
 .mdl-grid {
