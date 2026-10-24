@@ -952,9 +952,13 @@ function selectFirstHostAfterAddHost() {
 
   var view = Views.Hosts.view;
   var previousItem = view.current();
+
+  // Do not steal focus if the user has already selected a real host.
   if (previousItem && previousItem !== items[0]) {
-    unmark(previousItem);
+    return;
   }
+
+  if (previousItem) unmark(previousItem);
   view.reset();
   Navigation.right();
 }
@@ -974,6 +978,9 @@ function unlockHostListInteraction() {
   initialHostListInteractionLocked = false;
   $('#host-grid').removeClass('host-list-locked');
   Navigation.start();
+  // The initial selection attempt may have happened while Navigation was stopped.
+  // Retry now that navigation is active, but only replace the Add Host selection.
+  selectFirstHostAfterAddHost();
   Navigation.switch();
 
   if (initialHostSnackbarObserver) {
