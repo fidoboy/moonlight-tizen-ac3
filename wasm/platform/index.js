@@ -3176,12 +3176,17 @@ function showStreamTransitionBackground(onVisible) {
     notified = true;
     video.removeEventListener('playing', notifyVisible);
     // Let the browser paint a frame of the background before revealing any text.
-    var schedule = window.requestAnimationFrame || function(callback) { setTimeout(callback, 16); };
-    schedule(function() {
-      schedule(function() {
-        if (typeof onVisible === 'function') onVisible();
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(function() {
+        window.requestAnimationFrame(function() {
+          if (typeof onVisible === 'function') onVisible();
+        });
       });
-    });
+    } else {
+      setTimeout(function() {
+        if (typeof onVisible === 'function') onVisible();
+      }, 34);
+    }
   };
 
   video.addEventListener('playing', notifyVisible);
