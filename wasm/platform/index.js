@@ -3183,6 +3183,7 @@ function hideStreamTransitionBackground() {
   var video = document.getElementById('stream-transition-background');
   if (!video) return;
   video.pause();
+  video.currentTime = 0;
   video.style.display = 'none';
 }
 
