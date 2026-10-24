@@ -6,6 +6,7 @@
   "Support": "Поддержка",
   "Rescan Network": "Повторное сканирование сети",
   "Network scan completed.": "Сканирование сети завершено.",
+  "Stopping stream...": "Остановка трансляции...",
   "Network scan failed.": "Не удалось просканировать сеть.",
   "Restore Defaults": "Восстановить настройки по умолчанию",
   "Quit Running App": "Закрыть запущенное приложение",
