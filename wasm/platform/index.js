@@ -3306,13 +3306,7 @@ function hideStreamTransitionBackground() {
     streamTransitionFirstFrameCallback = null;
     streamTransitionStars = [];
 
-    var canvas = createStreamTransitionBackground();
-    if (canvas) {
-      canvas.style.display = 'none';
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-
+    // The parent transition layer owns visibility. Leave all child elements untouched.
     streamTransitionContext = null;
     streamTransitionCanvas = null;
   }, 100);
@@ -3326,22 +3320,11 @@ function showStreamMode() {
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
-  // Show the transition canvas before the animated status message.
+  // The transition layer owns the visibility of the starfield and all status content.
+  // Show or hide the layer as a whole; never toggle its children individually.
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
-    $('#loadingSpinner').hide();
-    showStreamTransitionBackground(function() {
-      setTimeout(function() {
-        // Do not flash the loading message over the host image if video starts quickly.
-        if (!window._normalStreamVideoReady) {
-          $('#loadingSpinner').css('display', 'inline-block');
-        }
-      }, 100);
-    });
-  } else {
-    // Direct Smart Hub launches use their dedicated status surface instead of the
-    // normal transition layer.
-    $('#loadingSpinner').hide();
+    showStreamTransitionBackground();
   }
 
   isInGame = true;
