@@ -747,7 +747,7 @@ function showHostsMode(skipPollingRestart) {
   $('#settingsBtn').show();
   $('#refreshHostsBtn').show();
   $('#supportBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#settings-list').hide();
   $('#game-grid').hide();
   $('#goBackBtn').hide();
@@ -2062,7 +2062,7 @@ function showSettingsMode() {
   $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#restoreDefaultsBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#game-grid').hide();
   $('.nav-menu-parent').hide();
@@ -2812,7 +2812,7 @@ function showAppsMode() {
   $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#quitRunningAppBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
   // Fade in the Apps grid after the Hosts grid has faded out.
@@ -3858,8 +3858,8 @@ function directSmartHubVideoReady(videoElement) {
     return false;
   }
 
-  var loadingSpinner = document.getElementById('loadingSpinner');
-  if (loadingSpinner && window.getComputedStyle(loadingSpinner).display !== 'none') {
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
     return false;
   }
 
