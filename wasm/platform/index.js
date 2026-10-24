@@ -3395,6 +3395,7 @@ function startGame(host, appID) {
               Navigation.switch();
               // Switch to Apps view
               Navigation.change(Views.Apps);
+            hideStreamTransitionBackground();
             });
             return;
           }
@@ -3418,6 +3419,7 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
+            hideStreamTransitionBackground();
           });
           return;
         });
@@ -3455,6 +3457,7 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
+            hideStreamTransitionBackground();
           });
           return;
         }
@@ -3478,6 +3481,7 @@ function startGame(host, appID) {
           Navigation.switch();
           // Switch to Apps view
           Navigation.change(Views.Apps);
+            hideStreamTransitionBackground();
         });
         return;
       });
