@@ -914,8 +914,8 @@ function handleMessage(msg) {
       $('#listener').addClass('fullscreen');
       $('#loadingSpinner').hide();
 
-      // Keep the original short cleanup delay; the transition background canvas
-      // is disabled during this diagnostic.
+      // Let the canvas remain visible for 100 ms after the status animation disappears,
+      // then stop its animation and release the backing store.
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
       }, 100);
