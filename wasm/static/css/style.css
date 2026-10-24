@@ -12,6 +12,10 @@ body {
 }
 /* Fixed stacking levels: video 0, UI 1, transition 2, diagnostics/snackbar 3, dialogs/menu 4. */
 .mdl-layout__container {
+    z-index: auto;
+}
+.mdl-layout__header,
+.mdl-layout__content {
     z-index: 10;
 }
 #wasm_module {
@@ -41,6 +45,7 @@ body {
     background: #000;
 }
 #stream-transition-layer #loadingSpinner {
+    display: inline-block;
     z-index: 1;
 }
 .mdl-grid {
