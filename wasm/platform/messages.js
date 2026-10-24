@@ -879,8 +879,11 @@ function handleMessage(msg) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
       if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
     }
-    // Prepare the screen for video stream
-    $('#loadingSpinner').css('display', 'none');
+    // Prepare the screen for video stream, but keep the negotiation animation visible
+    // until the first decoded host frame arrives.
+    if (window._directSmartHubLaunch) {
+      $('#loadingSpinner').css('display', 'none');
+    }
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
@@ -914,12 +917,14 @@ function handleMessage(msg) {
         backgroundColor: 'transparent'
       });
       $('#listener').addClass('fullscreen');
-      $('#loadingSpinner').hide();
 
-      // Let the canvas remain visible for 100 ms after the status animation disappears,
-      // then stop its animation and release the backing store.
+      // Keep the negotiation text/animation visible for 100 ms after the first decoded
+      // host frame arrives, then leave the starfield visible for another 100 ms.
       setTimeout(function() {
-        if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+        $('#loadingSpinner').hide();
+        setTimeout(function() {
+          if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+        }, 100);
       }, 100);
     } else {
       $('#listener').addClass('fullscreen');
