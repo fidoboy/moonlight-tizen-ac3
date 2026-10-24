@@ -3329,6 +3329,7 @@ var streamTransitionContext = null;
 var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
+var streamTransitionHiding = false;
 var streamTransitionFirstFrameCallback = null;
 var streamTransitionTeardownTimeout = null;
 var streamTransitionHideLayerTimeout = null;
@@ -3421,6 +3422,8 @@ function showStreamTransitionBackground(onVisible) {
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
   if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
+  // A new transition supersedes any pending hide from a previous stream lifecycle.
+  streamTransitionHiding = false;
 
   var revealTransitionContent = function() {
     showUiLayer('stream-transition-layer');
@@ -3454,6 +3457,9 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground() {
+  // Repeated readiness/termination notifications must not keep restarting the hide delay.
+  if (streamTransitionHiding) return;
+  streamTransitionHiding = true;
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
   if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
