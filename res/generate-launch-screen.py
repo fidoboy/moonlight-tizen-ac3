@@ -242,8 +242,8 @@ class StarField:
 class PeriodicStarField:
     """A loopable starfield whose complete state repeats after total_frames."""
 
-    # Every period divides 450 frames, so the state closes exactly at 15 seconds.
-    PERIODS = (30, 45, 50, 75, 90, 150, 225, 450)
+    # Every period divides 240 frames, so the state closes exactly at 8 seconds.
+    PERIODS = (30, 40, 48, 60, 80, 120, 240)
 
     def __init__(self, total_frames, speed_multiplier=1.0):
         rng = random.Random(STARFIELD_SEED)
@@ -424,10 +424,10 @@ def render_svg(
 
 
 def generate_starfield_only_frames(output_dir, speed_multiplier=1.0):
-    """Render a 15-second, constant-speed starfield-only sequence for UI transitions."""
+    """Render an 8-second, constant-speed starfield-only sequence for UI transitions."""
     output_dir.mkdir(parents=True, exist_ok=True)
     speed = STAR_SPEED * speed_multiplier
-    total_frames = 15 * FPS
+    total_frames = 8 * FPS
     starfield = PeriodicStarField(total_frames, speed_multiplier)
     svg_path = output_dir / "frame.svg"
     for frame_number in range(total_frames):
@@ -457,7 +457,7 @@ def generate_starfield_only_frames(output_dir, speed_multiplier=1.0):
     svg_path.unlink(missing_ok=True)
     print(
         f"Generated starfield-only background: {total_frames} frames, 1920x1080 at "
-        f"{FPS} fps, 15.0 s, no logo, constant speed multiplier {speed_multiplier:g} "
+        f"{FPS} fps, 8.0 s, no logo, constant speed multiplier {speed_multiplier:g} "
         f"(star velocity {speed:g})."
     )
 
