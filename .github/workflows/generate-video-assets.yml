@@ -1,0 +1,54 @@
+name: Generate Versioned Video Assets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    name: Generate MP4 assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Install video-generation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg librsvg2-bin fonts-dejavu-core python3
+
+      - name: Generate and validate videos
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/generate-build-videos.sh generated-videos
+          mkdir -p dist
+          (
+            cd generated-videos
+            zip -9 "$GITHUB_WORKSPACE/dist/moonlight-generated-videos-v1.zip" \
+              launch-screen.mp4 \
+              launch-screen-portrait.mp4 \
+              stream-transition-background.mp4
+          )
+          unzip -l dist/moonlight-generated-videos-v1.zip
+
+      - name: Publish versioned video assets
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: build-videos-v1
+          target_commitish: ${{ github.sha }}
+          name: Moonlight generated video assets v1
+          prerelease: false
+          draft: false
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: dist/moonlight-generated-videos-v1.zip
+          body: |
+            Versioned generated MP4 assets used by the Docker build.
+
+            To rebuild these assets, run the **Generate Versioned Video Assets** workflow.
+            Consumers intentionally fail if this release asset is unavailable.
