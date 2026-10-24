@@ -29,7 +29,7 @@ body {
     height: 100%;
     box-sizing: border-box;
 }
-#main-ui-layer { z-index: 10; }
+#main-ui-layer { z-index: 10; opacity: 0; }
 #main-ui-layer > .mdl-layout {
     position: absolute;
     inset: 0;
@@ -88,6 +88,8 @@ body {
     transform: translate(-50%, -50%);
 }
 #loadingSpinner {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
     width: 35%;
     height: 10px;
     display: inline-block;
@@ -206,6 +208,8 @@ body {
     display: none;
 }
 .mdl-snackbar {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out, transform var(--ui-fade-duration) ease-in-out, visibility 0s linear var(--ui-fade-duration);
     /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
     position: absolute;
     background: rgba(62, 68, 84, 0.9);
@@ -213,6 +217,7 @@ body {
     border-radius: 12px 12px 0 0;
     box-shadow: 0 0 8px 4px rgba(0, 163, 198, 1);
 }
+.mdl-snackbar--active { opacity: 1; transition-delay: 0s; }
 .mdl-snackbar__text {
     color: #fff;
     padding: 15px 20px 15px 20px;
@@ -251,6 +256,8 @@ body {
    Dialog Styles
 ============================= */
 #popup-layer > .dialog-overlay {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
     position: absolute;
     inset: 0;
     width: 100%;
@@ -261,6 +268,7 @@ body {
     justify-content: center;
 }
 .mdl-dialog {
+    transition: opacity var(--ui-fade-duration) ease-in-out;
     color: #fff;
     background-color: #333846;
     width: 30%;
@@ -1407,4 +1415,29 @@ body {
 @media (max-width: 800px) {
     #configSummaryBar { padding: 6px 8px; }
     .config-summary-item { padding: 0 7px; font-size: 14px; }
+}
+
+
+/* MDL menus and popups use the shared fade duration without escaping their layer. */
+.mdl-menu__container {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out,
+                transform var(--ui-fade-duration) ease-in-out,
+                visibility 0s linear var(--ui-fade-duration);
+}
+.mdl-menu__container.is-visible {
+    opacity: 1;
+    transition-delay: 0s;
+}
+#popup-layer .mdl-tooltip {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
+}
+#popup-layer .mdl-tooltip.is-active {
+    opacity: 1;
+}
+#popup-layer > .dialog-overlay.ui-fade-managed,
+#popup-layer .mdl-dialog.ui-fade-managed,
+#popup-layer .mdl-tooltip.ui-fade-managed {
+    transition: opacity var(--ui-fade-duration) ease-in-out;
 }

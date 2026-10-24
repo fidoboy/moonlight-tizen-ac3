@@ -695,8 +695,8 @@ function handleMessage(msg) {
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     resetPerformanceStatsGraph();
-    $('#connection-warnings, #performance-stats').css('display', 'none');
-    $('#performance-stats').text('');
+    fadeOutUiElement('connection-warnings', function() { $('#connection-warnings').text(''); });
+    fadeOutUiElement('performance-stats', function() { $('#performance-stats').text(''); });
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
@@ -924,22 +924,26 @@ function handleMessage(msg) {
     }
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
-    $('#connection-warnings').css('background', 'transparent');
-    $('#connection-warnings').text('');
+    fadeOutUiElement('connection-warnings', function() {
+      $('#connection-warnings').css('background', 'transparent');
+      $('#connection-warnings').text('');
+    });
   } else if (msg.indexOf('WarningMsg: ') === 0) {
     // Show the connection warnings overlay
     $('#connection-warnings').css('background', 'rgba(0, 0, 0, 0.5)');
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
+    fadeInUiElement('connection-warnings', 'inline-block');
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
     // Hide the overlay for this streaming session without changing the saved preference.
     resetPerformanceStatsGraph();
-    $('#performance-stats').css('display', 'none');
-    $('#performance-stats').css('background', 'transparent');
-    $('#performance-stats').text('');
+    fadeOutUiElement('performance-stats', function() {
+      $('#performance-stats').css('background', 'transparent');
+      $('#performance-stats').text('');
+    });
   } else if (msg.indexOf('StatMsg: ') === 0) {
     if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
-    $('#performance-stats').css('display', 'inline-block');
+    fadeInUiElement('performance-stats', 'inline-block');
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {

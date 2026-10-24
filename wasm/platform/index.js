@@ -51,6 +51,144 @@ var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
 var isInGame = false; // Flag indicating whether the game has started, initial value is false
 
+// Shared UI timing: change this single value to tune all interface fades.
+const UI_FADE_DURATION_MS = 300;
+const STREAM_TRANSITION_ELEMENT_OFFSET_MS = 100;
+document.documentElement.style.setProperty('--ui-fade-duration', UI_FADE_DURATION_MS + 'ms');
+
+var uiLayerFadeTimers = Object.create(null);
+var uiElementFadeTimers = new WeakMap();
+
+function resolveUiElement(elementOrId) {
+  if (typeof elementOrId === 'string') return document.getElementById(elementOrId);
+  if (elementOrId && elementOrId.jquery) return elementOrId[0] || null;
+  return elementOrId || null;
+}
+
+function showUiLayer(layerId, callback) {
+  var layer = resolveUiElement(layerId);
+  if (!layer) { if (typeof callback === 'function') callback(); return; }
+  var computedDisplay = getComputedStyle(layer).display;
+  var computedOpacity = getComputedStyle(layer).opacity;
+  if (computedDisplay !== 'none' && computedOpacity === '1' && !uiLayerFadeTimers[layerId]) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
+  var token = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeToken = token;
+  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.display = 'block';
+  layer.setAttribute('aria-hidden', 'false');
+  layer.style.opacity = '0';
+  window.requestAnimationFrame(function() {
+    if (layer._uiFadeToken !== token) return;
+    layer.style.opacity = '1';
+  });
+  uiLayerFadeTimers[layerId] = window.setTimeout(function() {
+    if (layer._uiFadeToken !== token) return;
+    delete uiLayerFadeTimers[layerId];
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS);
+}
+
+function hideUiLayer(layerId, callback) {
+  var layer = resolveUiElement(layerId);
+  if (!layer || getComputedStyle(layer).display === 'none') {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (layer.style.opacity === '0' && uiLayerFadeTimers[layerId]) return;
+  if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
+  var token = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeToken = token;
+  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.opacity = '0';
+  uiLayerFadeTimers[layerId] = window.setTimeout(function() {
+    if (layer._uiFadeToken !== token) return;
+    layer.style.display = 'none';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.style.opacity = '';
+    delete uiLayerFadeTimers[layerId];
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS);
+}
+
+function fadeInUiElement(elementOrId, displayValue, callback) {
+  var element = resolveUiElement(elementOrId);
+  if (!element) { if (typeof callback === 'function') callback(); return; }
+  var existingTimer = uiElementFadeTimers.get(element);
+  if (getComputedStyle(element).display !== 'none' &&
+      getComputedStyle(element).opacity === '1' && !existingTimer) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (existingTimer) window.clearTimeout(existingTimer);
+  var token = (element._uiFadeToken || 0) + 1;
+  element._uiFadeToken = token;
+  element.classList.add('ui-fade-managed');
+  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  element.style.display = displayValue || '';
+  element.style.opacity = '0';
+  window.requestAnimationFrame(function() {
+    if (element._uiFadeToken !== token) return;
+    element.style.opacity = '1';
+  });
+  uiElementFadeTimers.set(element, window.setTimeout(function() {
+    if (element._uiFadeToken !== token) return;
+    uiElementFadeTimers.delete(element);
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS));
+}
+
+function fadeOutUiElement(elementOrId, callback) {
+  var element = resolveUiElement(elementOrId);
+  if (!element || getComputedStyle(element).display === 'none') {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  var existingTimer = uiElementFadeTimers.get(element);
+  if (element.style.opacity === '0' && existingTimer) return;
+  if (existingTimer) window.clearTimeout(existingTimer);
+  var token = (element._uiFadeToken || 0) + 1;
+  element._uiFadeToken = token;
+  element.classList.add('ui-fade-managed');
+  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  element.style.opacity = '0';
+  uiElementFadeTimers.set(element, window.setTimeout(function() {
+    if (element._uiFadeToken !== token) return;
+    element.style.display = 'none';
+    element.style.opacity = '';
+    uiElementFadeTimers.delete(element);
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS));
+}
+
+function showUiDialog(dialogLike) {
+  var dlg = resolveUiElement(dialogLike);
+  if (!dlg || typeof dlg.show !== 'function') return;
+  if (dlg.open && getComputedStyle(dlg).opacity === '1' && !dlg._uiDialogFadeTimer) return;
+  if (dlg._uiDialogFadeTimer) window.clearTimeout(dlg._uiDialogFadeTimer);
+  dlg._uiDialogFadeTimer = null;
+  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  dlg.style.opacity = '0';
+  dlg.show();
+  window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
+}
+
+function closeUiDialog(dialogLike) {
+  var dlg = resolveUiElement(dialogLike);
+  if (!dlg || typeof dlg.close !== 'function' || !dlg.open) return;
+  if (dlg._uiDialogFadeTimer) return;
+  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  dlg.style.opacity = '0';
+  dlg._uiDialogFadeTimer = window.setTimeout(function() {
+    dlg._uiDialogFadeTimer = null;
+    try { dlg.close(); } finally { dlg.style.opacity = ''; }
+  }, UI_FADE_DURATION_MS);
+}
+
+
 // Best-effort keyboard capture for the Windows/Meta key. If Tizen's Web Runtime dispatches the
 // event to the app, suppress its local browser default while allowing it to bubble to the WASM
 // canvas handler for forwarding to the host. This cannot override keys consumed by Tizen system UI.
@@ -736,8 +874,8 @@ function refreshHosts() {
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
-  $('#main-ui-layer').show();
-  $('#stream-diagnostics-layer').hide();
+  showUiLayer('main-ui-layer');
+  hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -753,8 +891,8 @@ function showHostsMode(skipPollingRestart) {
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#quitRunningAppBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
+  fadeOutUiElement('connection-warnings');
+  fadeOutUiElement('performance-stats');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -1207,8 +1345,8 @@ function addHostDialog() {
   var addHostDialog = document.querySelector('#addHostDialog');
   
   // Show the dialog and push the view
-  addHostOverlay.style.display = 'flex';
-  addHostDialog.show();
+  fadeInUiElement(addHostOverlay, 'flex');
+  showUiDialog(addHostDialog);
   isDialogOpen = true;
   Navigation.push(Views.AddHostDialog);
   updateIpAddressInputValidationState();
@@ -1219,8 +1357,8 @@ function addHostDialog() {
   $('#cancelAddHost').off('click');
   $('#cancelAddHost').on('click', function() {
     console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-    addHostOverlay.style.display = 'none';
-    addHostDialog.close();
+    fadeOutUiElement(addHostOverlay);
+    closeUiDialog(addHostDialog);
     isDialogOpen = false;
     Navigation.pop();
     // Re-enable the Continue button after canceling the operation
@@ -1278,8 +1416,8 @@ function addHostDialog() {
       snackbarLog('Connecting to %1$s...', _nvhttpHost.hostname);
       // Close the dialog if the user has provided the IP address
       console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-      addHostOverlay.style.display = 'none';
-      addHostDialog.close();
+      fadeOutUiElement(addHostOverlay);
+      closeUiDialog(addHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       // Avoid delay from other polling during pairing
@@ -1379,8 +1517,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     );
 
     // Show the dialog and push the view
-    pairingOverlay.style.display = 'flex';
-    pairingDialog.show();
+    fadeInUiElement(pairingOverlay, 'flex');
+    showUiDialog(pairingDialog);
     isDialogOpen = true;
     Navigation.push(Views.PairingDialog);
 
@@ -1393,8 +1531,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
       console.log('%c[index.js, pairingDialog]', 'color: green;', 'Closing app dialog and returning.');
       sendMessage('cancelRequest', []);
       wasPairingCanceled = true;
-      pairingOverlay.style.display = 'none';
-      pairingDialog.close();
+      fadeOutUiElement(pairingOverlay);
+      closeUiDialog(pairingDialog);
       isDialogOpen = false;
       Navigation.pop();
     });
@@ -1405,8 +1543,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
       snackbarLog('Successfully paired with %1$s', nvhttpHost.hostname);
       // Close the dialog if the pairing was successful
       console.log('%c[index.js, pairingDialog]', 'color: green;', 'Closing app dialog and returning.');
-      pairingOverlay.style.display = 'none';
-      pairingDialog.close();
+      fadeOutUiElement(pairingOverlay);
+      closeUiDialog(pairingDialog);
       isDialogOpen = false;
       Navigation.pop();
       onSuccess();
@@ -1458,8 +1596,8 @@ function autoWolDialog(host, onSuccess, onCancel) {
     saveHosts();
   });
 
-  autoWolOverlay.style.display = 'flex';
-  autoWolDialog.show();
+  fadeInUiElement(autoWolOverlay, 'flex');
+  showUiDialog(autoWolDialog);
   isDialogOpen = true;
   Navigation.push(Views.AutoWolDialog);
   focusElement('cancelAutoWol');
@@ -1476,8 +1614,8 @@ function autoWolDialog(host, onSuccess, onCancel) {
 
   var cleanup = function() {
     stopPollingTasks();
-    autoWolOverlay.style.display = 'none';
-    autoWolDialog.close();
+    fadeOutUiElement(autoWolOverlay);
+    closeUiDialog(autoWolDialog);
     isDialogOpen = false;
     Navigation.pop();
   };
@@ -1774,7 +1912,7 @@ function hostMenuDialog(host) {
       Navigation.pop();
       menuOption.action();
       $(hostMenuDialogOverlay).css('display', 'none');
-      hostMenuDialog[0].close();
+      closeUiDialog(hostMenuDialog[0]);
       hostMenuDialogOverlay.remove();
       isDialogOpen = false;
     });
@@ -1801,7 +1939,7 @@ function hostMenuDialog(host) {
   closeHostMenuDialog.click(function() {
     console.log('%c[index.js, hostMenuDialog]', 'color: green;', 'Closing app dialog and returning.');
     $(hostMenuDialogOverlay).css('display', 'none');
-    hostMenuDialog[0].close();
+    closeUiDialog(hostMenuDialog[0]);
     hostMenuDialogOverlay.remove();
     isDialogOpen = false;
     Navigation.pop();
@@ -1814,7 +1952,7 @@ function hostMenuDialog(host) {
 
   // Show the dialog and push the view
   $(hostMenuDialogOverlay).css('display', 'flex');
-  hostMenuDialog[0].show();
+  showUiDialog(hostMenuDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
   setTimeout(() => Navigation.switch(), 5);
@@ -1831,8 +1969,8 @@ function deleteHostDialog(host) {
   document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete %1$s?', escapeHTML(host.hostname));
 
   // Show the dialog and push the view
-  deleteHostOverlay.style.display = 'flex';
-  deleteHostDialog.show();
+  fadeInUiElement(deleteHostOverlay, 'flex');
+  showUiDialog(deleteHostDialog);
   isDialogOpen = true;
   Navigation.push(Views.DeleteHostDialog);
 
@@ -1840,8 +1978,8 @@ function deleteHostDialog(host) {
   $('#cancelDeleteHost').off('click');
   $('#cancelDeleteHost').on('click', function() {
     console.log('%c[index.js, deleteHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-    deleteHostOverlay.style.display = 'none';
-    deleteHostDialog.close();
+    fadeOutUiElement(deleteHostOverlay);
+    closeUiDialog(deleteHostDialog);
     isDialogOpen = false;
     Navigation.pop();
   });
@@ -1867,8 +2005,8 @@ function deleteHostDialog(host) {
     updatePreviewData();
     // If host removed, show snackbar message
     snackbarLog('%1$s has been deleted successfully.', host.hostname);
-    deleteHostOverlay.style.display = 'none';
-    deleteHostDialog.close();
+    fadeOutUiElement(deleteHostOverlay);
+    closeUiDialog(deleteHostDialog);
     isDialogOpen = false;
     Navigation.pop();
     // Reset the Hosts view navigation index to prevent possible out-of-bounds errors
@@ -1893,8 +2031,8 @@ function deleteAllHostsDialog() {
     document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete all existing hosts?') + '<br><br><strong class="host-removal-consequences">' + t('All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.') + '</strong>';
     
     // Show the dialog and push the view
-    deleteHostOverlay.style.display = 'flex';
-    deleteHostDialog.show();
+    fadeInUiElement(deleteHostOverlay, 'flex');
+    showUiDialog(deleteHostDialog);
     isDialogOpen = true;
     Navigation.push(Views.DeleteHostDialog);
   
@@ -1902,8 +2040,8 @@ function deleteAllHostsDialog() {
     $('#cancelDeleteHost').off('click');
     $('#cancelDeleteHost').on('click', function() {
       console.log('%c[index.js, deleteAllHostsDialog]', 'color: green;', 'Closing app dialog and returning.');
-      deleteHostOverlay.style.display = 'none';
-      deleteHostDialog.close();
+      fadeOutUiElement(deleteHostOverlay);
+      closeUiDialog(deleteHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       Navigation.switch();
@@ -1933,8 +2071,8 @@ function deleteAllHostsDialog() {
       _previewApps = {};
       savePreviewApps();
       updatePreviewData();
-      deleteHostOverlay.style.display = 'none';
-      deleteHostDialog.close();
+      fadeOutUiElement(deleteHostOverlay);
+      closeUiDialog(deleteHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       // Reset the Hosts view navigation index to prevent possible out-of-bounds errors
@@ -2008,7 +2146,7 @@ function hostDetailsDialog(host) {
   closeHostDetailsDialog.click(function() {
     console.log('%c[index.js, hostDetailsDialog]', 'color: green;', 'Closing app dialog and returning.');
     $(hostDetailsDialogOverlay).css('display', 'none');
-    hostDetailsDialog[0].close();
+    closeUiDialog(hostDetailsDialog[0]);
     hostDetailsDialogOverlay.remove();
     isDialogOpen = false;
     Navigation.pop();
@@ -2021,7 +2159,7 @@ function hostDetailsDialog(host) {
 
   // Show the dialog and push the view
   $(hostDetailsDialogOverlay).css('display', 'flex');
-  hostDetailsDialog[0].show();
+  showUiDialog(hostDetailsDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostDetailsDialog);
   setTimeout(() => Navigation.switch(), 5);
@@ -2034,8 +2172,8 @@ function appSupportDialog() {
   var appSupportDialog = document.querySelector('#appSupportDialog');
 
   // Show the dialog and push the view
-  appSupportDialogOverlay.style.display = 'flex';
-  appSupportDialog.show();
+  fadeInUiElement(appSupportDialogOverlay, 'flex');
+  showUiDialog(appSupportDialog);
   isDialogOpen = true;
   Navigation.push(Views.MoonlightSupportDialog);
 
@@ -2043,8 +2181,8 @@ function appSupportDialog() {
   $('#closeAppSupport').off('click');
   $('#closeAppSupport').on('click', function() {
     console.log('%c[index.js, appSupportDialog]', 'color: green;', 'Closing app dialog and returning.');
-    appSupportDialogOverlay.style.display = 'none';
-    appSupportDialog.close();
+    fadeOutUiElement(appSupportDialogOverlay);
+    closeUiDialog(appSupportDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2054,8 +2192,8 @@ function appSupportDialog() {
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
-  $('#main-ui-layer').show();
-  $('#stream-diagnostics-layer').hide();
+  showUiLayer('main-ui-layer');
+  hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -2203,8 +2341,8 @@ function navigationGuideDialog() {
   var navGuideDialog = document.querySelector('#navGuideDialog');
 
   // Show the dialog and push the view
-  navGuideDialogOverlay.style.display = 'flex';
-  navGuideDialog.show();
+  fadeInUiElement(navGuideDialogOverlay, 'flex');
+  showUiDialog(navGuideDialog);
   isDialogOpen = true;
   Navigation.push(Views.NavigationGuideDialog);
 
@@ -2212,8 +2350,8 @@ function navigationGuideDialog() {
   $('#closeNavGuide').off('click');
   $('#closeNavGuide').on('click', function() {
     console.log('%c[index.js, navigationGuideDialog]', 'color: green;', 'Closing app dialog and returning.');
-    navGuideDialogOverlay.style.display = 'none';
-    navGuideDialog.close();
+    fadeOutUiElement(navGuideDialogOverlay);
+    closeUiDialog(navGuideDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2390,7 +2528,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
   $('#closeUpdateApp').off('click').on('click', function() {
     console.log('%c[index.js, updateAppDialog]', 'color: green;', 'Closing app dialog and returning.');
     updateAppDialogOverlay.css('display', 'none');
-    updateAppDialog[0].close();
+    closeUiDialog(updateAppDialog[0]);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2404,7 +2542,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
 
   // Show the dialog and push the view
   updateAppDialogOverlay.css('display', 'flex');
-  updateAppDialog[0].show();
+  showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
 }
@@ -2517,8 +2655,8 @@ function restoreDefaultsDialog() {
   var restoreDefaultsDialog = document.querySelector('#restoreDefaultsDialog');
 
   // Show the dialog and push the view
-  restoreDefaultsDialogOverlay.style.display = 'flex';
-  restoreDefaultsDialog.show();
+  fadeInUiElement(restoreDefaultsDialogOverlay, 'flex');
+  showUiDialog(restoreDefaultsDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestoreDefaultsDialog);
 
@@ -2526,8 +2664,8 @@ function restoreDefaultsDialog() {
   $('#cancelRestoreDefaults').off('click');
   $('#cancelRestoreDefaults').on('click', function() {
     console.log('%c[index.js, restoreDefaultsDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restoreDefaultsDialogOverlay.style.display = 'none';
-    restoreDefaultsDialog.close();
+    fadeOutUiElement(restoreDefaultsDialogOverlay);
+    closeUiDialog(restoreDefaultsDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2541,8 +2679,8 @@ function restoreDefaultsDialog() {
     restoreDefaultsSettingsValues();
     // If the settings have been reset to default, show snackbar message
     snackbarLog('Settings have been restored to their default values.');
-    restoreDefaultsDialogOverlay.style.display = 'none';
-    restoreDefaultsDialog.close();
+    fadeOutUiElement(restoreDefaultsDialogOverlay);
+    closeUiDialog(restoreDefaultsDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2562,8 +2700,8 @@ function warningDialog(title, message) {
   document.getElementById('warningDialogText').innerHTML = t(message);
 
   // Show the dialog and push the view
-  warningDialogOverlay.style.display = 'flex';
-  warningDialog.show();
+  fadeInUiElement(warningDialogOverlay, 'flex');
+  showUiDialog(warningDialog);
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2576,8 +2714,8 @@ function warningDialog(title, message) {
   $('#closeWarning').off('click');
   $('#closeWarning').on('click', function() {
     console.log('%c[index.js, warningDialog]', 'color: green;', 'Closing app dialog and returning.');
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     warningDialog.classList.remove('single-button');
     Navigation.pop();
@@ -2598,8 +2736,8 @@ function wakeOnLanWarningDialog(host) {
     t('Wake-on-LAN may be unable to wake up the machine since the MAC address does not match the one from the network card.');
 
   // Show the dialog and push the view
-  warningDialogOverlay.style.display = 'flex';
-  warningDialog.show();
+  fadeInUiElement(warningDialogOverlay, 'flex');
+  showUiDialog(warningDialog);
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2612,8 +2750,8 @@ function wakeOnLanWarningDialog(host) {
   $('#closeWarning').off('click');
   $('#closeWarning').on('click', function() {
     console.log('%c[index.js, wakeOnLanWarningDialog]', 'color: green;', 'Closing WoL warning dialog and returning.');
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     // Restore the default state for future non-WoL warnings
     $('#continueWarning').hide();
@@ -2625,8 +2763,8 @@ function wakeOnLanWarningDialog(host) {
   $('#continueWarning').off('click');
   $('#continueWarning').on('click', function() {
     console.log('%c[index.js, wakeOnLanWarningDialog]', 'color: green;', 'User accepted WoL warning. Sending WoL to ' + host.hostname);
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     // Restore the default state for future non-WoL warnings
     $('#continueWarning').hide();
@@ -2653,8 +2791,8 @@ function restartAppDialog() {
   document.getElementById('restartAppDialogText').innerHTML = t('Are you sure you want to restart Moonlight?');
 
   // Show the dialog and push the view
-  restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.show();
+  fadeInUiElement(restartAppDialogOverlay, 'flex');
+  showUiDialog(restartAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2662,8 +2800,8 @@ function restartAppDialog() {
   $('#cancelRestartApp').off('click');
   $('#cancelRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2673,8 +2811,8 @@ function restartAppDialog() {
   $('#continueRestartApp').off('click');
   $('#continueRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog, restarting application, and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     restartApplication();
@@ -2691,8 +2829,8 @@ function requiredRestartAppDialog() {
   document.getElementById('restartAppDialogText').innerHTML = t('In order for your changes to take effect, a restart of the application is required.<br><br>Would you like to proceed with the restart?');
 
   // Show the dialog and push the view
-  restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.show();
+  fadeInUiElement(restartAppDialogOverlay, 'flex');
+  showUiDialog(restartAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2700,8 +2838,8 @@ function requiredRestartAppDialog() {
   $('#cancelRestartApp').off('click');
   $('#cancelRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2711,8 +2849,8 @@ function requiredRestartAppDialog() {
   $('#continueRestartApp').off('click');
   $('#continueRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog, restarting application, and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     restartApplication();
@@ -2732,8 +2870,8 @@ function exitAppDialog() {
   var exitAppDialog = document.querySelector('#exitAppDialog');
 
   // Show the dialog and push the view
-  exitAppOverlay.style.display = 'flex';
-  exitAppDialog.show();
+  fadeInUiElement(exitAppOverlay, 'flex');
+  showUiDialog(exitAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.ExitMoonlightDialog);
 
@@ -2741,8 +2879,8 @@ function exitAppDialog() {
   $('#cancelExitApp').off('click');
   $('#cancelExitApp').on('click', function() {
     console.log('%c[index.js, exitAppDialog]', 'color: green;', 'Closing app dialog and returning');
-    exitAppOverlay.style.display = 'none';
-    exitAppDialog.close();
+    fadeOutUiElement(exitAppOverlay);
+    closeUiDialog(exitAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.change(Views.Hosts);
@@ -2752,8 +2890,8 @@ function exitAppDialog() {
   $('#continueExitApp').off('click');
   $('#continueExitApp').on('click', function() {
     console.log('%c[index.js, exitAppDialog]', 'color: green;', 'Closing app dialog, exiting application, and returning to Smart Hub.');
-    exitAppOverlay.style.display = 'none';
-    exitAppDialog.close();
+    fadeOutUiElement(exitAppOverlay);
+    closeUiDialog(exitAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     exitApplication();
@@ -2804,8 +2942,8 @@ function sortTitles(list, sortOrder) {
 // Handle layout elements when displaying the Apps view
 function showAppsMode() {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
-  $('#main-ui-layer').show();
-  $('#stream-diagnostics-layer').hide();
+  showUiLayer('main-ui-layer');
+  hideUiLayer('stream-diagnostics-layer');
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
   $('#main-header').show();
@@ -3123,8 +3261,8 @@ function quitAppDialog() {
       document.getElementById('quitAppDialogText').innerHTML = t('Are you sure you want to quit %1$s? All unsaved data will be lost.', escapeHTML(currentGame.title));
       
       // Show the dialog and push the view
-      quitAppOverlay.style.display = 'flex';
-      quitAppDialog.show();
+      fadeInUiElement(quitAppOverlay, 'flex');
+      showUiDialog(quitAppDialog);
       isDialogOpen = true;
       Navigation.push(Views.QuitAppDialog);
 
@@ -3132,8 +3270,8 @@ function quitAppDialog() {
       $('#cancelQuitApp').off('click');
       $('#cancelQuitApp').on('click', function() {
         console.log('%c[index.js, quitAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-        quitAppOverlay.style.display = 'none';
-        quitAppDialog.close();
+        fadeOutUiElement(quitAppOverlay);
+        closeUiDialog(quitAppDialog);
         isDialogOpen = false;
         Navigation.pop();
         Navigation.switch();
@@ -3143,8 +3281,8 @@ function quitAppDialog() {
       $('#continueQuitApp').off('click');
       $('#continueQuitApp').on('click', function() {
         console.log('%c[index.js, quitAppDialog]', 'color: green;', 'Quitting game, closing app dialog, and returning.');
-        quitAppOverlay.style.display = 'none';
-        quitAppDialog.close();
+        fadeOutUiElement(quitAppOverlay);
+        closeUiDialog(quitAppDialog);
         isDialogOpen = false;
         Navigation.pop();
         stopGame(api, function() {
@@ -3165,6 +3303,8 @@ var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionFirstFrameCallback = null;
 var streamTransitionTeardownTimeout = null;
+var streamTransitionHideLayerTimeout = null;
+var streamTransitionStatusTimeout = null;
 var STREAM_TRANSITION_STAR_COUNT = 2000;
 var STREAM_TRANSITION_MAX_DEPTH = 1500;
 var STREAM_TRANSITION_SPEED = 5;
@@ -3236,9 +3376,6 @@ function animateStreamTransitionBackground() {
   ctx.fillStyle = '#fff';
   ctx.fill();
 
-  var transitionLayer = document.getElementById('stream-transition-layer');
-  if (transitionLayer) transitionLayer.style.display = 'block';
-
   if (streamTransitionFirstFrameCallback) {
     var callback = streamTransitionFirstFrameCallback;
     streamTransitionFirstFrameCallback = null;
@@ -3253,80 +3390,73 @@ function animateStreamTransitionBackground() {
 }
 
 function showStreamTransitionBackground(onVisible) {
-  // Cancel delayed teardown if a new transition starts before the previous one finishes.
-  if (streamTransitionTeardownTimeout !== null) {
-    window.clearTimeout(streamTransitionTeardownTimeout);
-    streamTransitionTeardownTimeout = null;
-  }
+  if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
+  if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
+  if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
+
+  var revealTransitionContent = function() {
+    showUiLayer('stream-transition-layer');
+    streamTransitionStatusTimeout = window.setTimeout(function() {
+      streamTransitionStatusTimeout = null;
+      if (!streamTransitionVisible) return;
+      // Start the starfield first; reveal the status content 100 ms later.
+      fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
+    }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+  };
 
   var canvas = createStreamTransitionBackground();
-  if (!canvas) {
-    var missingCanvasLayer = document.getElementById('stream-transition-layer');
-    if (missingCanvasLayer) missingCanvasLayer.style.display = 'block';
-    if (typeof onVisible === 'function') onVisible();
-    return;
-  }
-
-  if (streamTransitionVisible) {
-    var existingTransitionLayer = document.getElementById('stream-transition-layer');
-    if (existingTransitionLayer) existingTransitionLayer.style.display = 'block';
-    if (typeof onVisible === 'function') onVisible();
-    return;
-  }
+  if (!canvas) { streamTransitionVisible = true; revealTransitionContent(); return; }
+  if (streamTransitionVisible) { revealTransitionContent(); return; }
 
   streamTransitionCanvas = canvas;
   streamTransitionCanvas.width = Math.max(1, window.innerWidth);
   streamTransitionCanvas.height = Math.max(1, window.innerHeight);
   streamTransitionContext = streamTransitionCanvas.getContext('2d');
   streamTransitionVisible = true;
-  streamTransitionFirstFrameCallback = typeof onVisible === 'function' ? onVisible : null;
+  streamTransitionFirstFrameCallback = revealTransitionContent;
 
   if (!streamTransitionContext) {
     streamTransitionFirstFrameCallback = null;
-    var unavailableContextLayer = document.getElementById('stream-transition-layer');
-    if (unavailableContextLayer) unavailableContextLayer.style.display = 'block';
-    if (typeof onVisible === 'function') onVisible();
+    revealTransitionContent();
     return;
   }
-
   initializeStreamTransitionStars();
-  // Draw synchronously before revealing the layer. Some TV WebViews defer the first
-  // animation frame while its parent is display:none, leaving only a flat background.
+  // Draw synchronously before revealing the layer so the first visible frame is not blank.
   animateStreamTransitionBackground();
 }
 
 function hideStreamTransitionBackground() {
-  // Hide the complete transition layer first. Keep the starfield animation alive
-  // for 100 ms after it is no longer visible to avoid a final-frame visual glitch.
-  var transitionLayer = document.getElementById('stream-transition-layer');
-  if (transitionLayer) transitionLayer.style.display = 'none';
+  if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
+  if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
+  if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
 
-  if (streamTransitionTeardownTimeout !== null) {
-    window.clearTimeout(streamTransitionTeardownTimeout);
-  }
-  streamTransitionTeardownTimeout = window.setTimeout(function() {
-    streamTransitionTeardownTimeout = null;
-    streamTransitionVisible = false;
-    if (streamTransitionAnimationFrame !== null) {
-      window.cancelAnimationFrame(streamTransitionAnimationFrame);
-      streamTransitionAnimationFrame = null;
-    }
-
-    streamTransitionFirstFrameCallback = null;
-    streamTransitionStars = [];
-
-    // The parent transition layer owns visibility. Leave all child elements untouched.
-    streamTransitionContext = null;
-    streamTransitionCanvas = null;
-  }, 100);
+  // Fade out status content first; the starfield continues for another 100 ms afterwards.
+  fadeOutUiElement('loadingSpinner');
+  streamTransitionHideLayerTimeout = window.setTimeout(function() {
+    streamTransitionHideLayerTimeout = null;
+    hideUiLayer('stream-transition-layer');
+    // Stop calculations 100 ms after the layer's 300 ms fade-out has completed.
+    streamTransitionTeardownTimeout = window.setTimeout(function() {
+      streamTransitionTeardownTimeout = null;
+      streamTransitionVisible = false;
+      if (streamTransitionAnimationFrame !== null) {
+        window.cancelAnimationFrame(streamTransitionAnimationFrame);
+        streamTransitionAnimationFrame = null;
+      }
+      streamTransitionFirstFrameCallback = null;
+      streamTransitionStars = [];
+      streamTransitionContext = null;
+      streamTransitionCanvas = null;
+    }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+  }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
 
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   // Hide the entire main UI layer; its descendants inherit that hidden state.
-  $('#main-ui-layer').hide();
-  $('#stream-diagnostics-layer').show();
+  hideUiLayer('main-ui-layer');
+  showUiLayer('stream-diagnostics-layer');
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
@@ -3368,10 +3498,10 @@ function handleOnScreenOverlays() {
   const performanceStatsSwitch = document.getElementById('performanceStatsSwitch');
 
   // Check if the disable warnings switch is checked, then hide or show the connection warning messages
-  disableWarningsSwitch.checked ? $('#connection-warnings').css('display', 'none') : $('#connection-warnings').css('display', 'inline-block');
+  disableWarningsSwitch.checked ? fadeOutUiElement('connection-warnings') : fadeInUiElement('connection-warnings', 'inline-block');
 
   // Check if the performance stats switch is checked, then show or hide the performance statistics information
-  performanceStatsSwitch.checked ? $('#performance-stats').css('display', 'inline-block') : $('#performance-stats').css('display', 'none');
+  performanceStatsSwitch.checked ? fadeInUiElement('performance-stats', 'inline-block') : fadeOutUiElement('performance-stats');
 }
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
@@ -3403,8 +3533,8 @@ function startGame(host, appID) {
           document.getElementById('quitAppDialogText').innerHTML = t('%1$s is already running. Would you like to quit it and start %2$s?', escapeHTML(currentApp.title), escapeHTML(appToStart.title));
 
           // Show the dialog and push the view
-          quitAppOverlay.style.display = 'flex';
-          quitAppDialog.show();
+          fadeInUiElement(quitAppOverlay, 'flex');
+          showUiDialog(quitAppDialog);
           isDialogOpen = true;
           Navigation.push(Views.QuitAppDialog);
 
@@ -3412,8 +3542,8 @@ function startGame(host, appID) {
           $('#cancelQuitApp').off('click');
           $('#cancelQuitApp').on('click', function() {
             console.log('%c[index.js, startGame]', 'color: green;', 'Closing app dialog and returning.');
-            quitAppOverlay.style.display = 'none';
-            quitAppDialog.close();
+            fadeOutUiElement(quitAppOverlay);
+            closeUiDialog(quitAppDialog);
             isDialogOpen = false;
             Navigation.pop();
           });
@@ -3432,8 +3562,8 @@ function startGame(host, appID) {
               // Please, don't infinite loop with recursion
               setTimeout(() => startGame(host, appID), 3000);
             });
-            quitAppOverlay.style.display = 'none';
-            quitAppDialog.close();
+            fadeOutUiElement(quitAppOverlay);
+            closeUiDialog(quitAppDialog);
             isDialogOpen = false;
             Navigation.pop();
           });
@@ -3811,7 +3941,7 @@ function streamMenuDialog() {
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
   $(streamMenuDialogOverlay).css('display', 'flex');
-  streamMenuDialog[0].show();
+  showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
   Views.StreamMenuDialog.view.index = 0;
   Navigation.start();
