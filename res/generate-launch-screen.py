@@ -43,7 +43,7 @@ LOGO_CENTER_Y = 274.84
 # Starfield warp parameters.
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
-STAR_COUNT = 1000
+STAR_COUNT = 2000
 STAR_SPEED = 25.0
 STAR_SPEED_PEAK = 30.0
 STAR_ACCELERATION_FRAMES = 8  # Briefly ramp from 25 to 30, then start the logarithmic decay.
