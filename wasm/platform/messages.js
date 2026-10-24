@@ -914,11 +914,12 @@ function handleMessage(msg) {
       $('#listener').addClass('fullscreen');
       $('#loadingSpinner').hide();
 
-      // Keep the transition visible for one short beat after the host video is ready,
-      // avoiding a black flash while the decoded frame reaches the display surface.
+      // TEMPORARY DIAGNOSTIC: keep the frozen transition frame visible for 5 seconds
+      // after the host video is ready, to test whether hiding the transition causes
+      // the black screen. Revert this delay after the visibility test.
       setTimeout(function() {
         if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
-      }, 100);
+      }, 5000);
     } else {
       $('#listener').addClass('fullscreen');
     }
