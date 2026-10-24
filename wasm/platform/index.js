@@ -2835,7 +2835,6 @@ function showAppsMode() {
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
   $('body').css('backgroundColor', '#282C38');
-  $('#wasm_module').css('display', 'none');
 
   isInGame = false;
   // We want to eventually poll on the app screen, but we can't now because
