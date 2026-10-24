@@ -739,6 +739,7 @@ function showHostsMode(skipPollingRestart) {
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('.nav-menu-parent').show();
   $('#updateAppBtn').show();
   $('#settingsBtn').show();
@@ -2055,6 +2056,7 @@ function showSettingsMode() {
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#restoreDefaultsBtn').show();
   $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
@@ -2801,6 +2803,7 @@ function showAppsMode() {
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#quitRunningAppBtn').show();
   $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
@@ -3315,8 +3318,9 @@ function hideStreamTransitionBackground() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  $('#main-header').hide();
-  $('#main-content').children().not('#listener, #loadingSpinner').hide();
+  // Layer 1 is hidden as a whole during streaming. Dialogs remain outside the content
+  // container so level 4 can still be shown when required.
+  $('.mdl-layout__header, .mdl-layout__content').hide();
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
 
