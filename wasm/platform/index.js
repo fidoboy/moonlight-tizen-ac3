@@ -3492,6 +3492,30 @@ function hideStreamTransitionBackground() {
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
 
+// Finalize the normal stream layout when the browser confirms that remote video is playing.
+function handleNormalStreamVideoReady() {
+  if (window._directSmartHubLaunch || !isInGame || window._normalStreamVideoReady) return;
+
+  window._normalStreamVideoReady = true;
+  $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
+    background: 'transparent',
+    backgroundColor: 'transparent'
+  });
+  $('#wasm_module').css({
+    display: '',
+    background: 'transparent',
+    backgroundColor: 'transparent'
+  });
+  $('#listener').addClass('fullscreen');
+
+  // Keep the transition visible briefly after playback starts, then fade it away.
+  window.setTimeout(function() {
+    if (typeof hideStreamTransitionBackground === 'function') {
+      hideStreamTransitionBackground();
+    }
+  }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+}
+
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
@@ -6241,6 +6265,13 @@ function onWindowLoad() {
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Moonlight\'s main window loaded.');
   initSamsungKeys();
   initSpecialKeys();
+
+  // The explicit displayVideo callback is not guaranteed by every backend build.
+  // The actual HTML video element's playing event is the browser-level readiness signal.
+  var streamVideoElement = document.getElementById('wasm_module');
+  if (streamVideoElement) {
+    streamVideoElement.addEventListener('playing', handleNormalStreamVideoReady);
+  }
 
   if (_directSmartHubLaunch) {
     // Preserve the existing direct-launch path: it has no deferred-startup delay.
