@@ -30,37 +30,6 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Download required versioned MP4 assets
-        if: steps.version.outputs.mode == 'publish'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          ASSET_TAG="build-videos-v1"
-          ASSET_FILE="moonlight-generated-videos-v1.zip"
-          if ! gh release view "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Required video assets are unavailable (release $ASSET_TAG was not found). Run the 'Generate Versioned Video Assets' workflow first." >&2
-            exit 1
-          fi
-          mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
-          if ! gh release download "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET_FILE" --dir "$RUNNER_TEMP/video-assets"; then
-            echo "::error::Required video asset $ASSET_FILE could not be downloaded from release $ASSET_TAG. Rebuild the assets by running the 'Generate Versioned Video Assets' workflow." >&2
-            exit 1
-          fi
-          if ! unzip -tq "$RUNNER_TEMP/video-assets/$ASSET_FILE" >/dev/null; then
-            echo "::error::The versioned video asset archive is invalid. Rebuild it with the 'Generate Versioned Video Assets' workflow." >&2
-            exit 1
-          fi
-          unzip -oq "$RUNNER_TEMP/video-assets/$ASSET_FILE" -d generated-videos
-          for video in launch-screen.mp4 launch-screen-portrait.mp4 stream-transition-background.mp4; do
-            if [[ ! -s "generated-videos/$video" ]]; then
-              echo "::error::Required video generated-videos/$video is missing or empty. Rebuild the versioned assets using the 'Generate Versioned Video Assets' workflow." >&2
-              exit 1
-            fi
-          done
-          echo "Installed all versioned MP4 assets into generated-videos/."
-
       - name: Validate release version
         id: version
         shell: bash
@@ -92,6 +61,37 @@ jobs:
           else
             echo "mode=publish" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Download required versioned MP4 assets
+        if: steps.version.outputs.mode == 'publish'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ASSET_TAG="build-videos-v1"
+          ASSET_FILE="moonlight-generated-videos-v1.zip"
+          if ! gh release view "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Required video assets are unavailable (release $ASSET_TAG was not found). Run the 'Generate Versioned Video Assets' workflow first." >&2
+            exit 1
+          fi
+          mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
+          if ! gh release download "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET_FILE" --dir "$RUNNER_TEMP/video-assets"; then
+            echo "::error::Required video asset $ASSET_FILE could not be downloaded from release $ASSET_TAG. Rebuild the assets by running the 'Generate Versioned Video Assets' workflow." >&2
+            exit 1
+          fi
+          if ! unzip -tq "$RUNNER_TEMP/video-assets/$ASSET_FILE" >/dev/null; then
+            echo "::error::The versioned video asset archive is invalid. Rebuild it with the 'Generate Versioned Video Assets' workflow." >&2
+            exit 1
+          fi
+          unzip -oq "$RUNNER_TEMP/video-assets/$ASSET_FILE" -d generated-videos
+          for video in launch-screen.mp4 launch-screen-portrait.mp4 stream-transition-background.mp4; do
+            if [[ ! -s "generated-videos/$video" ]]; then
+              echo "::error::Required video generated-videos/$video is missing or empty. Rebuild the versioned assets using the 'Generate Versioned Video Assets' workflow." >&2
+              exit 1
+            fi
+          done
+          echo "Installed all versioned MP4 assets into generated-videos/."
 
       - name: Validate release notes format
         shell: bash
