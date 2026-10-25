@@ -760,7 +760,7 @@ body {
    Games Section
 ============================= */
 #game-grid.app-list-locked {
-    opacity: 0.4;
+    opacity: 0.4 !important;
     pointer-events: none;
 }
 
