@@ -811,6 +811,8 @@ function handleMessage(msg) {
         window.isDialogOpen = false;
       }
 
+      // Clear the recovery lock as well as its visual state before restoring Hosts.
+      if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
       // Restore the main Hosts screen directly; it does not depend on the failed host API.
       showHostsMode();
       $('#host-grid').stop(true, true).show();
