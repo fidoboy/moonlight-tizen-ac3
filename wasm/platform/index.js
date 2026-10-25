@@ -2590,7 +2590,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
   }
 
   // Show the dialog and push the view
-  updateAppDialogOverlay.css('display', 'flex');
+  fadeInUiElement(updateAppDialogOverlay, 'flex');
   showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
