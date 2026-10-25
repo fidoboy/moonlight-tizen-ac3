@@ -2245,6 +2245,7 @@ function showSettingsMode() {
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Settings'));
+  updateConfigSummaryBar();
   $('#header-logo').show();
   $('#main-header').show();
   $('.mdl-layout__content').show();
@@ -6268,8 +6269,9 @@ function updateConfigSummaryBar() {
   var headerTitle = document.getElementById('header-title');
   var titleText = headerTitle ? headerTitle.textContent.trim() : '';
   var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
-  var desiredDisplay = !isInGame && (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) &&
-    !isVisible(document.getElementById('settings-list')) ? 'flex' : 'none';
+  var onSettingsScreen = titleText === t('Settings') || isVisible(document.getElementById('settings-list'));
+  var desiredDisplay = !isInGame && !onSettingsScreen &&
+    (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
   function textFor(selector, fallback) {
