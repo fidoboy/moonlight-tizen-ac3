@@ -1119,7 +1119,8 @@ const Views = {
     view: new ListView(() => [
       'selectLanguage',
       'ipAddressFieldModeBtn',
-      'showConfigSummaryBtn'
+      'showConfigSummaryBtn',
+      'streamTransitionBackgroundBtn'
     ]),
     up: function() {
       this.view.prevOption();
