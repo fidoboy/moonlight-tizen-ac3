@@ -334,7 +334,7 @@
   "Selected codec does not support the HDR profile.": "O codec selecionado não oferece suporte ao perfil HDR.",
   "Warning: Disabling game mode may increase latency and affect your game streaming performance!": "Aviso: Desativar o modo jogo pode aumentar a latência e afetar o desempenho da transmissão!",
   "Warning: Higher frame rates may not be fully supported by your TV and do not guarantee a smoother experience. Performance issues may occur due to platform limitations!": "Aviso: Taxas de quadros mais altas podem não ser totalmente suportadas pela sua TV e não garantem uma experiência mais fluida. Problemas de desempenho podem ocorrer devido a limitações da plataforma!",
-  "Scanning the local network to discover new hosts...": "Analisando a rede local para descobrir novos hosts...",
+  "Scanning the local network to discover new hosts...": "Verificando os dispositivos na rede local e sua disponibilidade...",
   "The selected host is no longer available on Moonlight.": "O host selecionado não está mais disponível no Moonlight.",
   "The selected app is no longer available on this host. Showing the current app list.": "O aplicativo selecionado não está mais disponível neste host. Mostrando a lista atual de aplicativos.",
   "Gamepad %1$s has been connected.": "O gamepad %1$s foi conectado.",
