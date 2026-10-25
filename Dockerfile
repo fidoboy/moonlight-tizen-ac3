@@ -1,28 +1,19 @@
-# Generate the animated native Samsung TV splash in a tool-only stage.
+# Generate only the static native Samsung TV splash fallbacks; animated MP4s are versioned separately.
 FROM ubuntu:22.04 AS splash
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
 COPY res/launch-screen.svg /tmp/launch-screen.svg
 COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
 COPY wasm/static/res/ic_dolby_double_d.svg /tmp/ic_dolby_double_d.svg
-COPY res/launch_screen.wav /tmp/launch-screen.wav
-RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-landscape --static-svg /tmp/launch-screen-final.svg --orientation landscape && \
-    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --frames /tmp/launch-frames-portrait --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait && \
+RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-final.svg --orientation landscape --static-only && \
+    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait --static-only && \
     rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
     rsvg-convert -w 1080 -h 1920 --format png -o /tmp/launch-screen-portrait.png /tmp/launch-screen-portrait-final.svg && \
-    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/launch-frames-landscape/frame-%03d.png -i /tmp/launch-screen.wav -frames:v 258 \
-    -map 0:v:0 -map 1:a:0 \
-    -c:v libx264 -preset veryslow -tune stillimage -crf 23 -pix_fmt yuv420p \
-    -profile:v baseline -level 4.0 \
-    -c:a aac -b:a 96k -ar 48000 -ac 2 -shortest -movflags +faststart -y /tmp/launch-screen.mp4 && \
-    test -s /tmp/launch-screen.mp4 && test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/launch-screen.mp4)" = "aac" && echo "Landscape splash MP4: $(stat -c %s /tmp/launch-screen.mp4) bytes (AAC audio)" && test "$(stat -c %s /tmp/launch-screen.mp4)" -lt 2097152 && \
-    ffmpeg -hide_banner -loglevel error -framerate 30 -i /tmp/launch-frames-portrait/frame-%03d.png -i /tmp/launch-screen.wav -frames:v 258 \
-    -map 0:v:0 -map 1:a:0 \
-    -c:v libx264 -preset veryslow -tune stillimage -crf 23 -pix_fmt yuv420p \
-    -profile:v baseline -level 4.0 \
-    -c:a aac -b:a 96k -ar 48000 -ac 2 -shortest -movflags +faststart -y /tmp/launch-screen-portrait.mp4 && \
-    test -s /tmp/launch-screen-portrait.mp4 && test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/launch-screen-portrait.mp4)" = "aac" && echo "Portrait splash MP4: $(stat -c %s /tmp/launch-screen-portrait.mp4) bytes (AAC audio)" && test "$(stat -c %s /tmp/launch-screen-portrait.mp4)" -lt 2097152 && \
     test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
     test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
+COPY generated-videos/launch-screen.mp4 /tmp/launch-screen.mp4
+COPY generated-videos/launch-screen-portrait.mp4 /tmp/launch-screen-portrait.mp4
+RUN test -s /tmp/launch-screen.mp4 && \
+    test -s /tmp/launch-screen-portrait.mp4
 FROM ubuntu:22.04 AS sdk
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -151,6 +142,8 @@ RUN \
     fi
 
 RUN cmake --install build --prefix build
+COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/
+RUN /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node moonlight-tizen/tools/patch-embind-string.js build/widget/moonlight-wasm.js
 COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.png
 COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
 COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png

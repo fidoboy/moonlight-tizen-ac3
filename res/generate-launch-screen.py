@@ -468,7 +468,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--template", required=True, type=Path)
     parser.add_argument("--dolby-logo", required=True, type=Path)
-    parser.add_argument("--frames", required=True, type=Path)
+    parser.add_argument("--frames", type=Path)
+    parser.add_argument(
+        "--static-only", action="store_true",
+        help="Generate only the static fallback SVG without rendering animation frames",
+    )
     parser.add_argument("--static-svg", required=True, type=Path)
     parser.add_argument(
         "--orientation", choices=("landscape", "portrait"), default="landscape"
@@ -490,9 +494,24 @@ def main():
         raise SystemExit(f"SVG template not found: {args.template}")
     if not args.dolby_logo.is_file():
         raise SystemExit(f"Dolby logo SVG not found: {args.dolby_logo}")
-    args.frames.mkdir(parents=True, exist_ok=True)
     args.static_svg.parent.mkdir(parents=True, exist_ok=True)
 
+    if args.static_only:
+        if args.starfield_only_frames:
+            raise SystemExit("--static-only cannot be combined with --starfield-only-frames")
+        starfield = StarField()
+        for frame_number in range(ANIMATED_FRAME_COUNT):
+            starfield.update(star_speed_for_frame(frame_number))
+        render_svg(
+            args.template, args.static_svg, args.dolby_logo,
+            starfield=starfield, orientation=args.orientation,
+        )
+        print(f"Generated static splash SVG only ({args.orientation}); animation frames were skipped.")
+        return
+
+    if args.frames is None:
+        raise SystemExit("--frames is required unless --static-only is specified")
+    args.frames.mkdir(parents=True, exist_ok=True)
     starfield = StarField()
 
     for frame_number in range(ANIMATED_FRAME_COUNT):

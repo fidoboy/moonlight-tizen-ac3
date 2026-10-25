@@ -10,6 +10,57 @@ body {
     -moz-user-select: none;
     user-select: none;
 }
+/* Four isolated fullscreen UI layers. Only these roots define global stacking. */
+#wasm_module {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 0;
+    background: transparent;
+}
+#main-ui-layer,
+#stream-transition-layer,
+#stream-diagnostics-layer,
+#popup-layer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+#main-ui-layer { z-index: 10; opacity: 0; background: #282C38; }
+#main-ui-layer > .mdl-layout {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+#stream-transition-layer {
+    display: none;
+    z-index: 20;
+    pointer-events: none;
+    background: transparent;
+}
+#stream-transition-frame {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: #000;
+}
+#stream-diagnostics-layer {
+    display: none;
+    z-index: 30;
+    pointer-events: none;
+}
+#popup-layer {
+    z-index: 40;
+    pointer-events: none;
+}
+#popup-layer > * { pointer-events: auto; }
 .mdl-grid {
     width: 100%;
 }
@@ -30,22 +81,22 @@ body {
     width: 35%;
     height: 10px;
     display: none;
-    position: fixed;
+    position: absolute;
     bottom: 50%;
     left: 50%;
     margin: 0 auto;
-    z-index: 2;
     transform: translate(-50%, -50%);
 }
 #loadingSpinner {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
     width: 35%;
     height: 10px;
-    display: none;
-    position: fixed;
+    display: inline-block;
+    position: absolute;
     bottom: 50%;
     left: 50%;
     margin: 0 auto;
-    z-index: 1;
     transform: translate(-50%, -50%);
 }
 .mdl-progress > .progressbar,
@@ -55,7 +106,7 @@ body {
 }
 #wasmSpinnerLogo {
     width: 30%;
-    position: fixed;
+    position: absolute;
     bottom: 350%;
     left: 25%;
     right: 25%;
@@ -110,7 +161,8 @@ body {
 }
 #goBackBtn {
     background-color: #404354;
-    position: fixed;
+    position: absolute;
+    top: 15px;
     left: 30px;
     width: 50px;
     height: 50px;
@@ -126,7 +178,7 @@ body {
     opacity: 0;
     transform: translateY(-10px);
     box-shadow: 0 0 6px 2px rgba(239, 191, 4, 0.5);
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: opacity var(--ui-fade-duration) ease-in-out, transform var(--ui-fade-duration) ease-in-out, box-shadow 0.2s ease-in-out;
 }
 #updateAppBtn:hover, #updateAppBtn:focus {
     background-color: #404354;
@@ -156,25 +208,39 @@ body {
     display: none;
 }
 .mdl-snackbar {
+    opacity: 1;
+    transform: translate(-50%, 100%);
+    visibility: hidden;
+    transition: transform var(--ui-fade-duration) ease-in-out,
+                visibility 0s linear var(--ui-fade-duration);
+    /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
+    position: absolute;
     background: rgba(62, 68, 84, 0.9);
     min-width: 0;
+    max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
     box-shadow: 0 0 8px 4px rgba(0, 163, 198, 1);
 }
+.mdl-snackbar--active {
+    transform: translate(-50%, 0);
+    visibility: visible;
+    transition-delay: 0s;
+}
 .mdl-snackbar__text {
     color: #fff;
-    padding: 15px 20px 15px 20px;
-    font-size: 1.45rem;
+    padding: 15px 40px 15px 40px;
+    font-size: 1.8rem;
     font-weight: 500;
     line-height: normal;
     letter-spacing: 0.5px;
     text-align: center;
 }
-.mdl-tooltip {
+/* Tooltips are popups and always belong to the dominant level 4. */
+#popup-layer .mdl-tooltip {
     color: #fff;
     background-color: #3E4454;
     display: inline !important;
-    position: fixed;
+    position: absolute;
     top: 72px !important;
     max-width: 200px;
     padding: 10px;
@@ -197,19 +263,20 @@ body {
 /* =============================
    Dialog Styles
 ============================= */
-.dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
+#popup-layer > .dialog-overlay {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 999;
     background: rgba(0, 0, 0, 0.4);
     display: none;
     align-items: center;
     justify-content: center;
 }
 .mdl-dialog {
+    transition: opacity var(--ui-fade-duration) ease-in-out;
     color: #fff;
     background-color: #333846;
     width: 30%;
@@ -220,7 +287,7 @@ body {
 }
 /* Keep long release notes inside the viewport while leaving the title and Close button accessible. */
 #updateAppDialog {
-    position: fixed;
+    position: absolute;
     top: 104px;
     right: auto;
     bottom: auto;
@@ -578,6 +645,11 @@ body {
     align-items: center;
     justify-content: center;
 }
+#host-grid.host-list-locked {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 #host-grid .mdl-card {
     position: relative;
     width: 285px;
@@ -688,6 +760,11 @@ body {
 /* =============================
    Games Section
 ============================= */
+#game-grid.app-list-locked {
+    opacity: 0.4 !important;
+    pointer-events: none;
+}
+
 #game-grid {
     display: flex;
     flex: 1;
@@ -716,7 +793,7 @@ body {
     height: 100%;
     z-index: -1;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
 }
 #game-grid .mdl-card img.fade-in {
     opacity: 1;
@@ -776,7 +853,6 @@ body {
 .fullscreen {
     position: relative !important;
     height: 100vh !important;
-    z-index: 1 !important;
     margin: auto !important;
     padding: 0 !important;
     border: none !important;
@@ -788,7 +864,6 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    z-index: 3;
     padding: 8px;
     border-radius: 8px;
     font-size: 1.85rem;
@@ -802,7 +877,6 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    z-index: 3;
     padding: 20px;
     border-radius: 8px;
     font-size: 16px;
@@ -1080,14 +1154,14 @@ body {
     background-color: #404354;
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #removeAllHostsBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #streamTransitionBackgroundBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
@@ -1234,7 +1308,7 @@ body {
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
-#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #sortAppsListBtn:hover,
+#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
@@ -1349,4 +1423,29 @@ body {
 @media (max-width: 800px) {
     #configSummaryBar { padding: 6px 8px; }
     .config-summary-item { padding: 0 7px; font-size: 14px; }
+}
+
+
+/* MDL menus and popups use the shared fade duration without escaping their layer. */
+.mdl-menu__container {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out,
+                transform var(--ui-fade-duration) ease-in-out,
+                visibility 0s linear var(--ui-fade-duration);
+}
+.mdl-menu__container.is-visible {
+    opacity: 1;
+    transition-delay: 0s;
+}
+#popup-layer .mdl-tooltip {
+    opacity: 0;
+    transition: opacity var(--ui-fade-duration) ease-in-out;
+}
+#popup-layer .mdl-tooltip.is-active {
+    opacity: 1;
+}
+#popup-layer > .dialog-overlay.ui-fade-managed,
+#popup-layer .mdl-dialog.ui-fade-managed,
+#popup-layer .mdl-tooltip.ui-fade-managed {
+    transition: opacity var(--ui-fade-duration) ease-in-out;
 }

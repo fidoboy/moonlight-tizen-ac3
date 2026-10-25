@@ -141,6 +141,19 @@ function resetPerformanceStatsGraph() {
   performanceStatsHostLatencyLatest = null;
 }
 
+// Avoid collecting samples or drawing canvases while the diagnostics overlay is hidden.
+function isPerformanceStatsOverlayVisible() {
+  var overlay = document.getElementById('performance-stats');
+  var layer = document.getElementById('stream-diagnostics-layer');
+  if (!overlay || !layer || !window.getComputedStyle) return false;
+
+  var layerStyle = window.getComputedStyle(layer);
+  if (layerStyle.display === 'none' || layerStyle.visibility === 'hidden') return false;
+
+  var overlayStyle = window.getComputedStyle(overlay);
+  return overlayStyle.display !== 'none' && overlayStyle.visibility !== 'hidden';
+}
+
 function ensurePerformanceStatsOverlayElements() {
   var container = document.getElementById('performance-stats');
   if (!container) return null;
@@ -339,6 +352,8 @@ function drawPerformanceStatsGraph() {
 }
 
 function handlePerformanceStatsGraphMessage(message) {
+  if (!isPerformanceStatsOverlayVisible()) return;
+
   var values = message.replace('GraphMsg: ', '').split(',').map(Number);
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
@@ -365,6 +380,8 @@ function handlePerformanceStatsGraphMessage(message) {
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
+  if (!isPerformanceStatsOverlayVisible()) return;
+
   var values = message.replace('HostLatencyMsg: ', '').split(',').map(Number);
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
@@ -689,14 +706,19 @@ var handlePromiseMessage = function(callbackId, type, msg) {
  * @return {void}
  */
 function handleMessage(msg) {
-  console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
+  // Avoid console I/O for recurring statistics messages, especially when their overlay is hidden.
+  if (msg.indexOf('StatMsg: ') !== 0 &&
+      msg.indexOf('GraphMsg: ') !== 0 &&
+      msg.indexOf('HostLatencyMsg: ') !== 0) {
+    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
+  }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
-    resetPerformanceStatsGraph();
-    $('#connection-warnings, #performance-stats').css('display', 'none');
-    $('#performance-stats').text('');
+    hideStreamDiagnosticsLayer(function() {
+      resetPerformanceStatsGraph();
+    });
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
@@ -705,9 +727,7 @@ function handleMessage(msg) {
     // Diagnostic overlays were hidden and locked at the start of stream termination.
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
-    $('#loadingSpinner').css('display', 'none');
     $('body').css('backgroundColor', '#282C38');
-    $('#wasm_module').css('display', 'none');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
@@ -755,6 +775,19 @@ function handleMessage(msg) {
     }
 
     // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
+    // Lock and dim the stale Apps grid for the entire asynchronous refresh/recovery period.
+    if (typeof lockAppListInteraction === 'function') {
+      lockAppListInteraction();
+    }
+    // Set the message first, then show the complete transition layer.
+    window._normalStreamVideoReady = false;
+    $('#loadingSpinnerMessage').text(t('Stopping stream...'));
+    if (typeof showStreamTransitionBackground === "function") {
+      showStreamTransitionBackground();
+    } else {
+      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
+      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
+    }
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
@@ -785,22 +818,67 @@ function handleMessage(msg) {
     var shouldQuitHostApp = errorCode === 0 &&
       $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
 
+    var returnToHostsAfterRecoveryFailure = function(failure) {
+      console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
+
+      // A failed app-list request must never leave the UI in fullscreen or with stream navigation active.
+      if (typeof clearViewLoadingSnackbarTimer === "function") clearViewLoadingSnackbarTimer();
+      if (window.isDialogOpen) {
+        var openDialogs = document.querySelectorAll('dialog[open]');
+        for (var dialogIndex = 0; dialogIndex < openDialogs.length; dialogIndex++) {
+          try { closeUiDialog(openDialogs[dialogIndex]); } catch (error) {}
+        }
+        var quitAppOverlay = document.getElementById('quitAppDialogOverlay');
+        if (quitAppOverlay) fadeOutUiElement(quitAppOverlay);
+        window.isDialogOpen = false;
+      }
+
+      // Clear the recovery lock as well as its visual state before restoring Hosts.
+      if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
+      // Restore the main Hosts screen directly; it does not depend on the failed host API.
+      showHostsMode();
+      $('#host-grid').stop(true, true).show();
+      $('#game-grid').stop(true, true).hide();
+      $('#settings-list').hide();
+      if (typeof hideStreamTransitionBackground === "function") {
+        hideStreamTransitionBackground();
+      } else {
+        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
+        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
+      }
+      $('#main-content').removeClass('fullscreen');
+      $('#listener').removeClass('fullscreen');
+      $('body').css('backgroundColor', '#282C38');
+      isInGame = false;
+      Navigation.change(Views.Hosts);
+      Navigation.start();
+      Navigation.switch();
+      snackbarLogLong('Could not load apps from the host. Returning to Hosts.');
+    };
+
     var refreshHostAndReturnToApps = function() {
-      api.refreshServerInfo().then(function(ret) {
-        showApps(api).then(() => {
-          Navigation.switch();
-          if (!window.isDialogOpen) {
-            Navigation.change(Views.Apps);
-          }
-        });
-      }, function(failedRefreshInfo) {
-        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!');
-        showApps(api).then(() => {
-          Navigation.switch();
-          if (!window.isDialogOpen) {
-            Navigation.change(Views.Apps);
-          }
-        });
+      // Refreshing server info is useful, but failure must not prevent recovery.
+      Promise.resolve().then(function() {
+        return api.refreshServerInfo();
+      }).catch(function(failedRefreshInfo) {
+        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
+      }).then(function() {
+        // Reuse the existing Apps grid: the list itself has not changed just because the stream ended.
+        // showAppsMode restores the view and unlocks app-list interaction without another getAppList request.
+        showAppsMode();
+        Navigation.switch();
+        if (!window.isDialogOpen) {
+          Navigation.change(Views.Apps);
+        }
+        // Hide the complete transition layer, then stop the background animation 100 ms later.
+        if (typeof hideStreamTransitionBackground === "function") {
+          hideStreamTransitionBackground();
+        } else {
+          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+        }
+      }).catch(function(failure) {
+        returnToHostsAfterRecoveryFailure(failure);
       });
     };
 
@@ -825,8 +903,8 @@ function handleMessage(msg) {
       var directStatusOnConnect = document.getElementById('directSmartHubStatus');
       if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
     }
-    // Prepare the screen for video stream
-    $('#loadingSpinner').css('display', 'none');
+    // Prepare the screen for video stream, but keep the negotiation animation visible
+    // until the first decoded host frame arrives.
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
@@ -839,40 +917,59 @@ function handleMessage(msg) {
   } else if (msg.indexOf('DialogMsg: ') === 0) {
     // Show dialog message using the warning dialog
     warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
-  } else if (msg === 'displayVideo') {
+  } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
+    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
+    // Prefer the browser's shared playback-ready handler. The video element's
+    // "playing" event is also wired as a fallback for builds that omit this message.
+    if (!window._directSmartHubLaunch) {
+      if (typeof handleNormalStreamVideoReady === 'function') {
+        handleNormalStreamVideoReady();
+      } else {
+        $('#listener').addClass('fullscreen');
+        setTimeout(function() {
+          if (typeof hideStreamTransitionBackground === 'function') hideStreamTransitionBackground();
+        }, 100);
+      }
+    } else {
+      $('#listener').addClass('fullscreen');
+    }
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
       // Use direct DOM access for compatibility with older Tizen WebKit engines.
       var directStatusElement = document.getElementById('directSmartHubStatus');
       if (directStatusElement) directStatusElement.style.display = 'none';
     }
-    // Show the video stream now
-    $('#listener').addClass('fullscreen');
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
-    $('#connection-warnings').css('background', 'transparent');
-    $('#connection-warnings').text('');
+    fadeOutUiElement('connection-warnings', function() {
+      $('#connection-warnings').css('background', 'transparent');
+      $('#connection-warnings').text('');
+    });
   } else if (msg.indexOf('WarningMsg: ') === 0) {
     // Show the connection warnings overlay
     $('#connection-warnings').css('background', 'rgba(0, 0, 0, 0.5)');
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
+    fadeInUiElement('connection-warnings', 'inline-block');
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
     // Hide the overlay for this streaming session without changing the saved preference.
     resetPerformanceStatsGraph();
-    $('#performance-stats').css('display', 'none');
-    $('#performance-stats').css('background', 'transparent');
-    $('#performance-stats').text('');
+    fadeOutUiElement('performance-stats', function() {
+      $('#performance-stats').css('background', 'transparent');
+      $('#performance-stats').text('');
+    });
   } else if (msg.indexOf('StatMsg: ') === 0) {
     if (performanceStatsStreamTerminated) return;
     // Show the overlay for this streaming session without changing the saved preference.
-    $('#performance-stats').css('display', 'inline-block');
+    fadeInUiElement('performance-stats', 'inline-block');
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
-    var statsElements = ensurePerformanceStatsOverlayElements();
-    if (statsElements) {
-      var sourceStatsText = msg.replace('StatMsg: ', '');
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-      drawPerformanceStatsGraph();
-      drawHostProcessingLatencyGraph();
+    if (isPerformanceStatsOverlayVisible()) {
+      var statsElements = ensurePerformanceStatsOverlayElements();
+      if (statsElements) {
+        var sourceStatsText = msg.replace('StatMsg: ', '');
+        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+        drawPerformanceStatsGraph();
+        drawHostProcessingLatencyGraph();
+      }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
     if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);

@@ -79,14 +79,21 @@
   <script type="text/javascript" src="platform.js"></script>
 </head>
 <body data-name="moonlight-tizen" data-tools="emscripten" data-configs="Debug Release" data-path="{tc}/{config}">
+  <div id="stream-transition-layer" aria-hidden="true">
+    <canvas id="stream-transition-frame" width="0" height="0" aria-hidden="true"></canvas>
+    <div id="loadingSpinner" class="mdl-progress mdl-js-progress mdl-progress__indeterminate">
+      <h4 id="loadingSpinnerMessage"></h4>
+    </div>
+  </div>
   <div id="directSmartHubStatus" role="status" aria-live="polite"></div>
+  <div id="main-ui-layer">
   <div class="mdl-layout mdl-js-layout">
     <header id="main-header" class="mdl-layout__header">
       <div class="mdl-layout__header-row">
         <button type="button" id="goBackBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" role="link" aria-label="Go back">
           <i class="navigation-button-icons material-icons">keyboard_arrow_left</i>
         </button>
-        <div id="goBackTooltip" class="mdl-tooltip" for="goBackBtn" data-i18n="Back">Back</div>
+
         <!-- Header logo and title -->
         <img src="static/res/ic_moonlight_logo.svg" id="header-logo">
         <span id="header-title" class="mdl-layout-title" data-i18n="Moonlight">Moonlight</span>
@@ -97,23 +104,23 @@
           <button type="button" id="settingsBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" role="link" aria-label="Settings">
             <i class="navigation-button-icons material-icons">settings</i>
           </button>
-          <div id="settingsTooltip" class="mdl-tooltip" for="settingsBtn" data-i18n="Settings">Settings</div>
+
           <button type="button" id="refreshHostsBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Rescan Network">
             <i class="navigation-button-icons material-icons">refresh</i>
           </button>
-          <div id="refreshHostsTooltip" class="mdl-tooltip" for="refreshHostsBtn" data-i18n="Rescan Network">Rescan Network</div>
+
           <button type="button" id="supportBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Support">
             <i class="navigation-button-icons material-icons">help</i>
           </button>
-          <div id="supportTooltip" class="mdl-tooltip" for="supportBtn" data-i18n="Support">Support</div>
+
           <button type="button" id="restoreDefaultsBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Restore Defaults">
             <i class="navigation-button-icons material-icons">settings_backup_restore</i>
           </button>
-          <div id="restoreDefaultsTooltip" class="mdl-tooltip" for="restoreDefaultsBtn" data-i18n="Restore Defaults">Restore Defaults</div>
+
           <button type="button" id="quitRunningAppBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Quit Running App">
             <i class="navigation-button-icons material-icons">highlight_off</i>
           </button>
-          <div id="quitRunningAppTooltip" class="mdl-tooltip" for="quitRunningAppBtn" data-i18n="Quit Running App">Quit Running App</div>
+
         </nav>
       </div>
     </header>
@@ -261,6 +268,20 @@
                   <input type="checkbox" id="showConfigSummarySwitch" class="mdl-switch__input" checked>
                   <span class="mdl-switch__label" data-i18n="Show the configuration summary bar">
                     Show the configuration summary bar
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Streaming transition background">Streaming transition background</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.">
+                - Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.
+              </span>
+              <div id="streamTransitionBackgroundMenu">
+                <label id="streamTransitionBackgroundBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="streamTransitionBackgroundSwitch">
+                  <input type="checkbox" id="streamTransitionBackgroundSwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Show the animated background during stream transitions">
+                    Show the animated background during stream transitions
                   </span>
                 </label>
               </div>
@@ -677,10 +698,10 @@
         <img src="static/res/ic_moonlight_logo.svg" id="wasmSpinnerLogo">
         <h4 id="wasmSpinnerMessage"></h4>
       </div>
-      <div id="loadingSpinner" class="mdl-progress mdl-js-progress mdl-progress__indeterminate">
-        <h4 id="loadingSpinnerMessage"></h4>
-      </div>
     </main>
+  </div>
+  </div>
+  <div id="stream-diagnostics-layer">
     <div id="connection-warnings"></div>
     <div id="performance-stats"></div>
   </div>
@@ -698,6 +719,13 @@
   <script type="text/javascript" src="static/js/utils.js"></script>
   <script type="text/javascript" src="static/js/mdns-browser/dns.js"></script>
   <script type="text/javascript" src="static/js/mdns-browser/main.js"></script>
+  <div id="popup-layer">
+    <div id="goBackTooltip" class="mdl-tooltip" for="goBackBtn" data-i18n="Back">Back</div>
+    <div id="settingsTooltip" class="mdl-tooltip" for="settingsBtn" data-i18n="Settings">Settings</div>
+    <div id="refreshHostsTooltip" class="mdl-tooltip" for="refreshHostsBtn" data-i18n="Rescan Network">Rescan Network</div>
+    <div id="supportTooltip" class="mdl-tooltip" for="supportBtn" data-i18n="Support">Support</div>
+    <div id="restoreDefaultsTooltip" class="mdl-tooltip" for="restoreDefaultsBtn" data-i18n="Restore Defaults">Restore Defaults</div>
+    <div id="quitRunningAppTooltip" class="mdl-tooltip" for="quitRunningAppBtn" data-i18n="Quit Running App">Quit Running App</div>
   <div id="addHostDialogOverlay" class="dialog-overlay">
     <dialog id="addHostDialog" class="mdl-dialog">
       <h3 id="addHostDialogTitle" class="mdl-dialog__title" data-i18n="Add Host">Add Host</h3>
@@ -968,6 +996,7 @@
     <div class="mdl-snackbar__text"></div>
     <button type="button" id="snackButton" class="mdl-snackbar__action"></button>
     <!-- This button exists to suppress the snackbar warning, we're really using a toast -->
+  </div>
   </div>
   <video id="wasm_module" autoplay tabindex="-1"></video>
 </body>

@@ -51,6 +51,175 @@ var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
 var isInGame = false; // Flag indicating whether the game has started, initial value is false
 
+// Shared UI timing: change this single value to tune all interface fades.
+const UI_FADE_DURATION_MS = 300;
+const STREAM_TRANSITION_ELEMENT_OFFSET_MS = 100;
+document.documentElement.style.setProperty('--ui-fade-duration', UI_FADE_DURATION_MS + 'ms');
+
+var uiLayerFadeTimers = Object.create(null);
+var uiElementFadeTimers = new WeakMap();
+
+function resolveUiElement(elementOrId) {
+  if (typeof elementOrId === 'string') return document.getElementById(elementOrId);
+  if (elementOrId && elementOrId.jquery) return elementOrId[0] || null;
+  return elementOrId || null;
+}
+
+function showUiLayer(layerId, callback) {
+  var layer = resolveUiElement(layerId);
+  if (!layer) { if (typeof callback === 'function') callback(); return; }
+  var computedDisplay = getComputedStyle(layer).display;
+  var computedOpacity = computedDisplay === 'none' ? 0 : (parseFloat(getComputedStyle(layer).opacity) || 0);
+  if (computedDisplay !== 'none' && computedOpacity >= 0.999 && !uiLayerFadeTimers[layerId]) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
+  var token = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeToken = token;
+  layer._uiFadeTarget = 'visible';
+  layer.style.transition = 'none';
+  layer.style.display = 'block';
+  layer.setAttribute('aria-hidden', 'false');
+  layer.style.opacity = String(computedOpacity);
+  layer.offsetWidth;
+  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  window.requestAnimationFrame(function() {
+    if (layer._uiFadeToken !== token) return;
+    layer.style.opacity = '1';
+  });
+  uiLayerFadeTimers[layerId] = window.setTimeout(function() {
+    if (layer._uiFadeToken !== token) return;
+    delete uiLayerFadeTimers[layerId];
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS);
+}
+
+function hideUiLayer(layerId, callback) {
+  var layer = resolveUiElement(layerId);
+  if (!layer || getComputedStyle(layer).display === 'none') {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (layer.style.opacity === '0' && uiLayerFadeTimers[layerId] && layer._uiFadeTarget === 'hidden') return;
+  if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
+  var token = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeToken = token;
+  layer._uiFadeTarget = 'hidden';
+  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.opacity = '0';
+  uiLayerFadeTimers[layerId] = window.setTimeout(function() {
+    if (layer._uiFadeToken !== token) return;
+    layer.style.display = 'none';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.style.opacity = '';
+    delete uiLayerFadeTimers[layerId];
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS);
+}
+
+function fadeInUiElement(elementOrId, displayValue, callback) {
+  var element = resolveUiElement(elementOrId);
+  if (!element) { if (typeof callback === 'function') callback(); return; }
+  var existingTimer = uiElementFadeTimers.get(element);
+  var wasDisplayed = getComputedStyle(element).display !== 'none';
+  var currentOpacity = wasDisplayed ? (parseFloat(getComputedStyle(element).opacity) || 0) : 0;
+  if (wasDisplayed && currentOpacity >= 0.999 && !existingTimer) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (existingTimer) window.clearTimeout(existingTimer);
+  var token = (element._uiFadeToken || 0) + 1;
+  element._uiFadeToken = token;
+  element._uiFadeTarget = 'visible';
+  element.classList.add('ui-fade-managed');
+  element.style.transition = 'none';
+  element.style.display = displayValue || '';
+  element.style.opacity = String(currentOpacity);
+  element.offsetWidth;
+  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  window.requestAnimationFrame(function() {
+    if (element._uiFadeToken !== token) return;
+    element.style.opacity = '1';
+  });
+  uiElementFadeTimers.set(element, window.setTimeout(function() {
+    if (element._uiFadeToken !== token) return;
+    uiElementFadeTimers.delete(element);
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS));
+}
+
+function fadeOutUiElement(elementOrId, callback) {
+  var element = resolveUiElement(elementOrId);
+  if (!element || getComputedStyle(element).display === 'none') {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  var existingTimer = uiElementFadeTimers.get(element);
+  if (element.style.opacity === '0' && existingTimer && element._uiFadeTarget === 'hidden') return;
+  if (existingTimer) window.clearTimeout(existingTimer);
+  var token = (element._uiFadeToken || 0) + 1;
+  element._uiFadeToken = token;
+  element._uiFadeTarget = 'hidden';
+  element.classList.add('ui-fade-managed');
+  element.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  element.style.opacity = '0';
+  uiElementFadeTimers.set(element, window.setTimeout(function() {
+    if (element._uiFadeToken !== token) return;
+    element.style.display = 'none';
+    element.style.opacity = '';
+    uiElementFadeTimers.delete(element);
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS));
+}
+
+function hideStreamDiagnosticsLayer(afterHidden) {
+  hideUiLayer('stream-diagnostics-layer', function() {
+    $('#connection-warnings').css('display', 'none').text('');
+    $('#performance-stats').css('display', 'none').text('');
+    if (typeof afterHidden === 'function') afterHidden();
+  });
+}
+
+function showUiDialog(dialogLike) {
+  var dlg = resolveUiElement(dialogLike);
+  if (!dlg || typeof dlg.show !== 'function') return;
+  if (dlg._uiDialogFadeTimer) window.clearTimeout(dlg._uiDialogFadeTimer);
+  dlg._uiDialogFadeTimer = null;
+  if (dlg.open) {
+    var currentOpacity = parseFloat(getComputedStyle(dlg).opacity) || 0;
+    dlg.style.transition = 'none';
+    dlg.style.opacity = String(currentOpacity);
+    dlg.offsetWidth;
+    dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+    window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
+    return;
+  }
+  dlg.style.transition = 'none';
+  dlg.style.opacity = '0';
+  dlg.show();
+  dlg.offsetWidth;
+  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  window.requestAnimationFrame(function() { dlg.style.opacity = '1'; });
+}
+
+function closeUiDialog(dialogLike, callback) {
+  var dlg = resolveUiElement(dialogLike);
+  if (!dlg || typeof dlg.close !== 'function' || !dlg.open) {
+    if (typeof callback === 'function') callback();
+    return;
+  }
+  if (dlg._uiDialogFadeTimer) return;
+  dlg.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  dlg.style.opacity = '0';
+  dlg._uiDialogFadeTimer = window.setTimeout(function() {
+    dlg._uiDialogFadeTimer = null;
+    try { dlg.close(); } finally { dlg.style.opacity = ''; }
+    if (typeof callback === 'function') callback();
+  }, UI_FADE_DURATION_MS);
+}
+
+
 // Best-effort keyboard capture for the Windows/Meta key. If Tizen's Web Runtime dispatches the
 // event to the app, suppress its local browser default while allowing it to bubble to the WASM
 // canvas handler for forwarding to the host. This cannot override keys consumed by Tizen system UI.
@@ -110,6 +279,8 @@ const NAVIGATION_DELAY = 150; // Navigation delay set to 150ms (milliseconds)
 const UPDATE_TIMESTAMP = 'lastUpdateCheck'; // Use the update check timestamp key to determine the last update check
 const UPDATE_VERSION = 'latestUpdateVersion'; // // Use the update version key to cache the latest version found
 const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // Automatic check for updates interval is set to 24 hours
+var startupUpdateCheckPending = false;
+var startupUpdateCheckTimeout = null;
 
 // Reflect disabled checkbox state on the visible Material Design Lite switch.
 // The checkbox itself is visually hidden, so CSS alone cannot dim the switch row.
@@ -132,6 +303,11 @@ function initializeDisabledSwitchAppearance() {
   document.querySelectorAll('.mdl-switch__input').forEach(syncDisabledSwitchAppearance);
 
   if (typeof MutationObserver !== 'function' || !document.body) {
+    return;
+  }
+
+  const settingsRoot = document.getElementById('settings-list');
+  if (!settingsRoot) {
     return;
   }
 
@@ -158,7 +334,7 @@ function initializeDisabledSwitchAppearance() {
     });
   });
 
-  observer.observe(document.body, {
+  observer.observe(settingsRoot, {
     subtree: true,
     attributes: true,
     attributeFilter: ['disabled'],
@@ -169,6 +345,10 @@ function initializeDisabledSwitchAppearance() {
 // Called by the common.js module
 function attachListeners() {
   initializeDisabledSwitchAppearance();
+  if (!window._streamTransitionResizeListenerAttached) {
+    window.addEventListener('resize', resizeStreamTransitionBackground);
+    window._streamTransitionResizeListenerAttached = true;
+  }
   changeUiModeForWasmLoad();
 
   // Register loadSystemInfo to run when language is initialized, and every time it changes
@@ -213,6 +393,7 @@ function attachListeners() {
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
+  $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
@@ -342,7 +523,7 @@ function changeUiModeForWasmLoad() {
   }
 
   // Startup progress is shown in a snackbar, not a full-screen spinner.
-  $('#wasmSpinner, #loadingSpinner').hide();
+  $('#wasmSpinner').hide();
   $('#wasmSpinnerMessage, #loadingSpinnerMessage').empty();
 }
 
@@ -378,7 +559,7 @@ function maybeReleaseNativeLaunchScreen() {
   if (headerTitle) headerTitle.textContent = t('Hosts');
   $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
   $('#settingsBtn, #supportBtn, #updateAppBtn').show();
-  $('#settings-list, #game-grid, #wasmSpinner, #loadingSpinner').hide();
+  $('#settings-list, #game-grid, #wasmSpinner').hide();
 
   document.documentElement.classList.remove('app-starting');
 
@@ -681,8 +862,9 @@ var isManualHostRefreshRunning = false;
 
 // Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
 function refreshHosts() {
-  if (isManualHostRefreshRunning) return;
+  if (isManualHostRefreshRunning || initialHostListInteractionLocked) return;
   isManualHostRefreshRunning = true;
+  lockHostListInteraction();
 
   var button = document.getElementById('refreshHostsBtn');
   if (button) {
@@ -726,31 +908,34 @@ function refreshHosts() {
         button.disabled = false;
         button.removeAttribute('aria-busy');
       }
+      unlockHostListInteraction();
     });
 }
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
+
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Hosts'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('.nav-menu-parent').show();
   $('#updateAppBtn').show();
   $('#settingsBtn').show();
   $('#refreshHostsBtn').show();
   $('#supportBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#settings-list').hide();
   $('#game-grid').hide();
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#quitRunningAppBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
+  showUiLayer('main-ui-layer');
   Navigation.start();
   Navigation.pop();
   // Stop any existing polls before starting new ones to prevent setInterval leaks.
@@ -777,43 +962,95 @@ function selectFirstHostAfterAddHost() {
 
   var view = Views.Hosts.view;
   var previousItem = view.current();
+
+  // Do not steal focus if the user has already selected a real host.
   if (previousItem && previousItem !== items[0]) {
-    unmark(previousItem);
+    return;
   }
+
+  if (previousItem) unmark(previousItem);
   view.reset();
   Navigation.right();
 }
 
-// Show the Hosts grid
-function showHosts() {
-  // Stop navigation before showing the loading screen
+var initialHostListInteractionLocked = false;
+var initialHostSnackbarObserver = null;
+
+function lockHostListInteraction() {
+  initialHostListInteractionLocked = true;
   Navigation.stop();
+  $('#host-grid').addClass('host-list-locked');
+}
 
-  // Hide the main header and content before showing a loading screen
-  $('#main-header').children().hide();
-  $('#main-header').css({'backgroundColor': 'transparent', 'boxShadow': 'none'});
-  $('#settings-list, #game-grid').hide();
+function unlockHostListInteraction() {
+  if (!initialHostListInteractionLocked) return;
 
-  // Show a spinner while the host list loads
-  $('#wasmSpinner').css('display', 'inline-block');
-  $('#wasmSpinnerLogo').hide();
-  $('#wasmSpinnerMessage').text(t('Loading Hosts...'));
+  initialHostListInteractionLocked = false;
+  $('#host-grid').removeClass('host-list-locked');
+  Navigation.start();
+  // The initial selection attempt may have happened while Navigation was stopped.
+  // Retry now that navigation is active, but only replace the Add Host selection.
+  selectFirstHostAfterAddHost();
+  Navigation.switch();
 
-  setTimeout(() => {
-    // Hide the spinner after successfully retrieving the host list
-    $('#wasmSpinner').hide();
+  if (initialHostSnackbarObserver) {
+    initialHostSnackbarObserver.disconnect();
+    initialHostSnackbarObserver = null;
+  }
+}
 
-    // Show the main header after the loading screen is complete
-    $('#main-header').children().show();
-    $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
+function finishInitialHostDiscovery() {
+  // Unlock navigation as soon as the completion snackbar is shown, not when it disappears.
+  snackbarLog('Network scan completed.');
+  unlockHostListInteraction();
+}
 
-    // Navigate to the Hosts view
+var appListInteractionLocked = false;
+
+function lockAppListInteraction() {
+  appListInteractionLocked = true;
+  Navigation.stop();
+  $('#game-grid').addClass('app-list-locked');
+}
+
+function unlockAppListInteraction() {
+  appListInteractionLocked = false;
+  $('#game-grid').removeClass('app-list-locked');
+  Navigation.start();
+  Navigation.switch();
+}
+
+var viewLoadingSnackbarTimer = null;
+
+function scheduleViewLoadingSnackbar(message) {
+  clearTimeout(viewLoadingSnackbarTimer);
+  viewLoadingSnackbarTimer = setTimeout(function() {
+    snackbarLogLong(message);
+  }, 1000);
+}
+
+function clearViewLoadingSnackbarTimer() {
+  clearTimeout(viewLoadingSnackbarTimer);
+  viewLoadingSnackbarTimer = null;
+}
+
+// Return to the Hosts grid with a short fade transition.
+function showHosts() {
+  Navigation.stop();
+  scheduleViewLoadingSnackbar('Loading Hosts...');
+
+  // Fade out the Apps grid, then reveal the Hosts grid.
+  $('#game-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS, function() {
+    $('#settings-list').hide();
+
+    // Navigate to the Hosts view once the Apps grid has faded out.
     showHostsMode();
-  }, 500);
 
-  setTimeout(() => {
-    Navigation.switch();
-  }, 500);
+    $('#host-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
+      clearViewLoadingSnackbarTimer();
+      Navigation.switch();
+    });
+  });
 }
 
 function restoreUiAfterWasmLoad() {
@@ -826,7 +1063,6 @@ function restoreUiAfterWasmLoad() {
   $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
-  $('#loadingSpinner').css('display', 'none');
 
   // Start at the first host when loading the Hosts view.
   Views.Hosts.view.reset();
@@ -836,6 +1072,7 @@ function restoreUiAfterWasmLoad() {
   showHostsMode(true);
   Navigation.switch();
   Navigation.switch();
+  lockHostListInteraction();
   updateConfigSummaryBar();
 
   // Find mDNS host discovered using ServiceFinder (network service discovery)
@@ -868,8 +1105,11 @@ function restoreUiAfterWasmLoad() {
   // });
 
 
-  // Automatically check for a new update after 10 seconds delay at application startup once every 24 hours
-  setTimeout(() => checkForAppUpdatesAtStartup(), 10000);
+  // Automatically check for updates after startup, but never start the check during a stream.
+  startupUpdateCheckTimeout = window.setTimeout(function() {
+    startupUpdateCheckTimeout = null;
+    checkForAppUpdatesAtStartup();
+  }, 10000);
 }
 
 // Handles the selection of a host, manages the connection, pairing process, including error handling
@@ -1155,8 +1395,8 @@ function addHostDialog() {
   var addHostDialog = document.querySelector('#addHostDialog');
   
   // Show the dialog and push the view
-  addHostOverlay.style.display = 'flex';
-  addHostDialog.showModal();
+  fadeInUiElement(addHostOverlay, 'flex');
+  showUiDialog(addHostDialog);
   isDialogOpen = true;
   Navigation.push(Views.AddHostDialog);
   updateIpAddressInputValidationState();
@@ -1167,8 +1407,8 @@ function addHostDialog() {
   $('#cancelAddHost').off('click');
   $('#cancelAddHost').on('click', function() {
     console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-    addHostOverlay.style.display = 'none';
-    addHostDialog.close();
+    fadeOutUiElement(addHostOverlay);
+    closeUiDialog(addHostDialog);
     isDialogOpen = false;
     Navigation.pop();
     // Re-enable the Continue button after canceling the operation
@@ -1226,8 +1466,8 @@ function addHostDialog() {
       snackbarLog('Connecting to %1$s...', _nvhttpHost.hostname);
       // Close the dialog if the user has provided the IP address
       console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-      addHostOverlay.style.display = 'none';
-      addHostDialog.close();
+      fadeOutUiElement(addHostOverlay);
+      closeUiDialog(addHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       // Avoid delay from other polling during pairing
@@ -1327,8 +1567,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     );
 
     // Show the dialog and push the view
-    pairingOverlay.style.display = 'flex';
-    pairingDialog.showModal();
+    fadeInUiElement(pairingOverlay, 'flex');
+    showUiDialog(pairingDialog);
     isDialogOpen = true;
     Navigation.push(Views.PairingDialog);
 
@@ -1341,8 +1581,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
       console.log('%c[index.js, pairingDialog]', 'color: green;', 'Closing app dialog and returning.');
       sendMessage('cancelRequest', []);
       wasPairingCanceled = true;
-      pairingOverlay.style.display = 'none';
-      pairingDialog.close();
+      fadeOutUiElement(pairingOverlay);
+      closeUiDialog(pairingDialog);
       isDialogOpen = false;
       Navigation.pop();
     });
@@ -1353,8 +1593,8 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
       snackbarLog('Successfully paired with %1$s', nvhttpHost.hostname);
       // Close the dialog if the pairing was successful
       console.log('%c[index.js, pairingDialog]', 'color: green;', 'Closing app dialog and returning.');
-      pairingOverlay.style.display = 'none';
-      pairingDialog.close();
+      fadeOutUiElement(pairingOverlay);
+      closeUiDialog(pairingDialog);
       isDialogOpen = false;
       Navigation.pop();
       onSuccess();
@@ -1406,8 +1646,8 @@ function autoWolDialog(host, onSuccess, onCancel) {
     saveHosts();
   });
 
-  autoWolOverlay.style.display = 'flex';
-  autoWolDialog.showModal();
+  fadeInUiElement(autoWolOverlay, 'flex');
+  showUiDialog(autoWolDialog);
   isDialogOpen = true;
   Navigation.push(Views.AutoWolDialog);
   focusElement('cancelAutoWol');
@@ -1424,8 +1664,8 @@ function autoWolDialog(host, onSuccess, onCancel) {
 
   var cleanup = function() {
     stopPollingTasks();
-    autoWolOverlay.style.display = 'none';
-    autoWolDialog.close();
+    fadeOutUiElement(autoWolOverlay);
+    closeUiDialog(autoWolDialog);
     isDialogOpen = false;
     Navigation.pop();
   };
@@ -1633,7 +1873,7 @@ function hostMenuDialog(host) {
   var hostMenuDialogOverlay = $('<div>', {
     id: 'hostMenuDialogOverlay-' + host.serverUid,
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
 
   // Create the dialog element and append it to the overlay
   var hostMenuDialog = $('<dialog>', {
@@ -1722,7 +1962,7 @@ function hostMenuDialog(host) {
       Navigation.pop();
       menuOption.action();
       $(hostMenuDialogOverlay).css('display', 'none');
-      hostMenuDialog[0].close();
+      closeUiDialog(hostMenuDialog[0]);
       hostMenuDialogOverlay.remove();
       isDialogOpen = false;
     });
@@ -1749,7 +1989,7 @@ function hostMenuDialog(host) {
   closeHostMenuDialog.click(function() {
     console.log('%c[index.js, hostMenuDialog]', 'color: green;', 'Closing app dialog and returning.');
     $(hostMenuDialogOverlay).css('display', 'none');
-    hostMenuDialog[0].close();
+    closeUiDialog(hostMenuDialog[0]);
     hostMenuDialogOverlay.remove();
     isDialogOpen = false;
     Navigation.pop();
@@ -1762,7 +2002,7 @@ function hostMenuDialog(host) {
 
   // Show the dialog and push the view
   $(hostMenuDialogOverlay).css('display', 'flex');
-  hostMenuDialog[0].showModal();
+  showUiDialog(hostMenuDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
   setTimeout(() => Navigation.switch(), 5);
@@ -1779,8 +2019,8 @@ function deleteHostDialog(host) {
   document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete %1$s?', escapeHTML(host.hostname));
 
   // Show the dialog and push the view
-  deleteHostOverlay.style.display = 'flex';
-  deleteHostDialog.showModal();
+  fadeInUiElement(deleteHostOverlay, 'flex');
+  showUiDialog(deleteHostDialog);
   isDialogOpen = true;
   Navigation.push(Views.DeleteHostDialog);
 
@@ -1788,8 +2028,8 @@ function deleteHostDialog(host) {
   $('#cancelDeleteHost').off('click');
   $('#cancelDeleteHost').on('click', function() {
     console.log('%c[index.js, deleteHostDialog]', 'color: green;', 'Closing app dialog and returning.');
-    deleteHostOverlay.style.display = 'none';
-    deleteHostDialog.close();
+    fadeOutUiElement(deleteHostOverlay);
+    closeUiDialog(deleteHostDialog);
     isDialogOpen = false;
     Navigation.pop();
   });
@@ -1815,8 +2055,8 @@ function deleteHostDialog(host) {
     updatePreviewData();
     // If host removed, show snackbar message
     snackbarLog('%1$s has been deleted successfully.', host.hostname);
-    deleteHostOverlay.style.display = 'none';
-    deleteHostDialog.close();
+    fadeOutUiElement(deleteHostOverlay);
+    closeUiDialog(deleteHostDialog);
     isDialogOpen = false;
     Navigation.pop();
     // Reset the Hosts view navigation index to prevent possible out-of-bounds errors
@@ -1841,8 +2081,8 @@ function deleteAllHostsDialog() {
     document.getElementById('deleteHostDialogText').innerHTML = t('Are you sure you want to delete all existing hosts?') + '<br><br><strong class="host-removal-consequences">' + t('All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.') + '</strong>';
     
     // Show the dialog and push the view
-    deleteHostOverlay.style.display = 'flex';
-    deleteHostDialog.showModal();
+    fadeInUiElement(deleteHostOverlay, 'flex');
+    showUiDialog(deleteHostDialog);
     isDialogOpen = true;
     Navigation.push(Views.DeleteHostDialog);
   
@@ -1850,8 +2090,8 @@ function deleteAllHostsDialog() {
     $('#cancelDeleteHost').off('click');
     $('#cancelDeleteHost').on('click', function() {
       console.log('%c[index.js, deleteAllHostsDialog]', 'color: green;', 'Closing app dialog and returning.');
-      deleteHostOverlay.style.display = 'none';
-      deleteHostDialog.close();
+      fadeOutUiElement(deleteHostOverlay);
+      closeUiDialog(deleteHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       Navigation.switch();
@@ -1881,8 +2121,8 @@ function deleteAllHostsDialog() {
       _previewApps = {};
       savePreviewApps();
       updatePreviewData();
-      deleteHostOverlay.style.display = 'none';
-      deleteHostDialog.close();
+      fadeOutUiElement(deleteHostOverlay);
+      closeUiDialog(deleteHostDialog);
       isDialogOpen = false;
       Navigation.pop();
       // Reset the Hosts view navigation index to prevent possible out-of-bounds errors
@@ -1898,7 +2138,7 @@ function hostDetailsDialog(host) {
   var hostDetailsDialogOverlay = $('<div>', {
     id: 'hostDetailsDialogOverlay-' + host.serverUid,
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
 
   // Create the dialog element and append it to the overlay
   var hostDetailsDialog = $('<dialog>', {
@@ -1956,7 +2196,7 @@ function hostDetailsDialog(host) {
   closeHostDetailsDialog.click(function() {
     console.log('%c[index.js, hostDetailsDialog]', 'color: green;', 'Closing app dialog and returning.');
     $(hostDetailsDialogOverlay).css('display', 'none');
-    hostDetailsDialog[0].close();
+    closeUiDialog(hostDetailsDialog[0]);
     hostDetailsDialogOverlay.remove();
     isDialogOpen = false;
     Navigation.pop();
@@ -1969,7 +2209,7 @@ function hostDetailsDialog(host) {
 
   // Show the dialog and push the view
   $(hostDetailsDialogOverlay).css('display', 'flex');
-  hostDetailsDialog[0].showModal();
+  showUiDialog(hostDetailsDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostDetailsDialog);
   setTimeout(() => Navigation.switch(), 5);
@@ -1982,8 +2222,8 @@ function appSupportDialog() {
   var appSupportDialog = document.querySelector('#appSupportDialog');
 
   // Show the dialog and push the view
-  appSupportDialogOverlay.style.display = 'flex';
-  appSupportDialog.showModal();
+  fadeInUiElement(appSupportDialogOverlay, 'flex');
+  showUiDialog(appSupportDialog);
   isDialogOpen = true;
   Navigation.push(Views.MoonlightSupportDialog);
 
@@ -1991,8 +2231,8 @@ function appSupportDialog() {
   $('#closeAppSupport').off('click');
   $('#closeAppSupport').on('click', function() {
     console.log('%c[index.js, appSupportDialog]', 'color: green;', 'Closing app dialog and returning.');
-    appSupportDialogOverlay.style.display = 'none';
-    appSupportDialog.close();
+    fadeOutUiElement(appSupportDialogOverlay);
+    closeUiDialog(appSupportDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2002,12 +2242,15 @@ function appSupportDialog() {
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
+
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Settings'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#restoreDefaultsBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#game-grid').hide();
   $('.nav-menu-parent').hide();
@@ -2016,12 +2259,11 @@ function showSettingsMode() {
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#quitRunningAppBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
-  stopPollingHosts();
+  showUiLayer('main-ui-layer');
+    stopPollingHosts();
   Navigation.start();
   // Register showSettingsMode to re-run every time the language changes
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
@@ -2148,8 +2390,8 @@ function navigationGuideDialog() {
   var navGuideDialog = document.querySelector('#navGuideDialog');
 
   // Show the dialog and push the view
-  navGuideDialogOverlay.style.display = 'flex';
-  navGuideDialog.showModal();
+  fadeInUiElement(navGuideDialogOverlay, 'flex');
+  showUiDialog(navGuideDialog);
   isDialogOpen = true;
   Navigation.push(Views.NavigationGuideDialog);
 
@@ -2157,8 +2399,8 @@ function navigationGuideDialog() {
   $('#closeNavGuide').off('click');
   $('#closeNavGuide').on('click', function() {
     console.log('%c[index.js, navigationGuideDialog]', 'color: green;', 'Closing app dialog and returning.');
-    navGuideDialogOverlay.style.display = 'none';
-    navGuideDialog.close();
+    fadeOutUiElement(navGuideDialogOverlay);
+    closeUiDialog(navGuideDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2285,8 +2527,9 @@ function updateAppButton(latestVersion) {
   });
   // Append elements inside the button
   updateAppBtn.append(updateAppBtnBadge, updateAppBtnText);
-  // Insert elements after the existing layout spacer
-  $('.mdl-layout-spacer').after(updateAppBtn, updateAppBtnTooltip, extraLayoutSpacer);
+  // Keep the button in the UI layer and its tooltip in the popup layer.
+  $('.mdl-layout-spacer').after(updateAppBtn, extraLayoutSpacer);
+  $('#popup-layer').append(updateAppBtnTooltip);
   // Upgrade newly added elements for MDL styling
   componentHandler.upgradeElement(updateAppBtn[0]);
   componentHandler.upgradeElement(updateAppBtnTooltip[0]);
@@ -2334,7 +2577,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
   $('#closeUpdateApp').off('click').on('click', function() {
     console.log('%c[index.js, updateAppDialog]', 'color: green;', 'Closing app dialog and returning.');
     updateAppDialogOverlay.css('display', 'none');
-    updateAppDialog[0].close();
+    closeUiDialog(updateAppDialog[0]);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2348,7 +2591,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
 
   // Show the dialog and push the view
   updateAppDialogOverlay.css('display', 'flex');
-  updateAppDialog[0].showModal();
+  showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
 }
@@ -2387,6 +2630,12 @@ function checkForAppUpdates() {
 
 // Automatically perform a scheduled app update check at startup if the interval condition is met and notify the user
 function checkForAppUpdatesAtStartup() {
+  if (isInGame) {
+    startupUpdateCheckPending = true;
+    return;
+  }
+  startupUpdateCheckPending = false;
+
   getData('automaticUpdateChecks', function(settings) {
     const storedValue = settings.automaticUpdateChecks;
     const enabled = storedValue == null || storedValue === true ||
@@ -2398,6 +2647,10 @@ function checkForAppUpdatesAtStartup() {
 
     // Fetch the current timestamp and stored version info
     getData(UPDATE_TIMESTAMP, function(tResult) {
+      if (isInGame) {
+        startupUpdateCheckPending = true;
+        return;
+      }
       var lastChecked = tResult[UPDATE_TIMESTAMP];
       var currentTime = Date.now();
       // Log the last auto-check timestamp if it exists
@@ -2461,8 +2714,8 @@ function restoreDefaultsDialog() {
   var restoreDefaultsDialog = document.querySelector('#restoreDefaultsDialog');
 
   // Show the dialog and push the view
-  restoreDefaultsDialogOverlay.style.display = 'flex';
-  restoreDefaultsDialog.showModal();
+  fadeInUiElement(restoreDefaultsDialogOverlay, 'flex');
+  showUiDialog(restoreDefaultsDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestoreDefaultsDialog);
 
@@ -2470,8 +2723,8 @@ function restoreDefaultsDialog() {
   $('#cancelRestoreDefaults').off('click');
   $('#cancelRestoreDefaults').on('click', function() {
     console.log('%c[index.js, restoreDefaultsDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restoreDefaultsDialogOverlay.style.display = 'none';
-    restoreDefaultsDialog.close();
+    fadeOutUiElement(restoreDefaultsDialogOverlay);
+    closeUiDialog(restoreDefaultsDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2485,8 +2738,8 @@ function restoreDefaultsDialog() {
     restoreDefaultsSettingsValues();
     // If the settings have been reset to default, show snackbar message
     snackbarLog('Settings have been restored to their default values.');
-    restoreDefaultsDialogOverlay.style.display = 'none';
-    restoreDefaultsDialog.close();
+    fadeOutUiElement(restoreDefaultsDialogOverlay);
+    closeUiDialog(restoreDefaultsDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2506,8 +2759,8 @@ function warningDialog(title, message) {
   document.getElementById('warningDialogText').innerHTML = t(message);
 
   // Show the dialog and push the view
-  warningDialogOverlay.style.display = 'flex';
-  warningDialog.showModal();
+  fadeInUiElement(warningDialogOverlay, 'flex');
+  showUiDialog(warningDialog);
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2520,8 +2773,8 @@ function warningDialog(title, message) {
   $('#closeWarning').off('click');
   $('#closeWarning').on('click', function() {
     console.log('%c[index.js, warningDialog]', 'color: green;', 'Closing app dialog and returning.');
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     warningDialog.classList.remove('single-button');
     Navigation.pop();
@@ -2542,8 +2795,8 @@ function wakeOnLanWarningDialog(host) {
     t('Wake-on-LAN may be unable to wake up the machine since the MAC address does not match the one from the network card.');
 
   // Show the dialog and push the view
-  warningDialogOverlay.style.display = 'flex';
-  warningDialog.showModal();
+  fadeInUiElement(warningDialogOverlay, 'flex');
+  showUiDialog(warningDialog);
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
@@ -2556,8 +2809,8 @@ function wakeOnLanWarningDialog(host) {
   $('#closeWarning').off('click');
   $('#closeWarning').on('click', function() {
     console.log('%c[index.js, wakeOnLanWarningDialog]', 'color: green;', 'Closing WoL warning dialog and returning.');
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     // Restore the default state for future non-WoL warnings
     $('#continueWarning').hide();
@@ -2569,8 +2822,8 @@ function wakeOnLanWarningDialog(host) {
   $('#continueWarning').off('click');
   $('#continueWarning').on('click', function() {
     console.log('%c[index.js, wakeOnLanWarningDialog]', 'color: green;', 'User accepted WoL warning. Sending WoL to ' + host.hostname);
-    warningDialogOverlay.style.display = 'none';
-    warningDialog.close();
+    fadeOutUiElement(warningDialogOverlay);
+    closeUiDialog(warningDialog);
     isDialogOpen = false;
     // Restore the default state for future non-WoL warnings
     $('#continueWarning').hide();
@@ -2597,8 +2850,8 @@ function restartAppDialog() {
   document.getElementById('restartAppDialogText').innerHTML = t('Are you sure you want to restart Moonlight?');
 
   // Show the dialog and push the view
-  restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.showModal();
+  fadeInUiElement(restartAppDialogOverlay, 'flex');
+  showUiDialog(restartAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2606,8 +2859,8 @@ function restartAppDialog() {
   $('#cancelRestartApp').off('click');
   $('#cancelRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2617,8 +2870,8 @@ function restartAppDialog() {
   $('#continueRestartApp').off('click');
   $('#continueRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog, restarting application, and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     restartApplication();
@@ -2635,8 +2888,8 @@ function requiredRestartAppDialog() {
   document.getElementById('restartAppDialogText').innerHTML = t('In order for your changes to take effect, a restart of the application is required.<br><br>Would you like to proceed with the restart?');
 
   // Show the dialog and push the view
-  restartAppDialogOverlay.style.display = 'flex';
-  restartAppDialog.showModal();
+  fadeInUiElement(restartAppDialogOverlay, 'flex');
+  showUiDialog(restartAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.RestartMoonlightDialog);
 
@@ -2644,8 +2897,8 @@ function requiredRestartAppDialog() {
   $('#cancelRestartApp').off('click');
   $('#cancelRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.switch();
@@ -2655,8 +2908,8 @@ function requiredRestartAppDialog() {
   $('#continueRestartApp').off('click');
   $('#continueRestartApp').on('click', function() {
     console.log('%c[index.js, restartAppDialog]', 'color: green;', 'Closing app dialog, restarting application, and returning.');
-    restartAppDialogOverlay.style.display = 'none';
-    restartAppDialog.close();
+    fadeOutUiElement(restartAppDialogOverlay);
+    closeUiDialog(restartAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     restartApplication();
@@ -2676,8 +2929,8 @@ function exitAppDialog() {
   var exitAppDialog = document.querySelector('#exitAppDialog');
 
   // Show the dialog and push the view
-  exitAppOverlay.style.display = 'flex';
-  exitAppDialog.showModal();
+  fadeInUiElement(exitAppOverlay, 'flex');
+  showUiDialog(exitAppDialog);
   isDialogOpen = true;
   Navigation.push(Views.ExitMoonlightDialog);
 
@@ -2685,8 +2938,8 @@ function exitAppDialog() {
   $('#cancelExitApp').off('click');
   $('#cancelExitApp').on('click', function() {
     console.log('%c[index.js, exitAppDialog]', 'color: green;', 'Closing app dialog and returning');
-    exitAppOverlay.style.display = 'none';
-    exitAppDialog.close();
+    fadeOutUiElement(exitAppOverlay);
+    closeUiDialog(exitAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.change(Views.Hosts);
@@ -2696,8 +2949,8 @@ function exitAppDialog() {
   $('#continueExitApp').off('click');
   $('#continueExitApp').on('click', function() {
     console.log('%c[index.js, exitAppDialog]', 'color: green;', 'Closing app dialog, exiting application, and returning to Smart Hub.');
-    exitAppOverlay.style.display = 'none';
-    exitAppDialog.close();
+    fadeOutUiElement(exitAppOverlay);
+    closeUiDialog(exitAppDialog);
     isDialogOpen = false;
     Navigation.pop();
     exitApplication();
@@ -2748,37 +3001,52 @@ function sortTitles(list, sortOrder) {
 // Handle layout elements when displaying the Apps view
 function showAppsMode() {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
+
+  hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Apps'));
   $('#header-logo').show();
   $('#main-header').show();
+  $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#quitRunningAppBtn').show();
-  $('#main-content').children().not('#listener, #loadingSpinner, #wasmSpinner').show();
+  $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
+  // Fade in the Apps grid after the Hosts grid has faded out.
+  $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
+    clearViewLoadingSnackbarTimer();
+    if (appListInteractionLocked) {
+      unlockAppListInteraction();
+    } else {
+      Navigation.switch();
+    }
+  });
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#connection-warnings').css('display', 'none');
-  $('#performance-stats').css('display', 'none');
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
-  $('#loadingSpinner').css('display', 'none');
   $('body').css('backgroundColor', '#282C38');
-  $('#wasm_module').css('display', 'none');
 
+  showUiLayer('main-ui-layer');
   isInGame = false;
+  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+    startupUpdateCheckTimeout = window.setTimeout(function() {
+      startupUpdateCheckTimeout = null;
+      checkForAppUpdatesAtStartup();
+    }, 0);
+  }
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
   stopPollingHosts();
-  Navigation.start();
+  if (!appListInteractionLocked) Navigation.start();
 }
 
 // Show the Apps grid
-function showApps(host) {
+function showApps(host, options) {
   return new Promise((resolve, reject) => {
     // Safety checking should happen before attempting to show the app list
     if (!host || !host.paired) {
@@ -2789,19 +3057,18 @@ function showApps(host) {
       console.log('%c[index.js, showApps]', 'color: green;', 'Current host object: \n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
     }
 
-    // Stop navigation before showing the loading screen
+    // Stop navigation while transitioning from Hosts to Apps.
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Hide the main header before showing a loading screen
-    $('#main-header').children().hide();
-    $('#main-header').css({'backgroundColor': 'transparent', 'boxShadow': 'none'});
-    $('#host-grid, #settings-list').hide();
+    // Show a snackbar only if loading and transitioning takes more than one second,
+    // unless the Apps list is being restored behind the full-screen stream-closing transition.
+    if (!(options && options.suppressLoadingSnackbar)) {
+      scheduleViewLoadingSnackbar('Loading Apps...');
+    }
 
-    // Show a spinner while the app list loads
-    $('#wasmSpinner').css('display', 'inline-block');
-    $('#wasmSpinnerLogo').hide();
-    $('#wasmSpinnerMessage').text(t('Loading Apps...'));
+    // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
+    $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
     // Remove all game container elements from the game grid and from any other div elements
     $('#game-grid').empty();
@@ -2809,13 +3076,6 @@ function showApps(host) {
 
     setTimeout(() => {
       host.getAppList().then(function(appList) {
-        // Hide the spinner after the host has successfully retrieved the app list
-        $('#wasmSpinner').hide();
-
-        // Show the main header after the loading screen is complete
-        $('#main-header').children().show();
-        $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
-
         // Show the game grid section
         $('#game-grid').show();
 
@@ -3038,21 +3298,17 @@ function showApps(host) {
           });
         });
       }, function(failedAppList) {
-        // Hide the spinner if the host has failed to retrieve the app list
-        $('#wasmSpinner').hide();
-
-        // Show the main header after the loading screen is complete
-        $('#main-header').children().show();
-        $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
-
         console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
         $('#game-grid').html(errorAppListImg);
         snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
 
-        // Navigate to the Apps view
-        showAppsMode();
+        // During stream recovery, do not expose an error Apps screen or unlock the stale
+        // grid. Let the caller's recovery handler return to Hosts in one consistent step.
+        if (!appListInteractionLocked) {
+          showAppsMode();
+        }
         reject(failedAppList);
       });
     }, 500);
@@ -3075,8 +3331,8 @@ function quitAppDialog() {
       document.getElementById('quitAppDialogText').innerHTML = t('Are you sure you want to quit %1$s? All unsaved data will be lost.', escapeHTML(currentGame.title));
       
       // Show the dialog and push the view
-      quitAppOverlay.style.display = 'flex';
-      quitAppDialog.showModal();
+      fadeInUiElement(quitAppOverlay, 'flex');
+      showUiDialog(quitAppDialog);
       isDialogOpen = true;
       Navigation.push(Views.QuitAppDialog);
 
@@ -3084,8 +3340,8 @@ function quitAppDialog() {
       $('#cancelQuitApp').off('click');
       $('#cancelQuitApp').on('click', function() {
         console.log('%c[index.js, quitAppDialog]', 'color: green;', 'Closing app dialog and returning.');
-        quitAppOverlay.style.display = 'none';
-        quitAppDialog.close();
+        fadeOutUiElement(quitAppOverlay);
+        closeUiDialog(quitAppDialog);
         isDialogOpen = false;
         Navigation.pop();
         Navigation.switch();
@@ -3095,8 +3351,8 @@ function quitAppDialog() {
       $('#continueQuitApp').off('click');
       $('#continueQuitApp').on('click', function() {
         console.log('%c[index.js, quitAppDialog]', 'color: green;', 'Quitting game, closing app dialog, and returning.');
-        quitAppOverlay.style.display = 'none';
-        quitAppDialog.close();
+        fadeOutUiElement(quitAppOverlay);
+        closeUiDialog(quitAppDialog);
         isDialogOpen = false;
         Navigation.pop();
         stopGame(api, function() {
@@ -3108,19 +3364,238 @@ function quitAppDialog() {
   }
 }
 
+// Render the transition starfield directly on a canvas. No video decoder or
+// continuously running animation is kept alive while the transition is hidden.
+var streamTransitionCanvas = null;
+var streamTransitionContext = null;
+var streamTransitionStars = [];
+var streamTransitionAnimationFrame = null;
+var streamTransitionVisible = false;
+var streamTransitionBackgroundEnabled = true;
+var streamTransitionHiding = false;
+var streamTransitionFirstFrameCallback = null;
+var streamTransitionRevealTimeout = null;
+var streamTransitionTeardownTimeout = null;
+var streamTransitionHideLayerTimeout = null;
+var streamTransitionStatusTimeout = null;
+var STREAM_TRANSITION_STAR_COUNT = 2000;
+var STREAM_TRANSITION_MAX_DEPTH = 1500;
+var STREAM_TRANSITION_SPEED = 5;
+
+function createStreamTransitionBackground() {
+  return document.getElementById('stream-transition-frame');
+}
+
+function resetStreamTransitionStar(star, randomDepth) {
+  var width = streamTransitionCanvas.width;
+  var angle = Math.random() * Math.PI * 2;
+  var distance = Math.sqrt(Math.random()) * (width / 2);
+  star.x = Math.cos(angle) * distance;
+  star.y = Math.sin(angle) * distance;
+  star.z = randomDepth ? Math.random() * STREAM_TRANSITION_MAX_DEPTH : STREAM_TRANSITION_MAX_DEPTH;
+  star.size = (1 - distance / (width / 2)) * 0.1 + 0.5;
+}
+
+function initializeStreamTransitionStars() {
+  streamTransitionStars = [];
+  if (!streamTransitionCanvas || streamTransitionCanvas.width <= 0) return;
+
+  for (var i = 0; i < STREAM_TRANSITION_STAR_COUNT; i++) {
+    var star = {};
+    resetStreamTransitionStar(star, true);
+    streamTransitionStars.push(star);
+  }
+}
+
+function resizeStreamTransitionBackground() {
+  if (!streamTransitionVisible || !streamTransitionCanvas) return;
+
+  streamTransitionCanvas.width = Math.max(1, window.innerWidth);
+  streamTransitionCanvas.height = Math.max(1, window.innerHeight);
+  initializeStreamTransitionStars();
+}
+
+function animateStreamTransitionBackground() {
+  if (!streamTransitionVisible || !streamTransitionCanvas || !streamTransitionContext) {
+    streamTransitionAnimationFrame = null;
+    return;
+  }
+
+  var canvas = streamTransitionCanvas;
+  var ctx = streamTransitionContext;
+  var width = canvas.width;
+  var height = canvas.height;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+  ctx.beginPath();
+
+  for (var i = 0; i < streamTransitionStars.length; i++) {
+    var star = streamTransitionStars[i];
+    star.z -= STREAM_TRANSITION_SPEED * (2 - star.z / STREAM_TRANSITION_MAX_DEPTH);
+    if (star.z <= 1) resetStreamTransitionStar(star, false);
+
+    var x = ((star.x / star.z) * width) / 2 + width / 2;
+    var y = ((star.y / star.z) * height) / 2 + height / 2;
+    var radius = (1 - star.z / STREAM_TRANSITION_MAX_DEPTH) * star.size * 3;
+
+    if (radius > 0.1 && x > -radius && x < width + radius && y > -radius && y < height + radius) {
+      // Append all stars to one path to minimize canvas draw calls on TV hardware.
+      ctx.moveTo(x + radius, y);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+    }
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  if (streamTransitionFirstFrameCallback) {
+    var callback = streamTransitionFirstFrameCallback;
+    streamTransitionFirstFrameCallback = null;
+    try {
+      callback();
+    } catch (error) {
+      console.warn('%c[index.js, animateStreamTransitionBackground]', 'color: green;', 'Transition visibility callback failed:', error);
+    }
+  }
+
+  streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
+}
+
+function showStreamTransitionBackground(onVisible) {
+  if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
+  if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
+  if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
+  if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
+  // A new transition supersedes any pending hide from a previous stream lifecycle.
+  streamTransitionHiding = false;
+
+  var revealTransitionContent = function() {
+    streamTransitionRevealTimeout = null;
+    if (!streamTransitionVisible || streamTransitionHiding) return;
+    showUiLayer('stream-transition-layer');
+    streamTransitionStatusTimeout = window.setTimeout(function() {
+      streamTransitionStatusTimeout = null;
+      if (!streamTransitionVisible) return;
+      // Start the starfield first; reveal the status content 100 ms later.
+      fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
+    }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+  };
+
+  var canvas = createStreamTransitionBackground();
+  if (!canvas) { streamTransitionVisible = true; revealTransitionContent(); return; }
+  if (streamTransitionVisible) { revealTransitionContent(); return; }
+
+  streamTransitionCanvas = canvas;
+  streamTransitionCanvas.width = Math.max(1, window.innerWidth);
+  streamTransitionCanvas.height = Math.max(1, window.innerHeight);
+  streamTransitionContext = streamTransitionCanvas.getContext('2d');
+  streamTransitionVisible = true;
+
+  // The opt-out keeps the transition layer but leaves its CSS background solid black.
+  if (!streamTransitionBackgroundEnabled) {
+    if (streamTransitionContext) {
+      streamTransitionContext.clearRect(0, 0, streamTransitionCanvas.width, streamTransitionCanvas.height);
+    }
+    streamTransitionRevealTimeout = window.setTimeout(revealTransitionContent, 16);
+    return;
+  }
+
+  // Let the first starfield frame render while the layer is still hidden. Reveal on a
+  // later task so canvas initialization and the first 2,000-star draw are not exposed
+  // as a visible hitch when the transition starts.
+  streamTransitionFirstFrameCallback = function() {
+    if (streamTransitionRevealTimeout !== null) window.clearTimeout(streamTransitionRevealTimeout);
+    streamTransitionRevealTimeout = window.setTimeout(revealTransitionContent, 16);
+  };
+
+  if (!streamTransitionContext) {
+    streamTransitionFirstFrameCallback = null;
+    revealTransitionContent();
+    return;
+  }
+  initializeStreamTransitionStars();
+  // Draw synchronously before revealing the layer so the first visible frame is not blank.
+  animateStreamTransitionBackground();
+}
+
+function hideStreamTransitionBackground() {
+  if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
+  // Repeated readiness/termination notifications must not keep restarting the hide delay.
+  if (streamTransitionHiding) return;
+  streamTransitionHiding = true;
+  if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
+  if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
+  if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
+
+  // Fade out status content first; the starfield continues for another 100 ms afterwards.
+  fadeOutUiElement('loadingSpinner');
+  streamTransitionHideLayerTimeout = window.setTimeout(function() {
+    streamTransitionHideLayerTimeout = null;
+    hideUiLayer('stream-transition-layer', function() {
+      // The layer is now display:none: stop the animation immediately and release its resources.
+      streamTransitionVisible = false;
+      if (streamTransitionAnimationFrame !== null) {
+        window.cancelAnimationFrame(streamTransitionAnimationFrame);
+        streamTransitionAnimationFrame = null;
+      }
+      streamTransitionFirstFrameCallback = null;
+      streamTransitionStars = [];
+      streamTransitionContext = null;
+      streamTransitionCanvas = null;
+      streamTransitionTeardownTimeout = null;
+    });
+  }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+}
+
+// Finalize the normal stream layout when the browser confirms that remote video is playing.
+function handleNormalStreamVideoReady() {
+  if (window._directSmartHubLaunch || !isInGame || window._normalStreamVideoReady) return;
+
+  window._normalStreamVideoReady = true;
+  $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
+    background: 'transparent',
+    backgroundColor: 'transparent'
+  });
+  $('#wasm_module').css({
+    display: '',
+    background: 'transparent',
+    backgroundColor: 'transparent'
+  });
+  $('#listener').addClass('fullscreen');
+
+  // Keep the transition visible briefly after playback starts, then fade it away.
+  window.setTimeout(function() {
+    if (typeof hideStreamTransitionBackground === 'function') {
+      hideStreamTransitionBackground();
+    }
+  }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+}
+
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  $('#main-header').hide();
-  $('#main-content').children().not('#listener, #loadingSpinner').hide();
+  // Hide the entire main UI layer; its descendants inherit that hidden state.
+  hideUiLayer('main-ui-layer', function() {
+    // Stop any in-flight child animations only after the complete layer has faded away.
+    $('#main-ui-layer').find('*').stop(true, false);
+  });
+
   $('#main-content').addClass('fullscreen');
   $('#listener').addClass('fullscreen');
-  $('#loadingSpinner').css('display', 'inline-block');
+
+  // The transition layer owns the visibility of the starfield and all status content.
+  // Show or hide the layer as a whole; never toggle its children individually.
+  if (!window._directSmartHubLaunch) {
+    window._normalStreamVideoReady = false;
+    showStreamTransitionBackground();
+  }
 
   isInGame = true;
   fullscreenWasmModule();
   handleOnScreenOverlays();
-  Navigation.stop();
+  showUiLayer('stream-diagnostics-layer');
+    Navigation.stop();
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
@@ -3148,10 +3623,10 @@ function handleOnScreenOverlays() {
   const performanceStatsSwitch = document.getElementById('performanceStatsSwitch');
 
   // Check if the disable warnings switch is checked, then hide or show the connection warning messages
-  disableWarningsSwitch.checked ? $('#connection-warnings').css('display', 'none') : $('#connection-warnings').css('display', 'inline-block');
+  disableWarningsSwitch.checked ? fadeOutUiElement('connection-warnings') : fadeInUiElement('connection-warnings', 'inline-block');
 
   // Check if the performance stats switch is checked, then show or hide the performance statistics information
-  performanceStatsSwitch.checked ? $('#performance-stats').css('display', 'inline-block') : $('#performance-stats').css('display', 'none');
+  performanceStatsSwitch.checked ? fadeInUiElement('performance-stats', 'inline-block') : fadeOutUiElement('performance-stats');
 }
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
@@ -3183,8 +3658,8 @@ function startGame(host, appID) {
           document.getElementById('quitAppDialogText').innerHTML = t('%1$s is already running. Would you like to quit it and start %2$s?', escapeHTML(currentApp.title), escapeHTML(appToStart.title));
 
           // Show the dialog and push the view
-          quitAppOverlay.style.display = 'flex';
-          quitAppDialog.showModal();
+          fadeInUiElement(quitAppOverlay, 'flex');
+          showUiDialog(quitAppDialog);
           isDialogOpen = true;
           Navigation.push(Views.QuitAppDialog);
 
@@ -3192,8 +3667,8 @@ function startGame(host, appID) {
           $('#cancelQuitApp').off('click');
           $('#cancelQuitApp').on('click', function() {
             console.log('%c[index.js, startGame]', 'color: green;', 'Closing app dialog and returning.');
-            quitAppOverlay.style.display = 'none';
-            quitAppDialog.close();
+            fadeOutUiElement(quitAppOverlay);
+            closeUiDialog(quitAppDialog);
             isDialogOpen = false;
             Navigation.pop();
           });
@@ -3212,8 +3687,8 @@ function startGame(host, appID) {
               // Please, don't infinite loop with recursion
               setTimeout(() => startGame(host, appID), 3000);
             });
-            quitAppOverlay.style.display = 'none';
-            quitAppDialog.close();
+            fadeOutUiElement(quitAppOverlay);
+            closeUiDialog(quitAppDialog);
             isDialogOpen = false;
             Navigation.pop();
           });
@@ -3316,9 +3791,11 @@ function startGame(host, appID) {
               Navigation.switch();
               // Switch to Apps view
               Navigation.change(Views.Apps);
+            setTimeout(hideStreamTransitionBackground, 100);
             });
             return;
           }
+          // Keep the lightweight canvas running until the first native stream frame is visible.
           // Start stream request
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
@@ -3339,6 +3816,7 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
+            setTimeout(hideStreamTransitionBackground, 100);
           });
           return;
         });
@@ -3376,9 +3854,11 @@ function startGame(host, appID) {
             Navigation.switch();
             // Switch to Apps view
             Navigation.change(Views.Apps);
+            setTimeout(hideStreamTransitionBackground, 100);
           });
           return;
         }
+        // Keep the lightweight canvas running until the first native stream frame is visible.
         // Start stream request
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
@@ -3399,6 +3879,7 @@ function startGame(host, appID) {
           Navigation.switch();
           // Switch to Apps view
           Navigation.change(Views.Apps);
+            setTimeout(hideStreamTransitionBackground, 100);
         });
         return;
       });
@@ -3422,6 +3903,9 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
+  // Keep the Apps grid dimmed and non-interactive until it has been refreshed.
+  lockAppListInteraction();
+
   // Hide the configuration strip while the host app is closing, so it cannot
   // overlap the full-screen transition shown by the TV.
   configSummaryTemporarilyHidden = true;
@@ -3437,6 +3921,7 @@ function stopGame(host, callbackFunction) {
       if (!runningApp) {
         snackbarLog('No app is currently running.');
         restoreConfigSummaryAfterQuit();
+        unlockAppListInteraction();
         return;
       }
       var appTitle = runningApp.title;
@@ -3452,18 +3937,22 @@ function stopGame(host, callbackFunction) {
         }, function(failedRefreshInfo2) {
           console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
           restoreConfigSummaryAfterQuit();
+          unlockAppListInteraction();
         });
       }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
         restoreConfigSummaryAfterQuit();
+        unlockAppListInteraction();
       });
     }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
       restoreConfigSummaryAfterQuit();
+      unlockAppListInteraction();
     });
   }, function(failedRefreshInfo) {
     console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
     restoreConfigSummaryAfterQuit();
+    unlockAppListInteraction();
   });
 }
 
@@ -3527,7 +4016,7 @@ function streamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
     class: 'dialog-overlay'
-  }).appendTo(document.body);
+  }).appendTo('#popup-layer');
   var streamMenuDialog = $('<dialog>', {
     id: 'streamMenuDialog',
     class: 'mdl-dialog'
@@ -3576,8 +4065,8 @@ function streamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
-  $(streamMenuDialogOverlay).css('display', 'flex');
-  streamMenuDialog[0].showModal();
+  fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
+  showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
   Views.StreamMenuDialog.view.index = 0;
   Navigation.start();
@@ -3587,24 +4076,29 @@ function streamMenuDialog() {
 
 function closeStreamMenuDialog(returnToStream) {
   var streamMenuDialogOverlay = $('#streamMenuDialogOverlay');
-  if (streamMenuDialogOverlay.length === 0) {
+  if (streamMenuDialogOverlay.length === 0 || streamMenuDialogOverlay[0]._closingUiDialog) {
     return;
   }
+  var overlayElement = streamMenuDialogOverlay[0];
+  var dialogElement = $('#streamMenuDialog')[0];
+  overlayElement._closingUiDialog = true;
   Navigation.pop();
   Navigation.stop();
   window.removeEventListener('mousemove', stopMouseMovePropagation, true);
-  $('#streamMenuDialog')[0].close();
-  streamMenuDialogOverlay.remove();
+  fadeOutUiElement(overlayElement);
   isDialogOpen = false;
-  if (returnToStream) {
-    var videoElement = document.getElementById('wasm_module');
-    videoElement.focus();
-    if (document.pointerLockElement !== videoElement) {
-      videoElement.dispatchEvent(new MouseEvent('mousedown', {
-        bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0
-      }));
+  closeUiDialog(dialogElement, function() {
+    streamMenuDialogOverlay.remove();
+    if (returnToStream) {
+      var videoElement = document.getElementById('wasm_module');
+      videoElement.focus();
+      if (document.pointerLockElement !== videoElement) {
+        videoElement.dispatchEvent(new MouseEvent('mousedown', {
+          bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0
+        }));
+      }
     }
-  }
+  });
 }
 
 function stopMouseMovePropagation(e) {
@@ -3624,8 +4118,8 @@ function directSmartHubVideoReady(videoElement) {
     return false;
   }
 
-  var loadingSpinner = document.getElementById('loadingSpinner');
-  if (loadingSpinner && window.getComputedStyle(loadingSpinner).display !== 'none') {
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
     return false;
   }
 
@@ -4008,6 +4502,14 @@ function saveConfigSummaryVisibility() {
     storeData('showConfigSummaryBar', enabled, null);
     configSummaryPreferenceLoaded = true;
     updateConfigSummaryBar();
+  }, 100);
+}
+
+function saveStreamTransitionBackground() {
+  setTimeout(() => {
+    streamTransitionBackgroundEnabled = $('#streamTransitionBackgroundSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveStreamTransitionBackground]', 'color: green;', 'Saving animated stream transition background: ' + streamTransitionBackgroundEnabled);
+    storeData('streamTransitionBackground', streamTransitionBackgroundEnabled, null);
   }, 100);
 }
 
@@ -4517,6 +5019,11 @@ function restoreDefaultsSettingsValues() {
   configSummaryPreferenceLoaded = true;
   updateConfigSummaryBar();
 
+  const defaultStreamTransitionBackground = true;
+  streamTransitionBackgroundEnabled = defaultStreamTransitionBackground;
+  document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
+  storeData('streamTransitionBackground', defaultStreamTransitionBackground, null);
+
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
   storeData('sortAppsList', defaultSortAppsList, null);
@@ -4836,6 +5343,18 @@ function loadUserDataCb() {
     if (!_directSmartHubLaunch) {
       updateConfigSummaryBar();
       maybeRestoreUiAfterStartup();
+    }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load animated stream transition background preference.');
+  getData('streamTransitionBackground', function(previousValue) {
+    const storedValue = previousValue.streamTransitionBackground;
+    streamTransitionBackgroundEnabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (streamTransitionBackgroundEnabled) {
+      document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.off();
     }
   });
 
@@ -5212,21 +5731,21 @@ function loadHTTPCertsCb() {
         dismissStartupHostsSnackbar();
         maybeRestoreUiAfterStartup();
 
-        initialHostChecks.then(() => {
-          if (typeof startSubnetScanner === 'function') {
-            snackbarLog('Scanning the local network to discover new hosts...');
-            // Stop background polling while sweeping the subnet to prevent network exhaustion
-            stopPollingHosts();
-            startSubnetScanner().then(() => {
-              isSubnetScanFinished = true;
-              startPollingHosts();
-            }).catch(() => {
-              isSubnetScanFinished = true;
-              startPollingHosts();
-            });
-          } else {
-            isSubnetScanFinished = true;
+        initialHostChecks.then(function() {
+          if (typeof startSubnetScanner !== 'function') {
+            return;
           }
+
+          snackbarLog('Scanning the local network to discover new hosts...');
+          // Stop background polling while sweeping the subnet to prevent network exhaustion.
+          stopPollingHosts();
+          return startSubnetScanner();
+        }).catch(function(error) {
+          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet scan failed:', error);
+        }).finally(function() {
+          isSubnetScanFinished = true;
+          startPollingHosts();
+          finishInitialHostDiscovery();
         });
       });
     });
@@ -5733,10 +6252,15 @@ function updateConfigSummaryBar() {
     return !!element && window.getComputedStyle(element).display !== 'none';
   }
 
-  // The strip belongs only to the Hosts and Apps grids, never to Settings or streaming.
+  // Keep the strip visible while transitioning between Hosts and Apps.
+  // The destination title is updated before its grid is shown, so relying only
+  // on grid visibility causes the strip to disappear briefly during this gap.
   var onHostsScreen = isVisible(document.getElementById('host-grid'));
   var onAppsScreen = isVisible(document.getElementById('game-grid'));
-  var desiredDisplay = (onHostsScreen || onAppsScreen) &&
+  var headerTitle = document.getElementById('header-title');
+  var titleText = headerTitle ? headerTitle.textContent.trim() : '';
+  var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
+  var desiredDisplay = !isInGame && (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) &&
     !isVisible(document.getElementById('settings-list')) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
@@ -5822,6 +6346,13 @@ function onWindowLoad() {
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Moonlight\'s main window loaded.');
   initSamsungKeys();
   initSpecialKeys();
+
+  // The explicit displayVideo callback is not guaranteed by every backend build.
+  // The actual HTML video element's playing event is the browser-level readiness signal.
+  var streamVideoElement = document.getElementById('wasm_module');
+  if (streamVideoElement) {
+    streamVideoElement.addEventListener('playing', handleNormalStreamVideoReady);
+  }
 
   if (_directSmartHubLaunch) {
     // Preserve the existing direct-launch path: it has no deferred-startup delay.
