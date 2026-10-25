@@ -863,9 +863,9 @@ function handleMessage(msg) {
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
-        // The full-screen transition already communicates that the stream is closing.
-        return showApps(api, { suppressLoadingSnackbar: true });
-      }).then(function() {
+        // Reuse the existing Apps grid: the list itself has not changed just because the stream ended.
+        // showAppsMode restores the view and unlocks app-list interaction without another getAppList request.
+        showAppsMode();
         Navigation.switch();
         if (!window.isDialogOpen) {
           Navigation.change(Views.Apps);
