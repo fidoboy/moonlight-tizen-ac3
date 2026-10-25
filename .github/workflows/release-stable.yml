@@ -1,4 +1,4 @@
-name: Release WGTs
+name: Generate stable release
 
 on:
   push:
