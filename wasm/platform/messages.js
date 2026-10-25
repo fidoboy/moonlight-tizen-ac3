@@ -863,7 +863,8 @@ function handleMessage(msg) {
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
-        return showApps(api);
+        // The full-screen transition already communicates that the stream is closing.
+        return showApps(api, { suppressLoadingSnackbar: true });
       }).then(function() {
         Navigation.switch();
         if (!window.isDialogOpen) {
