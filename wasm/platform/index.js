@@ -2273,6 +2273,10 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Hide the configuration summary immediately during the transition to Settings.
+  configSummaryTemporarilyHidden = true;
+  updateConfigSummaryBar();
+
   // Stop navigation before showing the loading screen
   Navigation.stop();
 
@@ -2298,6 +2302,10 @@ function showSettings() {
     $('#settings-list').removeClass('hide-container');
     $('#settings-list').css('display', 'flex');
     $('#settings-list').show();
+
+    // The settings list now controls the summary bar's visibility normally.
+    configSummaryTemporarilyHidden = false;
+    updateConfigSummaryBar();
 
     // Navigate to the Settings view
     Navigation.push(Views.Settings);
@@ -6242,7 +6250,7 @@ function updateConfigSummaryBar() {
   if (!bar) bar = createConfigSummaryBar();
   if (!bar) return;
 
-  // Keep the element in the DOM, but do not paint it over the host-app closing transition.
+  // Keep the element in the DOM, but suppress it during UI transitions that must not show the summary bar.
   if (configSummaryTemporarilyHidden) {
     if (bar.style.display !== 'none') bar.style.display = 'none';
     return;
