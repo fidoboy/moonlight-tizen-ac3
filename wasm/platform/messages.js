@@ -706,7 +706,12 @@ var handlePromiseMessage = function(callbackId, type, msg) {
  * @return {void}
  */
 function handleMessage(msg) {
-  console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
+  // Avoid console I/O for recurring statistics messages, especially when their overlay is hidden.
+  if (msg.indexOf('StatMsg: ') !== 0 &&
+      msg.indexOf('GraphMsg: ') !== 0 &&
+      msg.indexOf('HostLatencyMsg: ') !== 0) {
+    console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
+  }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
     // Hide and lock the overlay before painting the direct-launch closing status.
