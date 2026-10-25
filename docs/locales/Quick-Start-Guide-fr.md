@@ -45,6 +45,8 @@ Pour une nouvelle installation, commencez avec une résolution, une fréquence d
 
 Le passthrough Dolby nécessite la [version expérimentale Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio) correspondante. Téléchargez directement la version Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) ou [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip). Il faut aussi un chemin audio compatible sur le téléviseur et un récepteur ou système audio prenant en charge le format.
 
+Le passthrough Dolby est également disponible dans la [version nightly 2.0.2 de Vibeshine](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d).
+
 1. Reliez la sortie optique du téléviseur au récepteur ou au système audio.
 2. Dans les paramètres audio du téléviseur, choisissez un mode qui transmet un bitstream Dolby compatible au lieu d'imposer le PCM stéréo. Les libellés varient selon le modèle.
 3. Dans Settings de Moonlight, activez **Enable Dolby Digital** et sélectionnez stéréo ou 5.1.
