@@ -1,4 +1,4 @@
-name: Generate Versioned Splash Video Assets
+name: Generate video assets
 
 on:
   workflow_dispatch:
