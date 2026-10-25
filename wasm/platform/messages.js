@@ -141,6 +141,14 @@ function resetPerformanceStatsGraph() {
   performanceStatsHostLatencyLatest = null;
 }
 
+// Avoid collecting samples or drawing canvases while the diagnostics overlay is hidden.
+function isPerformanceStatsOverlayVisible() {
+  var overlay = document.getElementById('performance-stats');
+  if (!overlay || !window.getComputedStyle) return false;
+  var style = window.getComputedStyle(overlay);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
 function ensurePerformanceStatsOverlayElements() {
   var container = document.getElementById('performance-stats');
   if (!container) return null;
@@ -339,6 +347,8 @@ function drawPerformanceStatsGraph() {
 }
 
 function handlePerformanceStatsGraphMessage(message) {
+  if (!isPerformanceStatsOverlayVisible()) return;
+
   var values = message.replace('GraphMsg: ', '').split(',').map(Number);
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
@@ -365,6 +375,8 @@ function handlePerformanceStatsGraphMessage(message) {
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
+  if (!isPerformanceStatsOverlayVisible()) return;
+
   var values = message.replace('HostLatencyMsg: ', '').split(',').map(Number);
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
