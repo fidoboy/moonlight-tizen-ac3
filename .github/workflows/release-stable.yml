@@ -69,19 +69,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          ASSET_TAG="build-videos-v1"
           ASSET_FILE="moonlight-generated-videos-v1.zip"
-          if ! gh release view "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Required video assets are unavailable (release $ASSET_TAG was not found). Run the 'Generate Versioned Video Assets' workflow first." >&2
-            exit 1
-          fi
+          ASSET_URL="https://raw.githubusercontent.com/fidoboy/moonlight-tizen-ac3/build-assets/moonlight-generated-videos-v1.zip"
           mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
-          if ! gh release download "$ASSET_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET_FILE" --dir "$RUNNER_TEMP/video-assets"; then
-            echo "::error::Required video asset $ASSET_FILE could not be downloaded from release $ASSET_TAG. Rebuild the assets by running the 'Generate Versioned Video Assets' workflow." >&2
+          if ! curl --fail --silent --show-error --location "$ASSET_URL" --output "$RUNNER_TEMP/video-assets/$ASSET_FILE"; then
+            echo "::error::Required video asset $ASSET_FILE could not be downloaded from build-assets. Run the 'Generate Versioned Splash Video Assets' workflow to publish it." >&2
             exit 1
           fi
           if ! unzip -tq "$RUNNER_TEMP/video-assets/$ASSET_FILE" >/dev/null; then
-            echo "::error::The versioned video asset archive is invalid. Rebuild it with the 'Generate Versioned Video Assets' workflow." >&2
+            echo "::error::The versioned video asset archive is invalid. Re-run the 'Generate Versioned Splash Video Assets' workflow." >&2
             exit 1
           fi
           unzip -oq "$RUNNER_TEMP/video-assets/$ASSET_FILE" -d generated-videos
