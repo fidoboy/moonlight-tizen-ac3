@@ -7,6 +7,11 @@ description: "Respuestas sobre compatibilidad, audio Dolby y configuración de M
 
 # Preguntas frecuentes
 
+
+## ¿Cómo actualizo la aplicación cuando hay una nueva versión disponible?
+
+La propia aplicación del televisor te avisará cuando haya una nueva versión disponible. Si utilizaste el método de instalación recomendado, mediante Apps2Samsung, solo tienes que volver a abrir Apps2Samsung y seleccionar **Moonlight** con la variante **fidoboy · Enhanced · Dolby** para descargar la última versión. Si prefieres instalarla manualmente, descarga el nuevo paquete WGT desde la [página de la última versión](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instálalo en el televisor.
+
 ## ¿Funciona este proyecto con Sunshine u otros hosts compatibles con GameStream?
 
 Sí. Este cliente Moonlight debería funcionar correctamente con el antiguo [NVIDIA GameStream](https://nvidia.custhelp.com/app/answers/detail/a_id/5436/~/game-stream-service-update), [Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Punktfunk](https://punktfunk.unom.io/), [Vibeshine](https://github.com/Nonary/vibeshine) y otros servidores compatibles con el mismo protocolo. La extensión Dolby es opcional. Si el host no anuncia ni selecciona AC-3/E-AC-3, el cliente conserva la ruta de audio OPUS habitual. No hace falta modificar el host para una transmisión que solo utilice OPUS.
