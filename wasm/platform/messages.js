@@ -144,9 +144,14 @@ function resetPerformanceStatsGraph() {
 // Avoid collecting samples or drawing canvases while the diagnostics overlay is hidden.
 function isPerformanceStatsOverlayVisible() {
   var overlay = document.getElementById('performance-stats');
-  if (!overlay || !window.getComputedStyle) return false;
-  var style = window.getComputedStyle(overlay);
-  return style.display !== 'none' && style.visibility !== 'hidden';
+  var layer = document.getElementById('stream-diagnostics-layer');
+  if (!overlay || !layer || !window.getComputedStyle) return false;
+
+  var layerStyle = window.getComputedStyle(layer);
+  if (layerStyle.display === 'none' || layerStyle.visibility === 'hidden') return false;
+
+  var overlayStyle = window.getComputedStyle(overlay);
+  return overlayStyle.display !== 'none' && overlayStyle.visibility !== 'hidden';
 }
 
 function ensurePerformanceStatsOverlayElements() {
