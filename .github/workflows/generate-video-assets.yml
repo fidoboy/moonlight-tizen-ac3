@@ -49,5 +49,5 @@ jobs:
           body: |
             Versioned generated splash MP4 assets used by the Docker build. The transition starfield is rendered by the web UI canvas.
 
-            To rebuild these assets, run the **Generate Versioned Video Assets** workflow.
+            To rebuild these assets, run the **Generate Versioned Splash Video Assets** workflow.
             Consumers intentionally fail if this release asset is unavailable.

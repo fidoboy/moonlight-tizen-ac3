@@ -33,10 +33,10 @@ Consulte os [pré-requisitos no README](../#compatibility) para mais detalhes.
 Use o arquivo `Moonlight-ForceGM.wgt` somente se a sua TV precisar especificamente dos metadados alternativos do Game Mode.
 ## 3. Configure o host e faça o pareamento
 
-1. Instale e inicie o Sunshine no PC host.
+1. Instale e inicie no PC qualquer servidor host compatível com GameStream. Alguns exemplos são [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) e [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Outros programas host compatíveis também podem funcionar.
 2. Verifique se o PC e a TV conseguem se comunicar na mesma rede e se o firewall do host permite conexões de streaming.
 3. Inicie o Moonlight na TV e selecione o host quando ele aparecer.
-4. O Moonlight exibirá um PIN. Abra a interface Web do Sunshine no PC, insira o PIN na seção de pareamento e confirme.
+4. O Moonlight exibirá um PIN. Abra a interface Web do servidor host no PC, insira o PIN na seção de pareamento e confirme.
 5. Selecione um jogo ou a área de trabalho para iniciar a transmissão.
 
 Em uma nova configuração, comece com resolução, taxa de quadros e bitrate conservadores. Aumente-os depois de confirmar que a transmissão está estável.
@@ -44,6 +44,8 @@ Em uma nova configuração, comece com resolução, taxa de quadros e bitrate co
 ## 4. Ative a saída óptica Dolby (opcional)
 
 O passthrough Dolby exige a [build experimental Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio) correspondente. Baixe diretamente a versão Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) ou [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip). Também é necessário um caminho de áudio compatível na TV e um receiver ou sistema de som que suporte o formato.
+
+Como alternativa, o passthrough Dolby também está disponível na [build nightly 2.0.2 do Vibeshine](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d).
 
 1. Conecte a saída óptica da TV ao receiver ou sistema de som.
 2. Nas configurações de som da TV, escolha um modo de saída que transmita um bitstream Dolby compatível em vez de forçar PCM estéreo. Os nomes variam por modelo.

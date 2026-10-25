@@ -32,10 +32,10 @@ See [Prerequisites in the README](https://github.com/fidoboy/moonlight-tizen-ac3
 Use `Moonlight-ForceGM.wgt` only if your TV specifically needs the alternative Game Mode metadata.
 ## 3. Configure the host and pair
 
-1. Install and start Sunshine on the host PC.
+1. Install and start any GameStream-compatible host server on the PC. Examples include [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases), and [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Other compatible host software may also work.
 2. Make sure the PC and TV can communicate over the same network and that the host firewall permits the streaming connections.
 3. Launch Moonlight on the TV and select the host when it appears.
-4. Moonlight displays a PIN. Open the Sunshine Web UI on the PC, enter that PIN in the pairing section and confirm.
+4. Moonlight displays a PIN. Open the host's web interface on the PC, enter that PIN in its pairing section and confirm.
 5. Select a game or desktop entry to start streaming.
 
 For a new setup, begin with conservative default resolution, frame rate and bitrate settings. Increase them after confirming that the stream is stable.
@@ -43,6 +43,8 @@ For a new setup, begin with conservative default resolution, frame rate and bitr
 ## 4. Enable Dolby optical output (optional)
 
 Dolby passthrough requires the matching experimental [Sunshine ac3-audio build](https://github.com/fidoboy/Sunshine/tree/ac3-audio) — download the Windows [x64 build](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) or [ARM64 build](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) — plus a compatible TV audio path and a receiver or sound system that supports the format.
+
+Alternatively, Dolby passthrough is also available in the [Vibeshine 2.0.2 nightly build](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d).
 
 1. Connect the TV's optical output to the receiver or sound system.
 2. In the TV's sound settings, choose an output mode that passes through a supported Dolby bitstream rather than forcing PCM stereo. The exact labels vary by model.

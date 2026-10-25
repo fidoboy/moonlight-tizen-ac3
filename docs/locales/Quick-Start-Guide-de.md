@@ -33,10 +33,10 @@ Weitere Informationen findest du unter [Voraussetzungen in der README](../#compa
 Verwende `Moonlight-ForceGM.wgt` nur, wenn dein Fernseher ausdrücklich die alternativen Game-Mode-Metadaten benötigt.
 ## 3. Host konfigurieren und koppeln
 
-1. Installiere und starte Sunshine auf dem Host-PC.
+1. Installiere und starte einen beliebigen GameStream-kompatiblen Host-Server auf dem PC. Beispiele sind [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) und [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Auch andere kompatible Host-Programme können funktionieren.
 2. Stelle sicher, dass PC und Fernseher im selben Netzwerk kommunizieren können und die Host-Firewall Streamingverbindungen zulässt.
 3. Starte Moonlight am Fernseher und wähle den Host aus, sobald er erscheint.
-4. Moonlight zeigt eine PIN an. Öffne die Sunshine-Weboberfläche am PC, gib die PIN im Kopplungsbereich ein und bestätige.
+4. Moonlight zeigt eine PIN an. Öffne die Weboberfläche des Hosts am PC, gib die PIN im Kopplungsbereich ein und bestätige.
 5. Wähle ein Spiel oder den Desktop, um das Streaming zu starten.
 
 Beginne bei einer neuen Einrichtung mit vorsichtigen Standardwerten für Auflösung, Bildrate und Bitrate. Erhöhe sie erst, wenn der Stream stabil läuft.
@@ -44,6 +44,8 @@ Beginne bei einer neuen Einrichtung mit vorsichtigen Standardwerten für Auflös
 ## 4. Dolby-Ausgabe über optischen Anschluss aktivieren (optional)
 
 Dolby-Passthrough benötigt den passenden experimentellen [Sunshine-ac3-audio-Build](https://github.com/fidoboy/Sunshine/tree/ac3-audio). Du kannst den Windows-Build für [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) oder [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) direkt herunterladen. Zusätzlich sind ein kompatibler TV-Audiopfad und ein Receiver oder Soundsystem erforderlich, das das Format unterstützt.
+
+Alternativ ist Dolby-Passthrough auch in der [Vibeshine-2.0.2-Nightly-Version](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d) verfügbar.
 
 1. Verbinde den optischen Ausgang des Fernsehers mit dem Receiver oder Soundsystem.
 2. Wähle in den TV-Audioeinstellungen einen Ausgabemodus, der einen unterstützten Dolby-Bitstream durchleitet, statt Stereo-PCM zu erzwingen. Die genaue Bezeichnung variiert nach Modell.
