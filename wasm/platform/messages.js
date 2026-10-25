@@ -956,12 +956,14 @@ function handleMessage(msg) {
     // Show the overlay for this streaming session without changing the saved preference.
     fadeInUiElement('performance-stats', 'inline-block');
     $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
-    var statsElements = ensurePerformanceStatsOverlayElements();
-    if (statsElements) {
-      var sourceStatsText = msg.replace('StatMsg: ', '');
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-      drawPerformanceStatsGraph();
-      drawHostProcessingLatencyGraph();
+    if (isPerformanceStatsOverlayVisible()) {
+      var statsElements = ensurePerformanceStatsOverlayElements();
+      if (statsElements) {
+        var sourceStatsText = msg.replace('StatMsg: ', '');
+        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+        drawPerformanceStatsGraph();
+        drawHostProcessingLatencyGraph();
+      }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
     if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
