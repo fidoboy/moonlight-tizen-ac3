@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   validate-and-build:
@@ -59,27 +60,72 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v5
 
-      - name: Download required versioned MP4 assets
+      - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           ASSET_FILE="moonlight-generated-videos-v1.zip"
-          ASSET_URL="https://raw.githubusercontent.com/fidoboy/moonlight-tizen-ac3/build-assets/moonlight-generated-videos-v1.zip"
+          ASSET_URL="https://raw.githubusercontent.com/fidoboy/moonlight-tizen-ac3/build-assets/$ASSET_FILE"
+          ASSET_PATH="$RUNNER_TEMP/video-assets/$ASSET_FILE"
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
           mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
-          if ! curl --fail --silent --show-error --location "$ASSET_URL" --output "$RUNNER_TEMP/video-assets/$ASSET_FILE"; then
-            echo "::error::Required video asset $ASSET_FILE could not be downloaded from build-assets. Run the 'Generate Versioned Splash Video Assets' workflow to publish it." >&2
+
+          download_asset() {
+            local status
+            status="$(curl --silent --show-error --location --output "$ASSET_PATH" --write-out '%{http_code}' "$ASSET_URL")"
+            printf '%s' "$status"
+          }
+
+          status="$(download_asset)"
+          if [[ "$status" == "404" ]]; then
+            echo "Video asset ZIP not found on build-assets; starting the asset-generation workflow."
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets/dispatch-response.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' \
+              "$API_URL")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              echo "::error::Could not start Generate video assets (HTTP $dispatch_status). The workflow token needs Actions write permission." >&2
+              cat "$RUNNER_TEMP/video-assets/dispatch-response.json" >&2
+              exit 1
+            fi
+
+            # Wait for the ZIP to be published. Do not regenerate if the ZIP already exists.
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(download_asset)"
+              if [[ "$status" == "200" ]]; then
+                break
+              fi
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for the generated video asset ZIP." >&2
+                exit 1
+              fi
+            done
+            if [[ "$status" != "200" ]]; then
+              echo "::error::The video asset ZIP was not published within 20 minutes. Check the Generate video assets workflow run." >&2
+              exit 1
+            fi
+          elif [[ "$status" != "200" ]]; then
+            echo "::error::Could not download the video asset ZIP (HTTP $status)." >&2
             exit 1
           fi
-          if ! unzip -tq "$RUNNER_TEMP/video-assets/$ASSET_FILE" >/dev/null; then
-            echo "::error::The versioned video asset archive is invalid. Re-run the 'Generate Versioned Splash Video Assets' workflow." >&2
+
+          # A present but invalid ZIP is an error; generation is only triggered when the ZIP is missing.
+          if ! unzip -tq "$ASSET_PATH" >/dev/null; then
+            echo "::error::The video asset ZIP exists but is invalid; refusing to regenerate it automatically." >&2
             exit 1
           fi
-          unzip -oq "$RUNNER_TEMP/video-assets/$ASSET_FILE" -d generated-videos
+          unzip -oq "$ASSET_PATH" -d generated-videos
           for video in launch-screen.mp4 launch-screen-portrait.mp4; do
             if [[ ! -s "generated-videos/$video" ]]; then
-              echo "::error::Required video generated-videos/$video is missing or empty. Rebuild the versioned assets using the 'Generate Versioned Video Assets' workflow." >&2
+              echo "::error::Required video generated-videos/$video is missing or empty in the existing ZIP." >&2
               exit 1
             fi
           done
