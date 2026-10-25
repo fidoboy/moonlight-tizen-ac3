@@ -279,6 +279,8 @@ const NAVIGATION_DELAY = 150; // Navigation delay set to 150ms (milliseconds)
 const UPDATE_TIMESTAMP = 'lastUpdateCheck'; // Use the update check timestamp key to determine the last update check
 const UPDATE_VERSION = 'latestUpdateVersion'; // // Use the update version key to cache the latest version found
 const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // Automatic check for updates interval is set to 24 hours
+var startupUpdateCheckPending = false;
+var startupUpdateCheckTimeout = null;
 
 // Reflect disabled checkbox state on the visible Material Design Lite switch.
 // The checkbox itself is visually hidden, so CSS alone cannot dim the switch row.
@@ -301,6 +303,11 @@ function initializeDisabledSwitchAppearance() {
   document.querySelectorAll('.mdl-switch__input').forEach(syncDisabledSwitchAppearance);
 
   if (typeof MutationObserver !== 'function' || !document.body) {
+    return;
+  }
+
+  const settingsRoot = document.getElementById('settings-list');
+  if (!settingsRoot) {
     return;
   }
 
@@ -327,7 +334,7 @@ function initializeDisabledSwitchAppearance() {
     });
   });
 
-  observer.observe(document.body, {
+  observer.observe(settingsRoot, {
     subtree: true,
     attributes: true,
     attributeFilter: ['disabled'],
@@ -1096,8 +1103,11 @@ function restoreUiAfterWasmLoad() {
   // });
 
 
-  // Automatically check for a new update after 10 seconds delay at application startup once every 24 hours
-  setTimeout(() => checkForAppUpdatesAtStartup(), 10000);
+  // Automatically check for updates after startup, but never start the check during a stream.
+  startupUpdateCheckTimeout = window.setTimeout(function() {
+    startupUpdateCheckTimeout = null;
+    checkForAppUpdatesAtStartup();
+  }, 10000);
 }
 
 // Handles the selection of a host, manages the connection, pairing process, including error handling
@@ -2618,6 +2628,12 @@ function checkForAppUpdates() {
 
 // Automatically perform a scheduled app update check at startup if the interval condition is met and notify the user
 function checkForAppUpdatesAtStartup() {
+  if (isInGame) {
+    startupUpdateCheckPending = true;
+    return;
+  }
+  startupUpdateCheckPending = false;
+
   getData('automaticUpdateChecks', function(settings) {
     const storedValue = settings.automaticUpdateChecks;
     const enabled = storedValue == null || storedValue === true ||
@@ -2629,6 +2645,10 @@ function checkForAppUpdatesAtStartup() {
 
     // Fetch the current timestamp and stored version info
     getData(UPDATE_TIMESTAMP, function(tResult) {
+      if (isInGame) {
+        startupUpdateCheckPending = true;
+        return;
+      }
       var lastChecked = tResult[UPDATE_TIMESTAMP];
       var currentTime = Date.now();
       // Log the last auto-check timestamp if it exists
@@ -3011,6 +3031,12 @@ function showAppsMode() {
 
   showUiLayer('main-ui-layer');
   isInGame = false;
+  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+    startupUpdateCheckTimeout = window.setTimeout(function() {
+      startupUpdateCheckTimeout = null;
+      checkForAppUpdatesAtStartup();
+    }, 0);
+  }
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
   stopPollingHosts();
@@ -3501,10 +3527,8 @@ function hideStreamTransitionBackground() {
   fadeOutUiElement('loadingSpinner');
   streamTransitionHideLayerTimeout = window.setTimeout(function() {
     streamTransitionHideLayerTimeout = null;
-    hideUiLayer('stream-transition-layer');
-    // Stop calculations 100 ms after the layer's 300 ms fade-out has completed.
-    streamTransitionTeardownTimeout = window.setTimeout(function() {
-      streamTransitionTeardownTimeout = null;
+    hideUiLayer('stream-transition-layer', function() {
+      // The layer is now display:none: stop the animation immediately and release its resources.
       streamTransitionVisible = false;
       if (streamTransitionAnimationFrame !== null) {
         window.cancelAnimationFrame(streamTransitionAnimationFrame);
@@ -3514,7 +3538,8 @@ function hideStreamTransitionBackground() {
       streamTransitionStars = [];
       streamTransitionContext = null;
       streamTransitionCanvas = null;
-    }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+      streamTransitionTeardownTimeout = null;
+    });
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
 
