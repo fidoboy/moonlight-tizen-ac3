@@ -3044,7 +3044,7 @@ function showAppsMode() {
 }
 
 // Show the Apps grid
-function showApps(host) {
+function showApps(host, options) {
   return new Promise((resolve, reject) => {
     // Safety checking should happen before attempting to show the app list
     if (!host || !host.paired) {
@@ -3059,8 +3059,11 @@ function showApps(host) {
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Show a snackbar only if loading and transitioning takes more than one second.
-    scheduleViewLoadingSnackbar('Loading Apps...');
+    // Show a snackbar only if loading and transitioning takes more than one second,
+    // unless the Apps list is being restored behind the full-screen stream-closing transition.
+    if (!(options && options.suppressLoadingSnackbar)) {
+      scheduleViewLoadingSnackbar('Loading Apps...');
+    }
 
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
     $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
