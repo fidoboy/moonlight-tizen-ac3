@@ -159,10 +159,15 @@ void MoonlightInstance::CloseMediaSource() {
   // Bound the wait: the next StartStream waits for teardown, so an unbounded wait
   // here could freeze the UI if the media source never reports that it closed.
   std::unique_lock<std::mutex> lock(m_Mutex);
-  if (!m_SourceClosedCV.wait_for(lock, std::chrono::seconds(5), [this] {
+  const bool sourceClosed = m_SourceClosedCV.wait_for(lock, std::chrono::seconds(5), [this] {
     return m_SourceClosed.load();
-  })) {
+  });
+  if (!sourceClosed) {
     ClLogMessage("Timed out waiting for the media source to close\n");
+  } else {
+    // Detach the closed source from the persistent HTML media element so Tizen
+    // does not keep displaying its final decoded frame between streaming sessions.
+    m_MediaElement.SetSrc(nullptr);
   }
 
   m_EmssReadyState = EmssReadyState::kDetached;
