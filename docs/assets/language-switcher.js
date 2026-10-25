@@ -69,7 +69,7 @@
       const links = richLinkTemplates.get(element);
       const sentence = translated(key, code);
       const fragment = document.createDocumentFragment();
-      const token = /\\{\\{([a-z0-9_-]+)\\}\\}/gi;
+      const token = /\{\{([a-z0-9_-]+)\}\}/gi;
       let cursor = 0, match;
       while ((match = token.exec(sentence))) {
         fragment.append(document.createTextNode(sentence.slice(cursor, match.index)));
