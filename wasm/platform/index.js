@@ -2001,7 +2001,7 @@ function hostMenuDialog(host) {
   }
 
   // Show the dialog and push the view
-  $(hostMenuDialogOverlay).css('display', 'flex');
+  fadeInUiElement(hostMenuDialogOverlay, 'flex');
   showUiDialog(hostMenuDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
@@ -2208,7 +2208,7 @@ function hostDetailsDialog(host) {
   }
 
   // Show the dialog and push the view
-  $(hostDetailsDialogOverlay).css('display', 'flex');
+  fadeInUiElement(hostDetailsDialogOverlay, 'flex');
   showUiDialog(hostDetailsDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.HostDetailsDialog);
