@@ -386,6 +386,7 @@ function attachListeners() {
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
+  $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
@@ -3339,6 +3340,7 @@ var streamTransitionContext = null;
 var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
+var streamTransitionBackgroundEnabled = true;
 var streamTransitionHiding = false;
 var streamTransitionFirstFrameCallback = null;
 var streamTransitionRevealTimeout = null;
@@ -3458,6 +3460,16 @@ function showStreamTransitionBackground(onVisible) {
   streamTransitionCanvas.height = Math.max(1, window.innerHeight);
   streamTransitionContext = streamTransitionCanvas.getContext('2d');
   streamTransitionVisible = true;
+
+  // The opt-out keeps the transition layer but leaves its CSS background solid black.
+  if (!streamTransitionBackgroundEnabled) {
+    if (streamTransitionContext) {
+      streamTransitionContext.clearRect(0, 0, streamTransitionCanvas.width, streamTransitionCanvas.height);
+    }
+    streamTransitionRevealTimeout = window.setTimeout(revealTransitionContent, 16);
+    return;
+  }
+
   // Let the first starfield frame render while the layer is still hidden. Reveal on a
   // later task so canvas initialization and the first 2,000-star draw are not exposed
   // as a visible hitch when the transition starts.
@@ -4463,6 +4475,14 @@ function saveConfigSummaryVisibility() {
   }, 100);
 }
 
+function saveStreamTransitionBackground() {
+  setTimeout(() => {
+    streamTransitionBackgroundEnabled = $('#streamTransitionBackgroundSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveStreamTransitionBackground]', 'color: green;', 'Saving animated stream transition background: ' + streamTransitionBackgroundEnabled);
+    storeData('streamTransitionBackground', streamTransitionBackgroundEnabled, null);
+  }, 100);
+}
+
 function saveSortAppsList() {
   setTimeout(() => {
     const chosenSortAppsList = $('#sortAppsListSwitch').parent().hasClass('is-checked');
@@ -4969,6 +4989,11 @@ function restoreDefaultsSettingsValues() {
   configSummaryPreferenceLoaded = true;
   updateConfigSummaryBar();
 
+  const defaultStreamTransitionBackground = true;
+  streamTransitionBackgroundEnabled = defaultStreamTransitionBackground;
+  document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
+  storeData('streamTransitionBackground', defaultStreamTransitionBackground, null);
+
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
   storeData('sortAppsList', defaultSortAppsList, null);
@@ -5288,6 +5313,18 @@ function loadUserDataCb() {
     if (!_directSmartHubLaunch) {
       updateConfigSummaryBar();
       maybeRestoreUiAfterStartup();
+    }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load animated stream transition background preference.');
+  getData('streamTransitionBackground', function(previousValue) {
+    const storedValue = previousValue.streamTransitionBackground;
+    streamTransitionBackgroundEnabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (streamTransitionBackgroundEnabled) {
+      document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.off();
     }
   });
 
