@@ -3272,8 +3272,11 @@ function showApps(host) {
         $('#game-grid').html(errorAppListImg);
         snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
 
-        // Navigate to the Apps view
-        showAppsMode();
+        // During stream recovery, do not expose an error Apps screen or unlock the stale
+        // grid. Let the caller's recovery handler return to Hosts in one consistent step.
+        if (!appListInteractionLocked) {
+          showAppsMode();
+        }
         reject(failedAppList);
       });
     }, 500);
@@ -3338,6 +3341,7 @@ var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionHiding = false;
 var streamTransitionFirstFrameCallback = null;
+var streamTransitionRevealTimeout = null;
 var streamTransitionTeardownTimeout = null;
 var streamTransitionHideLayerTimeout = null;
 var streamTransitionStatusTimeout = null;
@@ -3426,6 +3430,7 @@ function animateStreamTransitionBackground() {
 }
 
 function showStreamTransitionBackground(onVisible) {
+  if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
   if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
@@ -3433,6 +3438,8 @@ function showStreamTransitionBackground(onVisible) {
   streamTransitionHiding = false;
 
   var revealTransitionContent = function() {
+    streamTransitionRevealTimeout = null;
+    if (!streamTransitionVisible || streamTransitionHiding) return;
     showUiLayer('stream-transition-layer');
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
@@ -3451,7 +3458,13 @@ function showStreamTransitionBackground(onVisible) {
   streamTransitionCanvas.height = Math.max(1, window.innerHeight);
   streamTransitionContext = streamTransitionCanvas.getContext('2d');
   streamTransitionVisible = true;
-  streamTransitionFirstFrameCallback = revealTransitionContent;
+  // Let the first starfield frame render while the layer is still hidden. Reveal on a
+  // later task so canvas initialization and the first 2,000-star draw are not exposed
+  // as a visible hitch when the transition starts.
+  streamTransitionFirstFrameCallback = function() {
+    if (streamTransitionRevealTimeout !== null) window.clearTimeout(streamTransitionRevealTimeout);
+    streamTransitionRevealTimeout = window.setTimeout(revealTransitionContent, 16);
+  };
 
   if (!streamTransitionContext) {
     streamTransitionFirstFrameCallback = null;
@@ -3464,6 +3477,7 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground() {
+  if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
   if (streamTransitionHiding) return;
   streamTransitionHiding = true;
