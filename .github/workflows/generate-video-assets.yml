@@ -40,8 +40,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: build-videos-v1
           target_commitish: ${{ github.sha }}
-          name: Moonlight generated video assets v1
-          prerelease: false
+          name: Internal build assets (not an app release)
+          prerelease: true
           draft: false
           overwrite_files: true
           fail_on_unmatched_files: true

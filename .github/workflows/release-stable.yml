@@ -85,7 +85,7 @@ jobs:
             exit 1
           fi
           unzip -oq "$RUNNER_TEMP/video-assets/$ASSET_FILE" -d generated-videos
-          for video in launch-screen.mp4 launch-screen-portrait.mp4 stream-transition-background.mp4; do
+          for video in launch-screen.mp4 launch-screen-portrait.mp4; do
             if [[ ! -s "generated-videos/$video" ]]; then
               echo "::error::Required video generated-videos/$video is missing or empty. Rebuild the versioned assets using the 'Generate Versioned Video Assets' workflow." >&2
               exit 1
