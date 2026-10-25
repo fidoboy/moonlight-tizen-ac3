@@ -6,6 +6,11 @@ description: "Frequently asked questions about Moonlight Tizen, Dolby Digital au
 
 # Frequently Asked Questions
 
+
+## How do I update the app when a new version is available?
+
+The app on your TV will notify you when a new release is available. If you used the recommended Apps2Samsung installation method, simply open Apps2Samsung again and select **Moonlight** with the **fidoboy · Enhanced · Dolby** variant to download the latest version. If you prefer to install it manually, download the new WGT package from the [latest release page](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it on your TV.
+
 ## Does this project work with ordinary Sunshine or other GameStream-compatible hosts?
 
 Yes. This Moonlight client should work correctly with legacy [NVIDIA GameStream](https://nvidia.custhelp.com/app/answers/detail/a_id/5436/~/game-stream-service-update), [Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Punktfunk](https://punktfunk.unom.io/), [Vibeshine](https://github.com/Nonary/vibeshine), and other servers compatible with the same protocol. The Dolby extension is optional. If the host does not advertise or select AC-3/E-AC-3, the client retains the normal OPUS audio path. No Dolby-specific host change is required for an OPUS-only stream.
