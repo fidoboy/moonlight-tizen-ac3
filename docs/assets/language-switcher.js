@@ -288,7 +288,8 @@
 
   function applyHomeLanguage(code) {
     document.documentElement.lang = code === "pt-br" ? "pt-BR" : code;
-    translateRichText(document.body, code);\n    translateText(document.body, code);
+    translateRichText(document.body, code);
+    translateText(document.body, code);
     translateAttributes(document, code);
     syncPicker(code);
   }
