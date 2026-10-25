@@ -34,20 +34,11 @@ jobs:
           )
           unzip -l dist/moonlight-generated-videos-v1.zip
 
-      - name: Publish versioned video assets
-        uses: softprops/action-gh-release@v2
+      - name: Publish ZIP to the build-assets branch
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: build-videos-v1
-          target_commitish: ${{ github.sha }}
-          name: Internal build assets (not an app release)
-          prerelease: true
-          draft: false
-          overwrite_files: true
-          fail_on_unmatched_files: true
-          files: dist/moonlight-generated-videos-v1.zip
-          body: |
-            Versioned generated splash MP4 assets used by the Docker build. The transition starfield is rendered by the web UI canvas.
-
-            To rebuild these assets, run the **Generate Versioned Splash Video Assets** workflow.
-            Consumers intentionally fail if this release asset is unavailable.
+          branch: build-assets
+          folder: dist
+          clean: true
+          single-commit: true
