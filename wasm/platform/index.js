@@ -862,8 +862,9 @@ var isManualHostRefreshRunning = false;
 
 // Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
 function refreshHosts() {
-  if (isManualHostRefreshRunning) return;
+  if (isManualHostRefreshRunning || initialHostListInteractionLocked) return;
   isManualHostRefreshRunning = true;
+  lockHostListInteraction();
 
   var button = document.getElementById('refreshHostsBtn');
   if (button) {
@@ -907,6 +908,7 @@ function refreshHosts() {
         button.disabled = false;
         button.removeAttribute('aria-busy');
       }
+      unlockHostListInteraction();
     });
 }
 
