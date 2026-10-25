@@ -9,7 +9,7 @@ description: "Réponses sur la compatibilité des hôtes, l'audio Dolby et les r
 
 ## Ce projet fonctionne-t-il avec Sunshine ou d’autres hôtes compatibles GameStream ?
 
-Oui. Ce client Moonlight devrait fonctionner correctement avec l'ancien NVIDIA GameStream, Sunshine, Apollo, Punktfunk et les autres serveurs compatibles avec le même protocole. L'extension Dolby est facultative. Si l'hôte n'annonce pas ou ne sélectionne pas AC-3/E-AC-3, le client conserve le chemin OPUS normal. Aucune modification spécifique à Dolby n'est requise sur un hôte utilisant uniquement OPUS.
+Oui. Ce client Moonlight devrait fonctionner correctement avec l’ancien [NVIDIA GameStream](https://nvidia.custhelp.com/app/answers/detail/a_id/5436/~/game-stream-service-update), [Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Punktfunk](https://punktfunk.unom.io/), [Vibeshine](https://github.com/Nonary/vibeshine) et les autres serveurs compatibles avec le même protocole. L’extension Dolby est facultative. Si l’hôte n’annonce pas ou ne sélectionne pas AC-3/E-AC-3, le client conserve le chemin audio OPUS normal. Aucune modification spécifique à Dolby n’est requise sur un hôte utilisant uniquement OPUS.
 
 ## Comment obtenir du Dolby Digital 5.1 par les sorties optique ou HDMI du téléviseur ?
 
