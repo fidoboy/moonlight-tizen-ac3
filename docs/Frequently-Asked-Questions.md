@@ -8,7 +8,7 @@ description: "Frequently asked questions about Moonlight Tizen, Dolby Digital au
 
 ## Does this project work with ordinary Sunshine or other GameStream-compatible hosts?
 
-Yes. This Moonlight client should work correctly with legacy NVIDIA GameStream, Sunshine, Apollo, Punktfunk, and other servers compatible with the same protocol. The Dolby extension is optional. If the host does not advertise or select AC-3/E-AC-3, the client retains the normal OPUS path. No Dolby-specific host change is required for an OPUS-only stream.
+Yes. This Moonlight client should work correctly with legacy [NVIDIA GameStream](https://nvidia.custhelp.com/app/answers/detail/a_id/5436/~/game-stream-service-update), [Sunshine](https://github.com/LizardByte/Sunshine), [Apollo](https://github.com/ClassicOldSong/Apollo), [Punktfunk](https://punktfunk.unom.io/), [Vibeshine](https://github.com/Nonary/vibeshine), and other servers compatible with the same protocol. The Dolby extension is optional. If the host does not advertise or select AC-3/E-AC-3, the client retains the normal OPUS audio path. No Dolby-specific host change is required for an OPUS-only stream.
 
 ## How do I get Dolby Digital 5.1 over optical or HDMI TV outputs?
 
