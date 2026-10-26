@@ -787,8 +787,8 @@ function beginBackgroundPollingOfHost(host) {
     host._pollCompletionCallbacks = [];
 
     var scheduleNextPoll = function(delay) {
-      // Stop if the poll was canceled (ID removed from activePolls)
-      if (!activePolls.hasOwnProperty(host.serverUid)) return;
+      // Stop if polling was canceled or streaming has started.
+      if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
 
       activePolls[host.serverUid] = window.setTimeout(function() {
         // In case it was canceled while waiting or streaming has started
