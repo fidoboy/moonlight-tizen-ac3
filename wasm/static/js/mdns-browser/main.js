@@ -31,6 +31,10 @@ function findNvService(ipString) {
 
   // Poll the discovered host and verify host status before adding it
   discoveredHost.pollServer(function(returnedDiscoveredHost) {
+    // Discard results from handshakes that began before streaming but finish while
+    // the main UI is inactive; a later scan can discover the host again.
+    if (isInGame === true) return;
+
     // If the host is offline, do not add it to the grid or update its stored IP
     if (!returnedDiscoveredHost.online) {
       return;
