@@ -648,36 +648,48 @@ function startDeferredNormalStartup() {
   isDeferredStartupStarted = true;
   deferredStartupTimeout = null;
 
-  // Reveal the Hosts UI first, with interaction locked, so the browser can paint
-  // the completed transition before any startup initialization competes for CPU time.
+  // Reveal only the Hosts UI, with interaction locked. Do not show snackbars,
+  // initialize components, or start recovery/scanning during the splash transition.
   if (!isStartupUiRestored) {
     isStartupUiRestored = true;
     restoreUiAfterWasmLoad();
-    if (!isStartupHostsLoaded) showStartupHostsSnackbar();
   }
 
-  // Defer all remaining initialization, including host recovery and network scanning,
-  // until the visible UI has had time to render smoothly.
-  window.setTimeout(function() {
-    if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
-      window.componentHandler.upgradeDom();
-    }
-    loadUserData();
-    initializeConfigSummaryBar();
+  var startStartupWork = function() {
+    // The UI has now had a full rendering grace period. Only now may startup
+    // messages and initialization begin.
+    if (!isStartupHostsLoaded) showStartupHostsSnackbar();
 
-    // WebAssembly compilation and host/network initialization start only after the
-    // initial UI rendering grace period.
-    if (typeof window.startNormalStartupWasm === 'function') {
-      window.startNormalStartupWasm();
-    } else {
-      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-    }
+    // Give the snackbar/UI another rendering opportunity before CPU-heavy work.
+    window.setTimeout(function() {
+      if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
+        window.componentHandler.upgradeDom();
+      }
+      loadUserData();
+      initializeConfigSummaryBar();
 
-    probeSmartHubSupport().then(function() {
-      handleDeepLink();
-      window.addEventListener('appcontrol', handleDeepLink);
+      if (typeof window.startNormalStartupWasm === 'function') {
+        window.startNormalStartupWasm();
+      } else {
+        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+      }
+
+      probeSmartHubSupport().then(function() {
+        handleDeepLink();
+        window.addEventListener('appcontrol', handleDeepLink);
+      });
+    }, 50);
+  };
+
+  // Start the grace period only after the browser has had a rendering opportunity
+  // for the newly visible Web UI; this avoids competing with the splash transition.
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(function() {
+      window.setTimeout(startStartupWork, 200);
     });
-  }, 200);
+  } else {
+    window.setTimeout(startStartupWork, 200);
+  }
 }
 
 function maybeRestoreUiAfterStartup() {
