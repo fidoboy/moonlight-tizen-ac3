@@ -425,5 +425,9 @@
   "FEC failed (singular)": "ошибка",
   "FEC out-of-order": "не по порядку",
   "FEC recovery / out-of-order": "событие FEC",
-  "FEC recovery failed": "ошибка FEC"
+  "FEC recovery failed": "ошибка FEC",
+  "Closing application...": "Закрытие приложения...",
+  "Failed to quit %1$s": "Не удалось закрыть %1$s",
+  "Unable to determine the running application.": "Не удалось определить запущенное приложение.",
+  "Unable to connect to the host.": "Не удалось подключиться к хосту."
 }
