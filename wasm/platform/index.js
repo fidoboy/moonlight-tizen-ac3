@@ -78,6 +78,8 @@ function showUiLayer(layerId, callback) {
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
   layer._uiFadeTarget = 'visible';
+  // The root class is the authoritative global inactive state for the main Web UI.
+  if (layer.id === 'main-ui-layer') layer.classList.remove('ui-inactive');
   layer.style.transition = 'none';
   layer.style.display = 'block';
   layer.setAttribute('aria-hidden', 'false');
@@ -110,6 +112,7 @@ function hideUiLayer(layerId, callback) {
   layer.style.opacity = '0';
   uiLayerFadeTimers[layerId] = window.setTimeout(function() {
     if (layer._uiFadeToken !== token) return;
+    if (layer.id === 'main-ui-layer') layer.classList.add('ui-inactive');
     layer.style.display = 'none';
     layer.setAttribute('aria-hidden', 'true');
     layer.style.opacity = '';
@@ -129,6 +132,7 @@ function hideUiLayerImmediately(layerId) {
   layer._uiFadeTarget = 'hidden';
   layer.style.transition = 'none';
   layer.style.opacity = '0';
+  if (layer.id === 'main-ui-layer') layer.classList.add('ui-inactive');
   layer.style.display = 'none';
   layer.setAttribute('aria-hidden', 'true');
 }
