@@ -118,6 +118,21 @@ function hideUiLayer(layerId, callback) {
   }, UI_FADE_DURATION_MS);
 }
 
+function hideUiLayerImmediately(layerId) {
+  var layer = resolveUiElement(layerId);
+  if (!layer) return;
+  if (uiLayerFadeTimers[layerId]) {
+    window.clearTimeout(uiLayerFadeTimers[layerId]);
+    delete uiLayerFadeTimers[layerId];
+  }
+  layer._uiFadeToken = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeTarget = 'hidden';
+  layer.style.transition = 'none';
+  layer.style.opacity = '0';
+  layer.style.display = 'none';
+  layer.setAttribute('aria-hidden', 'true');
+}
+
 function fadeInUiElement(elementOrId, displayValue, callback) {
   var element = resolveUiElement(elementOrId);
   if (!element) { if (typeof callback === 'function') callback(); return; }
@@ -3620,14 +3635,11 @@ function handleNormalStreamVideoReady() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Hide the entire main UI layer; its descendants inherit that hidden state.
-  hideUiLayer('main-ui-layer', function() {
-    // Stop any in-flight child animations only after the complete layer has faded away.
-    $('#main-ui-layer').find('*').stop(true, false);
-  });
-
-  $('#main-content').addClass('fullscreen');
-  $('#listener').addClass('fullscreen');
+  // Hide the complete level-1 UI synchronously before changing any descendant layout.
+  // Fading this layer while adding fullscreen classes lets its header and other children
+  // visibly reflow for a few frames before the transition layer covers them.
+  hideUiLayerImmediately('main-ui-layer');
+  $('#main-ui-layer').find('*').stop(true, false);
 
   // The transition layer owns the visibility of the starfield and all status content.
   // Show or hide the layer as a whole; never toggle its children individually.
@@ -3636,11 +3648,14 @@ function showStreamMode() {
     showStreamTransitionBackground();
   }
 
+  $('#main-content').addClass('fullscreen');
+  $('#listener').addClass('fullscreen');
+
   isInGame = true;
   fullscreenWasmModule();
   handleOnScreenOverlays();
   showUiLayer('stream-diagnostics-layer');
-    Navigation.stop();
+  Navigation.stop();
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
