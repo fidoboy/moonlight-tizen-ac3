@@ -3179,7 +3179,10 @@ function showApps(host, options) {
     $('div.game-container').remove();
 
     setTimeout(() => {
-      host.getAppList().then(function(appList) {
+      var appListRequest = (options && options.forceRefreshAppList)
+        ? host.getAppListWithCacheFlush()
+        : host.getAppList();
+      appListRequest.then(function(appList) {
         // Show the game grid section
         $('#game-grid').show();
 
