@@ -17,9 +17,9 @@
       "owner": "xiph",
       "repo": "opus",
       "branch": "main",
-      "baseline_sha": "ddbe48383984d56acd9e1ab6a090c54ca6b735a6",
-      "baseline_label": "Release v1.5.2",
-      "note": "Test decoder behavior, latency and audio compatibility before upgrading."
+      "baseline_sha": "22244de5a79bd1d6d623c32e72bf1954b56235be",
+      "baseline_label": "Release v1.6.1 (2026-01-13)",
+      "note": "The vendored source identifies as v1.6.1 and key decoder files match upstream v1.6.1. Test decoder behavior, latency and audio compatibility before upgrading."
     },
     {
       "id": "h264bitstream",
