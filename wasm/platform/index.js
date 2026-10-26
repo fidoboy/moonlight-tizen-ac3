@@ -100,6 +100,7 @@ function showUiLayer(layerId, callback) {
   var computedOpacity = computedDisplay === 'none' ? 0 : (parseFloat(getComputedStyle(layer).opacity) || 0);
   if (computedDisplay !== 'none' && computedOpacity >= 0.999 && !uiLayerFadeTimers[layerId]) {
     if (typeof callback === 'function') callback();
+    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
     return;
   }
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
@@ -828,7 +829,7 @@ function beginBackgroundPollingOfHost(host) {
           if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
           updateHostStatusIndicator(returnedHost);
           scheduleNextPoll(5000);
-        });;
+        });
       }, delay);
     };
 
@@ -5852,7 +5853,10 @@ function loadHTTPCertsCb() {
             return;
           }
 
-          snackbarLogPersistent('Scanning the local network to discover new hosts...');
+          // Do not show main-UI feedback if the initial checks finish during streaming.
+          if (isInGame !== true) {
+            snackbarLogPersistent('Scanning the local network to discover new hosts...');
+          }
           // Stop background polling while sweeping the subnet to prevent network exhaustion.
           stopPollingHosts();
           return startSubnetScanner();
