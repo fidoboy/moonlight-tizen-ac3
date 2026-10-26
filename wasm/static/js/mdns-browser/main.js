@@ -87,6 +87,12 @@ window.abortSubnetScan = function() {
 };
 
 function startSubnetScanner() {
+  // Do not begin a new subnet scan while the stream is active.
+  if (isInGame === true) {
+    console.log('%c[main.js, startSubnetScanner]', 'color: orange;', 'Skipping subnet scan while streaming.');
+    return Promise.resolve();
+  }
+
   if (window.subnetScanPromise) {
     console.log('%c[main.js, startSubnetScanner]', 'color: orange;', 'Subnet scan already in progress, skipping new scan.');
     return window.subnetScanPromise;
@@ -125,6 +131,16 @@ function startSubnetScanner() {
       var concurrency = 64; // Throttle to 64 to save Tizen's ARP queue
       
       function scanNext() {
+        // Let requests already in flight finish, but do not launch further addresses
+        // after streaming starts. Resolve the scan once those requests have drained.
+        if (isInGame === true) {
+          if (activeCount === 0) {
+            window.subnetScanPromise = null;
+            resolve();
+          }
+          return;
+        }
+
         if (!window.subnetScanAbortCtrl || index >= IPs.length) {
           if (activeCount === 0) {
             window.subnetScanPromise = null;
@@ -152,7 +168,7 @@ function startSubnetScanner() {
         fetch('http://' + ip + ':47989/serverinfo', localAbort ? { signal: localAbort.signal } : {})
           .then(function(res) {
             clearTimeout(timeoutId);
-            if (res.ok) {
+            if (res.ok && isInGame !== true) {
               console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Found host with IP address:', ip);
               findNvService('ipv4:' + ip);
             }
