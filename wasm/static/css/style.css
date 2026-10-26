@@ -30,6 +30,12 @@ body {
     box-sizing: border-box;
 }
 #main-ui-layer { z-index: 10; opacity: 0; background: #282C38; }
+/* This root state overrides every descendant's visibility and interaction state. */
+#main-ui-layer.ui-inactive {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 #main-ui-layer > .mdl-layout {
     position: absolute;
     inset: 0;
