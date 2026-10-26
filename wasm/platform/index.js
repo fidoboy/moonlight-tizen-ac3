@@ -661,12 +661,16 @@ function startDeferredNormalStartup() {
     if (!isStartupHostsLoaded) showStartupHostsSnackbar();
   }
 
-  // WebAssembly compilation and host/network initialization are deliberately deferred.
-  if (typeof window.startNormalStartupWasm === 'function') {
-    window.startNormalStartupWasm();
-  } else {
-    console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-  }
+  // Keep the restored Hosts screen visible with its cards locked before host recovery
+  // starts, avoiding an abrupt jump during the startup transition.
+  window.setTimeout(function() {
+    // WebAssembly compilation and host/network initialization are deliberately deferred.
+    if (typeof window.startNormalStartupWasm === 'function') {
+      window.startNormalStartupWasm();
+    } else {
+      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+    }
+  }, 200);
 
   probeSmartHubSupport().then(function() {
     handleDeepLink();
@@ -878,7 +882,7 @@ var persistentSnackbarVisible = false;
 
 function snackbarLog(...args) {
   dismissStartupHostsSnackbar();
-  persistentSnackbarVisible = false;
+  dismissPersistentSnackbar();
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
   var data = {
@@ -890,7 +894,7 @@ function snackbarLog(...args) {
 
 function snackbarLogLong(...args) {
   dismissStartupHostsSnackbar();
-  persistentSnackbarVisible = false;
+  dismissPersistentSnackbar();
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
   var data = {
