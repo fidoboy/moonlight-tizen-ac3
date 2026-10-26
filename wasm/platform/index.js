@@ -812,8 +812,11 @@ function stopPollingHosts() {
   }
 }
 
+var persistentSnackbarVisible = false;
+
 function snackbarLog(...args) {
   dismissStartupHostsSnackbar();
+  persistentSnackbarVisible = false;
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
   var data = {
@@ -825,6 +828,7 @@ function snackbarLog(...args) {
 
 function snackbarLogLong(...args) {
   dismissStartupHostsSnackbar();
+  persistentSnackbarVisible = false;
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
   var data = {
@@ -834,16 +838,37 @@ function snackbarLogLong(...args) {
   document.querySelector('#snackbar').MaterialSnackbar.showSnackbar(data);
 }
 
+function snackbarLogPersistent(...args) {
+  dismissStartupHostsSnackbar();
+  const translatedMessage = t(...args);
+  console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
+  document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+    message: translatedMessage,
+    timeout: 0
+  });
+  persistentSnackbarVisible = true;
+}
+
+function dismissPersistentSnackbar() {
+  if (!persistentSnackbarVisible) return;
+  const snackbarElement = document.querySelector('#snackbar');
+  if (snackbarElement && snackbarElement.MaterialSnackbar &&
+      typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+    snackbarElement.MaterialSnackbar.cleanup_();
+  }
+  persistentSnackbarVisible = false;
+}
+
 function showStartupHostsSnackbar() {
   const snackbarElement = document.querySelector('#snackbar');
   if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
-    snackbarLogLong('Loading configured hosts...');
+    snackbarLogPersistent('Loading configured hosts...');
     startupHostsSnackbarVisible = true;
     return;
   }
   snackbarElement.MaterialSnackbar.showSnackbar({
     message: t('Loading configured hosts...'),
-    timeout: 5000
+    timeout: 0
   });
   startupHostsSnackbarVisible = true;
 }
@@ -872,7 +897,7 @@ function refreshHosts() {
     button.setAttribute('aria-busy', 'true');
   }
 
-  snackbarLog('Scanning the local network to discover new hosts...');
+  snackbarLogPersistent('Scanning the local network to discover new hosts...');
 
   // Refresh known-host status first, then pause background polling while scanning the subnet.
   // This follows startup behavior and helps avoid exhausting Tizen's network stack.
@@ -1025,7 +1050,7 @@ var viewLoadingSnackbarTimer = null;
 function scheduleViewLoadingSnackbar(message) {
   clearTimeout(viewLoadingSnackbarTimer);
   viewLoadingSnackbarTimer = setTimeout(function() {
-    snackbarLogLong(message);
+    snackbarLogPersistent(message);
   }, 1000);
 }
 
@@ -1048,6 +1073,7 @@ function showHosts() {
 
     $('#host-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
       clearViewLoadingSnackbarTimer();
+      dismissPersistentSnackbar();
       Navigation.switch();
     });
   });
@@ -1463,7 +1489,7 @@ function addHostDialog() {
     _nvhttpHost.httpPort = parsedHostInput.port;
     console.log('%c[index.js, addHostDialog]', 'color: green;', 'Sending connection request to host address ' + _nvhttpHost.hostname);
     _nvhttpHost.refreshServerInfoAtAddress(parsedHostInput.addr).then(function(success) {
-      snackbarLog('Connecting to %1$s...', _nvhttpHost.hostname);
+      snackbarLogPersistent('Connecting to %1$s...', _nvhttpHost.hostname);
       // Close the dialog if the user has provided the IP address
       console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
       fadeOutUiElement(addHostOverlay);
@@ -2616,7 +2642,7 @@ function saveAutomaticUpdateChecks() {
 // Check for updates when the Check for Updates button is pressed
 function checkForAppUpdates() {
   console.log('%c[index.js, checkForAppUpdates]', 'color: green;', 'Checking for new application updates...');
-  snackbarLog('Checking for available Moonlight updates...');
+  snackbarLogPersistent('Checking for available Moonlight updates...');
   // Fetch the latest release data from the GitHub API
   fetchLatestRelease().then(({ latestVersion, releaseNotes }) => {
     setTimeout(() => {
@@ -3094,6 +3120,7 @@ function showApps(host, options) {
           emptyAppListImg.src = 'static/res/applist_empty.svg';
           $('#game-grid').html(emptyAppListImg);
           snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
+          clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
           showAppsMode();
           resolve();
@@ -3292,6 +3319,8 @@ function showApps(host, options) {
 
         // Navigate to the Apps view
         showAppsMode();
+        clearViewLoadingSnackbarTimer();
+        if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
         resolve();
 
         Promise.all(settledPromises).then(function() {
@@ -3311,7 +3340,9 @@ function showApps(host, options) {
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
         $('#game-grid').html(errorAppListImg);
-        snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
+        if (!(options && options.suppressLoadingSnackbar)) {
+          snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
+        }
 
         // During stream recovery, do not expose an error Apps screen or unlock the stale
         // grid. Let the caller's recovery handler return to Hosts in one consistent step.
@@ -3912,56 +3943,66 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
-  // Keep the Apps grid dimmed and non-interactive until it has been refreshed.
+  // Keep the Apps grid dimmed and non-interactive until the complete close-and-refresh
+  // operation has finished, not merely until the host accepts the quit request.
   lockAppListInteraction();
+  snackbarLogPersistent('Closing application...');
 
   // Hide the configuration strip while the host app is closing, so it cannot
   // overlap the full-screen transition shown by the TV.
   configSummaryTemporarilyHidden = true;
   updateConfigSummaryBar();
 
+  var operationFinished = false;
   function restoreConfigSummaryAfterQuit() {
     configSummaryTemporarilyHidden = false;
     updateConfigSummaryBar();
   }
 
+  function finishQuitOperation(message, appTitle, success) {
+    if (operationFinished) return;
+    operationFinished = true;
+    restoreConfigSummaryAfterQuit();
+    unlockAppListInteraction();
+    if (message) {
+      if (appTitle) snackbarLog(message, appTitle);
+      else snackbarLog(message);
+    }
+    if (success && typeof callbackFunction === 'function') callbackFunction();
+  }
+
   host.refreshServerInfo().then(function(ret) {
     host.getAppById(host.currentGame).then(function(runningApp) {
       if (!runningApp) {
-        snackbarLog('No app is currently running.');
-        restoreConfigSummaryAfterQuit();
-        unlockAppListInteraction();
+        finishQuitOperation('No app is currently running.');
         return;
       }
       var appTitle = runningApp.title;
-      snackbarLog('Quitting %1$s...', appTitle);
+      snackbarLogPersistent('Quitting %1$s...', appTitle);
       host.quitApp().then(function(ret2) {
-        snackbarLog('Successfully quit %1$s', appTitle);
         host.refreshServerInfo().then(function(ret3) {
-          // Refresh to show no app is currently running
-          showApps(host).finally(function() {
-            restoreConfigSummaryAfterQuit();
-            if (typeof(callbackFunction) === "function") callbackFunction();
+          // Keep the progress snackbar visible while the Apps grid is rebuilt.
+          showApps(host, { suppressLoadingSnackbar: true }).then(function() {
+            finishQuitOperation('Successfully quit %1$s', appTitle, true);
+          }).catch(function(error) {
+            console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after quitting:', error);
+            finishQuitOperation('Failed to quit %1$s', appTitle);
           });
         }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
-          restoreConfigSummaryAfterQuit();
-          unlockAppListInteraction();
+          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + '!', host, '\n' + host.toString());
+          finishQuitOperation('Failed to quit %1$s', appTitle);
         });
       }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
-        restoreConfigSummaryAfterQuit();
-        unlockAppListInteraction();
+        finishQuitOperation('Failed to quit %1$s', appTitle);
       });
     }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
-      restoreConfigSummaryAfterQuit();
-      unlockAppListInteraction();
+      finishQuitOperation('Unable to determine the running application.');
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
-    restoreConfigSummaryAfterQuit();
-    unlockAppListInteraction();
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!', host, '\n' + host.toString());
+    finishQuitOperation('Unable to connect to the host.');
   });
 }
 
@@ -5745,7 +5786,7 @@ function loadHTTPCertsCb() {
             return;
           }
 
-          snackbarLog('Scanning the local network to discover new hosts...');
+          snackbarLogPersistent('Scanning the local network to discover new hosts...');
           // Stop background polling while sweeping the subnet to prevent network exhaustion.
           stopPollingHosts();
           return startSubnetScanner();
