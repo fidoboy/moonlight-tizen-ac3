@@ -65,6 +65,34 @@ function resolveUiElement(elementOrId) {
   return elementOrId || null;
 }
 
+var deferredMainUiActions = [];
+
+function isMainUiLayerActive() {
+  var layer = document.getElementById('main-ui-layer');
+  return !!layer && !layer.classList.contains('ui-inactive') &&
+    getComputedStyle(layer).display !== 'none' && isInGame !== true;
+}
+
+function runWhenMainUiActive(callback) {
+  if (typeof callback !== 'function') return;
+  if (isMainUiLayerActive()) {
+    callback();
+    return;
+  }
+  deferredMainUiActions.push(callback);
+}
+
+function flushDeferredMainUiActions() {
+  if (!isMainUiLayerActive() || deferredMainUiActions.length === 0) return;
+  var pendingActions = deferredMainUiActions.splice(0);
+  pendingActions.forEach(function(callback) {
+    try { callback(); }
+    catch (error) {
+      console.error('%c[index.js, flushDeferredMainUiActions]', 'color: red;', 'Deferred main UI action failed:', error);
+    }
+  });
+}
+
 function showUiLayer(layerId, callback) {
   var layer = resolveUiElement(layerId);
   if (!layer) { if (typeof callback === 'function') callback(); return; }
@@ -94,6 +122,7 @@ function showUiLayer(layerId, callback) {
     if (layer._uiFadeToken !== token) return;
     delete uiLayerFadeTimers[layerId];
     if (typeof callback === 'function') callback();
+    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
   }, UI_FADE_DURATION_MS);
 }
 
@@ -795,15 +824,11 @@ function beginBackgroundPollingOfHost(host) {
         if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true) return;
 
         host.pollServer(function(returnedHost) {
-          // Update the UI after the network finishes
+          // The request may complete after polling was stopped or streaming began.
+          if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
           updateHostStatusIndicator(returnedHost);
-
-          // In case it was canceled while the network request was running
-          if (!activePolls.hasOwnProperty(host.serverUid)) return;
-
-          // Schedule the next poll for 5 seconds AFTER this one finished
           scheduleNextPoll(5000);
-        });
+        });;
       }, delay);
     };
 
@@ -953,22 +978,24 @@ function refreshHosts() {
     })
     .then(function() {
       isSubnetScanFinished = true;
-      startPollingHosts();
-      snackbarLog('Network scan completed.');
+      if (isInGame !== true) startPollingHosts();
+      runWhenMainUiActive(function() { snackbarLog('Network scan completed.'); });
     })
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
       isSubnetScanFinished = true;
-      startPollingHosts();
-      snackbarLogLong('Network scan failed.');
+      if (isInGame !== true) startPollingHosts();
+      runWhenMainUiActive(function() { snackbarLogLong('Network scan failed.'); });
     })
     .finally(function() {
       isManualHostRefreshRunning = false;
-      if (button) {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-      }
-      unlockHostListInteraction();
+      runWhenMainUiActive(function() {
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute('aria-busy');
+        }
+        unlockHostListInteraction();
+      });
     });
 }
 
@@ -1060,9 +1087,10 @@ function unlockHostListInteraction() {
 }
 
 function finishInitialHostDiscovery() {
-  // Unlock navigation as soon as the completion snackbar is shown, not when it disappears.
-  snackbarLog('Network scan completed.');
-  unlockHostListInteraction();
+  runWhenMainUiActive(function() {
+    snackbarLog('Network scan completed.');
+    unlockHostListInteraction();
+  });
 }
 
 var appListInteractionLocked = false;
