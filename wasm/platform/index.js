@@ -2650,6 +2650,8 @@ function checkForAppUpdates() {
     setTimeout(() => {
       // Check if a new version update is available
       if (checkVersionUpdate(appInfo.version, latestVersion)) {
+        // The update dialog is the result of this check, so remove its persistent progress snackbar.
+        dismissPersistentSnackbar();
         // Show the Update Moonlight dialog with new version and release notes to inform user to update the app
         updateAppDialog(latestVersion, releaseNotes);
         // Create and display the Update App button so they can access it later if they close the dialog
@@ -3338,6 +3340,7 @@ function showApps(host, options) {
           });
         });
       }, function(failedAppList) {
+        clearViewLoadingSnackbarTimer();
         console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
