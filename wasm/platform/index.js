@@ -648,34 +648,36 @@ function startDeferredNormalStartup() {
   isDeferredStartupStarted = true;
   deferredStartupTimeout = null;
 
-  // Start the remaining work only after the UI is visible and Tizen's splash is released.
-  if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
-    window.componentHandler.upgradeDom();
-  }
-  loadUserData();
-  initializeConfigSummaryBar();
-
+  // Reveal the Hosts UI first, with interaction locked, so the browser can paint
+  // the completed transition before any startup initialization competes for CPU time.
   if (!isStartupUiRestored) {
     isStartupUiRestored = true;
     restoreUiAfterWasmLoad();
     if (!isStartupHostsLoaded) showStartupHostsSnackbar();
   }
 
-  // Keep the restored Hosts screen visible with its cards locked before host recovery
-  // starts, avoiding an abrupt jump during the startup transition.
+  // Defer all remaining initialization, including host recovery and network scanning,
+  // until the visible UI has had time to render smoothly.
   window.setTimeout(function() {
-    // WebAssembly compilation and host/network initialization are deliberately deferred.
+    if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
+      window.componentHandler.upgradeDom();
+    }
+    loadUserData();
+    initializeConfigSummaryBar();
+
+    // WebAssembly compilation and host/network initialization start only after the
+    // initial UI rendering grace period.
     if (typeof window.startNormalStartupWasm === 'function') {
       window.startNormalStartupWasm();
     } else {
       console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
     }
-  }, 200);
 
-  probeSmartHubSupport().then(function() {
-    handleDeepLink();
-    window.addEventListener('appcontrol', handleDeepLink);
-  });
+    probeSmartHubSupport().then(function() {
+      handleDeepLink();
+      window.addEventListener('appcontrol', handleDeepLink);
+    });
+  }, 200);
 }
 
 function maybeRestoreUiAfterStartup() {
