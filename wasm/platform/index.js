@@ -842,9 +842,11 @@ function snackbarLogPersistent(...args) {
   dismissStartupHostsSnackbar();
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
+  // MDL treats timeout: 0 as "use the default timeout", so use the largest
+  // supported timer value and let the next snackbar replace this one explicitly.
   document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
     message: translatedMessage,
-    timeout: 0
+    timeout: 2147483647
   });
   persistentSnackbarVisible = true;
 }
@@ -868,7 +870,7 @@ function showStartupHostsSnackbar() {
   }
   snackbarElement.MaterialSnackbar.showSnackbar({
     message: t('Loading configured hosts...'),
-    timeout: 0
+    timeout: 2147483647
   });
   startupHostsSnackbarVisible = true;
 }
