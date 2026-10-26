@@ -425,5 +425,9 @@
   "FEC failed (singular)": "échoué",
   "FEC out-of-order": "hors séquence",
   "FEC recovery / out-of-order": "événement FEC",
-  "FEC recovery failed": "erreur FEC"
+  "FEC recovery failed": "erreur FEC",
+  "Closing application...": "Fermeture de l’application...",
+  "Failed to quit %1$s": "Impossible de quitter %1$s",
+  "Unable to determine the running application.": "Impossible d’identifier l’application en cours d’exécution.",
+  "Unable to connect to the host.": "Impossible de se connecter à l’hôte."
 }
