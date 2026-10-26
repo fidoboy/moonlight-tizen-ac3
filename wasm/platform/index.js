@@ -735,6 +735,9 @@ function updateHostStatusIndicator(host) {
 }
 
 function beginBackgroundPollingOfHost(host) {
+  // Never start host checks or polling while the stream is active.
+  if (isInGame === true) return Promise.resolve();
+
   // Clear any existing polling interval for this host before starting a new one.
   // Without this, every call to beginBackgroundPollingOfHost (e.g. on each navigation
   // back to the host view) would leak the old setInterval, causing multiple overlapping
@@ -758,6 +761,14 @@ function beginBackgroundPollingOfHost(host) {
     host.online = false;
     host._memCachedApplist = null;
   }).finally(function() {
+    // The in-flight request may finish during streaming, but it must not restart
+    // periodic polling or update the hidden host UI.
+    if (isInGame === true) {
+      host._consecutivePollFailures = 0;
+      host._pollCompletionCallbacks = [];
+      return;
+    }
+
     // Update the UI after the network finishes
     updateHostStatusIndicator(host);
 
@@ -780,8 +791,8 @@ function beginBackgroundPollingOfHost(host) {
       if (!activePolls.hasOwnProperty(host.serverUid)) return;
 
       activePolls[host.serverUid] = window.setTimeout(function() {
-        // In case it was canceled while waiting
-        if (!activePolls.hasOwnProperty(host.serverUid)) return;
+        // In case it was canceled while waiting or streaming has started
+        if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true) return;
 
         host.pollServer(function(returnedHost) {
           // Update the UI after the network finishes
@@ -808,6 +819,9 @@ function beginBackgroundPollingOfHost(host) {
 }
 
 function startPollingHosts() {
+  // Calls from startup/discovery callbacks must not restart polling during a stream.
+  if (isInGame === true) return Promise.resolve();
+
   var pollPromises = [];
   for (var hostUID in hosts) {
     pollPromises.push(beginBackgroundPollingOfHost(hosts[hostUID]));
