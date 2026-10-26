@@ -69,8 +69,11 @@ var deferredMainUiActions = [];
 
 function isMainUiLayerActive() {
   var layer = document.getElementById('main-ui-layer');
-  return !!layer && !layer.classList.contains('ui-inactive') &&
-    getComputedStyle(layer).display !== 'none' && isInGame !== true;
+  if (!layer || layer.classList.contains('ui-inactive') || isInGame === true ||
+      getComputedStyle(layer).display === 'none' || uiLayerFadeTimers['main-ui-layer']) {
+    return false;
+  }
+  return (parseFloat(getComputedStyle(layer).opacity) || 0) >= 0.999;
 }
 
 function runWhenMainUiActive(callback) {
