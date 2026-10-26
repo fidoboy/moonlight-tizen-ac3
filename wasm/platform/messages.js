@@ -863,20 +863,22 @@ function handleMessage(msg) {
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
-        // Reuse the existing Apps grid: the list itself has not changed just because the stream ended.
-        // showAppsMode restores the view and unlocks app-list interaction without another getAppList request.
-        showAppsMode();
-        Navigation.switch();
-        if (!window.isDialogOpen) {
-          Navigation.change(Views.Apps);
-        }
-        // Hide the complete transition layer, then stop the background animation 100 ms later.
-        if (typeof hideStreamTransitionBackground === "function") {
-          hideStreamTransitionBackground();
-        } else {
-          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
-          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
-        }
+        // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
+        // and the current-game highlighting reflect the host's state after the stream.
+        // showApps keeps the interaction lock in place until the refreshed list is rendered.
+        return showApps(api, { forceRefreshAppList: true }).then(function() {
+          Navigation.switch();
+          if (!window.isDialogOpen) {
+            Navigation.change(Views.Apps);
+          }
+          // Hide the complete transition layer, then stop the background animation 100 ms later.
+          if (typeof hideStreamTransitionBackground === "function") {
+            hideStreamTransitionBackground();
+          } else {
+            var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+            if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+          }
+        });
       }).catch(function(failure) {
         returnToHostsAfterRecoveryFailure(failure);
       });
