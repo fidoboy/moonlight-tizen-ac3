@@ -161,7 +161,8 @@ function ensurePerformanceStatsOverlayElements() {
   var textElement = container.querySelector('.performance-stats-text');
   var canvas = container.querySelector('#performance-stats-graph');
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
-  if (!textElement || !canvas || !hostCanvas) {
+  var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
+  if (!textElement || !canvas || !hostCanvas || !encryptionStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
 
@@ -187,12 +188,28 @@ function ensurePerformanceStatsOverlayElements() {
     hostCanvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
     hostCanvas.style.marginTop = '16px';
 
+    encryptionStatus = document.createElement('div');
+    encryptionStatus.id = 'performanceStatsEncryptionStatus';
+    encryptionStatus.className = 'stream-encryption-status performance-stats-encryption-status';
+    encryptionStatus.setAttribute('aria-live', 'polite');
+
+    var encryptionIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    encryptionIcon.id = 'performanceStatsEncryptionIcon';
+    encryptionIcon.setAttribute('viewBox', '0 0 24 24');
+    encryptionIcon.setAttribute('aria-hidden', 'true');
+
+    var encryptionMessage = document.createElement('span');
+    encryptionMessage.id = 'performanceStatsEncryptionMessage';
+
+    encryptionStatus.appendChild(encryptionIcon);
+    encryptionStatus.appendChild(encryptionMessage);
     container.appendChild(textElement);
     container.appendChild(canvas);
     container.appendChild(hostCanvas);
+    container.appendChild(encryptionStatus);
   }
 
-  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas };
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
 }
 
 function getPerformanceStatsGraphColor(sample) {
