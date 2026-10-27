@@ -3941,6 +3941,9 @@ function hideStreamTransitionBackground(afterHidden) {
       streamTransitionContext = null;
       streamTransitionCanvas = null;
       streamTransitionTeardownTimeout = null;
+      // Keep the known status through the stream-closing transition, then clear it
+      // only after the transition has fully disappeared and the app UI is returning.
+      if (!isInGame) resetStreamEncryptionStatus();
       var completedCallbacks = streamTransitionAfterHiddenCallbacks.splice(0);
       completedCallbacks.forEach(function(callback) {
         try { callback(); }
