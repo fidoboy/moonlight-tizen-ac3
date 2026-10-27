@@ -2648,6 +2648,7 @@ function updateAppButton(latestVersion) {
   });
   // Create the layout spacer dynamically
   var extraLayoutSpacer = $('<div>', {
+    id: 'updateAppBtnSpacer',
     class: 'mdl-layout-spacer'
   });
   // Append elements inside the button
@@ -2740,7 +2741,7 @@ function restoreUpdateBadgeFromCache() {
       updateAppButton(cachedVersion);
     } else {
       // A cached release that is no newer than this installation must not leave a stale badge.
-      $('#updateAppBtn, #updateAppBtnTooltip').remove();
+      $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
     }
   });
 }
@@ -2765,7 +2766,7 @@ function checkForAppUpdates() {
         updateAppButton(latestVersion);
       } else {
         // A successful check confirms that the installed app is current; no update badge is needed.
-        $('#updateAppBtn, #updateAppBtnTooltip').remove();
+        $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
         snackbarLogLong('Your app is already up to date! You\'re on the latest version.');
       }
     }, 1500);
@@ -2824,7 +2825,7 @@ function checkForAppUpdatesAtStartup() {
               updateAppButton(latestVersion);
             } else {
               // The installed app is current; remove any stale update button from this session.
-              $('#updateAppBtn, #updateAppBtnTooltip').remove();
+              $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
             }
           }, 100);
         }).catch(error => {
