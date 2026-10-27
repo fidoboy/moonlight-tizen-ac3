@@ -157,7 +157,7 @@ body {
     font-size: 18px;
     line-height: 18px;
     /* Older Tizen WebKit versions do not reliably support flexbox gap. */
-    margin-right: 12px;
+    margin-right: 6px;
 }
 .stream-encryption-status.encrypted {
     color: #4caf50;
