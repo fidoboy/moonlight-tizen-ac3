@@ -460,5 +460,9 @@
   "Using an unencrypted connection": "Usando una conexión sin cifrar",
   "Partial encryption warning: video": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de vídeo está sin cifrar.",
   "Partial encryption warning: audio": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de audio está sin cifrar.",
-  "Partial encryption warning: video and audio": "ATENCIÓN: La conexión sólo es parcialmente segura, los flujos de vídeo y audio están sin cifrar."
+  "Partial encryption warning: video and audio": "ATENCIÓN: La conexión sólo es parcialmente segura, los flujos de vídeo y audio están sin cifrar.",
+  "Dolby channel layout": "Distribución de canales Dolby",
+  "Dolby decoding mode": "Modo de decodificación Dolby",
+  "Rear speakers": "Altavoces traseros",
+  "Hardware automatic": "Hardware automático"
 }

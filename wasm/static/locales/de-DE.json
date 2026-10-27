@@ -460,5 +460,9 @@
   "Using an unencrypted connection": "Es wird eine unverschlüsselte Verbindung verwendet",
   "Partial encryption warning: video": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Videostream ist unverschlüsselt.",
   "Partial encryption warning: audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Audiostream ist unverschlüsselt.",
-  "Partial encryption warning: video and audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Video- und Audiostream sind unverschlüsselt."
+  "Partial encryption warning: video and audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Video- und Audiostream sind unverschlüsselt.",
+  "Dolby channel layout": "Dolby-Kanalanordnung",
+  "Dolby decoding mode": "Dolby-Decodierungsmodus",
+  "Rear speakers": "Hintere Lautsprecher",
+  "Hardware automatic": "Hardware automatisch"
 }

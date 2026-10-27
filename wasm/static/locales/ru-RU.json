@@ -460,5 +460,9 @@
   "Using an unencrypted connection": "Используется незашифрованное соединение",
   "Partial encryption warning: video": "ВНИМАНИЕ: соединение защищено лишь частично; видеопоток не зашифрован.",
   "Partial encryption warning: audio": "ВНИМАНИЕ: соединение защищено лишь частично; аудиопоток не зашифрован.",
-  "Partial encryption warning: video and audio": "ВНИМАНИЕ: соединение защищено лишь частично; видео- и аудиопотоки не зашифрованы."
+  "Partial encryption warning: video and audio": "ВНИМАНИЕ: соединение защищено лишь частично; видео- и аудиопотоки не зашифрованы.",
+  "Dolby channel layout": "Расположение каналов Dolby",
+  "Dolby decoding mode": "Режим декодирования Dolby",
+  "Rear speakers": "Тыловые динамики",
+  "Hardware automatic": "Аппаратный автоматический"
 }
