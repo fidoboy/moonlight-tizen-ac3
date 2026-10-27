@@ -3121,7 +3121,7 @@ function sortTitles(list, sortOrder) {
 }
 
 // Handle layout elements when displaying the Apps view
-function showAppsMode(keepInteractionLocked, afterShown) {
+function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
 
   hideStreamDiagnosticsLayer();
@@ -3136,7 +3136,7 @@ function showAppsMode(keepInteractionLocked, afterShown) {
   $('#settings-list').hide();
   // Fade in the Apps grid after the Hosts grid has faded out.
   $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
-    clearViewLoadingSnackbarTimer();
+    if (!deferPostTransitionActions) clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
       if (!keepInteractionLocked) unlockAppListInteraction();
     } else {
@@ -3154,8 +3154,8 @@ function showAppsMode(keepInteractionLocked, afterShown) {
   $('body').css('backgroundColor', '#282C38');
 
   showUiLayer('main-ui-layer', afterShown);
-  isInGame = false;
-  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+  if (!deferPostTransitionActions) isInGame = false;
+  if (!deferPostTransitionActions && startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
       checkForAppUpdatesAtStartup();
@@ -3163,8 +3163,24 @@ function showAppsMode(keepInteractionLocked, afterShown) {
   }
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
+  if (!deferPostTransitionActions) {
+    stopPollingHosts();
+    if (!appListInteractionLocked) Navigation.start();
+  }
+}
+
+// Complete the non-visual Apps-mode work only after the stream transition has disappeared.
+function finishAppsModeAfterStreamTransition() {
+  isInGame = false;
+  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+    startupUpdateCheckTimeout = window.setTimeout(function() {
+      startupUpdateCheckTimeout = null;
+      checkForAppUpdatesAtStartup();
+    }, 0);
+  }
   stopPollingHosts();
   if (!appListInteractionLocked) Navigation.start();
+  flushDeferredMainUiActions();
 }
 
 // Show the Apps grid
@@ -3504,6 +3520,7 @@ var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionBackgroundEnabled = true;
 var streamTransitionHiding = false;
+var streamTransitionAfterHiddenCallbacks = [];
 var streamTransitionFirstFrameCallback = null;
 var streamTransitionRevealTimeout = null;
 var streamTransitionTeardownTimeout = null;
@@ -3651,8 +3668,10 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground(afterHidden) {
+  if (typeof afterHidden === 'function') streamTransitionAfterHiddenCallbacks.push(afterHidden);
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
+  // Callers still get notified when the already-running fadeout completes.
   if (streamTransitionHiding) return;
   streamTransitionHiding = true;
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
@@ -3675,7 +3694,11 @@ function hideStreamTransitionBackground(afterHidden) {
       streamTransitionContext = null;
       streamTransitionCanvas = null;
       streamTransitionTeardownTimeout = null;
-      if (typeof afterHidden === 'function') afterHidden();
+      var completedCallbacks = streamTransitionAfterHiddenCallbacks.splice(0);
+      completedCallbacks.forEach(function(callback) {
+        try { callback(); }
+        catch (error) { console.error('%c[index.js, hideStreamTransitionBackground]', 'color: red;', 'Post-transition callback failed:', error); }
+      });
     });
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
