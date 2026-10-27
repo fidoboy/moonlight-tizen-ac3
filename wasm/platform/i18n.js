@@ -224,11 +224,13 @@
         icon.src = 'static/res/ic_dolby_double_d.svg';
         icon.alt = '';
         icon.setAttribute('aria-hidden', 'true');
-        dolbyHeading.replaceChildren(
-          document.createTextNode(beforeDolby),
-          icon,
-          document.createTextNode(dolbyAndAfter)
-        );
+        // replaceChildren() is not available in some older Tizen WebKit versions.
+        while (dolbyHeading.firstChild) {
+          dolbyHeading.removeChild(dolbyHeading.firstChild);
+        }
+        dolbyHeading.appendChild(document.createTextNode(beforeDolby));
+        dolbyHeading.appendChild(icon);
+        dolbyHeading.appendChild(document.createTextNode(dolbyAndAfter));
       }
     }
 
