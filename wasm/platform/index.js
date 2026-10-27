@@ -4346,7 +4346,9 @@ function startGame(host, appID) {
           host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
           framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
           audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
-          gameMode, disableWarnings, performanceStats
+          gameMode, disableWarnings, performanceStats,
+          $('#selectDolbyChannelLayout').data('value') || 'Back',
+          $('#selectDolbyDecodingMode').data('value') || 'Hardware'
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
