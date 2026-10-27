@@ -344,7 +344,7 @@ static uint32_t getUtf8CodePointLength(const char* utf8Text, uint32_t offset) {
         codePointLength = 4;
     }
     else {
-        Limelog("Invalid unicode code point starting byte: %02x\\n", firstByte);
+        Limelog("Invalid unicode code point starting byte: %02x\n", firstByte);
         return 0;
     }
 
@@ -581,7 +581,7 @@ static void inputSendThreadProc(void* context) {
             uint32_t totalLength = PAYLOAD_SIZE(holder) - sizeof(uint32_t);
             uint32_t i = 0;
 
-                        if (!IS_SUNSHINE()) {
+            if (!IS_SUNSHINE()) {
                 // HACK: This is a workaround for the fact that GFE doesn't appear to synchronize keyboard
                 // and UTF-8 text events with each other. We need to make sure any previous keyboard events
                 // have been processed prior to sending these UTF-8 events to avoid interference between
