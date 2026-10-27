@@ -1,4 +1,4 @@
 moonlight-common-c @ aeba988e0a302145eff2e70fa3e11cd98ec01f5d
 enet @ aca87840b57f045a1f7f9299e4b1b9b8e2a5e2f1
 nanors @ b1e3c22ca0cdc0bb83e3cd6ed1a2fc77869ed99a
-opus @ 22244de | v1.6.1
+opus @ 22244de5a79bd1d6d623c32e72bf1954b56235be | v1.6.1 (official stable tag)
