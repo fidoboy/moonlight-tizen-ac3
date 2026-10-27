@@ -3373,7 +3373,9 @@ function showApps(host, options) {
           var emptyAppListImg = new Image();
           emptyAppListImg.src = 'static/res/applist_empty.svg';
           $('#game-grid').html(emptyAppListImg);
-          snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
+          if (!(options && options.suppressEmptyListSnackbar)) {
+            snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
+          }
           clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
           showAppsMode(!!(options && options.keepInteractionLocked));
@@ -4404,6 +4406,7 @@ function stopGame(host, callbackFunction) {
     }).then(function() {
       return showApps(host, {
         suppressLoadingSnackbar: true,
+        suppressEmptyListSnackbar: true,
         keepInteractionLocked: true
       });
     }).catch(function(error) {
