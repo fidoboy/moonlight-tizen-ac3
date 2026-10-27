@@ -544,9 +544,13 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         if (AudioEncryptionEnabled) {
             encryptionStatus |= LI_ENCRYPTION_AUDIO;
         }
-        // Sunshine's modern control encryption and the legacy encrypted reliable-input
-        // protocol both protect the control/input path.
-        if (EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2) {
+        // If the host advertises SS_ENC_CONTROL_V2, its negotiated value tells us
+        // whether modern control encryption is enabled. If the capability is absent,
+        // this is an older host and the control-encryption state cannot be determined
+        // through this flag. In that case, assume control is protected rather than
+        // incorrectly reporting partial encryption solely because the flag is absent.
+        if (!(EncryptionFeaturesSupported & SS_ENC_CONTROL_V2) ||
+            (EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2)) {
             encryptionStatus |= LI_ENCRYPTION_CONTROL;
         }
 
