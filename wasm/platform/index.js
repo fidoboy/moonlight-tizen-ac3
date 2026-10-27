@@ -3340,10 +3340,14 @@ function showApps(host, options) {
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Show a snackbar only if loading and transitioning takes more than one second,
-    // unless the Apps list is being restored behind the full-screen stream-closing transition.
+    // Normal navigation waits one second before showing feedback. Stream recovery
+    // already displays a persistent snackbar from refreshHostAndReturnToApps().
     if (!(options && options.suppressLoadingSnackbar)) {
-      scheduleViewLoadingSnackbar('Loading Apps...');
+      if (options && options.showLoadingSnackbarImmediately) {
+        if (!persistentSnackbarVisible) snackbarLogPersistent('Loading Apps...');
+      } else {
+        scheduleViewLoadingSnackbar('Loading Apps...');
+      }
     }
 
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
