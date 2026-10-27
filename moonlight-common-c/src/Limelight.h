@@ -562,6 +562,15 @@ bool LiIsAc3AudioNegotiated(void);
 // Returns true only when the current RTSP session explicitly negotiated E-AC-3 with the host.
 bool LiIsEac3AudioNegotiated(void);
 
+// Encryption status flags returned by LiGetEncryptionStatus().
+#define LI_ENCRYPTION_VIDEO   0x01
+#define LI_ENCRYPTION_AUDIO   0x02
+#define LI_ENCRYPTION_CONTROL 0x04
+
+// Returns -1 until the RTSP stream configuration determines encryption; afterwards returns
+// a combination of LI_ENCRYPTION_* flags describing the encrypted video, audio, and control paths.
+int LiGetEncryptionStatus(void);
+
 // This function stops streaming. This function is not thread-safe.
 void LiStopConnection(void);
 
