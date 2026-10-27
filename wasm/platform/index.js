@@ -3840,8 +3840,6 @@ function renderStreamEncryptionStatus(status) {
 
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
-  if (!streamTransitionVisible || streamTransitionHiding) return;
-
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
     var status = Module.getEncryptionStatus();
     if (typeof status === 'number' && status >= 0) {
@@ -3860,7 +3858,6 @@ function startStreamEncryptionStatusPolling() {
 }
 
 function showStreamTransitionBackground(onVisible) {
-  resetStreamEncryptionStatus();
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
@@ -3918,7 +3915,6 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground(afterHidden) {
-  stopStreamEncryptionStatusPolling();
   if (typeof afterHidden === 'function') streamTransitionAfterHiddenCallbacks.push(afterHidden);
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
@@ -3991,7 +3987,8 @@ function showStreamMode() {
   // Show or hide the layer as a whole; never toggle its children individually.
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
-    // Clear the previous session's status before host.launchApp() starts the next negotiation.
+    // A new connection has unknown encryption until the core publishes its negotiated configuration.
+    resetStreamEncryptionStatus();
     if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
       Module.resetEncryptionStatus();
     }
