@@ -536,6 +536,22 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (err == 0) {
+        uint32_t encryptionStatus = 0;
+
+        if (EncryptionFeaturesEnabled & SS_ENC_VIDEO) {
+            encryptionStatus |= LI_ENCRYPTION_VIDEO;
+        }
+        if (AudioEncryptionEnabled) {
+            encryptionStatus |= LI_ENCRYPTION_AUDIO;
+        }
+        // Sunshine's modern control encryption and the legacy encrypted reliable-input
+        // protocol both protect the control/input path.
+        if ((EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2) || APP_VERSION_AT_LEAST(7, 1, 431)) {
+            encryptionStatus |= LI_ENCRYPTION_CONTROL;
+        }
+
+        // Publish only after the complete SDP option list has been built successfully.
+        EncryptionStatus = (int)encryptionStatus;
         return optionHead;
     }
 
