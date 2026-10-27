@@ -38,6 +38,10 @@ uint32_t EncryptionFeaturesRequested;
 uint32_t EncryptionFeaturesEnabled;
 volatile int EncryptionStatus = -1;
 
+void LiResetEncryptionStatus(void) {
+    EncryptionStatus = -1;
+}
+
 int LiGetEncryptionStatus(void) {
     return EncryptionStatus;
 }
