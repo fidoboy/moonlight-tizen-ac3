@@ -132,7 +132,7 @@ body {
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 14px;
+    gap: 0;
     position: fixed;
     left: 50%;
     bottom: 28px;
@@ -153,6 +153,8 @@ body {
     width: 18px;
     height: 18px;
     flex: 0 0 18px;
+    /* Older Tizen WebKit versions do not reliably support flexbox gap. */
+    margin-right: 12px;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
