@@ -149,17 +149,15 @@ body {
     text-align: center;
     pointer-events: none;
 }
-.stream-encryption-status svg {
+.stream-encryption-status .stream-encryption-icon {
+    display: inline-block;
     width: 18px;
     height: 18px;
     flex: 0 0 18px;
+    font-size: 18px;
+    line-height: 18px;
     /* Older Tizen WebKit versions do not reliably support flexbox gap. */
     margin-right: 12px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
 }
 .stream-encryption-status.encrypted {
     color: #4caf50;
