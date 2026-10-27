@@ -445,5 +445,10 @@
   "Closing application...": "Closing application...",
   "Failed to quit %1$s": "Failed to quit %1$s",
   "Unable to determine the running application.": "Unable to determine the running application.",
-  "Unable to connect to the host.": "Unable to connect to the host."
+  "Unable to connect to the host.": "Unable to connect to the host.",
+  "Video stream from %1$s stopped being received.": "Video stream from %1$s stopped being received.",
+  "The connection to %1$s ended unexpectedly.": "The connection to %1$s ended unexpectedly.",
+  "Protected (DRM) content on %1$s ended the session.": "Protected (DRM) content on %1$s ended the session.",
+  "An error occurred while processing the video stream from %1$s.": "An error occurred while processing the video stream from %1$s.",
+  "The local device could not start the video stream.": "The local device could not start the video stream."
 }
