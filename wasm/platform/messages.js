@@ -924,6 +924,9 @@ function handleMessage(msg) {
     };
 
     var refreshHostAndReturnToApps = function() {
+      // The Apps grid remains locked during recovery, so show feedback immediately
+      // after the closing transition instead of relying on the normal 1-second delay.
+      snackbarLogPersistent('Loading Apps...');
       // Refreshing server info is useful, but failure must not prevent recovery.
       Promise.resolve().then(function() {
         return api.refreshServerInfo();
@@ -933,7 +936,10 @@ function handleMessage(msg) {
         // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
         // and the current-game highlighting reflect the host's state after the stream.
         // showApps keeps the interaction lock in place until the refreshed list is rendered.
-        return showApps(api, { forceRefreshAppList: true }).then(function() {
+        return showApps(api, {
+          forceRefreshAppList: true,
+          showLoadingSnackbarImmediately: true
+        }).then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
