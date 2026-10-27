@@ -445,5 +445,10 @@
   "Closing application...": "Chiusura dell'applicazione...",
   "Failed to quit %1$s": "Impossibile chiudere %1$s",
   "Unable to determine the running application.": "Impossibile identificare l'applicazione in esecuzione.",
-  "Unable to connect to the host.": "Impossibile connettersi all'host."
+  "Unable to connect to the host.": "Impossibile connettersi all'host.",
+  "Video stream from %1$s stopped being received.": "La ricezione del flusso video da %1$s è stata interrotta.",
+  "The connection to %1$s ended unexpectedly.": "La connessione con %1$s è terminata inaspettatamente.",
+  "Protected (DRM) content on %1$s ended the session.": "I contenuti protetti (DRM) su %1$s hanno terminato la sessione.",
+  "An error occurred while processing the video stream from %1$s.": "Si è verificato un errore durante l'elaborazione del flusso video da %1$s.",
+  "The local device could not start the video stream.": "Il dispositivo locale non è riuscito ad avviare il flusso video."
 }
