@@ -688,7 +688,6 @@ function startDeferredNormalStartup() {
       // native splash is gone. Keep it aligned with the start of host recovery.
       restoreUpdateBadgeFromCache();
       loadUserData();
-      initializeConfigSummaryBar();
 
       if (typeof window.startNormalStartupWasm === 'function') {
         window.startNormalStartupWasm();
