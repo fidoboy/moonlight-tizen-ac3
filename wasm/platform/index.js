@@ -665,8 +665,10 @@ function startDeferredNormalStartup() {
       if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
         window.componentHandler.upgradeDom();
       }
-      loadUserData();
+      // Restore the cached update badge only after the normal UI is visible and the
+      // native splash is gone. Keep it aligned with the start of host recovery.
       restoreUpdateBadgeFromCache();
+      loadUserData();
       initializeConfigSummaryBar();
 
       if (typeof window.startNormalStartupWasm === 'function') {
