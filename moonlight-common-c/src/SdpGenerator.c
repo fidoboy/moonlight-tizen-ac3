@@ -546,7 +546,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         }
         // Sunshine's modern control encryption and the legacy encrypted reliable-input
         // protocol both protect the control/input path.
-        if ((EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2) || APP_VERSION_AT_LEAST(7, 1, 431)) {
+        if (EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2) {
             encryptionStatus |= LI_ENCRYPTION_CONTROL;
         }
 
