@@ -3991,6 +3991,10 @@ function showStreamMode() {
   // Show or hide the layer as a whole; never toggle its children individually.
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
+    // Clear the previous session's status before host.launchApp() starts the next negotiation.
+    if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+      Module.resetEncryptionStatus();
+    }
     showStreamTransitionBackground();
     startStreamEncryptionStatusPolling();
   }
