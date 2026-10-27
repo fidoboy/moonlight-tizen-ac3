@@ -796,22 +796,22 @@ function handleMessage(msg) {
     } else {
       switch (errorCode) {
         case 0:
-          transitionStatusMessage = t('The host ended the stream for %1$s.', activeStreamAppName);
+          transitionStatusMessage = t('Streaming session with %1$s ended normally.', activeStreamHostName);
           break;
         case -100:
-          transitionStatusMessage = t('No video received from %1$s.', activeStreamHostName);
+          transitionStatusMessage = t('No video traffic is being received from %1$s.', activeStreamHostName);
           break;
         case -101:
-          transitionStatusMessage = t('The network connection to %1$s failed.', activeStreamHostName);
+          transitionStatusMessage = t('No video frames are being received from %1$s.', activeStreamHostName);
           break;
         case -102:
-          transitionStatusMessage = t('The host ended the stream unexpectedly.');
+          transitionStatusMessage = t('The streaming connection with %1$s ended unexpectedly.', activeStreamHostName);
           break;
         case -103:
-          transitionStatusMessage = t('Protected content stopped the stream.');
+          transitionStatusMessage = t('Protected content interrupted the streaming session.');
           break;
         case -104:
-          transitionStatusMessage = t('The host reported a video encoding error.');
+          transitionStatusMessage = t('An error occurred while processing video from %1$s.', activeStreamHostName);
           break;
         case -200:
           transitionStatusMessage = t('The TV could not start the video stream.');
