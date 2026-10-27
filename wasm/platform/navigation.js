@@ -1733,6 +1733,11 @@ const Views = {
     },
     press: function() {},
     switch: function() {
+      const cards = this.view.func();
+      if (!cards.length) return;
+
+      // The app list may have been rebuilt, so keep the saved index within its new bounds.
+      this.view.index = Math.max(0, Math.min(this.view.index, cards.length - 1));
       this.view.currentCardRow(6);
       focusElement(this.view.current());
     },
