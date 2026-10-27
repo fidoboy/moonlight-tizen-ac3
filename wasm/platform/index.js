@@ -606,33 +606,52 @@ function maybeReleaseNativeLaunchScreen() {
 
   isNativeLaunchScreenReleaseStarted = true;
 
-  // These operations only prepare the first visible host screen; restoration remains deferred.
+  // Prepare the first Hosts screen underneath the native splash.
   var headerTitle = document.getElementById('header-title');
   if (headerTitle) headerTitle.textContent = t('Hosts');
   $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
   $('#settingsBtn, #supportBtn, #updateAppBtn').show();
   $('#settings-list, #game-grid, #wasmSpinner').hide();
-
   document.documentElement.classList.remove('app-starting');
 
-  // Give the browser a rendering opportunity, then allow the native splash a little
-  // extra time to finish its animation and audio before releasing it.
-  var releaseSplashAndScheduleRestore = function() {
-    var layout = document.querySelector('.mdl-layout');
-    if (layout) void layout.getBoundingClientRect();
+  // Read the persisted visibility preference and create/position the summary bar
+  // before releasing the native splash, so it is already laid out on first paint.
+  var prepareSummaryAndReleaseSplash = function() {
+    initializeConfigSummaryBar();
 
-    nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
-      nativeLaunchScreenReleaseTimeout = null;
-      hideNativeLaunchScreen();
-      scheduleDeferredNormalStartup();
-    }, 1500);
+    // Give the browser a rendering opportunity, then allow the native splash a little
+    // extra time to finish its animation and audio before releasing it.
+    var releaseSplashAndScheduleRestore = function() {
+      var layout = document.querySelector('.mdl-layout');
+      if (layout) void layout.getBoundingClientRect();
+
+      nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
+        nativeLaunchScreenReleaseTimeout = null;
+        hideNativeLaunchScreen();
+        scheduleDeferredNormalStartup();
+      }, 1500);
+    };
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(releaseSplashAndScheduleRestore);
+    } else {
+      window.setTimeout(releaseSplashAndScheduleRestore, 0);
+    }
   };
 
-  if (typeof window.requestAnimationFrame === 'function') {
-    window.requestAnimationFrame(releaseSplashAndScheduleRestore);
-  } else {
-    window.setTimeout(releaseSplashAndScheduleRestore, 0);
-  }
+  getData('showConfigSummaryBar', function(previousValue) {
+    var storedValue = previousValue && previousValue.showConfigSummaryBar;
+    var enabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    var summarySwitch = document.querySelector('#showConfigSummaryBtn');
+    if (summarySwitch && summarySwitch.MaterialSwitch) {
+      if (enabled) summarySwitch.MaterialSwitch.on();
+      else summarySwitch.MaterialSwitch.off();
+    }
+    configSummaryPreferenceLoaded = true;
+    updateConfigSummaryBar();
+    prepareSummaryAndReleaseSplash();
+  });
 }
 
 function scheduleDeferredNormalStartup() {
@@ -6525,9 +6544,12 @@ function updateConfigSummaryBar() {
   toggleFor('#gameModeSwitch', '#summaryGameMode');
 }
 
+var configSummaryBarInitialized = false;
+
 function initializeConfigSummaryBar() {
   updateConfigSummaryBar();
-  if (typeof MutationObserver !== 'function' || !document.body) return;
+  if (configSummaryBarInitialized || typeof MutationObserver !== 'function' || !document.body) return;
+  configSummaryBarInitialized = true;
 
   // Track setting changes and screen navigation without coupling the strip to each handler.
   var observer = new MutationObserver(function() {
