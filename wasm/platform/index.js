@@ -4227,7 +4227,7 @@ function getStreamMenuOptions() {
       id: 'streamMenuDisconnect',
       text: t('Disconnect'),
       action: function() {
-        Module.stopStream();
+        requestManualStreamStop();
       }
     },
   ];
