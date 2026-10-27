@@ -458,5 +458,11 @@
   "• No relevant changes found.": "• No relevant changes found.",
   "Using a secure connection": "Using a secure connection",
   "Partially encrypted connection; unencrypted: %1$s": "Partially encrypted connection; unencrypted: %1$s",
-  "Using an unencrypted connection": "Using an unencrypted connection"
+  "Using an unencrypted connection": "Using an unencrypted connection",
+  "Partial encryption warning: video": "WARNING: The connection is only partially secure, the video stream is unencrypted.",
+  "Partial encryption warning: audio": "WARNING: The connection is only partially secure, the audio stream is unencrypted.",
+  "Partial encryption warning: video and audio": "WARNING: The connection is only partially secure, the video and audio streams are unencrypted.",
+  "Partial encryption warning: control": "WARNING: The connection is only partially secure, the control stream is unencrypted.",
+  "Partial encryption warning: video and control": "WARNING: The connection is only partially secure, the video and control streams are unencrypted.",
+  "Partial encryption warning: audio and control": "WARNING: The connection is only partially secure, the audio and control streams are unencrypted."
 }
