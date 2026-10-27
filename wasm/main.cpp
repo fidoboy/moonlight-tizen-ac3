@@ -76,6 +76,14 @@ MoonlightInstance::~MoonlightInstance() {
   m_Dispatcher.stop();
 }
 
+void MoonlightInstance::SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode) {
+  m_DolbyChannelLayout = channelLayout == "Normal" ? "Normal" : "Back";
+  m_DolbyDecodingMode = (decodingMode == "HardwareWithFallback" || decodingMode == "Software")
+    ? decodingMode : "Hardware";
+  PostToJs("Setting Dolby channel layout to: " + m_DolbyChannelLayout);
+  PostToJs("Setting Dolby decoding mode to: " + m_DolbyDecodingMode);
+}
+
 void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
   // Tell the front end
   PostToJs(std::string("Connection Established"));
@@ -299,8 +307,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
   
   if (m_StopThread != 0) {
     pthread_join(m_StopThread, NULL);
@@ -329,11 +336,6 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   PostToJs("Setting the Flip X/Y face buttons to: " + std::to_string(flipXYfaceButtons));
   PostToJs("Setting the Audio backend to: " + audioBackend);
   PostToJs("Setting the Audio configuration to: " + audioConfig);
-  m_DolbyChannelLayout = dolbyChannelLayout == "Normal" ? "Normal" : "Back";
-  m_DolbyDecodingMode = (dolbyDecodingMode == "HardwareWithFallback" || dolbyDecodingMode == "Software")
-    ? dolbyDecodingMode : "Hardware";
-  PostToJs("Setting Dolby channel layout to: " + m_DolbyChannelLayout);
-  PostToJs("Setting Dolby decoding mode to: " + m_DolbyDecodingMode);
   PostToJs("Optical output enabled: " + std::to_string(opticalOutputEnabled));
   m_OpticalOutputEnabled = opticalOutputEnabled;
   PostToJs("Setting the Audio synchronization to: " + std::to_string(audioSync));
@@ -680,13 +682,16 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
   PostToJs("Starting the streaming session...");
   return g_Instance->StartStream(host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend, audioConfig, opticalOutputEnabled, audioSync,
-  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats,
-  dolbyChannelLayout, dolbyDecodingMode);
+  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats);
+}
+
+void setDolbyAudioOptions(std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
+  if (!g_Instance) return;
+  g_Instance->SetDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
 }
 
 MessageResult stopStream() {
@@ -755,6 +760,7 @@ void PostPromiseMessage(int callbackId, const std::string& type, const std::vect
 EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::value_object<MessageResult>("MessageResult").field("type", &MessageResult::type).field("ret", &MessageResult::ret);
   emscripten::function("startStream", &startStream);
+  emscripten::function("setDolbyAudioOptions", &setDolbyAudioOptions);
   emscripten::function("resetEncryptionStatus", &LiResetEncryptionStatus);
   emscripten::function("getEncryptionStatus", &LiGetEncryptionStatus);
   emscripten::function("hasDecodingModeSupport", &hasDecodingModeSupport);
