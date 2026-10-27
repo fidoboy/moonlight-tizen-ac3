@@ -3787,7 +3787,80 @@ function animateStreamTransitionBackground() {
   streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
 }
 
+var streamEncryptionStatusPollTimeout = null;
+
+function resetStreamEncryptionStatus() {
+  stopStreamEncryptionStatusPolling();
+  var statusElement = document.getElementById('streamEncryptionStatus');
+  var iconElement = document.getElementById('streamEncryptionIcon');
+  var messageElement = document.getElementById('streamEncryptionMessage');
+  if (statusElement) statusElement.style.display = 'none';
+  if (iconElement) iconElement.innerHTML = '';
+  if (messageElement) messageElement.textContent = '';
+}
+
+function stopStreamEncryptionStatusPolling() {
+  if (streamEncryptionStatusPollTimeout !== null) {
+    window.clearTimeout(streamEncryptionStatusPollTimeout);
+    streamEncryptionStatusPollTimeout = null;
+  }
+}
+
+function renderStreamEncryptionStatus(status) {
+  var statusElement = document.getElementById('streamEncryptionStatus');
+  var iconElement = document.getElementById('streamEncryptionIcon');
+  var messageElement = document.getElementById('streamEncryptionMessage');
+  if (!statusElement || !iconElement || !messageElement) return;
+
+  var videoEncrypted = (status & 0x01) !== 0;
+  var audioEncrypted = (status & 0x02) !== 0;
+  var controlEncrypted = (status & 0x04) !== 0;
+  var allEncrypted = videoEncrypted && audioEncrypted && controlEncrypted;
+  var encryptedParts = [];
+  if (videoEncrypted) encryptedParts.push(t('Video'));
+  if (audioEncrypted) encryptedParts.push(t('Audio'));
+  if (controlEncrypted) encryptedParts.push(t('Control channel'));
+
+  if (allEncrypted) {
+    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>';
+    statusElement.className = 'stream-encryption-status encrypted';
+    messageElement.textContent = t('Encrypted connection');
+  } else if (encryptedParts.length > 0) {
+    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7-2"></path>';
+    statusElement.className = 'stream-encryption-status partially-encrypted';
+    messageElement.textContent = t('Partially encrypted connection: %1$s', encryptedParts.join(', '));
+  } else {
+    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7-2"></path><path d="m4 4 16 16"></path>';
+    statusElement.className = 'stream-encryption-status unencrypted';
+    messageElement.textContent = t('Unencrypted connection');
+  }
+
+  statusElement.style.display = 'flex';
+}
+
+function pollStreamEncryptionStatus() {
+  streamEncryptionStatusPollTimeout = null;
+  if (!streamTransitionVisible || streamTransitionHiding) return;
+
+  if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
+    var status = Module.getEncryptionStatus();
+    if (typeof status === 'number' && status >= 0) {
+      renderStreamEncryptionStatus(status);
+      return;
+    }
+  }
+
+  // The C core publishes the status after constructing the RTSP stream configuration.
+  streamEncryptionStatusPollTimeout = window.setTimeout(pollStreamEncryptionStatus, 100);
+}
+
+function startStreamEncryptionStatusPolling() {
+  stopStreamEncryptionStatusPolling();
+  pollStreamEncryptionStatus();
+}
+
 function showStreamTransitionBackground(onVisible) {
+  resetStreamEncryptionStatus();
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
