@@ -17,6 +17,7 @@
   "The TV could not start the video stream.": "El televisor no ha podido iniciar la retransmisión de vídeo.",
   "Stream ended unexpectedly.": "La retransmisión ha terminado inesperadamente.",
   "Connection to %1$s lost.": "Se ha perdido la conexión con %1$s.",
+  "Host": "host",
   "Network scan failed.": "No se ha podido escanear la red.",
   "Restore Defaults": "Restaurar valores predeterminados",
   "Quit Running App": "Cerrar aplicación en ejecución",
