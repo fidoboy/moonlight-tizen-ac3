@@ -872,10 +872,34 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       offset += ret;
     }
 
+    // Show the effective Dolby decoder mode only when AC-3/E-AC-3 was negotiated.
+    // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
+    if (g_Instance != nullptr && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
+      const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
+      const char* encoderModeString = "Hardware";
+      if (hasDecodingMode) {
+        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
+          encoderModeString = "Automatic";
+        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
+          encoderModeString = "Software";
+        }
+      }
+      ret = snprintf(
+        &output[offset], length - offset,
+        "Encoder mode: %s\\n",
+        encoderModeString
+      );
+      if (ret < 0 || ret >= length - offset) {
+        assert(false);
+        return;
+      }
+      offset += ret;
+    }
+
     // Keep this row permanently present; severity changes must not shift the overlay.
     ret = snprintf(
       &output[offset], length - offset,
-      "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
+      "Audio FEC: %u recovered · %u failed · %u out-of-order\\n",
       s_AudioFecWindowStats.recoveredPackets,
       s_AudioFecWindowStats.failedBlocks,
       s_AudioFecWindowStats.outOfOrderPackets
