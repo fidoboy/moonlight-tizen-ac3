@@ -960,50 +960,54 @@ function handleMessage(msg) {
       });
     };
 
-    // Restore level 1 (the Web UI) first, then hide level 2 (the stream transition).
-    // Only after the transition layer is fully hidden and an additional 200 ms has elapsed
-    // may we show notifications or start host/app recovery requests.
-    showAppsMode(true, function() {
-      var beginRecoveryAfterTransition = function() {
-        window.setTimeout(function() {
-          // Resume ordinary UI state and flush deferred UI actions only after the full
-          // transition fadeout and the additional 200 ms breathing room.
-          if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
-            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-            api.quitApp().then(function() {
-              console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
-              refreshHostAndReturnToApps();
-            }, function(failedQuitApp) {
-              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
-              snackbarLogLong('Could not automatically quit the host app.');
-              refreshHostAndReturnToApps();
-            });
-          } else {
+    // Keep the Web UI hidden while the closing transition is shown. Reveal it only
+    // shortly before the transition starts fading out, avoiding a flash of the page
+    // background behind the animated starfield.
+    var beginRecoveryAfterTransition = function() {
+      window.setTimeout(function() {
+        // Resume ordinary UI state and flush deferred UI actions only after the full
+        // transition fadeout and the additional 200 ms breathing room.
+        if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
+          console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
+          api.quitApp().then(function() {
+            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
             refreshHostAndReturnToApps();
-          }
-        }, 200);
-      };
-
-      var hideTransitionAndBeginRecovery = function() {
-        if (typeof hideStreamTransitionBackground === 'function') {
-          hideStreamTransitionBackground(beginRecoveryAfterTransition);
+          }, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
+            snackbarLogLong('Could not automatically quit the host app.');
+            refreshHostAndReturnToApps();
+          });
         } else {
-          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
-          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
-          beginRecoveryAfterTransition();
+          refreshHostAndReturnToApps();
         }
-      };
+      }, 200);
+    };
 
-      // Preserve the closing transition for at least the minimum duration even if
-      // the Apps UI is ready to return almost immediately after stream termination.
-      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
-        (Date.now() - streamTerminationTransitionShownAt);
-      if (remainingTransitionMs > 0) {
-        window.setTimeout(hideTransitionAndBeginRecovery, remainingTransitionMs);
+    var hideTransitionAndBeginRecovery = function() {
+      if (typeof hideStreamTransitionBackground === 'function') {
+        hideStreamTransitionBackground(beginRecoveryAfterTransition);
       } else {
-        hideTransitionAndBeginRecovery();
+        var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+        if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+        beginRecoveryAfterTransition();
       }
-    }, true);
+    };
+
+    var showAppsUiBeforeTransitionCloses = function() {
+      // showAppsMode completes the normal UI fade before invoking its callback.
+      // Starting the transition fade there leaves only a brief overlap between layers.
+      showAppsMode(true, hideTransitionAndBeginRecovery, true);
+    };
+
+    // Preserve the closing transition for at least the minimum duration. Only then
+    // reveal the Apps UI, and begin hiding the transition as soon as that reveal finishes.
+    var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+      (Date.now() - streamTerminationTransitionShownAt);
+    if (remainingTransitionMs > 0) {
+      window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
+    } else {
+      showAppsUiBeforeTransitionCloses();
+    }
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.
