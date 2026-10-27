@@ -3444,6 +3444,9 @@ function showApps(host, options) {
         window.previewPromises = [];
 
         sortedAppList.forEach(function(app) {
+          // Existing cards keep their DOM and artwork during an in-place refresh.
+          if (appListInteractionLocked && document.getElementById('game-container-' + app.id)) return;
+
           // Double clicking the button will cause multiple box arts to appear.
           // To mitigate this, we ensure that we don't add a duplicate box art.
           // This isn't perfect: there's lots of RTTs before the logic prevents anything.
