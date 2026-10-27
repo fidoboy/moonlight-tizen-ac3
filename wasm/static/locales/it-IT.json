@@ -124,7 +124,6 @@
   "Connection to %1$s lost.": "La connessione con %1$s è stata persa.",
   "Connection warnings": "Avvisi di connessione",
   "Continue": "Continua",
-  "Control channel": "Canale di controllo",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
@@ -461,8 +460,5 @@
   "Using an unencrypted connection": "Uso di una connessione non crittografata",
   "Partial encryption warning: video": "ATTENZIONE: la connessione è solo parzialmente sicura, il flusso video non è crittografato.",
   "Partial encryption warning: audio": "ATTENZIONE: la connessione è solo parzialmente sicura, il flusso audio non è crittografato.",
-  "Partial encryption warning: video and audio": "ATTENZIONE: la connessione è solo parzialmente sicura, i flussi video e audio non sono crittografati.",
-  "Partial encryption warning: control": "ATTENZIONE: la connessione è solo parzialmente sicura, il flusso di controllo non è crittografato.",
-  "Partial encryption warning: video and control": "ATTENZIONE: la connessione è solo parzialmente sicura, i flussi video e di controllo non sono crittografati.",
-  "Partial encryption warning: audio and control": "ATTENZIONE: la connessione è solo parzialmente sicura, i flussi audio e di controllo non sono crittografati."
+  "Partial encryption warning: video and audio": "ATTENZIONE: la connessione è solo parzialmente sicura, i flussi video e audio non sono crittografati."
 }
