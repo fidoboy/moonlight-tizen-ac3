@@ -673,7 +673,7 @@ function loadConfigSummarySettings(callback) {
     applyMenuValue('videoCodec', '.videoCodecMenu', result && result.videoCodec);
     completeOne();
   });
-  applySwitch('optimizeBitrate', '#optimizeBitrateBtn', true);
+  applySwitch('optimizeBitrate', '#optimizeBitrateBtn', false);
   applySwitch('hdrMode', '#hdrModeBtn', false);
   applySwitch('ac3AudioMode', '#ac3AudioModeBtn', false);
   applySwitch('gameMode', '#gameModeBtn',
