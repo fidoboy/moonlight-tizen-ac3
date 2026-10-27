@@ -3121,7 +3121,7 @@ function sortTitles(list, sortOrder) {
 }
 
 // Handle layout elements when displaying the Apps view
-function showAppsMode() {
+function showAppsMode(keepInteractionLocked, afterShown) {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
 
   hideStreamDiagnosticsLayer();
@@ -3138,7 +3138,7 @@ function showAppsMode() {
   $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
     clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
-      unlockAppListInteraction();
+      if (!keepInteractionLocked) unlockAppListInteraction();
     } else {
       Navigation.switch();
     }
@@ -3153,7 +3153,7 @@ function showAppsMode() {
   $('#listener').removeClass('fullscreen');
   $('body').css('backgroundColor', '#282C38');
 
-  showUiLayer('main-ui-layer');
+  showUiLayer('main-ui-layer', afterShown);
   isInGame = false;
   if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
@@ -3650,7 +3650,7 @@ function showStreamTransitionBackground(onVisible) {
   animateStreamTransitionBackground();
 }
 
-function hideStreamTransitionBackground() {
+function hideStreamTransitionBackground(afterHidden) {
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
   if (streamTransitionHiding) return;
@@ -3675,6 +3675,7 @@ function hideStreamTransitionBackground() {
       streamTransitionContext = null;
       streamTransitionCanvas = null;
       streamTransitionTeardownTimeout = null;
+      if (typeof afterHidden === 'function') afterHidden();
     });
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
