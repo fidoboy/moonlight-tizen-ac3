@@ -150,7 +150,7 @@
   "Enable Dolby Digital": "Dolby Digital aktivieren",
   "Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which Sunshine traditionally sends by default. If the host does not provide the format, Moonlight will always fall back to Opus.": "Aktivieren Sie diese Option, um mit dem Host Dolby Digital (DD) oder Dolby Digital Plus (DD+) anstelle des Standardformats auszuhandeln. Damit kann 5.1-Surround-Sound über den optischen TV-Ausgang übertragen werden; bei kompatibler Ausstattung ist dies auch über HDMI oder andere Verbindungen möglich. Dolby Digital benötigt weniger Bandbreite als Opus, das Sunshine standardmäßig verwendet. Wenn der Host das Format nicht anbietet, verwendet Moonlight weiterhin Opus.",
   "Enabling this option may result in video freezing on the first rendered frame, black screen, unstable performance, and other streaming issues.<br><br>": "Diese Option kann dazu führen, dass das Video beim ersten gerenderten Frame einfriert, ein schwarzer Bildschirm erscheint oder die Leistung instabil wird.<br><br>",
-  "Encrypted connection": "Es wird eine sichere Verbindung verwendet",
+  "Encrypted connection": "Verschlüsselte Verbindung",
   "Enter IP, Hostname or [IP]:Port...": "IP-Adresse, Hostname oder [IP]:Port eingeben …",
   "Error %1$s: %2$s": "Fehler %1$s: %2$s",
   "Error: %1$s": "Fehler: %1$s",
@@ -271,7 +271,7 @@
   "PLAY/PAUSE": "WIEDERGABE/PAUSE",
   "Pair State: %1$s": "Kopplungsstatus: %1$s",
   "Pairing": "Koppeln",
-  "Partially encrypted connection: %1$s": "Teilweise verschlüsselte Verbindung; unverschlüsselt: %1$s",
+  "Partially encrypted connection: %1$s": "Teilweise verschlüsselte Verbindung: %1$s",
   "Performance overlay position": "Position der Leistungsanzeige",
   "Performance statistics": "Leistungsstatistiken",
   "Platform Version: Tizen %1$s": "Plattformversion: Tizen %1$s",
@@ -380,7 +380,7 @@
   "Unable to connect to the host.": "Verbindung zum Host nicht möglich.",
   "Unable to determine the running application.": "Die laufende Anwendung konnte nicht ermittelt werden.",
   "Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!": "Die App-Liste kann derzeit nicht abgerufen werden. Aktualisieren Sie die Liste oder versuchen Sie es später erneut!",
-  "Unencrypted connection": "Es wird eine unverschlüsselte Verbindung verwendet",
+  "Unencrypted connection": "Unverschlüsselte Verbindung",
   "Unknown": "Unbekannt",
   "Unknown error": "Unbekannter Fehler",
   "Unlock all frame rates": "Alle Bildraten freischalten",
@@ -455,5 +455,8 @@
   "— Stop the streaming session.": "— Streaming-Sitzung beenden.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Den Eingabemodus des IP-Adressfelds ändern und das Host-PC-Menü öffnen.",
   "— Toggle the performance statistics overlay.": "— Leistungsstatistik-Einblendung ein- oder ausblenden.",
-  "• No relevant changes found.": "• Keine relevanten Änderungen gefunden."
+  "• No relevant changes found.": "• Keine relevanten Änderungen gefunden.",
+  "Using a secure connection": "Es wird eine sichere Verbindung verwendet",
+  "Partially encrypted connection; unencrypted: %1$s": "Teilweise verschlüsselte Verbindung; unverschlüsselt: %1$s",
+  "Using an unencrypted connection": "Es wird eine unverschlüsselte Verbindung verwendet"
 }
