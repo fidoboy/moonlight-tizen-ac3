@@ -924,8 +924,9 @@ function handleMessage(msg) {
     };
 
     var refreshHostAndReturnToApps = function() {
-      // The Apps grid remains locked during recovery, so show feedback immediately
-      // after the closing transition instead of relying on the normal 1-second delay.
+      // The Apps grid remains locked during recovery. The caller has already waited
+      // at least 200 ms after the closing transition disappeared, so feedback can now
+      // appear without the normal 1-second delay.
       snackbarLogPersistent('Loading Apps...');
       // Refreshing server info is useful, but failure must not prevent recovery.
       Promise.resolve().then(function() {
