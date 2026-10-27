@@ -3965,6 +3965,11 @@ function startGame(host, appID) {
       }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
 
+      // Keep the active session labels available to JavaScript termination handling.
+      window._activeStreamAppName = appToStart.title || String(appID);
+      window._activeStreamHostName = host.hostname || '';
+      window._manualStreamStopRequested = false;
+
       // Shows a loading message to launch the application and start stream mode
       $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
       showStreamMode();
