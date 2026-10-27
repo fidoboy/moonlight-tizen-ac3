@@ -4366,7 +4366,7 @@ function startGame(host, appID) {
   });
 }
 
-// Stop the running app title, refresh the server info, and then return to Apps grid
+// Stop the running app title, report the result, and then refresh the Apps grid.
 function stopGame(host, callbackFunction) {
   // Prevent a manual quit operation from racing the post-stream recovery sequence.
   if (window._streamTerminationRecoveryInProgress) return;
@@ -4377,8 +4377,8 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
-  // Keep the Apps grid dimmed and non-interactive until the complete close-and-refresh
-  // operation has finished, not merely until the host accepts the quit request.
+  // Keep the Apps grid dimmed and non-interactive until the result has been reported
+  // and the refreshed list has finished rendering.
   lockAppListInteraction();
   snackbarLogPersistent('Closing application...');
 
@@ -4388,55 +4388,52 @@ function stopGame(host, callbackFunction) {
   updateConfigSummaryBar();
 
   var operationFinished = false;
-  function restoreConfigSummaryAfterQuit() {
-    configSummaryTemporarilyHidden = false;
-    updateConfigSummaryBar();
-  }
-
   function finishQuitOperation(message, appTitle, success) {
     if (operationFinished) return;
     operationFinished = true;
-    restoreConfigSummaryAfterQuit();
-    unlockAppListInteraction();
-    if (message) {
-      if (appTitle) snackbarLog(message, appTitle);
-      else snackbarLog(message);
-    }
-    if (success && typeof callbackFunction === 'function') callbackFunction();
+
+    // Replace the progress snackbar with the final result before starting any refresh.
+    // Keep this result visible while the app list is reloaded silently.
+    if (appTitle) snackbarLog(message, appTitle);
+    else snackbarLog(message);
+
+    Promise.resolve().then(function() {
+      return host.refreshServerInfo();
+    }).catch(function(failedRefreshInfo) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info after closing the app:', failedRefreshInfo);
+    }).then(function() {
+      return showApps(host, {
+        suppressLoadingSnackbar: true,
+        keepInteractionLocked: true
+      });
+    }).catch(function(error) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
+    }).then(function() {
+      configSummaryTemporarilyHidden = false;
+      updateConfigSummaryBar();
+      unlockAppListInteraction();
+      if (success && typeof callbackFunction === 'function') callbackFunction();
+    });
   }
 
-  host.refreshServerInfo().then(function(ret) {
-    host.getAppById(host.currentGame).then(function(runningApp) {
-      if (!runningApp) {
-        finishQuitOperation('No app is currently running.');
-        return;
-      }
-      var appTitle = runningApp.title;
-      snackbarLogPersistent('Quitting %1$s...', appTitle);
-      host.quitApp().then(function(ret2) {
-        host.refreshServerInfo().then(function(ret3) {
-          // Keep the progress snackbar visible while the Apps grid is rebuilt.
-          showApps(host, { suppressLoadingSnackbar: true, keepInteractionLocked: true }).then(function() {
-            finishQuitOperation('Successfully quit %1$s', appTitle, true);
-          }).catch(function(error) {
-            console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after quitting:', error);
-            finishQuitOperation('Failed to quit %1$s', appTitle);
-          });
-        }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + '!', host, '\n' + host.toString());
-          finishQuitOperation('Failed to quit %1$s', appTitle);
-        });
-      }, function(failedQuitApp) {
-        console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
-        finishQuitOperation('Failed to quit %1$s', appTitle);
-      });
-    }, function(failedGetApp) {
-      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
-      finishQuitOperation('Unable to determine the running application.');
+  host.refreshServerInfo().then(function() {
+    return host.getAppById(host.currentGame);
+  }).then(function(runningApp) {
+    if (!runningApp) {
+      finishQuitOperation('No app is currently running.');
+      return;
+    }
+
+    var appTitle = runningApp.title;
+    host.quitApp().then(function() {
+      finishQuitOperation('Successfully quit %1$s', appTitle, true);
+    }, function(failedQuitApp) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
+      finishQuitOperation('Failed to quit %1$s', appTitle);
     });
-  }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '!', host, '\n' + host.toString());
-    finishQuitOperation('Unable to connect to the host.');
+  }).catch(function(error) {
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Unable to complete the close-app request:', error);
+    finishQuitOperation('Unable to close the application.');
   });
 }
 
