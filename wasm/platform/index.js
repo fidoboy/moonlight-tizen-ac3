@@ -3376,7 +3376,7 @@ function showApps(host, options) {
           snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
           clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
-          showAppsMode();
+          showAppsMode(!!(options && options.keepInteractionLocked));
           resolve();
           return;
         }
@@ -3605,7 +3605,7 @@ function showApps(host, options) {
         }
 
         // Navigate to the Apps view
-        showAppsMode();
+        showAppsMode(!!(options && options.keepInteractionLocked));
         clearViewLoadingSnackbarTimer();
         if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
         resolve();
@@ -3635,7 +3635,7 @@ function showApps(host, options) {
         // During stream recovery, do not expose an error Apps screen or unlock the stale
         // grid. Let the caller's recovery handler return to Hosts in one consistent step.
         if (!appListInteractionLocked) {
-          showAppsMode();
+          showAppsMode(!!(options && options.keepInteractionLocked));
         }
         reject(failedAppList);
       });
@@ -4416,7 +4416,7 @@ function stopGame(host, callbackFunction) {
       host.quitApp().then(function(ret2) {
         host.refreshServerInfo().then(function(ret3) {
           // Keep the progress snackbar visible while the Apps grid is rebuilt.
-          showApps(host, { suppressLoadingSnackbar: true }).then(function() {
+          showApps(host, { suppressLoadingSnackbar: true, keepInteractionLocked: true }).then(function() {
             finishQuitOperation('Successfully quit %1$s', appTitle, true);
           }).catch(function(error) {
             console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after quitting:', error);
