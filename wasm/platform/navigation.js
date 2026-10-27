@@ -1379,6 +1379,26 @@ const Views = {
       unmark(this.view.current());
     },
   },
+  SelectDolbyChannelLayoutMenu: {
+    isActive: () => isPopupMenuActive('dolbyChannelLayoutMenu'),
+    view: new ListView(() => document.getElementById('dolbyChannelLayoutMenu').parentNode.children[3].children[1].children),
+    up: function() { this.view.prevOption(); }, down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyChannelLayout'), 250); },
+    back: function() { closePopupMenu('selectDolbyChannelLayout'); closeActiveVisibleMenu(); focusElement('selectDolbyChannelLayout'); },
+    press: function() {}, switch: function() {},
+    enter: function() { mark(this.view.current()); }, leave: function() { unmark(this.view.current()); },
+  },
+  SelectDolbyDecodingModeMenu: {
+    isActive: () => isPopupMenuActive('dolbyDecodingModeMenu'),
+    view: new ListView(() => document.getElementById('dolbyDecodingModeMenu').parentNode.children[3].children[1].children),
+    up: function() { this.view.prevOption(); }, down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyDecodingMode'), 250); },
+    back: function() { closePopupMenu('selectDolbyDecodingMode'); closeActiveVisibleMenu(); focusElement('selectDolbyDecodingMode'); },
+    press: function() {}, switch: function() {},
+    enter: function() { mark(this.view.current()); }, leave: function() { unmark(this.view.current()); },
+  },
   SelectAudioJitterMenu: {
     isActive: () => isPopupMenuActive('audioJitterMenu'),
     view: new ListView(() =>

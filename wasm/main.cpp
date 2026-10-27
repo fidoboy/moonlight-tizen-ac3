@@ -13,6 +13,8 @@ extern char* g_UniqueId;
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
+#include "samsung/wasm/emss_version_info.h"
+
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
@@ -297,7 +299,8 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
   
   if (m_StopThread != 0) {
     pthread_join(m_StopThread, NULL);
@@ -326,6 +329,11 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   PostToJs("Setting the Flip X/Y face buttons to: " + std::to_string(flipXYfaceButtons));
   PostToJs("Setting the Audio backend to: " + audioBackend);
   PostToJs("Setting the Audio configuration to: " + audioConfig);
+  m_DolbyChannelLayout = dolbyChannelLayout == "Normal" ? "Normal" : "Back";
+  m_DolbyDecodingMode = (dolbyDecodingMode == "HardwareWithFallback" || dolbyDecodingMode == "Software")
+    ? dolbyDecodingMode : "Hardware";
+  PostToJs("Setting Dolby channel layout to: " + m_DolbyChannelLayout);
+  PostToJs("Setting Dolby decoding mode to: " + m_DolbyDecodingMode);
   PostToJs("Optical output enabled: " + std::to_string(opticalOutputEnabled));
   m_OpticalOutputEnabled = opticalOutputEnabled;
   PostToJs("Setting the Audio synchronization to: " + std::to_string(audioSync));
@@ -672,11 +680,13 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
   PostToJs("Starting the streaming session...");
   return g_Instance->StartStream(host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend, audioConfig, opticalOutputEnabled, audioSync,
-  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats);
+  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats,
+  dolbyChannelLayout, dolbyDecodingMode);
 }
 
 MessageResult stopStream() {
@@ -690,6 +700,10 @@ MessageResult cancelRequest() {
 
 void toggleStats() {
   g_Instance->TogglePerformanceStats();
+}
+
+bool hasDecodingModeSupport() {
+  return samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
 }
 
 void stun(int callbackId) {
@@ -743,6 +757,7 @@ EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::function("startStream", &startStream);
   emscripten::function("resetEncryptionStatus", &LiResetEncryptionStatus);
   emscripten::function("getEncryptionStatus", &LiGetEncryptionStatus);
+  emscripten::function("hasDecodingModeSupport", &hasDecodingModeSupport);
   emscripten::function("stopStream", &stopStream);
   emscripten::function("cancelRequest", &cancelRequest);
   emscripten::function("toggleStats", &toggleStats);

@@ -441,6 +441,27 @@
                 <li class="mdl-menu__item" data-value="71Surround" data-optical-incompatible="true" data-i18n="7.1 Surround Sound">7.1 Surround Sound</li>
               </ul>
             </div>
+            <div id="dolbyChannelLayoutOption" class="setting-option">
+              <label data-i18n="Dolby channel layout">Dolby channel layout</label>
+              <div id="dolbyChannelLayoutMenu">
+                <button type="button" id="selectDolbyChannelLayout" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Back" data-i18n="Rear speakers">Rear speakers</button>
+              </div>
+              <ul class="dolbyChannelLayoutMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyChannelLayout">
+                <li class="mdl-menu__item" data-value="Normal" data-i18n="Normal">Normal</li>
+                <li class="mdl-menu__item" data-value="Back" data-i18n="Rear speakers">Rear speakers</li>
+              </ul>
+            </div>
+            <div id="dolbyDecodingModeOption" class="setting-option" style="display:none">
+              <label data-i18n="Dolby decoding mode">Dolby decoding mode</label>
+              <div id="dolbyDecodingModeMenu">
+                <button type="button" id="selectDolbyDecodingMode" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Hardware" data-i18n="Hardware">Hardware</button>
+              </div>
+              <ul class="dolbyDecodingModeMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyDecodingMode">
+                <li class="mdl-menu__item" data-value="Hardware" data-i18n="Hardware">Hardware</li>
+                <li class="mdl-menu__item" data-value="HardwareWithFallback" data-i18n="Hardware automatic">Hardware automatic</li>
+                <li class="mdl-menu__item" data-value="Software" data-i18n="Software">Software</li>
+              </ul>
+            </div>
             <div id="audioSyncOption" class="setting-option">
               <label data-i18n="Audio synchronization">Audio synchronization</label>
               <span class="mdl-list__item-text-body" data-i18n="- This can help reduce delays by keeping audio in sync for a consistent sound while streaming.">

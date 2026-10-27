@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "samsung/wasm/elementary_audio_track_config.h"
+#include "samsung/wasm/emss_version_info.h"
 #include "samsung/wasm/elementary_media_packet.h"
 #include "samsung/wasm/elementary_video_track_config.h"
 #include "samsung/html/html_media_element_listener.h"
@@ -209,7 +210,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           channelLayout = samsung::wasm::ChannelLayout::kStereo;
           break;
         case 6:
-          channelLayout = samsung::wasm::ChannelLayout::k5_1Back;
+          channelLayout = g_Instance->m_DolbyChannelLayout == "Normal"
+            ? samsung::wasm::ChannelLayout::k5_1
+            : samsung::wasm::ChannelLayout::k5_1Back;
           break;
         case 8:
           channelLayout = samsung::wasm::ChannelLayout::k7_1;
@@ -223,14 +226,24 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       const auto sampleFormat = isEac3
         ? samsung::wasm::SampleFormat::kEac3
         : samsung::wasm::SampleFormat::kAc3;
-      ClLogMessage("Configuring the EMSS track for %s passthrough (%d channels)\n",
-        isEac3 ? "E-AC-3" : "AC-3", channelCount);
+      auto decodingMode = samsung::wasm::DecodingMode::kHardware;
+      const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
+      if (hasDecodingMode) {
+        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
+          decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
+        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
+          decodingMode = samsung::wasm::DecodingMode::kSoftware;
+        }
+      }
+      ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\n",
+        isEac3 ? "E-AC-3" : "AC-3", channelCount,
+        g_Instance->m_DolbyChannelLayout.c_str(), hasDecodingMode ? g_Instance->m_DolbyDecodingMode.c_str() : "Hardware");
 
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
           mimeType, // Compressed Dolby elementary bitstream
           {}, // Extradata: Empty
-          samsung::wasm::DecodingMode::kHardware, // Decoding mode: Hardware
+          decodingMode, // Dolby decoding mode selected by the user when supported
           sampleFormat, // AC-3/E-AC-3 compressed bitstream
           channelLayout,
           kSampleRate, // Sample Rate: 48 kHz (48000 Hz)

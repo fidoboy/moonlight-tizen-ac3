@@ -50,6 +50,8 @@ var pairingCert; // Loads the generated certificate
 var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
 var isInGame = false; // Flag indicating whether the game has started, initial value is false
+var dolbyDecodingModeSupported = false;
+var dolbyDecodingModeSupportChecked = false;
 
 // Shared UI timing: change this single value to tune all interface fades.
 const UI_FADE_DURATION_MS = 300;
@@ -459,6 +461,8 @@ function attachListeners() {
   $('.audioBackendMenu li').on('click', saveAudioBackend);
   $('.audioConfigMenu li').on('click', saveAudioConfiguration);
   $('#ac3AudioModeSwitch').on('click', saveAc3AudioMode);
+  $('.dolbyChannelLayoutMenu li').on('click', saveDolbyChannelLayout);
+  $('.dolbyDecodingModeMenu li').on('click', saveDolbyDecodingMode);
   $('#audioSyncSwitch').on('click', saveAudioSync);
   $('#jitterSlider').on('input', saveAudioJitter);
   $('#playHostAudioSwitch').on('click', savePlayHostAudio);
@@ -492,6 +496,8 @@ function attachListeners() {
   registerMenu('selectLanguage', Views.SelectLanguageMenu);
   registerMenu('selectAudioBackend', Views.SelectAudioBackendMenu);
   registerMenu('selectAudio', Views.SelectAudioMenu);
+  registerMenu('selectDolbyChannelLayout', Views.SelectDolbyChannelLayoutMenu);
+  registerMenu('selectDolbyDecodingMode', Views.SelectDolbyDecodingModeMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
@@ -4275,7 +4281,9 @@ function startGame(host, appID) {
             host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
             framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
             audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
-            gameMode, disableWarnings, performanceStats
+            gameMode, disableWarnings, performanceStats,
+            $('#selectDolbyChannelLayout').data('value') || 'Back',
+            $('#selectDolbyDecodingMode').data('value') || 'Hardware'
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
@@ -5128,6 +5136,7 @@ function saveAudioConfiguration() {
   setAudioSelectorValue('#selectAudio', '.audioConfigMenu', chosenAudioConfig);
   console.log('%c[index.js, saveAudioConfiguration]', 'color: green;', 'Saving audioConfig value: ' + chosenAudioConfig);
   storeData('audioConfig', chosenAudioConfig, null);
+  updateDolbyAudioAdvancedSettings();
 }
 
 // Update a backend/layout selector by its stable value, using the localized menu label.
@@ -5141,6 +5150,67 @@ function setAudioSelectorValue(buttonSelector, menuSelector, value) {
 
 // Optical passthrough requires EMSS, but the channel layout remains the user's choice.
 // Keep existing IDs and stored keys for preference compatibility.
+function setDolbySelectorValue(buttonSelector, menuSelector, value) {
+  const item = $(menuSelector + ' li').filter(function() {
+    return String($(this).data('value')) === value;
+  }).first();
+  if (!item.length) return;
+  $(buttonSelector).text(item.text()).attr('data-value', value).data('value', value);
+}
+
+function updateDolbyAudioAdvancedSettings() {
+  const dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  const is51Selected = $('#selectAudio').data('value') === '51Surround';
+  const layoutEnabled = dolbyEnabled && is51Selected;
+  $('#selectDolbyChannelLayout')
+    .prop('disabled', !layoutEnabled)
+    .toggleClass('mdl-button--disabled', !layoutEnabled)
+    .attr('aria-disabled', layoutEnabled ? 'false' : 'true')
+    .attr('tabindex', layoutEnabled ? '0' : '-1');
+  $('#selectDolbyDecodingMode')
+    .prop('disabled', !dolbyEnabled)
+    .toggleClass('mdl-button--disabled', !dolbyEnabled)
+    .attr('aria-disabled', dolbyEnabled ? 'false' : 'true')
+    .attr('tabindex', dolbyEnabled ? '0' : '-1');
+  $('#dolbyDecodingModeOption').toggle(dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported);
+}
+
+function initializeDolbyDecodingModeSupport(attempt) {
+  attempt = attempt || 0;
+  if (typeof Module !== 'undefined' && typeof Module.hasDecodingModeSupport === 'function') {
+    try {
+      dolbyDecodingModeSupported = Module.hasDecodingModeSupport() === true;
+      dolbyDecodingModeSupportChecked = true;
+    } catch (error) {
+      dolbyDecodingModeSupported = false;
+      dolbyDecodingModeSupportChecked = true;
+      console.warn('Could not query EMSS decoding-mode support:', error);
+    }
+    updateDolbyAudioAdvancedSettings();
+    return;
+  }
+  if (attempt < 50) {
+    window.setTimeout(function() { initializeDolbyDecodingModeSupport(attempt + 1); }, 100);
+  } else {
+    dolbyDecodingModeSupported = false;
+    dolbyDecodingModeSupportChecked = true;
+    updateDolbyAudioAdvancedSettings();
+  }
+}
+
+function saveDolbyChannelLayout() {
+  const value = String($(this).data('value') || 'Back');
+  setDolbySelectorValue('#selectDolbyChannelLayout', '.dolbyChannelLayoutMenu', value);
+  storeData('dolbyChannelLayout', value, null);
+  updateDolbyAudioAdvancedSettings();
+}
+
+function saveDolbyDecodingMode() {
+  const value = String($(this).data('value') || 'Hardware');
+  setDolbySelectorValue('#selectDolbyDecodingMode', '.dolbyDecodingModeMenu', value);
+  storeData('dolbyDecodingMode', value, null);
+}
+
 function updateAc3AudioModeUI(enabled) {
   if (enabled) {
     setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', 'EMSS');
@@ -5166,6 +5236,7 @@ function updateAc3AudioModeUI(enabled) {
     .attr('tabindex', '0');
 
   updateAudioBackendSettings();
+  updateDolbyAudioAdvancedSettings();
 }
 
 function saveAc3AudioMode() {
@@ -5949,7 +6020,17 @@ function loadUserDataCb() {
         }
       });
     }
+    updateDolbyAudioAdvancedSettings();
   });
+  getData('dolbyChannelLayout', function(previousValue) {
+    if (previousValue.dolbyChannelLayout != null) setDolbySelectorValue('#selectDolbyChannelLayout', '.dolbyChannelLayoutMenu', previousValue.dolbyChannelLayout);
+    updateDolbyAudioAdvancedSettings();
+  });
+  getData('dolbyDecodingMode', function(previousValue) {
+    if (previousValue.dolbyDecodingMode != null) setDolbySelectorValue('#selectDolbyDecodingMode', '.dolbyDecodingModeMenu', previousValue.dolbyDecodingMode);
+    updateDolbyAudioAdvancedSettings();
+  });
+  initializeDolbyDecodingModeSupport();
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored AC-3 audio mode preference.');
   getData('ac3AudioMode', function(previousValue) {
