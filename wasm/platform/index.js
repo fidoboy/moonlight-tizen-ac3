@@ -666,6 +666,7 @@ function startDeferredNormalStartup() {
         window.componentHandler.upgradeDom();
       }
       loadUserData();
+      restoreUpdateBadgeFromCache();
       initializeConfigSummaryBar();
 
       if (typeof window.startNormalStartupWasm === 'function') {
@@ -2607,9 +2608,13 @@ function formatUpdateTimestamp(ms) {
 
 // Show the Update App button when a new update is found
 function updateAppButton(latestVersion) {
-  // Prevent adding duplicate buttons if one already exists
+  // Update the existing button if a newer release version was found.
   if ($('#updateAppBtn').length > 0) {
-    console.log('%c[index.js, updateAppButton]', 'color: green;', 'Update App button already exists. Skipping duplicate creation!');
+    $('#updateAppBtnText')
+      .attr('data-param', latestVersion)
+      .text(t('New update v%1$s', latestVersion));
+    $('#updateAppBtn').show();
+    console.log('%c[index.js, updateAppButton]', 'color: green;', 'Updated the existing Update App button.');
     return;
   }
 
@@ -2725,11 +2730,30 @@ function saveAutomaticUpdateChecks() {
 }
 
 // Check for updates when the Check for Updates button is pressed
+// Restore the update badge from the last successfully fetched release version.
+// This runs on every normal startup, regardless of the automatic-check setting or interval.
+function restoreUpdateBadgeFromCache() {
+  getData(UPDATE_VERSION, function(vResult) {
+    var cachedVersion = vResult[UPDATE_VERSION];
+    if (cachedVersion !== undefined && cachedVersion !== null &&
+        checkVersionUpdate(appInfo.version, cachedVersion)) {
+      updateAppButton(cachedVersion);
+    } else {
+      // A cached release that is no newer than this installation must not leave a stale badge.
+      $('#updateAppBtn, #updateAppBtnTooltip').remove();
+    }
+  });
+}
+
+// Check for updates when the Check for Updates button is pressed
 function checkForAppUpdates() {
   console.log('%c[index.js, checkForAppUpdates]', 'color: green;', 'Checking for new application updates...');
   snackbarLogPersistent('Checking for available Moonlight updates...');
   // Fetch the latest release data from the GitHub API
   fetchLatestRelease().then(({ latestVersion, releaseNotes }) => {
+    // Persist the successfully fetched release version so the update badge survives app restarts.
+    storeData(UPDATE_VERSION, latestVersion);
+
     setTimeout(() => {
       // Check if a new version update is available
       if (checkVersionUpdate(appInfo.version, latestVersion)) {
@@ -2737,10 +2761,11 @@ function checkForAppUpdates() {
         dismissPersistentSnackbar();
         // Show the Update Moonlight dialog with new version and release notes to inform user to update the app
         updateAppDialog(latestVersion, releaseNotes);
-        // Create and display the Update App button so they can access it later if they close the dialog
+        // Create or refresh the Update App button so it remains available after the dialog closes
         updateAppButton(latestVersion);
       } else {
-        // Otherwise, show a snackbar message to inform the user that the app is already up to date
+        // A successful check confirms that the installed app is current; no update badge is needed.
+        $('#updateAppBtn, #updateAppBtnTooltip').remove();
         snackbarLogLong('Your app is already up to date! You\'re on the latest version.');
       }
     }, 1500);
@@ -2784,24 +2809,29 @@ function checkForAppUpdatesAtStartup() {
         console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', 'Performing auto-check for new application updates...');
         // Fetch the latest release data from the GitHub API
         fetchLatestRelease().then(({ latestVersion }) => {
+          // Persist the result and timestamp only after the release request succeeds.
+          storeData(UPDATE_VERSION, latestVersion);
+          var successfulCheckTime = Date.now();
+          storeData(UPDATE_TIMESTAMP, successfulCheckTime);
+          console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', `Successful auto-check timestamp stored: ${formatUpdateTimestamp(successfulCheckTime)}`);
+
           setTimeout(() => {
             // Check if a new version update is available
             if (checkVersionUpdate(appInfo.version, latestVersion)) {
-              // Show snackbar message with new version to inform user to update the app
+              // Show snackbar message to inform user to update the app
               snackbarLogLong('Version %1$s is now available! Check out the latest features & improvements.', latestVersion);
               // Create and display the Update App button with tooltip and additional layout spacer
               updateAppButton(latestVersion);
+            } else {
+              // The installed app is current; remove any stale update button from this session.
+              $('#updateAppBtn, #updateAppBtnTooltip').remove();
             }
           }, 100);
-          // Save the fetched version as the last known update version
-          storeData(UPDATE_VERSION, latestVersion);
         }).catch(error => {
+          // Do not update UPDATE_TIMESTAMP on failure; the next app launch can retry immediately.
           console.error('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', 'Error: Failed to fetch the release data!', error);
           snackbarLogLong('Cannot automatically check for updates at this time!');
         });
-        // Save the current time as the last update check timestamp
-        storeData(UPDATE_TIMESTAMP, currentTime);
-        console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', `New auto-check timestamp stored: ${formatUpdateTimestamp(currentTime)}`);
       } else {
         var timeLeft = UPDATE_INTERVAL - (currentTime - lastChecked);
         var hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
