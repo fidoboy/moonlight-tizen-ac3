@@ -16,6 +16,7 @@
   "The host reported a video encoding error.": "L’hôte a signalé une erreur d’encodage vidéo.",
   "The TV could not start the video stream.": "Le téléviseur n’a pas pu démarrer le flux vidéo.",
   "Stream ended unexpectedly.": "Le flux s’est terminé de manière inattendue.",
+  "Connection to %1$s lost.": "La connexion avec %1$s a été perdue.",
   "the app": "l’application",
   "the host": "l’hôte",
   "Stopping %1$s...": "Arrêt de %1$s...",
