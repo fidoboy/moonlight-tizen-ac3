@@ -741,6 +741,7 @@ void PostPromiseMessage(int callbackId, const std::string& type, const std::vect
 EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::value_object<MessageResult>("MessageResult").field("type", &MessageResult::type).field("ret", &MessageResult::ret);
   emscripten::function("startStream", &startStream);
+  emscripten::function("resetEncryptionStatus", &LiResetEncryptionStatus);
   emscripten::function("getEncryptionStatus", &LiGetEncryptionStatus);
   emscripten::function("stopStream", &stopStream);
   emscripten::function("cancelRequest", &cancelRequest);
