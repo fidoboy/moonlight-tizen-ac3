@@ -7,9 +7,16 @@ const SyncFunctions = {
   'httpInit': (...args) => Module.httpInit(...args),
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
-  audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode,
-  disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode */
-  'startRequest': (...args) => Module.startStream(...args),
+  audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
+  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode */
+  'startRequest': (...args) => {
+    const dolbyChannelLayout = args[31] || 'Back';
+    const dolbyDecodingMode = args[32] || 'Hardware';
+    if (typeof Module.setDolbyAudioOptions === 'function') {
+      Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
+    }
+    return Module.startStream(...args.slice(0, 31));
+  },
   // no parameters
   'stopRequest': (...args) => Module.stopStream(...args),
   // no parameters
