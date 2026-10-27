@@ -3788,8 +3788,13 @@ function animateStreamTransitionBackground() {
 }
 
 var streamEncryptionStatusPollTimeout = null;
+var streamEncryptionStatusVisibleAt = null;
+const STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS = 3000;
+// hideStreamTransitionBackground() spends this long fading status and then the transition layer.
+const STREAM_TRANSITION_HIDE_ANIMATION_MS = UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS + 500;
 
 function resetStreamEncryptionStatus() {
+  streamEncryptionStatusVisibleAt = null;
   stopStreamEncryptionStatusPolling();
   var statusElement = document.getElementById('streamEncryptionStatus');
   var iconElement = document.getElementById('streamEncryptionIcon');
@@ -3844,6 +3849,9 @@ function renderStreamEncryptionStatus(status) {
     messageElement.textContent = t('Using an unencrypted connection');
   }
 
+  if (statusElement.style.display !== 'flex') {
+    streamEncryptionStatusVisibleAt = Date.now();
+  }
   statusElement.style.display = 'flex';
 }
 
@@ -3975,11 +3983,19 @@ function handleNormalStreamVideoReady() {
   });
   $('#listener').addClass('fullscreen');
 
-  // Keep the transition visible briefly after playback starts, then fade it away.
+  // Keep the transition visible briefly after playback starts, and ensure the encryption
+  // indicator has been visible for at least 3 seconds before the transition is fully hidden.
   window.setTimeout(function() {
-    if (typeof hideStreamTransitionBackground === 'function') {
+    if (typeof hideStreamTransitionBackground !== 'function') return;
+
+    var elapsed = streamEncryptionStatusVisibleAt === null
+      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
+      : Date.now() - streamEncryptionStatusVisibleAt;
+    var waitForEncryptionStatus = Math.max(0,
+      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
+    window.setTimeout(function() {
       hideStreamTransitionBackground();
-    }
+    }, waitForEncryptionStatus);
   }, 200);
 }
 
