@@ -958,13 +958,13 @@ function handleMessage(msg) {
     };
 
     // Restore level 1 (the Web UI) first, then hide level 2 (the stream transition).
-    // Only after the transition layer is fully hidden and an additional 100 ms has elapsed
+    // Only after the transition layer is fully hidden and an additional 200 ms has elapsed
     // may we show notifications or start host/app recovery requests.
     showAppsMode(true, function() {
       var beginRecoveryAfterTransition = function() {
         window.setTimeout(function() {
           // Resume ordinary UI state and flush deferred UI actions only after the full
-          // transition fadeout and the additional 100 ms breathing room.
+          // transition fadeout and the additional 200 ms breathing room.
           if (typeof finishAppsModeAfterStreamTransition === 'function') {
             finishAppsModeAfterStreamTransition();
           }
@@ -983,7 +983,7 @@ function handleMessage(msg) {
           } else {
             refreshHostAndReturnToApps();
           }
-        }, 100);
+        }, 200);
       };
 
       var hideTransitionAndBeginRecovery = function() {
