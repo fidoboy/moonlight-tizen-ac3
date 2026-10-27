@@ -3645,6 +3645,9 @@ function showApps(host, options) {
 
 // Show a confirmation with the Quit App dialog before stopping the running app
 function quitAppDialog() {
+  // Stream termination recovery owns the Apps UI until the refreshed list is ready.
+  if (window._streamTerminationRecoveryInProgress) return;
+
   if (api.currentGame === 0) {
     // If no app is running, show snackbar message
     snackbarLog('No app is currently running.');
@@ -4365,6 +4368,9 @@ function startGame(host, appID) {
 
 // Stop the running app title, refresh the server info, and then return to Apps grid
 function stopGame(host, callbackFunction) {
+  // Prevent a manual quit operation from racing the post-stream recovery sequence.
+  if (window._streamTerminationRecoveryInProgress) return;
+
   isInGame = false;
 
   if (!host.paired) {
