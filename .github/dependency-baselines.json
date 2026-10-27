@@ -16,10 +16,10 @@
       "name": "Opus",
       "owner": "xiph",
       "repo": "opus",
-      "branch": "main",
-      "baseline_sha": "ddbe48383984d56acd9e1ab6a090c54ca6b735a6",
-      "baseline_label": "Release v1.5.2",
-      "note": "Test decoder behavior, latency and audio compatibility before upgrading."
+      "tag_prefix": "v",
+      "baseline_sha": "22244de5a79bd1d6d623c32e72bf1954b56235be",
+      "baseline_label": "Official stable release tag v1.6.1 (2026-01-13)",
+      "note": "Track official stable vMAJOR.MINOR.PATCH tags, not main or GitHub Releases. All shared source files in the vendored subset match upstream v1.6.1; retain the app's source selection and build configuration."
     },
     {
       "id": "h264bitstream",
