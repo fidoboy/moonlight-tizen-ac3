@@ -140,7 +140,7 @@ body {
     width: calc(100vw - 32px);
     max-width: calc(100vw - 32px);
     margin: 0;
-    z-index: 2147483646;
+    z-index: 1;
     color: #aaaaaa;
     font-size: 1rem;
     font-weight: 300;
