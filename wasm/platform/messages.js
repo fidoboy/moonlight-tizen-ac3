@@ -883,6 +883,10 @@ function handleMessage(msg) {
       var quitButtonAfterFailure = document.getElementById('quitRunningAppBtn');
       if (quitButtonAfterFailure) quitButtonAfterFailure.disabled = false;
       if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
+      // Complete stream teardown before restoring Hosts, then restart host polling there.
+      if (typeof finishAppsModeAfterStreamTransition === 'function') {
+        finishAppsModeAfterStreamTransition();
+      }
       // Restore the main Hosts screen directly; it does not depend on the failed host API.
       showHostsMode();
       $('#host-grid').stop(true, true).show();
