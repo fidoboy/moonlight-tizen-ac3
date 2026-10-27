@@ -270,7 +270,7 @@ body {
                 visibility 0s linear var(--ui-fade-duration);
     /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
     position: absolute;
-    background: #222222;
+    background: #111111;
     min-width: 0;
     max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
@@ -980,6 +980,18 @@ body {
     width: 100%;
     height: 160px;
     margin-top: 16px;
+}
+
+/* Match the transition encryption indicator, positioned below the final stats graph. */
+#performance-stats .performance-stats-encryption-status {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0 0;
+    box-sizing: border-box;
 }
 
 #performance-stats.performance-stats-position-top-left {
