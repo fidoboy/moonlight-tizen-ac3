@@ -61,7 +61,7 @@ function remoteControllerHandler(e) {
     case tvKey.KEY_RED:
       // Terminate the connection
       if (isInGame === true) {
-        Module.stopStream();
+        requestManualStreamStop();
       }
       break;
     case tvKey.KEY_YELLOW:
