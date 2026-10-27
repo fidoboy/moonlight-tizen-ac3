@@ -785,9 +785,46 @@ function handleMessage(msg) {
     var streamTerminationTransitionShownAt = Date.now();
     var streamTerminationMinimumVisibleMs = 3500;
 
+    // Classify the closing transition using only state and error codes already exposed to JavaScript.
+    var manualStreamStopRequested = window._manualStreamStopRequested === true;
+    window._manualStreamStopRequested = false;
+    var activeStreamAppName = window._activeStreamAppName || t('the app');
+    var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('the host');
+    var transitionStatusMessage;
+    if (manualStreamStopRequested) {
+      transitionStatusMessage = t('Stopping %1$s...', activeStreamAppName);
+    } else {
+      switch (errorCode) {
+        case 0:
+          transitionStatusMessage = t('The host ended the stream for %1$s.', activeStreamAppName);
+          break;
+        case -100:
+          transitionStatusMessage = t('No video received from %1$s.', activeStreamHostName);
+          break;
+        case -101:
+          transitionStatusMessage = t('The network connection to %1$s failed.', activeStreamHostName);
+          break;
+        case -102:
+          transitionStatusMessage = t('The host ended the stream unexpectedly.');
+          break;
+        case -103:
+          transitionStatusMessage = t('Protected content stopped the stream.');
+          break;
+        case -104:
+          transitionStatusMessage = t('The host reported a video encoding error.');
+          break;
+        case -200:
+          transitionStatusMessage = t('The TV could not start the video stream.');
+          break;
+        default:
+          transitionStatusMessage = t('Stream ended unexpectedly.');
+          break;
+      }
+    }
+
     // Set the message first, then show the complete transition layer.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinnerMessage').text(t('Stopping stream...'));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
       showStreamTransitionBackground();
     } else {
