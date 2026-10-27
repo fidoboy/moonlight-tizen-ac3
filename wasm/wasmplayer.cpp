@@ -899,7 +899,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     // Keep this row permanently present; severity changes must not shift the overlay.
     ret = snprintf(
       &output[offset], length - offset,
-      "Audio FEC: %u recovered · %u failed · %u out-of-order\\n",
+      "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
       s_AudioFecWindowStats.recoveredPackets,
       s_AudioFecWindowStats.failedBlocks,
       s_AudioFecWindowStats.outOfOrderPackets
