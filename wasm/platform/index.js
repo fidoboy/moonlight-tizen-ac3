@@ -3918,6 +3918,7 @@ function showStreamTransitionBackground(onVisible) {
 }
 
 function hideStreamTransitionBackground(afterHidden) {
+  stopStreamEncryptionStatusPolling();
   if (typeof afterHidden === 'function') streamTransitionAfterHiddenCallbacks.push(afterHidden);
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
@@ -3991,6 +3992,7 @@ function showStreamMode() {
   if (!window._directSmartHubLaunch) {
     window._normalStreamVideoReady = false;
     showStreamTransitionBackground();
+    startStreamEncryptionStatusPolling();
   }
 
   $('#main-content').addClass('fullscreen');
