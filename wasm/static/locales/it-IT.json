@@ -468,5 +468,6 @@
   "Dolby Digital speaker layout": "Disposizione degli altoparlanti Dolby Digital",
   "Select how the speakers are arranged in your setup. If you use \"Rear speakers\" (the most common setup), the speakers will be assumed to be positioned behind the listener.": "Seleziona come sono disposti gli altoparlanti nella configurazione. Se utilizzi \"Altoparlanti posteriori\" (la configurazione più comune), si presumerà che gli altoparlanti siano posizionati dietro l'ascoltatore.",
   "Dolby Digital decoding mode": "Modalità di decodifica Dolby Digital",
-  "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Seleziona la modalità del decoder Dolby Digital. Per impostazione predefinita viene usato \"Hardware\", ma puoi scegliere \"Automatico\" o \"Software\" se necessario per ottenere la migliore uscita sui tuoi dispositivi."
+  "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Seleziona la modalità del decoder Dolby Digital. Per impostazione predefinita viene usato \"Hardware\", ma puoi scegliere \"Automatico\" o \"Software\" se necessario per ottenere la migliore uscita sui tuoi dispositivi.",
+  "Side speakers": "Altoparlanti laterali"
 }
