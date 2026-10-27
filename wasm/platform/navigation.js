@@ -1734,6 +1734,7 @@ const Views = {
     press: function() {},
     switch: function() {
       this.view.currentCardRow(6);
+      focusElement(this.view.current());
     },
     enter: function() {
       mark(this.view.current());
@@ -2083,5 +2084,13 @@ const Navigation = (function() {
     pop: Stack.pop,
     start: State.start,
     stop: State.stop,
+    // Restore navigation focus and immediately apply the active view's focus target.
+    restoreFocus: function() {
+      focus();
+      const view = Stack.get();
+      if (view && view.switch) {
+        view.switch();
+      }
+    },
   };
 })();
