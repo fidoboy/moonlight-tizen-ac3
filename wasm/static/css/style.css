@@ -132,10 +132,10 @@ body {
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    gap: 14px;
     position: fixed;
     left: 50%;
-    bottom: 22px;
+    bottom: 28px;
     transform: translateX(-50%);
     width: calc(100vw - 32px);
     max-width: calc(100vw - 32px);
