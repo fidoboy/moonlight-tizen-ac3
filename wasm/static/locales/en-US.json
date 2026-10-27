@@ -17,6 +17,7 @@
   "The TV could not start the video stream.": "The TV could not start the video stream.",
   "Stream ended unexpectedly.": "Stream ended unexpectedly.",
   "Connection to %1$s lost.": "Connection to %1$s lost.",
+  "Host": "Host",
   "Network scan failed.": "Network scan failed.",
   "Restore Defaults": "Restore Defaults",
   "Quit Running App": "Quit Running App",
