@@ -3796,12 +3796,18 @@ const STREAM_TRANSITION_HIDE_ANIMATION_MS = UI_FADE_DURATION_MS + STREAM_TRANSIT
 function resetStreamEncryptionStatus() {
   streamEncryptionStatusVisibleAt = null;
   stopStreamEncryptionStatusPolling();
-  var statusElement = document.getElementById('streamEncryptionStatus');
-  var iconElement = document.getElementById('streamEncryptionIcon');
-  var messageElement = document.getElementById('streamEncryptionMessage');
-  if (statusElement) statusElement.style.display = 'none';
-  if (iconElement) iconElement.innerHTML = '';
-  if (messageElement) messageElement.textContent = '';
+  ['streamEncryptionStatus', 'performanceStatsEncryptionStatus'].forEach(function(id) {
+    var statusElement = document.getElementById(id);
+    if (statusElement) statusElement.style.display = 'none';
+  });
+  ['streamEncryptionIcon', 'performanceStatsEncryptionIcon'].forEach(function(id) {
+    var iconElement = document.getElementById(id);
+    if (iconElement) iconElement.innerHTML = '';
+  });
+  ['streamEncryptionMessage', 'performanceStatsEncryptionMessage'].forEach(function(id) {
+    var messageElement = document.getElementById(id);
+    if (messageElement) messageElement.textContent = '';
+  });
 }
 
 function stopStreamEncryptionStatusPolling() {
@@ -3812,10 +3818,19 @@ function stopStreamEncryptionStatusPolling() {
 }
 
 function renderStreamEncryptionStatus(status) {
-  var statusElement = document.getElementById('streamEncryptionStatus');
-  var iconElement = document.getElementById('streamEncryptionIcon');
-  var messageElement = document.getElementById('streamEncryptionMessage');
-  if (!statusElement || !iconElement || !messageElement) return;
+  var statusTargets = [
+    {
+      status: document.getElementById('streamEncryptionStatus'),
+      icon: document.getElementById('streamEncryptionIcon'),
+      message: document.getElementById('streamEncryptionMessage')
+    },
+    {
+      status: document.getElementById('performanceStatsEncryptionStatus'),
+      icon: document.getElementById('performanceStatsEncryptionIcon'),
+      message: document.getElementById('performanceStatsEncryptionMessage')
+    }
+  ].filter(function(target) { return target.status && target.icon && target.message; });
+  if (!statusTargets.length) return;
 
   // Classify connection security using only the media streams. Control-channel
   // encryption is negotiated independently and does not reflect the host's
@@ -3823,31 +3838,39 @@ function renderStreamEncryptionStatus(status) {
   var videoEncrypted = (status & 0x01) !== 0;
   var audioEncrypted = (status & 0x02) !== 0;
   var allEncrypted = videoEncrypted && audioEncrypted;
+  var statusClass, iconMarkup, message;
 
   if (allEncrypted) {
-    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>';
-    statusElement.className = 'stream-encryption-status encrypted';
-    messageElement.textContent = t('Using a secure connection');
+    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>';
+    statusClass = 'encrypted';
+    message = t('Using a secure connection');
   } else if (videoEncrypted || audioEncrypted) {
-    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path>';
-    statusElement.className = 'stream-encryption-status partially-encrypted';
+    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path>';
+    statusClass = 'partially-encrypted';
     var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0);
     var warningKeys = {
       1: 'Partial encryption warning: video',
       2: 'Partial encryption warning: audio',
       3: 'Partial encryption warning: video and audio'
     };
-    messageElement.textContent = t(warningKeys[unencryptedMask]);
+    message = t(warningKeys[unencryptedMask]);
   } else {
-    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path><path d="m4 4 16 16"></path>';
-    statusElement.className = 'stream-encryption-status unencrypted';
-    messageElement.textContent = t('Using an unencrypted connection');
+    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path><path d="m4 4 16 16"></path>';
+    statusClass = 'unencrypted';
+    message = t('Using an unencrypted connection');
   }
 
-  if (statusElement.style.display !== 'flex') {
+  var transitionStatus = document.getElementById('streamEncryptionStatus');
+  if (transitionStatus && transitionStatus.style.display !== 'flex') {
     streamEncryptionStatusVisibleAt = Date.now();
   }
-  statusElement.style.display = 'flex';
+
+  statusTargets.forEach(function(target) {
+    target.status.className = 'stream-encryption-status ' + statusClass;
+    target.icon.innerHTML = iconMarkup;
+    target.message.textContent = message;
+    target.status.style.display = 'flex';
+  });
 }
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
