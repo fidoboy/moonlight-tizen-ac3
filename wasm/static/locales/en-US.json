@@ -16,6 +16,7 @@
   "The host reported a video encoding error.": "The host reported a video encoding error.",
   "The TV could not start the video stream.": "The TV could not start the video stream.",
   "Stream ended unexpectedly.": "Stream ended unexpectedly.",
+  "Connection to %1$s lost.": "Connection to %1$s lost.",
   "the app": "the app",
   "the host": "the host",
   "Stopping %1$s...": "Stopping %1$s...",
