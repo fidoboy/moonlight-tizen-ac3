@@ -3789,12 +3789,15 @@ function animateStreamTransitionBackground() {
 
 var streamEncryptionStatusPollTimeout = null;
 var streamEncryptionStatusVisibleAt = null;
+// Cached once per stream negotiation and reused by every UI surface.
+var currentStreamEncryptionStatus = null;
 const STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS = 3000;
 // hideStreamTransitionBackground() spends this long fading status and then the transition layer.
 const STREAM_TRANSITION_HIDE_ANIMATION_MS = UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS + 500;
 
 function resetStreamEncryptionStatus() {
   streamEncryptionStatusVisibleAt = null;
+  currentStreamEncryptionStatus = null;
   stopStreamEncryptionStatusPolling();
   ['streamEncryptionStatus', 'performanceStatsEncryptionStatus'].forEach(function(id) {
     var statusElement = document.getElementById(id);
@@ -3817,7 +3820,7 @@ function stopStreamEncryptionStatusPolling() {
   }
 }
 
-function renderStreamEncryptionStatus(status) {
+function renderStreamEncryptionStatus(status, targetIds) {
   var statusTargets = [
     {
       status: document.getElementById('streamEncryptionStatus'),
@@ -3831,7 +3834,10 @@ function renderStreamEncryptionStatus(status) {
       message: document.getElementById('performanceStatsEncryptionMessage'),
       className: 'stream-encryption-status performance-stats-encryption-status'
     }
-  ].filter(function(target) { return target.status && target.icon && target.message; });
+  ].filter(function(target) {
+    return target.status && target.icon && target.message &&
+      (!targetIds || targetIds.indexOf(target.status.id) !== -1);
+  });
   if (!statusTargets.length) return;
 
   // Classify connection security using only the media streams. Control-channel
@@ -3879,7 +3885,8 @@ function pollStreamEncryptionStatus() {
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
     var status = Module.getEncryptionStatus();
     if (typeof status === 'number' && status >= 0) {
-      renderStreamEncryptionStatus(status);
+      currentStreamEncryptionStatus = status;
+      renderStreamEncryptionStatus(currentStreamEncryptionStatus);
       return;
     }
   }
