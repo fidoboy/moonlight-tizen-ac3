@@ -779,6 +779,12 @@ function handleMessage(msg) {
     if (typeof lockAppListInteraction === 'function') {
       lockAppListInteraction();
     }
+    // Keep the transition on screen long enough for the shutdown status to be read.
+    // The status content itself appears after a short reveal delay, so allow 3.5 s
+    // from the start of the transition before beginning its fade-out.
+    var streamTerminationTransitionShownAt = Date.now();
+    var streamTerminationMinimumVisibleMs = 3500;
+
     // Set the message first, then show the complete transition layer.
     window._normalStreamVideoReady = false;
     $('#loadingSpinnerMessage').text(t('Stopping stream...'));
@@ -914,12 +920,24 @@ function handleMessage(msg) {
         }, 100);
       };
 
-      if (typeof hideStreamTransitionBackground === 'function') {
-        hideStreamTransitionBackground(beginRecoveryAfterTransition);
+      var hideTransitionAndBeginRecovery = function() {
+        if (typeof hideStreamTransitionBackground === 'function') {
+          hideStreamTransitionBackground(beginRecoveryAfterTransition);
+        } else {
+          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+          beginRecoveryAfterTransition();
+        }
+      };
+
+      // Preserve the closing transition for at least the minimum duration even if
+      // the Apps UI is ready to return almost immediately after stream termination.
+      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+        (Date.now() - streamTerminationTransitionShownAt);
+      if (remainingTransitionMs > 0) {
+        window.setTimeout(hideTransitionAndBeginRecovery, remainingTransitionMs);
       } else {
-        var returnedToAppsLayer = document.getElementById('stream-transition-layer');
-        if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
-        beginRecoveryAfterTransition();
+        hideTransitionAndBeginRecovery();
       }
     }, true);
 
