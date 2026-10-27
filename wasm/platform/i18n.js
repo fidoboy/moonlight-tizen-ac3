@@ -210,6 +210,28 @@
     });
 
     updateLocalizedSelections();
+
+    // Keep the Dolby symbol embedded in the translated settings heading.
+    const dolbyHeading = document.getElementById('dolbyAudioHeading');
+    if (dolbyHeading) {
+      const translatedHeading = t('Dolby audio output');
+      const dolbyIndex = translatedHeading.toLowerCase().indexOf('dolby');
+      if (dolbyIndex >= 0) {
+        const beforeDolby = translatedHeading.slice(0, dolbyIndex);
+        const dolbyAndAfter = translatedHeading.slice(dolbyIndex);
+        const icon = document.createElement('img');
+        icon.className = 'dolby-audio-heading-icon';
+        icon.src = 'static/res/ic_dolby_double_d.svg';
+        icon.alt = '';
+        icon.setAttribute('aria-hidden', 'true');
+        dolbyHeading.replaceChildren(
+          document.createTextNode(beforeDolby),
+          icon,
+          document.createTextNode(dolbyAndAfter)
+        );
+      }
+    }
+
     state.refreshCallbacks.forEach((cb) => cb());
   }
 
