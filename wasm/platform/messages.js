@@ -788,29 +788,30 @@ function handleMessage(msg) {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
     }
+    var streamTerminationMessage = '';
     switch (errorCode) {
       case 0: // ML_ERROR_GRACEFUL_TERMINATION
         break;
       case -100: // ML_ERROR_NO_VIDEO_TRAFFIC
-        snackbarLogLong('No video received from host. Check the host PC\'s firewall and port forwarding rules.');
+        streamTerminationMessage = "No video received from host. Check the host PC's firewall and port forwarding rules.";
         break;
       case -101: // ML_ERROR_NO_VIDEO_FRAME
-        snackbarLogLong('Your network connection isn\'t performing well. Reduce your video bitrate setting or try a faster connection.');
+        streamTerminationMessage = "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.";
         break;
       case -102: // ML_ERROR_UNEXPECTED_EARLY_TERMINATION
-        snackbarLogLong('Something went wrong on your host PC when starting the stream. Restart your host PC and try again.');
+        streamTerminationMessage = "Something went wrong on your host PC when starting the stream. Restart your host PC and try again.";
         break;
       case -103: // ML_ERROR_PROTECTED_CONTENT
-        snackbarLogLong('An issue occurred on your host PC while starting the stream. Make sure you don\'t have any DRM-protected content open on your host PC.');
+        streamTerminationMessage = "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.";
         break;
       case -104: // ML_ERROR_FRAME_CONVERSION
-        snackbarLogLong('The host PC reported a fatal video encoding error. Try disabling HDR mode, changing the streaming resolution, or changing your host PC\'s display resolution.');
+        streamTerminationMessage = "The host PC reported a fatal video encoding error. Try disabling HDR mode, changing the streaming resolution, or changing your host PC's display resolution.";
         break;
       case -200: // ERROR_VIDEO_SETUP_FAILED
-        snackbarLogLong('The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.');
+        streamTerminationMessage = 'The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.';
         break;
       default:
-        snackbarLogLong('Connection terminated');
+        streamTerminationMessage = 'Connection terminated';
         break;
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
@@ -884,19 +885,38 @@ function handleMessage(msg) {
       });
     };
 
-    if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
-      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-      api.quitApp().then(function() {
-        console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
-        refreshHostAndReturnToApps();
-      }, function(failedQuitApp) {
-        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
-        snackbarLogLong('Could not automatically quit the host app.');
-        refreshHostAndReturnToApps();
-      });
-    } else {
-      refreshHostAndReturnToApps();
-    }
+    // Restore level 1 (the Web UI) first, then hide level 2 (the stream transition).
+    // Only after the transition layer is fully hidden and an additional 100 ms has elapsed
+    // may we show notifications or start host/app recovery requests.
+    showAppsMode(true, function() {
+      var beginRecoveryAfterTransition = function() {
+        window.setTimeout(function() {
+          if (streamTerminationMessage) snackbarLogLong(streamTerminationMessage);
+
+          if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
+            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
+            api.quitApp().then(function() {
+              console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
+              refreshHostAndReturnToApps();
+            }, function(failedQuitApp) {
+              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
+              snackbarLogLong('Could not automatically quit the host app.');
+              refreshHostAndReturnToApps();
+            });
+          } else {
+            refreshHostAndReturnToApps();
+          }
+        }, 100);
+      };
+
+      if (typeof hideStreamTransitionBackground === 'function') {
+        hideStreamTransitionBackground(beginRecoveryAfterTransition);
+      } else {
+        var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+        if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+        beginRecoveryAfterTransition();
+      }
+    });
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.
