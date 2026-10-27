@@ -9,7 +9,7 @@
       "branch": "master",
       "baseline_sha": "8599b6042a4ba27749b0f94134dd614b4328a9bc",
       "baseline_label": "Best identifiable vendored baseline (2024-06-11)",
-      "note": "HIGHEST RISK: the vendored tree contains important local Tizen and Dolby Digital/AC-3/E-AC-3 changes, including audio negotiation/streaming and platform adaptations. Never replace or bulk-merge the directory. Review upstream commits and diffs individually, port only compatible fixes, and explicitly preserve/test the local patches."
+      "note": "The local tree includes Tizen and Dolby changes; review diffs rather than replacing the directory."
     },
     {
       "id": "opus",
@@ -19,7 +19,7 @@
       "tag_prefix": "v",
       "baseline_sha": "22244de5a79bd1d6d623c32e72bf1954b56235be",
       "baseline_label": "Official stable release tag v1.6.1 (2026-01-13)",
-      "note": "LOWER RISK: follow official stable vMAJOR.MINOR.PATCH tags, not main/development commits or GitHub Releases. The 439 source files shared with the vendored subset match upstream v1.6.1 exactly. When updating, retain the app-specific source selection, CMake/build configuration, and any project packaging files; do not import the entire upstream tree blindly."
+      "note": "Track official stable vMAJOR.MINOR.PATCH tags, not main or GitHub Releases. All shared source files in the vendored subset match upstream v1.6.1; retain the app's source selection and build configuration."
     },
     {
       "id": "h264bitstream",
@@ -29,7 +29,7 @@
       "branch": "master",
       "baseline_sha": "70124d3051ba45e6b326264f0b25e6f48a7479e7",
       "baseline_label": "Upstream reference as of 2024-06-20",
-      "note": "The vendored copy contains project-maintained changes. Treat the SHA as a monitoring reference, not proof of exact tree equality; inspect file-level diffs and preserve local modifications instead of replacing the directory."
+      "note": "The local copy has project-maintained changes; the monitor tracks upstream commits, not exact file equality."
     },
     {
       "id": "libgamestream",
@@ -40,7 +40,7 @@
       "path": "libgamestream",
       "baseline_sha": "274d3db34da764344a7a402ee74e6080350ac0cd",
       "baseline_label": "Known upstream http.c change (2024-03-25; approximate source lineage)",
-      "note": "MEDIUM RISK: the vendored subset has local Tizen-specific changes, including IPv6/HTTP handling, and this SHA is only an approximate monitoring reference—not an exact snapshot pin. Inspect relevant changes within libgamestream, compare affected files, and port selectively while preserving local behavior; never overwrite the directory wholesale."
+      "note": "Vendored subset with local changes; this SHA is a monitoring reference, not a verified exact snapshot pin."
     }
   ]
 }
