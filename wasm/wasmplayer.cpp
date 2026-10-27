@@ -886,7 +886,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       }
       ret = snprintf(
         &output[offset], length - offset,
-        "Encoder mode: %s\\n",
+        "Encoder mode: %s\n",
         encoderModeString
       );
       if (ret < 0 || ret >= length - offset) {
