@@ -7,8 +7,8 @@
       "owner": "moonlight-stream",
       "repo": "moonlight-common-c",
       "branch": "master",
-      "baseline_sha": "8599b6042a4ba27749b0f94134dd614b4328a9bc",
-      "baseline_label": "Best identifiable vendored baseline (2024-06-11)",
+      "baseline_sha": "421bd74e0184a5cfd760efbf84433134c6f6e00b",
+      "baseline_label": "Integrated through upstream commit 421bd74 (2026-10-23)",
       "note": "The local tree includes Tizen and Dolby changes; review diffs rather than replacing the directory."
     },
     {
