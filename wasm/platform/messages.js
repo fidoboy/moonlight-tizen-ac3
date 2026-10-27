@@ -792,7 +792,7 @@ function handleMessage(msg) {
     var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('Host');
     var transitionStatusMessage;
     if (manualStreamStopRequested) {
-      transitionStatusMessage = t('Stopping %1$s...', activeStreamAppName);
+      transitionStatusMessage = t('Stopping stream %1$s...', activeStreamAppName);
     } else {
       switch (errorCode) {
         case 0:
