@@ -468,5 +468,6 @@
   "Dolby Digital speaker layout": "Расположение колонок Dolby Digital",
   "Select how the speakers are arranged in your setup. If you use \"Rear speakers\" (the most common setup), the speakers will be assumed to be positioned behind the listener.": "Укажите расположение колонок в вашей системе. Если выбраны «Тыловые колонки» (самый распространённый вариант), предполагается, что они находятся позади слушателя.",
   "Dolby Digital decoding mode": "Режим декодирования Dolby Digital",
-  "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Выберите режим декодера Dolby Digital. По умолчанию используется «Аппаратный», но при необходимости можно выбрать «Автоматический» или «Программный» для оптимального вывода на ваши устройства."
+  "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Выберите режим декодера Dolby Digital. По умолчанию используется «Аппаратный», но при необходимости можно выбрать «Автоматический» или «Программный» для оптимального вывода на ваши устройства.",
+  "Side speakers": "Боковые динамики"
 }
