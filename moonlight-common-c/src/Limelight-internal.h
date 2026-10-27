@@ -52,6 +52,7 @@ extern uint32_t SunshineFeatureFlags;
 extern uint32_t EncryptionFeaturesSupported;
 extern uint32_t EncryptionFeaturesRequested;
 extern uint32_t EncryptionFeaturesEnabled;
+extern volatile int EncryptionStatus;
 
 // ENet channel ID values
 #define CTRL_CHANNEL_GENERIC      0x00
