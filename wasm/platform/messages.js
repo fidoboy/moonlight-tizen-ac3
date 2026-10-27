@@ -209,14 +209,12 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
-  // The encryption status may have been polled before this dynamically-created
-  // element existed. Refresh both indicators from the current media-encryption state.
-  if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
-    var encryptionState = Module.getEncryptionStatus();
-    if (typeof encryptionState === 'number' && encryptionState >= 0 &&
-        typeof renderStreamEncryptionStatus === 'function') {
-      renderStreamEncryptionStatus(encryptionState);
-    }
+  // The stream-negotiation result is cached by the transition screen. Reuse it
+  // here instead of querying the core again, since this overlay may be created later.
+  if (typeof currentStreamEncryptionStatus === 'number' &&
+      currentStreamEncryptionStatus >= 0 &&
+      typeof renderStreamEncryptionStatus === 'function') {
+    renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
   }
 
   return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
