@@ -4233,6 +4233,12 @@ function getStreamMenuOptions() {
   ];
 }
 
+function requestManualStreamStop() {
+  // The native termination callback does not distinguish local and host-initiated graceful closure.
+  window._manualStreamStopRequested = true;
+  Module.stopStream();
+}
+
 function streamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
