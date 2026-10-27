@@ -132,35 +132,41 @@ body {
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    position: relative;
+    gap: 7px;
+    position: fixed;
     left: 50%;
+    bottom: 22px;
     transform: translateX(-50%);
-    width: 80vw;
-    max-width: 80vw;
-    margin: 0 auto 28px;
-    color: #fff;
-    font-size: 1.35rem;
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    z-index: 2147483646;
+    color: #aaaaaa;
+    font-size: 1rem;
     font-weight: 300;
     line-height: 1.3;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.1px;
     text-align: center;
+    pointer-events: none;
 }
 .stream-encryption-status svg {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
+.stream-encryption-status.encrypted {
+    color: #4caf50;
+}
 .stream-encryption-status.partially-encrypted {
-    color: #f0c674;
+    color: #ffbf00;
 }
 .stream-encryption-status.unencrypted {
-    color: #ff8a80;
+    color: #aaaaaa;
 }
 #loadingSpinnerMessage {
     position: relative;
