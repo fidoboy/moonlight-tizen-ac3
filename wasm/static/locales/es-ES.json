@@ -464,5 +464,9 @@
   "Dolby channel layout": "Distribución de canales Dolby",
   "Dolby decoding mode": "Modo de decodificación Dolby",
   "Rear speakers": "Altavoces traseros",
-  "Automatic": "Automático"
+  "Automatic": "Automático",
+  "Dolby Digital speaker layout": "Distribución de altavoces Dolby Digital",
+  "Select how the speakers are arranged in your setup. If you use \"Rear speakers\" (the most common setup), the speakers will be assumed to be positioned behind the listener.": "Seleccione cómo están distribuidos los altavoces en su configuración. Si utiliza \"Altavoces traseros\" (lo más común), se asumirá que los altavoces están situados detrás del oyente.",
+  "Dolby Digital decoding mode": "Modo de decodificación Dolby Digital",
+  "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Seleccione el modo para el decodificador de Dolby Digital. Por defecto se asume el valor \"Hardware\", pero puede cambiarlo a \"Automático\" o a \"Software\" si es necesario para la mejor distribución a sus dispositivos."
 }
