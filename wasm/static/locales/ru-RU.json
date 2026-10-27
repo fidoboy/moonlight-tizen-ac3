@@ -458,5 +458,11 @@
   "• No relevant changes found.": "• No relevant changes found.",
   "Using a secure connection": "Используется защищённое соединение",
   "Partially encrypted connection; unencrypted: %1$s": "Соединение зашифровано частично; без шифрования: %1$s",
-  "Using an unencrypted connection": "Используется незашифрованное соединение"
+  "Using an unencrypted connection": "Используется незашифрованное соединение",
+  "Partial encryption warning: video": "ВНИМАНИЕ: соединение защищено лишь частично; видеопоток не зашифрован.",
+  "Partial encryption warning: audio": "ВНИМАНИЕ: соединение защищено лишь частично; аудиопоток не зашифрован.",
+  "Partial encryption warning: video and audio": "ВНИМАНИЕ: соединение защищено лишь частично; видео- и аудиопотоки не зашифрованы.",
+  "Partial encryption warning: control": "ВНИМАНИЕ: соединение защищено лишь частично; поток управления не зашифрован.",
+  "Partial encryption warning: video and control": "ВНИМАНИЕ: соединение защищено лишь частично; видеопоток и поток управления не зашифрованы.",
+  "Partial encryption warning: audio and control": "ВНИМАНИЕ: соединение защищено лишь частично; аудиопоток и поток управления не зашифрованы."
 }
