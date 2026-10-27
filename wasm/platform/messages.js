@@ -817,7 +817,7 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The TV could not start the video stream.');
           break;
         default:
-          transitionStatusMessage = t('Stream ended unexpectedly.');
+          transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
           break;
       }
     }
