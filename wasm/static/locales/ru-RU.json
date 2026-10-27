@@ -16,6 +16,7 @@
   "The host reported a video encoding error.": "Хост сообщил об ошибке кодирования видео.",
   "The TV could not start the video stream.": "Телевизору не удалось запустить видеотрансляцию.",
   "Stream ended unexpectedly.": "Трансляция неожиданно завершилась.",
+  "Connection to %1$s lost.": "Соединение с хостом %1$s потеряно.",
   "the app": "приложение",
   "the host": "хост",
   "Network scan failed.": "Не удалось просканировать сеть.",
