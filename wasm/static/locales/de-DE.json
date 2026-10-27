@@ -458,5 +458,11 @@
   "• No relevant changes found.": "• Keine relevanten Änderungen gefunden.",
   "Using a secure connection": "Es wird eine sichere Verbindung verwendet",
   "Partially encrypted connection; unencrypted: %1$s": "Teilweise verschlüsselte Verbindung; unverschlüsselt: %1$s",
-  "Using an unencrypted connection": "Es wird eine unverschlüsselte Verbindung verwendet"
+  "Using an unencrypted connection": "Es wird eine unverschlüsselte Verbindung verwendet",
+  "Partial encryption warning: video": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Videostream ist unverschlüsselt.",
+  "Partial encryption warning: audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Audiostream ist unverschlüsselt.",
+  "Partial encryption warning: video and audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Video- und Audiostream sind unverschlüsselt.",
+  "Partial encryption warning: control": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Steuerungsstream ist unverschlüsselt.",
+  "Partial encryption warning: video and control": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Video- und Steuerungsstream sind unverschlüsselt.",
+  "Partial encryption warning: audio and control": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Audio- und Steuerungsstream sind unverschlüsselt."
 }
