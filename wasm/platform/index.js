@@ -596,8 +596,92 @@ function hideNativeLaunchScreen() {
   }
 }
 
+function loadConfigSummarySettings(callback) {
+  // Preload every persisted setting displayed in the summary strip before the
+  // native splash is released. getData invokes its callback on both success and
+  // read failure, so the barrier cannot be held by a missing setting.
+  var pending = 10;
+  var finished = false;
+  function completeOne() {
+    pending--;
+    if (pending === 0 && !finished) {
+      finished = true;
+      updateConfigSummaryBar();
+      callback();
+    }
+  }
+  function applyMenuValue(key, selector, value) {
+    if (value == null) return;
+    $(selector + ' li').each(function() {
+      if ($(this).data('value') === value) {
+        var target = $(selector === '.videoResolutionMenu' ? '#selectResolution' :
+          selector === '.videoFramerateMenu' ? '#selectFramerate' :
+          selector === '.audioBackendMenu' ? '#selectAudioBackend' :
+          selector === '.audioConfigMenu' ? '#selectAudio' : '#selectCodec');
+        target.text($(this).text()).attr('data-value', value).data('value', value);
+      }
+    });
+  }
+  function applySwitch(key, selector, defaultEnabled) {
+    getData(key, function(result) {
+      var value = result && result[key];
+      var enabled = value == null ? defaultEnabled :
+        (value === true || value === 'true' || value === 1);
+      var input = document.querySelector(selector);
+      if (input) {
+        if (input.MaterialSwitch) {
+          if (enabled) input.MaterialSwitch.on();
+          else input.MaterialSwitch.off();
+        } else {
+          input.checked = enabled;
+        }
+      }
+      completeOne();
+    });
+  }
+
+  getData('resolution', function(result) {
+    var value = result && result.resolution;
+    if (value != null) {
+      var width = parseInt(value.split(':')[0], 10);
+      if (width > maxSupportedWidth) value = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
+      applyMenuValue('resolution', '.videoResolutionMenu', value);
+    }
+    completeOne();
+  });
+  getData('frameRate', function(result) {
+    applyMenuValue('frameRate', '.videoFramerateMenu', result && result.frameRate);
+    completeOne();
+  });
+  getData('bitrate', function(result) {
+    var value = result && result.bitrate != null ? result.bitrate : '10';
+    var slider = document.getElementById('bitrateSlider');
+    if (slider) slider.value = value;
+    var label = document.getElementById('selectBitrate');
+    if (label) label.textContent = value + ' Mbps';
+    completeOne();
+  });
+  getData('audioBackend', function(result) {
+    applyMenuValue('audioBackend', '.audioBackendMenu', result && result.audioBackend);
+    completeOne();
+  });
+  getData('audioConfig', function(result) {
+    applyMenuValue('audioConfig', '.audioConfigMenu', result && result.audioConfig);
+    completeOne();
+  });
+  getData('videoCodec', function(result) {
+    applyMenuValue('videoCodec', '.videoCodecMenu', result && result.videoCodec);
+    completeOne();
+  });
+  applySwitch('optimizeBitrate', '#optimizeBitrateBtn', true);
+  applySwitch('hdrMode', '#hdrModeBtn', false);
+  applySwitch('ac3AudioMode', '#ac3AudioModeBtn', false);
+  applySwitch('gameMode', '#gameModeBtn',
+    parseFloat(platformVer) < 9.0 && parseFloat(platformVer) !== 5.5);
+}
+
 function maybeReleaseNativeLaunchScreen() {
-  // For a normal launch, locales are the only prerequisite for revealing the UI.
+  // Normal launch waits for locale and all settings shown in the summary strip.
   // Direct Smart Hub launches keep the pre-hidden UI and their existing startup path.
   if (_directSmartHubLaunch || !isStartupLocaleReady ||
       isNativeLaunchScreenReleaseStarted || isNativeLaunchScreenReleased) {
@@ -614,8 +698,6 @@ function maybeReleaseNativeLaunchScreen() {
   $('#settings-list, #game-grid, #wasmSpinner').hide();
   document.documentElement.classList.remove('app-starting');
 
-  // Read the persisted visibility preference and create/position the summary bar
-  // before releasing the native splash, so it is already laid out on first paint.
   var prepareSummaryAndReleaseSplash = function() {
     initializeConfigSummaryBar();
 
@@ -639,6 +721,8 @@ function maybeReleaseNativeLaunchScreen() {
     }
   };
 
+  // Load the visibility preference first, then wait for all values shown by the
+  // strip before laying it out and starting the splash-release sequence.
   getData('showConfigSummaryBar', function(previousValue) {
     var storedValue = previousValue && previousValue.showConfigSummaryBar;
     var enabled = storedValue == null || storedValue === true ||
@@ -649,8 +733,7 @@ function maybeReleaseNativeLaunchScreen() {
       else summarySwitch.MaterialSwitch.off();
     }
     configSummaryPreferenceLoaded = true;
-    updateConfigSummaryBar();
-    prepareSummaryAndReleaseSplash();
+    loadConfigSummarySettings(prepareSummaryAndReleaseSplash);
   });
 }
 
