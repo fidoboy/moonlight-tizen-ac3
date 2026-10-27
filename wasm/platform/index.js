@@ -3858,7 +3858,7 @@ function handleNormalStreamVideoReady() {
     if (typeof hideStreamTransitionBackground === 'function') {
       hideStreamTransitionBackground();
     }
-  }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+  }, 200);
 }
 
 // Handle layout elements when displaying the Stream view
