@@ -3826,9 +3826,18 @@ function renderStreamEncryptionStatus(status) {
     statusElement.className = 'stream-encryption-status encrypted';
     messageElement.textContent = t('Using a secure connection');
   } else if (unencryptedParts.length < 3) {
-    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7-2"></path>';
+    iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 7-2"></path>';
     statusElement.className = 'stream-encryption-status partially-encrypted';
-    messageElement.textContent = t('Partially encrypted connection; unencrypted: %1$s', unencryptedParts.join(', '));
+    var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0) | (!controlEncrypted ? 4 : 0);
+    var warningKeys = {
+      1: 'Partial encryption warning: video',
+      2: 'Partial encryption warning: audio',
+      3: 'Partial encryption warning: video and audio',
+      4: 'Partial encryption warning: control',
+      5: 'Partial encryption warning: video and control',
+      6: 'Partial encryption warning: audio and control'
+    };
+    messageElement.textContent = t(warningKeys[unencryptedMask]);
   } else {
     iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 7-2"></path><path d="m4 4 16 16"></path>';
     statusElement.className = 'stream-encryption-status unencrypted';
