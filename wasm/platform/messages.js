@@ -891,6 +891,11 @@ function handleMessage(msg) {
     showAppsMode(true, function() {
       var beginRecoveryAfterTransition = function() {
         window.setTimeout(function() {
+          // Resume ordinary UI state and flush deferred UI actions only after the full
+          // transition fadeout and the additional 100 ms breathing room.
+          if (typeof finishAppsModeAfterStreamTransition === 'function') {
+            finishAppsModeAfterStreamTransition();
+          }
           if (streamTerminationMessage) snackbarLogLong(streamTerminationMessage);
 
           if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
@@ -916,7 +921,7 @@ function handleMessage(msg) {
         if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
         beginRecoveryAfterTransition();
       }
-    });
+    }, true);
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.
