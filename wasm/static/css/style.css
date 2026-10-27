@@ -1232,7 +1232,7 @@ body {
     border: 1px solid #FFA620;
 }
 #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
+#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
@@ -1240,7 +1240,7 @@ body {
 }
 #selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #streamTransitionBackgroundBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
-#flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #ac3AudioModeBtn, #audioSyncBtn,
+#flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
 #selectCodec, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
@@ -1296,12 +1296,12 @@ body {
     background-color: #484C5F;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
+.languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
+.languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
@@ -1346,6 +1346,7 @@ body {
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
 #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
+#dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: #ececec;
