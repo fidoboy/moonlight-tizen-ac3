@@ -1231,7 +1231,8 @@ function unlockAppListInteraction() {
   appListInteractionLocked = false;
   $('#game-grid').removeClass('app-list-locked');
   Navigation.start();
-  Navigation.switch();
+  // Restore focus only after the rebuilt app cards are visible and interaction is re-enabled.
+  Navigation.restoreFocus();
 }
 
 var viewLoadingSnackbarTimer = null;
