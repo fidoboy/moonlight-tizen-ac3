@@ -788,8 +788,8 @@ function handleMessage(msg) {
     // Classify the closing transition using only state and error codes already exposed to JavaScript.
     var manualStreamStopRequested = window._manualStreamStopRequested === true;
     window._manualStreamStopRequested = false;
-    var activeStreamAppName = window._activeStreamAppName || t('the app');
-    var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('the host');
+    var activeStreamAppName = window._activeStreamAppName || t('Apps');
+    var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('Host');
     var transitionStatusMessage;
     if (manualStreamStopRequested) {
       transitionStatusMessage = t('Stopping %1$s...', activeStreamAppName);
