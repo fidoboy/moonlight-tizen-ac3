@@ -119,6 +119,15 @@ body {
     margin: 0 auto;
     animation: fadeInOut 3s infinite;
 }
+#loadingSpinnerMessage {
+    position: relative;
+    left: 50%;
+    width: 80vw;
+    max-width: 80vw;
+    box-sizing: border-box;
+    margin: 35px 0;
+    transform: translateX(-50%);
+}
 #wasmSpinnerMessage, #loadingSpinnerMessage {
     color: #fff;
     margin: 35px;
