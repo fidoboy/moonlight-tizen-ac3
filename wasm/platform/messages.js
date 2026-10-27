@@ -193,10 +193,11 @@ function ensurePerformanceStatsOverlayElements() {
     encryptionStatus.className = 'stream-encryption-status performance-stats-encryption-status';
     encryptionStatus.setAttribute('aria-live', 'polite');
 
-    var encryptionIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    var encryptionIcon = document.createElement('i');
     encryptionIcon.id = 'performanceStatsEncryptionIcon';
-    encryptionIcon.setAttribute('viewBox', '0 0 24 24');
+    encryptionIcon.className = 'stream-encryption-icon material-icons';
     encryptionIcon.setAttribute('aria-hidden', 'true');
+    encryptionIcon.textContent = 'lock';
 
     var encryptionMessage = document.createElement('span');
     encryptionMessage.id = 'performanceStatsEncryptionMessage';
