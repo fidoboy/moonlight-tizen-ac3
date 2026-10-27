@@ -445,5 +445,10 @@
   "Closing application...": "Закрытие приложения...",
   "Failed to quit %1$s": "Не удалось закрыть %1$s",
   "Unable to determine the running application.": "Не удалось определить запущенное приложение.",
-  "Unable to connect to the host.": "Не удалось подключиться к хосту."
+  "Unable to connect to the host.": "Не удалось подключиться к хосту.",
+  "Video stream from %1$s stopped being received.": "Потоковое видео от %1$s больше не поступает.",
+  "The connection to %1$s ended unexpectedly.": "Соединение с %1$s неожиданно завершилось.",
+  "Protected (DRM) content on %1$s ended the session.": "Защищённый контент (DRM) на %1$s завершил сеанс.",
+  "An error occurred while processing the video stream from %1$s.": "При обработке видеопотока от %1$s произошла ошибка.",
+  "The local device could not start the video stream.": "Локальному устройству не удалось запустить видеопоток."
 }
