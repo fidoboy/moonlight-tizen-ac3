@@ -230,7 +230,7 @@ body {
                 visibility 0s linear var(--ui-fade-duration);
     /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
     position: absolute;
-    background: rgba(62, 68, 84, 0.9);
+    background: rgba(0, 0, 0, 0.8);
     min-width: 0;
     max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
