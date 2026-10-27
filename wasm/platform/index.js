@@ -3817,36 +3817,25 @@ function renderStreamEncryptionStatus(status) {
   var messageElement = document.getElementById('streamEncryptionMessage');
   if (!statusElement || !iconElement || !messageElement) return;
 
+  // Classify connection security using only the media streams. Control-channel
+  // encryption is negotiated independently and does not reflect the host's
+  // LAN/WAN media-encryption setting.
   var videoEncrypted = (status & 0x01) !== 0;
   var audioEncrypted = (status & 0x02) !== 0;
-  var controlEncrypted = (status & 0x04) !== 0;
-  var controlEncryptionSupported = (status & 0x08) !== 0;
-  var allEncrypted = videoEncrypted && audioEncrypted &&
-    (!controlEncryptionSupported || controlEncrypted);
-  var unencryptedParts = [];
-  if (!videoEncrypted) unencryptedParts.push(t('Video'));
-  if (!audioEncrypted) unencryptedParts.push(t('Audio'));
-  if (controlEncryptionSupported && !controlEncrypted) {
-    unencryptedParts.push(t('Control channel'));
-  }
-  var totalEncryptionParts = controlEncryptionSupported ? 3 : 2;
+  var allEncrypted = videoEncrypted && audioEncrypted;
 
   if (allEncrypted) {
     iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>';
     statusElement.className = 'stream-encryption-status encrypted';
     messageElement.textContent = t('Using a secure connection');
-  } else if (unencryptedParts.length < totalEncryptionParts) {
+  } else if (videoEncrypted || audioEncrypted) {
     iconElement.innerHTML = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path>';
     statusElement.className = 'stream-encryption-status partially-encrypted';
-    var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0) |
-      (controlEncryptionSupported && !controlEncrypted ? 4 : 0);
+    var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0);
     var warningKeys = {
       1: 'Partial encryption warning: video',
       2: 'Partial encryption warning: audio',
-      3: 'Partial encryption warning: video and audio',
-      4: 'Partial encryption warning: control',
-      5: 'Partial encryption warning: video and control',
-      6: 'Partial encryption warning: audio and control'
+      3: 'Partial encryption warning: video and audio'
     };
     messageElement.textContent = t(warningKeys[unencryptedMask]);
   } else {
@@ -3860,7 +3849,6 @@ function renderStreamEncryptionStatus(status) {
   }
   statusElement.style.display = 'flex';
 }
-
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
