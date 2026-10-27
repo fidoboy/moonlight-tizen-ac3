@@ -124,7 +124,6 @@
   "Connection to %1$s lost.": "Соединение с хостом %1$s потеряно.",
   "Connection warnings": "Предупреждения о подключении",
   "Continue": "Продолжить",
-  "Control channel": "Канал управления",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
@@ -461,8 +460,5 @@
   "Using an unencrypted connection": "Используется незашифрованное соединение",
   "Partial encryption warning: video": "ВНИМАНИЕ: соединение защищено лишь частично; видеопоток не зашифрован.",
   "Partial encryption warning: audio": "ВНИМАНИЕ: соединение защищено лишь частично; аудиопоток не зашифрован.",
-  "Partial encryption warning: video and audio": "ВНИМАНИЕ: соединение защищено лишь частично; видео- и аудиопотоки не зашифрованы.",
-  "Partial encryption warning: control": "ВНИМАНИЕ: соединение защищено лишь частично; поток управления не зашифрован.",
-  "Partial encryption warning: video and control": "ВНИМАНИЕ: соединение защищено лишь частично; видеопоток и поток управления не зашифрованы.",
-  "Partial encryption warning: audio and control": "ВНИМАНИЕ: соединение защищено лишь частично; аудиопоток и поток управления не зашифрованы."
+  "Partial encryption warning: video and audio": "ВНИМАНИЕ: соединение защищено лишь частично; видео- и аудиопотоки не зашифрованы."
 }
