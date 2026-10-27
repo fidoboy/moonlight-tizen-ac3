@@ -209,6 +209,16 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
+  // The encryption status may have been polled before this dynamically-created
+  // element existed. Refresh both indicators from the current media-encryption state.
+  if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
+    var encryptionState = Module.getEncryptionStatus();
+    if (typeof encryptionState === 'number' && encryptionState >= 0 &&
+        typeof renderStreamEncryptionStatus === 'function') {
+      renderStreamEncryptionStatus(encryptionState);
+    }
+  }
+
   return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
 }
 
