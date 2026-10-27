@@ -6491,7 +6491,9 @@ function updateConfigSummaryBar() {
   var titleText = headerTitle ? headerTitle.textContent.trim() : '';
   var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
   var onSettingsScreen = titleText === t('Settings') || isVisible(document.getElementById('settings-list'));
-  var desiredDisplay = !isInGame && !onSettingsScreen &&
+  // The whole main UI layer is hidden during streaming, so visibility does not
+  // need to depend on isInGame here; this function only manages the strip within that layer.
+  var desiredDisplay = !onSettingsScreen &&
     (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
