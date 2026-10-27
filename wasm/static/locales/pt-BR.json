@@ -458,5 +458,11 @@
   "• No relevant changes found.": "• Nenhuma alteração relevante encontrada.",
   "Using a secure connection": "Usando uma conexão segura",
   "Partially encrypted connection; unencrypted: %1$s": "Conexão parcialmente criptografada; sem criptografia: %1$s",
-  "Using an unencrypted connection": "Usando uma conexão sem criptografia"
+  "Using an unencrypted connection": "Usando uma conexão sem criptografia",
+  "Partial encryption warning: video": "ATENÇÃO: a conexão é apenas parcialmente segura; o fluxo de vídeo não está criptografado.",
+  "Partial encryption warning: audio": "ATENÇÃO: a conexão é apenas parcialmente segura; o fluxo de áudio não está criptografado.",
+  "Partial encryption warning: video and audio": "ATENÇÃO: a conexão é apenas parcialmente segura; os fluxos de vídeo e áudio não estão criptografados.",
+  "Partial encryption warning: control": "ATENÇÃO: a conexão é apenas parcialmente segura; o fluxo de controle não está criptografado.",
+  "Partial encryption warning: video and control": "ATENÇÃO: a conexão é apenas parcialmente segura; os fluxos de vídeo e controle não estão criptografados.",
+  "Partial encryption warning: audio and control": "ATENÇÃO: a conexão é apenas parcialmente segura; os fluxos de áudio e controle não estão criptografados."
 }
