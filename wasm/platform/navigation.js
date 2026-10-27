@@ -1994,8 +1994,8 @@ const Navigation = (function() {
 
       if (!hasFocus) {
         focus();
-        // Directional input should act immediately after restoring navigation focus.
-        if (!['up', 'down', 'left', 'right'].includes(name)) {
+        // Back must never be consumed by focus restoration; users expect it to work immediately.
+        if (!['up', 'down', 'left', 'right', 'back'].includes(name)) {
           return;
         }
       }
@@ -2089,13 +2089,5 @@ const Navigation = (function() {
     pop: Stack.pop,
     start: State.start,
     stop: State.stop,
-    // Restore navigation focus and immediately apply the active view's focus target.
-    restoreFocus: function() {
-      focus();
-      const view = Stack.get();
-      if (view && view.switch) {
-        view.switch();
-      }
-    },
   };
 })();
