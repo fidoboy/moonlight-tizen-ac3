@@ -799,22 +799,20 @@ function handleMessage(msg) {
           transitionStatusMessage = t('Streaming session with %1$s ended normally.', activeStreamHostName);
           break;
         case -100:
-          transitionStatusMessage = t('No video traffic is being received from %1$s.', activeStreamHostName);
-          break;
         case -101:
-          transitionStatusMessage = t('No video frames are being received from %1$s.', activeStreamHostName);
+          transitionStatusMessage = t('Video stream from %1$s stopped being received.', activeStreamHostName);
           break;
         case -102:
-          transitionStatusMessage = t('The streaming connection with %1$s ended unexpectedly.', activeStreamHostName);
+          transitionStatusMessage = t('The connection to %1$s ended unexpectedly.', activeStreamHostName);
           break;
         case -103:
-          transitionStatusMessage = t('Protected content interrupted the streaming session.');
+          transitionStatusMessage = t('Protected (DRM) content on %1$s ended the session.', activeStreamHostName);
           break;
         case -104:
-          transitionStatusMessage = t('An error occurred while processing video from %1$s.', activeStreamHostName);
+          transitionStatusMessage = t('An error occurred while processing the video stream from %1$s.', activeStreamHostName);
           break;
         case -200:
-          transitionStatusMessage = t('The TV could not start the video stream.');
+          transitionStatusMessage = t('The local device could not start the video stream.');
           break;
         default:
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
