@@ -3822,12 +3822,14 @@ function renderStreamEncryptionStatus(status) {
     {
       status: document.getElementById('streamEncryptionStatus'),
       icon: document.getElementById('streamEncryptionIcon'),
-      message: document.getElementById('streamEncryptionMessage')
+      message: document.getElementById('streamEncryptionMessage'),
+      className: 'stream-encryption-status'
     },
     {
       status: document.getElementById('performanceStatsEncryptionStatus'),
       icon: document.getElementById('performanceStatsEncryptionIcon'),
-      message: document.getElementById('performanceStatsEncryptionMessage')
+      message: document.getElementById('performanceStatsEncryptionMessage'),
+      className: 'stream-encryption-status performance-stats-encryption-status'
     }
   ].filter(function(target) { return target.status && target.icon && target.message; });
   if (!statusTargets.length) return;
@@ -3866,7 +3868,7 @@ function renderStreamEncryptionStatus(status) {
   }
 
   statusTargets.forEach(function(target) {
-    target.status.className = 'stream-encryption-status ' + statusClass;
+    target.status.className = target.className + ' ' + statusClass;
     target.icon.innerHTML = iconMarkup;
     target.message.textContent = message;
     target.status.style.display = 'flex';
