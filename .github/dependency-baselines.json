@@ -38,9 +38,9 @@
       "repo": "moonlight-embedded",
       "branch": "master",
       "path": "libgamestream",
-      "baseline_sha": "274d3db34da764344a7a402ee74e6080350ac0cd",
-      "baseline_label": "Known upstream http.c change (2024-03-25; approximate source lineage)",
-      "note": "Vendored subset with local changes; this SHA is a monitoring reference, not a verified exact snapshot pin."
+      "baseline_sha": "f32e415aea6797d261d6b470dcf8bf18727341c2",
+      "baseline_label": "Reviewed upstream through f32e415 (2026-06-06; vendored Tizen subset)",
+      "note": "Reviewed upstream changes through f32e415. The Tizen port vendors a different subset/lineage: relevant mkcert cleanup changes are already reflected locally; other recent changes are in upstream client.c or unrelated Linux/packaging files. Reassess if the local pairing/client implementation changes."
     }
   ]
 }
