@@ -800,8 +800,11 @@ function handleMessage(msg) {
       return;
     }
 
-    // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Lock and dim the stale Apps grid for the entire asynchronous refresh/recovery period.
+    // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
+    // This also prevents the manual Quit App action from racing the recovery request.
+    window._streamTerminationRecoveryInProgress = true;
+    var quitRunningAppButton = document.getElementById('quitRunningAppBtn');
+    if (quitRunningAppButton) quitRunningAppButton.disabled = true;
     if (typeof lockAppListInteraction === 'function') {
       lockAppListInteraction();
     }
@@ -855,32 +858,6 @@ function handleMessage(msg) {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
     }
-    var streamTerminationMessage = '';
-    switch (errorCode) {
-      case 0: // ML_ERROR_GRACEFUL_TERMINATION
-        break;
-      case -100: // ML_ERROR_NO_VIDEO_TRAFFIC
-        streamTerminationMessage = "No video received from host. Check the host PC's firewall and port forwarding rules.";
-        break;
-      case -101: // ML_ERROR_NO_VIDEO_FRAME
-        streamTerminationMessage = "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.";
-        break;
-      case -102: // ML_ERROR_UNEXPECTED_EARLY_TERMINATION
-        streamTerminationMessage = "Something went wrong on your host PC when starting the stream. Restart your host PC and try again.";
-        break;
-      case -103: // ML_ERROR_PROTECTED_CONTENT
-        streamTerminationMessage = "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.";
-        break;
-      case -104: // ML_ERROR_FRAME_CONVERSION
-        streamTerminationMessage = "The host PC reported a fatal video encoding error. Try disabling HDR mode, changing the streaming resolution, or changing your host PC's display resolution.";
-        break;
-      case -200: // ERROR_VIDEO_SETUP_FAILED
-        streamTerminationMessage = 'The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.';
-        break;
-      default:
-        streamTerminationMessage = 'Connection terminated';
-        break;
-    }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
     var shouldQuitHostApp = errorCode === 0 &&
@@ -901,7 +878,10 @@ function handleMessage(msg) {
         window.isDialogOpen = false;
       }
 
-      // Clear the recovery lock as well as its visual state before restoring Hosts.
+      // Clear the recovery state and lock before restoring Hosts.
+      window._streamTerminationRecoveryInProgress = false;
+      var quitButtonAfterFailure = document.getElementById('quitRunningAppBtn');
+      if (quitButtonAfterFailure) quitButtonAfterFailure.disabled = false;
       if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
       // Restore the main Hosts screen directly; it does not depend on the failed host API.
       showHostsMode();
@@ -953,6 +933,13 @@ function handleMessage(msg) {
             var returnedToAppsLayer = document.getElementById('stream-transition-layer');
             if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
           }
+          // Only resume ordinary UI actions after the refreshed Apps list is rendered.
+          if (typeof finishAppsModeAfterStreamTransition === 'function') {
+            finishAppsModeAfterStreamTransition();
+          }
+          window._streamTerminationRecoveryInProgress = false;
+          var quitButtonAfterRecovery = document.getElementById('quitRunningAppBtn');
+          if (quitButtonAfterRecovery) quitButtonAfterRecovery.disabled = false;
         });
       }).catch(function(failure) {
         returnToHostsAfterRecoveryFailure(failure);
@@ -967,11 +954,6 @@ function handleMessage(msg) {
         window.setTimeout(function() {
           // Resume ordinary UI state and flush deferred UI actions only after the full
           // transition fadeout and the additional 200 ms breathing room.
-          if (typeof finishAppsModeAfterStreamTransition === 'function') {
-            finishAppsModeAfterStreamTransition();
-          }
-          if (streamTerminationMessage) snackbarLogLong(streamTerminationMessage);
-
           if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
             console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
             api.quitApp().then(function() {
