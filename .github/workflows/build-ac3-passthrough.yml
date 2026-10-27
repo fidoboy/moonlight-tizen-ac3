@@ -59,6 +59,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Ensure required versioned MP4 assets are available
         shell: bash
