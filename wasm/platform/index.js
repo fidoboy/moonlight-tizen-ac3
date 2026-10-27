@@ -130,7 +130,8 @@ function showUiLayer(layerId, callback) {
   }, UI_FADE_DURATION_MS);
 }
 
-function hideUiLayer(layerId, callback) {
+function hideUiLayer(layerId, callback, durationMs) {
+  var fadeDuration = (typeof durationMs === 'number' && durationMs >= 0) ? durationMs : UI_FADE_DURATION_MS;
   var layer = resolveUiElement(layerId);
   if (!layer || getComputedStyle(layer).display === 'none') {
     if (typeof callback === 'function') callback();
@@ -141,7 +142,7 @@ function hideUiLayer(layerId, callback) {
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
   layer._uiFadeTarget = 'hidden';
-  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.transition = 'opacity ' + fadeDuration + 'ms ease-in-out';
   layer.style.opacity = '0';
   uiLayerFadeTimers[layerId] = window.setTimeout(function() {
     if (layer._uiFadeToken !== token) return;
@@ -151,7 +152,7 @@ function hideUiLayer(layerId, callback) {
     layer.style.opacity = '';
     delete uiLayerFadeTimers[layerId];
     if (typeof callback === 'function') callback();
-  }, UI_FADE_DURATION_MS);
+  }, fadeDuration);
 }
 
 function hideUiLayerImmediately(layerId) {
@@ -3269,15 +3270,22 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
-  // Fade in the Apps grid after the Hosts grid has faded out.
-  $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
+  // Keep an already-visible, locked Apps grid in place during an in-place refresh.
+  // Only use the full fade transition when entering Apps from another view.
+  var preserveVisibleAppGrid = appListInteractionLocked && $('#game-grid').children('.game-container').length > 0;
+  var finishAppsGridReveal = function() {
     if (!deferPostTransitionActions) clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
       if (!keepInteractionLocked) unlockAppListInteraction();
     } else {
       Navigation.switch();
     }
-  });
+  };
+  if (preserveVisibleAppGrid) {
+    finishAppsGridReveal();
+  } else {
+    $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, finishAppsGridReveal);
+  }
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
@@ -3343,9 +3351,12 @@ function showApps(host, options) {
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
     $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
-    // Remove all game container elements from the game grid and from any other div elements
-    $('#game-grid').empty();
-    $('div.game-container').remove();
+    // Keep the current cards in place during a locked refresh (stream recovery / app close).
+    // Normal host navigation still starts with a clean grid.
+    if (!appListInteractionLocked) {
+      $('#game-grid').empty();
+      $('div.game-container').remove();
+    }
 
     setTimeout(() => {
       var appListRequest = (options && options.forceRefreshAppList)
@@ -3374,6 +3385,26 @@ function showApps(host, options) {
         const sortOrder = sortAppsListSwitch.checked ? 'DESC' : 'ASC';
         // If game grid is populated, sort the app list
         const sortedAppList = sortTitles(appList, sortOrder);
+
+        if (appListInteractionLocked) {
+          // Reconcile by app ID instead of tearing down the entire visible list.
+          const grid = document.getElementById('game-grid');
+          const desiredIds = new Set(sortedAppList.map(function(app) {
+            return 'game-container-' + app.id;
+          }));
+          Array.from(grid.querySelectorAll('.game-container')).forEach(function(card) {
+            if (!desiredIds.has(card.id)) card.remove();
+          });
+          sortedAppList.forEach(function(app) {
+            const card = document.getElementById('game-container-' + app.id);
+            if (!card) return;
+            const title = card.querySelector('.game-text');
+            if (title && title.textContent !== app.title) {
+              title.textContent = app.title;
+              title.classList.toggle('disable-animation', app.title.length <= 20);
+            }
+          });
+        }
 
         if (_isSmartHubSupported) {
           var oldApps = (_previewApps[host.serverUid] && _previewApps[host.serverUid].apps) || [];
@@ -3536,6 +3567,16 @@ function showApps(host, options) {
           $(gameContainer).append(boxArtPlaceholderImg);
           boxArtPromises.push(boxArtPromise);
         });
+
+        if (appListInteractionLocked) {
+          // Reorder only where necessary, retaining DOM nodes and loaded artwork for unchanged apps.
+          const grid = document.getElementById('game-grid');
+          sortedAppList.forEach(function(app, index) {
+            const card = document.getElementById('game-container-' + app.id);
+            const currentAtIndex = grid.children[index] || null;
+            if (card && card !== currentAtIndex) grid.insertBefore(card, currentAtIndex);
+          });
+        }
 
         // Check all game containers for the current running app and apply CSS styling accordingly
         stylizeBoxArts(host, sortedAppList);
@@ -3834,7 +3875,7 @@ function hideStreamTransitionBackground(afterHidden) {
         try { callback(); }
         catch (error) { console.error('%c[index.js, hideStreamTransitionBackground]', 'color: red;', 'Post-transition callback failed:', error); }
       });
-    });
+    }, 500);
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
 
