@@ -3850,14 +3850,14 @@ function renderStreamEncryptionStatus(status, targetIds) {
   var videoEncrypted = (status & 0x01) !== 0;
   var audioEncrypted = (status & 0x02) !== 0;
   var allEncrypted = videoEncrypted && audioEncrypted;
-  var statusClass, iconMarkup, message;
+  var statusClass, iconName, message;
 
   if (allEncrypted) {
-    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>';
+    iconName = 'lock';
     statusClass = 'encrypted';
     message = t('Using a secure connection');
   } else if (videoEncrypted || audioEncrypted) {
-    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path>';
+    iconName = 'privacy_tip';
     statusClass = 'partially-encrypted';
     var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0);
     var warningKeys = {
@@ -3867,7 +3867,7 @@ function renderStreamEncryptionStatus(status, targetIds) {
     };
     message = t(warningKeys[unencryptedMask]);
   } else {
-    iconMarkup = '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 0 0 7-2"></path><path d="m4 4 16 16"></path>';
+    iconName = 'lock_open';
     statusClass = 'unencrypted';
     message = t('Using an unencrypted connection');
   }
@@ -3879,7 +3879,7 @@ function renderStreamEncryptionStatus(status, targetIds) {
 
   statusTargets.forEach(function(target) {
     target.status.className = target.className + ' ' + statusClass;
-    target.icon.innerHTML = iconMarkup;
+    target.icon.textContent = iconName;
     target.message.textContent = message;
     target.status.style.display = 'flex';
   });
