@@ -7,7 +7,7 @@
   "Rescan Network": "Rescan Network",
   "Network scan completed.": "Network scan completed.",
   "Stopping stream...": "Stopping stream...",
-  "Stopping %1$s...": "Stopping %1$s...",
+  "Stopping stream %1$s...": "Stopping stream %1$s...",
   "The host ended the stream for %1$s.": "The host ended the stream for %1$s.",
   "No video received from %1$s.": "No video received from %1$s.",
   "The network connection to %1$s failed.": "The network connection to %1$s failed.",
