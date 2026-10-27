@@ -124,7 +124,6 @@
   "Connection to %1$s lost.": "Se ha perdido la conexión con %1$s.",
   "Connection warnings": "Avisos de conexión",
   "Continue": "Continuar",
-  "Control channel": "Canal de control",
   "Could not automatically quit the host app.": "No se pudo cerrar automáticamente la aplicación del anfitrión.",
   "D-PAD DOWN": "CRUCETA ABAJO",
   "D-PAD LEFT": "CRUCETA IZQUIERDA",
@@ -461,8 +460,5 @@
   "Using an unencrypted connection": "Usando una conexión sin cifrar",
   "Partial encryption warning: video": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de vídeo está sin cifrar.",
   "Partial encryption warning: audio": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de audio está sin cifrar.",
-  "Partial encryption warning: video and audio": "ATENCIÓN: La conexión sólo es parcialmente segura, los flujos de vídeo y audio están sin cifrar.",
-  "Partial encryption warning: control": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de control está sin cifrar.",
-  "Partial encryption warning: video and control": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de vídeo y el de control están sin cifrar.",
-  "Partial encryption warning: audio and control": "ATENCIÓN: La conexión sólo es parcialmente segura, el flujo de audio y el de control están sin cifrar."
+  "Partial encryption warning: video and audio": "ATENCIÓN: La conexión sólo es parcialmente segura, los flujos de vídeo y audio están sin cifrar."
 }
