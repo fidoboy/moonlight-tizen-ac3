@@ -567,6 +567,9 @@ bool LiIsEac3AudioNegotiated(void);
 #define LI_ENCRYPTION_AUDIO   0x02
 #define LI_ENCRYPTION_CONTROL 0x04
 
+// Reset the published encryption status before starting a new stream attempt.
+void LiResetEncryptionStatus(void);
+
 // Returns -1 until the RTSP stream configuration determines encryption; afterwards returns
 // a combination of LI_ENCRYPTION_* flags describing the encrypted video, audio, and control paths.
 int LiGetEncryptionStatus(void);
