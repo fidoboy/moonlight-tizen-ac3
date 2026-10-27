@@ -7,7 +7,7 @@
   "Rescan Network": "Netzwerk erneut scannen",
   "Network scan completed.": "Netzwerksuche abgeschlossen.",
   "Stopping stream...": "Stream wird beendet...",
-  "Stopping %1$s...": "%1$s wird beendet...",
+  "Stopping stream %1$s...": "Stream %1$s wird beendet...",
   "The host ended the stream for %1$s.": "Der Host hat den Stream für %1$s beendet.",
   "No video received from %1$s.": "Kein Video von %1$s empfangen.",
   "The network connection to %1$s failed.": "Die Netzwerkverbindung zu %1$s ist fehlgeschlagen.",
