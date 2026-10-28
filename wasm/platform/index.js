@@ -450,7 +450,7 @@ function initializeSettingsDropdownPositionCorrection() {
 
       menuContainer.style.left = left + 'px';
       menuContainer.style.top = top + 'px';
-    },);
+    });
   }, true);
 }
 
