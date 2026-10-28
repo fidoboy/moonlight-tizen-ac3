@@ -126,6 +126,7 @@
   "Connection warnings": "Предупреждения о подключении",
   "Continue": "Продолжить",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
+  "Could not load apps from the host. Returning to Hosts.": "Не удалось загрузить приложения с хоста. Возврат к списку хостов.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
   "D-PAD RIGHT": "D-PAD RIGHT",
