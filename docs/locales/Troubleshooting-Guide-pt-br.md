@@ -47,7 +47,7 @@ Consulte o [Guia de instalação](Installation-Guide-pt-br.html) e o [guia ofici
 ## As estatísticas mostram OPUS em vez de AC-3 ou E-AC-3
 
 1. Confirme que **Enable Dolby Digital** está ativado no Moonlight.
-2. Confirme que o host está usando a [build experimental do Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826) correspondente, compilada com o codificador Dolby opcional do FFmpeg. No Sunshine, abra **Settings → Audio/Video** e selecione **AC-3 (Dolby Digital)** ou **E-AC-3 (Dolby Digital Plus)** no menu suspenso do formato de áudio da transmissão. Se estiver usando o Vibeshine, use a [distribuição nightly do Vibeshine](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d) ou uma versão nightly mais recente.
+2. Confirme que o host está usando a [build experimental do Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826) correspondente, compilada com o codificador Dolby opcional do FFmpeg. No host, abra **Settings → Audio/Video** e selecione **AC-3 (Dolby Digital)** ou **E-AC-3 (Dolby Digital Plus)** no menu suspenso do formato de áudio da transmissão. Se estiver usando o Vibeshine, use a [distribuição nightly do Vibeshine](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d) ou uma versão nightly mais recente.
 3. Inicie uma nova transmissão depois de alterar as configurações de áudio do host.
 4. Verifique se o log do host informa o codec e a taxa de bits AC-3 ou E-AC-3 esperados.
 5. Se o Sunshine não oferecer ou selecionar Dolby, OPUS será a alternativa de compatibilidade esperada.
