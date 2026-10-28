@@ -474,5 +474,5 @@
   "Could not load apps from the host. Returning to the main list.": "Could not load apps from the host. Returning to the main list.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.",
   "Host %1$s is no longer available.": "Host %1$s is no longer available.",
-  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host."
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "Host %1$s appears to be offline right now. Turn it on if it is off and check that the GameStream server is running."
 }
