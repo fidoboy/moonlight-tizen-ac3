@@ -1057,16 +1057,21 @@ body {
 #settings-list {
     width: 100%;
     height: 100%;
+    min-height: 0;
     margin: 0;
+    box-sizing: border-box;
     display: flex;
-    flex-flow: row wrap;
+    flex-flow: row nowrap;
+    overflow: hidden;
 }
 #settings-left-pane {
-    flex: 1;
+    flex: 1 1 30%;
     max-width: 30%;
+    min-height: 0;
+    box-sizing: border-box;
     padding: 20px;
     border-right: 4px solid rgba(29, 29, 29, 0.8);
-    overflow: auto;
+    overflow: hidden;
 }
 .settings-categories {
     width: auto;
@@ -1110,9 +1115,14 @@ body {
     cursor: pointer;
 }
 #settings-right-pane {
-    flex: 1;
+    flex: 1 1 70%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
     padding: 20px;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 .settings-options {
     width: auto;
