@@ -14,8 +14,10 @@ function isDialogTextScrollable(textArea) {
 function focusDialogTextOrClose(textAreaId, closeButtonId) {
   const textArea = resolveElement(textAreaId);
   if (isDialogTextScrollable(textArea)) {
+    unmark(closeButtonId);
     focusElement(textArea);
   } else {
+    mark(closeButtonId);
     focusElement(closeButtonId);
   }
 }
