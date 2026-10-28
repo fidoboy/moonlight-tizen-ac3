@@ -472,5 +472,6 @@
   "— Toggle the performance statistics overlay.": "— Leistungsstatistik-Einblendung ein- oder ausblenden.",
   "• No relevant changes found.": "• Keine relevanten Änderungen gefunden.",
   "Could not load apps from the host. Returning to the main list.": "Die Apps konnten nicht vom Host geladen werden. Zurück zur Hauptliste.",
-  "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Die Verbindung zu %1$s konnte nicht hergestellt werden. Stelle sicher, dass der GameStream-Server auf dem entfernten Computer ausgeführt wird."
+  "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Die Verbindung zu %1$s konnte nicht hergestellt werden. Stelle sicher, dass der GameStream-Server auf dem entfernten Computer ausgeführt wird.",
+  "Host %1$s is no longer available.": "Host %1$s ist nicht mehr verfügbar."
 }
