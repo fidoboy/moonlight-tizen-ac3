@@ -47,7 +47,7 @@ description: "Решение распространённых проблем с 
 ## В статистике отображается OPUS вместо AC-3 или E-AC-3
 
 1. Убедитесь, что в Moonlight включён параметр **Enable Dolby Digital**.
-2. Убедитесь, что на хосте запущена соответствующая [экспериментальная сборка Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826), собранная с дополнительным кодировщиком Dolby в FFmpeg. В Sunshine откройте **Settings → Audio/Video** и выберите **AC-3 (Dolby Digital)** или **E-AC-3 (Dolby Digital Plus)** в раскрывающемся списке форматов аудио для трансляции.
+2. Убедитесь, что на хосте запущена соответствующая [экспериментальная сборка Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826), собранная с дополнительным кодировщиком Dolby в FFmpeg. В Sunshine откройте **Settings → Audio/Video** и выберите **AC-3 (Dolby Digital)** или **E-AC-3 (Dolby Digital Plus)** в раскрывающемся списке форматов аудио для трансляции. Если вы используете Vibeshine, установите [nightly-сборку Vibeshine](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d) или более новую nightly-сборку.
 3. После изменения настроек звука хоста запустите новую трансляцию.
 4. Убедитесь, что журнал хоста сообщает об ожидаемых кодеке и битрейте AC-3 или E-AC-3.
 5. Если Sunshine не предлагает Dolby или не выбирает его, OPUS является ожидаемым резервным вариантом совместимости.
