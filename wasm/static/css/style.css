@@ -768,7 +768,7 @@ body {
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    outline: #00A3C6 solid 3px;
+    box-shadow: 0 0 0 3px #00A3C6;
 }
 #host-grid .host-cell-inactive {
     box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
@@ -777,7 +777,7 @@ body {
 #host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
     z-index: 2;
     transform: scale(1.2);
-    outline: #F44336 solid 3px;
+    box-shadow: 0 0 0 3px #F44336;
 }
 #host-grid .mdl-card__title {
     padding: 0;
@@ -901,7 +901,7 @@ body {
 #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    outline: #00A3C6 solid 3px;
+    box-shadow: 0 0 0 3px #00A3C6;
 }
 #game-grid .current-game-active::before {
     content: "";
@@ -943,7 +943,7 @@ body {
 #game-grid .current-game-active:focus, #game-grid .current-game-active:active {
     z-index: 2;
     transform: scale(1.2);
-    outline: #8BC34A solid 3px;
+    box-shadow: 0 0 0 3px #8BC34A;
 }
 #game-grid .mdl-card__title {
     padding: 0;
