@@ -471,5 +471,6 @@
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Alternar o modo do campo de endereço IP e abrir o menu do PC host.",
   "— Toggle the performance statistics overlay.": "— Alternar a sobreposição de estatísticas de desempenho.",
   "• No relevant changes found.": "• Nenhuma alteração relevante encontrada.",
-  "Could not load apps from the host. Returning to the main list.": "Não foi possível carregar os aplicativos do host. Voltando à lista principal."
+  "Could not load apps from the host. Returning to the main list.": "Não foi possível carregar os aplicativos do host. Voltando à lista principal.",
+  "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Não foi possível conectar-se a %1$s. Verifique se o servidor GameStream está em execução no computador remoto."
 }
