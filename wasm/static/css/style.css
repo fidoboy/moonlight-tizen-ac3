@@ -766,7 +766,6 @@ body {
 }
 #host-grid .mdl-card.hovered, #host-grid .mdl-card:hover,
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
     outline: #00A3C6 solid 3px;
@@ -776,7 +775,6 @@ body {
 }
 #host-grid .host-cell-inactive.hovered, #host-grid .host-cell-inactive:hover,
 #host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
     outline: #F44336 solid 3px;
@@ -901,7 +899,6 @@ body {
 }
 #game-grid .mdl-card.hovered, #game-grid .mdl-card:hover,
 #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
     outline: #00A3C6 solid 3px;
@@ -944,7 +941,6 @@ body {
 }
 #game-grid .current-game-active.hovered, #game-grid .current-game-active:hover,
 #game-grid .current-game-active:focus, #game-grid .current-game-active:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
     outline: #8BC34A solid 3px;
