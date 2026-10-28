@@ -2508,6 +2508,15 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Restore the Settings screen to its initial category and clear any previously
+  // selected category or visible options before entering it again.
+  Views.Settings.view.reset();
+  resetSettingsView();
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.scrollTop = 0;
+  }
+
   // Hide the configuration summary immediately during the transition to Settings.
   configSummaryTemporarilyHidden = true;
   updateConfigSummaryBar();
@@ -2563,6 +2572,15 @@ function resetSettingsView() {
 
 // Navigate to the provided settings view by pushing the target view and set the focus to the setting
 function navigateSettingsView(view) {
+  // Every settings section starts at its first option and at the top of the pane.
+  if (view && view.view && typeof view.view.reset === 'function') {
+    view.view.reset();
+  }
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.scrollTop = 0;
+  }
+
   Navigation.pop();
   Navigation.push(view);
   setTimeout(() => Navigation.switch(), 250);
