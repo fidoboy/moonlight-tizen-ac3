@@ -474,5 +474,5 @@
   "Could not load apps from the host. Returning to the main list.": "Не удалось загрузить приложения с хоста. Возврат к основному списку.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Не удалось подключиться к %1$s. Убедитесь, что сервер GameStream запущен на удалённом компьютере.",
   "Host %1$s is no longer available.": "Узел %1$s больше недоступен.",
-  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "Узел %1$s сейчас, похоже, отключён. Убедитесь, что он включён и на удалённом компьютере запущен сервер GameStream."
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "Узел %1$s сейчас, похоже, отключён. Включите его, если он выключен, и проверьте, что сервер GameStream запущен."
 }
