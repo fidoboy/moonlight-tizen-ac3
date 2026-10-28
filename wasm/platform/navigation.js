@@ -180,7 +180,8 @@ function mark(target) {
     // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
-    ensureSettingsOptionVisible(element);
+    // Temporarily disabled to test whether focus-driven scrolling mispositions MDL menus.
+    // ensureSettingsOptionVisible(element);
   } else {
     console.error('%c[navigation.js, mark]', 'color: gray;', 'Cannot mark the unresolved target:', target);
   }
