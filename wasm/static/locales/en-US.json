@@ -126,7 +126,6 @@
   "Connection warnings": "Connection warnings",
   "Continue": "Continue",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
-  "Could not load apps from the host. Returning to Hosts.": "Could not load apps from the host. Returning to Hosts.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
   "D-PAD RIGHT": "D-PAD RIGHT",
@@ -471,5 +470,6 @@
   "— Stop the streaming session.": "— Stop the streaming session.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Switch the mode of the IP address field, and open the host PC menu.",
   "— Toggle the performance statistics overlay.": "— Toggle the performance statistics overlay.",
-  "• No relevant changes found.": "• No relevant changes found."
+  "• No relevant changes found.": "• No relevant changes found.",
+  "Could not load apps from the host. Returning to the main list.": "Could not load apps from the host. Returning to the main list."
 }
