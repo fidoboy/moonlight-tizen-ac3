@@ -150,8 +150,21 @@ function focusElement(target) {
   }
   // Keep Settings focus scrolling inside the independently scrollable right pane.
   if (typeof element.focus === 'function') {
-    if (element.closest && element.closest('#settings-right-pane')) {
+    const settingsPane = element.closest && element.closest('#settings-right-pane');
+    if (settingsPane) {
       element.focus({ preventScroll: true });
+
+      // Scroll only as far as needed to keep the focused control fully visible.
+      const paneRect = settingsPane.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+      const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - 8;
+
+      if (elementRect.top < visibleTop) {
+        settingsPane.scrollTop -= visibleTop - elementRect.top;
+      } else if (elementRect.bottom > visibleBottom) {
+        settingsPane.scrollTop += elementRect.bottom - visibleBottom;
+      }
     } else {
       element.focus();
     }
@@ -449,6 +462,24 @@ class ListView {
     this.index = 0;
   }
 };
+
+// Select and highlight the option matching the value currently shown by a settings control.
+function markSelectedMenuItem(view, triggerId) {
+  const trigger = document.getElementById(triggerId);
+  const selectedValue = trigger && trigger.getAttribute('data-value');
+  const options = Array.from(view.func() || []);
+  const selectedIndex = options.findIndex(option =>
+    option && option.getAttribute && option.getAttribute('data-value') === selectedValue
+  );
+
+  if (selectedIndex >= 0) {
+    view.index = selectedIndex;
+  } else if (view.index >= options.length) {
+    view.index = 0;
+  }
+
+  mark(view.current());
+}
 
 const Views = {
   Hosts: {
@@ -1072,7 +1103,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectResolution');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1104,7 +1135,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectFramerate');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1211,7 +1242,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectLanguage');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1375,7 +1406,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectAudioBackend');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1407,7 +1438,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectAudio');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1421,7 +1452,7 @@ const Views = {
     accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyChannelLayout'), 250); },
     back: function() { closePopupMenu('selectDolbyChannelLayout'); closeActiveVisibleMenu(); focusElement('selectDolbyChannelLayout'); },
     press: function() {}, switch: function() {},
-    enter: function() { mark(this.view.current()); }, leave: function() { unmark(this.view.current()); },
+    enter: function() { markSelectedMenuItem(this.view, 'selectDolbyChannelLayout'); }, leave: function() { unmark(this.view.current()); },
   },
   SelectDolbyDecodingModeMenu: {
     isActive: () => isPopupMenuActive('dolbyDecodingModeMenu'),
@@ -1431,7 +1462,7 @@ const Views = {
     accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyDecodingMode'), 250); },
     back: function() { closePopupMenu('selectDolbyDecodingMode'); closeActiveVisibleMenu(); focusElement('selectDolbyDecodingMode'); },
     press: function() {}, switch: function() {},
-    enter: function() { mark(this.view.current()); }, leave: function() { unmark(this.view.current()); },
+    enter: function() { markSelectedMenuItem(this.view, 'selectDolbyDecodingMode'); }, leave: function() { unmark(this.view.current()); },
   },
   SelectAudioJitterMenu: {
     isActive: () => isPopupMenuActive('audioJitterMenu'),
@@ -1534,7 +1565,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectCodec');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1566,7 +1597,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectPerformanceStatsPosition');
     },
     leave: function() {
       unmark(this.view.current());
