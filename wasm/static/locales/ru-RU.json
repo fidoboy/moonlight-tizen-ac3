@@ -472,5 +472,6 @@
   "— Toggle the performance statistics overlay.": "— Toggle the performance statistics overlay.",
   "• No relevant changes found.": "• No relevant changes found.",
   "Could not load apps from the host. Returning to the main list.": "Не удалось загрузить приложения с хоста. Возврат к основному списку.",
-  "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Не удалось подключиться к %1$s. Убедитесь, что сервер GameStream запущен на удалённом компьютере."
+  "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Не удалось подключиться к %1$s. Убедитесь, что сервер GameStream запущен на удалённом компьютере.",
+  "Host %1$s is no longer available.": "Узел %1$s больше недоступен."
 }
