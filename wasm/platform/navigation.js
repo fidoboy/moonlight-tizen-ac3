@@ -171,16 +171,29 @@ function focusElement(target) {
     if (settingsPane) {
       element.focus({ preventScroll: true });
 
-      // Scroll only as far as needed to keep the focused control fully visible.
-      const paneRect = settingsPane.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
-      const visibleTop = paneRect.top + settingsPane.clientTop + 8;
-      const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - 8;
+      // When the first option in the active category receives focus, restore the
+      // explanatory text above it by returning the right pane to the very top.
+      const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
+        .find(options => window.getComputedStyle(options).display !== 'none');
+      const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
+      const isFirstOption = !!firstOption && element.closest('.setting-option') === firstOption;
 
-      if (elementRect.top < visibleTop) {
-        settingsPane.scrollTop -= visibleTop - elementRect.top;
-      } else if (elementRect.bottom > visibleBottom) {
-        settingsPane.scrollTop += elementRect.bottom - visibleBottom;
+      if (isFirstOption) {
+        settingsPane.scrollTop = 0;
+      } else {
+        // Keep a deliberate safety margin below focused controls rather than
+        // allowing them to sit against the bottom edge of the scroll viewport.
+        const paneRect = settingsPane.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+        const bottomSafetyMargin = Math.max(48, Math.round(settingsPane.clientHeight * 0.06));
+        const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
+
+        if (elementRect.top < visibleTop) {
+          settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - elementRect.top));
+        } else if (elementRect.bottom > visibleBottom) {
+          settingsPane.scrollTop += elementRect.bottom - visibleBottom;
+        }
       }
     } else {
       element.focus();
