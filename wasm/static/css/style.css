@@ -846,7 +846,7 @@ body {
 .host-center-icon {
     position: absolute;
     /* Center within the card area above the 42px title strip, not the full card. */
-    top: calc(50% - 21px);
+    top: calc(50% - 23px);
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 32px;
