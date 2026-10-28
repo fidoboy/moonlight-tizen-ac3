@@ -2658,6 +2658,7 @@ function navigationGuideDialog() {
   // Find the existing overlay and dialog elements
   var navGuideDialogOverlay = document.querySelector('#navGuideDialogOverlay');
   var navGuideDialog = document.querySelector('#navGuideDialog');
+  var navGuideDialogContent = document.getElementById('navGuideDialogContent');
 
   // Start the guide at the top whenever the dialog is opened.
   document.getElementById('navGuideDialogContent').scrollTop = 0;
@@ -2667,6 +2668,12 @@ function navigationGuideDialog() {
   showUiDialog(navGuideDialog);
   isDialogOpen = true;
   Navigation.push(Views.NavigationGuideDialog);
+
+  // Reset after the dialog is visible and after navigation has applied focus.
+  requestAnimationFrame(() => {
+    navGuideDialogContent.scrollTop = 0;
+    window.setTimeout(() => { navGuideDialogContent.scrollTop = 0; }, 150);
+  });
 
   // Close the dialog if the Close button is pressed
   $('#closeNavGuide').off('click');
@@ -2875,6 +2882,13 @@ function updateAppDialog(latestVersion, releaseNotes) {
   showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
+
+  // Reset after the dialog is visible and after navigation has applied focus.
+  const updateDialogContent = document.getElementById('updateAppDialogContent');
+  requestAnimationFrame(() => {
+    updateDialogContent.scrollTop = 0;
+    window.setTimeout(() => { updateDialogContent.scrollTop = 0; }, 150);
+  });
 }
 
 function saveAutomaticUpdateChecks() {
