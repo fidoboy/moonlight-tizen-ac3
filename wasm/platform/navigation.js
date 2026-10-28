@@ -1743,10 +1743,30 @@ const Views = {
       'closeNavGuide'
     ]),
     up: function() {
-      blurElement('closeNavGuide');
+      const textArea = resolveElement('navGuideDialogContent');
+      if (document.activeElement === textArea) {
+        // Keep scrolling upward while the guide text has focus.
+        textArea.scrollTop = Math.max(0, textArea.scrollTop - Math.max(80, textArea.clientHeight * 0.65));
+      } else {
+        // From Close, move focus into the scrollable guide text.
+        focusElement('navGuideDialogContent');
+      }
     },
     down: function() {
-      focusElement('closeNavGuide');
+      const textArea = resolveElement('navGuideDialogContent');
+      if (document.activeElement === textArea) {
+        const atBottom = textArea.scrollTop + textArea.clientHeight >= textArea.scrollHeight - 2;
+        if (atBottom) {
+          focusElement('closeNavGuide');
+        } else {
+          textArea.scrollTop = Math.min(
+            textArea.scrollHeight - textArea.clientHeight,
+            textArea.scrollTop + Math.max(80, textArea.clientHeight * 0.65)
+          );
+        }
+      } else {
+        focusElement('closeNavGuide');
+      }
     },
     left: function() {},
     right: function() {},
