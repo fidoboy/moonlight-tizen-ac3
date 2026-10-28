@@ -5,6 +5,21 @@ function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
 }
 
+// Check whether one of the text-only dialogs has content that can scroll.
+function isDialogTextScrollable(textArea) {
+  return !!textArea && textArea.scrollHeight > textArea.clientHeight + 2;
+}
+
+// Focus the text when it overflows; otherwise focus the only available Close button.
+function focusDialogTextOrClose(textAreaId, closeButtonId) {
+  const textArea = resolveElement(textAreaId);
+  if (isDialogTextScrollable(textArea)) {
+    focusElement(textArea);
+  } else {
+    focusElement(closeButtonId);
+  }
+}
+
 // Resolve various target types to an actual HTML element
 function resolveElement(target) {
   // If no target is provided, return null
@@ -1694,11 +1709,9 @@ const Views = {
     up: function() {
       const textArea = resolveElement('navGuideDialogContent');
       if (document.activeElement === textArea) {
-        // Keep scrolling upward while the guide text has focus.
         textArea.scrollTop = Math.max(0, textArea.scrollTop - Math.max(80, textArea.clientHeight * 0.65));
-      } else {
-        // From Close, move focus into the scrollable guide text.
-        focusElement('navGuideDialogContent');
+      } else if (isDialogTextScrollable(textArea)) {
+        focusElement(textArea);
       }
     },
     down: function() {
@@ -1727,15 +1740,18 @@ const Views = {
     },
     press: function() {},
     switch: function() {
-      focusElement(this.view.current());
+      focusDialogTextOrClose('navGuideDialogContent', 'closeNavGuide');
     },
     enter: function() {
       mark(this.view.current());
-      setTimeout(() => focusElement(this.view.current()), 100);
+      setTimeout(() => focusDialogTextOrClose('navGuideDialogContent', 'closeNavGuide'), 100);
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      setTimeout(() => {
+        blurElement('navGuideDialogContent');
+        blurElement('closeNavGuide');
+      }, 100);
     },
   },
   UpdateMoonlightDialog: {
@@ -1743,10 +1759,28 @@ const Views = {
       'closeUpdateApp'
     ]),
     up: function() {
-      blurElement('closeUpdateApp');
+      const textArea = resolveElement('updateAppDialogContent');
+      if (document.activeElement === textArea) {
+        textArea.scrollTop = Math.max(0, textArea.scrollTop - Math.max(80, textArea.clientHeight * 0.65));
+      } else if (isDialogTextScrollable(textArea)) {
+        focusElement(textArea);
+      }
     },
     down: function() {
-      focusElement('closeUpdateApp');
+      const textArea = resolveElement('updateAppDialogContent');
+      if (document.activeElement === textArea) {
+        const atBottom = textArea.scrollTop + textArea.clientHeight >= textArea.scrollHeight - 2;
+        if (atBottom) {
+          focusElement('closeUpdateApp');
+        } else {
+          textArea.scrollTop = Math.min(
+            textArea.scrollHeight - textArea.clientHeight,
+            textArea.scrollTop + Math.max(80, textArea.clientHeight * 0.65)
+          );
+        }
+      } else {
+        focusElement('closeUpdateApp');
+      }
     },
     left: function() {},
     right: function() {},
@@ -1758,15 +1792,18 @@ const Views = {
     },
     press: function() {},
     switch: function() {
-      focusElement(this.view.current());
+      focusDialogTextOrClose('updateAppDialogContent', 'closeUpdateApp');
     },
     enter: function() {
       mark(this.view.current());
-      setTimeout(() => focusElement(this.view.current()), 100);
+      setTimeout(() => focusDialogTextOrClose('updateAppDialogContent', 'closeUpdateApp'), 100);
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      setTimeout(() => {
+        blurElement('updateAppDialogContent');
+        blurElement('closeUpdateApp');
+      }, 100);
     },
   },
   RestoreDefaultsDialog: {
