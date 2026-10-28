@@ -107,10 +107,6 @@ function ensureSettingsOptionVisible(target) {
   const requestId = (settingsScrollRequests.get(settingsPane) || 0) + 1;
   settingsScrollRequests.set(settingsPane, requestId);
 
-  // Every new target invalidates scroll work queued for the previous target.
-  const requestId = (settingsScrollRequests.get(settingsPane) || 0) + 1;
-  settingsScrollRequests.set(settingsPane, requestId);
-
   // Restore the true beginning when focusing the first visible option in the active category.
   const activeSettingsGroup = Array.from(settingsPane.querySelectorAll('.settings-options')).find(group =>
     group.getClientRects().length &&
