@@ -1008,6 +1008,7 @@ var persistentSnackbarVisible = false;
 function snackbarLog(...args) {
   dismissStartupHostsSnackbar();
   dismissPersistentSnackbar();
+  setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
   var data = {
@@ -1020,6 +1021,7 @@ function snackbarLog(...args) {
 function snackbarLogLong(...args) {
   dismissStartupHostsSnackbar();
   dismissPersistentSnackbar();
+  setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
   var data = {
@@ -1029,8 +1031,14 @@ function snackbarLogLong(...args) {
   document.querySelector('#snackbar').MaterialSnackbar.showSnackbar(data);
 }
 
+function setSnackbarProgress(isVisible) {
+  const snackbarElement = document.getElementById('snackbar');
+  if (snackbarElement) snackbarElement.classList.toggle('is-progress', isVisible === true);
+}
+
 function snackbarLogPersistent(...args) {
   dismissStartupHostsSnackbar();
+  setSnackbarProgress(true);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
   // MDL treats timeout: 0 as "use the default timeout", so use the largest
@@ -1050,9 +1058,11 @@ function dismissPersistentSnackbar() {
     snackbarElement.MaterialSnackbar.cleanup_();
   }
   persistentSnackbarVisible = false;
+  setSnackbarProgress(false);
 }
 
 function showStartupHostsSnackbar() {
+  setSnackbarProgress(true);
   const snackbarElement = document.querySelector('#snackbar');
   if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
     snackbarLogPersistent('Loading configured hosts...');
@@ -1074,6 +1084,7 @@ function dismissStartupHostsSnackbar() {
     snackbarElement.MaterialSnackbar.cleanup_();
   }
   startupHostsSnackbarVisible = false;
+  setSnackbarProgress(false);
 }
 
 var isManualHostRefreshRunning = false;
