@@ -1384,7 +1384,7 @@ function hostChosen(host, onSuccessCallback) {
     } else {
       // Let the user know what to do to bring the host back online and until then, we'll be back to the previous view.
       console.error('%c[index.js, hostChosen]', 'color: green;', 'Error: Connection to host failed or host is offline!');
-      snackbarLogLong('Host %1$s appears to be offline right now. Check that it is powered on and that the GameStream server is running on the remote host.', host.hostname || t('the host'));
+      snackbarLogLong('Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.', host.hostname || t('the host'));
     }
     return;
   }
