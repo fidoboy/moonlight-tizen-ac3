@@ -1072,16 +1072,29 @@ function handleMessage(msg) {
     });
   } else if (msg.indexOf('StatMsg: ') === 0) {
     if (performanceStatsStreamTerminated) return;
-    // Show the overlay for this streaming session without changing the saved preference.
-    fadeInUiElement('performance-stats', 'inline-block');
-    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
-    if (isPerformanceStatsOverlayVisible()) {
-      var statsElements = ensurePerformanceStatsOverlayElements();
-      if (statsElements) {
-        var sourceStatsText = msg.replace('StatMsg: ', '');
-        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-        drawPerformanceStatsGraph();
-        drawHostProcessingLatencyGraph();
+
+    var statsOverlay = document.getElementById('performance-stats');
+    if (!statsOverlay) return;
+    var overlayWasVisible = isPerformanceStatsOverlayVisible();
+
+    // Keep the overlay transparent while the first statistics message is rendered.
+    // fadeInUiElement schedules the opacity transition on the next animation frame,
+    // so the first visible frame already contains the populated statistics.
+    if (!overlayWasVisible) {
+      statsOverlay.style.display = 'inline-block';
+      statsOverlay.style.opacity = '0';
+    }
+    statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+
+    var statsElements = ensurePerformanceStatsOverlayElements();
+    if (statsElements) {
+      var sourceStatsText = msg.replace('StatMsg: ', '');
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+      drawPerformanceStatsGraph();
+      drawHostProcessingLatencyGraph();
+
+      if (!overlayWasVisible) {
+        fadeInUiElement(statsOverlay, 'inline-block');
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
