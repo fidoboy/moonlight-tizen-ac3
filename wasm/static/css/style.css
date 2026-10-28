@@ -863,8 +863,41 @@ body {
     transform: scale(1.2);
     outline: #00A3C6 solid 3px;
 }
+#game-grid .current-game-active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-top: 76px solid #8BC34A;
+    border-right: 76px solid transparent;
+    z-index: 3;
+    pointer-events: none;
+}
+#game-grid .current-game-active::after {
+    content: "cast_pause";
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    color: #fff;
+    font-family: "Material Symbols Outlined";
+    font-size: 25px;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-feature-settings: "liga";
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    z-index: 4;
+    pointer-events: none;
+}
 #game-grid .current-game-active {
-    box-shadow: 0 0 0 2px rgba(139, 195, 74, 1);
+    box-shadow: none;
 }
 #game-grid .current-game-active.hovered, #game-grid .current-game-active:hover,
 #game-grid .current-game-active:focus, #game-grid .current-game-active:active {
