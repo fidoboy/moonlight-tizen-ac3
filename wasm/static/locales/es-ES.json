@@ -473,5 +473,6 @@
   "• No relevant changes found.": "• No se han encontrado cambios relevantes.",
   "Could not load apps from the host. Returning to the main list.": "No se pudieron cargar las aplicaciones del equipo. Volviendo a la lista principal.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "No se pudo conectar con %1$s. Comprueba que el servidor de GameStream esté en ejecución en el equipo remoto.",
-  "Host %1$s is no longer available.": "El anfitrión %1$s ha dejado de estar disponible."
+  "Host %1$s is no longer available.": "El anfitrión %1$s ha dejado de estar disponible.",
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "El equipo %1$s aparece desconectado en este momento. Compruebe que está encendido y que el servidor de GameStream esté en ejecución en el equipo remoto."
 }
