@@ -1168,6 +1168,10 @@ body {
     overflow-x: hidden;
     overflow-y: auto;
 }
+/* Add dropdown/focus safety space only when the settings content genuinely overflows. */
+#settings-right-pane.has-effective-scroll {
+    padding-bottom: 30vh;
+}
 /* Keep settings dropdowns as wide as their trigger controls. The 160px
    allowance matches the pane padding and settings/options side margins. */
 #settings-right-pane .mdl-menu__container {
