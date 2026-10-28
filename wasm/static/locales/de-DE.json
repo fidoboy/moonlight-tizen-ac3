@@ -473,5 +473,6 @@
   "• No relevant changes found.": "• Keine relevanten Änderungen gefunden.",
   "Could not load apps from the host. Returning to the main list.": "Die Apps konnten nicht vom Host geladen werden. Zurück zur Hauptliste.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Die Verbindung zu %1$s konnte nicht hergestellt werden. Stelle sicher, dass der GameStream-Server auf dem entfernten Computer ausgeführt wird.",
-  "Host %1$s is no longer available.": "Host %1$s ist nicht mehr verfügbar."
+  "Host %1$s is no longer available.": "Host %1$s ist nicht mehr verfügbar.",
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "Der Host %1$s scheint derzeit offline zu sein. Vergewissere dich, dass er eingeschaltet ist und der GameStream-Server auf dem entfernten Computer läuft."
 }
