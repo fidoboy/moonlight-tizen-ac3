@@ -1135,6 +1135,7 @@ function refreshHosts() {
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
+  $('#main-content').removeClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Hosts'));
@@ -2463,6 +2464,7 @@ function appSupportDialog() {
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
+  $('#main-content').addClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Settings'));
@@ -3263,6 +3265,7 @@ function sortTitles(list, sortOrder) {
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
+  $('#main-content').removeClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Apps'));
