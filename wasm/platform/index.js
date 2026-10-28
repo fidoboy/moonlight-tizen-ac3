@@ -1268,7 +1268,7 @@ function clearViewLoadingSnackbarTimer() {
 }
 
 // Return to the Hosts grid with a short fade transition.
-function showHosts() {
+function showHosts(onShown) {
   Navigation.stop();
   scheduleViewLoadingSnackbar('Loading Hosts...');
 
@@ -1283,6 +1283,7 @@ function showHosts() {
       clearViewLoadingSnackbarTimer();
       dismissPersistentSnackbar();
       Navigation.switch();
+      if (typeof onShown === 'function') onShown();
     });
   });
 }
@@ -4450,10 +4451,14 @@ function startGame(host, appID) {
       if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Failed to launch %1$s', String(appID)));
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
+    console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
     if (_directSmartHubLaunch) {
-      directSmartHubLaunchFailure(t('Failed to connect to %1$s. Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.', host.hostname || t('the host')));
+      directSmartHubLaunchFailure(t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
+      return;
     }
+    showHosts(function() {
+      snackbarLogLong('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host'));
+    });
   });
 }
 
