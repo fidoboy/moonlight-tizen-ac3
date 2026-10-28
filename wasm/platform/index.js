@@ -877,22 +877,22 @@ function updateHostStatusIndicator(host) {
     }
   }
 
-  // If the indicator element is not found, exit the function early
+  // Do not show a status icon until a network check has established the host state.
   if (!indicator) {
     return;
   }
-  // Set the appropriate status indicator based on the host status
-  if (host.online === undefined || host.online === null) {
+  if (host._statusVerified !== true || host.online === undefined || host.online === null) {
     indicator.style.display = 'none';
+    indicator.textContent = '';
   } else if (!host.online) {
     indicator.style.display = 'block';
-    indicator.innerHTML = 'warning';
-  } else if (host.online && !host.paired) {
+    indicator.textContent = 'power_off';
+  } else if (!host.paired) {
     indicator.style.display = 'block';
-    indicator.innerHTML = 'lock';
+    indicator.textContent = 'lock';
   } else {
-    indicator.style.display = 'none';
-    indicator.innerHTML = '';
+    indicator.style.display = 'block';
+    indicator.textContent = 'check';
   }
 }
 
@@ -931,7 +931,8 @@ function beginBackgroundPollingOfHost(host) {
       return;
     }
 
-    // Update the UI after the network finishes
+    // The completed network poll is the source of truth for the displayed status.
+    host._statusVerified = true;
     updateHostStatusIndicator(host);
 
     // Reset poll state so that recovery polls from the interval below start with
@@ -2018,7 +2019,7 @@ function addHostToGrid(host, ismDNSDiscovered) {
   // Create the host center icon to indicate the host's status (online/offline/unpaired)
   var hostStatusIndicator = $('<i>', {
     id: 'host-status-' + host.serverUid,
-    class: 'material-icons host-center-icon'
+    class: 'material-symbols-outlined host-center-icon'
   });
 
   // Append the host text to the host title wrapper
