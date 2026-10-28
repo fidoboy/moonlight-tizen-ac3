@@ -2632,6 +2632,9 @@ function navigationGuideDialog() {
   var navGuideDialogOverlay = document.querySelector('#navGuideDialogOverlay');
   var navGuideDialog = document.querySelector('#navGuideDialog');
 
+  // Start the guide at the top whenever the dialog is opened.
+  document.getElementById('navGuideDialogContent').scrollTop = 0;
+
   // Show the dialog and push the view
   fadeInUiElement(navGuideDialogOverlay, 'flex');
   showUiDialog(navGuideDialog);
@@ -2836,6 +2839,9 @@ function updateAppDialog(latestVersion, releaseNotes) {
     // Register the dialog with dialogPolyfill to enable modal functionality for older browsers
     dialogPolyfill.registerDialog(updateAppDialog[0]);
   }
+
+  // Start the release notes at the top whenever the dialog is opened.
+  document.getElementById('updateAppDialogContent').scrollTop = 0;
 
   // Show the dialog and push the view
   fadeInUiElement(updateAppDialogOverlay, 'flex');
