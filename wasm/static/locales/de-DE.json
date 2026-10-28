@@ -126,6 +126,7 @@
   "Connection warnings": "Verbindungswarnungen",
   "Continue": "Fortfahren",
   "Could not automatically quit the host app.": "Host-App konnte nicht automatisch beendet werden.",
+  "Could not load apps from the host. Returning to Hosts.": "Die Apps konnten nicht vom Host geladen werden. Zurück zu Hosts.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
   "D-PAD RIGHT": "D-PAD RIGHT",
