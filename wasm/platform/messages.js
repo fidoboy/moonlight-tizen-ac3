@@ -915,7 +915,7 @@ function handleMessage(msg) {
       Navigation.change(Views.Hosts);
       Navigation.start();
       Navigation.switch();
-      snackbarLogLong('Could not load apps from the host. Returning to Hosts.');
+      snackbarLogLong(t('Could not load apps from the host. Returning to Hosts.'));
     };
 
     var refreshHostAndReturnToApps = function() {
