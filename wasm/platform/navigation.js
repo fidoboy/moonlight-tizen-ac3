@@ -92,86 +92,6 @@ function clickElement(target) {
   }
 }
 
-const settingsScrollRequests = new WeakMap();
-
-function ensureSettingsOptionVisible(target) {
-  const element = resolveElement(target);
-  if (!element || !element.closest) return;
-
-  const settingsPane = element.closest('#settings-right-pane');
-  const settingsList = document.getElementById('settings-list');
-  if (!settingsPane || !settingsList || settingsList.classList.contains('hide-container') ||
-      !element.getClientRects().length) return;
-
-  // Every new target invalidates scroll work queued for the previous target.
-  const requestId = (settingsScrollRequests.get(settingsPane) || 0) + 1;
-  settingsScrollRequests.set(settingsPane, requestId);
-
-  // Restore the true beginning when focusing the first visible option in the active category.
-  const activeSettingsGroup = Array.from(settingsPane.querySelectorAll('.settings-options')).find(group =>
-    group.getClientRects().length &&
-    getComputedStyle(group).display !== 'none' &&
-    getComputedStyle(group).visibility !== 'hidden'
-  );
-  const firstSetting = activeSettingsGroup &&
-    Array.from(activeSettingsGroup.querySelectorAll('.setting-option')).find(setting =>
-      setting.getClientRects().length && getComputedStyle(setting).display !== 'none'
-    );
-  if (firstSetting && firstSetting.contains(element)) {
-    settingsPane.scrollTop = 0;
-    return;
-  }
-
-  requestAnimationFrame(() => {
-    if (settingsScrollRequests.get(settingsPane) !== requestId) return;
-    const paneRect = settingsPane.getBoundingClientRect();
-    const paneTop = paneRect.top + settingsPane.clientTop;
-    const paneHeight = settingsPane.clientHeight;
-    const margin = 24;
-    const safeTop = paneTop + margin;
-    const safeBottom = paneTop + paneHeight - margin;
-
-    // Material Design Lite builds dropdowns from HTML menus. When navigating their
-    // options, scroll for the whole open menu rather than just the highlighted <li>.
-    const menu = element.closest('.mdl-menu__container') || element.closest('.mdl-menu');
-    const menuIsVisible = menu && menu.getClientRects().length &&
-      getComputedStyle(menu).visibility !== 'hidden' &&
-      getComputedStyle(menu).display !== 'none';
-    const targetElement = menuIsVisible ? menu : element;
-    const rect = targetElement.getBoundingClientRect();
-    let delta = 0;
-
-    if (menuIsVisible) {
-      // Keep the complete menu within the scrollable Settings pane whenever possible.
-      if (rect.height >= paneHeight - margin * 2) {
-        delta = rect.top - safeTop;
-      } else if (rect.bottom > safeBottom) {
-        delta = rect.bottom - safeBottom;
-      } else if (rect.top < safeTop) {
-        delta = rect.top - safeTop;
-      }
-    } else {
-      // Keep focused settings within the visible pane in both directions. Reserve room
-      // below controls near the bottom so their dropdowns can open without clipping.
-      const safeControlBottom = paneTop + paneHeight * 0.62;
-      if (rect.bottom > safeControlBottom) {
-        delta = rect.bottom - (paneTop + paneHeight * 0.34);
-      } else if (rect.top < safeTop) {
-        delta = rect.top - safeTop;
-      }
-    }
-
-    if (Math.abs(delta) > 1) {
-      const maxScroll = Math.max(0, settingsPane.scrollHeight - settingsPane.clientHeight);
-      settingsPane.scrollTo({
-        top: Math.max(0, Math.min(settingsPane.scrollTop + delta, maxScroll)),
-        behavior: 'smooth'
-      });
-    }
-  });
-}
-
-
 // Mark an element based on various target types
 function mark(target) {
   const element = resolveElement(target);
@@ -180,8 +100,6 @@ function mark(target) {
     // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
-    // Temporarily disabled to test whether focus-driven scrolling mispositions MDL menus.
-    // ensureSettingsOptionVisible(element);
   } else {
     console.error('%c[navigation.js, mark]', 'color: gray;', 'Cannot mark the unresolved target:', target);
   }
@@ -238,7 +156,6 @@ function focusElement(target) {
       element.focus();
     }
   }
-  ensureSettingsOptionVisible(element);
 }
 
 // Safely remove focus from an element
