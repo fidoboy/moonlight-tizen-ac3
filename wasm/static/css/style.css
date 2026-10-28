@@ -430,6 +430,10 @@ body {
     overflow-y: auto;
     overscroll-behavior: contain;
 }
+#navGuideDialogContent:focus {
+    outline: 2px solid rgba(0, 163, 198, 0.8);
+    outline-offset: -2px;
+}
 .large-dialog {
     color: #fff;
     background-color: #333846;
