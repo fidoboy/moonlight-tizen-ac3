@@ -3897,16 +3897,27 @@ function renderStreamEncryptionStatus(status, targetIds) {
     message = t('Using an unencrypted connection');
   }
 
-  var transitionStatus = document.getElementById('streamEncryptionStatus');
-  if (transitionStatus && transitionStatus.style.display !== 'flex') {
-    streamEncryptionStatusVisibleAt = Date.now();
-  }
-
   statusTargets.forEach(function(target) {
     target.status.className = target.className + ' ' + statusClass;
     target.icon.textContent = iconName;
     target.message.textContent = message;
-    target.status.style.display = 'flex';
+
+    if (target.status.id === 'performanceStatsEncryptionStatus') {
+      target.status.style.display = 'flex';
+      return;
+    }
+
+    // The transition status must remain hidden until the transition controller reveals it.
+    // If the encryption result arrives late, reveal it only after the initial status delay,
+    // and never allow polling to bring it back during the fade-out.
+    var transitionLayer = document.getElementById('stream-transition-layer');
+    if (!transitionLayer || getComputedStyle(transitionLayer).display === 'none' ||
+        streamTransitionHiding || streamTransitionStatusTimeout !== null) {
+      return;
+    }
+
+    streamEncryptionStatusVisibleAt = Date.now();
+    fadeInUiElement(target.status, 'flex');
   });
 }
 function pollStreamEncryptionStatus() {
@@ -3948,7 +3959,8 @@ function showStreamTransitionBackground(onVisible) {
       fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
       if (encryptionStatus && document.getElementById('streamEncryptionMessage').textContent) {
-        fadeInUiElement('streamEncryptionStatus', 'flex');
+        streamEncryptionStatusVisibleAt = Date.now();
+        fadeInUiElement(encryptionStatus, 'flex');
       }
     }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
   };
