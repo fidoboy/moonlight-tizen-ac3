@@ -283,12 +283,51 @@ body {
 }
 .mdl-snackbar__text {
     color: #fff;
-    padding: 15px 40px 15px 40px;
+    padding: 20px 44px;
     font-size: 1.8rem;
     font-weight: 500;
     line-height: normal;
     letter-spacing: 0.5px;
     text-align: center;
+}
+.snackbar-spinner-slot {
+    display: none;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    margin-left: 26px;
+    transform: translateY(-2px);
+    align-items: center;
+    justify-content: center;
+}
+.snackbar-spinner {
+    display: block;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    transform-origin: 50% 50%;
+    will-change: transform;
+    border: 3px solid rgba(255, 255, 255, 0.28);
+    border-top-color: #fff;
+    border-radius: 50%;
+    box-sizing: border-box;
+    animation: snackbar-spinner-rotation 0.8s linear infinite;
+}
+#snackbar.is-progress {
+    display: flex;
+    align-items: center;
+}
+#snackbar.is-progress .snackbar-spinner-slot {
+    display: flex;
+}
+#snackbar.is-progress .mdl-snackbar__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 20px 28px 20px 18px;
+    text-align: left;
+}
+@keyframes snackbar-spinner-rotation {
+    to { transform: rotate(360deg); }
 }
 /* Tooltips are popups and always belong to the dominant level 4. */
 #popup-layer .mdl-tooltip {
