@@ -1172,6 +1172,12 @@ body {
     overflow-x: hidden;
     overflow-y: auto;
 }
+/* Keep settings dropdowns as wide as their trigger controls. The 160px
+   allowance matches the pane padding and settings/options side margins. */
+#settings-right-pane .mdl-menu__container {
+    width: calc(100% - 160px) !important;
+}
+
 .settings-options {
     width: auto;
     height: auto;
