@@ -126,7 +126,6 @@
   "Connection warnings": "Avertissements de connexion",
   "Continue": "Continuer",
   "Could not automatically quit the host app.": "Impossible de fermer automatiquement l’application de l’hôte.",
-  "Could not load apps from the host. Returning to Hosts.": "Impossible de charger les applications depuis l’hôte. Retour aux hôtes.",
   "D-PAD DOWN": "D-PAD DOWN",
   "D-PAD LEFT": "D-PAD LEFT",
   "D-PAD RIGHT": "D-PAD RIGHT",
@@ -471,5 +470,6 @@
   "— Stop the streaming session.": "— Arrêter la session de diffusion.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Changer le mode du champ d’adresse IP et ouvrir le menu du PC hôte.",
   "— Toggle the performance statistics overlay.": "— Afficher ou masquer les statistiques de performances.",
-  "• No relevant changes found.": "• Aucun changement pertinent trouvé."
+  "• No relevant changes found.": "• Aucun changement pertinent trouvé.",
+  "Could not load apps from the host. Returning to the main list.": "Impossible de charger les applications depuis l’hôte. Retour à la liste principale."
 }
