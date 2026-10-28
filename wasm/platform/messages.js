@@ -129,6 +129,7 @@ var performanceStatsStreamTerminated = false;
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
+var performanceStatsPendingFirstReveal = false;
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -149,6 +150,22 @@ const PERFORMANCE_STATS_GRAPH_COLORS = {
 function resetPerformanceStatsGraph() {
   performanceStatsGraphSamples.length = 0;
   performanceStatsHostLatencyLatest = null;
+  performanceStatsPendingFirstReveal = false;
+}
+
+// Reveal the overlay only after both its text and the first network graph sample are ready.
+function revealPerformanceStatsOverlayWhenReady() {
+  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
+      performanceStatsGraphSamples.length === 0) return;
+
+  var overlay = document.getElementById('performance-stats');
+  if (!overlay) return;
+
+  var text = overlay.querySelector('.performance-stats-text');
+  if (!text || !text.textContent.trim()) return;
+
+  performanceStatsPendingFirstReveal = false;
+  fadeInUiElement(overlay, 'inline-block');
 }
 
 // Avoid collecting samples or drawing canvases while the diagnostics overlay is hidden.
@@ -413,6 +430,7 @@ function handlePerformanceStatsGraphMessage(message) {
   }
   drawPerformanceStatsGraph();
   drawHostProcessingLatencyGraph();
+  revealPerformanceStatsOverlayWhenReady();
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
@@ -1083,6 +1101,7 @@ function handleMessage(msg) {
     if (!overlayWasVisible) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
+      performanceStatsPendingFirstReveal = true;
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
 
@@ -1094,7 +1113,8 @@ function handleMessage(msg) {
       drawHostProcessingLatencyGraph();
 
       if (!overlayWasVisible) {
-        fadeInUiElement(statsOverlay, 'inline-block');
+        // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
+        revealPerformanceStatsOverlayWhenReady();
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
