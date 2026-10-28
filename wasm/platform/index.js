@@ -397,9 +397,67 @@ function initializeDisabledSwitchAppearance() {
   });
 }
 
+// Correct MDL dropdown positioning only inside the independently scrollable settings right pane.
+function initializeSettingsDropdownPositionCorrection() {
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (!settingsPane || settingsPane.dataset.dropdownPositionCorrectionAttached === 'true') {
+    return;
+  }
+
+  settingsPane.dataset.dropdownPositionCorrectionAttached = 'true';
+  settingsPane.addEventListener('click', (event) => {
+    const target = event.target;
+    const trigger = target && typeof target.closest === 'function'
+      ? target.closest('button[id]')
+      : null;
+
+    if (!trigger || !settingsPane.contains(trigger)) {
+      return;
+    }
+
+    // Run after MDL's click handler has opened and initially positioned the menu.
+    requestAnimationFrame(() => {
+      const menuContainer = Array.from(settingsPane.querySelectorAll('.mdl-menu__container')).find((container) => {
+        const menu = container.querySelector('.mdl-menu[for]');
+        return menu
+          && menu.getAttribute('for') === trigger.id
+          && menu.classList.contains('mdl-menu--bottom-left')
+          && (container.classList.contains('is-visible') || container.classList.contains('is-animating'));
+      });
+
+      if (!menuContainer) {
+        return;
+      }
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const offsetParent = menuContainer.offsetParent;
+
+      if (!offsetParent) {
+        return;
+      }
+
+      // Convert the trigger's viewport coordinates into the menu container's
+      // actual absolute-positioning coordinate system, including its scroll.
+      if (offsetParent === document.documentElement) {
+        menuContainer.style.left = (triggerRect.left + window.scrollX - offsetParent.clientLeft) + 'px';
+        menuContainer.style.top = (triggerRect.bottom + window.scrollY - offsetParent.clientTop) + 'px';
+        return;
+      }
+
+      const parentRect = offsetParent.getBoundingClientRect();
+      const left = triggerRect.left - parentRect.left + offsetParent.scrollLeft - offsetParent.clientLeft;
+      const top = triggerRect.bottom - parentRect.top + offsetParent.scrollTop - offsetParent.clientTop;
+
+      menuContainer.style.left = left + 'px';
+      menuContainer.style.top = top + 'px';
+    },);
+  }, true);
+}
+
 // Called by the common.js module
 function attachListeners() {
   initializeDisabledSwitchAppearance();
+  initializeSettingsDropdownPositionCorrection();
   if (!window._streamTransitionResizeListenerAttached) {
     window.addEventListener('resize', resizeStreamTransitionBackground);
     window._streamTransitionResizeListenerAttached = true;
