@@ -3944,8 +3944,12 @@ function showStreamTransitionBackground(onVisible) {
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
       if (!streamTransitionVisible) return;
-      // Start the starfield first; reveal the status content 100 ms later.
+      // Reveal both status messages together, 100 ms after the starfield starts.
       fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
+      var encryptionStatus = document.getElementById('streamEncryptionStatus');
+      if (encryptionStatus && document.getElementById('streamEncryptionMessage').textContent) {
+        fadeInUiElement('streamEncryptionStatus', 'flex');
+      }
     }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
   };
 
@@ -3997,8 +4001,9 @@ function hideStreamTransitionBackground(afterHidden) {
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
   if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
 
-  // Fade out status content first; the starfield continues for another 100 ms afterwards.
+  // Fade out both status messages together; the starfield continues for another 100 ms afterwards.
   fadeOutUiElement('loadingSpinner');
+  fadeOutUiElement('streamEncryptionStatus');
   streamTransitionHideLayerTimeout = window.setTimeout(function() {
     streamTransitionHideLayerTimeout = null;
     hideUiLayer('stream-transition-layer', function() {
