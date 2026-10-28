@@ -474,5 +474,5 @@
   "Could not load apps from the host. Returning to the main list.": "Não foi possível carregar os aplicativos do host. Voltando à lista principal.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Não foi possível conectar-se a %1$s. Verifique se o servidor GameStream está em execução no computador remoto.",
   "Host %1$s is no longer available.": "O host %1$s não está mais disponível.",
-  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "O host %1$s parece estar desconectado no momento. Verifique se ele está ligado e se o servidor GameStream está em execução no computador remoto."
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "O host %1$s parece estar desconectado no momento. Ligue-o se estiver desligado e verifique se o servidor GameStream está em execução."
 }
