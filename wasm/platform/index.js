@@ -3881,6 +3881,7 @@ var streamTransitionBackgroundEnabled = true;
 const AMBIENT_BACKGROUND_PRESETS = {
   'waves': 'waves-active',
   'bubbles': 'bubbles-active',
+  'symbols': 'symbols-active',
   'none': null
 };
 var ambientBackgroundPreset = 'waves';
@@ -5265,6 +5266,11 @@ var AMBIENT_GAMEPAD_COUNT = 25;
 var ambientBubbleContainer = null;
 var ambientBubbleElements = [];
 var ambientBubbleAnimationInitialized = false;
+var AMBIENT_SYMBOL_COUNT = 20;
+var AMBIENT_SYMBOLS = ['joystick', 'missing_controller', 'gamepad_left'];
+var ambientSymbolsContainer = null;
+var ambientSymbolElements = [];
+var ambientSymbolsInitialized = false;
 
 function randomAmbientBubbleValue(min, max) {
   return min + Math.random() * (max - min);
@@ -5306,8 +5312,90 @@ function stopAmbientBubbleAnimation() {
   if (ambientBubbleContainer) ambientBubbleContainer.classList.remove('ambient-gamepads-active');
 }
 
+function randomAmbientSymbolCell(excludedCells) {
+  var available = [];
+  for (var i = 0; i < AMBIENT_SYMBOL_COUNT; i++) {
+    if (excludedCells.indexOf(i) === -1) available.push(i);
+  }
+  return available.length
+    ? available[Math.floor(Math.random() * available.length)]
+    : Math.floor(Math.random() * AMBIENT_SYMBOL_COUNT);
+}
+
+function configureAmbientSymbol(element, cell) {
+  var column = cell % 5;
+  var row = Math.floor(cell / 5);
+  var jitterX = randomAmbientBubbleValue(-5, 5);
+  var jitterY = randomAmbientBubbleValue(-5, 5);
+  var duration = randomAmbientBubbleValue(8, 14);
+
+  element.dataset.cell = String(cell);
+  element.textContent = AMBIENT_SYMBOLS[Math.floor(Math.random() * AMBIENT_SYMBOLS.length)];
+  element.style.setProperty('--symbol-left', ((column + 0.5) * 20 + jitterX) + '%');
+  element.style.setProperty('--symbol-top', ((row + 0.5) * 25 + jitterY) + '%');
+  element.style.setProperty('--symbol-size', randomAmbientBubbleValue(2.5, 9) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+  element.style.setProperty('--symbol-duration', duration + 's');
+}
+
+function recycleAmbientSymbol(element) {
+  if (!ambientSymbolsContainer || !ambientSymbolsContainer.classList.contains('ambient-symbols-active')) return;
+
+  var occupiedCells = ambientSymbolElements
+    .filter(function(other) { return other !== element; })
+    .map(function(other) { return parseInt(other.dataset.cell, 10); });
+  configureAmbientSymbol(element, randomAmbientSymbolCell(occupiedCells));
+  element.classList.remove('ambient-symbol-animating');
+  void element.offsetWidth;
+  element.classList.add('ambient-symbol-animating');
+}
+
+function initializeAmbientSymbols() {
+  if (ambientSymbolsInitialized) return;
+  ambientSymbolsContainer = document.getElementById('ambient-symbols');
+  if (!ambientSymbolsContainer) return;
+
+  var cells = [];
+  for (var i = 0; i < AMBIENT_SYMBOL_COUNT; i++) cells.push(i);
+  for (var j = cells.length - 1; j > 0; j--) {
+    var swapIndex = Math.floor(Math.random() * (j + 1));
+    var temp = cells[j];
+    cells[j] = cells[swapIndex];
+    cells[swapIndex] = temp;
+  }
+
+  var fragment = document.createDocumentFragment();
+  for (var k = 0; k < AMBIENT_SYMBOL_COUNT; k++) {
+    var element = document.createElement('span');
+    element.className = 'ambient-symbol';
+    configureAmbientSymbol(element, cells[k]);
+    element.addEventListener('animationend', function() {
+      recycleAmbientSymbol(this);
+    });
+    fragment.appendChild(element);
+    ambientSymbolElements.push(element);
+  }
+  ambientSymbolsContainer.appendChild(fragment);
+  ambientSymbolsInitialized = true;
+}
+
+function startAmbientSymbolsAnimation() {
+  initializeAmbientSymbols();
+  if (!ambientSymbolsContainer) return;
+  ambientSymbolsContainer.classList.add('ambient-symbols-active');
+  ambientSymbolElements.forEach(function(element) {
+    if (!element.classList.contains('ambient-symbol-animating')) {
+      element.classList.add('ambient-symbol-animating');
+    }
+  });
+}
+
+function stopAmbientSymbolsAnimation() {
+  if (ambientSymbolsContainer) ambientSymbolsContainer.classList.remove('ambient-symbols-active');
+}
+
 function updateAmbientBackgroundActivation(activate) {
   initializeBubbleAnimation();
+  initializeAmbientSymbols();
   var mainUi = document.getElementById('main-ui-layer');
   if (!mainUi) return;
 
@@ -5327,6 +5415,12 @@ function updateAmbientBackgroundActivation(activate) {
   } else {
     stopAmbientBubbleAnimation();
   }
+
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'symbols') {
+    startAmbientSymbolsAnimation();
+  } else {
+    stopAmbientSymbolsAnimation();
+  }
 }
 
 function applyAmbientBackgroundPreset(preset, persist) {
@@ -5338,7 +5432,8 @@ function applyAmbientBackgroundPreset(preset, persist) {
     var selectedOption = document.querySelector('.ambientBackgroundMenu .mdl-menu__item[data-value="' + ambientBackgroundPreset + '"]');
     var selectedLabel = selectedOption ? selectedOption.textContent.trim() : ambientBackgroundPreset;
     var presetLabelKey = ambientBackgroundPreset === 'none' ? 'None' :
-      (ambientBackgroundPreset === 'bubbles' ? 'Bubbles' : 'Waves');
+      (ambientBackgroundPreset === 'bubbles' ? 'Bubbles' :
+        (ambientBackgroundPreset === 'symbols' ? 'Symbols' : 'Waves'));
     selector.textContent = window.i18n && typeof window.i18n.t === 'function'
       ? window.i18n.t(presetLabelKey)
       : selectedLabel;
