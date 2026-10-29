@@ -493,5 +493,6 @@
   "Background animation": "Hintergrundanimation",
   "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Wählen Sie die Animation aus, die im Anwendungshintergrund angezeigt werden soll, oder wählen Sie „Keine“, wenn kein Hintergrund angezeigt werden soll.",
   "Waves": "Wellen",
-  "Bubbles": "Blasen"
+  "Bubbles": "Blasen",
+  "Symbols": "Symbole"
 }
