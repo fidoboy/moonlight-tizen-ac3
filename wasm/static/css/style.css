@@ -1860,7 +1860,7 @@ body {
     position: relative;
     isolation: isolate;
 }
-#ambient-trails {
+.ambient-wave-wrapper {
     display: none;
     position: absolute;
     inset: 0;
@@ -1872,8 +1872,8 @@ body {
     opacity: 0.42;
     background: linear-gradient(180deg, transparent 35%, var(--theme-accent-40) 100%);
 }
-#ambient-trails::before,
-#ambient-trails::after {
+.ambient-wave-wrapper::before,
+.ambient-wave-wrapper::after {
     content: "";
     position: absolute;
     left: -25%;
@@ -1884,13 +1884,13 @@ body {
     pointer-events: none;
     will-change: transform;
 }
-#ambient-trails::before {
+.ambient-wave-wrapper::before {
     background: var(--theme-accent-40);
     opacity: 0.75;
     transform: translate3d(-3%, 0, 0) rotate(-5deg);
     animation: ambient-wave-back 32s ease-in-out infinite alternate;
 }
-#ambient-trails::after {
+.ambient-wave-wrapper::after {
     bottom: -51%;
     height: 78%;
     background: var(--theme-accent-60);
@@ -1898,7 +1898,7 @@ body {
     transform: translate3d(3%, 0, 0) rotate(4deg);
     animation: ambient-wave-front 26s ease-in-out infinite alternate;
 }
-#main-ui-layer.ambient-trails-active #ambient-trails {
+#main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
 }
 #host-grid,
@@ -1914,10 +1914,4 @@ body {
 @keyframes ambient-wave-front {
     from { transform: translate3d(3%, 0, 0) rotate(4deg); }
     to { transform: translate3d(-3%, -3%, 0) rotate(1deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-    #ambient-trails::before,
-    #ambient-trails::after {
-        animation: none;
-    }
 }
