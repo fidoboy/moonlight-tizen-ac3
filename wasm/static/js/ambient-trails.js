@@ -75,16 +75,17 @@
     var hueB = tSide ? 210 : 340;
     var colorA = hsl(hueA, 100, 50);
     var colorB = hsl(hueB, 100, 50);
-    var grad = ctx.createLinearGradient(-width, 0, width, height);
-    grad.addColorStop(0, colorA);
-    grad.addColorStop(0.5, colorB);
-    grad.addColorStop(1, colorA);
 
     // Clear in pixel coordinates, then use a centered coordinate system like the supplied sketch.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     var pixelRatio = canvas.width / width;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, halfWidth * pixelRatio, halfHeight * pixelRatio);
+
+    var grad = ctx.createLinearGradient(-width, 0, width, height);
+    grad.addColorStop(0, colorA);
+    grad.addColorStop(0.5, colorB);
+    grad.addColorStop(1, colorA);
 
     ctx.globalAlpha = map(Math.cos(time), -1, 1, 0.15, 0.3);
     ctx.fillStyle = grad;
