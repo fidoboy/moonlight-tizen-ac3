@@ -1970,7 +1970,9 @@ const Views = {
       clickElement(this.view.current());
     },
     back: function() {
-      resolveElement('resumeRunningApp').click();
+      if (typeof window.cancelRunningAppDialog === 'function') {
+        window.cancelRunningAppDialog();
+      }
     },
     press: function() {},
     switch: function() {
