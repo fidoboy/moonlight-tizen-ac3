@@ -1864,7 +1864,7 @@ body {
     display: none;
     position: absolute;
     inset: 0;
-    z-index: 0;
+    z-index: 9999;
     overflow: hidden;
     pointer-events: none;
     contain: strict;
@@ -1884,10 +1884,10 @@ body {
     z-index: 1;
 }
 #ambient-trails .ambient-trails-base {
-    opacity: 0.055;
+    opacity: 0.8;
 }
 #ambient-trails .ambient-trails-flow {
-    opacity: 0.13;
+    opacity: 1;
     stroke-linecap: round;
     stroke-dasharray: 150 1900;
     animation: ambientTrailFlow 58s linear infinite;
