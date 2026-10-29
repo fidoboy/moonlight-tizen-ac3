@@ -3877,6 +3877,10 @@ var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionBackgroundEnabled = true;
+const AMBIENT_BACKGROUND_PRESETS = {
+  'ambient-trails': 'ambient-trails-active',
+  'none': null
+};
 var ambientBackgroundPreset = 'ambient-trails';
 var ambientBackgroundPreferenceLoaded = false;
 var streamTransitionHiding = false;
@@ -5260,22 +5264,28 @@ function updateAmbientBackgroundActivation(activate) {
   if (!mainUi) return;
 
   mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
-  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'ambient-trails') {
-    mainUi.classList.add('ambient-trails-active');
-  } else {
-    mainUi.classList.remove('ambient-trails-active');
+  Object.keys(AMBIENT_BACKGROUND_PRESETS).forEach(function(preset) {
+    var presetClass = AMBIENT_BACKGROUND_PRESETS[preset];
+    if (presetClass) mainUi.classList.remove(presetClass);
+  });
+
+  var activeClass = AMBIENT_BACKGROUND_PRESETS[ambientBackgroundPreset];
+  if (activate && ambientBackgroundPreferenceLoaded && activeClass) {
+    mainUi.classList.add(activeClass);
   }
 }
 
 function applyAmbientBackgroundPreset(preset, persist) {
-  var supportedPresets = ['ambient-trails', 'none'];
-  ambientBackgroundPreset = supportedPresets.indexOf(preset) !== -1 ? preset : 'ambient-trails';
+  ambientBackgroundPreset = Object.prototype.hasOwnProperty.call(AMBIENT_BACKGROUND_PRESETS, preset)
+    ? preset : 'ambient-trails';
 
   var selector = document.getElementById('selectAmbientBackground');
   if (selector) {
     var selectedOption = document.querySelector('.ambientBackgroundMenu .mdl-menu__item[data-value="' + ambientBackgroundPreset + '"]');
     var selectedLabel = selectedOption ? selectedOption.textContent.trim() : ambientBackgroundPreset;
-    selector.textContent = selectedLabel;
+    selector.textContent = window.i18n && typeof window.i18n.t === 'function'
+      ? window.i18n.t(ambientBackgroundPreset === 'none' ? 'None' : 'Ambient Trails')
+      : selectedLabel;
     selector.setAttribute('data-value', ambientBackgroundPreset);
     if (window.jQuery) $(selector).data('value', ambientBackgroundPreset);
   }
