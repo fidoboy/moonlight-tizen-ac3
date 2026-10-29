@@ -5261,138 +5261,48 @@ function saveConfigSummaryVisibility() {
 
 // Ambient interface background presets are keyed by stable values so additional
 // animations can be registered without changing the persistence mechanism.
-var BUBBLE_ANIMATION_CONFIG = [[7,1,0.2,7,5,1,3,"right"],[26,8,0.2,10,5,1,0,"left"],[80,2,0.4,8,5,3,1,"left"],[86,8,0.4,7,6,2,2,"left"],[47,9,0.2,10,6,0,0,"right"],[58,7,0.4,10,6,4,2,"right"],[66,10,0.3,6,6,2,4,"right"],[41,1,0.2,11,6,4,1,"right"],[74,6,0.3,7,4,4,2,"left"],[23,1,0.2,8,5,1,3,"left"],[95,2,0.3,6,4,3,3,"left"],[2,3,0.4,11,5,1,4,"left"],[90,2,0.4,11,4,0,3,"right"],[55,2,0.2,12,5,4,2,"left"],[21,1,0.3,12,6,0,4,"left"],[56,10,0.3,12,4,3,3,"left"],[57,8,0.3,11,4,3,3,"right"],[20,4,0.4,12,4,2,3,"right"],[28,3,0.3,11,6,4,0,"left"],[59,3,0.3,12,5,0,4,"left"],[45,3,0.2,6,4,2,0,"left"],[13,7,0.2,9,5,2,1,"left"],[46,4,0.2,11,6,1,0,"left"],[18,1,0.2,12,4,0,2,"left"],[66,4,0.3,7,5,2,3,"right"]];
-var ambientBubbleCanvas = null;
-var ambientBubbleContext = null;
-var ambientBubbleParticles = [];
-var ambientBubbleAnimationFrame = null;
-var ambientBubbleAnimationRunning = false;
-var ambientBubbleStartTimestamp = 0;
-var ambientBubbleColor = '';
+var AMBIENT_GAMEPAD_COUNT = 25;
+var ambientBubbleContainer = null;
+var ambientBubbleElements = [];
+var ambientBubbleAnimationInitialized = false;
 
 function randomAmbientBubbleValue(min, max) {
   return min + Math.random() * (max - min);
 }
 
-function randomizeAmbientBubble(particle, seconds, width, height, initialDelay) {
-  var config = particle.config;
-  particle.x = randomAmbientBubbleValue(0, 100);
-  particle.size = randomAmbientBubbleValue(1, 10) * width / 100;
-  particle.opacity = randomAmbientBubbleValue(0.2, 0.7);
-  particle.duration = config[3];
-  particle.cycleStart = seconds + (initialDelay ? randomAmbientBubbleValue(0, config[3]) : 0);
-  particle.swayDuration = config[4];
-  particle.swayDelay = randomAmbientBubbleValue(0, config[4]);
-  particle.direction = config[7] === 'left' ? -1 : 1;
-  particle.height = height;
-}
-
-function resizeAmbientBubbleCanvas() {
-  if (!ambientBubbleCanvas || !ambientBubbleContext) return;
-  var width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
-  var height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
-  var pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-  ambientBubbleCanvas.width = Math.round(width * pixelRatio);
-  ambientBubbleCanvas.height = Math.round(height * pixelRatio);
-  ambientBubbleCanvas.style.width = width + 'px';
-  ambientBubbleCanvas.style.height = height + 'px';
-  ambientBubbleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  if (ambientBubbleAnimationRunning && ambientBubbleParticles.length) {
-    var seconds = performance.now() / 1000 - ambientBubbleStartTimestamp;
-    ambientBubbleParticles.forEach(function(particle) {
-      randomizeAmbientBubble(particle, seconds, width, height, false);
-    });
-  }
-}
-
 function initializeBubbleAnimation() {
-  if (ambientBubbleCanvas) return;
-  ambientBubbleCanvas = document.getElementById('ambient-bubbles-canvas');
-  if (!ambientBubbleCanvas || !ambientBubbleCanvas.getContext) return;
-  ambientBubbleContext = ambientBubbleCanvas.getContext('2d');
-  if (!ambientBubbleContext) {
-    ambientBubbleCanvas = null;
-    return;
+  if (ambientBubbleAnimationInitialized) return;
+  ambientBubbleContainer = document.getElementById('ambient-bubbles');
+  if (!ambientBubbleContainer) return;
+
+  var fragment = document.createDocumentFragment();
+  for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
+    var element = document.createElement('span');
+    var duration = randomAmbientBubbleValue(7, 12);
+    element.className = 'ambient-gamepad';
+    element.textContent = 'stadia_controller';
+    element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
+    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 10) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+    element.style.setProperty('--gamepad-duration', duration + 's');
+    element.style.setProperty('--gamepad-delay', -randomAmbientBubbleValue(0, duration) + 's');
+    element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
+    element.style.setProperty('--gamepad-blur', randomAmbientBubbleValue(0, 3) + 'px');
+    element.style.setProperty('--gamepad-rotation', randomAmbientBubbleValue(0, 360) + 'deg');
+    fragment.appendChild(element);
+    ambientBubbleElements.push(element);
   }
-  var width = Math.max(1, window.innerWidth || 1);
-  var height = Math.max(1, window.innerHeight || 1);
-  ambientBubbleParticles = BUBBLE_ANIMATION_CONFIG.map(function(config) {
-    var particle = { config: config };
-    randomizeAmbientBubble(particle, 0, width, height, true);
-    return particle;
-  });
-  resizeAmbientBubbleCanvas();
-  var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
-  ambientBubbleColor = getComputedStyle(themeElement).getPropertyValue('--theme-accent').trim() ||
-    getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#88f6fb';
-  window.addEventListener('resize', resizeAmbientBubbleCanvas);
-}
-
-function renderAmbientBubbleFrame(timestamp) {
-  if (!ambientBubbleAnimationRunning || !ambientBubbleCanvas || !ambientBubbleContext) return;
-  var context = ambientBubbleContext;
-  var width = ambientBubbleCanvas.clientWidth || window.innerWidth;
-  var height = ambientBubbleCanvas.clientHeight || window.innerHeight;
-  if (!ambientBubbleStartTimestamp) ambientBubbleStartTimestamp = timestamp / 1000;
-  var seconds = timestamp / 1000 - ambientBubbleStartTimestamp;
-  context.clearRect(0, 0, width, height);
-
-  ambientBubbleParticles.forEach(function(particle) {
-    var age = seconds - particle.cycleStart;
-    if (age >= particle.duration) {
-      randomizeAmbientBubble(particle, seconds, width, height, false);
-      age = 0;
-    }
-    if (age < 0) return;
-
-    var progress = Math.min(1, age / particle.duration);
-    var swayPhase = (seconds - particle.swayDelay) / particle.swayDuration * Math.PI * 2;
-    var sway = Math.sin(swayPhase) * particle.size * 0.5 * particle.direction;
-    var x = particle.x * width / 100 + sway - particle.size / 2;
-    var travelDistance = height + particle.size * 2;
-    var y = height + particle.size - travelDistance * progress;
-    var distanceTravelled = travelDistance * progress;
-    var fadeProgress = Math.min(1, distanceTravelled / (height * 0.6));
-    var alpha = particle.opacity * (1 - fadeProgress);
-    if (alpha <= 0.005 || y > height + particle.size || y < -particle.size) return;
-
-    context.save();
-    context.globalAlpha = alpha;
-    context.fillStyle = ambientBubbleColor;
-    context.font = particle.size + 'px "Material Symbols Outlined"';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('stadia_controller', x + particle.size / 2, y + particle.size / 2);
-    context.restore();
-  });
-  ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
+  ambientBubbleContainer.appendChild(fragment);
+  ambientBubbleAnimationInitialized = true;
 }
 
 function startAmbientBubbleAnimation() {
   initializeBubbleAnimation();
-  var mainUi = document.getElementById('main-ui-layer');
-  if (!ambientBubbleContext || ambientBubbleAnimationRunning || !mainUi ||
-      !mainUi.classList.contains('ambient-trails-ready') ||
-      !mainUi.classList.contains('bubbles-active') ||
-      mainUi.getAttribute('data-ambient-background') !== 'bubbles') return;
-  var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
-  ambientBubbleColor = getComputedStyle(themeElement).getPropertyValue('--theme-accent').trim() ||
-    getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#88f6fb';
-  ambientBubbleStartTimestamp = 0;
-  ambientBubbleAnimationRunning = true;
-  ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
+  if (!ambientBubbleContainer) return;
+  ambientBubbleContainer.classList.add('ambient-gamepads-active');
 }
 
 function stopAmbientBubbleAnimation() {
-  ambientBubbleAnimationRunning = false;
-  ambientBubbleStartTimestamp = 0;
-  if (ambientBubbleAnimationFrame !== null) {
-    window.cancelAnimationFrame(ambientBubbleAnimationFrame);
-    ambientBubbleAnimationFrame = null;
-  }
-  if (ambientBubbleContext && ambientBubbleCanvas) {
-    ambientBubbleContext.clearRect(0, 0, ambientBubbleCanvas.clientWidth || 0, ambientBubbleCanvas.clientHeight || 0);
-  }
+  if (ambientBubbleContainer) ambientBubbleContainer.classList.remove('ambient-gamepads-active');
 }
 
 function updateAmbientBackgroundActivation(activate) {
