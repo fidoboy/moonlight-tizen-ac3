@@ -92,20 +92,6 @@
   <div id="directSmartHubStatus" role="status" aria-live="polite"></div>
   <div id="main-ui-layer" class="ui-inactive" aria-hidden="true">
   <div class="mdl-layout mdl-js-layout">
-  <div id="ambient-trails" aria-hidden="true">
-    <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" focusable="false">
-      <g class="ambient-trails-base" fill="none" stroke="var(--theme-accent)" stroke-width="1.5">
-        <path d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
-        <path d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
-        <path d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
-      </g>
-      <g class="ambient-trails-flow" fill="none" stroke="var(--theme-accent)" stroke-width="2">
-        <path class="trail-one" d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
-        <path class="trail-two" d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
-        <path class="trail-three" d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
-      </g>
-    </svg>
-  </div>
     <header id="main-header" class="mdl-layout__header">
       <div class="mdl-layout__header-row">
         <button type="button" id="goBackBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" role="link" aria-label="Go back">
@@ -143,6 +129,20 @@
       </div>
     </header>
     <main id="main-content" class="mdl-layout__content">
+  <div id="ambient-trails" aria-hidden="true">
+    <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" focusable="false">
+      <g class="ambient-trails-base" fill="none" stroke="var(--theme-accent)" stroke-width="1.5">
+        <path d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
+        <path d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
+        <path d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
+      </g>
+      <g class="ambient-trails-flow" fill="none" stroke="var(--theme-accent)" stroke-width="2">
+        <path class="trail-one" d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
+        <path class="trail-two" d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
+        <path class="trail-three" d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
+      </g>
+    </svg>
+  </div>
       <div id="host-grid">
         <div id="addHostContainer" class="host-add-container mdl-card mdl-shadow--4dp" role="link" tabindex="0" aria-label="Add Host">
           <div id="host-add" class="mdl-card__title mdl-card--expand">
@@ -906,6 +906,18 @@
       <div class="mdl-dialog__actions">
         <button type="button" id="cancelQuitApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="No">No</button>
         <button type="button" id="continueQuitApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Yes">Yes</button>
+      </div>
+    </dialog>
+  </div>
+  <div id="runningAppDialogOverlay" class="dialog-overlay">
+    <dialog id="runningAppDialog" class="mdl-dialog">
+      <h3 id="runningAppDialogTitle" class="mdl-dialog__title" data-i18n="App Already Running">App Already Running</h3>
+      <div class="mdl-dialog__content">
+        <p id="runningAppDialogText"></p>
+      </div>
+      <div class="mdl-dialog__actions">
+        <button type="button" id="resumeRunningApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Resume stream">Resume stream</button>
+        <button type="button" id="stopRemoteApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Stop remote app">Stop remote app</button>
       </div>
     </dialog>
   </div>
