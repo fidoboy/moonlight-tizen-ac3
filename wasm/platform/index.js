@@ -1191,6 +1191,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
+  $('#main-ui-layer').addClass('ambient-trails-active');
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
   $('#main-content').removeClass('settings-view-active');
 
@@ -2521,6 +2522,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
+  $('#main-ui-layer').removeClass('ambient-trails-active');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
   $('#main-content').addClass('settings-view-active');
 
@@ -3369,6 +3371,7 @@ function sortTitles(list, sortOrder) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
+  $('#main-ui-layer').addClass('ambient-trails-active');
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
 
