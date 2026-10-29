@@ -481,5 +481,9 @@
   "Black & Orange": "Black & Orange",
   "Graphite & Red": "Graphite & Red",
   "Forest": "Forest",
-  "Midnight & Violet": "Midnight & Violet"
+  "Midnight & Violet": "Midnight & Violet",
+  "App Already Running": "App Already Running",
+  "%1$s is already running on the host.": "%1$s is already running on the host.",
+  "Resume stream": "Resume stream",
+  "Stop remote app": "Stop remote app"
 }
