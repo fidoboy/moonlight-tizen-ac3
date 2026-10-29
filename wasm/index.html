@@ -1078,54 +1078,8 @@
   </div>
   </div>
   <video id="wasm_module" autoplay tabindex="-1"></video>
-<script>
-(function () {
-  'use strict';
-  var wrapper=document.getElementById('ambient-trails'), canvas=document.getElementById('ambient-wave-canvas'), layer=document.getElementById('main-ui-layer');
-  if(!wrapper||!canvas||!layer||!canvas.getContext)return;
-  var ctx=canvas.getContext('2d'); if(!ctx)return;
-  var w=0,h=0,raf=0,last=0,elapsed=0,previous=0,active=false,accent='100, 160, 255',interval=1000/30,step=8;
-  function readAccent(){
-    var v=getComputedStyle(layer).getPropertyValue('--theme-accent').trim(),m;
-    if((m=/^#([0-9a-f]{3})$/i.exec(v))) accent=parseInt(m[1][0]+m[1][0],16)+', '+parseInt(m[1][1]+m[1][1],16)+', '+parseInt(m[1][2]+m[1][2],16);
-    else if((m=/^#([0-9a-f]{6})$/i.exec(v))) accent=parseInt(m[1].slice(0,2),16)+', '+parseInt(m[1].slice(2,4),16)+', '+parseInt(m[1].slice(4,6),16);
-    else if((m=/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v))) accent=m[1]+', '+m[2]+', '+m[3];
-  }
-  function resize(){
-    var r=wrapper.getBoundingClientRect(),nw=Math.max(1,Math.round(r.width)),nh=Math.max(1,Math.round(r.height));
-    if(nw===w&&nh===h)return; w=nw;h=nh;canvas.width=w;canvas.height=h;step=w>1600?10:8;
-  }
-  function yAt(x,base,amp,phase,t,freq){return base+Math.sin(x*freq+phase+t)*amp+Math.sin(x*freq*.43-phase*.7+t*.68)*amp*.34;}
-  function wave(base,amp,phase,t,freq,fill,line){
-    var x,y;ctx.beginPath();ctx.moveTo(0,h);
-    for(x=0;x<=w;x+=step)ctx.lineTo(x,yAt(x,base,amp,phase,t,freq));
-    ctx.lineTo(w,h);ctx.closePath();ctx.fillStyle='rgba('+accent+','+fill+')';ctx.fill();
-    ctx.beginPath();
-    for(x=0;x<=w;x+=step){y=yAt(x,base,amp,phase,t,freq);if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
-    ctx.strokeStyle='rgba('+accent+','+line+')';ctx.lineWidth=1;ctx.stroke();
-  }
-  function draw(now){
-    raf=0;if(!active||document.hidden)return;
-    if(now-last<interval){raf=requestAnimationFrame(draw);return;}
-    if(previous)elapsed+=Math.min(50,now-previous)/1000;previous=now;last=now;
-    if(!w||!h)resize();ctx.clearRect(0,0,w,h);
-    wave(h*.70,h*.045,.2,elapsed*.78,.009,.055,.09);
-    wave(h*.78,h*.035,2.1,-elapsed*.62,.007,.075,.10);
-    raf=requestAnimationFrame(draw);
-  }
-  function stop(){active=false;previous=0;if(raf)cancelAnimationFrame(raf);raf=0;ctx.clearRect(0,0,w,h);}
-  function sync(){
-    var run=layer.classList.contains('ambient-trails-active')&&!document.hidden;
-    if(!run){stop();return;}readAccent();resize();
-    if(!active){active=true;last=0;previous=0;raf=requestAnimationFrame(draw);}
-  }
-  window.addEventListener('resize',function(){resize();readAccent();});
-  document.addEventListener('visibilitychange',sync);
-  new MutationObserver(function(){readAccent();sync();}).observe(layer,{attributes:true,attributeFilter:['class','style']});
-  if(window.ResizeObserver)new ResizeObserver(resize).observe(wrapper);
-  sync();
-}());
-</script>
+<script src="static/js/gsap.min.js"></script>
+<script src="static/js/ambient-waves.js"></script>
 
 </body>
 </html>
