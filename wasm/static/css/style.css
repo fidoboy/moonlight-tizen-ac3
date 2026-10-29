@@ -1553,7 +1553,7 @@ body {
 }
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
-#audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
+#ambientBackgroundMenu > #selectAmbientBackground, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
 #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
