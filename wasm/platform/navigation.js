@@ -1951,6 +1951,45 @@ const Views = {
       unmark(this.view.current());
     },
   },
+  RunningAppDialog: {
+    view: new ListView(() => [
+      'resumeRunningApp',
+      'stopRemoteApp'
+    ]),
+    up: function() {},
+    down: function() {},
+    left: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    right: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
+    accept: function() {
+      clickElement(this.view.current());
+    },
+    back: function() {
+      resolveElement('resumeRunningApp').click();
+    },
+    press: function() {},
+    switch: function() {
+      this.view.index = 0;
+      focusElement(this.view.current());
+    },
+    enter: function() {
+      this.view.index = 0;
+      mark(this.view.current());
+      setTimeout(() => focusElement(this.view.current()), 100);
+    },
+    leave: function() {
+      unmark(this.view.current());
+      setTimeout(() => {
+        blurElement('resumeRunningApp');
+        blurElement('stopRemoteApp');
+      }, 100);
+    },
+  },
   QuitAppDialog: {
     view: new ListView(() => [
       'continueQuitApp',
