@@ -474,5 +474,12 @@
   "Could not load apps from the host. Returning to the main list.": "Não foi possível carregar os aplicativos do host. Voltando à lista principal.",
   "Could not connect to %1$s. Make sure the GameStream server is running on the remote host.": "Não foi possível conectar-se a %1$s. Verifique se o servidor GameStream está em execução no computador remoto.",
   "Host %1$s is no longer available.": "O host %1$s não está mais disponível.",
-  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "O host %1$s parece estar desconectado no momento. Ligue-o se estiver desligado e verifique se o servidor GameStream está em execução."
+  "Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.": "O host %1$s parece estar desconectado no momento. Ligue-o se estiver desligado e verifique se o servidor GameStream está em execução.",
+  "Color theme": "Tema de cores",
+  "- Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.": "- Escolha um esquema de cores para o aplicativo. Navegue com as setas esquerda e direita e confirme para aplicá-lo.",
+  "Original": "Original",
+  "Black & Orange": "Preto e laranja",
+  "Graphite & Red": "Grafite e vermelho",
+  "Forest": "Floresta",
+  "Midnight & Violet": "Meia-noite e violeta"
 }
