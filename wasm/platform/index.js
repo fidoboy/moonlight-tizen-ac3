@@ -5282,10 +5282,21 @@ function initializeBubbleAnimation() {
   if (!ambientBubbleContainer) return;
 
   var fragment = document.createDocumentFragment();
+  var sizes = [];
+  for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
+    sizes.push(1 + (i / Math.max(1, AMBIENT_GAMEPAD_COUNT - 1)) * 14);
+  }
+  // Shuffle the evenly spaced sizes so their positions are not ordered.
+  for (var j = sizes.length - 1; j > 0; j--) {
+    var swapIndex = Math.floor(Math.random() * (j + 1));
+    var temp = sizes[j];
+    sizes[j] = sizes[swapIndex];
+    sizes[swapIndex] = temp;
+  }
+
   for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
     var element = document.createElement('span');
-    // Bias the size distribution toward small and medium icons.
-    var size = 1 + Math.pow(Math.random(), 1.7) * 14;
+    var size = sizes[i];
     // Smaller icons rise faster; larger icons rise more slowly.
     var duration = 4 + ((size - 1) / 14) * 8;
     element.className = 'ambient-gamepad';
@@ -5403,6 +5414,8 @@ function updateAmbientBackgroundActivation(activate) {
   var mainUi = document.getElementById('main-ui-layer');
   if (!mainUi) return;
 
+  // Hide ambient backgrounds immediately while entering Settings; restore them on content views.
+  mainUi.classList.toggle('ambient-background-hidden', !activate);
   mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
   Object.keys(AMBIENT_BACKGROUND_PRESETS).forEach(function(preset) {
     var presetClass = AMBIENT_BACKGROUND_PRESETS[preset];
