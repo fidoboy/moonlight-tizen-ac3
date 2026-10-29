@@ -2587,7 +2587,7 @@ function showSettings() {
 
     // Show the main header after the loading screen is complete
     $('#main-header').children().show();
-    $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
+    $('#main-header').css({'backgroundColor': 'var(--theme-surface-deep)', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
 
     // Show the settings list section
     $('#settings-list').removeClass('hide-container');
@@ -5511,9 +5511,6 @@ function updateHdrControlState() {
   if (!hdrInput || !hdrSwitch) return;
 
   // H.264 does not support HDR: force it off and disable the entire setting.
-  hdrInput.disabled = isH264;
-  syncDisabledSwitchAppearance(hdrInput);
-
   if (isH264 && hdrInput.checked) {
     if (hdrSwitch.MaterialSwitch) {
       hdrSwitch.MaterialSwitch.off();
@@ -5522,6 +5519,18 @@ function updateHdrControlState() {
     }
     updateHdrMode();
   }
+
+  // Update both the native input and MDL's own disabled state. Changing only
+  // input.disabled leaves MDL's is-disabled class behind on some builds.
+  hdrInput.disabled = isH264;
+  if (hdrSwitch.MaterialSwitch) {
+    if (isH264) {
+      hdrSwitch.MaterialSwitch.disable();
+    } else {
+      hdrSwitch.MaterialSwitch.enable();
+    }
+  }
+  syncDisabledSwitchAppearance(hdrInput);
 }
 
 function updateVideoCodec(chosenCodecId, chosenCodecValue) {
