@@ -5261,7 +5261,7 @@ function saveConfigSummaryVisibility() {
 
 // Ambient interface background presets are keyed by stable values so additional
 // animations can be registered without changing the persistence mechanism.
-var BUBBLE_ANIMATION_CONFIG = [[7,1,0.2,7,5,1,3,"right"],[26,8,0.2,10,5,1,0,"left"],[80,2,0.4,8,5,3,1,"left"],[86,8,0.4,7,6,2,2,"left"],[47,9,0.2,10,6,0,0,"right"],[58,7,0.4,10,6,4,2,"right"],[66,10,0.3,6,6,2,4,"right"],[41,1,0.2,11,6,4,1,"right"],[74,6,0.3,7,4,4,2,"left"],[23,1,0.2,8,5,1,3,"left"],[95,2,0.3,6,4,3,3,"left"],[2,3,0.4,11,5,1,4,"left"],[90,2,0.4,11,4,0,3,"right"],[55,2,0.2,12,5,4,2,"left"],[21,1,0.3,12,6,0,4,"left"],[56,10,0.3,12,4,3,3,"left"],[57,8,0.3,11,4,3,3,"right"],[20,4,0.4,12,4,2,3,"right"],[28,3,0.4,11,6,4,0,"left"],[59,3,0.3,12,5,0,4,"left"],[45,3,0.2,6,4,2,0,"left"],[13,7,0.2,9,5,2,1,"left"],[46,4,0.2,11,6,1,0,"left"],[18,1,0.3,11,4,0,2,"left"],[66,4,0.3,7,5,2,3,"right"]];
+var BUBBLE_ANIMATION_CONFIG = [[7,1,0.2,7,5,1,3,"right"],[26,8,0.2,10,5,1,0,"left"],[80,2,0.4,8,5,3,1,"left"],[86,8,0.4,7,6,2,2,"left"],[47,9,0.2,10,6,0,0,"right"],[58,7,0.4,10,6,4,2,"right"],[66,10,0.3,6,6,2,4,"right"],[41,1,0.2,11,6,4,1,"right"],[74,6,0.3,7,4,4,2,"left"],[23,1,0.2,8,5,1,3,"left"],[95,2,0.3,6,4,3,3,"left"],[2,3,0.4,11,5,1,4,"left"],[90,2,0.4,11,4,0,3,"right"],[55,2,0.2,12,5,4,2,"left"],[21,1,0.3,12,6,0,4,"left"],[56,10,0.3,12,4,3,3,"left"],[57,8,0.3,11,4,3,3,"right"],[20,4,0.4,12,4,2,3,"right"],[28,3,0.3,11,6,4,0,"left"],[59,3,0.3,12,5,0,4,"left"],[45,3,0.2,6,4,2,0,"left"],[13,7,0.2,9,5,2,1,"left"],[46,4,0.2,11,6,1,0,"left"],[18,1,0.2,12,4,0,2,"left"],[66,4,0.3,7,5,2,3,"right"]];
 var ambientBubbleCanvas = null;
 var ambientBubbleContext = null;
 var ambientBubbleParticles = [];
@@ -5269,6 +5269,23 @@ var ambientBubbleAnimationFrame = null;
 var ambientBubbleAnimationRunning = false;
 var ambientBubbleStartTimestamp = 0;
 var ambientBubbleColor = '';
+
+function randomAmbientBubbleValue(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function randomizeAmbientBubble(particle, seconds, width, height, initialDelay) {
+  var config = particle.config;
+  particle.x = randomAmbientBubbleValue(0, 100);
+  particle.size = randomAmbientBubbleValue(1, 10) * width / 100;
+  particle.opacity = randomAmbientBubbleValue(0.2, 0.7);
+  particle.duration = config[3];
+  particle.cycleStart = seconds + (initialDelay ? randomAmbientBubbleValue(0, config[3]) : 0);
+  particle.swayDuration = config[4];
+  particle.swayDelay = randomAmbientBubbleValue(0, config[4]);
+  particle.direction = config[7] === 'left' ? -1 : 1;
+  particle.height = height;
+}
 
 function resizeAmbientBubbleCanvas() {
   if (!ambientBubbleCanvas || !ambientBubbleContext) return;
@@ -5280,6 +5297,12 @@ function resizeAmbientBubbleCanvas() {
   ambientBubbleCanvas.style.width = width + 'px';
   ambientBubbleCanvas.style.height = height + 'px';
   ambientBubbleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  if (ambientBubbleParticles.length) {
+    var seconds = ambientBubbleStartTimestamp ? performance.now() / 1000 - ambientBubbleStartTimestamp : 0;
+    ambientBubbleParticles.forEach(function(particle) {
+      randomizeAmbientBubble(particle, seconds, width, height, false);
+    });
+  }
 }
 
 function initializeBubbleAnimation() {
@@ -5291,8 +5314,12 @@ function initializeBubbleAnimation() {
     ambientBubbleCanvas = null;
     return;
   }
+  var width = Math.max(1, window.innerWidth || 1);
+  var height = Math.max(1, window.innerHeight || 1);
   ambientBubbleParticles = BUBBLE_ANIMATION_CONFIG.map(function(config) {
-    return { config: config };
+    var particle = { config: config };
+    randomizeAmbientBubble(particle, 0, width, height, true);
+    return particle;
   });
   resizeAmbientBubbleCanvas();
   var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
@@ -5321,30 +5348,34 @@ function renderAmbientBubbleFrame(timestamp) {
   var context = ambientBubbleContext;
   var width = ambientBubbleCanvas.clientWidth || window.innerWidth;
   var height = ambientBubbleCanvas.clientHeight || window.innerHeight;
-  if (!ambientBubbleStartTimestamp) ambientBubbleStartTimestamp = timestamp;
-  var seconds = (timestamp - ambientBubbleStartTimestamp) / 1000;
+  if (!ambientBubbleStartTimestamp) ambientBubbleStartTimestamp = timestamp / 1000;
+  var seconds = timestamp / 1000 - ambientBubbleStartTimestamp;
   context.clearRect(0, 0, width, height);
 
   ambientBubbleParticles.forEach(function(particle) {
     var config = particle.config;
-    var size = Math.max(1, config[1] * width / 100);
-    var age = seconds - config[5];
-    var progress = age < 0 ? 0 : (age % config[3]) / config[3];
-    var swayPhase = (seconds - config[6]) / config[4] * Math.PI * 2;
-    var direction = config[7] === 'left' ? -1 : 1;
-    var sway = age < 0 ? 0 : Math.sin(swayPhase) * size * direction;
-    var x = config[0] * width / 100 + sway - size / 2;
-    var startY = height * 1.75;
-    var y = startY - height * 1.2 * progress;
-    var alpha = age < 0 ? config[2] : config[2] * (1 - progress);
-    if (alpha <= 0.005 || y > height + size || y < -size) return;
+    var age = seconds - particle.cycleStart;
+    if (age >= particle.duration) {
+      randomizeAmbientBubble(particle, seconds, width, height, false);
+      age = 0;
+    }
+    if (age < 0) return;
 
-    var cornerRadius = size * (0.1 + 0.4 * progress);
+    var progress = Math.min(1, age / particle.duration);
+    var swayPhase = (seconds - particle.swayDelay) / particle.swayDuration * Math.PI * 2;
+    var sway = Math.sin(swayPhase) * particle.size * 0.5 * particle.direction;
+    var x = particle.x * width / 100 + sway - particle.size / 2;
+    var travelDistance = height + particle.size * 2;
+    var y = height + particle.size - travelDistance * progress;
+    var alpha = particle.opacity * (1 - progress);
+    if (alpha <= 0.005 || y > height + particle.size || y < -particle.size) return;
+
+    var cornerRadius = particle.size * (0.1 + 0.4 * progress);
     context.save();
     context.globalAlpha = alpha;
     context.fillStyle = ambientBubbleColor;
     context.filter = 'blur(' + (3 * progress) + 'px)';
-    drawAmbientBubbleRoundRect(context, x, y, size, cornerRadius);
+    drawAmbientBubbleRoundRect(context, x, y, particle.size, cornerRadius);
     context.fill();
     context.restore();
   });
@@ -5368,6 +5399,7 @@ function startAmbientBubbleAnimation() {
 
 function stopAmbientBubbleAnimation() {
   ambientBubbleAnimationRunning = false;
+  ambientBubbleStartTimestamp = 0;
   if (ambientBubbleAnimationFrame !== null) {
     window.cancelAnimationFrame(ambientBubbleAnimationFrame);
     ambientBubbleAnimationFrame = null;
