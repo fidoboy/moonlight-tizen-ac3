@@ -125,7 +125,19 @@
       </div>
     </header>
     <main id="main-content" class="mdl-layout__content">
-  <div id="ambient-trails" class="ambient-wave-wrapper" aria-hidden="true"></div>
+  <div id="ambient-trails" class="ambient-wave-wrapper" aria-hidden="true">
+        <svg class="ambient-wave-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none" focusable="false" xmlns="http://www.w3.org/2000/svg">
+          <g class="ambient-wave-layer ambient-wave-layer--back">
+            <path d="M0 690 C210 625 355 725 570 675 S925 610 1140 675 S1550 735 1920 650 L1920 1080 L0 1080 Z"/>
+          </g>
+          <g class="ambient-wave-layer ambient-wave-layer--middle">
+            <path d="M0 760 C230 690 390 790 620 745 S980 670 1200 735 S1610 800 1920 715 L1920 1080 L0 1080 Z"/>
+          </g>
+          <g class="ambient-wave-layer ambient-wave-layer--front">
+            <path d="M0 835 C220 775 410 855 650 820 S1010 760 1240 815 S1640 875 1920 800 L1920 1080 L0 1080 Z"/>
+          </g>
+        </svg>
+      </div>
       <div id="host-grid">
         <div id="addHostContainer" class="host-add-container mdl-card mdl-shadow--4dp" role="link" tabindex="0" aria-label="Add Host">
           <div id="host-add" class="mdl-card__title mdl-card--expand">
