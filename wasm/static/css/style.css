@@ -1876,7 +1876,7 @@ body {
     transition: opacity 700ms ease-in-out;
 }
 #main-ui-layer.ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
-    opacity: 0.5;
+    opacity: 0.25;
 }
 #main-content.settings-view-active > .ambient-wave-wrapper {
     display: none !important;
