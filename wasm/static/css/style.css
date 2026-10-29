@@ -1927,7 +1927,7 @@ body {
 }
 @keyframes float-up {
     to {
-        transform: translateY(-170vh);
+        transform: translateY(-120vh);
         opacity: 0;
         border-radius: 50%;
         filter: blur(3px);
