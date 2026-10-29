@@ -59,8 +59,8 @@
     var scaleXTo = random(1.5, 1.75);
     var scaleYFrom = random(1.5, 2);
     var scaleYTo = random(0.6, 0.7);
-    var opacityFrom = random(0.75, 0.8);
-    var opacityTo = random(0.85, 1);
+    var opacityFrom = random(0.65, 0.8);
+    var opacityTo = random(0.9, 1);
     var ease = random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
     var wave = {
       index: index,
@@ -82,13 +82,11 @@
 
     timeline.fromTo(wave, {
       y: y,
-      opacity: opacityFrom,
       rotation: rotation,
       scaleY: scaleYFrom,
       scaleX: scaleXFrom
     }, {
       y: y * -1,
-      opacity: opacityTo,
       rotation: rotation * -1,
       scaleY: scaleYTo,
       scaleX: scaleXTo,
@@ -98,6 +96,18 @@
       duration: duration * 0.25,
       ease: ease
     }, 0);
+
+    /* Pulse opacity independently, with per-wave timing and duration. */
+    gsap.fromTo(wave, {
+      opacity: opacityFrom
+    }, {
+      opacity: opacityTo,
+      duration: random(8, 16),
+      delay: random(0, 10),
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut'
+    });
 
     timeline.seek(random(10, 20));
     return wave;
