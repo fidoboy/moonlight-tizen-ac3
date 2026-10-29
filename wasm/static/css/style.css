@@ -1903,10 +1903,43 @@ body {
 #main-content.settings-view-active > .bubbles-background {
     display: none !important;
 }
-#ambient-bubbles-canvas {
+#ambient-bubbles .ambient-gamepad {
+    position: absolute;
     display: block;
-    width: 100%;
-    height: 100%;
+    bottom: 0;
+    left: var(--gamepad-left);
+    color: var(--theme-accent, #88f6fb);
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-size: var(--gamepad-size);
+    opacity: var(--gamepad-opacity);
+    filter: blur(var(--gamepad-blur));
+    transform: translateY(0) rotate(var(--gamepad-rotation));
+    animation: ambient-gamepad-rise var(--gamepad-duration) linear var(--gamepad-delay) infinite;
+    animation-play-state: paused;
+    will-change: transform, opacity;
+}
+#ambient-bubbles.ambient-gamepads-active .ambient-gamepad {
+    animation-play-state: running;
+}
+@keyframes ambient-gamepad-rise {
+    from {
+        transform: translateY(0) rotate(var(--gamepad-rotation));
+        opacity: var(--gamepad-opacity);
+    }
+    to {
+        transform: translateY(-60vh) rotate(calc(var(--gamepad-rotation) + 180deg));
+        opacity: 0;
+    }
 }
  
 #ambient-wave-svg {
