@@ -343,29 +343,6 @@ body {
     position: relative;
     margin: 0 10px;
 }
-/* Native dropdown used for selecting an animated interface background preset. */
-.setting-select {
-    box-sizing: border-box;
-    width: 520px;
-    max-width: 100%;
-    min-height: 52px;
-    padding: 0 16px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    color: var(--theme-text-primary);
-    background-color: var(--theme-surface);
-    font-family: inherit;
-    font-size: 1.6rem;
-    outline: none;
-}
-.setting-select:focus {
-    border-color: var(--theme-accent);
-    box-shadow: 0 0 1px 2px var(--theme-accent);
-}
-.setting-select option {
-    color: var(--theme-text-primary);
-    background-color: var(--theme-surface-deep);
-}
 /* =============================
    Helper Styles
 ============================= */
