@@ -126,18 +126,8 @@
     </header>
     <main id="main-content" class="mdl-layout__content">
   <div id="ambient-trails" class="ambient-wave-wrapper" aria-hidden="true">
-        <svg class="ambient-wave-svg" viewBox="0 0 1000 600" preserveAspectRatio="none" focusable="false" xmlns="http://www.w3.org/2000/svg">
-          <path fill="var(--theme-accent)" opacity="0.17" d="M-150 350 C-80 320 -20 370 50 350 S180 300 250 345 S380 385 450 320 S580 300 650 345 S780 385 850 320 S980 300 1050 345 S1100 360 1150 340 L1150 760 L-150 760 Z">
-            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="-80 0; 80 -16; -80 0" dur="2.2s" repeatCount="indefinite"/>
-          </path>
-          <path fill="var(--theme-accent)" opacity="0.25" d="M-150 410 C-80 380 -20 435 50 410 S180 350 250 405 S380 455 450 385 S580 400 650 405 S780 455 850 385 S980 400 1050 420 S1100 430 1150 410 L1150 760 L-150 760 Z">
-            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="70 0; -70 12; 70 0" dur="1.8s" repeatCount="indefinite"/>
-          </path>
-          <path fill="var(--theme-accent)" opacity="0.34" d="M-150 470 C-80 445 -20 495 50 470 S180 415 250 465 S380 505 450 445 S580 460 650 465 S780 505 850 445 S980 460 1050 480 S1100 490 1150 470 L1150 760 L-150 760 Z">
-            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="-60 0; 60 10; -60 0" dur="2.5s" repeatCount="indefinite"/>
-          </path>
-        </svg>
-      </div>
+          <canvas id="ambient-wave-canvas" aria-hidden="true"></canvas>
+        </div>
       <div id="host-grid">
         <div id="addHostContainer" class="host-add-container mdl-card mdl-shadow--4dp" role="link" tabindex="0" aria-label="Add Host">
           <div id="host-add" class="mdl-card__title mdl-card--expand">
@@ -1088,5 +1078,54 @@
   </div>
   </div>
   <video id="wasm_module" autoplay tabindex="-1"></video>
+<script>
+(function () {
+  'use strict';
+  var wrapper=document.getElementById('ambient-trails'), canvas=document.getElementById('ambient-wave-canvas'), layer=document.getElementById('main-ui-layer');
+  if(!wrapper||!canvas||!layer||!canvas.getContext)return;
+  var ctx=canvas.getContext('2d'); if(!ctx)return;
+  var w=0,h=0,raf=0,last=0,elapsed=0,previous=0,active=false,accent='100, 160, 255',interval=1000/30,step=8;
+  function readAccent(){
+    var v=getComputedStyle(layer).getPropertyValue('--theme-accent').trim(),m;
+    if((m=/^#([0-9a-f]{3})$/i.exec(v))) accent=parseInt(m[1][0]+m[1][0],16)+', '+parseInt(m[1][1]+m[1][1],16)+', '+parseInt(m[1][2]+m[1][2],16);
+    else if((m=/^#([0-9a-f]{6})$/i.exec(v))) accent=parseInt(m[1].slice(0,2),16)+', '+parseInt(m[1].slice(2,4),16)+', '+parseInt(m[1].slice(4,6),16);
+    else if((m=/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(v))) accent=m[1]+', '+m[2]+', '+m[3];
+  }
+  function resize(){
+    var r=wrapper.getBoundingClientRect(),nw=Math.max(1,Math.round(r.width)),nh=Math.max(1,Math.round(r.height));
+    if(nw===w&&nh===h)return; w=nw;h=nh;canvas.width=w;canvas.height=h;step=w>1600?10:8;
+  }
+  function yAt(x,base,amp,phase,t,freq){return base+Math.sin(x*freq+phase+t)*amp+Math.sin(x*freq*.43-phase*.7+t*.68)*amp*.34;}
+  function wave(base,amp,phase,t,freq,fill,line){
+    var x,y;ctx.beginPath();ctx.moveTo(0,h);
+    for(x=0;x<=w;x+=step)ctx.lineTo(x,yAt(x,base,amp,phase,t,freq));
+    ctx.lineTo(w,h);ctx.closePath();ctx.fillStyle='rgba('+accent+','+fill+')';ctx.fill();
+    ctx.beginPath();
+    for(x=0;x<=w;x+=step){y=yAt(x,base,amp,phase,t,freq);if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+    ctx.strokeStyle='rgba('+accent+','+line+')';ctx.lineWidth=1;ctx.stroke();
+  }
+  function draw(now){
+    raf=0;if(!active||document.hidden)return;
+    if(now-last<interval){raf=requestAnimationFrame(draw);return;}
+    if(previous)elapsed+=Math.min(50,now-previous)/1000;previous=now;last=now;
+    if(!w||!h)resize();ctx.clearRect(0,0,w,h);
+    wave(h*.70,h*.045,.2,elapsed*.78,.009,.055,.09);
+    wave(h*.78,h*.035,2.1,-elapsed*.62,.007,.075,.10);
+    raf=requestAnimationFrame(draw);
+  }
+  function stop(){active=false;previous=0;if(raf)cancelAnimationFrame(raf);raf=0;ctx.clearRect(0,0,w,h);}
+  function sync(){
+    var run=layer.classList.contains('ambient-trails-active')&&!document.hidden;
+    if(!run){stop();return;}readAccent();resize();
+    if(!active){active=true;last=0;previous=0;raf=requestAnimationFrame(draw);}
+  }
+  window.addEventListener('resize',function(){resize();readAccent();});
+  document.addEventListener('visibilitychange',sync);
+  new MutationObserver(function(){readAccent();sync();}).observe(layer,{attributes:true,attributeFilter:['class','style']});
+  if(window.ResizeObserver)new ResizeObserver(resize).observe(wrapper);
+  sync();
+}());
+</script>
+
 </body>
 </html>
