@@ -1209,8 +1209,8 @@ const Views = {
     view: new ListView(() => [
       'selectLanguage',
       'themeSelector',
-      'showConfigSummaryBtn',
       'selectAmbientBackground',
+      'showConfigSummaryBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
     ]),
