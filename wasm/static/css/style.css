@@ -1876,7 +1876,7 @@ body {
 #main-ui-layer.ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
     opacity: 1;
 }
-#main-ui-layer.ambient-trails-active #main-content > :not(.ambient-wave-wrapper) {
+#main-content > :not(.ambient-wave-wrapper) {
     position: relative;
     z-index: 1;
 }
