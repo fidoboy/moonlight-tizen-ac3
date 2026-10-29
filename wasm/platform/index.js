@@ -5288,7 +5288,7 @@ function initializeBubbleAnimation() {
     element.className = 'ambient-gamepad';
     element.textContent = 'stadia_controller';
     element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
-    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 10) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 15) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
     element.style.setProperty('--gamepad-duration', duration + 's');
     element.style.setProperty('--gamepad-delay', -randomAmbientBubbleValue(0, duration) + 's');
     element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
