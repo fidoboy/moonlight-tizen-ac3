@@ -3409,7 +3409,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#restoreDefaultsBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
-  $('body').css('backgroundColor', '#282C38');
+  $('body').css({ background: '', backgroundColor: '' });
 
   showUiLayer('main-ui-layer', afterShown);
   if (!deferPostTransitionActions) isInGame = false;
@@ -4098,12 +4098,14 @@ function showStreamTransitionBackground(onVisible) {
   var revealTransitionContent = function() {
     streamTransitionRevealTimeout = null;
     if (!streamTransitionVisible || streamTransitionHiding) return;
-    showUiLayer('stream-transition-layer');
+    // Keep the normal Web UI behind the transition while it fades in. Only switch the
+    // underlying layout after the transition layer is fully opaque.
+    showUiLayer('stream-transition-layer', onVisible);
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
       if (!streamTransitionVisible) return;
       // Reveal both status messages together, 100 ms after the starfield starts.
-      fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
+      fadeInUiElement('loadingSpinner', 'inline-block');
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
       if (encryptionStatus && document.getElementById('streamEncryptionMessage').textContent) {
         streamEncryptionStatusVisibleAt = Date.now();
@@ -4221,11 +4223,19 @@ function handleNormalStreamVideoReady() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Hide the complete level-1 UI synchronously before changing any descendant layout.
-  // Fading this layer while adding fullscreen classes lets its header and other children
-  // visibly reflow for a few frames before the transition layer covers them.
-  hideUiLayerImmediately('main-ui-layer');
-  $('#main-ui-layer').find('*').stop(true, false);
+  // Keep the Web UI visible during the transition layer's fade-in. The callback runs
+  // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
+  var enterFullscreenStreamLayout = function() {
+    hideUiLayerImmediately('main-ui-layer');
+    $('#main-ui-layer').find('*').stop(true, false);
+    $('#main-content').addClass('fullscreen');
+    $('#listener').addClass('fullscreen');
+    isInGame = true;
+    fullscreenWasmModule();
+    handleOnScreenOverlays();
+    showUiLayer('stream-diagnostics-layer');
+    Navigation.stop();
+  };
 
   // The transition layer owns the visibility of the starfield and all status content.
   // Show or hide the layer as a whole; never toggle its children individually.
@@ -4236,18 +4246,11 @@ function showStreamMode() {
     if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
       Module.resetEncryptionStatus();
     }
-    showStreamTransitionBackground();
+    showStreamTransitionBackground(enterFullscreenStreamLayout);
     startStreamEncryptionStatusPolling();
+  } else {
+    enterFullscreenStreamLayout();
   }
-
-  $('#main-content').addClass('fullscreen');
-  $('#listener').addClass('fullscreen');
-
-  isInGame = true;
-  fullscreenWasmModule();
-  handleOnScreenOverlays();
-  showUiLayer('stream-diagnostics-layer');
-  Navigation.stop();
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
