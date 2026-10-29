@@ -1284,6 +1284,7 @@ function finishInitialHostDiscovery() {
     unlockHostListInteraction();
     // Start the ambient background only after startup host discovery and network scanning finish.
     $('#main-ui-layer').addClass('ambient-trails-ready');
+    updateAmbientBackgroundActivation(true);
   });
 }
 
@@ -5261,24 +5262,115 @@ function saveConfigSummaryVisibility() {
 // Ambient interface background presets are keyed by stable values so additional
 // animations can be registered without changing the persistence mechanism.
 var BUBBLE_ANIMATION_CONFIG = [[7,1,0.2,7,5,1,3,"right"],[26,8,0.2,10,5,1,0,"left"],[80,2,0.4,8,5,3,1,"left"],[86,8,0.4,7,6,2,2,"left"],[47,9,0.2,10,6,0,0,"right"],[58,7,0.4,10,6,4,2,"right"],[66,10,0.3,6,6,2,4,"right"],[41,1,0.2,11,6,4,1,"right"],[74,6,0.3,7,4,4,2,"left"],[23,1,0.2,8,5,1,3,"left"],[95,2,0.3,6,4,3,3,"left"],[2,3,0.4,11,5,1,4,"left"],[90,2,0.4,11,4,0,3,"right"],[55,2,0.2,12,5,4,2,"left"],[21,1,0.3,12,6,0,4,"left"],[56,10,0.3,12,4,3,3,"left"],[57,8,0.3,11,4,3,3,"right"],[20,4,0.4,12,4,2,3,"right"],[28,3,0.4,11,6,4,0,"left"],[59,3,0.3,12,5,0,4,"left"],[45,3,0.2,6,4,2,0,"left"],[13,7,0.2,9,5,2,1,"left"],[46,4,0.2,11,6,1,0,"left"],[18,1,0.3,11,4,0,2,"left"],[66,4,0.3,7,5,2,3,"right"]];
+var ambientBubbleCanvas = null;
+var ambientBubbleContext = null;
+var ambientBubbleParticles = [];
+var ambientBubbleAnimationFrame = null;
+var ambientBubbleAnimationRunning = false;
+var ambientBubbleLastTimestamp = 0;
+var ambientBubbleColor = '';
+
+function resizeAmbientBubbleCanvas() {
+  if (!ambientBubbleCanvas || !ambientBubbleContext) return;
+  var width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+  var height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+  var pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  ambientBubbleCanvas.width = Math.round(width * pixelRatio);
+  ambientBubbleCanvas.height = Math.round(height * pixelRatio);
+  ambientBubbleCanvas.style.width = width + 'px';
+  ambientBubbleCanvas.style.height = height + 'px';
+  ambientBubbleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+}
 
 function initializeBubbleAnimation() {
-  var container = document.getElementById('ambient-bubbles');
-  if (!container || container.getAttribute('data-configured') === 'true') return;
-  var bubbles = container.querySelectorAll('.bubble');
-  BUBBLE_ANIMATION_CONFIG.forEach(function(config, index) {
-    var bubble = bubbles[index];
-    if (!bubble) return;
-    bubble.style.setProperty('--bubble-left-offset', config[0] + 'vw');
-    bubble.style.setProperty('--bubble-radius', config[1] + 'vw');
-    bubble.style.setProperty('--bubble-opacity', String(config[2]));
-    bubble.style.setProperty('--bubble-float-duration', config[3] + 's');
-    bubble.style.setProperty('--bubble-sway-duration', config[4] + 's');
-    bubble.style.setProperty('--bubble-float-delay', config[5] + 's');
-    bubble.style.setProperty('--bubble-sway-delay', config[6] + 's');
-    bubble.style.setProperty('--bubble-sway-type', 'sway-' + config[7] + '-to-' + (config[7] === 'left' ? 'right' : 'left'));
+  if (ambientBubbleCanvas) return;
+  ambientBubbleCanvas = document.getElementById('ambient-bubbles-canvas');
+  if (!ambientBubbleCanvas || !ambientBubbleCanvas.getContext) return;
+  ambientBubbleContext = ambientBubbleCanvas.getContext('2d');
+  if (!ambientBubbleContext) {
+    ambientBubbleCanvas = null;
+    return;
+  }
+  ambientBubbleParticles = BUBBLE_ANIMATION_CONFIG.map(function(config) {
+    return { config: config, bornAt: 0 };
   });
-  container.setAttribute('data-configured', 'true');
+  resizeAmbientBubbleCanvas();
+  var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
+  ambientBubbleColor = getComputedStyle(themeElement).getPropertyValue('--theme-accent').trim() ||
+    getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#88f6fb';
+  window.addEventListener('resize', resizeAmbientBubbleCanvas);
+}
+
+function drawAmbientBubbleRoundRect(context, x, y, size, radius) {
+  var r = Math.max(0, Math.min(size / 2, radius));
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.lineTo(x + size - r, y);
+  context.quadraticCurveTo(x + size, y, x + size, y + r);
+  context.lineTo(x + size, y + size - r);
+  context.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
+  context.lineTo(x + r, y + size);
+  context.quadraticCurveTo(x, y + size, x, y + size - r);
+  context.lineTo(x, y + r);
+  context.quadraticCurveTo(x, y, x + r, y);
+  context.closePath();
+}
+
+function renderAmbientBubbleFrame(timestamp) {
+  if (!ambientBubbleAnimationRunning || !ambientBubbleCanvas || !ambientBubbleContext) return;
+  var context = ambientBubbleContext;
+  var width = ambientBubbleCanvas.clientWidth || window.innerWidth;
+  var height = ambientBubbleCanvas.clientHeight || window.innerHeight;
+  var seconds = timestamp / 1000;
+  context.clearRect(0, 0, width, height);
+
+  ambientBubbleParticles.forEach(function(particle) {
+    var config = particle.config;
+    var size = Math.max(1, config[1] * width / 100);
+    var age = seconds - config[5];
+    var progress = age < 0 ? 0 : (age % config[3]) / config[3];
+    var swayPhase = (seconds - config[6]) / config[4] * Math.PI * 2;
+    var direction = config[7] === 'left' ? -1 : 1;
+    var sway = age < 0 ? 0 : Math.sin(swayPhase) * size * direction;
+    var x = config[0] * width / 100 + sway - size / 2;
+    var startY = height * 1.75;
+    var y = startY - height * 1.2 * progress;
+    var alpha = age < 0 ? config[2] : config[2] * (1 - progress);
+    if (alpha <= 0.005 || y > height + size || y < -size) return;
+
+    var cornerRadius = size * (0.1 + 0.4 * progress);
+    context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = ambientBubbleColor;
+    context.filter = 'blur(' + (3 * progress) + 'px)';
+    drawAmbientBubbleRoundRect(context, x, y, size, cornerRadius);
+    context.fill();
+    context.restore();
+  });
+  ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
+}
+
+function startAmbientBubbleAnimation() {
+  initializeBubbleAnimation();
+  var mainUi = document.getElementById('main-ui-layer');
+  if (!ambientBubbleContext || ambientBubbleAnimationRunning || !mainUi ||
+      !mainUi.classList.contains('ambient-trails-ready') ||
+      !mainUi.classList.contains('bubbles-active') ||
+      mainUi.getAttribute('data-ambient-background') !== 'bubbles') return;
+  ambientBubbleAnimationRunning = true;
+  ambientBubbleLastTimestamp = 0;
+  ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
+}
+
+function stopAmbientBubbleAnimation() {
+  ambientBubbleAnimationRunning = false;
+  if (ambientBubbleAnimationFrame !== null) {
+    window.cancelAnimationFrame(ambientBubbleAnimationFrame);
+    ambientBubbleAnimationFrame = null;
+  }
+  if (ambientBubbleContext && ambientBubbleCanvas) {
+    ambientBubbleContext.clearRect(0, 0, ambientBubbleCanvas.clientWidth || 0, ambientBubbleCanvas.clientHeight || 0);
+  }
 }
 
 function updateAmbientBackgroundActivation(activate) {
@@ -5295,6 +5387,12 @@ function updateAmbientBackgroundActivation(activate) {
   var activeClass = AMBIENT_BACKGROUND_PRESETS[ambientBackgroundPreset];
   if (activate && ambientBackgroundPreferenceLoaded && activeClass) {
     mainUi.classList.add(activeClass);
+  }
+
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'bubbles') {
+    startAmbientBubbleAnimation();
+  } else {
+    stopAmbientBubbleAnimation();
   }
 }
 
