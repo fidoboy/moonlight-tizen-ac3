@@ -1510,10 +1510,20 @@ body {
     height: 12px;
     border-radius: 8px;
 }
-/* Material Design Lite uses a fixed indigo for sliders; use the active app accent instead. */
-.mdl-slider.is-upgraded::-webkit-slider-thumb,
-.mdl-slider.is-upgraded::-moz-range-thumb,
-.mdl-slider.is-upgraded::-ms-thumb,
+/* Material Design Lite's slider styles vary by browser; keep each selector independent
+   so one unsupported pseudo-element cannot invalidate the whole accent-color rule. */
+.mdl-slider {
+    accent-color: var(--theme-accent);
+}
+.mdl-slider.is-upgraded::-webkit-slider-thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded::-moz-range-thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded::-ms-thumb {
+    background-color: var(--theme-accent) !important;
+}
 .mdl-slider__background-lower,
 .mdl-slider__thumb {
     background-color: var(--theme-accent) !important;
