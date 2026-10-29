@@ -351,7 +351,7 @@ body {
                 visibility 0s linear var(--ui-fade-duration);
     /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
     position: absolute;
-    background: #111111;
+    background: var(--theme-surface-deep);
     min-width: 0;
     max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
@@ -1195,7 +1195,7 @@ body {
     min-height: 0;
     box-sizing: border-box;
     padding: 20px;
-    border-right: 4px solid rgba(29, 29, 29, 0.8);
+    border-right: 4px solid var(--theme-border);
     overflow: hidden;
 }
 .settings-categories {
@@ -1210,7 +1210,7 @@ body {
     color: var(--theme-text-secondary);
     margin: 25px;
     padding: 25px;
-    border-bottom: 2px solid #666666;
+    border-bottom: 2px solid var(--theme-border);
     border-radius: 12px;
     cursor: pointer;
 }
@@ -1529,7 +1529,7 @@ body {
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: var(--theme-text-primary);
-    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
+    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat var(--theme-surface);
 }
 
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
@@ -1672,7 +1672,7 @@ body {
     position: relative;
     top: -3px;
 }
-.config-summary-label { color: #b9bdc8; }
+.config-summary-label { color: var(--theme-text-secondary); }
 .config-summary-label::after { content: ":"; margin-right: 4px; }
 .config-summary-value { color: #fff; font-weight: 600; }
 .config-summary-toggle.is-on { color: #39e75f; }
