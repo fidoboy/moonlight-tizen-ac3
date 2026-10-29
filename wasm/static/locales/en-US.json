@@ -489,5 +489,8 @@
   "Animated interface background": "Animated interface background",
   "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Choose the animated background shown on the Hosts and Apps screens, or disable it.",
   "Ambient Trails": "Ambient Trails",
-  "None": "None"
+  "None": "None",
+  "Background animation": "Background animation",
+  "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.",
+  "Waves": "Waves"
 }
