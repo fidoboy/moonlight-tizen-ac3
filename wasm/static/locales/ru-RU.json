@@ -493,5 +493,6 @@
   "Background animation": "Фоновая анимация",
   "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Выберите анимацию для фона приложения или выберите «Нет», если не хотите отображать фон.",
   "Waves": "Волны",
-  "Bubbles": "Пузыри"
+  "Bubbles": "Пузыри",
+  "Symbols": "Символы"
 }
