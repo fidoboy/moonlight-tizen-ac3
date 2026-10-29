@@ -485,5 +485,9 @@
   "App Already Running": "Приложение уже запущено",
   "%1$s is already running on the host.": "Приложение «%1$s» уже запущено на удалённом хосте.",
   "Resume stream": "Продолжить трансляцию",
-  "Stop remote app": "Остановить удалённое приложение"
+  "Stop remote app": "Остановить удалённое приложение",
+  "Animated interface background": "Анимированный фон интерфейса",
+  "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Выберите анимированный фон для экранов хостов и приложений или отключите его.",
+  "Ambient Trails": "Ambient Trails",
+  "None": "Нет"
 }
