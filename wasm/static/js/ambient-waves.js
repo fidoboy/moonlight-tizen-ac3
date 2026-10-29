@@ -59,8 +59,10 @@
     var scaleXTo = random(1.5, 1.75);
     var scaleYFrom = random(1.5, 2);
     var scaleYTo = random(0.6, 0.7);
-    var opacityFrom = random(0.65, 0.8);
-    var opacityTo = random(0.9, 1);
+    /* Start with six clearly separated depth levels. The first three
+       begin fading down while the last three begin fading up. */
+    var opacityFrom = [0.95, 0.80, 0.65, 0.35, 0.20, 0.10][index];
+    var opacityTo = [0.20, 0.35, 0.45, 0.65, 0.80, 0.95][index];
     var ease = random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
     var wave = {
       index: index,
@@ -97,13 +99,14 @@
       ease: ease
     }, 0);
 
-    /* Pulse opacity independently, with per-wave timing and duration. */
+    /* Opposing opacity phases make the depth shift immediately visible.
+       Each ribbon keeps its own duration and a short staggered start. */
     gsap.fromTo(wave, {
       opacity: opacityFrom
     }, {
       opacity: opacityTo,
-      duration: random(8, 16),
-      delay: random(0, 10),
+      duration: random(8, 12),
+      delay: index * 1.25,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut'
