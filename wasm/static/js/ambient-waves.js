@@ -55,46 +55,51 @@
     var duration = random(40, 80);
     var y = random(-250, 250);
     var rotation = random(-20, 20);
+    var scaleXFrom = random(2, 2.5);
+    var scaleXTo = random(1.5, 1.75);
+    var scaleYFrom = random(1.5, 2);
+    var scaleYTo = random(0.6, 0.7);
+    var opacityFrom = random(0.75, 0.8);
+    var opacityTo = random(0.85, 1);
     var ease = random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
     var wave = {
       index: index,
       x: 0,
       y: y,
       rotation: rotation,
-      scaleX: random(2, 2.5),
-      scaleY: random(1.5, 2),
-      opacity: random(0.12, 0.19),
-      duration: duration
+      scaleX: scaleXFrom,
+      scaleY: scaleYFrom,
+      opacity: opacityFrom
     };
+    var timeline = gsap.timeline();
 
-    gsap.to(wave, {
+    timeline.to(wave, {
       x: -1920,
       duration: duration,
       ease: 'none',
-      repeat: -1,
-      onRepeat: function () { wave.x = 0; }
+      repeat: -1
     });
 
-    gsap.fromTo(wave, {
+    timeline.fromTo(wave, {
       y: y,
-      opacity: wave.opacity,
+      opacity: opacityFrom,
       rotation: rotation,
-      scaleX: wave.scaleX,
-      scaleY: wave.scaleY
+      scaleY: scaleYFrom,
+      scaleX: scaleXFrom
     }, {
-      y: -y,
-      opacity: random(0.16, 0.23),
-      rotation: -rotation,
-      scaleX: random(1.5, 1.75),
-      scaleY: random(0.6, 0.7),
-      duration: duration * 0.25,
-      ease: ease,
+      y: y * -1,
+      opacity: opacityTo,
+      rotation: rotation * -1,
+      scaleY: scaleYTo,
+      scaleX: scaleXTo,
       repeat: -1,
       yoyo: true,
-      yoyoEase: ease
-    });
+      yoyoEase: ease,
+      duration: duration * 0.25,
+      ease: ease
+    }, 0);
 
-    gsap.set(wave, { x: random(-1920, -960) });
+    timeline.seek(random(10, 20));
     return wave;
   }
 
@@ -111,11 +116,11 @@
     ctx.rotate(rotation);
     ctx.scale(wave.scaleX, wave.scaleY);
     ctx.translate(-centerX, -centerY);
-    ctx.globalAlpha = wave.opacity;
+    /* Keep the original animation's opacity values while making the effect
+       subtle enough to sit behind the application UI. */
+    ctx.globalAlpha = wave.opacity * 0.18;
     ctx.fillStyle = 'rgb(' + accent + ')';
 
-    /* The source contains two adjacent 1920px copies. Extend both sides so
-       the original paths loop seamlessly while GSAP translates them left. */
     for (var repeat = -1; repeat <= 2; repeat++) {
       ctx.save();
       ctx.translate(offsetX + repeat * width, 0);
@@ -140,7 +145,7 @@
     readAccent();
     resize();
     if (!waves.length) {
-      for (var i = 0; i < 5; i++) waves.push(makeWave(i));
+      for (var i = 0; i < 8; i++) waves.push(makeWave(i));
     }
     gsap.ticker.add(render);
     render();
