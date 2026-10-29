@@ -1905,6 +1905,11 @@ body {
 #main-content.settings-view-active > .bubbles-background {
     display: none !important;
 }
+#main-ui-layer.ambient-background-hidden .ambient-wave-wrapper,
+#main-ui-layer.ambient-background-hidden .bubbles-background,
+#main-ui-layer.ambient-background-hidden .symbols-background {
+    display: none !important;
+}
 .symbols-background {
     display: none;
     position: fixed;
@@ -1959,7 +1964,7 @@ body {
         animation-timing-function: ease-out;
     }
     80% {
-        opacity: 0.25;
+        opacity: 0.12;
         transform: translate(-50%, -50%) scale(1.05);
         animation-timing-function: ease-in;
     }
