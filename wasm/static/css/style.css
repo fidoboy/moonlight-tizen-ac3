@@ -1855,33 +1855,26 @@ body {
 }
 
 
-/* Subtle, theme-aware vector trails for the Hosts and Apps screens only. */
+/* Ambient canvas background for the Hosts and Apps screens only. */
 #main-content {
     position: relative;
     isolation: isolate;
 }
 #ambient-trails {
-    /* TEMPORARY DIAGNOSTIC: force the layer onto the viewport, independent of mode classes. */
-    display: block !important;
-    position: fixed;
+    display: none;
+    position: absolute;
     inset: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 99999;
-    overflow: visible;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
     pointer-events: none;
-    contain: none;
+    opacity: 0.45;
 }
-#ambient-trails svg {
+#ambient-trails canvas {
     display: block;
     width: 100%;
     height: 100%;
-}
-/* Apply the SVG stroke as a CSS property for compatibility with Tizen WebKit.
-   Some versions do not resolve CSS custom properties in SVG presentation attributes. */
-#ambient-trails .ambient-trails-base,
-#ambient-trails .ambient-trails-flow {
-    stroke: var(--theme-accent, #00A3C6);
 }
 #main-ui-layer.ambient-trails-active #ambient-trails {
     display: block;
@@ -1892,29 +1885,3 @@ body {
     position: relative;
     z-index: 1;
 }
-#ambient-trails .ambient-trails-base {
-    opacity: 0.8;
-}
-#ambient-trails .ambient-trails-flow {
-    opacity: 1;
-    stroke-linecap: round;
-    stroke-dasharray: 150 1900;
-    animation: ambientTrailFlow 58s linear infinite;
-}
-#ambient-trails .trail-two {
-    stroke-dasharray: 110 2050;
-    animation-duration: 72s;
-    animation-delay: -24s;
-    opacity: 0.75;
-}
-#ambient-trails .trail-three {
-    stroke-dasharray: 95 2200;
-    animation-duration: 86s;
-    animation-delay: -51s;
-    opacity: 0.65;
-}
-@keyframes ambientTrailFlow {
-    from { stroke-dashoffset: 0; }
-    to { stroke-dashoffset: -2050; }
-}
-/* Keep the ambient trails animated on TV browsers that report reduced motion by default. */
