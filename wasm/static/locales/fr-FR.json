@@ -485,5 +485,9 @@
   "App Already Running": "Application déjà en cours",
   "%1$s is already running on the host.": "%1$s est déjà en cours d’exécution sur l’hôte distant.",
   "Resume stream": "Reprendre le flux",
-  "Stop remote app": "Arrêter l’application distante"
+  "Stop remote app": "Arrêter l’application distante",
+  "Animated interface background": "Arrière-plan animé de l’interface",
+  "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Choisissez l’arrière-plan animé affiché sur les écrans Hôtes et Applications, ou désactivez-le.",
+  "Ambient Trails": "Ambient Trails",
+  "None": "Aucun"
 }
