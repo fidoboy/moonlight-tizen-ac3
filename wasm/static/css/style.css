@@ -1,9 +1,90 @@
+/* Application color themes. The original values preserve the existing default appearance. */
+:root {
+    --theme-background: #282C38;
+    --theme-surface: #404354;
+    --theme-surface-deep: #333846;
+    --theme-surface-hover: #484C5F;
+    --theme-surface-selected: #585D75;
+    --theme-surface-alt: #3E4454;
+    --theme-accent: #00A3C6;
+    --theme-accent-80: rgba(0, 163, 198, 0.8);
+    --theme-accent-60: rgba(0, 163, 198, 0.6);
+    --theme-accent-40: rgba(0, 163, 198, 0.4);
+    --theme-text-primary: #ececec;
+    --theme-text-secondary: #cfcfcf;
+    --theme-summary-background: #20232c;
+    --theme-border: #454955;
+}
+body[data-color-theme="black-orange"] {
+    --theme-background: #000000;
+    --theme-surface: #171717;
+    --theme-surface-deep: #090909;
+    --theme-surface-hover: #292929;
+    --theme-surface-selected: #3A2816;
+    --theme-surface-alt: #202020;
+    --theme-accent: #FF8C00;
+    --theme-accent-80: rgba(255, 140, 0, 0.8);
+    --theme-accent-60: rgba(255, 140, 0, 0.6);
+    --theme-accent-40: rgba(255, 140, 0, 0.4);
+    --theme-text-primary: #F2F2F2;
+    --theme-text-secondary: #C8C8C8;
+    --theme-summary-background: #090909;
+    --theme-border: #414141;
+}
+body[data-color-theme="graphite-red"] {
+    --theme-background: #202124;
+    --theme-surface: #333438;
+    --theme-surface-deep: #18191B;
+    --theme-surface-hover: #48494D;
+    --theme-surface-selected: #542B2D;
+    --theme-surface-alt: #292A2D;
+    --theme-accent: #E53935;
+    --theme-accent-80: rgba(229, 57, 53, 0.8);
+    --theme-accent-60: rgba(229, 57, 53, 0.6);
+    --theme-accent-40: rgba(229, 57, 53, 0.4);
+    --theme-text-primary: #F0F0F0;
+    --theme-text-secondary: #C7C7C7;
+    --theme-summary-background: #18191B;
+    --theme-border: #4A4B4F;
+}
+body[data-color-theme="forest"] {
+    --theme-background: #18211D;
+    --theme-surface: #26352E;
+    --theme-surface-deep: #111A15;
+    --theme-surface-hover: #34483D;
+    --theme-surface-selected: #244A38;
+    --theme-surface-alt: #1F2B25;
+    --theme-accent: #36C98F;
+    --theme-accent-80: rgba(54, 201, 143, 0.8);
+    --theme-accent-60: rgba(54, 201, 143, 0.6);
+    --theme-accent-40: rgba(54, 201, 143, 0.4);
+    --theme-text-primary: #EDF5F0;
+    --theme-text-secondary: #C3D0C8;
+    --theme-summary-background: #111A15;
+    --theme-border: #3C5146;
+}
+body[data-color-theme="midnight-violet"] {
+    --theme-background: #171827;
+    --theme-surface: #2A2B42;
+    --theme-surface-deep: #10111D;
+    --theme-surface-hover: #3A3B58;
+    --theme-surface-selected: #3D315E;
+    --theme-surface-alt: #222339;
+    --theme-accent: #9B8AFF;
+    --theme-accent-80: rgba(155, 138, 255, 0.8);
+    --theme-accent-60: rgba(155, 138, 255, 0.6);
+    --theme-accent-40: rgba(155, 138, 255, 0.4);
+    --theme-text-primary: #F0EEFF;
+    --theme-text-secondary: #C9C6E0;
+    --theme-summary-background: #10111D;
+    --theme-border: #45445F;
+}
 /* =============================
    Global Styles
 ============================= */
 body {
     color: #fff;
-    background-color: #282C38;
+    background-color: var(--theme-background);
     font-family: 'Roboto', sans-serif;
     scroll-behavior: smooth;
     -webkit-user-select: none;
@@ -29,7 +110,7 @@ body {
     height: 100%;
     box-sizing: border-box;
 }
-#main-ui-layer { z-index: 10; opacity: 0; background: #282C38; }
+#main-ui-layer { z-index: 10; opacity: 0; background: var(--theme-background); }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
     display: none !important;
@@ -181,7 +262,7 @@ body {
    Header Section
 ============================= */
 #main-header {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     box-shadow: 0 0 4px 0 rgba(0, 0, 0, 1);
 }
 .mdl-layout__header-row {
@@ -196,7 +277,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #header-title {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     font-size: 2.6rem;
     font-weight: 600;
     letter-spacing: 2px;
@@ -207,7 +288,7 @@ body {
    Navigation Menu
 ============================= */
 #settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn, #quitRunningAppBtn {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -215,7 +296,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #goBackBtn {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     position: absolute;
     top: 15px;
     left: 30px;
@@ -225,7 +306,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #updateAppBtn {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     right: 52px;
     height: 50px;
     padding: 0 20px;
@@ -236,7 +317,7 @@ body {
     transition: opacity var(--ui-fade-duration) ease-in-out, transform var(--ui-fade-duration) ease-in-out, box-shadow 0.2s ease-in-out;
 }
 #updateAppBtn:hover, #updateAppBtn:focus {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     box-shadow: 0 0 2px 3px rgba(239, 191, 4, 1);
 }
 #updateAppBtnText {
@@ -274,7 +355,7 @@ body {
     min-width: 0;
     max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
-    box-shadow: 0 0 8px 4px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 8px 4px var(--theme-accent);
 }
 .mdl-snackbar--active {
     transform: translate(-50%, 0);
@@ -332,7 +413,7 @@ body {
 /* Tooltips are popups and always belong to the dominant level 4. */
 #popup-layer .mdl-tooltip {
     color: #fff;
-    background-color: #3E4454;
+    background-color: var(--theme-surface-alt);
     display: inline !important;
     position: absolute;
     top: 72px !important;
@@ -372,12 +453,12 @@ body {
 .mdl-dialog {
     transition: opacity var(--ui-fade-duration) ease-in-out;
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     width: 30%;
     height: fit-content;
     padding: 20px;
     border-radius: 16px;
-    box-shadow: 0 0 12px 6px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 12px 6px var(--theme-accent);
 }
 /* Keep long release notes inside the viewport while leaving the title and Close button accessible. */
 #updateAppDialog {
@@ -405,7 +486,7 @@ body {
     overscroll-behavior: contain;
 }
 #updateAppDialogContent:focus {
-    outline: 2px solid rgba(0, 163, 198, 0.8);
+    outline: 2px solid var(--theme-accent-80);
     outline-offset: -2px;
 }
 /* Keep the navigation guide and dynamic warnings within the viewport as well. */
@@ -431,17 +512,17 @@ body {
     overscroll-behavior: contain;
 }
 #navGuideDialogContent:focus {
-    outline: 2px solid rgba(0, 163, 198, 0.8);
+    outline: 2px solid var(--theme-accent-80);
     outline-offset: -2px;
 }
 .large-dialog {
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     width: 90%;
     height: fit-content;
     padding: 20px;
     border-radius: 16px;
-    box-shadow: 0 0 12px 6px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 12px 6px var(--theme-accent);
 }
 /* Hide the mouse pointer around the Stream Menu, which appears when the mouse is released */
 #streamMenuDialogOverlay, #streamMenuDialog::backdrop {
@@ -505,10 +586,10 @@ body {
 }
 .mdl-textfield__input.hovered, #ipAddressTextInput {
     color: #fff;
-    background-color: #585D75;
+    background-color: var(--theme-surface-selected);
 }
 .mdl-textfield__input.hovered, .mdl-textfield__input:hover, .mdl-textfield__input:focus {
-    box-shadow: 0 0 1px 2px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 .mdl-textfield.is-invalid .mdl-textfield__input:hover, .mdl-textfield.is-invalid .mdl-textfield__input:focus {
     box-shadow: 0 0 1px 2px rgba(244, 67, 54, 1);
@@ -527,7 +608,7 @@ body {
     font-size: 1rem;
 }
 .select-option-field-floating-label .mdl-textfield__label {
-    color: #00A3C6;
+    color: var(--theme-accent);
     width: 100%;
     font-size: 1.65rem;
     font-weight: 200;
@@ -550,10 +631,10 @@ body {
 .ip-address-select-field.hovered, #ipAddressField1,
 #ipAddressField2, #ipAddressField3, #ipAddressField4 {
     color: #fff;
-    background-color: #585D75;
+    background-color: var(--theme-surface-selected);
 }
 .ip-address-select-field.hovered, .ip-address-select-field:hover {
-    box-shadow: 0 0 1px 2px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 #supportQrCode {
     width: 50%;
@@ -579,7 +660,7 @@ body {
     box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.6);
 }
 .navGuideRemoteColor {
-    background-color: #00A3C6;
+    background-color: var(--theme-accent);
 }
 .navGuideKeyboardColor {
     background-color: #F44336;
@@ -588,7 +669,7 @@ body {
     background-color: #8BC34A;
 }
 .navGuideLabelText {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.65rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -599,7 +680,7 @@ body {
     letter-spacing: 0.5px;
 }
 .navGuideRemoteText {
-    color: #00A3C6;
+    color: var(--theme-accent);
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -635,7 +716,7 @@ body {
     box-sizing: border-box;
 }
 #autoWolCheckboxContainer .mdl-switch__label {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.45rem;
     line-height: 36px;
     letter-spacing: 0.5px;
@@ -768,7 +849,7 @@ body {
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 0 0 3px #00A3C6;
+    box-shadow: 0 0 0 3px var(--theme-accent);
 }
 #host-grid .host-cell-inactive {
     box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
@@ -784,11 +865,11 @@ body {
 }
 .host-add-container > .mdl-card__title {
     color: #fff;
-    background: url('../res/ic_add_to_queue_white_48px.svg') center calc(50% - 21px) no-repeat rgba(62, 68, 84, 1);
+    background: url('../res/ic_add_to_queue_white_48px.svg') center calc(50% - 21px) no-repeat var(--theme-surface-alt);
 }
 .host-container > .mdl-card__title {
     color: #fff;
-    background: url('../res/ic_tv_white_48px.svg') center calc(50% - 21px) no-repeat rgba(62, 68, 84, 1);
+    background: url('../res/ic_tv_white_48px.svg') center calc(50% - 21px) no-repeat var(--theme-surface-alt);
 }
 #addHostContainer .host-title {
     text-transform: uppercase;
@@ -839,9 +920,9 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 .host-menu.hovered, .host-menu:hover, .host-menu:focus, .host-menu:active {
-    background-color: rgba(0, 163, 198, 0.6);
+    background-color: var(--theme-accent-60);
     transform: scale(1.3);
-    box-shadow: 0 1px 4px rgba(0, 163, 198, 0.4);
+    box-shadow: 0 1px 4px var(--theme-accent-40);
 }
 .host-center-icon {
     position: absolute;
@@ -902,7 +983,7 @@ body {
 #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 0 0 3px #00A3C6;
+    box-shadow: 0 0 0 3px var(--theme-accent);
 }
 #game-grid .current-game-active::before {
     content: "";
@@ -1126,7 +1207,7 @@ body {
     overflow: hidden;
 }
 .settings-category {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     margin: 25px;
     padding: 25px;
     border-bottom: 2px solid #666666;
@@ -1134,12 +1215,12 @@ body {
     cursor: pointer;
 }
 .settings-category.hovered, .settings-category:hover, .settings-category:focus {
-    background-color: #484C5F;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 0.8);
+    background-color: var(--theme-surface-hover);
+    box-shadow: 0 0 2px 3px var(--theme-accent-80);
 }
 .settings-category.selected {
-    color: #ececec;
-    background: rgba(0, 163, 198, 0.8);
+    color: var(--theme-text-primary);
+    background: var(--theme-accent-80);
     transform: scale(1.02);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
@@ -1211,7 +1292,7 @@ body {
     font-weight: 700;
 }
 .settings-options label {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     display: inline-block;
     margin-bottom: 12px;
     font-size: 1.7rem;
@@ -1220,7 +1301,7 @@ body {
     text-align: left;
 }
 .settings-options .mdl-list__item-text-body {
-    color: #ececec;
+    color: var(--theme-text-primary);
     display: block;
     margin-bottom: 12px;
     font-size: 1.4rem;
@@ -1229,7 +1310,7 @@ body {
     text-align: left;
 }
 .settings-options .mdl-switch__label {
-    color: #ececec;
+    color: var(--theme-text-primary);
     display: block;
     margin: 18px 0 12px 0;
     font-size: 1.45rem;
@@ -1244,15 +1325,15 @@ body {
     margin: 1.2rem 0 1.2rem 74.5rem;
 }
 .mdl-switch.is-checked .mdl-switch__track {
-    background: rgba(0, 163, 198, 1);
+    background: var(--theme-accent);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 .mdl-switch.is-checked .mdl-switch__thumb {
     background-color: #fff;
 }
 .mdl-switch.is-focused {
-    background-color: #404354;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface);
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 .mdl-icon-toggle__label.material-icons {
     color: #818181;
@@ -1267,12 +1348,12 @@ body {
 }
 .mdl-button--raised.mdl-button--colored {
     color: #fff;
-    background-color: #404354 !important;
+    background-color: var(--theme-surface) !important;
 }
 .mdl-button--raised.mdl-button--colored:hover, .mdl-button--raised.mdl-button--colored:focus,
 .mdl-button--raised.mdl-button--colored:active {
-    background-color: #404354 !important;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface) !important;
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 .mdl-button--raised.mdl-button--colored[disabled] {
 	color: #dedede !important;
@@ -1316,17 +1397,17 @@ body {
 }
 .badge-new {
     color: #76FF7A;
-    background-color: #404354;
+    background-color: var(--theme-surface);
     border: 1px solid #76FA20;
 }
 .badge-preview {
   color: #E0C3FC;
-  background-color: #404354;
+  background-color: var(--theme-surface);
   border: 1px solid #B388FF;
 }
 .badge-experimental {
     color: #FFC046;
-    background-color: #404354;
+    background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
 #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
@@ -1342,8 +1423,8 @@ body {
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
 #selectCodec, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
-    color: #ececec;
-    background-color: #404354;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
     width: 100%;
     height: 60px;
     border-radius: 8px;
@@ -1352,8 +1433,8 @@ body {
     cursor: pointer;
 }
 #systemInfoBtn {
-    color: #ececec;
-    background-color: #404354;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
     width: 100%;
     height: 100%;
     padding: 15px 50px 20px 50px;
@@ -1381,17 +1462,17 @@ body {
 }
 .mdl-menu__outline {
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
 }
 .mdl-menu__item {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.25rem;
     letter-spacing: 0.5px;
     text-indent: 40px;
     text-align: left;
 }
 .mdl-menu__item.hovered, .mdl-menu__item:hover, .mdl-menu__item:focus {
-    background-color: #484C5F;
+    background-color: var(--theme-surface-hover);
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
@@ -1406,7 +1487,7 @@ body {
     border-radius: 0 0 8px 8px;
 }
 .videoBitrateMenu, .audioJitterMenu {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     display: flex;
     align-items: center;
 }
@@ -1422,20 +1503,20 @@ body {
     border-radius: 8px;
 }
 #bitrateLowestValue, #jitterLowestValue {
-    color: #ececec;
+    color: var(--theme-text-primary);
     margin: 0 -12px 0 14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
 #bitrateHighestValue, #jitterHighestValue {
-    color: #ececec;
+    color: var(--theme-text-primary);
     margin: 0 12px 0 -14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
 }
 .dropdown-items {
     float: right;
@@ -1447,7 +1528,7 @@ body {
 #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
-    color: #ececec;
+    color: var(--theme-text-primary);
     background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
 }
 
@@ -1460,7 +1541,7 @@ body {
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
-    background-color: #484c5f;
+    background-color: var(--theme-surface-hover);
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
 #restartApplicationIcon {
@@ -1496,8 +1577,8 @@ body {
 #automaticUpdateChecksBtn:hover, #automaticUpdateChecksBtn:focus,
 #systemInfoBtn:hover, #systemInfoBtn:focus, #navigationGuideBtn:hover, #navigationGuideBtn:focus, #checkUpdatesBtn:hover, #checkUpdatesBtn:focus,
 #restartAppBtn:hover, #restartAppBtn:focus {
-    background-color: #404354;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface);
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 /* =============================
    Common Disabled-State Styling
@@ -1557,7 +1638,7 @@ body {
     width: 100%;
     box-sizing: border-box;
     padding: 7px 12px;
-    background: #20232c;
+    background: var(--theme-summary-background);
     color: #f1f1f1;
     overflow-x: auto;
     overflow-y: hidden;
@@ -1570,7 +1651,7 @@ body {
     flex: 0 0 auto;
     align-items: center;
     padding: 0 10px;
-    border-right: 1px solid #454955;
+    border-right: 1px solid var(--theme-border);
     font-size: 16px;
     line-height: 1.4;
 }
@@ -1629,4 +1710,98 @@ body {
 #popup-layer .mdl-dialog.ui-fade-managed,
 #popup-layer .mdl-tooltip.ui-fade-managed {
     transition: opacity var(--ui-fade-duration) ease-in-out;
+}
+
+/* Five equal-width visual theme previews in the Interface Settings pane. */
+.theme-selector-option {
+    width: calc(100% + 70px);
+    margin-left: -35px;
+    margin-right: -35px;
+}
+.theme-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    width: 100%;
+    align-items: stretch;
+    outline: none;
+}
+.theme-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-width: 0;
+    padding: 6px 5px 10px;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    outline: 4px solid transparent;
+    outline-offset: -4px;
+    background: transparent;
+    color: var(--theme-text-primary);
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
+    font: inherit;
+}
+.theme-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    object-fit: cover;
+    border-radius: 6px;
+    pointer-events: none;
+}
+.theme-card > span:not(.theme-card-check) {
+    display: block;
+    min-height: 2.5em;
+    margin-top: 9px;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.theme-card.is-selected::after {
+    content: "";
+    position: absolute;
+    top: 11px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--theme-accent);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+}
+.theme-card-check {
+    display: none;
+    position: absolute;
+    top: 11px;
+    right: 10px;
+    z-index: 1;
+    color: #fff;
+    font-size: 16px;
+    line-height: 22px;
+    text-align: center;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+}
+.theme-card.is-selected .theme-card-check { display: block; }
+.theme-card.is-focused-theme {
+    outline-color: var(--theme-accent);
+    z-index: 1;
+}
+#themeSelector:focus .theme-card.is-focused-theme {
+    box-shadow: inset 0 0 0 2px var(--theme-accent);
+}
+.theme-card:hover {
+    background: var(--theme-surface-hover);
+}
+@media (max-width: 1000px) {
+    .theme-card { padding: 4px 3px 8px; }
+    .theme-card > span:not(.theme-card-check) { font-size: 0.95rem; }
 }
