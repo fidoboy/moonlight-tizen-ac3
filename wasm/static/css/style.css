@@ -1593,7 +1593,7 @@ body {
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
@@ -1875,16 +1875,16 @@ body {
     opacity: 0;
     transition: opacity 700ms ease-in-out;
 }
-#main-ui-layer.ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
+#main-ui-layer[data-ambient-background="ambient-trails"].ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
     opacity: 0.25;
 }
 #main-content.settings-view-active > .ambient-wave-wrapper {
     display: none !important;
 }
-#main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
+#main-ui-layer[data-ambient-background="ambient-trails"].ambient-trails-active .ambient-wave-wrapper {
     display: block;
 }
-s=>`.bubbles-background {
+.bubbles-background {
     display: none;
     position: fixed;
     inset: 0;
@@ -1896,7 +1896,7 @@ s=>`.bubbles-background {
     opacity: 0;
     transition: opacity 700ms ease-in-out;
 }
-#main-ui-layer.bubbles-active .bubbles-background {
+#main-ui-layer[data-ambient-background="bubbles"].bubbles-active .bubbles-background {
     display: block;
     opacity: 1;
 }
@@ -1942,7 +1942,7 @@ s=>`.bubbles-background {
     to { transform: translateX(-100%); }
 }
 
-`#ambient-wave-svg {
+#ambient-wave-svg {
     position: absolute;
     inset: 0;
     display: block;
