@@ -1861,24 +1861,28 @@ body {
     isolation: isolate;
 }
 #ambient-trails {
-    display: none;
-    position: absolute;
+    /* TEMPORARY DIAGNOSTIC: force the layer onto the viewport, independent of mode classes. */
+    display: block !important;
+    position: fixed;
     inset: 0;
-    z-index: 9999;
-    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    overflow: visible;
     pointer-events: none;
-    contain: strict;
+    contain: none;
 }
-/* Temporary visual diagnostic: confirms whether the ambient-trails layer is painted. */
+/* Temporary visual diagnostic: a red square should be visible in Hosts and Apps mode. */
 #ambient-trails::after {
     content: "";
-    position: absolute;
+    display: block;
+    position: fixed;
     top: 40px;
     left: 40px;
     width: 120px;
     height: 120px;
     background: #ff0000;
-    z-index: 10000;
+    z-index: 100000;
     pointer-events: none;
 }
 #ambient-trails svg {
