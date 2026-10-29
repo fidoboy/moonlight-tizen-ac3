@@ -168,9 +168,10 @@ body {
     width: 35%;
     height: 10px;
     display: none;
-    position: absolute;
-    bottom: 50%;
+    position: fixed;
+    top: 50%;
     left: 50%;
+    bottom: auto;
     margin: 0 auto;
     transform: translate(-50%, -50%);
 }
