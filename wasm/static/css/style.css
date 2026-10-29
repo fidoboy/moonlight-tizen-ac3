@@ -1874,6 +1874,12 @@ body {
     width: 100%;
     height: 100%;
 }
+/* Apply the SVG stroke as a CSS property for compatibility with Tizen WebKit.
+   Some versions do not resolve CSS custom properties in SVG presentation attributes. */
+#ambient-trails .ambient-trails-base,
+#ambient-trails .ambient-trails-flow {
+    stroke: var(--theme-accent, #00A3C6);
+}
 #main-ui-layer.ambient-trails-active #ambient-trails {
     display: block;
 }
