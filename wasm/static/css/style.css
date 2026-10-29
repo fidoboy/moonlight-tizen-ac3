@@ -2000,15 +2000,15 @@ body {
         opacity: 0;
     }
     25% {
-        transform: translateY(-12.5vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction) * 0.25)) scale(1);
+        transform: translateY(-12.5vh) rotate(var(--gamepad-rotation-25)) scale(1);
         opacity: var(--gamepad-opacity);
     }
     85% {
-        transform: translateY(-42.5vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction) * 0.85)) scale(1.25);
+        transform: translateY(-42.5vh) rotate(var(--gamepad-rotation-85)) scale(1.25);
         opacity: var(--gamepad-opacity);
     }
     100% {
-        transform: translateY(-50vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction))) scale(1.45);
+        transform: translateY(-50vh) rotate(var(--gamepad-rotation-end)) scale(1.45);
         opacity: 0;
     }
 }
