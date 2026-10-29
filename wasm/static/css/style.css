@@ -1905,6 +1905,67 @@ body {
 #main-content.settings-view-active > .bubbles-background {
     display: none !important;
 }
+.symbols-background {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 700ms ease-in-out;
+}
+#main-ui-layer[data-ambient-background="symbols"].symbols-active .symbols-background {
+    display: block;
+}
+#main-ui-layer[data-ambient-background="symbols"].symbols-active.ambient-trails-ready .symbols-background {
+    opacity: 1;
+}
+#main-content.settings-view-active > .symbols-background {
+    display: none !important;
+}
+#ambient-symbols .ambient-symbol {
+    position: absolute;
+    left: var(--symbol-left);
+    top: var(--symbol-top);
+    display: block;
+    color: var(--theme-accent, #88f6fb);
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-size: var(--symbol-size);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.12);
+    animation: none;
+    will-change: transform, opacity;
+}
+#ambient-symbols.ambient-symbols-active .ambient-symbol-animating {
+    animation: ambient-symbol-bloom var(--symbol-duration) ease-in-out both;
+}
+@keyframes ambient-symbol-bloom {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.12);
+    }
+    45% {
+        opacity: 0.7;
+        transform: translate(-50%, -50%) scale(0.72);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.15);
+    }
+}
 #ambient-bubbles .ambient-gamepad {
     position: absolute;
     display: block;
