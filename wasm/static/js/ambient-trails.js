@@ -1,5 +1,6 @@
-/* Ambient canvas experiment for the Hosts and Apps screens.
- * Standalone Canvas 2D implementation; no p5/canvas-sketch runtime required.
+/* Lightweight ambient trails for the Hosts and Apps screens.
+ * Geometry is generated once per resize; animation uses inexpensive sine offsets.
+ * No per-frame noise sampling, blur filters, or external dependencies.
  */
 (function () {
   'use strict';
@@ -25,30 +26,49 @@
   var width = 0;
   var height = 0;
   var lastFrame = 0;
-  var frameInterval = 1000 / 30;
+  var frameInterval = 1000 / 24;
+  var rows = [];
   var noise = new SimplexNoise3D();
+  var X_COUNT = 32;
+  var Y_COUNT = 36;
 
   function resizeCanvas() {
     var rect = layer.getBoundingClientRect();
-    var nextWidth = Math.max(1, Math.round(rect.width || window.innerWidth));
-    var nextHeight = Math.max(1, Math.round(rect.height || window.innerHeight));
-    // Avoid a costly high-DPI backing store on 4K TVs.
+    width = Math.max(1, Math.round(rect.width || window.innerWidth));
+    height = Math.max(1, Math.round(rect.height || window.innerHeight));
+
+    // Keep the backing store at or below CSS pixel resolution for low-power TVs.
     var pixelRatio = Math.min(1, window.devicePixelRatio || 1);
-    width = nextWidth;
-    height = nextHeight;
     canvas.width = Math.round(width * pixelRatio);
     canvas.height = Math.round(height * pixelRatio);
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    buildGeometry();
   }
 
-  function map(value, inMin, inMax, outMin, outMax) {
-    return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
+  function buildGeometry() {
+    rows = [];
+    var halfHeight = height / 2;
+    for (var j = 0; j < Y_COUNT; j++) {
+      var rowT = j / (Y_COUNT - 1);
+      var rowTime = j * 0.01;
+      var c = Math.cos(rowT * Math.PI * 2) * 0.1;
+      var points = [];
+      for (var i = 0; i < X_COUNT; i++) {
+        var tx = i / (X_COUNT - 1);
+        points.push({
+          x: tx * (width + 20) - width / 2 - 10,
+          baseY: noise.noise3D(tx, rowTime, c) * halfHeight,
+          phase: tx * Math.PI * 2 + rowT * Math.PI * 3
+        });
+      }
+      rows.push(points);
+    }
   }
 
   function hsl(hue, saturation, lightness, alpha) {
-    return 'hsla(' + hue + ', ' + saturation + '%, ' + lightness + '%, ' + (alpha === undefined ? 1 : alpha) + ')';
+    return 'hsla(' + hue + ', ' + saturation + '%, ' + lightness + '%, ' + alpha + ')';
   }
 
   function draw(timestamp) {
@@ -60,68 +80,54 @@
         mainUi.classList.contains('ui-inactive') ||
         canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
 
-    var xCount = 40;
-    var yCount = 60;
-    var iXCount = 1 / (xCount - 1);
-    var iYCount = 1 / (yCount - 1);
-    // Original sketch advances at roughly 1 time unit/second. Slow it down 25x.
     var time = timestamp * 0.00004;
-    var timeStep = 0.01;
     var halfWidth = width / 2;
     var halfHeight = height / 2;
-    var t = time % 1;
-    var tSide = Math.floor(time % 2) === 0;
-    var hueA = tSide ? 340 : 210;
-    var hueB = tSide ? 210 : 340;
-    var colorA = hsl(hueA, 100, 50);
-    var colorB = hsl(hueB, 100, 50);
+    var hueA = Math.floor(time % 2) === 0 ? 340 : 210;
+    var hueB = hueA === 340 ? 210 : 340;
 
-    // Clear in pixel coordinates, then use a centered coordinate system like the supplied sketch.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     var pixelRatio = canvas.width / width;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, halfWidth * pixelRatio, halfHeight * pixelRatio);
 
     var grad = ctx.createLinearGradient(-width, 0, width, height);
-    grad.addColorStop(0, colorA);
-    grad.addColorStop(0.5, colorB);
-    grad.addColorStop(1, colorA);
+    grad.addColorStop(0, hsl(hueA, 100, 50, 1));
+    grad.addColorStop(0.5, hsl(hueB, 100, 50, 1));
+    grad.addColorStop(1, hsl(hueA, 100, 50, 1));
 
-    ctx.globalAlpha = map(Math.cos(time), -1, 1, 0.15, 0.3);
+    // Preserve the ambient colour wash, but avoid filters and per-frame noise.
+    ctx.globalAlpha = 0.08 + (Math.cos(time) + 1) * 0.035;
     ctx.fillStyle = grad;
     ctx.fillRect(-halfWidth, -halfHeight, width, height);
     ctx.globalAlpha = 1;
 
+    var waveTime = timestamp * 0.00018;
+    var waveAmplitude = Math.min(24, halfHeight * 0.045);
     ctx.beginPath();
-    var rowTime = time;
-    for (var j = 0; j < yCount; j++) {
-      var tj = j * iYCount;
-      var c = Math.cos(tj * Math.PI * 2 + rowTime) * 0.1;
-      for (var i = 0; i < xCount; i++) {
-        var tx = i * iXCount;
-        var n = noise.noise3D(tx, rowTime, c);
-        var y = n * halfHeight;
-        var x = tx * (width + 20) - halfWidth - 10;
-        if (i) ctx.lineTo(x, y);
-        else ctx.moveTo(x, y);
+    for (var j = 0; j < rows.length; j++) {
+      var points = rows[j];
+      var rowPhase = j * 0.17;
+      for (var i = 0; i < points.length; i++) {
+        var p = points[i];
+        var y = p.baseY + Math.sin(p.phase + waveTime + rowPhase) * waveAmplitude;
+        if (i === 0) ctx.moveTo(p.x, y);
+        else ctx.lineTo(p.x, y);
       }
-      rowTime += timeStep;
     }
 
     ctx.globalCompositeOperation = 'lighter';
-    ctx.filter = 'blur(10px)';
     ctx.strokeStyle = grad;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.filter = 'none';
-    ctx.strokeStyle = hsl(0, 0, 100, 0.8);
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.48)';
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
 
-  // Compact 3D simplex-noise implementation, avoiding an external dependency on Tizen.
+  // Compact 3D simplex-noise implementation, used only when geometry is built.
   function SimplexNoise3D() {
     var grad3 = [
       [1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],
@@ -144,16 +150,11 @@
     for (var n = 0; n < 512; n++) perm[n] = p[n & 255];
 
     this.noise3D = function (xin, yin, zin) {
-      var F3 = 1 / 3;
-      var G3 = 1 / 6;
+      var F3 = 1 / 3, G3 = 1 / 6;
       var s = (xin + yin + zin) * F3;
-      var i = Math.floor(xin + s);
-      var j = Math.floor(yin + s);
-      var k = Math.floor(zin + s);
+      var i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
       var t = (i + j + k) * G3;
-      var x0 = xin - (i - t);
-      var y0 = yin - (j - t);
-      var z0 = zin - (k - t);
+      var x0 = xin - (i - t), y0 = yin - (j - t), z0 = zin - (k - t);
       var i1, j1, k1, i2, j2, k2;
       if (x0 >= y0) {
         if (y0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=1; k2=0; }
@@ -179,12 +180,8 @@
       var gi1=perm[ii+i1+perm[jj+j1+perm[kk+k1]]] % 12;
       var gi2=perm[ii+i2+perm[jj+j2+perm[kk+k2]]] % 12;
       var gi3=perm[ii+1+perm[jj+1+perm[kk+1]]] % 12;
-      return 32 * (
-        contribution(gi0,x0,y0,z0) +
-        contribution(gi1,x1,y1,z1) +
-        contribution(gi2,x2,y2,z2) +
-        contribution(gi3,x3,y3,z3)
-      );
+      return 32 * (contribution(gi0,x0,y0,z0) + contribution(gi1,x1,y1,z1) +
+        contribution(gi2,x2,y2,z2) + contribution(gi3,x3,y3,z3));
     };
   }
 
