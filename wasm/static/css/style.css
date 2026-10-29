@@ -1507,6 +1507,17 @@ body {
     height: 12px;
     border-radius: 8px;
 }
+/* Material Design Lite uses a fixed indigo for sliders; use the active app accent instead. */
+.mdl-slider.is-upgraded::-webkit-slider-thumb,
+.mdl-slider.is-upgraded::-moz-range-thumb,
+.mdl-slider.is-upgraded::-ms-thumb,
+.mdl-slider__background-lower,
+.mdl-slider__thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded:focus:not(:active)::-webkit-slider-thumb {
+    box-shadow: 0 0 0 10px var(--theme-accent-40);
+}
 #bitrateLowestValue, #jitterLowestValue {
     color: var(--theme-text-primary);
     margin: 0 -12px 0 14px;
