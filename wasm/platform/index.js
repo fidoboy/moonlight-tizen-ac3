@@ -614,6 +614,7 @@ function loadConfigSummarySettings(callback) {
     if (pending === 0 && !finished) {
       finished = true;
       updateConfigSummaryBar();
+      updateHdrControlState();
       callback();
     }
   }
@@ -5390,20 +5391,29 @@ function saveDecryptHostAudio() {
 
 function saveVideoCodec() {
   var chosenVideoCodec = $(this).data('value');
-  const selectedH264Codec = $('#h264').data('value');
-  const enabledHdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked');
 
-  // Check if HDR mode is enabled and prevent any incompatible HDR codec from being selected
-  if (enabledHdrMode && chosenVideoCodec === selectedH264Codec) { // Selecting H.264 while HDR mode is enabled
-    // H.264 does not support HDR profile, so stay on H.264 codec
-    updateVideoCodec('#h264', selectedH264Codec);
-    snackbarLog('HDR has been disabled due to unsupported H.264 codec.');
-    // Turn off the HDR mode switch and save the state
-    document.querySelector('#hdrModeBtn').MaterialSwitch.off();
+  updateVideoCodec(this, chosenVideoCodec);
+  updateHdrControlState();
+}
+
+function updateHdrControlState() {
+  const hdrInput = document.getElementById('hdrModeSwitch');
+  const hdrSwitch = document.getElementById('hdrModeBtn');
+  const isH264 = $('#selectCodec').data('value') === 'H264';
+
+  if (!hdrInput || !hdrSwitch) return;
+
+  // H.264 does not support HDR: force it off and disable the entire setting.
+  hdrInput.disabled = isH264;
+  syncDisabledSwitchAppearance(hdrInput);
+
+  if (isH264 && hdrInput.checked) {
+    if (hdrSwitch.MaterialSwitch) {
+      hdrSwitch.MaterialSwitch.off();
+    } else {
+      hdrInput.checked = false;
+    }
     updateHdrMode();
-  } else { // Selecting other video codecs while HDR mode is disabled
-    // Continue to select the SDR profile of other video codecs
-    updateVideoCodec(this, chosenVideoCodec);
   }
 }
 
