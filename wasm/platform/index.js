@@ -441,7 +441,6 @@ function attachListeners() {
   $('#goBackBtn').on('click', showHosts);
   installNavigationTooltipActionHiding();
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
-  $('#quitRunningAppBtn').on('click', quitAppDialog);
   $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
   $('.videoFramerateMenu li').on('click', saveFramerate);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
@@ -695,7 +694,7 @@ function loadConfigSummarySettings(callback) {
 function installNavigationTooltipActionHiding() {
   const navigationButtonSelector =
     '#goBackBtn, #settingsBtn, #refreshHostsBtn, #supportBtn, ' +
-    '#restoreDefaultsBtn, #quitRunningAppBtn, #updateAppBtn';
+    '#restoreDefaultsBtn, #updateAppBtn';
 
   document.addEventListener('click', function(event) {
     const button = event.target && event.target.closest
@@ -740,7 +739,7 @@ function maybeReleaseNativeLaunchScreen() {
   // Prepare the first Hosts screen underneath the native splash.
   var headerTitle = document.getElementById('header-title');
   if (headerTitle) headerTitle.textContent = t('Hosts');
-  $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
+  $('#goBackBtn, #restoreDefaultsBtn').hide();
   $('#settingsBtn, #supportBtn, #updateAppBtn').show();
   $('#settings-list, #game-grid, #wasmSpinner').hide();
   document.documentElement.classList.remove('app-starting');
@@ -1210,7 +1209,6 @@ function showHostsMode(skipPollingRestart) {
   $('#game-grid').hide();
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#quitRunningAppBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -1341,7 +1339,7 @@ function restoreUiAfterWasmLoad() {
   // Stop navigation before showing the loading screen
   Navigation.stop();
 
-  $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').show();
+  $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
 
@@ -2542,7 +2540,6 @@ function showSettingsMode() {
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
-  $('#quitRunningAppBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -3381,7 +3378,6 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#main-header').show();
   $('.mdl-layout__content').show();
   $('#goBackBtn').show();
-  $('#quitRunningAppBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
