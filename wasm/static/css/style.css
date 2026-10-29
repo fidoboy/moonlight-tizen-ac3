@@ -1832,6 +1832,10 @@ body {
 
 
 /* Subtle, theme-aware vector trails for the Hosts and Apps screens only. */
+#main-content {
+    position: relative;
+    isolation: isolate;
+}
 #ambient-trails {
     display: none;
     position: absolute;
@@ -1849,7 +1853,10 @@ body {
 #main-ui-layer.ambient-trails-active #ambient-trails {
     display: block;
 }
-#main-ui-layer > .mdl-layout {
+#host-grid,
+#game-grid,
+#settings-list {
+    position: relative;
     z-index: 1;
 }
 #ambient-trails .ambient-trails-base {
