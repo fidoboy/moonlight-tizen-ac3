@@ -3625,8 +3625,13 @@ function showApps(host, options) {
               }
               // Block subsequent clicks immediately
               isClickPrevented = true;
-              // Start the game when the Click key is pressed
-              startGame(host, app.id);
+              // A click on the currently running app offers Resume or Stop instead of
+              // immediately reconnecting to the existing stream.
+              if (host.currentGame == app.id) {
+                showRunningAppDialog(host, app.id, app.title);
+              } else {
+                startGame(host, app.id);
+              }
               // Reset the click flag after 2 second delay
               setTimeout(() => isClickPrevented = false, 2000);
             });
@@ -3759,6 +3764,42 @@ function showApps(host, options) {
         reject(failedAppList);
       });
     }, 500);
+  });
+}
+
+// Offer a direct choice when the selected app is already running on this host.
+function showRunningAppDialog(host, appId, appTitle) {
+  if (window._streamTerminationRecoveryInProgress || isDialogOpen) return;
+
+  var overlay = document.getElementById('runningAppDialogOverlay');
+  var dialog = document.getElementById('runningAppDialog');
+  var message = document.getElementById('runningAppDialogText');
+  message.textContent = t('%1$s is already running on the host.', appTitle);
+
+  fadeInUiElement(overlay, 'flex');
+  showUiDialog(dialog);
+  isDialogOpen = true;
+  Navigation.push(Views.RunningAppDialog);
+
+  function closeDialog() {
+    fadeOutUiElement(overlay);
+    closeUiDialog(dialog);
+    isDialogOpen = false;
+    Navigation.pop();
+    Navigation.switch();
+  }
+
+  $('#resumeRunningApp').off('click').on('click', function() {
+    closeDialog();
+    startGame(host, appId);
+  });
+
+  $('#stopRemoteApp').off('click').on('click', function() {
+    closeDialog();
+    // Match the existing Quit Running App action, without asking for confirmation twice.
+    stopGame(api, function() {
+      setTimeout(function() { Navigation.switch(); }, 3000);
+    });
   });
 }
 
