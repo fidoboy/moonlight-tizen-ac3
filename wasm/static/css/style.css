@@ -1939,7 +1939,7 @@ body {
         opacity: var(--gamepad-opacity);
     }
     to {
-        transform: translateY(-60vh) rotate(calc(var(--gamepad-rotation) + 180deg));
+        transform: translateY(-50vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
         opacity: 0;
     }
 }
