@@ -496,6 +496,7 @@ function attachListeners() {
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('selectBitrate', Views.SelectBitrateMenu);
   registerMenu('selectLanguage', Views.SelectLanguageMenu);
+  registerMenu('selectAmbientBackground', Views.AmbientBackgroundMenu);
   registerMenu('selectAudioBackend', Views.SelectAudioBackendMenu);
   registerMenu('selectAudio', Views.SelectAudioMenu);
   registerMenu('selectDolbyChannelLayout', Views.SelectDolbyChannelLayoutMenu);
