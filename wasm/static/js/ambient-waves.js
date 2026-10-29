@@ -64,8 +64,9 @@
     var scaleXTo = random(1.5, 1.75);
     var scaleYFrom = random(1.5, 2);
     var scaleYTo = random(0.6, 0.7);
-    var opacityFrom = random(0.75, 0.8);
-    var opacityTo = random(0.85, 1);
+    /* Each ribbon breathes at its own pace, with a visible but gentle opacity range. */
+    var opacityFrom = random(0.45, 0.65);
+    var opacityTo = random(0.92, 1);
     var ease = random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
     /* Front ribbons are softer and stronger; rear ribbons fade into the background. */
     var opacityFactors = [1, 0.82, 0.66, 0.52, 0.40, 0.30];
