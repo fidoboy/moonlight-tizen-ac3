@@ -450,6 +450,7 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
+  initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
@@ -5118,6 +5119,70 @@ function saveIpAddressFieldMode() {
   }, 100);
 }
 
+const COLOR_THEME_DEFAULT = 'original';
+const COLOR_THEME_IDS = ['original', 'black-orange', 'graphite-red', 'forest', 'midnight-violet'];
+let activeColorTheme = COLOR_THEME_DEFAULT;
+let focusedColorTheme = COLOR_THEME_DEFAULT;
+
+function normalizeColorTheme(theme) {
+  return COLOR_THEME_IDS.includes(theme) ? theme : COLOR_THEME_DEFAULT;
+}
+
+function syncColorThemeCards() {
+  document.querySelectorAll('#themeSelector .theme-card').forEach((card) => {
+    const theme = card.getAttribute('data-theme');
+    card.classList.toggle('is-selected', theme === activeColorTheme);
+    card.classList.toggle('is-focused-theme', theme === focusedColorTheme);
+    card.setAttribute('aria-checked', theme === activeColorTheme ? 'true' : 'false');
+  });
+}
+
+function setFocusedColorTheme(theme) {
+  focusedColorTheme = normalizeColorTheme(theme);
+  syncColorThemeCards();
+}
+
+function moveColorThemeFocus(direction) {
+  const currentIndex = COLOR_THEME_IDS.indexOf(focusedColorTheme);
+  const nextIndex = (currentIndex + direction + COLOR_THEME_IDS.length) % COLOR_THEME_IDS.length;
+  setFocusedColorTheme(COLOR_THEME_IDS[nextIndex]);
+}
+
+function applyColorTheme(theme) {
+  activeColorTheme = normalizeColorTheme(theme);
+  focusedColorTheme = activeColorTheme;
+  document.body.setAttribute('data-color-theme', activeColorTheme);
+  syncColorThemeCards();
+}
+
+function saveColorTheme(theme) {
+  const selectedTheme = normalizeColorTheme(theme);
+  applyColorTheme(selectedTheme);
+  storeData('colorTheme', selectedTheme, null);
+}
+
+function initializeColorThemeSelector() {
+  const selector = document.getElementById('themeSelector');
+  if (!selector) return;
+
+  selector.addEventListener('focus', function() {
+    setFocusedColorTheme(activeColorTheme);
+  });
+
+  selector.addEventListener('click', function(event) {
+    const card = event.target.closest ? event.target.closest('.theme-card') : null;
+    if (card && selector.contains(card)) {
+      saveColorTheme(card.getAttribute('data-theme'));
+    } else {
+      saveColorTheme(focusedColorTheme);
+    }
+  });
+
+  getData('colorTheme', function(result) {
+    applyColorTheme(result && result.colorTheme);
+  });
+}
+
 function saveConfigSummaryVisibility() {
   setTimeout(() => {
     const enabled = $('#showConfigSummarySwitch').parent().hasClass('is-checked');
@@ -5718,6 +5783,10 @@ function restoreDefaultsSettingsValues() {
   streamTransitionBackgroundEnabled = defaultStreamTransitionBackground;
   document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
   storeData('streamTransitionBackground', defaultStreamTransitionBackground, null);
+
+  // Restore the default application color theme.
+  applyColorTheme(COLOR_THEME_DEFAULT);
+  storeData('colorTheme', COLOR_THEME_DEFAULT, null);
 
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
