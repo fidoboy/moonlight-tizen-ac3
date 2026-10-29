@@ -1855,7 +1855,7 @@ body {
 }
 
 
-/* SVG wave layers behind all main-screen content. */
+/* Keep the animated waves above the main screen's base background but below every UI element. */
 #main-content {
     position: relative;
     isolation: isolate;
@@ -1872,8 +1872,12 @@ body {
     min-height: 100%;
     overflow: hidden;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
     opacity: 0.9;
+}
+#main-content > :not(.ambient-wave-wrapper) {
+    position: relative;
+    z-index: 1;
 }
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
