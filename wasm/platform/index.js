@@ -5288,17 +5288,13 @@ function initializeBubbleAnimation() {
     element.className = 'ambient-gamepad';
     element.textContent = 'stadia_controller';
     element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
-    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 22) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 15) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
     element.style.setProperty('--gamepad-duration', duration + 's');
     element.style.setProperty('--gamepad-delay', -randomAmbientBubbleValue(0, duration) + 's');
     element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
     element.style.setProperty('--gamepad-blur', randomAmbientBubbleValue(0, 3) + 'px');
-    var rotation = randomAmbientBubbleValue(0, 360);
-    var rotationDirection = Math.random() < 0.5 ? -180 : 180;
-    element.style.setProperty('--gamepad-rotation', rotation + 'deg');
-    element.style.setProperty('--gamepad-rotation-25', (rotation + rotationDirection * 0.25) + 'deg');
-    element.style.setProperty('--gamepad-rotation-85', (rotation + rotationDirection * 0.85) + 'deg');
-    element.style.setProperty('--gamepad-rotation-end', (rotation + rotationDirection) + 'deg');
+    element.style.setProperty('--gamepad-rotation', randomAmbientBubbleValue(0, 360) + 'deg');
+    element.style.setProperty('--gamepad-rotation-direction', Math.random() < 0.5 ? '-180deg' : '180deg');
     fragment.appendChild(element);
     ambientBubbleElements.push(element);
   }
