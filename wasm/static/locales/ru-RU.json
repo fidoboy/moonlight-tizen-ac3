@@ -481,5 +481,9 @@
   "Black & Orange": "Чёрный и оранжевый",
   "Graphite & Red": "Графитовый и красный",
   "Forest": "Лес",
-  "Midnight & Violet": "Полночь и фиолетовый"
+  "Midnight & Violet": "Полночь и фиолетовый",
+  "App Already Running": "Приложение уже запущено",
+  "%1$s is already running on the host.": "Приложение «%1$s» уже запущено на удалённом хосте.",
+  "Resume stream": "Продолжить трансляцию",
+  "Stop remote app": "Остановить удалённое приложение"
 }
