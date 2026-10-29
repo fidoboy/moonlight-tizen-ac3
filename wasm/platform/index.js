@@ -5284,11 +5284,14 @@ function initializeBubbleAnimation() {
   var fragment = document.createDocumentFragment();
   for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
     var element = document.createElement('span');
-    var duration = randomAmbientBubbleValue(5, 12);
+    // Bias the size distribution toward small and medium icons.
+    var size = 1 + Math.pow(Math.random(), 1.7) * 14;
+    // Smaller icons rise faster; larger icons rise more slowly.
+    var duration = 4 + ((size - 1) / 14) * 8;
     element.className = 'ambient-gamepad';
     element.textContent = 'stadia_controller';
     element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
-    element.style.setProperty('--gamepad-size', randomAmbientBubbleValue(1, 15) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+    element.style.setProperty('--gamepad-size', size * Math.max(1, window.innerWidth || 1) / 100 + 'px');
     element.style.setProperty('--gamepad-duration', duration + 's');
     element.style.setProperty('--gamepad-delay', -randomAmbientBubbleValue(0, duration) + 's');
     element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
