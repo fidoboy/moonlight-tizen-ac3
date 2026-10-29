@@ -3781,21 +3781,21 @@ function showRunningAppDialog(host, appId, appTitle) {
   isDialogOpen = true;
   Navigation.push(Views.RunningAppDialog);
 
-  function closeDialog() {
+  function closeDialog(restoreFocus) {
     fadeOutUiElement(overlay);
     closeUiDialog(dialog);
     isDialogOpen = false;
     Navigation.pop();
-    Navigation.switch();
+    if (restoreFocus) Navigation.switch();
   }
 
   $('#resumeRunningApp').off('click').on('click', function() {
-    closeDialog();
+    closeDialog(false);
     startGame(host, appId);
   });
 
   $('#stopRemoteApp').off('click').on('click', function() {
-    closeDialog();
+    closeDialog(false);
     // Match the existing Quit Running App action, without asking for confirmation twice.
     stopGame(api, function() {
       setTimeout(function() { Navigation.switch(); }, 3000);
