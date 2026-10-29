@@ -5322,7 +5322,7 @@ function randomAmbientSymbolCell(excludedCells) {
     : Math.floor(Math.random() * AMBIENT_SYMBOL_COUNT);
 }
 
-function configureAmbientSymbol(element, cell) {
+function configureAmbientSymbol(element, cell, stagger) {
   var column = cell % 5;
   var row = Math.floor(cell / 5);
   var jitterX = randomAmbientBubbleValue(-5, 5);
@@ -5335,6 +5335,7 @@ function configureAmbientSymbol(element, cell) {
   element.style.setProperty('--symbol-top', ((row + 0.5) * 25 + jitterY) + '%');
   element.style.setProperty('--symbol-size', randomAmbientBubbleValue(2.5, 9) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
   element.style.setProperty('--symbol-duration', duration + 's');
+  element.style.setProperty('--symbol-delay', stagger ? -randomAmbientBubbleValue(0, duration * 0.85) + 's' : '0s');
 }
 
 function recycleAmbientSymbol(element) {
@@ -5343,7 +5344,7 @@ function recycleAmbientSymbol(element) {
   var occupiedCells = ambientSymbolElements
     .filter(function(other) { return other !== element; })
     .map(function(other) { return parseInt(other.dataset.cell, 10); });
-  configureAmbientSymbol(element, randomAmbientSymbolCell(occupiedCells));
+  configureAmbientSymbol(element, randomAmbientSymbolCell(occupiedCells), false);
   element.classList.remove('ambient-symbol-animating');
   void element.offsetWidth;
   element.classList.add('ambient-symbol-animating');
@@ -5367,7 +5368,7 @@ function initializeAmbientSymbols() {
   for (var k = 0; k < AMBIENT_SYMBOL_COUNT; k++) {
     var element = document.createElement('span');
     element.className = 'ambient-symbol';
-    configureAmbientSymbol(element, cells[k]);
+    configureAmbientSymbol(element, cells[k], true);
     element.addEventListener('animationend', function() {
       recycleAmbientSymbol(this);
     });
