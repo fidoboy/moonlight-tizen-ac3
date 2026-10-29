@@ -2556,6 +2556,9 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Remove the ambient background before the Settings loading/transition screen is shown.
+  $('#main-ui-layer').removeClass('ambient-trails-active ambient-trails-ready');
+
   // Restore the Settings screen to its initial category and clear any previously
   // selected category or visible options before entering it again.
   Views.Settings.view.reset();
