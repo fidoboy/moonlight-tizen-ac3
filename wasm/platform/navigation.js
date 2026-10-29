@@ -1956,8 +1956,14 @@ const Views = {
       'resumeRunningApp',
       'stopRemoteApp'
     ]),
-    up: function() {},
-    down: function() {},
+    up: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    down: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
     left: function() {
       this.view.prev();
       focusElement(this.view.current());
@@ -1997,8 +2003,14 @@ const Views = {
       'resumeRunningApp',
       'stopRemoteApp'
     ]),
-    up: function() {},
-    down: function() {},
+    up: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    down: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
     left: function() {
       this.view.prev();
       focusElement(this.view.current());
