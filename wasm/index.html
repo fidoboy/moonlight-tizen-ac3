@@ -239,30 +239,6 @@
           </div>
           <div id="interfaceSettings" class="settings-options">
             <div class="setting-option">
-              <label data-i18n="Language">Language</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Choose Auto to match your TV locale, or manually select your desired language from the list.">
-                - Choose Auto to match your TV locale, or manually select your desired language from the list.
-              </span>
-              <div id="languageMenu">
-                <button type="button" id="selectLanguage" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="auto">Auto</button>
-              </div>
-              <ul class="languageMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectLanguage"></ul>
-            </div>
-            <div class="setting-option">
-              <label data-i18n="Host address field mode">Host address field mode</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Recommended for devices that have issues with the TV keyboard when entering the host address.">
-                - Recommended for devices that have issues with the TV keyboard when entering the host address.
-              </span>
-              <div id="ipAddressFieldModeMenu">
-                <label id="ipAddressFieldModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ipAddressFieldModeSwitch">
-                  <input type="checkbox" id="ipAddressFieldModeSwitch" class="mdl-switch__input" onchange="handleIpAddressFieldMode()">
-                  <span class="mdl-switch__label" data-i18n="Change the host address input to numeric (IPv4) mode">
-                    Change the host address input to numeric (IPv4) mode
-                  </span>
-                </label>
-              </div>
-            </div>
-            <div class="setting-option">
               <label data-i18n="Configuration summary bar">Configuration summary bar</label>
               <span class="mdl-list__item-text-body" data-i18n="- Shows the current streaming configuration below the title on the Hosts and Apps screens.">
                 - Shows the current streaming configuration below the title on the Hosts and Apps screens.
@@ -321,6 +297,53 @@
                   <span data-i18n="Midnight & Violet">Midnight &amp; Violet</span>
                   <span class="theme-card-check" aria-hidden="true">✓</span>
                 </button>
+              </div>
+            </div>
+            <div class="setting-option theme-selector-option">
+              <label data-i18n="Color theme">Color theme</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.">
+                - Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.
+              </span>
+              <div id="themeSelector" class="theme-selector" tabindex="0" role="group" aria-label="Color theme selector">
+                <button type="button" class="theme-card" data-theme="original" aria-label="Original theme" aria-pressed="true" tabindex="-1">
+                  <img src="static/res/themes/theme-original.svg" alt="">
+                  <span data-i18n="Original">Original</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="black-orange" aria-label="Black and Orange theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-black-orange.svg" alt="">
+                  <span data-i18n="Black & Orange">Black &amp; Orange</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="graphite-red" aria-label="Graphite and Red theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-graphite-red.svg" alt="">
+                  <span data-i18n="Graphite & Red">Graphite &amp; Red</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="forest" aria-label="Forest theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-forest.svg" alt="">
+                  <span data-i18n="Forest">Forest</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="midnight-violet" aria-label="Midnight and Violet theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-midnight-violet.svg" alt="">
+                  <span data-i18n="Midnight & Violet">Midnight &amp; Violet</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Host address field mode">Host address field mode</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Recommended for devices that have issues with the TV keyboard when entering the host address.">
+                - Recommended for devices that have issues with the TV keyboard when entering the host address.
+              </span>
+              <div id="ipAddressFieldModeMenu">
+                <label id="ipAddressFieldModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ipAddressFieldModeSwitch">
+                  <input type="checkbox" id="ipAddressFieldModeSwitch" class="mdl-switch__input" onchange="handleIpAddressFieldMode()">
+                  <span class="mdl-switch__label" data-i18n="Change the host address input to numeric (IPv4) mode">
+                    Change the host address input to numeric (IPv4) mode
+                  </span>
+                </label>
               </div>
             </div>
           </div>
