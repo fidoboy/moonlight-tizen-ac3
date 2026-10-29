@@ -47,8 +47,10 @@
     if (nextWidth === width && nextHeight === height) return;
     width = nextWidth;
     height = nextHeight;
-    canvas.width = width;
-    canvas.height = height;
+    /* Render at half resolution in each axis, then scale to the CSS size. */
+    canvas.width = Math.max(1, Math.round(width * 0.5));
+    canvas.height = Math.max(1, Math.round(height * 0.5));
+    ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
   }
 
   function makeWave(index) {
