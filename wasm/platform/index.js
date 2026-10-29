@@ -2522,7 +2522,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
-  $('#main-ui-layer').removeClass('ambient-trails-active ambient-trails-ready');
+  $('#main-ui-layer').removeClass('ambient-trails-active');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
   $('#main-content').addClass('settings-view-active');
 
@@ -2557,7 +2557,7 @@ function showSettingsMode() {
 // Show the Settings list
 function showSettings() {
   // Remove the ambient background before the Settings loading/transition screen is shown.
-  $('#main-ui-layer').removeClass('ambient-trails-active ambient-trails-ready');
+  $('#main-ui-layer').removeClass('ambient-trails-active');
 
   // Restore the Settings screen to its initial category and clear any previously
   // selected category or visible options before entering it again.
