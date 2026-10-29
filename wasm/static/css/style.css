@@ -346,7 +346,8 @@ body {
 /* Native dropdown used for selecting an animated interface background preset. */
 .setting-select {
     box-sizing: border-box;
-    width: min(100%, 520px);
+    width: 520px;
+    max-width: 100%;
     min-height: 52px;
     padding: 0 16px;
     border: 1px solid var(--theme-border);
