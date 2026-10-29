@@ -1280,6 +1280,8 @@ function finishInitialHostDiscovery() {
   runWhenMainUiActive(function() {
     snackbarLog('Network scan completed.');
     unlockHostListInteraction();
+    // Start the ambient background only after startup host discovery and network scanning finish.
+    $('#main-ui-layer').addClass('ambient-trails-ready');
   });
 }
 
