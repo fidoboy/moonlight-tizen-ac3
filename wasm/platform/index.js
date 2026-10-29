@@ -449,6 +449,7 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
+  $('#ambientBackgroundSelect').on('change', saveAmbientBackgroundPreset);
   initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
@@ -1190,7 +1191,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
-  $('#main-ui-layer').addClass('ambient-trails-active');
+  updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
   $('#main-content').removeClass('settings-view-active');
 
@@ -1335,6 +1336,8 @@ function showHosts(onShown) {
 }
 
 function restoreUiAfterWasmLoad() {
+  loadAmbientBackgroundPreference();
+
   // Show the localized UI immediately; host restoration and connectivity checks run independently.
   document.documentElement.classList.remove('app-starting');
 
@@ -3373,7 +3376,7 @@ function sortTitles(list, sortOrder) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
-  $('#main-ui-layer').addClass('ambient-trails-active');
+  updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
 
@@ -3873,6 +3876,8 @@ var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionBackgroundEnabled = true;
+var ambientBackgroundPreset = 'ambient-trails';
+var ambientBackgroundPreferenceLoaded = false;
 var streamTransitionHiding = false;
 var streamTransitionAfterHiddenCallbacks = [];
 var streamTransitionFirstFrameCallback = null;
@@ -5245,6 +5250,66 @@ function saveConfigSummaryVisibility() {
     configSummaryPreferenceLoaded = true;
     updateConfigSummaryBar();
   }, 100);
+}
+
+// Ambient interface background presets are keyed by stable values so additional
+// animations can be registered without changing the persistence mechanism.
+function updateAmbientBackgroundActivation(activate) {
+  var mainUi = document.getElementById('main-ui-layer');
+  if (!mainUi) return;
+
+  mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'ambient-trails') {
+    mainUi.classList.add('ambient-trails-active');
+  } else {
+    mainUi.classList.remove('ambient-trails-active');
+  }
+}
+
+function applyAmbientBackgroundPreset(preset, persist) {
+  var supportedPresets = ['ambient-trails', 'none'];
+  ambientBackgroundPreset = supportedPresets.indexOf(preset) !== -1 ? preset : 'ambient-trails';
+
+  var selector = document.getElementById('ambientBackgroundSelect');
+  if (selector) selector.value = ambientBackgroundPreset;
+
+  var mainUi = document.getElementById('main-ui-layer');
+  if (mainUi) mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
+
+  // Preserve the current screen's activation state while applying a new preset.
+  var contentScreenActive = mainUi && (
+    mainUi.classList.contains('ambient-trails-active') ||
+    mainUi.classList.contains('ambient-background-active')
+  );
+  updateAmbientBackgroundActivation(!!contentScreenActive);
+
+  if (persist) {
+    storeData('ambientBackgroundPreset', ambientBackgroundPreset, null);
+  }
+}
+
+function loadAmbientBackgroundPreference() {
+  getData('ambientBackgroundPreset', function(previousValue) {
+    var storedValue = previousValue && previousValue.ambientBackgroundPreset;
+    ambientBackgroundPreferenceLoaded = true;
+    applyAmbientBackgroundPreset(
+      typeof storedValue === 'string' ? storedValue : 'ambient-trails',
+      false
+    );
+
+    // Startup may have reached the Hosts view while the saved preference was loading.
+    var mainUi = document.getElementById('main-ui-layer');
+    if (mainUi && !mainUi.classList.contains('ui-inactive') &&
+        !document.getElementById('settings-list').offsetParent) {
+      updateAmbientBackgroundActivation(true);
+    }
+  });
+}
+
+function saveAmbientBackgroundPreset() {
+  var selector = document.getElementById('ambientBackgroundSelect');
+  if (!selector) return;
+  applyAmbientBackgroundPreset(selector.value, true);
 }
 
 function saveStreamTransitionBackground() {
