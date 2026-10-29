@@ -1950,7 +1950,7 @@ body {
     will-change: transform, opacity;
 }
 #ambient-symbols.ambient-symbols-active .ambient-symbol-animating {
-    animation: ambient-symbol-bloom var(--symbol-duration) ease-in-out both;
+    animation: ambient-symbol-bloom var(--symbol-duration) ease-in-out var(--symbol-delay, 0s) both;
 }
 @keyframes ambient-symbol-bloom {
     0% {
