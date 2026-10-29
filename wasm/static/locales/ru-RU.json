@@ -489,5 +489,8 @@
   "Animated interface background": "Анимированный фон интерфейса",
   "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Выберите анимированный фон для экранов хостов и приложений или отключите его.",
   "Ambient Trails": "Ambient Trails",
-  "None": "Нет"
+  "None": "Нет",
+  "Background animation": "Фоновая анимация",
+  "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Выберите анимацию для фона приложения или выберите «Нет», если не хотите отображать фон.",
+  "Waves": "Волны"
 }
