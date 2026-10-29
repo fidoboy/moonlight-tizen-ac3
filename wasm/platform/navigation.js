@@ -1211,6 +1211,7 @@ const Views = {
       'themeSelector',
       'showConfigSummaryBtn',
       'streamTransitionBackgroundBtn',
+      'selectAmbientBackground',
       'ipAddressFieldModeBtn'
     ]),
     up: function() {
@@ -1250,6 +1251,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  AmbientBackgroundMenu: {
+    isActive: () => isPopupMenuActive('ambientBackgroundMenu'),
+    view: new ListView(() => document.querySelectorAll('.ambientBackgroundMenu .mdl-menu__item')),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectAmbientBackground'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectAmbientBackground');
+      closeActiveVisibleMenu();
+      focusElement('selectAmbientBackground');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectAmbientBackground');
     },
     leave: function() {
       unmark(this.view.current());
