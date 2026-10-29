@@ -5284,7 +5284,7 @@ function initializeBubbleAnimation() {
   var fragment = document.createDocumentFragment();
   for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
     var element = document.createElement('span');
-    var duration = randomAmbientBubbleValue(7, 12);
+    var duration = randomAmbientBubbleValue(5, 15);
     element.className = 'ambient-gamepad';
     element.textContent = 'stadia_controller';
     element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
