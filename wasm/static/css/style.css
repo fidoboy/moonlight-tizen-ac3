@@ -1855,7 +1855,7 @@ body {
 }
 
 
-/* SVG wave layers behind the Hosts and Apps grids. */
+/* SVG wave layers behind all main-screen content. */
 #main-content {
     position: relative;
     isolation: isolate;
@@ -1872,7 +1872,7 @@ body {
     min-height: 100%;
     overflow: hidden;
     pointer-events: none;
-    z-index: 0;
+    z-index: -1;
     opacity: 0.9;
 }
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
@@ -1887,11 +1887,4 @@ body {
     height: 100%;
     min-width: 100%;
     min-height: 100%;
-}
-/* Keep the content above the animated background. */
-#host-grid,
-#game-grid,
-#settings-list {
-    position: relative;
-    z-index: 1;
 }
