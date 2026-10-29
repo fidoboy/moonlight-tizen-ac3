@@ -5297,8 +5297,8 @@ function resizeAmbientBubbleCanvas() {
   ambientBubbleCanvas.style.width = width + 'px';
   ambientBubbleCanvas.style.height = height + 'px';
   ambientBubbleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  if (ambientBubbleParticles.length) {
-    var seconds = ambientBubbleStartTimestamp ? performance.now() / 1000 - ambientBubbleStartTimestamp : 0;
+  if (ambientBubbleAnimationRunning && ambientBubbleParticles.length) {
+    var seconds = performance.now() / 1000 - ambientBubbleStartTimestamp;
     ambientBubbleParticles.forEach(function(particle) {
       randomizeAmbientBubble(particle, seconds, width, height, false);
     });
