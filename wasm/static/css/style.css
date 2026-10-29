@@ -1829,3 +1829,58 @@ body {
     .theme-card { padding: 4px 4px 8px; }
     .theme-card > span:not(.theme-card-check) { font-size: 0.95rem; }
 }
+
+
+/* Subtle, theme-aware vector trails for the Hosts and Apps screens only. */
+#ambient-trails {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+}
+#ambient-trails svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#main-ui-layer.ambient-trails-active #ambient-trails {
+    display: block;
+}
+#main-ui-layer > .mdl-layout {
+    z-index: 1;
+}
+#ambient-trails .ambient-trails-base {
+    opacity: 0.055;
+}
+#ambient-trails .ambient-trails-flow {
+    opacity: 0.13;
+    stroke-linecap: round;
+    stroke-dasharray: 150 1900;
+    animation: ambientTrailFlow 58s linear infinite;
+}
+#ambient-trails .trail-two {
+    stroke-dasharray: 110 2050;
+    animation-duration: 72s;
+    animation-delay: -24s;
+    opacity: 0.75;
+}
+#ambient-trails .trail-three {
+    stroke-dasharray: 95 2200;
+    animation-duration: 86s;
+    animation-delay: -51s;
+    opacity: 0.65;
+}
+@keyframes ambientTrailFlow {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -2050; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #ambient-trails .ambient-trails-flow {
+        animation: none;
+        stroke-dasharray: none;
+        opacity: 0.045;
+    }
+}
