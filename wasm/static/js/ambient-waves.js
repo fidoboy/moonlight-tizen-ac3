@@ -118,7 +118,7 @@
     ctx.translate(-centerX, -centerY);
     /* Keep the original animation's opacity values while making the effect
        subtle enough to sit behind the application UI. */
-    ctx.globalAlpha = wave.opacity * 0.09;
+    ctx.globalAlpha = wave.opacity * 0.04;
     ctx.fillStyle = 'rgb(' + accent + ')';
 
     for (var repeat = -1; repeat <= 2; repeat++) {
