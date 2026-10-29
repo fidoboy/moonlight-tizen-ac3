@@ -5267,7 +5267,7 @@ var ambientBubbleContext = null;
 var ambientBubbleParticles = [];
 var ambientBubbleAnimationFrame = null;
 var ambientBubbleAnimationRunning = false;
-var ambientBubbleLastTimestamp = 0;
+var ambientBubbleStartTimestamp = 0;
 var ambientBubbleColor = '';
 
 function resizeAmbientBubbleCanvas() {
@@ -5292,7 +5292,7 @@ function initializeBubbleAnimation() {
     return;
   }
   ambientBubbleParticles = BUBBLE_ANIMATION_CONFIG.map(function(config) {
-    return { config: config, bornAt: 0 };
+    return { config: config };
   });
   resizeAmbientBubbleCanvas();
   var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
@@ -5321,7 +5321,8 @@ function renderAmbientBubbleFrame(timestamp) {
   var context = ambientBubbleContext;
   var width = ambientBubbleCanvas.clientWidth || window.innerWidth;
   var height = ambientBubbleCanvas.clientHeight || window.innerHeight;
-  var seconds = timestamp / 1000;
+  if (!ambientBubbleStartTimestamp) ambientBubbleStartTimestamp = timestamp;
+  var seconds = (timestamp - ambientBubbleStartTimestamp) / 1000;
   context.clearRect(0, 0, width, height);
 
   ambientBubbleParticles.forEach(function(particle) {
@@ -5357,8 +5358,11 @@ function startAmbientBubbleAnimation() {
       !mainUi.classList.contains('ambient-trails-ready') ||
       !mainUi.classList.contains('bubbles-active') ||
       mainUi.getAttribute('data-ambient-background') !== 'bubbles') return;
+  var themeElement = document.getElementById('main-ui-layer') || document.documentElement;
+  ambientBubbleColor = getComputedStyle(themeElement).getPropertyValue('--theme-accent').trim() ||
+    getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#88f6fb';
+  ambientBubbleStartTimestamp = 0;
   ambientBubbleAnimationRunning = true;
-  ambientBubbleLastTimestamp = 0;
   ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
 }
 
