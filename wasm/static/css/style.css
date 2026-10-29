@@ -1876,9 +1876,12 @@ body {
 #main-ui-layer.ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
     opacity: 1;
 }
-#main-content > :not(.ambient-wave-wrapper) {
+#main-ui-layer.ambient-trails-active #main-content > :not(.ambient-wave-wrapper) {
     position: relative;
     z-index: 1;
+}
+#main-content.settings-view-active > .ambient-wave-wrapper {
+    display: none !important;
 }
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
