@@ -1210,8 +1210,8 @@ const Views = {
       'selectLanguage',
       'themeSelector',
       'showConfigSummaryBtn',
-      'streamTransitionBackgroundBtn',
       'selectAmbientBackground',
+      'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
     ]),
     up: function() {
