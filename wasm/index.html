@@ -91,6 +91,20 @@
   </div>
   <div id="directSmartHubStatus" role="status" aria-live="polite"></div>
   <div id="main-ui-layer" class="ui-inactive" aria-hidden="true">
+  <div id="ambient-trails" aria-hidden="true">
+    <svg viewBox="0 0 1920 1080" preserveAspectRatio="none" focusable="false">
+      <g class="ambient-trails-base" fill="none" stroke="var(--theme-accent)" stroke-width="1.5">
+        <path d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
+        <path d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
+        <path d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
+      </g>
+      <g class="ambient-trails-flow" fill="none" stroke="var(--theme-accent)" stroke-width="2">
+        <path class="trail-one" d="M-80 260 C 220 140, 360 390, 650 275 S 1080 150, 1350 265 S 1710 370, 2000 220"/>
+        <path class="trail-two" d="M-100 510 C 210 400, 430 610, 720 500 S 1110 380, 1390 500 S 1740 610, 2020 460"/>
+        <path class="trail-three" d="M-100 790 C 180 660, 470 900, 760 775 S 1160 650, 1450 790 S 1770 870, 2020 740"/>
+      </g>
+    </svg>
+  </div>
   <div class="mdl-layout mdl-js-layout">
     <header id="main-header" class="mdl-layout__header">
       <div class="mdl-layout__header-row">
