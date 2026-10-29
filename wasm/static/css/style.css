@@ -1903,45 +1903,12 @@ body {
 #main-content.settings-view-active > .bubbles-background {
     display: none !important;
 }
-.bubble {
-    position: absolute;
-    left: var(--bubble-left-offset);
-    bottom: -75%;
+#ambient-bubbles-canvas {
     display: block;
-    width: var(--bubble-radius);
-    height: var(--bubble-radius);
-    opacity: var(--bubble-opacity);
-    border-radius: 10%;
-    animation: float-up var(--bubble-float-duration) var(--bubble-float-delay) ease-in infinite;
-}
-.bubble::before {
-    position: absolute;
-    content: "";
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    background: var(--theme-accent);
-    border-radius: inherit;
-    animation: var(--bubble-sway-type) var(--bubble-sway-duration) var(--bubble-sway-delay) ease-in-out alternate infinite;
 }
-@keyframes float-up {
-    to {
-        transform: translateY(-120vh);
-        opacity: 0;
-        border-radius: 50%;
-        filter: blur(3px);
-    }
-}
-@keyframes sway-left-to-right {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(100%); }
-}
-@keyframes sway-right-to-left {
-    from { transform: translateX(100%); }
-    to { transform: translateX(-100%); }
-}
-
+ 
 #ambient-wave-svg {
     position: absolute;
     inset: 0;
