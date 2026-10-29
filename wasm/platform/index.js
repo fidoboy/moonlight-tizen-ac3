@@ -449,7 +449,7 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
-  $('#ambientBackgroundSelect').on('change', saveAmbientBackgroundPreset);
+  $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
   initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
@@ -5270,8 +5270,14 @@ function applyAmbientBackgroundPreset(preset, persist) {
   var supportedPresets = ['ambient-trails', 'none'];
   ambientBackgroundPreset = supportedPresets.indexOf(preset) !== -1 ? preset : 'ambient-trails';
 
-  var selector = document.getElementById('ambientBackgroundSelect');
-  if (selector) selector.value = ambientBackgroundPreset;
+  var selector = document.getElementById('selectAmbientBackground');
+  if (selector) {
+    var selectedOption = document.querySelector('.ambientBackgroundMenu .mdl-menu__item[data-value="' + ambientBackgroundPreset + '"]');
+    var selectedLabel = selectedOption ? selectedOption.textContent.trim() : ambientBackgroundPreset;
+    selector.textContent = selectedLabel;
+    selector.setAttribute('data-value', ambientBackgroundPreset);
+    if (window.jQuery) $(selector).data('value', ambientBackgroundPreset);
+  }
 
   var mainUi = document.getElementById('main-ui-layer');
   if (mainUi) mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
@@ -5307,9 +5313,9 @@ function loadAmbientBackgroundPreference() {
 }
 
 function saveAmbientBackgroundPreset() {
-  var selector = document.getElementById('ambientBackgroundSelect');
-  if (!selector) return;
-  applyAmbientBackgroundPreset(selector.value, true);
+  var chosenPreset = $(this).data('value');
+  if (!chosenPreset) return;
+  applyAmbientBackgroundPreset(chosenPreset, true);
 }
 
 function saveStreamTransitionBackground() {
