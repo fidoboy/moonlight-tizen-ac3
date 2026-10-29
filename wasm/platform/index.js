@@ -5138,7 +5138,9 @@ function syncColorThemeCards() {
     const theme = card.getAttribute('data-theme');
     card.classList.toggle('is-selected', theme === activeColorTheme);
     card.classList.toggle('is-focused-theme', theme === focusedColorTheme);
-    card.setAttribute('aria-checked', theme === activeColorTheme ? 'true' : 'false');
+    card.setAttribute('aria-pressed', theme === activeColorTheme ? 'true' : 'false');
+    const label = card.querySelector('span[data-i18n]');
+    if (label) card.setAttribute('aria-label', label.textContent.trim());
   });
 }
 
