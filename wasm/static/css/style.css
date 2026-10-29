@@ -1896,7 +1896,7 @@ body {
     opacity: 0;
     transition: opacity 700ms ease-in-out;
 }
-#main-ui-layer[data-ambient-background="bubbles"].bubbles-active .bubbles-background {
+#main-ui-layer[data-ambient-background="bubbles"].bubbles-active.ambient-trails-ready .bubbles-background {
     display: block;
     opacity: 1;
 }
