@@ -5277,10 +5277,10 @@ function applyAmbientBackgroundPreset(preset, persist) {
   if (mainUi) mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
 
   // Preserve the current screen's activation state while applying a new preset.
-  var contentScreenActive = mainUi && (
-    mainUi.classList.contains('ambient-trails-active') ||
-    mainUi.classList.contains('ambient-background-active')
-  );
+  var mainContent = document.getElementById('main-content');
+  var contentScreenActive = mainUi &&
+    !mainUi.classList.contains('ui-inactive') &&
+    mainContent && !mainContent.classList.contains('settings-view-active');
   updateAmbientBackgroundActivation(!!contentScreenActive);
 
   if (persist) {
