@@ -489,5 +489,8 @@
   "Animated interface background": "Animierter Oberflächenhintergrund",
   "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Wählen Sie den animierten Hintergrund für die Host- und App-Ansichten oder deaktivieren Sie ihn.",
   "Ambient Trails": "Ambient Trails",
-  "None": "Keiner"
+  "None": "Keiner",
+  "Background animation": "Hintergrundanimation",
+  "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Wählen Sie die Animation aus, die im Anwendungshintergrund angezeigt werden soll, oder wählen Sie „Keine“, wenn kein Hintergrund angezeigt werden soll.",
+  "Waves": "Wellen"
 }
