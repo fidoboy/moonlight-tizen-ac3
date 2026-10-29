@@ -5267,7 +5267,7 @@ var ambientBubbleContainer = null;
 var ambientBubbleElements = [];
 var ambientBubbleAnimationInitialized = false;
 var AMBIENT_SYMBOL_COUNT = 20;
-var AMBIENT_SYMBOLS = ['joystick', 'missing_controller', 'gamepad_left'];
+var AMBIENT_SYMBOLS = ['joystick', 'missing_controller', 'gamepad'];
 var ambientSymbolsContainer = null;
 var ambientSymbolElements = [];
 var ambientSymbolsInitialized = false;
@@ -5284,7 +5284,7 @@ function initializeBubbleAnimation() {
   var fragment = document.createDocumentFragment();
   for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
     var element = document.createElement('span');
-    var duration = randomAmbientBubbleValue(5, 15);
+    var duration = randomAmbientBubbleValue(5, 12);
     element.className = 'ambient-gamepad';
     element.textContent = 'stadia_controller';
     element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
