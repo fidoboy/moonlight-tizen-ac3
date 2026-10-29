@@ -5333,7 +5333,7 @@ function configureAmbientSymbol(element, cell, stagger) {
   element.textContent = AMBIENT_SYMBOLS[Math.floor(Math.random() * AMBIENT_SYMBOLS.length)];
   element.style.setProperty('--symbol-left', ((column + 0.5) * 20 + jitterX) + '%');
   element.style.setProperty('--symbol-top', ((row + 0.5) * 25 + jitterY) + '%');
-  element.style.setProperty('--symbol-size', randomAmbientBubbleValue(2.5, 9) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+  element.style.setProperty('--symbol-size', randomAmbientBubbleValue(2.5, 13) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
   element.style.setProperty('--symbol-duration', duration + 's');
   element.style.setProperty('--symbol-delay', stagger ? -randomAmbientBubbleValue(0, duration * 0.85) + 's' : '0s');
 }
