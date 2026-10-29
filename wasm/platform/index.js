@@ -5288,6 +5288,7 @@ function initializeBubbleAnimation() {
     element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
     element.style.setProperty('--gamepad-blur', randomAmbientBubbleValue(0, 3) + 'px');
     element.style.setProperty('--gamepad-rotation', randomAmbientBubbleValue(0, 360) + 'deg');
+    element.style.setProperty('--gamepad-rotation-direction', Math.random() < 0.5 ? '-180deg' : '180deg');
     fragment.appendChild(element);
     ambientBubbleElements.push(element);
   }
