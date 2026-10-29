@@ -126,16 +126,16 @@
     </header>
     <main id="main-content" class="mdl-layout__content">
   <div id="ambient-trails" class="ambient-wave-wrapper" aria-hidden="true">
-        <svg class="ambient-wave-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none" focusable="false" xmlns="http://www.w3.org/2000/svg">
-          <g class="ambient-wave-layer ambient-wave-layer--back">
-            <path d="M0 690 C210 625 355 725 570 675 S925 610 1140 675 S1550 735 1920 650 L1920 1080 L0 1080 Z"/>
-          </g>
-          <g class="ambient-wave-layer ambient-wave-layer--middle">
-            <path d="M0 760 C230 690 390 790 620 745 S980 670 1200 735 S1610 800 1920 715 L1920 1080 L0 1080 Z"/>
-          </g>
-          <g class="ambient-wave-layer ambient-wave-layer--front">
-            <path d="M0 835 C220 775 410 855 650 820 S1010 760 1240 815 S1640 875 1920 800 L1920 1080 L0 1080 Z"/>
-          </g>
+        <svg class="ambient-wave-svg" viewBox="0 0 1000 600" preserveAspectRatio="none" focusable="false" xmlns="http://www.w3.org/2000/svg">
+          <path fill="var(--theme-accent)" opacity="0.17" d="M0 350 C130 290 230 390 360 340 S590 285 720 345 S900 385 1000 320 L1000 600 L0 600 Z">
+            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="0 0; 18 -12; 0 0" dur="18s" repeatCount="indefinite"/>
+          </path>
+          <path fill="var(--theme-accent)" opacity="0.25" d="M0 410 C120 355 245 445 380 405 S610 350 750 405 S900 455 1000 385 L1000 600 L0 600 Z">
+            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="0 0; -22 10; 0 0" dur="13s" repeatCount="indefinite"/>
+          </path>
+          <path fill="var(--theme-accent)" opacity="0.34" d="M0 470 C145 420 255 495 405 460 S635 415 780 465 S920 505 1000 445 L1000 600 L0 600 Z">
+            <animateTransform attributeName="transform" attributeType="XML" type="translate" values="0 0; 14 8; 0 0" dur="16s" repeatCount="indefinite"/>
+          </path>
         </svg>
       </div>
       <div id="host-grid">
