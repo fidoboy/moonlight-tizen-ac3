@@ -485,5 +485,9 @@
   "App Already Running": "App Already Running",
   "%1$s is already running on the host.": "%1$s is already running on the host.",
   "Resume stream": "Resume stream",
-  "Stop remote app": "Stop remote app"
+  "Stop remote app": "Stop remote app",
+  "Animated interface background": "Animated interface background",
+  "- Choose the animated background shown on the Hosts and Apps screens, or disable it.": "- Choose the animated background shown on the Hosts and Apps screens, or disable it.",
+  "Ambient Trails": "Ambient Trails",
+  "None": "None"
 }
