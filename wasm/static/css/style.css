@@ -191,6 +191,11 @@ body {
 .mdl-progress > .auxbar {
     border-radius: 8px;
 }
+#loadingSpinner > .progressbar,
+#loadingSpinner > .bufferbar,
+#loadingSpinner > .auxbar {
+    background-color: var(--theme-accent);
+}
 #wasmSpinnerLogo {
     width: 30%;
     position: absolute;
