@@ -239,6 +239,16 @@
           </div>
           <div id="interfaceSettings" class="settings-options">
             <div class="setting-option">
+              <label data-i18n="Language">Language</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Choose Auto to match your TV locale, or manually select your desired language from the list.">
+                - Choose Auto to match your TV locale, or manually select your desired language from the list.
+              </span>
+              <div id="languageMenu">
+                <button type="button" id="selectLanguage" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="auto">Auto</button>
+              </div>
+              <ul class="languageMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectLanguage"></ul>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Configuration summary bar">Configuration summary bar</label>
               <span class="mdl-list__item-text-body" data-i18n="- Shows the current streaming configuration below the title on the Hosts and Apps screens.">
                 - Shows the current streaming configuration below the title on the Hosts and Apps screens.
