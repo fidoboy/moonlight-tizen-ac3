@@ -481,5 +481,9 @@
   "Black & Orange": "Preto e laranja",
   "Graphite & Red": "Grafite e vermelho",
   "Forest": "Floresta",
-  "Midnight & Violet": "Meia-noite e violeta"
+  "Midnight & Violet": "Meia-noite e violeta",
+  "App Already Running": "Aplicativo em execução",
+  "%1$s is already running on the host.": "%1$s já está em execução no host remoto.",
+  "Resume stream": "Retomar transmissão",
+  "Stop remote app": "Encerrar aplicativo remoto"
 }
