@@ -1855,7 +1855,7 @@ body {
 }
 
 
-/* Ambient canvas background for the Hosts and Apps screens only. */
+/* Lightweight CSS-only ambient waves for the Hosts and Apps screens. */
 #main-content {
     position: relative;
     isolation: isolate;
@@ -1866,15 +1866,37 @@ body {
     inset: 0;
     width: 100%;
     height: 100%;
-    z-index: 0;
     overflow: hidden;
     pointer-events: none;
-    opacity: 0.45;
+    z-index: 0;
+    opacity: 0.42;
+    background: linear-gradient(180deg, transparent 35%, var(--theme-accent-40) 100%);
 }
-#ambient-trails canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
+#ambient-trails::before,
+#ambient-trails::after {
+    content: "";
+    position: absolute;
+    left: -25%;
+    width: 150%;
+    height: 72%;
+    bottom: -43%;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+}
+#ambient-trails::before {
+    background: var(--theme-accent-40);
+    opacity: 0.75;
+    transform: translate3d(-3%, 0, 0) rotate(-5deg);
+    animation: ambient-wave-back 32s ease-in-out infinite alternate;
+}
+#ambient-trails::after {
+    bottom: -51%;
+    height: 78%;
+    background: var(--theme-accent-60);
+    opacity: 0.45;
+    transform: translate3d(3%, 0, 0) rotate(4deg);
+    animation: ambient-wave-front 26s ease-in-out infinite alternate;
 }
 #main-ui-layer.ambient-trails-active #ambient-trails {
     display: block;
@@ -1884,4 +1906,18 @@ body {
 #settings-list {
     position: relative;
     z-index: 1;
+}
+@keyframes ambient-wave-back {
+    from { transform: translate3d(-3%, 0, 0) rotate(-5deg); }
+    to { transform: translate3d(3%, -2%, 0) rotate(-2deg); }
+}
+@keyframes ambient-wave-front {
+    from { transform: translate3d(3%, 0, 0) rotate(4deg); }
+    to { transform: translate3d(-3%, -3%, 0) rotate(1deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    #ambient-trails::before,
+    #ambient-trails::after {
+        animation: none;
+    }
 }
