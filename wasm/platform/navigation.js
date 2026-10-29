@@ -1210,7 +1210,8 @@ const Views = {
       'selectLanguage',
       'ipAddressFieldModeBtn',
       'showConfigSummaryBtn',
-      'streamTransitionBackgroundBtn'
+      'streamTransitionBackgroundBtn',
+      'themeSelector'
     ]),
     up: function() {
       this.view.prevOption();
@@ -1220,10 +1221,18 @@ const Views = {
       this.view.nextOption();
       focusElement(this.view.current());
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      if (this.view.current() === 'themeSelector') moveColorThemeFocus(-1);
+    },
+    right: function() {
+      if (this.view.current() === 'themeSelector') moveColorThemeFocus(1);
+    },
     accept: function() {
-      clickElement(this.view.current());
+      if (this.view.current() === 'themeSelector') {
+        saveColorTheme(focusedColorTheme);
+      } else {
+        clickElement(this.view.current());
+      }
     },
     back: function() {
       // Remove focus from the current element before changing the view
