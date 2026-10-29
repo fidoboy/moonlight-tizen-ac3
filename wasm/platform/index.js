@@ -780,7 +780,12 @@ function maybeReleaseNativeLaunchScreen() {
       else summarySwitch.MaterialSwitch.off();
     }
     configSummaryPreferenceLoaded = true;
-    loadConfigSummarySettings(prepareSummaryAndReleaseSplash);
+    // Load the selected palette before releasing the native splash so the original
+    // colors are never briefly shown when a non-default theme was saved.
+    getData('colorTheme', function(themeResult) {
+      applyColorTheme(themeResult && themeResult.colorTheme);
+      loadConfigSummarySettings(prepareSummaryAndReleaseSplash);
+    });
   });
 }
 
@@ -5178,9 +5183,6 @@ function initializeColorThemeSelector() {
     }
   });
 
-  getData('colorTheme', function(result) {
-    applyColorTheme(result && result.colorTheme);
-  });
 }
 
 function saveConfigSummaryVisibility() {
