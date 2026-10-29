@@ -30,7 +30,7 @@
     if ((match = /^#([0-9a-f]{3})$/i.exec(value))) {
       accent = parseInt(match[1][0] + match[1][0], 16) + ', ' +
         parseInt(match[1][1] + match[1][1], 16) + ', ' +
-        parseInt(match[1][2] + match[2], 16);
+        parseInt(match[1][2] + match[1][2], 16);
     } else if ((match = /^#([0-9a-f]{6})$/i.exec(value))) {
       accent = parseInt(value.slice(1, 3), 16) + ', ' +
         parseInt(value.slice(3, 5), 16) + ', ' +
