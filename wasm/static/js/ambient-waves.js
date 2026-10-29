@@ -118,7 +118,7 @@
     ctx.translate(-centerX, -centerY);
     /* Keep the original animation's opacity values while making the effect
        subtle enough to sit behind the application UI. */
-    ctx.globalAlpha = wave.opacity * 0.18;
+    ctx.globalAlpha = wave.opacity * 0.09;
     ctx.fillStyle = 'rgb(' + accent + ')';
 
     for (var repeat = -1; repeat <= 2; repeat++) {
@@ -145,7 +145,7 @@
     readAccent();
     resize();
     if (!waves.length) {
-      for (var i = 0; i < 8; i++) waves.push(makeWave(i));
+      for (var i = 0; i < 6; i++) waves.push(makeWave(i));
     }
     gsap.ticker.add(render);
     render();
