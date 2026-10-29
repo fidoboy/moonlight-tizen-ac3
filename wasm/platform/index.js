@@ -5328,21 +5328,6 @@ function initializeBubbleAnimation() {
   window.addEventListener('resize', resizeAmbientBubbleCanvas);
 }
 
-function drawAmbientBubbleRoundRect(context, x, y, size, radius) {
-  var r = Math.max(0, Math.min(size / 2, radius));
-  context.beginPath();
-  context.moveTo(x + r, y);
-  context.lineTo(x + size - r, y);
-  context.quadraticCurveTo(x + size, y, x + size, y + r);
-  context.lineTo(x + size, y + size - r);
-  context.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
-  context.lineTo(x + r, y + size);
-  context.quadraticCurveTo(x, y + size, x, y + size - r);
-  context.lineTo(x, y + r);
-  context.quadraticCurveTo(x, y, x + r, y);
-  context.closePath();
-}
-
 function renderAmbientBubbleFrame(timestamp) {
   if (!ambientBubbleAnimationRunning || !ambientBubbleCanvas || !ambientBubbleContext) return;
   var context = ambientBubbleContext;
@@ -5353,7 +5338,6 @@ function renderAmbientBubbleFrame(timestamp) {
   context.clearRect(0, 0, width, height);
 
   ambientBubbleParticles.forEach(function(particle) {
-    var config = particle.config;
     var age = seconds - particle.cycleStart;
     if (age >= particle.duration) {
       randomizeAmbientBubble(particle, seconds, width, height, false);
@@ -5367,16 +5351,18 @@ function renderAmbientBubbleFrame(timestamp) {
     var x = particle.x * width / 100 + sway - particle.size / 2;
     var travelDistance = height + particle.size * 2;
     var y = height + particle.size - travelDistance * progress;
-    var alpha = particle.opacity * (1 - progress);
+    var distanceTravelled = travelDistance * progress;
+    var fadeProgress = Math.min(1, distanceTravelled / (height * 0.6));
+    var alpha = particle.opacity * (1 - fadeProgress);
     if (alpha <= 0.005 || y > height + particle.size || y < -particle.size) return;
 
-    var cornerRadius = particle.size * (0.1 + 0.4 * progress);
     context.save();
     context.globalAlpha = alpha;
     context.fillStyle = ambientBubbleColor;
-    context.filter = 'blur(' + (3 * progress) + 'px)';
-    drawAmbientBubbleRoundRect(context, x, y, particle.size, cornerRadius);
-    context.fill();
+    context.font = particle.size + 'px "Material Symbols Outlined"';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('stadia_controller', x + particle.size / 2, y + particle.size / 2);
     context.restore();
   });
   ambientBubbleAnimationFrame = window.requestAnimationFrame(renderAmbientBubbleFrame);
