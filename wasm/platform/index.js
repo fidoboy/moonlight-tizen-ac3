@@ -3878,11 +3878,11 @@ var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionBackgroundEnabled = true;
 const AMBIENT_BACKGROUND_PRESETS = {
-  'ambient-trails': 'ambient-trails-active',
+  'waves': 'waves-active',
   'bubbles': 'bubbles-active',
   'none': null
 };
-var ambientBackgroundPreset = 'ambient-trails';
+var ambientBackgroundPreset = 'waves';
 var ambientBackgroundPreferenceLoaded = false;
 var streamTransitionHiding = false;
 var streamTransitionAfterHiddenCallbacks = [];
@@ -5300,7 +5300,7 @@ function updateAmbientBackgroundActivation(activate) {
 
 function applyAmbientBackgroundPreset(preset, persist) {
   ambientBackgroundPreset = Object.prototype.hasOwnProperty.call(AMBIENT_BACKGROUND_PRESETS, preset)
-    ? preset : 'ambient-trails';
+    ? preset : 'waves';
 
   var selector = document.getElementById('selectAmbientBackground');
   if (selector) {
@@ -5335,7 +5335,7 @@ function loadAmbientBackgroundPreference() {
     var storedValue = previousValue && previousValue.ambientBackgroundPreset;
     ambientBackgroundPreferenceLoaded = true;
     applyAmbientBackgroundPreset(
-      typeof storedValue === 'string' ? storedValue : 'ambient-trails',
+      typeof storedValue === 'string' ? storedValue : 'waves',
       false
     );
 
