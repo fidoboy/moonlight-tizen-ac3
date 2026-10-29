@@ -1882,7 +1882,7 @@ body {
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
 }
-#ambient-wave-canvas {
+#ambient-wave-svg {
     position: absolute;
     inset: 0;
     display: block;
