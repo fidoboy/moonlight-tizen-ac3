@@ -1208,10 +1208,10 @@ const Views = {
   InterfaceSettings: {
     view: new ListView(() => [
       'selectLanguage',
-      'ipAddressFieldModeBtn',
+      'themeSelector',
       'showConfigSummaryBtn',
       'streamTransitionBackgroundBtn',
-      'themeSelector'
+      'ipAddressFieldModeBtn'
     ]),
     up: function() {
       this.view.prevOption();
