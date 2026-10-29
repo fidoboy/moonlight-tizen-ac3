@@ -193,7 +193,10 @@ body {
 }
 #loadingSpinner > .progressbar,
 #loadingSpinner > .bufferbar,
-#loadingSpinner > .auxbar {
+#loadingSpinner > .auxbar,
+#wasmSpinner > .progressbar,
+#wasmSpinner > .bufferbar,
+#wasmSpinner > .auxbar {
     background-color: var(--theme-accent);
 }
 #wasmSpinnerLogo {
@@ -206,7 +209,7 @@ body {
     animation: fadeInOut 3s infinite;
 }
 #wasmSpinnerMessage, #loadingSpinnerMessage {
-    color: #fff;
+    color: var(--theme-text-primary);
     margin: 35px;
     font-size: 2rem;
     font-weight: 300;
