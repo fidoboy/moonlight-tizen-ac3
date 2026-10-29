@@ -1488,7 +1488,7 @@ body {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
+.languageMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
