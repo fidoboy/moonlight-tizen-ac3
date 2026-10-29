@@ -5327,7 +5327,7 @@ function configureAmbientSymbol(element, cell, stagger) {
   var row = Math.floor(cell / 5);
   var jitterX = randomAmbientBubbleValue(-5, 5);
   var jitterY = randomAmbientBubbleValue(-5, 5);
-  var duration = randomAmbientBubbleValue(8, 14);
+  var duration = randomAmbientBubbleValue(4, 7);
 
   element.dataset.cell = String(cell);
   element.textContent = AMBIENT_SYMBOLS[Math.floor(Math.random() * AMBIENT_SYMBOLS.length)];
