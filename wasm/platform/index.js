@@ -5284,7 +5284,7 @@ function applyAmbientBackgroundPreset(preset, persist) {
     var selectedOption = document.querySelector('.ambientBackgroundMenu .mdl-menu__item[data-value="' + ambientBackgroundPreset + '"]');
     var selectedLabel = selectedOption ? selectedOption.textContent.trim() : ambientBackgroundPreset;
     selector.textContent = window.i18n && typeof window.i18n.t === 'function'
-      ? window.i18n.t(ambientBackgroundPreset === 'none' ? 'None' : 'Ambient Trails')
+      ? window.i18n.t(ambientBackgroundPreset === 'none' ? 'None' : 'Waves')
       : selectedLabel;
     selector.setAttribute('data-value', ambientBackgroundPreset);
     if (window.jQuery) $(selector).data('value', ambientBackgroundPreset);
