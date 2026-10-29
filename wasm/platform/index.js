@@ -2561,8 +2561,8 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
-  // Remove the ambient background before the Settings loading/transition screen is shown.
-  $('#main-ui-layer').removeClass('waves-active');
+  // Stop every ambient background before the Settings loading/transition screen is shown.
+  updateAmbientBackgroundActivation(false);
 
   // Restore the Settings screen to its initial category and clear any previously
   // selected category or visible options before entering it again.
@@ -5262,7 +5262,7 @@ function saveConfigSummaryVisibility() {
 
 // Ambient interface background presets are keyed by stable values so additional
 // animations can be registered without changing the persistence mechanism.
-var AMBIENT_GAMEPAD_COUNT = 25;
+var AMBIENT_GAMEPAD_COUNT = 12;
 var ambientBubbleContainer = null;
 var ambientBubbleElements = [];
 var ambientBubbleAnimationInitialized = false;
