@@ -1998,7 +1998,7 @@ body {
 }
 @keyframes ambient-gamepad-rise {
     from {
-        transform: translateY(0) rotate(var(--gamepad-rotation));
+        transform: translateY(100%) rotate(var(--gamepad-rotation));
         opacity: var(--gamepad-opacity);
     }
     to {
