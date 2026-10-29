@@ -1855,7 +1855,7 @@ body {
 }
 
 
-/* Lightweight SVG wave layers behind the Hosts and Apps grids. */
+/* SVG wave layers behind the Hosts and Apps grids. */
 #main-content {
     position: relative;
     isolation: isolate;
@@ -1863,39 +1863,30 @@ body {
 .ambient-wave-wrapper {
     display: none;
     position: absolute;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.72;
+    opacity: 0.9;
 }
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
 }
 .ambient-wave-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: block;
     width: 100%;
     height: 100%;
-}
-.ambient-wave-layer {
-    transform-box: fill-box;
-    transform-origin: center;
-    will-change: transform;
-}
-.ambient-wave-layer--back {
-    fill: var(--theme-accent);
-    opacity: 0.16;
-    animation: ambient-wave-drift-back 18s ease-in-out infinite alternate;
-}
-.ambient-wave-layer--middle {
-    fill: var(--theme-accent);
-    opacity: 0.23;
-    animation: ambient-wave-drift-middle 13s ease-in-out infinite alternate;
-}
-.ambient-wave-layer--front {
-    fill: var(--theme-accent);
-    opacity: 0.30;
-    animation: ambient-wave-drift-front 16s ease-in-out infinite alternate;
+    min-width: 100%;
+    min-height: 100%;
 }
 /* Keep the content above the animated background. */
 #host-grid,
@@ -1903,16 +1894,4 @@ body {
 #settings-list {
     position: relative;
     z-index: 1;
-}
-@keyframes ambient-wave-drift-back {
-    from { transform: translate(-1.2%, 0.5%); }
-    to   { transform: translate(1.2%, -1.0%); }
-}
-@keyframes ambient-wave-drift-middle {
-    from { transform: translate(1.0%, 1.0%); }
-    to   { transform: translate(-1.0%, -0.7%); }
-}
-@keyframes ambient-wave-drift-front {
-    from { transform: translate(-0.8%, -0.4%); }
-    to   { transform: translate(0.8%, 0.8%); }
 }
