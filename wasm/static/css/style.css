@@ -1872,19 +1872,6 @@ body {
     pointer-events: none;
     contain: none;
 }
-/* Temporary visual diagnostic: a red square should be visible in Hosts and Apps mode. */
-#ambient-trails::after {
-    content: "";
-    display: block;
-    position: fixed;
-    top: 40px;
-    left: 40px;
-    width: 120px;
-    height: 120px;
-    background: #ff0000;
-    z-index: 100000;
-    pointer-events: none;
-}
 #ambient-trails svg {
     display: block;
     width: 100%;
@@ -1930,10 +1917,4 @@ body {
     from { stroke-dashoffset: 0; }
     to { stroke-dashoffset: -2050; }
 }
-@media (prefers-reduced-motion: reduce) {
-    #ambient-trails .ambient-trails-flow {
-        animation: none;
-        stroke-dasharray: none;
-        opacity: 0.045;
-    }
-}
+/* Keep the ambient trails animated on TV browsers that report reduced motion by default. */
