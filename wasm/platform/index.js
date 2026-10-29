@@ -439,6 +439,7 @@ function attachListeners() {
   $('#refreshHostsBtn').on('click', refreshHosts);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
+  installNavigationTooltipActionHiding();
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
   $('#quitRunningAppBtn').on('click', quitAppDialog);
   $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
@@ -686,6 +687,43 @@ function loadConfigSummarySettings(callback) {
   applySwitch('ac3AudioMode', '#ac3AudioModeBtn', false);
   applySwitch('gameMode', '#gameModeBtn',
     parseFloat(platformVer) < 9.0 && parseFloat(platformVer) !== 5.5);
+}
+
+// Hide navigation tooltips before any top-bar action starts. Keep them hidden
+// until both pointer hover and keyboard focus have left the activated button.
+function installNavigationTooltipActionHiding() {
+  const navigationButtonSelector =
+    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #supportBtn, ' +
+    '#restoreDefaultsBtn, #quitRunningAppBtn, #updateAppBtn';
+
+  document.addEventListener('click', function(event) {
+    const button = event.target && event.target.closest
+      ? event.target.closest(navigationButtonSelector) : null;
+    if (!button) return;
+
+    const tooltip = document.querySelector(
+      '#popup-layer .mdl-tooltip[for="' + button.id + '"]'
+    );
+    if (tooltip) {
+      tooltip.classList.add('ui-hidden-for-action');
+      tooltip.classList.remove('is-active');
+    }
+  }, true);
+
+  function restoreTooltipWhenButtonIsInactive(event) {
+    const button = event.target && event.target.closest
+      ? event.target.closest(navigationButtonSelector) : null;
+    if (!button || (event.relatedTarget && button.contains(event.relatedTarget))) return;
+    if (button.matches(':hover') || button.matches(':focus')) return;
+
+    const tooltip = document.querySelector(
+      '#popup-layer .mdl-tooltip[for="' + button.id + '"]'
+    );
+    if (tooltip) tooltip.classList.remove('ui-hidden-for-action');
+  }
+
+  document.addEventListener('mouseout', restoreTooltipWhenButtonIsInactive, true);
+  document.addEventListener('focusout', restoreTooltipWhenButtonIsInactive, true);
 }
 
 function maybeReleaseNativeLaunchScreen() {
