@@ -1620,6 +1620,11 @@ body {
 #popup-layer .mdl-tooltip.is-active {
     opacity: 1;
 }
+#popup-layer .mdl-tooltip.ui-hidden-for-action {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
 #popup-layer > .dialog-overlay.ui-fade-managed,
 #popup-layer .mdl-dialog.ui-fade-managed,
 #popup-layer .mdl-tooltip.ui-fade-managed {
