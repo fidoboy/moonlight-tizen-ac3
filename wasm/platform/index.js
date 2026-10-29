@@ -4567,11 +4567,6 @@ function stopGame(host, callbackFunction) {
   lockAppListInteraction();
   snackbarLogPersistent('Closing application...');
 
-  // Hide the configuration strip while the host app is closing, so it cannot
-  // overlap the full-screen transition shown by the TV.
-  configSummaryTemporarilyHidden = true;
-  updateConfigSummaryBar();
-
   var operationFinished = false;
   function finishQuitOperation(message, appTitle, success) {
     if (operationFinished) return;
@@ -4595,8 +4590,6 @@ function stopGame(host, callbackFunction) {
     }).catch(function(error) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
     }).then(function() {
-      configSummaryTemporarilyHidden = false;
-      updateConfigSummaryBar();
       unlockAppListInteraction();
       if (success && typeof callbackFunction === 'function') callbackFunction();
     });
