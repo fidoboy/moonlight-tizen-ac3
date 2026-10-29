@@ -366,6 +366,19 @@
                   <span data-i18n="Midnight & Violet">Midnight &amp; Violet</span>
                   <span class="theme-card-check" aria-hidden="true">✓</span>
                 </button>
+            <div class="setting-option">
+              <label data-i18n="Background animation">Background animation</label>
+              <span class="mdl-list__item-text-body" data-i18n='- Choose the background animation you want to display as the application background, or select "None" if you do not want one displayed.'>
+                - Choose the background animation you want to display as the application background, or select "None" if you do not want one displayed.
+              </span>
+              <div id="ambientBackgroundMenu">
+                <button type="button" id="selectAmbientBackground" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="ambient-trails">Waves</button>
+              </div>
+              <ul class="ambientBackgroundMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectAmbientBackground">
+                <li class="mdl-menu__item" data-value="ambient-trails" data-i18n="Waves">Waves</li>
+                <li class="mdl-menu__item" data-value="none" data-i18n="None">None</li>
+              </ul>
+            </div>
               </div>
             </div>
             <div class="setting-option">
@@ -381,19 +394,6 @@
                   </span>
                 </label>
               </div>
-            </div>
-            <div class="setting-option">
-              <label data-i18n="Animated interface background">Animated interface background</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Choose the animated background shown on the Hosts and Apps screens, or disable it.">
-                - Choose the animated background shown on the Hosts and Apps screens, or disable it.
-              </span>
-              <div id="ambientBackgroundMenu">
-                <button type="button" id="selectAmbientBackground" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="ambient-trails">Ambient Trails</button>
-              </div>
-              <ul class="ambientBackgroundMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectAmbientBackground">
-                <li class="mdl-menu__item" data-value="ambient-trails" data-i18n="Ambient Trails">Ambient Trails</li>
-                <li class="mdl-menu__item" data-value="none" data-i18n="None">None</li>
-              </ul>
             </div>
             <div class="setting-option">
               <label data-i18n="Streaming transition background">Streaming transition background</label>
