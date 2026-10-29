@@ -1875,13 +1875,13 @@ body {
     opacity: 0;
     transition: opacity 700ms ease-in-out;
 }
-#main-ui-layer[data-ambient-background="ambient-trails"].ambient-trails-active.ambient-trails-ready .ambient-wave-wrapper {
+#main-ui-layer[data-ambient-background="waves"].waves-active.ambient-trails-ready .ambient-wave-wrapper {
     opacity: 0.25;
 }
 #main-content.settings-view-active > .ambient-wave-wrapper {
     display: none !important;
 }
-#main-ui-layer[data-ambient-background="ambient-trails"].ambient-trails-active .ambient-wave-wrapper {
+#main-ui-layer[data-ambient-background="waves"].waves-active .ambient-wave-wrapper {
     display: block;
 }
 .bubbles-background {
