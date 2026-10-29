@@ -2522,7 +2522,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
-  $('#main-ui-layer').removeClass('ambient-trails-active');
+  $('#main-ui-layer').removeClass('ambient-trails-active ambient-trails-ready');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
   $('#main-content').addClass('settings-view-active');
 
