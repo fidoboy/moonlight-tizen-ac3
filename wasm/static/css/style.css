@@ -1418,14 +1418,14 @@ body {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #streamTransitionBackgroundBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #streamTransitionBackgroundBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
