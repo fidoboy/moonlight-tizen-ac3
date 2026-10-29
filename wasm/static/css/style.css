@@ -1187,7 +1187,7 @@ body {
     overflow: hidden;
 }
 .setting-option {
-    margin: 25px;
+    margin: 25px 25px 37.5px;
 }
 #dolbyAudioHeading .dolby-audio-heading-icon {
     display: inline-block;
