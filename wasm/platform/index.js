@@ -3786,8 +3786,17 @@ function showRunningAppDialog(host, appId, appTitle) {
     closeUiDialog(dialog);
     isDialogOpen = false;
     Navigation.pop();
+    if (window.cancelRunningAppDialog === cancelRunningAppDialog) {
+      delete window.cancelRunningAppDialog;
+    }
     if (restoreFocus) Navigation.switch();
   }
+
+  // Back/Escape cancels this choice without resuming or stopping the remote app.
+  function cancelRunningAppDialog() {
+    closeDialog(true);
+  }
+  window.cancelRunningAppDialog = cancelRunningAppDialog;
 
   $('#resumeRunningApp').off('click').on('click', function() {
     closeDialog(false);
