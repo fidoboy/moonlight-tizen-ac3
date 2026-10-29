@@ -1884,7 +1884,7 @@ body {
 #main-ui-layer.ambient-trails-active .ambient-wave-wrapper {
     display: block;
 }
-#ambient-wave-svg {
+s=>`.bubbles-background {\n    display: none;\n    position: fixed;\n    inset: 0;\n    width: 100%;\n    height: 100%;\n    overflow: hidden;\n    pointer-events: none;\n    z-index: 0;\n    opacity: 0;\n    transition: opacity 700ms ease-in-out;\n}\n#main-ui-layer.bubbles-active .bubbles-background {\n    display: block;\n    opacity: 1;\n}\n#main-content.settings-view-active > .bubbles-background {\n    display: none !important;\n}\n.bubble {\n    position: absolute;\n    left: var(--bubble-left-offset);\n    bottom: -75%;\n    display: block;\n    width: var(--bubble-radius);\n    height: var(--bubble-radius);\n    opacity: var(--bubble-opacity);\n    border-radius: 10%;\n    animation: float-up var(--bubble-float-duration) var(--bubble-float-delay) ease-in infinite;\n}\n.bubble::before {\n    position: absolute;\n    content: \"\";\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 100%;\n    background: var(--theme-accent);\n    border-radius: inherit;\n    animation: var(--bubble-sway-type) var(--bubble-sway-duration) var(--bubble-sway-delay) ease-in-out alternate infinite;\n}\n@keyframes float-up {\n    to {\n        transform: translateY(-170vh);\n        opacity: 0;\n        border-radius: 50%;\n        filter: blur(3px);\n    }\n}\n@keyframes sway-left-to-right {\n    from { transform: translateX(-100%); }\n    to { transform: translateX(100%); }\n}\n@keyframes sway-right-to-left {\n    from { transform: translateX(100%); }\n    to { transform: translateX(-100%); }\n}\n\n`#ambient-wave-svg {
     position: absolute;
     inset: 0;
     display: block;
