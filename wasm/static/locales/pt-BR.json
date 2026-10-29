@@ -492,5 +492,6 @@
   "None": "Nenhum",
   "Background animation": "Animação de fundo",
   "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Escolha a animação de fundo que deseja exibir como plano de fundo do aplicativo ou selecione \"Nenhuma\" se não quiser exibi-la.",
-  "Waves": "Ondas"
+  "Waves": "Ondas",
+  "Bubbles": "Bolhas"
 }
