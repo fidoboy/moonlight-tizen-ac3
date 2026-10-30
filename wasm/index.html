@@ -81,12 +81,19 @@
 <body data-name="moonlight-tizen" data-tools="emscripten" data-configs="Debug Release" data-path="{tc}/{config}">
   <div id="stream-transition-layer" aria-hidden="true">
     <canvas id="stream-transition-frame" width="0" height="0" aria-hidden="true"></canvas>
-    <div id="loadingSpinner" class="mdl-progress mdl-js-progress mdl-progress__indeterminate">
+    <div id="loadingSpinner" class="loading-spinner">
+      <div class="loading-spinner-track"></div>
+      <div class="loading-spinner-bar loading-spinner-bar--primary"></div>
+      <div class="loading-spinner-bar loading-spinner-bar--secondary"></div>
       <h4 id="loadingSpinnerMessage"></h4>
     </div>
+      <div id="streamEncryptionStatus" class="stream-encryption-status" aria-live="polite">
+        <i id="streamEncryptionIcon" class="stream-encryption-icon material-icons" aria-hidden="true">lock</i>
+        <span id="streamEncryptionMessage"></span>
+      </div>
   </div>
   <div id="directSmartHubStatus" role="status" aria-live="polite"></div>
-  <div id="main-ui-layer">
+  <div id="main-ui-layer" class="ui-inactive" aria-hidden="true">
   <div class="mdl-layout mdl-js-layout">
     <header id="main-header" class="mdl-layout__header">
       <div class="mdl-layout__header-row">
@@ -117,14 +124,103 @@
             <i class="navigation-button-icons material-icons">settings_backup_restore</i>
           </button>
 
-          <button type="button" id="quitRunningAppBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Quit Running App">
-            <i class="navigation-button-icons material-icons">highlight_off</i>
-          </button>
-
         </nav>
       </div>
     </header>
     <main id="main-content" class="mdl-layout__content">
+  <div id="ambient-trails" class="ambient-wave-wrapper" aria-hidden="true">
+    <svg width="100%" height="100%" id="ambient-wave-svg" viewBox="0 0 1440 690" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><style>
+              .path-0{
+                animation:pathAnim-0 4s;
+                animation-timing-function: linear;
+                animation-iteration-count: infinite;
+              }
+              @keyframes pathAnim-0{
+                0%{
+                  d: path("M 0,700 L 0,105 C 93.8,125.9 191.6,157.8 296,138 C 400.4,118.2 522.2,73.8 630,114 C 737.8,154.2 850.6,99.5 952,98 C 1053.4,96.5 1150.5,123.3 1270,94 C 1329.7,79.3 1384.9,92.2 1440,105 L 1440,700 L 0,700 Z");
+                }
+                25%{
+                  d: path("M 0,700 L 0,105 C 84,90.5 215.9,85.7 340,74 C 464.1,62.3 499.3,91.3 616,116 C 732.7,140.7 860.6,91.1 965,68 C 1069.4,44.9 1161.2,137.5 1254,155 C 1300.4,163.7 1370.2,134.4 1440,105 L 1440,700 L 0,700 Z");
+                }
+                50%{
+                  d: path("M 0,700 L 0,105 C 75,125.4 201.8,160.5 313,131 C 424.2,101.5 497.5,108.8 629,119 C 760.5,129.2 873.5,79 966,59 C 1058.5,39 1185.7,125.8 1293,155 C 1346.6,169.6 1393.3,137.3 1440,105 L 1440,700 L 0,700 Z");
+                }
+                75%{
+                  d: path("M 0,700 L 0,105 C 116.5,82.3 204.8,157.8 300,147 C 395.2,136.2 551,151.7 649,147 C 747,142.3 869.8,8.2 974,53 C 1078.2,97.8 1146.5,123.9 1271,106 C 1333.2,97 1386.6,101 1440,105 L 1440,700 L 0,700 Z");
+                }
+                100%{
+                  d: path("M 0,700 L 0,105 C 93.8,125.9 191.6,157.8 296,138 C 400.4,118.2 522.2,73.8 630,114 C 737.8,154.2 850.6,99.5 952,98 C 1053.4,96.5 1150.5,123.3 1270,94 C 1329.7,79.3 1384.9,92.2 1440,105 L 1440,700 L 0,700 Z");
+                }
+              }</style><style class="darkreader darkreader--sync" media="screen"></style><path d="M 0,700 L 0,105 C 93.8,125.9 191.6,157.8 296,138 C 400.4,118.2 522.2,73.8 630,114 C 737.8,154.2 850.6,99.5 952,98 C 1053.4,96.5 1150.5,123.3 1270,94 C 1329.7,79.3 1384.9,92.2 1440,105 L 1440,700 L 0,700 Z" stroke="none" stroke-width="0" fill="var(--theme-accent)" fill-opacity="0.265" class="path-0"></path><style>
+              .path-1{
+                animation:pathAnim-1 4s;
+                animation-timing-function: linear;
+                animation-iteration-count: infinite;
+              }
+              @keyframes pathAnim-1{
+                0%{
+                  d: path("M 0,700 L 0,245 C 115.4,253.3 182.2,184.8 290,207 C 397.8,229.2 536.7,310.1 621,269 C 705.3,227.9 862,288.4 981,275 C 1100,261.6 1138.8,212 1250,240 C 1305.6,254 1372.8,249.5 1440,245 L 1440,700 L 0,700 Z");
+                }
+                25%{
+                  d: path("M 0,700 L 0,245 C 115.2,205.7 218.6,206.8 303,254 C 387.4,301.2 548.8,218.7 665,195 C 781.2,171.3 826.3,251.7 941,252 C 1055.7,252.3 1182.9,231.1 1290,227 C 1343.6,224.9 1391.8,235 1440,245 L 1440,700 L 0,700 Z");
+                }
+                50%{
+                  d: path("M 0,700 L 0,245 C 75.5,238.9 210.4,169.9 317,203 C 423.6,236.1 530.5,261.1 652,248 C 773.5,234.9 891.9,255 988,231 C 1084.1,207 1133,269.9 1251,277 C 1310,280.5 1375,262.8 1440,245 L 1440,700 L 0,700 Z");
+                }
+                75%{
+                  d: path("M 0,700 L 0,245 C 141.6,213.8 204.5,248.7 308,260 C 411.5,271.3 542.2,263.2 647,277 C 751.8,290.8 842.8,310.6 946,284 C 1049.2,257.4 1176.2,225.8 1274,243 C 1322.9,251.6 1381.4,248.3 1440,245 L 1440,700 L 0,700 Z");
+                }
+                100%{
+                  d: path("M 0,700 L 0,245 C 115.4,253.3 182.2,184.8 290,207 C 397.8,229.2 536.7,310.1 621,269 C 705.3,227.9 862,288.4 981,275 C 1100,261.6 1138.8,212 1250,240 C 1305.6,254 1372.8,249.5 1440,245 L 1440,700 L 0,700 Z");
+                }
+              }</style><style class="darkreader darkreader--sync" media="screen"></style><path d="M 0,700 L 0,245 C 115.4,253.3 182.2,184.8 290,207 C 397.8,229.2 536.7,310.1 621,269 C 705.3,227.9 862,288.4 981,275 C 1100,261.6 1138.8,212 1250,240 C 1305.6,254 1372.8,249.5 1440,245 L 1440,700 L 0,700 Z" stroke="none" stroke-width="0" fill="var(--theme-accent)" fill-opacity="0.4" class="path-1"></path><style>
+              .path-2{
+                animation:pathAnim-2 4s;
+                animation-timing-function: linear;
+                animation-iteration-count: infinite;
+              }
+              @keyframes pathAnim-2{
+                0%{
+                  d: path("M 0,700 L 0,385 C 109.3,441.2 180,378.5 295,358 C 410,337.5 535.4,399.1 644,386 C 752.6,372.9 866,344.9 951,334 C 1036,323.1 1137.2,323.6 1254,340 C 1312.4,348.2 1376.2,366.6 1440,385 L 1440,700 L 0,700 Z");
+                }
+                25%{
+                  d: path("M 0,700 L 0,385 C 106,370.7 192.7,344 297,350 C 401.3,356 509.7,336.5 632,335 C 754.3,333.5 880.7,375.9 977,359 C 1073.3,342.1 1199,390.5 1303,410 C 1355,419.7 1397.5,402.4 1440,385 L 1440,700 L 0,700 Z");
+                }
+                50%{
+                  d: path("M 0,700 L 0,385 C 113.9,361.7 231.5,330.9 347,338 C 462.5,345.1 531.4,379.5 613,404 C 694.6,428.5 861.2,383 966,349 C 1070.8,315 1131.9,343 1253,357 C 1313.6,364 1376.8,374.5 1440,385 L 1440,700 L 0,700 Z");
+                }
+                75%{
+                  d: path("M 0,700 L 0,385 C 76.6,367.8 195.8,364.7 316,350 C 436.2,335.3 502.6,376.7 619,366 C 735.4,355.3 856.6,394.2 954,425 C 1051.4,455.8 1173.4,419.7 1281,423 C 1334.8,424.6 1387.4,404.8 1440,385 L 1440,700 L 0,700 Z");
+                }
+                100%{
+                  d: path("M 0,700 L 0,385 C 109.3,441.2 180,378.5 295,358 C 410,337.5 535.4,399.1 644,386 C 752.6,372.9 866,344.9 951,334 C 1036,323.1 1137.2,323.6 1254,340 C 1312.4,348.2 1376.2,366.6 1440,385 L 1440,700 L 0,700 Z");
+                }
+              }</style><style class="darkreader darkreader--sync" media="screen"></style><path d="M 0,700 L 0,385 C 109.3,441.2 180,378.5 295,358 C 410,337.5 535.4,399.1 644,386 C 752.6,372.9 866,344.9 951,334 C 1036,323.1 1137.2,323.6 1254,340 C 1312.4,348.2 1376.2,366.6 1440,385 L 1440,700 L 0,700 Z" stroke="none" stroke-width="0" fill="var(--theme-accent)" fill-opacity="0.53" class="path-2"></path><style>
+              .path-3{
+                animation:pathAnim-3 4s;
+                animation-timing-function: linear;
+                animation-iteration-count: infinite;
+              }
+              @keyframes pathAnim-3{
+                0%{
+                  d: path("M 0,700 L 0,525 C 79.3,509.1 208.8,528.1 332,521 C 455.2,513.9 511.6,509.7 635,512 C 758.4,514.3 840.9,546.7 939,536 C 1037.1,525.3 1166.3,540.5 1262,564 C 1309.8,575.7 1374.9,550.4 1440,525 L 1440,700 L 0,700 Z");
+                }
+                25%{
+                  d: path("M 0,700 L 0,525 C 83.8,522.4 181.1,537.4 312,531 C 442.9,524.6 540.8,540.3 646,524 C 751.2,507.7 861.5,527.6 964,572 C 1066.5,616.4 1187.6,507.4 1287,487 C 1336.7,476.8 1388.4,500.9 1440,525 L 1440,700 L 0,700 Z");
+                }
+                50%{
+                  d: path("M 0,700 L 0,525 C 137.4,474.3 210.3,528 316,533 C 421.7,538 568.3,461.8 657,484 C 745.7,506.2 837.2,489.4 939,511 C 1040.8,532.6 1158.9,583.4 1274,560 C 1331.5,548.3 1385.8,536.6 1440,525 L 1440,700 L 0,700 Z");
+                }
+                75%{
+                  d: path("M 0,700 L 0,525 C 79,575.7 198.2,524.1 313,499 C 427.8,473.9 536.4,567.4 663,557 C 789.6,546.6 844,550.1 940,536 C 1036,521.9 1174.9,482.7 1278,507 C 1329.5,519.1 1384.8,522.1 1440,525 L 1440,700 L 0,700 Z");
+                }
+                100%{
+                  d: path("M 0,700 L 0,525 C 79.3,509.1 208.8,528.1 332,521 C 455.2,513.9 511.6,509.7 635,512 C 758.4,514.3 840.9,546.7 939,536 C 1037.1,525.3 1166.3,540.5 1262,564 C 1309.8,575.7 1374.9,550.4 1440,525 L 1440,700 L 0,700 Z");
+                }
+              }</style><style class="darkreader darkreader--sync" media="screen"></style><path d="M 0,700 L 0,525 C 79.3,509.1 208.8,528.1 332,521 C 455.2,513.9 511.6,509.7 635,512 C 758.4,514.3 840.9,546.7 939,536 C 1037.1,525.3 1166.3,540.5 1262,564 C 1309.8,575.7 1374.9,550.4 1440,525 L 1440,700 L 0,700 Z" stroke="none" stroke-width="0" fill="var(--theme-accent)" fill-opacity="1" class="path-3"></path></svg>
+  </div>
+  <div id="ambient-bubbles" class="bubbles-background" aria-hidden="true"></div>
+  <div id="ambient-symbols" class="symbols-background" aria-hidden="true"></div>
       <div id="host-grid">
         <div id="addHostContainer" class="host-add-container mdl-card mdl-shadow--4dp" role="link" tabindex="0" aria-label="Add Host">
           <div id="host-add" class="mdl-card__title mdl-card--expand">
@@ -244,19 +340,53 @@
               </div>
               <ul class="languageMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectLanguage"></ul>
             </div>
-            <div class="setting-option">
-              <label data-i18n="Host address field mode">Host address field mode</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Recommended for devices that have issues with the TV keyboard when entering the host address.">
-                - Recommended for devices that have issues with the TV keyboard when entering the host address.
+            <div class="setting-option theme-selector-option">
+              <label data-i18n="Color theme">Color theme</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.">
+                - Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.
               </span>
-              <div id="ipAddressFieldModeMenu">
-                <label id="ipAddressFieldModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ipAddressFieldModeSwitch">
-                  <input type="checkbox" id="ipAddressFieldModeSwitch" class="mdl-switch__input" onchange="handleIpAddressFieldMode()">
-                  <span class="mdl-switch__label" data-i18n="Change the host address input to numeric (IPv4) mode">
-                    Change the host address input to numeric (IPv4) mode
-                  </span>
-                </label>
+              <div id="themeSelector" class="theme-selector" tabindex="0" role="group" aria-label="Color theme selector">
+                <button type="button" class="theme-card" data-theme="original" aria-label="Original theme" aria-pressed="true" tabindex="-1">
+                  <img src="static/res/themes/theme-original.svg" alt="">
+                  <span data-i18n="Original">Original</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="black-orange" aria-label="Black and Orange theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-black-orange.svg" alt="">
+                  <span data-i18n="Black & Orange">Black &amp; Orange</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="graphite-red" aria-label="Graphite and Red theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-graphite-red.svg" alt="">
+                  <span data-i18n="Graphite & Red">Graphite &amp; Red</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="forest" aria-label="Forest theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-forest.svg" alt="">
+                  <span data-i18n="Forest">Forest</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
+                <button type="button" class="theme-card" data-theme="midnight-violet" aria-label="Midnight and Violet theme" aria-pressed="false" tabindex="-1">
+                  <img src="static/res/themes/theme-midnight-violet.svg" alt="">
+                  <span data-i18n="Midnight & Violet">Midnight &amp; Violet</span>
+                  <span class="theme-card-check" aria-hidden="true">✓</span>
+                </button>
               </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Background animation">Background animation</label>
+              <span class="mdl-list__item-text-body" data-i18n='- Choose the background animation you want to display as the application background, or select "None" if you do not want one displayed.'>
+                - Choose the background animation you want to display as the application background, or select "None" if you do not want one displayed.
+              </span>
+              <div id="ambientBackgroundMenu">
+                <button type="button" id="selectAmbientBackground" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="waves">Waves</button>
+              </div>
+              <ul class="ambientBackgroundMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectAmbientBackground">
+                <li class="mdl-menu__item" data-value="waves" data-i18n="Waves">Waves</li>
+                <li class="mdl-menu__item" data-value="bubbles" data-i18n="Bubbles">Bubbles</li>
+                <li class="mdl-menu__item" data-value="symbols" data-i18n="Symbols">Symbols</li>
+                <li class="mdl-menu__item" data-value="none" data-i18n="None">None</li>
+              </ul>
             </div>
             <div class="setting-option">
               <label data-i18n="Configuration summary bar">Configuration summary bar</label>
@@ -273,6 +403,20 @@
               </div>
             </div>
             <div class="setting-option">
+              <label data-i18n="Navigation sounds">Navigation sounds</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Enable or disable navigation sounds in the Moonlight interface.">
+                - Enable or disable navigation sounds in the Moonlight interface.
+              </span>
+              <div id="navigationSoundMenu">
+                <label id="navigationSoundBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="navigationSoundSwitch">
+                  <input type="checkbox" id="navigationSoundSwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Enable navigation sounds">
+                    Enable navigation sounds
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Streaming transition background">Streaming transition background</label>
               <span class="mdl-list__item-text-body" data-i18n="- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.">
                 - Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.
@@ -282,6 +426,20 @@
                   <input type="checkbox" id="streamTransitionBackgroundSwitch" class="mdl-switch__input" checked>
                   <span class="mdl-switch__label" data-i18n="Show the animated background during stream transitions">
                     Show the animated background during stream transitions
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Host address field mode">Host address field mode</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Recommended for devices that have issues with the TV keyboard when entering the host address.">
+                - Recommended for devices that have issues with the TV keyboard when entering the host address.
+              </span>
+              <div id="ipAddressFieldModeMenu">
+                <label id="ipAddressFieldModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ipAddressFieldModeSwitch">
+                  <input type="checkbox" id="ipAddressFieldModeSwitch" class="mdl-switch__input" onchange="handleIpAddressFieldMode()">
+                  <span class="mdl-switch__label" data-i18n="Change the host address input to numeric (IPv4) mode">
+                    Change the host address input to numeric (IPv4) mode
                   </span>
                 </label>
               </div>
@@ -395,9 +553,9 @@
           </div>
           <div id="audioSettings" class="settings-options">
             <div id="ac3AudioModeOption" class="setting-option">
-              <label data-i18n="Dolby audio output">Dolby audio output</label>
-              <span class="mdl-list__item-text-body" data-i18n="Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which Sunshine traditionally sends by default. If the host does not provide the format, Moonlight will always fall back to Opus.">
-                Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which Sunshine traditionally sends by default. If the host does not provide the format, Moonlight will always fall back to Opus.
+              <label id="dolbyAudioHeading" data-i18n="Dolby audio output">Dolby audio output</label>
+              <span class="mdl-list__item-text-body" data-i18n="Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.">
+                Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.
               </span>
               <div id="ac3AudioModeMenu">
                 <label id="ac3AudioModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ac3AudioModeSwitch">
@@ -435,6 +593,37 @@
                 <li class="mdl-menu__item" data-value="Stereo" data-i18n="Stereo">Stereo</li>
                 <li class="mdl-menu__item" data-value="51Surround" data-i18n="5.1 Surround Sound">5.1 Surround Sound</li>
                 <li class="mdl-menu__item" data-value="71Surround" data-optical-incompatible="true" data-i18n="7.1 Surround Sound">7.1 Surround Sound</li>
+              </ul>
+            </div>
+            <div id="dolbyChannelLayoutOption" class="setting-option">
+              <label><span data-i18n="Dolby Digital speaker layout">Dolby Digital speaker layout</span>
+                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+              </label>
+              <span class="mdl-list__item-text-body" data-i18n="Select how the speakers are arranged in your setup. If you use &quot;Rear speakers&quot; (the most common setup), the speakers will be assumed to be positioned behind the listener.">
+                Select how the speakers are arranged in your setup. If you use "Rear speakers" (the most common setup), the speakers will be assumed to be positioned behind the listener.
+              </span>
+              <div id="dolbyChannelLayoutMenu">
+                <button type="button" id="selectDolbyChannelLayout" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Back" data-i18n="Rear speakers">Rear speakers</button>
+              </div>
+              <ul class="dolbyChannelLayoutMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyChannelLayout">
+                <li class="mdl-menu__item" data-value="Normal" data-i18n="Side speakers">Side speakers</li>
+                <li class="mdl-menu__item" data-value="Back" data-i18n="Rear speakers">Rear speakers</li>
+              </ul>
+            </div>
+            <div id="dolbyDecodingModeOption" class="setting-option" style="display:none">
+              <label><span data-i18n="Dolby Digital decoding mode">Dolby Digital decoding mode</span>
+                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+              </label>
+              <span class="mdl-list__item-text-body" data-i18n="Select the mode for the Dolby Digital decoder. The default is &quot;Hardware&quot;, but you can change it to &quot;Automatic&quot; or &quot;Software&quot; if needed for the best output on your devices.">
+                Select the mode for the Dolby Digital decoder. The default is "Hardware", but you can change it to "Automatic" or "Software" if needed for the best output on your devices.
+              </span>
+              <div id="dolbyDecodingModeMenu">
+                <button type="button" id="selectDolbyDecodingMode" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Hardware" data-i18n="Hardware">Hardware</button>
+              </div>
+              <ul class="dolbyDecodingModeMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyDecodingMode">
+                <li class="mdl-menu__item" data-value="Hardware" data-i18n="Hardware">Hardware</li>
+                <li class="mdl-menu__item" data-value="HardwareWithFallback" data-i18n="Automatic">Automatic</li>
+                <li class="mdl-menu__item" data-value="Software" data-i18n="Software">Software</li>
               </ul>
             </div>
             <div id="audioSyncOption" class="setting-option">
@@ -725,7 +914,6 @@
     <div id="refreshHostsTooltip" class="mdl-tooltip" for="refreshHostsBtn" data-i18n="Rescan Network">Rescan Network</div>
     <div id="supportTooltip" class="mdl-tooltip" for="supportBtn" data-i18n="Support">Support</div>
     <div id="restoreDefaultsTooltip" class="mdl-tooltip" for="restoreDefaultsBtn" data-i18n="Restore Defaults">Restore Defaults</div>
-    <div id="quitRunningAppTooltip" class="mdl-tooltip" for="quitRunningAppBtn" data-i18n="Quit Running App">Quit Running App</div>
   <div id="addHostDialogOverlay" class="dialog-overlay">
     <dialog id="addHostDialog" class="mdl-dialog">
       <h3 id="addHostDialogTitle" class="mdl-dialog__title" data-i18n="Add Host">Add Host</h3>
@@ -827,6 +1015,18 @@
       </div>
     </dialog>
   </div>
+  <div id="runningAppDialogOverlay" class="dialog-overlay">
+    <dialog id="runningAppDialog" class="mdl-dialog">
+      <h3 id="runningAppDialogTitle" class="mdl-dialog__title" data-i18n="App Already Running">App Already Running</h3>
+      <div class="mdl-dialog__content">
+        <p id="runningAppDialogText"></p>
+      </div>
+      <div class="mdl-dialog__actions">
+        <button type="button" id="resumeRunningApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Resume stream">Resume stream</button>
+        <button type="button" id="stopRemoteApp" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Stop remote app">Stop remote app</button>
+      </div>
+    </dialog>
+  </div>
   <div id="appSupportDialogOverlay" class="dialog-overlay">
     <dialog id="appSupportDialog" class="mdl-dialog">
       <h3 id="appSupportDialogTitle" class="mdl-dialog__title" data-i18n="Moonlight Support">Moonlight Support</h3>
@@ -849,7 +1049,7 @@
   <div id="navGuideDialogOverlay" class="dialog-overlay">
     <dialog id="navGuideDialog" class="mdl-dialog large-dialog">
       <h3 id="navGuideDialogTitle" class="mdl-dialog__title" data-i18n="Navigation Guide">Navigation Guide</h3>
-      <div class="mdl-dialog__content">
+      <div id="navGuideDialogContent" class="mdl-dialog__content" tabindex="-1">
         <div class="navGuideContainer">
           <span class="navGuideLabel navGuideRemoteColor"></span>
           <span class="navGuideLabelText" data-i18n="Remote Control">Remote Control</span>&nbsp;(<span data-i18n="TV">TV</span>)
@@ -956,7 +1156,7 @@
   <div id="updateAppDialogOverlay" class="dialog-overlay">
     <dialog id="updateAppDialog" class="mdl-dialog">
       <h3 id="updateAppDialogTitle" class="mdl-dialog__title" data-i18n="Update Moonlight">Update Moonlight</h3>
-      <div class="mdl-dialog__content">
+      <div id="updateAppDialogContent" class="mdl-dialog__content" tabindex="-1">
         <p id="updateAppDialogText"></p>
       </div>
       <div class="mdl-dialog__actions">
@@ -993,11 +1193,13 @@
     </dialog>
   </div>
   <div id="snackbar" class="mdl-snackbar mdl-js-snackbar">
+    <span class="snackbar-spinner-slot" aria-hidden="true"><span class="snackbar-spinner"></span></span>
     <div class="mdl-snackbar__text"></div>
     <button type="button" id="snackButton" class="mdl-snackbar__action"></button>
     <!-- This button exists to suppress the snackbar warning, we're really using a toast -->
   </div>
   </div>
   <video id="wasm_module" autoplay tabindex="-1"></video>
+
 </body>
 </html>

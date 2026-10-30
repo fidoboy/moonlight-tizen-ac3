@@ -1,9 +1,90 @@
+/* Application color themes. The original values preserve the existing default appearance. */
+:root {
+    --theme-background: #282C38;
+    --theme-surface: #404354;
+    --theme-surface-deep: #333846;
+    --theme-surface-hover: #484C5F;
+    --theme-surface-selected: #585D75;
+    --theme-surface-alt: #3E4454;
+    --theme-accent: #00A3C6;
+    --theme-accent-80: rgba(0, 163, 198, 0.8);
+    --theme-accent-60: rgba(0, 163, 198, 0.6);
+    --theme-accent-40: rgba(0, 163, 198, 0.4);
+    --theme-text-primary: #ececec;
+    --theme-text-secondary: #cfcfcf;
+    --theme-summary-background: #20232c;
+    --theme-border: #454955;
+}
+body[data-color-theme="black-orange"] {
+    --theme-background: #000000;
+    --theme-surface: #171717;
+    --theme-surface-deep: #090909;
+    --theme-surface-hover: #292929;
+    --theme-surface-selected: #3A2816;
+    --theme-surface-alt: #202020;
+    --theme-accent: #FF8C00;
+    --theme-accent-80: rgba(255, 140, 0, 0.8);
+    --theme-accent-60: rgba(255, 140, 0, 0.6);
+    --theme-accent-40: rgba(255, 140, 0, 0.4);
+    --theme-text-primary: #F2F2F2;
+    --theme-text-secondary: #C8C8C8;
+    --theme-summary-background: #090909;
+    --theme-border: #414141;
+}
+body[data-color-theme="graphite-red"] {
+    --theme-background: #202124;
+    --theme-surface: #333438;
+    --theme-surface-deep: #18191B;
+    --theme-surface-hover: #48494D;
+    --theme-surface-selected: #542B2D;
+    --theme-surface-alt: #292A2D;
+    --theme-accent: #E53935;
+    --theme-accent-80: rgba(229, 57, 53, 0.8);
+    --theme-accent-60: rgba(229, 57, 53, 0.6);
+    --theme-accent-40: rgba(229, 57, 53, 0.4);
+    --theme-text-primary: #F0F0F0;
+    --theme-text-secondary: #C7C7C7;
+    --theme-summary-background: #18191B;
+    --theme-border: #4A4B4F;
+}
+body[data-color-theme="forest"] {
+    --theme-background: #18211D;
+    --theme-surface: #26352E;
+    --theme-surface-deep: #111A15;
+    --theme-surface-hover: #34483D;
+    --theme-surface-selected: #244A38;
+    --theme-surface-alt: #1F2B25;
+    --theme-accent: #36C98F;
+    --theme-accent-80: rgba(54, 201, 143, 0.8);
+    --theme-accent-60: rgba(54, 201, 143, 0.6);
+    --theme-accent-40: rgba(54, 201, 143, 0.4);
+    --theme-text-primary: #EDF5F0;
+    --theme-text-secondary: #C3D0C8;
+    --theme-summary-background: #111A15;
+    --theme-border: #3C5146;
+}
+body[data-color-theme="midnight-violet"] {
+    --theme-background: #171827;
+    --theme-surface: #2A2B42;
+    --theme-surface-deep: #10111D;
+    --theme-surface-hover: #3A3B58;
+    --theme-surface-selected: #3D315E;
+    --theme-surface-alt: #222339;
+    --theme-accent: #9B8AFF;
+    --theme-accent-80: rgba(155, 138, 255, 0.8);
+    --theme-accent-60: rgba(155, 138, 255, 0.6);
+    --theme-accent-40: rgba(155, 138, 255, 0.4);
+    --theme-text-primary: #F0EEFF;
+    --theme-text-secondary: #C9C6E0;
+    --theme-summary-background: #10111D;
+    --theme-border: #45445F;
+}
 /* =============================
    Global Styles
 ============================= */
 body {
     color: #fff;
-    background-color: #282C38;
+    background-color: var(--theme-background);
     font-family: 'Roboto', sans-serif;
     scroll-behavior: smooth;
     -webkit-user-select: none;
@@ -29,7 +110,13 @@ body {
     height: 100%;
     box-sizing: border-box;
 }
-#main-ui-layer { z-index: 10; opacity: 0; background: #282C38; }
+#main-ui-layer { z-index: 10; opacity: 0; background: var(--theme-background); }
+/* This root state overrides every descendant's visibility and interaction state. */
+#main-ui-layer.ui-inactive {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 #main-ui-layer > .mdl-layout {
     position: absolute;
     inset: 0;
@@ -99,10 +186,155 @@ body {
     margin: 0 auto;
     transform: translate(-50%, -50%);
 }
+#loadingSpinner .loading-spinner-track,
+#loadingSpinner .loading-spinner-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border: 0;
+    border-radius: 8px;
+    box-shadow: none;
+}
+#loadingSpinner .loading-spinner-track {
+    z-index: 0;
+    left: 0;
+    width: 100%;
+    border: 0 !important;
+    outline: 0;
+    box-shadow: none !important;
+    background: rgba(255, 255, 255, 0.22);
+    background-clip: padding-box;
+}
+#loadingSpinner .loading-spinner-bar {
+    z-index: 1;
+    left: 0;
+    right: auto;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        var(--theme-accent-40) 42%,
+        var(--theme-accent) 100%
+    );
+    transition: none;
+    width: 0;
+    -webkit-animation-duration: 2s;
+    animation-duration: 2s;
+    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: infinite;
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
+}
+#loadingSpinner .loading-spinner-bar::after {
+    z-index: 2;
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -2px;
+    width: 28%;
+    min-width: 12px;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(
+        ellipse at right center,
+        var(--theme-accent) 0%,
+        var(--theme-accent) 28%,
+        var(--theme-accent-40) 58%,
+        transparent 100%
+    );
+    box-shadow: 0 0 12px 4px var(--theme-accent);
+    opacity: 0;
+    -webkit-animation-duration: 2s;
+    animation-duration: 2s;
+    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: infinite;
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
+    pointer-events: none;
+}
+#loadingSpinner .loading-spinner-bar--primary {
+    -webkit-animation-name: loading-spinner-indeterminate1;
+    animation-name: loading-spinner-indeterminate1;
+}
+#loadingSpinner .loading-spinner-bar--primary::after {
+    -webkit-animation-name: loading-spinner-glow1;
+    animation-name: loading-spinner-glow1;
+}
+#loadingSpinner .loading-spinner-bar--secondary {
+    -webkit-animation-name: loading-spinner-indeterminate2;
+    animation-name: loading-spinner-indeterminate2;
+}
+#loadingSpinner .loading-spinner-bar--secondary::after {
+    -webkit-animation-name: loading-spinner-glow2;
+    animation-name: loading-spinner-glow2;
+}
+
+/* Animate against the track's width directly. Transform percentages were based on
+   each bar's own width and could leave the trailing segment short on Tizen. */
+@-webkit-keyframes loading-spinner-indeterminate1 {
+    0% { left: 0; width: 0; }
+    50% { left: 0; width: 85%; }
+    75%, 100% { left: 100%; width: 0; }
+}
+
+@keyframes loading-spinner-indeterminate1 {
+    0% { left: 0; width: 0; }
+    50% { left: 0; width: 85%; }
+    75%, 100% { left: 100%; width: 0; }
+}
+
+@-webkit-keyframes loading-spinner-indeterminate2 {
+    0%, 50% { left: 0; width: 0; }
+    75% { left: 0; width: 42%; }
+    100% { left: 100%; width: 0; }
+}
+
+@keyframes loading-spinner-indeterminate2 {
+    0%, 50% { left: 0; width: 0; }
+    75% { left: 0; width: 42%; }
+    100% { left: 100%; width: 0; }
+}
+
+@-webkit-keyframes loading-spinner-glow1 {
+    0% { opacity: 0; }
+    8% { opacity: 0.65; }
+    15%, 50% { opacity: 1; }
+    65% { opacity: 0.5; }
+    75%, 100% { opacity: 0; }
+}
+
+@keyframes loading-spinner-glow1 {
+    0% { opacity: 0; }
+    8% { opacity: 0.65; }
+    15%, 50% { opacity: 1; }
+    65% { opacity: 0.5; }
+    75%, 100% { opacity: 0; }
+}
+
+@-webkit-keyframes loading-spinner-glow2 {
+    0%, 50% { opacity: 0; }
+    58% { opacity: 0.65; }
+    65%, 85% { opacity: 1; }
+    95% { opacity: 0.5; }
+    100% { opacity: 0; }
+}
+
+@keyframes loading-spinner-glow2 {
+    0%, 50% { opacity: 0; }
+    58% { opacity: 0.65; }
+    65%, 85% { opacity: 1; }
+    95% { opacity: 0.5; }
+    100% { opacity: 0; }
+}
+
 .mdl-progress > .progressbar,
 .mdl-progress > .bufferbar,
 .mdl-progress > .auxbar {
     border-radius: 8px;
+}
+#wasmSpinner > .progressbar,
+#wasmSpinner > .bufferbar,
+#wasmSpinner > .auxbar {
+    background-color: var(--theme-accent);
 }
 #wasmSpinnerLogo {
     width: 30%;
@@ -114,7 +346,7 @@ body {
     animation: fadeInOut 3s infinite;
 }
 #wasmSpinnerMessage, #loadingSpinnerMessage {
-    color: #fff;
+    color: var(--theme-text-primary);
     margin: 35px;
     font-size: 2rem;
     font-weight: 300;
@@ -122,11 +354,60 @@ body {
     letter-spacing: 0.5px;
     text-align: center;
 }
+.stream-encryption-status {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    z-index: 1;
+    color: #aaaaaa;
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.3;
+    letter-spacing: 0.1px;
+    text-align: center;
+    pointer-events: none;
+}
+.stream-encryption-status .stream-encryption-icon {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    font-size: 18px;
+    line-height: 18px;
+    /* Older Tizen WebKit versions do not reliably support flexbox gap. */
+    margin-right: 6px;
+}
+.stream-encryption-status.encrypted {
+    color: #4caf50;
+}
+.stream-encryption-status.partially-encrypted {
+    color: #ffbf00;
+}
+.stream-encryption-status.unencrypted {
+    color: #aaaaaa;
+}
+#loadingSpinnerMessage {
+    position: relative;
+    left: 50%;
+    width: 80vw;
+    max-width: 80vw;
+    box-sizing: border-box;
+    margin: 35px 0;
+    transform: translateX(-50%);
+}
 /* =============================
    Header Section
 ============================= */
 #main-header {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     box-shadow: 0 0 4px 0 rgba(0, 0, 0, 1);
 }
 .mdl-layout__header-row {
@@ -141,7 +422,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #header-title {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     font-size: 2.6rem;
     font-weight: 600;
     letter-spacing: 2px;
@@ -151,8 +432,8 @@ body {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn, #quitRunningAppBtn {
-    background-color: #404354;
+#settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn {
+    background-color: var(--theme-surface);
     width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -160,7 +441,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #goBackBtn {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     position: absolute;
     top: 15px;
     left: 30px;
@@ -170,7 +451,7 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 #updateAppBtn {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     right: 52px;
     height: 50px;
     padding: 0 20px;
@@ -181,7 +462,7 @@ body {
     transition: opacity var(--ui-fade-duration) ease-in-out, transform var(--ui-fade-duration) ease-in-out, box-shadow 0.2s ease-in-out;
 }
 #updateAppBtn:hover, #updateAppBtn:focus {
-    background-color: #404354;
+    background-color: var(--theme-surface);
     box-shadow: 0 0 2px 3px rgba(239, 191, 4, 1);
 }
 #updateAppBtnText {
@@ -215,11 +496,11 @@ body {
                 visibility 0s linear var(--ui-fade-duration);
     /* Keep the snackbar inside popup-layer instead of escaping via MDL's fixed positioning. */
     position: absolute;
-    background: rgba(62, 68, 84, 0.9);
+    background: var(--theme-surface-deep);
     min-width: 0;
     max-width: 70vw !important;
     border-radius: 12px 12px 0 0;
-    box-shadow: 0 0 8px 4px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 8px 4px var(--theme-accent);
 }
 .mdl-snackbar--active {
     transform: translate(-50%, 0);
@@ -228,17 +509,56 @@ body {
 }
 .mdl-snackbar__text {
     color: #fff;
-    padding: 15px 40px 15px 40px;
+    padding: 20px 44px;
     font-size: 1.8rem;
     font-weight: 500;
     line-height: normal;
     letter-spacing: 0.5px;
     text-align: center;
 }
+.snackbar-spinner-slot {
+    display: none;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    margin-left: 26px;
+    transform: translateY(-2px);
+    align-items: center;
+    justify-content: center;
+}
+.snackbar-spinner {
+    display: block;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    transform-origin: 50% 50%;
+    will-change: transform;
+    border: 3px solid rgba(255, 255, 255, 0.28);
+    border-top-color: #fff;
+    border-radius: 50%;
+    box-sizing: border-box;
+    animation: snackbar-spinner-rotation 0.8s linear infinite;
+}
+#snackbar.is-progress {
+    display: flex;
+    align-items: center;
+}
+#snackbar.is-progress .snackbar-spinner-slot {
+    display: flex;
+}
+#snackbar.is-progress .mdl-snackbar__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 20px 28px 20px 18px;
+    text-align: left;
+}
+@keyframes snackbar-spinner-rotation {
+    to { transform: rotate(360deg); }
+}
 /* Tooltips are popups and always belong to the dominant level 4. */
 #popup-layer .mdl-tooltip {
     color: #fff;
-    background-color: #3E4454;
+    background-color: var(--theme-surface-alt);
     display: inline !important;
     position: absolute;
     top: 72px !important;
@@ -270,7 +590,7 @@ body {
     inset: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.7);
     display: none;
     align-items: center;
     justify-content: center;
@@ -278,12 +598,12 @@ body {
 .mdl-dialog {
     transition: opacity var(--ui-fade-duration) ease-in-out;
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     width: 30%;
     height: fit-content;
     padding: 20px;
     border-radius: 16px;
-    box-shadow: 0 0 12px 6px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 12px 6px var(--theme-accent);
 }
 /* Keep long release notes inside the viewport while leaving the title and Close button accessible. */
 #updateAppDialog {
@@ -311,7 +631,7 @@ body {
     overscroll-behavior: contain;
 }
 #updateAppDialogContent:focus {
-    outline: 2px solid rgba(0, 163, 198, 0.8);
+    outline: 2px solid var(--theme-accent-80);
     outline-offset: -2px;
 }
 /* Keep the navigation guide and dynamic warnings within the viewport as well. */
@@ -336,14 +656,18 @@ body {
     overflow-y: auto;
     overscroll-behavior: contain;
 }
+#navGuideDialogContent:focus {
+    outline: 2px solid var(--theme-accent-80);
+    outline-offset: -2px;
+}
 .large-dialog {
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     width: 90%;
     height: fit-content;
     padding: 20px;
     border-radius: 16px;
-    box-shadow: 0 0 12px 6px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 12px 6px var(--theme-accent);
 }
 /* Hide the mouse pointer around the Stream Menu, which appears when the mouse is released */
 #streamMenuDialogOverlay, #streamMenuDialog::backdrop {
@@ -371,6 +695,25 @@ body {
 .mdl-dialog__content button {
     font-size: 1.4rem;
     text-transform: uppercase;
+}
+#runningAppDialog .mdl-dialog__actions button {
+    height: auto;
+    padding: 16px 16px;
+    font-size: 1.8rem;
+    line-height: 1.3;
+}
+#runningAppDialog #resumeRunningApp {
+    margin-bottom: 24px;
+}
+#runningAppDialog #stopRemoteApp {
+    margin-bottom: 0;
+    background: rgba(244, 67, 54, 0.32) !important;
+}
+#runningAppDialog #stopRemoteApp.hovered,
+#runningAppDialog #stopRemoteApp:hover,
+#runningAppDialog #stopRemoteApp:focus,
+#runningAppDialog #stopRemoteApp:active {
+    box-shadow: 0 0 2px 3px rgba(244, 67, 54, 1) !important;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
@@ -407,10 +750,10 @@ body {
 }
 .mdl-textfield__input.hovered, #ipAddressTextInput {
     color: #fff;
-    background-color: #585D75;
+    background-color: var(--theme-surface-selected);
 }
 .mdl-textfield__input.hovered, .mdl-textfield__input:hover, .mdl-textfield__input:focus {
-    box-shadow: 0 0 1px 2px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 .mdl-textfield.is-invalid .mdl-textfield__input:hover, .mdl-textfield.is-invalid .mdl-textfield__input:focus {
     box-shadow: 0 0 1px 2px rgba(244, 67, 54, 1);
@@ -429,7 +772,7 @@ body {
     font-size: 1rem;
 }
 .select-option-field-floating-label .mdl-textfield__label {
-    color: #00A3C6;
+    color: var(--theme-accent);
     width: 100%;
     font-size: 1.65rem;
     font-weight: 200;
@@ -452,10 +795,10 @@ body {
 .ip-address-select-field.hovered, #ipAddressField1,
 #ipAddressField2, #ipAddressField3, #ipAddressField4 {
     color: #fff;
-    background-color: #585D75;
+    background-color: var(--theme-surface-selected);
 }
 .ip-address-select-field.hovered, .ip-address-select-field:hover {
-    box-shadow: 0 0 1px 2px rgba(0, 163, 198, 1);
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 #supportQrCode {
     width: 50%;
@@ -481,7 +824,7 @@ body {
     box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.6);
 }
 .navGuideRemoteColor {
-    background-color: #00A3C6;
+    background-color: var(--theme-accent);
 }
 .navGuideKeyboardColor {
     background-color: #F44336;
@@ -490,7 +833,7 @@ body {
     background-color: #8BC34A;
 }
 .navGuideLabelText {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.65rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -501,7 +844,7 @@ body {
     letter-spacing: 0.5px;
 }
 .navGuideRemoteText {
-    color: #00A3C6;
+    color: var(--theme-accent);
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -537,7 +880,7 @@ body {
     box-sizing: border-box;
 }
 #autoWolCheckboxContainer .mdl-switch__label {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.45rem;
     line-height: 36px;
     letter-spacing: 0.5px;
@@ -661,38 +1004,36 @@ body {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: all 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #host-grid .mdl-shadow--4dp {
     box-shadow: unset;
 }
 #host-grid .mdl-card.hovered, #host-grid .mdl-card:hover,
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
-    outline: #00A3C6 solid 3px;
+    box-shadow: 0 0 0 3px var(--theme-accent);
 }
 #host-grid .host-cell-inactive {
     box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
 }
 #host-grid .host-cell-inactive.hovered, #host-grid .host-cell-inactive:hover,
 #host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
-    outline: #F44336 solid 3px;
+    box-shadow: 0 0 0 3px #F44336;
 }
 #host-grid .mdl-card__title {
     padding: 0;
 }
 .host-add-container > .mdl-card__title {
     color: #fff;
-    background: url('../res/ic_add_to_queue_white_48px.svg') center no-repeat rgba(62, 68, 84, 1);
+    background: url('../res/ic_add_to_queue_white_48px.svg') center calc(50% - 21px) no-repeat var(--theme-surface-alt);
 }
 .host-container > .mdl-card__title {
     color: #fff;
-    background: url('../res/ic_tv_white_48px.svg') center no-repeat rgba(62, 68, 84, 1);
+    background: url('../res/ic_tv_white_48px.svg') center calc(50% - 21px) no-repeat var(--theme-surface-alt);
 }
 #addHostContainer .host-title {
     text-transform: uppercase;
@@ -743,15 +1084,16 @@ body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 .host-menu.hovered, .host-menu:hover, .host-menu:focus, .host-menu:active {
-    background-color: rgba(0, 163, 198, 0.6);
+    background-color: var(--theme-accent-60);
     transform: scale(1.3);
-    box-shadow: 0 1px 4px rgba(0, 163, 198, 0.4);
+    box-shadow: 0 1px 4px var(--theme-accent-40);
 }
 .host-center-icon {
     position: absolute;
-    top: 50%;
+    /* Center within the card area above the 42px title strip, not the full card. */
+    top: calc(50% - 23px);
     left: 50%;
-    transform: translate(-50%, -60%);
+    transform: translate(-50%, -50%);
     font-size: 32px;
     color: #fff;
     text-shadow: 0 0 5px rgba(0,0,0,0.8);
@@ -786,7 +1128,7 @@ body {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: all 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #game-grid .mdl-card img {
     width: 100%;
@@ -803,20 +1145,51 @@ body {
 }
 #game-grid .mdl-card.hovered, #game-grid .mdl-card:hover,
 #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
-    outline: #00A3C6 solid 3px;
+    box-shadow: 0 0 0 3px var(--theme-accent);
+}
+#game-grid .current-game-active::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-top: 76px solid #8BC34A;
+    border-right: 76px solid transparent;
+    z-index: 3;
+    pointer-events: none;
+}
+#game-grid .current-game-active::after {
+    content: "cast_pause";
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    color: #fff;
+    font-family: "Material Symbols Outlined";
+    font-size: 25px;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-feature-settings: "liga";
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    z-index: 4;
+    pointer-events: none;
 }
 #game-grid .current-game-active {
-    box-shadow: 0 0 0 2px rgba(139, 195, 74, 1);
+    box-shadow: none;
 }
 #game-grid .current-game-active.hovered, #game-grid .current-game-active:hover,
 #game-grid .current-game-active:focus, #game-grid .current-game-active:active {
-    border-radius: 0;
     z-index: 2;
     transform: scale(1.2);
-    outline: #8BC34A solid 3px;
+    box-shadow: 0 0 0 3px #8BC34A;
 }
 #game-grid .mdl-card__title {
     padding: 0;
@@ -927,6 +1300,18 @@ body {
     margin-top: 16px;
 }
 
+/* Match the transition encryption indicator, positioned below the final stats graph. */
+#performance-stats .performance-stats-encryption-status {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0 0;
+    box-sizing: border-box;
+}
+
 #performance-stats.performance-stats-position-top-left {
     top: 10px;
     left: 10px;
@@ -954,19 +1339,28 @@ body {
 /* =============================
    Settings Section
 ============================= */
+#main-content.settings-view-active {
+    overflow: hidden;
+}
+
 #settings-list {
     width: 100%;
     height: 100%;
+    min-height: 0;
     margin: 0;
+    box-sizing: border-box;
     display: flex;
-    flex-flow: row wrap;
+    flex-flow: row nowrap;
+    overflow: hidden;
 }
 #settings-left-pane {
-    flex: 1;
+    flex: 1 1 30%;
     max-width: 30%;
+    min-height: 0;
+    box-sizing: border-box;
     padding: 20px;
-    border-right: 4px solid rgba(29, 29, 29, 0.8);
-    overflow: auto;
+    border-right: 4px solid var(--theme-border);
+    overflow: hidden;
 }
 .settings-categories {
     width: auto;
@@ -977,20 +1371,20 @@ body {
     overflow: hidden;
 }
 .settings-category {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     margin: 25px;
     padding: 25px;
-    border-bottom: 2px solid #666666;
+    border-bottom: 2px solid var(--theme-border);
     border-radius: 12px;
     cursor: pointer;
 }
 .settings-category.hovered, .settings-category:hover, .settings-category:focus {
-    background-color: #484C5F;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 0.8);
+    background-color: var(--theme-surface-hover);
+    box-shadow: 0 0 2px 3px var(--theme-accent-80);
 }
 .settings-category.selected {
-    color: #ececec;
-    background: rgba(0, 163, 198, 0.8);
+    color: var(--theme-text-primary);
+    background: var(--theme-accent-80);
     transform: scale(1.02);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
@@ -1010,10 +1404,26 @@ body {
     cursor: pointer;
 }
 #settings-right-pane {
-    flex: 1;
+    position: relative;
+    flex: 1 1 70%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
     padding: 20px;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
+/* Add dropdown/focus safety space only when the settings content genuinely overflows. */
+#settings-right-pane.has-effective-scroll {
+    padding-bottom: 30vh;
+}
+/* Keep settings dropdowns as wide as their trigger controls. The 160px
+   allowance matches the pane padding and settings/options side margins. */
+#settings-right-pane .mdl-menu__container {
+    width: calc(100% - 160px) !important;
+}
+
 .settings-options {
     width: auto;
     height: auto;
@@ -1022,7 +1432,17 @@ body {
     overflow: hidden;
 }
 .setting-option {
-    margin: 25px;
+    margin: 25px 25px 37.5px;
+}
+#dolbyAudioHeading .dolby-audio-heading-icon {
+    display: inline-block;
+    position: relative;
+    top: -5px;
+    width: 34px;
+    height: 24px;
+    margin: 0 1px 0 0;
+    object-fit: contain;
+    vertical-align: middle;
 }
 #removeAllHostsOption {
     box-sizing: border-box;
@@ -1036,7 +1456,7 @@ body {
     font-weight: 700;
 }
 .settings-options label {
-    color: #cfcfcf;
+    color: var(--theme-text-secondary);
     display: inline-block;
     margin-bottom: 12px;
     font-size: 1.7rem;
@@ -1045,7 +1465,7 @@ body {
     text-align: left;
 }
 .settings-options .mdl-list__item-text-body {
-    color: #ececec;
+    color: var(--theme-text-primary);
     display: block;
     margin-bottom: 12px;
     font-size: 1.4rem;
@@ -1054,7 +1474,7 @@ body {
     text-align: left;
 }
 .settings-options .mdl-switch__label {
-    color: #ececec;
+    color: var(--theme-text-primary);
     display: block;
     margin: 18px 0 12px 0;
     font-size: 1.45rem;
@@ -1069,15 +1489,15 @@ body {
     margin: 1.2rem 0 1.2rem 74.5rem;
 }
 .mdl-switch.is-checked .mdl-switch__track {
-    background: rgba(0, 163, 198, 1);
+    background: var(--theme-accent);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 .mdl-switch.is-checked .mdl-switch__thumb {
     background-color: #fff;
 }
 .mdl-switch.is-focused {
-    background-color: #404354;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface);
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 .mdl-icon-toggle__label.material-icons {
     color: #818181;
@@ -1092,12 +1512,12 @@ body {
 }
 .mdl-button--raised.mdl-button--colored {
     color: #fff;
-    background-color: #404354 !important;
+    background-color: var(--theme-surface) !important;
 }
 .mdl-button--raised.mdl-button--colored:hover, .mdl-button--raised.mdl-button--colored:focus,
 .mdl-button--raised.mdl-button--colored:active {
-    background-color: #404354 !important;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface) !important;
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 .mdl-button--raised.mdl-button--colored[disabled] {
 	color: #dedede !important;
@@ -1141,34 +1561,34 @@ body {
 }
 .badge-new {
     color: #76FF7A;
-    background-color: #404354;
+    background-color: var(--theme-surface);
     border: 1px solid #76FA20;
 }
 .badge-preview {
   color: #E0C3FC;
-  background-color: #404354;
+  background-color: var(--theme-surface);
   border: 1px solid #B388FF;
 }
 .badge-experimental {
     color: #FFC046;
-    background-color: #404354;
+    background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
+#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #streamTransitionBackgroundBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
-#flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #ac3AudioModeBtn, #audioSyncBtn,
+#flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
 #selectCodec, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
-    color: #ececec;
-    background-color: #404354;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
     width: 100%;
     height: 60px;
     border-radius: 8px;
@@ -1177,8 +1597,8 @@ body {
     cursor: pointer;
 }
 #systemInfoBtn {
-    color: #ececec;
-    background-color: #404354;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
     width: 100%;
     height: 100%;
     padding: 15px 50px 20px 50px;
@@ -1206,32 +1626,32 @@ body {
 }
 .mdl-menu__outline {
     color: #fff;
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
 }
 .mdl-menu__item {
-    color: #ececec;
+    color: var(--theme-text-primary);
     font-size: 1.25rem;
     letter-spacing: 0.5px;
     text-indent: 40px;
     text-align: left;
 }
 .mdl-menu__item.hovered, .mdl-menu__item:hover, .mdl-menu__item:focus {
-    background-color: #484C5F;
+    background-color: var(--theme-surface-hover);
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
+.languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .audioBackendMenu, .audioConfigMenu, .audioJitterMenu,
+.languageMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
 }
 .videoBitrateMenu, .audioJitterMenu {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
     display: flex;
     align-items: center;
 }
@@ -1246,21 +1666,42 @@ body {
     height: 12px;
     border-radius: 8px;
 }
+/* Material Design Lite's slider styles vary by browser; keep each selector independent
+   so one unsupported pseudo-element cannot invalidate the whole accent-color rule. */
+.mdl-slider {
+    accent-color: var(--theme-accent);
+}
+.mdl-slider.is-upgraded::-webkit-slider-thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded::-moz-range-thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded::-ms-thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider__background-lower,
+.mdl-slider__thumb {
+    background-color: var(--theme-accent) !important;
+}
+.mdl-slider.is-upgraded:focus:not(:active)::-webkit-slider-thumb {
+    box-shadow: 0 0 0 10px var(--theme-accent-40);
+}
 #bitrateLowestValue, #jitterLowestValue {
-    color: #ececec;
+    color: var(--theme-text-primary);
     margin: 0 -12px 0 14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
 #bitrateHighestValue, #jitterHighestValue {
-    color: #ececec;
+    color: var(--theme-text-primary);
     margin: 0 12px 0 -14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
-    background-color: #333846;
+    background-color: var(--theme-surface-deep);
 }
 .dropdown-items {
     float: right;
@@ -1268,11 +1709,12 @@ body {
 }
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
-#audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
+#ambientBackgroundMenu > #selectAmbientBackground, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
+#dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
-    color: #ececec;
-    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat rgba(64, 67, 84, 1);
+    color: var(--theme-text-primary);
+    background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat var(--theme-surface);
 }
 
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
@@ -1284,7 +1726,7 @@ body {
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
-    background-color: #484c5f;
+    background-color: var(--theme-surface-hover);
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
 #restartApplicationIcon {
@@ -1304,23 +1746,24 @@ body {
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
 #continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #supportBtn:hover, #supportBtn:focus,
-#goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus, #quitRunningAppBtn:hover, #quitRunningAppBtn:focus,
+#goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
-#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
+#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
-#selectAudio:focus, #ac3AudioModeBtn:hover, #ac3AudioModeBtn:focus, #audioSyncBtn:hover, #audioSyncBtn:focus, #selectAudioJitter:hover, #selectAudioJitter:focus,
+#selectAudio:focus, #selectDolbyChannelLayout:hover, #selectDolbyChannelLayout:focus,
+#selectDolbyDecodingMode:hover, #selectDolbyDecodingMode:focus, #ac3AudioModeBtn:hover, #ac3AudioModeBtn:focus, #audioSyncBtn:hover, #audioSyncBtn:focus, #selectAudioJitter:hover, #selectAudioJitter:focus,
 #playHostAudioBtn:hover, #playHostAudioBtn:focus, #decryptHostAudioBtn:hover, #decryptHostAudioBtn:focus, #selectCodec:hover, #selectCodec:focus, #hdrModeBtn:hover, #hdrModeBtn:focus, #fullRangeBtn:hover,
 #fullRangeBtn:focus, #gameModeBtn:hover, #gameModeBtn:focus, #unlockAllFpsBtn:hover, #unlockAllFpsBtn:focus, #optimizeBitrateBtn:hover,
 #optimizeBitrateBtn:focus, #disableWarningsBtn:hover, #disableWarningsBtn:focus, #performanceStatsBtn:hover, #performanceStatsBtn:focus,
 #automaticUpdateChecksBtn:hover, #automaticUpdateChecksBtn:focus,
 #systemInfoBtn:hover, #systemInfoBtn:focus, #navigationGuideBtn:hover, #navigationGuideBtn:focus, #checkUpdatesBtn:hover, #checkUpdatesBtn:focus,
 #restartAppBtn:hover, #restartAppBtn:focus {
-    background-color: #404354;
-    box-shadow: 0 0 2px 3px rgba(0, 163, 198, 1);
+    background-color: var(--theme-surface);
+    box-shadow: 0 0 2px 3px var(--theme-accent);
 }
 /* =============================
    Common Disabled-State Styling
@@ -1380,7 +1823,7 @@ body {
     width: 100%;
     box-sizing: border-box;
     padding: 7px 12px;
-    background: #20232c;
+    background: var(--theme-summary-background);
     color: #f1f1f1;
     overflow-x: auto;
     overflow-y: hidden;
@@ -1392,9 +1835,8 @@ body {
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
-    gap: 5px;
     padding: 0 10px;
-    border-right: 1px solid #454955;
+    border-right: 1px solid var(--theme-border);
     font-size: 16px;
     line-height: 1.4;
 }
@@ -1415,7 +1857,7 @@ body {
     position: relative;
     top: -3px;
 }
-.config-summary-label { color: #b9bdc8; }
+.config-summary-label { color: var(--theme-text-secondary); }
 .config-summary-label::after { content: ":"; margin-right: 4px; }
 .config-summary-value { color: #fff; font-weight: 600; }
 .config-summary-toggle.is-on { color: #39e75f; }
@@ -1444,8 +1886,297 @@ body {
 #popup-layer .mdl-tooltip.is-active {
     opacity: 1;
 }
+#popup-layer .mdl-tooltip.ui-hidden-for-action {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
 #popup-layer > .dialog-overlay.ui-fade-managed,
 #popup-layer .mdl-dialog.ui-fade-managed,
 #popup-layer .mdl-tooltip.ui-fade-managed {
     transition: opacity var(--ui-fade-duration) ease-in-out;
+}
+
+/* Five equal-width visual theme previews in the Interface Settings pane. */
+/* Give the theme row the full inner width of the right pane without shifting
+   the existing interface settings rows. Their previous 35px + 25px margins
+   are preserved by the following rule. */
+#interfaceSettings {
+    margin-left: 0;
+    margin-right: 0;
+}
+#interfaceSettings > .setting-option:not(.theme-selector-option) {
+    margin-left: 60px;
+    margin-right: 60px;
+}
+.theme-selector-option {
+    width: auto;
+    margin-left: 60px;
+    margin-right: 60px;
+    padding-left: 0;
+    padding-right: 0;
+    border: 0;
+    background: transparent;
+}
+.theme-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    align-items: stretch;
+    outline: none;
+    border: 0;
+    background: transparent;
+}
+.theme-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    line-height: normal;
+    padding: 6px 6px 3px;
+    margin: 0;
+    border: 0;
+    border-radius: 10px;
+    outline: none;
+    background: transparent;
+    color: var(--theme-text-primary);
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
+    font: inherit;
+}
+.theme-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    object-fit: cover;
+    border-radius: 6px;
+    pointer-events: none;
+}
+.theme-card > span:not(.theme-card-check) {
+    display: block;
+    margin-top: 9px;
+    padding: 0 5px;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.theme-card.is-selected::after {
+    content: "";
+    position: absolute;
+    top: 11px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--theme-accent);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+}
+.theme-card-check {
+    display: none;
+    position: absolute;
+    top: 11px;
+    right: 10px;
+    z-index: 1;
+    color: #fff;
+    font-size: 16px;
+    line-height: 22px;
+    text-align: center;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+}
+.theme-card.is-selected .theme-card-check { display: block; }
+.theme-card.is-focused-theme {
+    z-index: 1;
+}
+#themeSelector:focus .theme-card.is-focused-theme {
+    box-shadow: 0 0 0 2px var(--theme-accent);
+}
+@media (max-width: 1000px) {
+    .theme-card { padding: 4px 4px 3px; }
+    .theme-card > span:not(.theme-card-check) { font-size: 0.95rem; }
+}
+
+
+/* Keep the canvas waves above the base background and below all UI elements. */
+#main-content {
+    position: relative;
+    isolation: isolate;
+}
+.ambient-wave-wrapper {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 25vh;
+    min-height: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+#main-ui-layer[data-ambient-background="waves"].waves-active.ambient-trails-ready .ambient-wave-wrapper {
+    opacity: 0.25;
+}
+#main-content.settings-view-active > .ambient-wave-wrapper {
+    display: none !important;
+}
+#main-ui-layer[data-ambient-background="waves"].waves-active .ambient-wave-wrapper {
+    display: block;
+}
+.bubbles-background {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+#main-ui-layer[data-ambient-background="bubbles"].bubbles-active .bubbles-background {
+    display: block;
+}
+#main-ui-layer[data-ambient-background="bubbles"].bubbles-active.ambient-trails-ready .bubbles-background {
+    opacity: 1;
+}
+#main-content.settings-view-active > .bubbles-background {
+    display: none !important;
+}
+#main-ui-layer.ambient-background-hidden .ambient-wave-wrapper,
+#main-ui-layer.ambient-background-hidden .bubbles-background,
+#main-ui-layer.ambient-background-hidden .symbols-background {
+    display: none !important;
+}
+.symbols-background {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+#main-ui-layer[data-ambient-background="symbols"].symbols-active .symbols-background {
+    display: block;
+}
+#main-ui-layer[data-ambient-background="symbols"].symbols-active.ambient-trails-ready .symbols-background {
+    opacity: 1;
+}
+#main-content.settings-view-active > .symbols-background {
+    display: none !important;
+}
+#ambient-symbols .ambient-symbol {
+    position: absolute;
+    left: var(--symbol-left);
+    top: var(--symbol-top);
+    display: block;
+    color: var(--theme-accent, #88f6fb);
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-size: var(--symbol-size);
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.12);
+    animation: none;
+    will-change: transform, opacity;
+}
+#ambient-symbols.ambient-symbols-active .ambient-symbol-animating {
+    animation: ambient-symbol-bloom var(--symbol-duration) ease-in-out var(--symbol-delay, 0s) both;
+}
+@keyframes ambient-symbol-bloom {
+    0% {
+        opacity: 0;
+        transform: translate3d(-50%, -50%, 0) scale(0.12);
+        animation-timing-function: ease-in;
+    }
+    90% {
+        opacity: 0.12;
+        transform: translate3d(-50%, -50%, 0) scale(1.05);
+        animation-timing-function: ease-in;
+    }
+    100% {
+        opacity: 0;
+        transform: translate3d(-50%, -50%, 0) scale(1.4);
+    }
+}
+#ambient-bubbles .ambient-gamepad {
+    position: absolute;
+    display: block;
+    bottom: 0;
+    left: var(--gamepad-left);
+    color: var(--theme-accent, #88f6fb);
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-size: var(--gamepad-size);
+    opacity: var(--gamepad-opacity);
+    filter: blur(var(--gamepad-blur));
+    -webkit-transform: translate3d(0, 0, 0) rotate(var(--gamepad-rotation));
+    transform: translate3d(0, 0, 0) rotate(var(--gamepad-rotation));
+    animation: ambient-gamepad-rise var(--gamepad-duration) linear var(--gamepad-delay) infinite;
+    animation-play-state: paused;
+    will-change: transform, opacity;
+}
+#ambient-bubbles.ambient-gamepads-active .ambient-gamepad {
+    animation-play-state: running;
+}
+@keyframes ambient-gamepad-rise {
+    from {
+        transform: translate3d(0, 100%, 0) rotate(var(--gamepad-rotation));
+        opacity: var(--gamepad-opacity);
+    }
+    to {
+        transform: translate3d(0, -20vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
+        opacity: 0;
+    }
+}
+ 
+#ambient-wave-svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }

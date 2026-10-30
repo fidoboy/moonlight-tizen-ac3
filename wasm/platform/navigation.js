@@ -1,8 +1,211 @@
 const hoveredClassName = 'hovered';
 
+// Dedicated Web Audio engine for short interface effects. The MP3 is fetched and decoded
+// once while the application starts, then played from an AudioBuffer without per-click
+// network, media-element or decoder initialization.
+let navigationSoundEnabled = false;
+let navigationSoundContext = null;
+let navigationSoundBuffer = null;
+let navigationSoundData = null;
+let navigationSoundLoadPromise = null;
+let navigationSoundInitializationPromise = null;
+let navigationSoundSources = [];
+
+function loadNavigationSoundData() {
+  if (navigationSoundData) return Promise.resolve(navigationSoundData);
+  if (navigationSoundLoadPromise) return navigationSoundLoadPromise;
+
+  navigationSoundLoadPromise = fetch('static/res/click.mp3').then(function(response) {
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading click.mp3');
+    return response.arrayBuffer();
+  }).then(function(data) {
+    navigationSoundData = data;
+    return data;
+  }).finally(function() {
+    navigationSoundLoadPromise = null;
+  });
+
+  return navigationSoundLoadPromise;
+}
+
+function decodeNavigationSound(context, data) {
+  return new Promise(function(resolve, reject) {
+    try {
+      var result = context.decodeAudioData(data.slice(0), resolve, reject);
+      if (result && typeof result.then === 'function') result.then(resolve, reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function initializeNavigationAudioEngine() {
+  if (!navigationSoundEnabled) return Promise.resolve(false);
+  if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
+  if (navigationSoundInitializationPromise) return navigationSoundInitializationPromise;
+
+  var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) {
+    return Promise.reject(new Error('The Web Audio API is not available on this device.'));
+  }
+
+  try {
+    navigationSoundContext = new AudioContextConstructor({ latencyHint: 'interactive' });
+  } catch (error) {
+    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Could not request interactive audio latency; using default options:', error);
+    navigationSoundContext = new AudioContextConstructor();
+  }
+
+  var context = navigationSoundContext;
+  navigationSoundInitializationPromise = loadNavigationSoundData().then(function(data) {
+    return decodeNavigationSound(context, data);
+  }).then(function(buffer) {
+    if (navigationSoundContext !== context || !navigationSoundEnabled) return false;
+    navigationSoundBuffer = buffer;
+    console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine ready; click.mp3 decoded (' +
+      buffer.duration.toFixed(3) + ' s, ' + buffer.sampleRate + ' Hz).');
+    return true;
+  }).catch(function(error) {
+    if (navigationSoundContext === context) {
+      navigationSoundContext = null;
+      navigationSoundBuffer = null;
+      try { context.close(); } catch (closeError) {}
+    }
+    console.error('%c[navigation.js, audio]', 'color: red;', 'Could not initialize the local audio engine:', error);
+    throw error;
+  }).finally(function() {
+    navigationSoundInitializationPromise = null;
+  });
+
+  return navigationSoundInitializationPromise;
+}
+
+function closeNavigationAudioEngine() {
+  navigationSoundEnabled = false;
+
+  var pendingInitialization = navigationSoundInitializationPromise || Promise.resolve();
+  return Promise.resolve(pendingInitialization).catch(function(error) {
+    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio initialization did not finish before shutdown:', error);
+  }).then(function() {
+    var context = navigationSoundContext;
+    navigationSoundContext = null;
+    navigationSoundBuffer = null;
+
+    navigationSoundSources.forEach(function(source) {
+      try { source.stop(0); } catch (error) {}
+      try { source.disconnect(); } catch (error) {}
+    });
+    navigationSoundSources = [];
+
+    if (!context || context.state === 'closed') return;
+    context.onstatechange = null;
+    return context.close().then(function() {
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine closed.');
+    });
+  });
+}
+
+function setNavigationSoundEnabled(enabled) {
+  if (enabled !== true) return closeNavigationAudioEngine();
+
+  navigationSoundEnabled = true;
+  return initializeNavigationAudioEngine().then(function(ready) {
+    // The context may be recreated outside a user gesture after streaming. Attempt to
+    // resume it here; playNavigationSound() retries from the next genuine user gesture
+    // if Tizen's autoplay policy keeps it suspended.
+    if (navigationSoundContext && navigationSoundContext.state === 'suspended') {
+      try {
+        var resumeResult = navigationSoundContext.resume();
+        if (resumeResult && typeof resumeResult.catch === 'function') {
+          resumeResult.catch(function(error) {
+            console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio engine is prepared but remains suspended until user interaction:', error);
+          });
+        }
+      } catch (error) {
+        console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio engine is prepared but could not be resumed yet:', error);
+      }
+    }
+    return ready;
+  }).catch(function(error) {
+    console.error('%c[navigation.js, audio]', 'color: red;', 'Local audio engine could not be restored:', error);
+    return false;
+  });
+}
+
+function playNavigationSound() {
+  if (!navigationSoundEnabled || isInGame === true) return;
+
+  if (!navigationSoundContext || !navigationSoundBuffer) {
+    initializeNavigationAudioEngine().then(function() {
+      if (navigationSoundEnabled && isInGame !== true) playNavigationSound();
+    }).catch(function() {});
+    return;
+  }
+
+  var context = navigationSoundContext;
+  if (context.state === 'closed') return;
+
+  // A new focus movement must always produce feedback. Stop the previous short
+  // effect before starting the next one instead of silently dropping this event.
+  navigationSoundSources.forEach(function(activeSource) {
+    activeSource.onended = null;
+    try { activeSource.stop(0); } catch (error) {}
+    try { activeSource.disconnect(); } catch (error) {}
+  });
+  navigationSoundSources = [];
+
+  if (context.state === 'suspended') {
+    try {
+      var resumeResult = context.resume();
+      if (resumeResult && typeof resumeResult.catch === 'function') {
+        resumeResult.catch(function(error) {
+          console.warn('%c[navigation.js, audio]', 'color: gray;', 'Could not resume the local audio engine from a navigation action:', error);
+        });
+      }
+    } catch (error) {
+      console.warn('%c[navigation.js, audio]', 'color: gray;', 'Could not resume the local audio engine:', error);
+      return;
+    }
+  }
+
+  try {
+    var source = context.createBufferSource();
+    source.buffer = navigationSoundBuffer;
+    source.connect(context.destination);
+    navigationSoundSources.push(source);
+    source.onended = function() {
+      var sourceIndex = navigationSoundSources.indexOf(source);
+      if (sourceIndex !== -1) navigationSoundSources.splice(sourceIndex, 1);
+      try { source.disconnect(); } catch (error) {}
+    };
+    source.start(0);
+  } catch (error) {
+    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Navigation sound playback failed:', error);
+  }
+}
+
+// The persisted preference is loaded by index.js before the audio engine is initialized.
+
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
+}
+
+// Check whether one of the text-only dialogs has content that can scroll.
+function isDialogTextScrollable(textArea) {
+  return !!textArea && textArea.scrollHeight > textArea.clientHeight + 2;
+}
+
+// Focus the text when it overflows; otherwise focus the only available Close button.
+function focusDialogTextOrClose(textAreaId, closeButtonId) {
+  const textArea = resolveElement(textAreaId);
+  if (isDialogTextScrollable(textArea)) {
+    unmark(closeButtonId);
+    focusElement(textArea);
+  } else {
+    mark(closeButtonId);
+    focusElement(closeButtonId);
+  }
 }
 
 // Resolve various target types to an actual HTML element
@@ -133,24 +336,71 @@ function elementId(target) {
 function focusElement(target) {
   const element = resolveElement(target);
   const listener = document.getElementById('listener');
+  const previousActiveElement = document.activeElement;
   // Remove focus from the currently focused element first
-  blurElement(document.activeElement);
+  blurElement(previousActiveElement);
   // Check if the element exists before adding focus
   if (!element) {
     console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
     return;
   }
+
+
   // Check if the element is a SELECT dropdown
   if (element.tagName === 'SELECT') {
     // Delegate focus to the hidden listener element
     if (listener && typeof listener.focus === 'function') {
       listener.focus();
+      if (previousActiveElement && previousActiveElement !== document.body &&
+          previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
+          typeof playNavigationSound === 'function') {
+        playNavigationSound();
+      }
     }
     return;
   }
-  // If the element supports focus, add focus to it
+  // Keep Settings focus scrolling inside the independently scrollable right pane.
   if (typeof element.focus === 'function') {
-    element.focus();
+    const settingsPane = element.closest && element.closest('#settings-right-pane');
+    if (settingsPane) {
+      element.focus({ preventScroll: true });
+
+      // When the first option in the active category receives focus, restore the
+      // explanatory text above it by returning the right pane to the very top.
+      const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
+        .find(options => window.getComputedStyle(options).display !== 'none');
+      const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
+      const isFirstOption = !!firstOption && element.closest('.setting-option') === firstOption;
+
+      if (isFirstOption) {
+        settingsPane.scrollTop = 0;
+      } else {
+        // Keep a deliberate safety margin below focused controls rather than
+        // allowing them to sit against the bottom edge of the scroll viewport.
+        const paneRect = settingsPane.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+        const bottomSafetyMargin = Math.max(48, Math.round(settingsPane.clientHeight * 0.06));
+        const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
+
+        if (elementRect.top < visibleTop) {
+          settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - elementRect.top));
+        } else if (elementRect.bottom > visibleBottom) {
+          settingsPane.scrollTop += elementRect.bottom - visibleBottom;
+        }
+      }
+    } else {
+      element.focus();
+    }
+
+    // Trigger the effect only for a real move between focused controls. Initial
+    // focus restoration from the body/hidden listener remains silent.
+    if (previousActiveElement && previousActiveElement !== document.body &&
+        previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
+        previousActiveElement !== document.activeElement &&
+        typeof playNavigationSound === 'function') {
+      playNavigationSound();
+    }
   }
 }
 
@@ -253,6 +503,19 @@ function changeIpNumericFieldValue(adjust) {
   }
 }
 
+function isDisabledNavigationTarget(target) {
+  const element = resolveElement(target);
+  if (!element || !element.getClientRects().length) return true;
+  return !!(
+    element.disabled ||
+    element.getAttribute('aria-disabled') === 'true' ||
+    element.classList.contains('is-disabled') ||
+    element.classList.contains('ui-disabled') ||
+    element.classList.contains('mdl-button--disabled') ||
+    element.classList.contains('mdl-menu__item--disabled')
+  );
+}
+
 class ListView {
   constructor(func) {
     this.index = 0;
@@ -312,48 +575,58 @@ class ListView {
 
   prevOption() {
     const array = this.func();
+    if (!array.length) return undefined;
     unmark(array[this.index]);
-    this.index = (this.index - 1 + array.length) % array.length;
-    mark(array[this.index]);
+    for (let step = 1; step <= array.length; step++) {
+      const candidateIndex = (this.index - step + array.length) % array.length;
+      if (isDisabledNavigationTarget(array[candidateIndex])) continue;
+      this.index = candidateIndex;
+      mark(array[this.index]);
+      return array[this.index];
+    }
     return array[this.index];
   }
 
   nextOption() {
     const array = this.func();
+    if (!array.length) return undefined;
     unmark(array[this.index]);
-    this.index = (this.index + 1) % array.length;
-    mark(array[this.index]);
+    for (let step = 1; step <= array.length; step++) {
+      const candidateIndex = (this.index + step) % array.length;
+      if (isDisabledNavigationTarget(array[candidateIndex])) continue;
+      this.index = candidateIndex;
+      mark(array[this.index]);
+      return array[this.index];
+    }
     return array[this.index];
   }
 
   prevCard(cardsPerRow) {
     const array = this.func();
+    if (!array.length) return undefined;
+
     const currentRow = Math.floor(this.index / cardsPerRow);
-    // Check if a previous card exists
-    if (this.index > 0) {
-      unmark(array[this.index]);
-      --this.index;
-      const newRow = Math.floor(this.index / cardsPerRow);
-      mark(array[this.index]);
-      if (newRow !== currentRow) {
-        this.scrollToCardRow(newRow, cardsPerRow);
-      }
+    unmark(array[this.index]);
+    this.index = (this.index - 1 + array.length) % array.length;
+    const newRow = Math.floor(this.index / cardsPerRow);
+    mark(array[this.index]);
+    if (newRow !== currentRow) {
+      this.scrollToCardRow(newRow, cardsPerRow);
     }
     return array[this.index];
   }
 
   nextCard(cardsPerRow) {
     const array = this.func();
+    if (!array.length) return undefined;
+
     const currentRow = Math.floor(this.index / cardsPerRow);
-    // Check if a next card exists
-    if (this.index < array.length - 1) {
-      unmark(array[this.index]);
-      ++this.index;
-      const newRow = Math.floor(this.index / cardsPerRow);
-      mark(array[this.index]);
-      if (newRow !== currentRow) {
-        this.scrollToCardRow(newRow, cardsPerRow);
-      }
+    unmark(array[this.index]);
+    this.index = (this.index + 1) % array.length;
+    const newRow = Math.floor(this.index / cardsPerRow);
+    mark(array[this.index]);
+    if (newRow !== currentRow) {
+      this.scrollToCardRow(newRow, cardsPerRow);
     }
     return array[this.index];
   }
@@ -420,6 +693,24 @@ class ListView {
     this.index = 0;
   }
 };
+
+// Select and highlight the option matching the value currently shown by a settings control.
+function markSelectedMenuItem(view, triggerId) {
+  const trigger = document.getElementById(triggerId);
+  const selectedValue = trigger && trigger.getAttribute('data-value');
+  const options = Array.from(view.func() || []);
+  const selectedIndex = options.findIndex(option =>
+    option && option.getAttribute && option.getAttribute('data-value') === selectedValue
+  );
+
+  if (selectedIndex >= 0) {
+    view.index = selectedIndex;
+  } else if (view.index >= options.length) {
+    view.index = 0;
+  }
+
+  mark(view.current());
+}
 
 const Views = {
   Hosts: {
@@ -1043,7 +1334,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectResolution');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1075,7 +1366,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectFramerate');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1118,9 +1409,12 @@ const Views = {
   InterfaceSettings: {
     view: new ListView(() => [
       'selectLanguage',
-      'ipAddressFieldModeBtn',
+      'themeSelector',
+      'selectAmbientBackground',
       'showConfigSummaryBtn',
-      'streamTransitionBackgroundBtn'
+      'navigationSoundBtn',
+      'streamTransitionBackgroundBtn',
+      'ipAddressFieldModeBtn'
     ]),
     up: function() {
       this.view.prevOption();
@@ -1130,10 +1424,18 @@ const Views = {
       this.view.nextOption();
       focusElement(this.view.current());
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      if (this.view.current() === 'themeSelector') moveColorThemeFocus(-1);
+    },
+    right: function() {
+      if (this.view.current() === 'themeSelector') moveColorThemeFocus(1);
+    },
     accept: function() {
-      clickElement(this.view.current());
+      if (this.view.current() === 'themeSelector') {
+        saveColorTheme(focusedColorTheme);
+      } else {
+        clickElement(this.view.current());
+      }
     },
     back: function() {
       // Remove focus from the current element before changing the view
@@ -1151,6 +1453,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  AmbientBackgroundMenu: {
+    isActive: () => isPopupMenuActive('ambientBackgroundMenu'),
+    view: new ListView(() => document.querySelectorAll('.ambientBackgroundMenu .mdl-menu__item')),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectAmbientBackground'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectAmbientBackground');
+      closeActiveVisibleMenu();
+      focusElement('selectAmbientBackground');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectAmbientBackground');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1182,7 +1514,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectLanguage');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1275,6 +1607,11 @@ const Views = {
       'ac3AudioModeBtn',
       'selectAudioBackend',
       isAudioOutputDisabled() ? null : 'selectAudio',
+      // Dolby controls are navigable only when their corresponding setting is available.
+      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
+        $('#selectAudio').data('value') === '51Surround') ? 'selectDolbyChannelLayout' : null,
+      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
+        $('#dolbyDecodingModeOption').is(':visible')) ? 'selectDolbyDecodingMode' : null,
       // At most one of these settings is shown at a time, as each one belongs to a single backend,
       // and neither is shown when the audio output is disabled
       isAudioOutputDisabled() ? null : isWebAudioBackendSelected() ? 'selectAudioJitter' : 'audioSyncBtn',
@@ -1341,7 +1678,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectAudioBackend');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1373,11 +1710,31 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectAudio');
     },
     leave: function() {
       unmark(this.view.current());
     },
+  },
+  SelectDolbyChannelLayoutMenu: {
+    isActive: () => isPopupMenuActive('dolbyChannelLayoutMenu'),
+    view: new ListView(() => document.querySelectorAll('.dolbyChannelLayoutMenu .mdl-menu__item')),
+    up: function() { this.view.prevOption(); }, down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyChannelLayout'), 250); },
+    back: function() { closePopupMenu('selectDolbyChannelLayout'); closeActiveVisibleMenu(); focusElement('selectDolbyChannelLayout'); },
+    press: function() {}, switch: function() {},
+    enter: function() { markSelectedMenuItem(this.view, 'selectDolbyChannelLayout'); }, leave: function() { unmark(this.view.current()); },
+  },
+  SelectDolbyDecodingModeMenu: {
+    isActive: () => isPopupMenuActive('dolbyDecodingModeMenu'),
+    view: new ListView(() => document.querySelectorAll('.dolbyDecodingModeMenu .mdl-menu__item')),
+    up: function() { this.view.prevOption(); }, down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() { clickElement(this.view.current()); closeActiveVisibleMenu(); setTimeout(() => focusElement('selectDolbyDecodingMode'), 250); },
+    back: function() { closePopupMenu('selectDolbyDecodingMode'); closeActiveVisibleMenu(); focusElement('selectDolbyDecodingMode'); },
+    press: function() {}, switch: function() {},
+    enter: function() { markSelectedMenuItem(this.view, 'selectDolbyDecodingMode'); }, leave: function() { unmark(this.view.current()); },
   },
   SelectAudioJitterMenu: {
     isActive: () => isPopupMenuActive('audioJitterMenu'),
@@ -1480,7 +1837,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectCodec');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1512,7 +1869,7 @@ const Views = {
     press: function() {},
     switch: function() {},
     enter: function() {
-      mark(this.view.current());
+      markSelectedMenuItem(this.view, 'selectPerformanceStatsPosition');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1607,10 +1964,28 @@ const Views = {
       'closeNavGuide'
     ]),
     up: function() {
-      blurElement('closeNavGuide');
+      const textArea = resolveElement('navGuideDialogContent');
+      if (document.activeElement === textArea) {
+        textArea.scrollTop = Math.max(0, textArea.scrollTop - Math.max(80, textArea.clientHeight * 0.65));
+      } else if (isDialogTextScrollable(textArea)) {
+        focusElement(textArea);
+      }
     },
     down: function() {
-      focusElement('closeNavGuide');
+      const textArea = resolveElement('navGuideDialogContent');
+      if (document.activeElement === textArea) {
+        const atBottom = textArea.scrollTop + textArea.clientHeight >= textArea.scrollHeight - 2;
+        if (atBottom) {
+          focusElement('closeNavGuide');
+        } else {
+          textArea.scrollTop = Math.min(
+            textArea.scrollHeight - textArea.clientHeight,
+            textArea.scrollTop + Math.max(80, textArea.clientHeight * 0.65)
+          );
+        }
+      } else {
+        focusElement('closeNavGuide');
+      }
     },
     left: function() {},
     right: function() {},
@@ -1622,15 +1997,18 @@ const Views = {
     },
     press: function() {},
     switch: function() {
-      focusElement(this.view.current());
+      focusDialogTextOrClose('navGuideDialogContent', 'closeNavGuide');
     },
     enter: function() {
       mark(this.view.current());
-      setTimeout(() => focusElement(this.view.current()), 100);
+      setTimeout(() => focusDialogTextOrClose('navGuideDialogContent', 'closeNavGuide'), 100);
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      setTimeout(() => {
+        blurElement('navGuideDialogContent');
+        blurElement('closeNavGuide');
+      }, 100);
     },
   },
   UpdateMoonlightDialog: {
@@ -1638,10 +2016,28 @@ const Views = {
       'closeUpdateApp'
     ]),
     up: function() {
-      blurElement('closeUpdateApp');
+      const textArea = resolveElement('updateAppDialogContent');
+      if (document.activeElement === textArea) {
+        textArea.scrollTop = Math.max(0, textArea.scrollTop - Math.max(80, textArea.clientHeight * 0.65));
+      } else if (isDialogTextScrollable(textArea)) {
+        focusElement(textArea);
+      }
     },
     down: function() {
-      focusElement('closeUpdateApp');
+      const textArea = resolveElement('updateAppDialogContent');
+      if (document.activeElement === textArea) {
+        const atBottom = textArea.scrollTop + textArea.clientHeight >= textArea.scrollHeight - 2;
+        if (atBottom) {
+          focusElement('closeUpdateApp');
+        } else {
+          textArea.scrollTop = Math.min(
+            textArea.scrollHeight - textArea.clientHeight,
+            textArea.scrollTop + Math.max(80, textArea.clientHeight * 0.65)
+          );
+        }
+      } else {
+        focusElement('closeUpdateApp');
+      }
     },
     left: function() {},
     right: function() {},
@@ -1653,15 +2049,18 @@ const Views = {
     },
     press: function() {},
     switch: function() {
-      focusElement(this.view.current());
+      focusDialogTextOrClose('updateAppDialogContent', 'closeUpdateApp');
     },
     enter: function() {
       mark(this.view.current());
-      setTimeout(() => focusElement(this.view.current()), 100);
+      setTimeout(() => focusDialogTextOrClose('updateAppDialogContent', 'closeUpdateApp'), 100);
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      setTimeout(() => {
+        blurElement('updateAppDialogContent');
+        blurElement('closeUpdateApp');
+      }, 100);
     },
   },
   RestoreDefaultsDialog: {
@@ -1733,7 +2132,13 @@ const Views = {
     },
     press: function() {},
     switch: function() {
+      const cards = this.view.func();
+      if (!cards.length) return;
+
+      // The app list may have been rebuilt, so keep the saved index within its new bounds.
+      this.view.index = Math.max(0, Math.min(this.view.index, cards.length - 1));
       this.view.currentCardRow(6);
+      focusElement(this.view.current());
     },
     enter: function() {
       mark(this.view.current());
@@ -1777,6 +2182,100 @@ const Views = {
     },
     leave: function() {
       unmark(this.view.current());
+    },
+  },
+  RunningAppDialog: {
+    view: new ListView(() => [
+      'resumeRunningApp',
+      'stopRemoteApp'
+    ]),
+    up: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    down: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
+    left: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    right: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
+    accept: function() {
+      clickElement(this.view.current());
+    },
+    back: function() {
+      if (typeof window.cancelRunningAppDialog === 'function') {
+        window.cancelRunningAppDialog();
+      }
+    },
+    press: function() {},
+    switch: function() {
+      this.view.index = 0;
+      focusElement(this.view.current());
+    },
+    enter: function() {
+      this.view.index = 0;
+      mark(this.view.current());
+      setTimeout(() => focusElement(this.view.current()), 100);
+    },
+    leave: function() {
+      unmark(this.view.current());
+      setTimeout(() => {
+        blurElement('resumeRunningApp');
+        blurElement('stopRemoteApp');
+      }, 100);
+    },
+  },
+  RunningAppDialog: {
+    view: new ListView(() => [
+      'resumeRunningApp',
+      'stopRemoteApp'
+    ]),
+    up: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    down: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
+    left: function() {
+      this.view.prev();
+      focusElement(this.view.current());
+    },
+    right: function() {
+      this.view.next();
+      focusElement(this.view.current());
+    },
+    accept: function() {
+      clickElement(this.view.current());
+    },
+    back: function() {
+      if (typeof window.cancelRunningAppDialog === 'function') {
+        window.cancelRunningAppDialog();
+      }
+    },
+    press: function() {},
+    switch: function() {
+      this.view.index = 0;
+      focusElement(this.view.current());
+    },
+    enter: function() {
+      this.view.index = 0;
+      mark(this.view.current());
+      setTimeout(() => focusElement(this.view.current()), 100);
+    },
+    leave: function() {
+      unmark(this.view.current());
+      setTimeout(() => {
+        blurElement('resumeRunningApp');
+        blurElement('stopRemoteApp');
+      }, 100);
     },
   },
   QuitAppDialog: {
@@ -1988,8 +2487,8 @@ const Navigation = (function() {
 
       if (!hasFocus) {
         focus();
-        // Directional input should act immediately after restoring navigation focus.
-        if (!['up', 'down', 'left', 'right'].includes(name)) {
+        // Back must never be consumed by focus restoration; users expect it to work immediately.
+        if (!['up', 'down', 'left', 'right', 'back'].includes(name)) {
           return;
         }
       }
