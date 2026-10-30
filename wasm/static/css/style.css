@@ -944,7 +944,7 @@ body {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: all 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #host-grid .mdl-shadow--4dp {
     box-shadow: unset;
@@ -1068,7 +1068,7 @@ body {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: all 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #game-grid .mdl-card img {
     width: 100%;
