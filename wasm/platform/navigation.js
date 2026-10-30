@@ -1,30 +1,5 @@
 const hoveredClassName = 'hovered';
 
-// Keep one audio element and trigger it synchronously from the remote key handler.
-const navigationSound = typeof Audio !== 'undefined' ? new Audio('static/res/click.mp3') : null;
-if (navigationSound) {
-  navigationSound.preload = 'auto';
-  navigationSound.addEventListener('error', function() {
-    console.error('[navigation.js] Could not load navigation sound:', navigationSound.currentSrc || navigationSound.src);
-  });
-  navigationSound.load();
-}
-
-window.playNavigationSound = function() {
-  if (!navigationSound) return;
-  try {
-    navigationSound.pause();
-    navigationSound.currentTime = 0;
-    const playback = navigationSound.play();
-    if (playback && typeof playback.catch === 'function') {
-      playback.catch(function(error) {
-        console.error('[navigation.js] Navigation sound playback was rejected:', error);
-      });
-    }
-  } catch (error) {
-    console.error('[navigation.js] Navigation sound playback failed:', error);
-  }
-};
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
