@@ -45,7 +45,7 @@ jobs:
                 const stableTags = refs
                   .map(item => {
                     if (!item.ref.startsWith(tagRefPrefix)) return null;
-                    const version = item.ref.slice(tagRefPrefix.length).match(/^(\\d+)\\.(\\d+)\\.(\\d+)$/);
+                    const version = item.ref.slice(tagRefPrefix.length).match(/^(\d+)\.(\d+)\.(\d+)$/);
                     return version ? {
                       name: item.ref.replace('refs/tags/', ''),
                       version: version.slice(1).map(Number)
