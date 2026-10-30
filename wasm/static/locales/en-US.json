@@ -285,6 +285,7 @@
   "Partially encrypted connection; unencrypted: %1$s": "Partially encrypted connection; unencrypted: %1$s",
   "Performance overlay position": "Statistics overlay position",
   "Performance statistics": "Performance statistics",
+  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.",
   "Platform Version: Tizen %1$s": "Platform Version: Tizen %1$s",
   "Play audio on host": "Play audio on host",
   "Please enter a valid host address!": "Please enter a valid host address!",
