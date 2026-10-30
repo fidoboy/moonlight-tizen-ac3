@@ -2318,13 +2318,7 @@ const Navigation = (function() {
 
       const view = Stack.get();
       if (view[name]) {
-        const previousDirectionalState = isDirectionalNavigation;
-        isDirectionalNavigation = ['up', 'down', 'left', 'right'].includes(name);
-        try {
-          view[name]();
-        } finally {
-          isDirectionalNavigation = previousDirectionalState;
-        }
+        view[name]();
       }
     };
   }
