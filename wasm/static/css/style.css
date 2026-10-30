@@ -228,11 +228,11 @@ body {
     z-index: 2;
     content: '';
     position: absolute;
-    top: -2px;
+    top: 0;
     right: -2px;
     width: 28%;
     min-width: 12px;
-    height: calc(100% + 4px);
+    height: 100%;
     border-radius: 50%;
     background: radial-gradient(
         ellipse at right center,
@@ -241,7 +241,7 @@ body {
         var(--theme-accent-40) 58%,
         transparent 100%
     );
-    box-shadow: 0 0 10px 3px var(--theme-accent);
+    box-shadow: 0 0 12px 4px var(--theme-accent);
     opacity: 0;
     -webkit-animation-duration: 2s;
     animation-duration: 2s;
