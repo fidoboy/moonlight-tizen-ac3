@@ -186,6 +186,8 @@ body {
     margin: 0 auto;
     overflow: hidden;
     isolation: isolate;
+    -webkit-clip-path: inset(0 round 8px);
+    clip-path: inset(0 round 8px);
     transform: translate(-50%, -50%);
 }
 #loadingSpinner > .bar1,
