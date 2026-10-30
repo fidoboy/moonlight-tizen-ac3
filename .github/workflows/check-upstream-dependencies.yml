@@ -41,51 +41,14 @@ jobs:
                   repo: dep.repo,
                   ref: `tags/${dep.tag_prefix}`
                 });
-                const escapedPrefix = dep.tag_prefix.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\            for (const dep of manifest.dependencies) {
-              let latestCommit;
-
-              if (dep.path) {');
-                const stableTagPattern = new RegExp(
-                  `^refs/tags/${escapedPrefix}(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)name: Check upstream dependencies
-
-on:
-  schedule:
-    - cron: '30 14 * * 1'
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  issues: write
-
-jobs:
-  check-upstream:
-    name: Check vendored dependency sources
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Compare upstream references
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-
-            const manifest = JSON.parse(
-              fs.readFileSync('.github/dependency-baselines.json', 'utf8')
-            );
-            const updates = [];
-
-
-                );
+                const tagRefPrefix = `refs/tags/${dep.tag_prefix}`;
                 const stableTags = refs
                   .map(item => {
-                    const match = item.ref.match(stableTagPattern);
-                    return match ? {
-                      ref: item.ref,
+                    if (!item.ref.startsWith(tagRefPrefix)) return null;
+                    const version = item.ref.slice(tagRefPrefix.length).match(/^(\\d+)\\.(\\d+)\\.(\\d+)$/);
+                    return version ? {
                       name: item.ref.replace('refs/tags/', ''),
-                      version: match.slice(1).map(Number)
+                      version: version.slice(1).map(Number)
                     } : null;
                   })
                   .filter(Boolean)
