@@ -3739,8 +3739,12 @@ function showApps(host, options) {
           }
         }
 
-        // Navigate to the Apps view
+        // Navigate to the Apps view, then play a longer WAV to verify
+        // audible HTML5 playback independently of the short navigation click.
         showAppsMode(!!(options && options.keepInteractionLocked));
+        if (typeof playNavigationPresentationSound === 'function') {
+          playNavigationPresentationSound();
+        }
         clearViewLoadingSnackbarTimer();
         if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
         resolve();
