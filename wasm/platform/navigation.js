@@ -2487,7 +2487,7 @@ const Navigation = (function() {
 
         view[name]();
 
-        if (previousTarget && previousTarget !== document.querySelector('.hovered') &&
+        if (previousTarget !== document.querySelector('.hovered') &&
             typeof playNavigationSound === 'function') {
           playNavigationSound();
         }
