@@ -205,16 +205,26 @@ body {
     right: auto;
     background: var(--theme-accent);
     background-image: none;
-    -webkit-filter: blur(0.6px);
-    filter: blur(0.6px);
     transition: none;
     transform-origin: left center;
-    -webkit-animation-duration: 2.4s;
-    animation-duration: 2.4s;
+    -webkit-animation-duration: 2s;
+    animation-duration: 2s;
     -webkit-animation-iteration-count: infinite;
     animation-iteration-count: infinite;
-    -webkit-animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
+}
+#loadingSpinner .loading-spinner-bar::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: calc(100% + 4px);
+    border-radius: 50%;
+    background: var(--theme-accent);
+    box-shadow: 0 0 5px 2px var(--theme-accent);
+    pointer-events: none;
 }
 #loadingSpinner .loading-spinner-bar--primary {
     width: 75%;
@@ -222,7 +232,7 @@ body {
     animation-name: loading-spinner-indeterminate1;
 }
 #loadingSpinner .loading-spinner-bar--secondary {
-    width: 35%;
+    width: 25%;
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
 }
@@ -242,7 +252,7 @@ body {
 @-webkit-keyframes loading-spinner-indeterminate2 {
     0%, 50% { -webkit-transform: translateX(0) scaleX(0); }
     75% { -webkit-transform: translateX(0) scaleX(1); }
-    100% { -webkit-transform: translateX(285.714286%) scaleX(0); }
+    100% { -webkit-transform: translateX(400%) scaleX(0); }
 }
 
 @keyframes loading-spinner-indeterminate2 {
