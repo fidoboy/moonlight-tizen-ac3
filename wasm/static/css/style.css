@@ -207,12 +207,12 @@ body {
     background-image: none;
     transition: none;
     transform-origin: left center;
-    -webkit-animation-duration: 2s;
-    animation-duration: 2s;
+    -webkit-animation-duration: 2.4s;
+    animation-duration: 2.4s;
     -webkit-animation-iteration-count: infinite;
     animation-iteration-count: infinite;
-    -webkit-animation-timing-function: linear;
-    animation-timing-function: linear;
+    -webkit-animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 #loadingSpinner .loading-spinner-bar--primary {
     width: 75%;
@@ -220,7 +220,7 @@ body {
     animation-name: loading-spinner-indeterminate1;
 }
 #loadingSpinner .loading-spinner-bar--secondary {
-    width: 25%;
+    width: 35%;
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
 }
@@ -240,13 +240,13 @@ body {
 @-webkit-keyframes loading-spinner-indeterminate2 {
     0%, 50% { -webkit-transform: translateX(0) scaleX(0); }
     75% { -webkit-transform: translateX(0) scaleX(1); }
-    100% { -webkit-transform: translateX(400%) scaleX(0); }
+    100% { -webkit-transform: translateX(285.714286%) scaleX(0); }
 }
 
 @keyframes loading-spinner-indeterminate2 {
     0%, 50% { transform: translateX(0) scaleX(0); }
     75% { transform: translateX(0) scaleX(1); }
-    100% { transform: translateX(400%) scaleX(0); }
+    100% { transform: translateX(285.714286%) scaleX(0); }
 }
 
 .mdl-progress > .progressbar,
@@ -506,6 +506,10 @@ body {
 /* =============================
    Dialog Styles
 ============================= */
+/* Keep the stream video out of a translucent fullscreen compositing layer. */
+#popup-layer > .stream-menu-overlay {
+    background: transparent;
+}
 #popup-layer > .dialog-overlay {
     opacity: 0;
     transition: opacity var(--ui-fade-duration) ease-in-out;
