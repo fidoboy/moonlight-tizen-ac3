@@ -210,7 +210,7 @@ body {
         var(--theme-accent) 100%
     );
     transition: none;
-    transform-origin: left center;
+    width: 0;
     -webkit-animation-duration: 2s;
     animation-duration: 2s;
     -webkit-animation-iteration-count: infinite;
@@ -238,38 +238,38 @@ body {
     pointer-events: none;
 }
 #loadingSpinner .loading-spinner-bar--primary {
-    width: 75%;
     -webkit-animation-name: loading-spinner-indeterminate1;
     animation-name: loading-spinner-indeterminate1;
 }
 #loadingSpinner .loading-spinner-bar--secondary {
-    width: 25%;
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
 }
 
+/* Animate against the track's width directly. Transform percentages were based on
+   each bar's own width and could leave the trailing segment short on Tizen. */
 @-webkit-keyframes loading-spinner-indeterminate1 {
-    0% { -webkit-transform: translateX(0) scaleX(0); }
-    50% { -webkit-transform: translateX(33.333333%) scaleX(1); }
-    75%, 100% { -webkit-transform: translateX(133.333333%) scaleX(0); }
+    0% { left: 0; width: 0; }
+    50% { left: 0; width: 75%; }
+    75%, 100% { left: 100%; width: 0; }
 }
 
 @keyframes loading-spinner-indeterminate1 {
-    0% { transform: translateX(0) scaleX(0); }
-    50% { transform: translateX(33.333333%) scaleX(1); }
-    75%, 100% { transform: translateX(133.333333%) scaleX(0); }
+    0% { left: 0; width: 0; }
+    50% { left: 0; width: 75%; }
+    75%, 100% { left: 100%; width: 0; }
 }
 
 @-webkit-keyframes loading-spinner-indeterminate2 {
-    0%, 50% { -webkit-transform: translateX(0) scaleX(0); }
-    75% { -webkit-transform: translateX(0) scaleX(1); }
-    100% { -webkit-transform: translateX(400%) scaleX(0); }
+    0%, 50% { left: 0; width: 0; }
+    75% { left: 0; width: 25%; }
+    100% { left: 100%; width: 0; }
 }
 
 @keyframes loading-spinner-indeterminate2 {
-    0%, 50% { transform: translateX(0) scaleX(0); }
-    75% { transform: translateX(0) scaleX(1); }
-    100% { transform: translateX(400%) scaleX(0); }
+    0%, 50% { left: 0; width: 0; }
+    75% { left: 0; width: 25%; }
+    100% { left: 100%; width: 0; }
 }
 
 .mdl-progress > .progressbar,
