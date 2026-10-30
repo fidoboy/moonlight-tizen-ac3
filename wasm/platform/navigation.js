@@ -400,32 +400,30 @@ class ListView {
 
   prevCard(cardsPerRow) {
     const array = this.func();
+    if (!array.length) return undefined;
+
     const currentRow = Math.floor(this.index / cardsPerRow);
-    // Check if a previous card exists
-    if (this.index > 0) {
-      unmark(array[this.index]);
-      --this.index;
-      const newRow = Math.floor(this.index / cardsPerRow);
-      mark(array[this.index]);
-      if (newRow !== currentRow) {
-        this.scrollToCardRow(newRow, cardsPerRow);
-      }
+    unmark(array[this.index]);
+    this.index = (this.index - 1 + array.length) % array.length;
+    const newRow = Math.floor(this.index / cardsPerRow);
+    mark(array[this.index]);
+    if (newRow !== currentRow) {
+      this.scrollToCardRow(newRow, cardsPerRow);
     }
     return array[this.index];
   }
 
   nextCard(cardsPerRow) {
     const array = this.func();
+    if (!array.length) return undefined;
+
     const currentRow = Math.floor(this.index / cardsPerRow);
-    // Check if a next card exists
-    if (this.index < array.length - 1) {
-      unmark(array[this.index]);
-      ++this.index;
-      const newRow = Math.floor(this.index / cardsPerRow);
-      mark(array[this.index]);
-      if (newRow !== currentRow) {
-        this.scrollToCardRow(newRow, cardsPerRow);
-      }
+    unmark(array[this.index]);
+    this.index = (this.index + 1) % array.length;
+    const newRow = Math.floor(this.index / cardsPerRow);
+    mark(array[this.index]);
+    if (newRow !== currentRow) {
+      this.scrollToCardRow(newRow, cardsPerRow);
     }
     return array[this.index];
   }
