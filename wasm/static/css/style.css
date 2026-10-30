@@ -272,25 +272,25 @@ body {
    each bar's own width and could leave the trailing segment short on Tizen. */
 @-webkit-keyframes loading-spinner-indeterminate1 {
     0% { left: 0; width: 0; }
-    50% { left: 0; width: 80%; }
+    50% { left: 0; width: 85%; }
     75%, 100% { left: 100%; width: 0; }
 }
 
 @keyframes loading-spinner-indeterminate1 {
     0% { left: 0; width: 0; }
-    50% { left: 0; width: 80%; }
+    50% { left: 0; width: 85%; }
     75%, 100% { left: 100%; width: 0; }
 }
 
 @-webkit-keyframes loading-spinner-indeterminate2 {
     0%, 50% { left: 0; width: 0; }
-    75% { left: 0; width: 30%; }
+    75% { left: 0; width: 42%; }
     100% { left: 100%; width: 0; }
 }
 
 @keyframes loading-spinner-indeterminate2 {
     0%, 50% { left: 0; width: 0; }
-    75% { left: 0; width: 30%; }
+    75% { left: 0; width: 42%; }
     100% { left: 100%; width: 0; }
 }
 
