@@ -5461,8 +5461,6 @@ function stopAmbientSymbolsAnimation() {
 }
 
 function updateAmbientBackgroundActivation(activate) {
-  initializeBubbleAnimation();
-  initializeAmbientSymbols();
   var mainUi = document.getElementById('main-ui-layer');
   if (!mainUi) return;
 
