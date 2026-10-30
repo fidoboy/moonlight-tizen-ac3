@@ -285,6 +285,7 @@
   "Partially encrypted connection; unencrypted: %1$s": "Соединение зашифровано частично; без шифрования: %1$s",
   "Performance overlay position": "Положение блока статистики",
   "Performance statistics": "Статистика производительности",
+  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "Если включить этот параметр, во время трансляции будет отображаться наложение со всей информацией о подключении, а также графиками задержки и качества сетевого соединения. Его также можно включить вручную во время любой трансляции через меню, которое открывается нажатием кнопки Play/Pause на пульте телевизора.",
   "Platform Version: Tizen %1$s": "Platform Version: Tizen %1$s",
   "Play audio on host": "Воспроизводить звук на хосте",
   "Please enter a valid host address!": "Введите корректный адрес хоста!",
