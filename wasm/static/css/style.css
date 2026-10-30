@@ -518,9 +518,15 @@ body {
 /* =============================
    Dialog Styles
 ============================= */
-/* Keep the stream video out of a translucent fullscreen compositing layer. */
-#popup-layer > .dialog-overlay.stream-menu-overlay {
-    background: transparent;
+/* The stream menu is a compact dialog, not a fullscreen overlay. */
+#streamMenuDialog.stream-menu-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    margin: 0;
+    transform: translate(-50%, -50%);
 }
 #popup-layer > .dialog-overlay {
     opacity: 0;
