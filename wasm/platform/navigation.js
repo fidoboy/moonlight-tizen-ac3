@@ -9,8 +9,12 @@ function setNavigationSoundEnabled(enabled) {
   navigationSoundEnabled = enabled === true;
 
   if (!navigationSoundEnabled && navigationSoundAudio) {
+    // Fully release the media element instead of leaving a paused decoder alive
+    // while Moonlight's streaming audio/video pipeline is active.
     navigationSoundAudio.pause();
-    try { navigationSoundAudio.currentTime = 0; } catch (error) {}
+    navigationSoundAudio.removeAttribute('src');
+    navigationSoundAudio.load();
+    navigationSoundAudio = null;
   }
 }
 
