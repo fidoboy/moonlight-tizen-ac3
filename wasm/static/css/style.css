@@ -198,6 +198,54 @@ body {
     background-image: none;
     background-color: var(--theme-accent);
 }
+
+/* Keep MDL's indeterminate animation untouched everywhere except this loading spinner.
+   Fixed-width segments let the animation run on transform rather than layout properties. */
+#loadingSpinner > .bar1,
+#loadingSpinner > .bar3 {
+    left: 0;
+    width: 100%;
+    transition: none;
+    transform-origin: left center;
+    -webkit-transform-origin: left center;
+    will-change: transform;
+    -webkit-animation-duration: 2s;
+    animation-duration: 2s;
+    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: infinite;
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
+}
+#loadingSpinner > .bar1 {
+    -webkit-animation-name: loading-spinner-indeterminate1;
+    animation-name: loading-spinner-indeterminate1;
+}
+#loadingSpinner > .bar3 {
+    -webkit-animation-name: loading-spinner-indeterminate2;
+    animation-name: loading-spinner-indeterminate2;
+}
+@-webkit-keyframes loading-spinner-indeterminate1 {
+    0% { -webkit-transform: translateX(0) scaleX(0); }
+    50% { -webkit-transform: translateX(25%) scaleX(0.75); }
+    75% { -webkit-transform: translateX(100%) scaleX(0); }
+    100% { -webkit-transform: translateX(100%) scaleX(0); }
+}
+@keyframes loading-spinner-indeterminate1 {
+    0% { transform: translateX(0) scaleX(0); }
+    50% { transform: translateX(25%) scaleX(0.75); }
+    75% { transform: translateX(100%) scaleX(0); }
+    100% { transform: translateX(100%) scaleX(0); }
+}
+@-webkit-keyframes loading-spinner-indeterminate2 {
+    0%, 50% { -webkit-transform: translateX(0) scaleX(0); }
+    75% { -webkit-transform: translateX(0) scaleX(0.25); }
+    100% { -webkit-transform: translateX(100%) scaleX(0); }
+}
+@keyframes loading-spinner-indeterminate2 {
+    0%, 50% { transform: translateX(0) scaleX(0); }
+    75% { transform: translateX(0) scaleX(0.25); }
+    100% { transform: translateX(100%) scaleX(0); }
+}
 .mdl-progress > .progressbar,
 .mdl-progress > .bufferbar,
 .mdl-progress > .auxbar {
