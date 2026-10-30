@@ -1192,6 +1192,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
   updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
   $('#main-content').removeClass('settings-view-active');
@@ -3418,7 +3419,10 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('body').css({ background: '', backgroundColor: '' });
 
   showUiLayer('main-ui-layer', afterShown);
-  if (!deferPostTransitionActions) isInGame = false;
+  if (!deferPostTransitionActions) {
+    isInGame = false;
+    if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
+  }
   if (!deferPostTransitionActions && startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
@@ -3436,6 +3440,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
 // Complete the non-visual Apps-mode work only after the stream transition has disappeared.
 function finishAppsModeAfterStreamTransition() {
   isInGame = false;
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
   if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
@@ -4435,6 +4440,9 @@ function startGame(host, appID) {
 
       // Shows a loading message to launch the application and start stream mode
       $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
+      // Block all interface audio before the stream transition begins. This is separate
+      // from isInGame because the stream is already being prepared at this point.
+      if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(false);
       showStreamMode();
 
       // Check if user wants to resume the already-running app
