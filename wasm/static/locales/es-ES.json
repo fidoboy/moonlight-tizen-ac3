@@ -285,7 +285,7 @@
   "Partially encrypted connection; unencrypted: %1$s": "Conexión parcialmente cifrada; sin cifrar: %1$s",
   "Performance overlay position": "Posición de la superposición de estadísticas",
   "Performance statistics": "Estadísticas de rendimiento",
-  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "Si lo activas, se mostrará una superposición durante las retransmisiones con toda la información de la conexión y las gráficas de latencia y calidad de la conexión de la red. También puedes activarlo manualmente durante cualquier retransmisión desde el menú que aparece al pulsar el botón de Play/Pause en el mando de la TV.",
+  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "Si lo activas, se mostrará una superposición durante las retransmisiones con toda la información de la conexión y las gráficas de latencia y calidad de la conexión de la red. También puedes activarla manualmente durante cualquier retransmisión desde el menú que aparece al pulsar el botón de Play/Pause en el mando de la TV.",
   "Platform Version: Tizen %1$s": "Versión de la plataforma: Tizen %1$s",
   "Play audio on host": "Reproducir audio en el equipo anfitrión",
   "Please enter a valid host address!": "Introduce una dirección válida del equipo.",
