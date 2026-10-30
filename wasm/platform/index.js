@@ -3385,7 +3385,10 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#main-content').removeClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
-  $('#header-title').html(t('Apps'));
+  var appsTitle = api && api.hostname
+    ? t('Apps in %1$s', api.hostname)
+    : t('Apps');
+  $('#header-title').text(appsTitle);
   $('#header-logo').show();
   $('#main-header').show();
   $('.mdl-layout__content').show();
