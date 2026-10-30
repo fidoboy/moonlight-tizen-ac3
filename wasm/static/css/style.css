@@ -196,6 +196,7 @@ body {
     box-shadow: none;
 }
 #loadingSpinner .loading-spinner-track {
+    display: none !important; /* Temporary diagnostic: remove the translucent track. */
     z-index: 0;
     left: 0;
     width: 100%;
