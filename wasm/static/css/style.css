@@ -713,7 +713,7 @@ body {
 #runningAppDialog #stopRemoteApp:hover,
 #runningAppDialog #stopRemoteApp:focus,
 #runningAppDialog #stopRemoteApp:active {
-    box-shadow: 0 0 2px 3px rgba(244, 67, 54, 0.32) !important;
+    box-shadow: 0 0 2px 3px rgba(244, 67, 54, 1) !important;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
