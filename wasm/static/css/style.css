@@ -573,7 +573,7 @@ body {
 }
 #runningAppDialog #stopRemoteApp {
     margin-bottom: 0;
-    background-color: rgba(244, 67, 54, 0.72);
+    background: rgba(244, 67, 54, 0.72) !important;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
