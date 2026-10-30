@@ -3,6 +3,15 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.0.9
+
+### Added
+
+### Changed
+
+### Fixed
+- **Host details status:** Fixed the host details dialog always displaying hosts as online and paired, regardless of their actual `online` and `paired` boolean values.
+
 ## v1.0.8 — Dolby audio and interface improvements
 
 ### Added
@@ -77,8 +86,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Added
 - **Host removal confirmation:** Added a confirmation warning before removing a host to help prevent accidental deletions.
 - **Configurable configuration summary:** Added a persistent Interface Settings option to show or hide the configuration summary bar on the Hosts and Apps screens.
-- **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.
-- **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
+- **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.- **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
 - **Portrait launch screen support:** Added orientation-specific launch-screen assets for landscape and portrait layouts.
 
 ### Changed
@@ -157,8 +165,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 ### Base client v1.18.0
 
 ### Added
-- Added automatic selection of the last opened host and app when navigating between views
-- Introduced a new 'Decrypt host audio' setting intended for Wolf and Punktfunk-style hosts
+- Added automatic selection of the last opened host and app when navigating between views- Introduced a new 'Decrypt host audio' setting intended for Wolf and Punktfunk-style hosts
 - Added a 'Disabled' option to the 'Audio backend' setting to disable audio output from the TV
 
 ### Changed
@@ -237,7 +244,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Fixed toast messages being translated twice and translated strings appearing in browser console
 
 ### Base client v1.16.0
-
 ### Added
 - Introduced a new 'Audio backend' setting for switching between EMSS and Web Audio
 - Added Web Audio as an alternative audio backend alongside the existing EMSS implementation
@@ -318,7 +324,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Optimized dependency downloads to significantly reduce Docker image build times
-
 ### Fixed
 - Fixed an issue where automatic host discovery could occasionally restore outdated IP addresses
 - Fixed a race condition where the first app was selected before the app list had fully loaded
@@ -397,8 +402,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Refactored Dockerfile to remove unused dependencies and steps
-- Replaced the snackbar with a proper dialog in DialogMsg and ignored .DS_Store
-- Optimized Dockerfile to cache backend build layers during frontend changes
+- Replaced the snackbar with a proper dialog in DialogMsg and ignored .DS_Store- Optimized Dockerfile to cache backend build layers during frontend changes
 - Improved issue templates and included 'Discussions' link for quick interaction
 
 ### Base client v1.10.2
@@ -478,7 +482,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Expanded initial decode buffer size from 128 KB to 1 MB to improve playback stability
 - Reduced the level profiles of all video formats to ensure better device compatibility
 - Refined on-screen overlays for better alignment to screen edges and improved readability
-
 ### Fixed
 - Fixed an issue where server polling continued in the background during an active stream session
 
@@ -557,7 +560,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Fixed
 - Minor bug fixes, code refactoring and general improvements
-
 ### Base client v1.5.0
 
 ### Added
@@ -638,7 +640,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Fixed an issue where the bitrate slider was ignoring decimal values due to incorrect parsing
 
 ### Base client v1.2.19
-
 ### Added
 - Added more system details and improved structure in the 'System Info' placeholder
 
@@ -717,8 +718,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added the application logo with animation to the splash screen
 
 ### Changed
-- Increased the spinner size with rounded corners and enhanced text visibility
-- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
+- Increased the spinner size with rounded corners and enhanced text visibility- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
 - Moved the 'icons' folder to the 'static' directory for better organization of assets
 - Replaced the function to stop the streaming session with the correct one for keyboard input
 
@@ -798,7 +798,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Fixed
 - Minor bug fixes, improved visual styling and general improvements
-
 ### Dependencies
 - Updated 'material-icons' library to the latest version
 
@@ -877,8 +876,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 ### Base client v1.2.0
 
 ### Added
-- Introduced 'AV1' as a new video codec option in the 'Video codec' settings
-- Implemented logic to handle server codec mode support checks
+- Introduced 'AV1' as a new video codec option in the 'Video codec' settings- Implemented logic to handle server codec mode support checks
 - Added the High Level 5.1 profiles for AV1 and AV1 Main10 codecs
 
 ### Fixed
@@ -957,8 +955,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added a new 'Drop Down' icon for multi-select buttons
 
 ### Changed
-- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
-- Changed the color of the 'Power Off' icon to white as the default
+- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility- Changed the color of the 'Power Off' icon to white as the default
 - Enhanced the visual stylization application-wide
 
 ### Base client v1.1.13
@@ -1037,7 +1034,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Implemented all navigation views for full interaction within the 'Settings' container
 - Implemented navigation to go to the previous or next category in 'Settings' view
 - Implemented functionality to handle category clicks and show the settings options in the right pane
-
 ### Base client v1.1.6
 
 ### Added
@@ -1118,7 +1114,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Updated stream configurations to align with the latest versions of modules
-
 ### Dependencies
 - Updated 'moonlight-common-c' module from `50c0a51` to `3ed3ba6`
 - Updated 'opus' module from v1.4 `82ac57d` to v1.4 `c854997`
@@ -1198,7 +1193,6 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Fixed
 - Fixed spelling errors in the code
-
 ### Base client v1.0.14
 
 ### Added
@@ -1277,8 +1271,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Base client v1.0.7
 
-### Added
-- Enhanced card hover styles for better appearance
+### Added- Enhanced card hover styles for better appearance
 
 ### Changed
 - Aligned 'Add Host' and 'Hosts PC' text to the center
