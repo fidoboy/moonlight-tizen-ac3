@@ -192,12 +192,15 @@ body {
     border-radius: 8px;
 }
 #loadingSpinner > .progressbar,
-#loadingSpinner > .bufferbar,
 #loadingSpinner > .auxbar,
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
 #wasmSpinner > .auxbar {
     background-color: var(--theme-accent);
+}
+#loadingSpinner > .bufferbar {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.5);
 }
 #wasmSpinnerLogo {
     width: 30%;
