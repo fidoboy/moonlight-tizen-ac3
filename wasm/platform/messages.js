@@ -892,7 +892,7 @@ function handleMessage(msg) {
       }
       $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       var restoration = typeof setNavigationSoundEnabled === 'function'
-        ? setNavigationSoundEnabled(true)
+        ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
         : Promise.resolve();
       Promise.resolve(restoration).catch(function(audioRestoreError) {
         // A sound-effects failure must not strand the user in the closing transition.
