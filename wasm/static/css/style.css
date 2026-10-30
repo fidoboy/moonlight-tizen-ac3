@@ -184,7 +184,19 @@ body {
     bottom: 50%;
     left: 50%;
     margin: 0 auto;
+    overflow: hidden;
+    isolation: isolate;
     transform: translate(-50%, -50%);
+}
+#loadingSpinner > .bar1,
+#loadingSpinner > .bar3 {
+    border: 0;
+    box-shadow: none;
+    border-radius: 8px;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 .mdl-progress > .progressbar,
 .mdl-progress > .bufferbar,
@@ -573,7 +585,7 @@ body {
 }
 #runningAppDialog #stopRemoteApp {
     margin-bottom: 0;
-    background: rgba(244, 67, 54, 0.72) !important;
+    background: rgba(244, 67, 54, 0.52) !important;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
