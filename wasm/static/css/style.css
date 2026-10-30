@@ -212,13 +212,13 @@ body {
 }
 
 #loadingSpinner > .bar1 {
-    width: 75%;
+    width: 75% !important;
     -webkit-animation-name: loading-spinner-indeterminate1;
     animation-name: loading-spinner-indeterminate1;
 }
 
 #loadingSpinner > .bar3 {
-    width: 25%;
+    width: 25% !important;
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
 }
