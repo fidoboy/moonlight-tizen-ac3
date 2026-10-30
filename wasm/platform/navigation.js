@@ -1414,6 +1414,7 @@ const Views = {
       'themeSelector',
       'selectAmbientBackground',
       'showConfigSummaryBtn',
+      'navigationSoundBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
     ]),
