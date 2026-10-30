@@ -559,6 +559,9 @@ body {
     font-size: 1.4rem;
     text-transform: uppercase;
 }
+#runningAppDialog .mdl-dialog__actions button {
+    font-size: 1.8rem;
+}
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
     margin-bottom: 10px;
