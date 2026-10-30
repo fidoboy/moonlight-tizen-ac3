@@ -219,11 +219,17 @@ body {
     position: absolute;
     top: -2px;
     right: -2px;
-    width: 8px;
+    width: 18%;
+    min-width: 8px;
     height: calc(100% + 4px);
     border-radius: 50%;
-    background: var(--theme-accent);
-    box-shadow: 0 0 5px 2px var(--theme-accent);
+    background: radial-gradient(
+        ellipse at right center,
+        var(--theme-accent) 0%,
+        var(--theme-accent) 22%,
+        transparent 100%
+    );
+    box-shadow: 0 0 7px 2px var(--theme-accent);
     pointer-events: none;
 }
 #loadingSpinner .loading-spinner-bar--primary {
