@@ -4707,7 +4707,7 @@ function requestManualStreamStop() {
 function streamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
-    class: 'dialog-overlay'
+    class: 'dialog-overlay stream-menu-overlay'
   }).appendTo('#popup-layer');
   var streamMenuDialog = $('<dialog>', {
     id: 'streamMenuDialog',
