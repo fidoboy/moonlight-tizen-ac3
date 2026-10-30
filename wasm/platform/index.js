@@ -5467,14 +5467,18 @@ function destroyAmbientBackground(preset) {
     var waveSvg = document.getElementById('ambient-wave-svg');
     if (waveSvg) {
       if (!ambientWaveTemplate) ambientWaveTemplate = waveSvg.cloneNode(true);
-      waveSvg.remove();
+      if (waveSvg.parentNode) waveSvg.parentNode.removeChild(waveSvg);
     }
     return;
   }
 
   if (preset === 'bubbles') {
     stopAmbientBubbleAnimation();
-    if (ambientBubbleContainer) ambientBubbleContainer.replaceChildren();
+    if (ambientBubbleContainer) {
+      while (ambientBubbleContainer.firstChild) {
+        ambientBubbleContainer.removeChild(ambientBubbleContainer.firstChild);
+      }
+    }
     ambientBubbleElements.length = 0;
     ambientBubbleAnimationInitialized = false;
     return;
@@ -5482,7 +5486,11 @@ function destroyAmbientBackground(preset) {
 
   if (preset === 'symbols') {
     stopAmbientSymbolsAnimation();
-    if (ambientSymbolsContainer) ambientSymbolsContainer.replaceChildren();
+    if (ambientSymbolsContainer) {
+      while (ambientSymbolsContainer.firstChild) {
+        ambientSymbolsContainer.removeChild(ambientSymbolsContainer.firstChild);
+      }
+    }
     ambientSymbolElements.length = 0;
     ambientSymbolsInitialized = false;
   }
