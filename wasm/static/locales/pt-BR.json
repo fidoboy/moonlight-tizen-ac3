@@ -497,7 +497,7 @@
   "Waves": "Ondas",
   "Bubbles": "Bolhas",
   "Symbols": "Símbolos",
-  "Sons de navegação": "Sons de navegação",
-  "- Ativa ou desativa os sons de navegação na interface do Moonlight.": "- Ativa ou desativa os sons de navegação na interface do Moonlight.",
-  "Ativar sons de navegação": "Ativar sons de navegação"
+  "Navigation sounds": "Sons de navegação",
+  "- Enable or disable navigation sounds in the Moonlight interface.": "- Ativa ou desativa os sons de navegação na interface do Moonlight.",
+  "Enable navigation sounds": "Ativar sons de navegação"
 }
