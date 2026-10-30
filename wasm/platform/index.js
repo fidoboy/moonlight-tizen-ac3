@@ -1192,9 +1192,9 @@ function refreshHosts() {
 }
 
 // Handle layout elements when displaying the Hosts view
-function showHostsMode(skipPollingRestart) {
+function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
-  updateAmbientBackgroundActivation(true);
+  if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
   $('#main-content').removeClass('settings-view-active');
 
@@ -3380,7 +3380,7 @@ function sortTitles(list, sortOrder) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
-  updateAmbientBackgroundActivation(true);
+  if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
 
@@ -4247,6 +4247,8 @@ function showStreamMode() {
     // Keep the Web UI visible during the transition layer's fade-in. The callback runs
     // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
     var enterFullscreenStreamLayout = function() {
+      // Stop every ambient background animation only after the transition layer is fully opaque.
+      updateAmbientBackgroundActivation(false);
       hideUiLayerImmediately('main-ui-layer');
       $('#main-ui-layer').find('*').stop(true, false);
       $('#main-content').addClass('fullscreen');
