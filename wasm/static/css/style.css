@@ -2007,7 +2007,7 @@ body {
         opacity: var(--gamepad-opacity);
     }
     to {
-        transform: translateY(-50vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
+        transform: translateY(-20vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
         opacity: 0;
     }
 }
