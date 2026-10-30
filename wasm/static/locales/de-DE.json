@@ -499,5 +499,6 @@
   "Symbols": "Symbole",
   "Navigation sounds": "Navigationsgeräusche",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Aktiviert oder deaktiviert Navigationsgeräusche in der Moonlight-Oberfläche.",
-  "Enable navigation sounds": "Navigationsgeräusche aktivieren"
+  "Enable navigation sounds": "Navigationsgeräusche aktivieren",
+  "Apps in %1$s": "Apps auf %1$s"
 }
