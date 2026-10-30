@@ -31,8 +31,83 @@ jobs:
 
             for (const dep of manifest.dependencies) {
               let latestCommit;
+              let upstreamRef;
 
-              if (dep.path) {
+              if (dep.tag_prefix) {
+                // Follow stable version tags, not the moving development branch or
+                // GitHub Releases, which may not be updated for every official release.
+                const { data: refs } = await github.rest.git.listMatchingRefs({
+                  owner: dep.owner,
+                  repo: dep.repo,
+                  ref: `tags/${dep.tag_prefix}`
+                });
+                const escapedPrefix = dep.tag_prefix.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\            for (const dep of manifest.dependencies) {
+              let latestCommit;
+
+              if (dep.path) {');
+                const stableTagPattern = new RegExp(
+                  `^refs/tags/${escapedPrefix}(\\\\d+)\\\\.(\\\\d+)\\\\.(\\\\d+)name: Check upstream dependencies
+
+on:
+  schedule:
+    - cron: '30 14 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-upstream:
+    name: Check vendored dependency sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compare upstream references
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const manifest = JSON.parse(
+              fs.readFileSync('.github/dependency-baselines.json', 'utf8')
+            );
+            const updates = [];
+
+
+                );
+                const stableTags = refs
+                  .map(item => {
+                    const match = item.ref.match(stableTagPattern);
+                    return match ? {
+                      ref: item.ref,
+                      name: item.ref.replace('refs/tags/', ''),
+                      version: match.slice(1).map(Number)
+                    } : null;
+                  })
+                  .filter(Boolean)
+                  .sort((a, b) =>
+                    b.version[0] - a.version[0] ||
+                    b.version[1] - a.version[1] ||
+                    b.version[2] - a.version[2]
+                  );
+
+                if (stableTags.length === 0) {
+                  core.warning(`No stable version tags found for ${dep.owner}/${dep.repo}`);
+                  continue;
+                }
+
+                upstreamRef = stableTags[0].name;
+                const { data: commit } = await github.rest.repos.getCommit({
+                  owner: dep.owner,
+                  repo: dep.repo,
+                  ref: upstreamRef
+                });
+                latestCommit = commit;
+              } else if (dep.path) {
                 // Monitor only the vendored subdirectory when a dependency is part of
                 // a larger upstream repository, avoiding unrelated repository changes.
                 const { data: commits } = await github.rest.repos.listCommits({
@@ -46,6 +121,7 @@ jobs:
                   continue;
                 }
                 latestCommit = commits[0];
+                upstreamRef = dep.branch;
               } else {
                 const { data: branch } = await github.rest.repos.getBranch({
                   owner: dep.owner,
@@ -53,6 +129,7 @@ jobs:
                   branch: dep.branch
                 });
                 latestCommit = branch.commit;
+                upstreamRef = dep.branch;
               }
 
               const latestSha = latestCommit.sha;
@@ -87,6 +164,7 @@ jobs:
 
               updates.push({
                 dep,
+                upstreamRef,
                 latestSha,
                 latestMessage: latestCommit.commit.message.split('\n')[0],
                 latestDate: latestCommit.commit.committer.date,
@@ -126,11 +204,11 @@ jobs:
               return;
             }
 
-            const lines = updates.map(({ dep, latestSha, latestMessage, latestDate, compareUrl, aheadBy, comparisonStatus }) => {
+            const lines = updates.map(({ dep, upstreamRef, latestSha, latestMessage, latestDate, compareUrl, aheadBy, comparisonStatus }) => {
               const count = Number.isInteger(aheadBy) ? String(aheadBy) : 'could not determine';
               return [
                 `### ${dep.name}`,
-                `- Upstream: [${dep.owner}/${dep.repo}](https://github.com/${dep.owner}/${dep.repo}) (${dep.branch})`,
+                `- Upstream: [${dep.owner}/${dep.repo}](https://github.com/${dep.owner}/${dep.repo}) (${upstreamRef})`,
                 `- Recorded reference: \`${dep.baseline_sha}\` (${dep.baseline_label})`,
                 `- Current upstream HEAD: [\`${latestSha.slice(0, 12)}\`](https://github.com/${dep.owner}/${dep.repo}/commit/${latestSha})`,
                 `- Latest commit date: ${latestDate}`,
