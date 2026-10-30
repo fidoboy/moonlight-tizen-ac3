@@ -1,16 +1,65 @@
 const hoveredClassName = 'hovered';
 
-// Navigation sounds are strictly disabled while a stream is starting or active.
-// Create the HTML audio element lazily, only after an actual navigation event.
+// Keep a silent audio stream open while the UI is active. The MP3 contains
+// silent samples; volume remains at 1 so the media pipeline is not muted.
+const navigationSilenceSource = 'data:audio/mpeg;base64,//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xLEKYPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xDEU4PAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EsR9A8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EMSnA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sSxNCDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 let navigationSoundEnabled = true;
 let navigationSoundAudio = null;
+let navigationKeepAliveAudio = null;
+
+function startNavigationAudioKeepAlive() {
+  if (!navigationSoundEnabled || isInGame === true) return;
+
+  if (!navigationKeepAliveAudio) {
+    navigationKeepAliveAudio = new Audio(navigationSilenceSource);
+    navigationKeepAliveAudio.preload = 'auto';
+    navigationKeepAliveAudio.loop = true;
+    navigationKeepAliveAudio.volume = 1;
+    navigationKeepAliveAudio.addEventListener('error', function() {
+      if (navigationKeepAliveAudio) {
+        console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
+          'Could not load silent keep-alive audio:', navigationKeepAliveAudio.error);
+      }
+    });
+  }
+
+  if (!navigationKeepAliveAudio.paused) return;
+
+  try {
+    const playback = navigationKeepAliveAudio.play();
+    if (playback && typeof playback.catch === 'function') {
+      playback.catch(function(error) {
+        console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
+          'Silent keep-alive playback was rejected:', error);
+      });
+    }
+  } catch (error) {
+    console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
+      'Silent keep-alive playback failed:', error);
+  }
+}
+
+function stopNavigationAudioKeepAlive() {
+  if (!navigationKeepAliveAudio) return;
+
+  navigationKeepAliveAudio.pause();
+  navigationKeepAliveAudio.removeAttribute('src');
+  navigationKeepAliveAudio.load();
+  navigationKeepAliveAudio = null;
+}
 
 function setNavigationSoundEnabled(enabled) {
   navigationSoundEnabled = enabled === true;
 
-  if (!navigationSoundEnabled && navigationSoundAudio) {
-    // Fully release the media element instead of leaving a paused decoder alive
-    // while Moonlight's streaming audio/video pipeline is active.
+  if (navigationSoundEnabled) {
+    startNavigationAudioKeepAlive();
+    return;
+  }
+
+  // Release all interface audio before the streaming audio pipeline starts.
+  stopNavigationAudioKeepAlive();
+
+  if (navigationSoundAudio) {
     navigationSoundAudio.pause();
     navigationSoundAudio.removeAttribute('src');
     navigationSoundAudio.load();
@@ -20,6 +69,10 @@ function setNavigationSoundEnabled(enabled) {
 
 function playNavigationSound() {
   if (!navigationSoundEnabled || isInGame === true) return;
+
+  // Retry here as well: the first remote-control interaction may be the first
+  // user gesture that permits media playback on the TV.
+  startNavigationAudioKeepAlive();
 
   if (!navigationSoundAudio) {
     navigationSoundAudio = new Audio('static/res/click.mp3');
