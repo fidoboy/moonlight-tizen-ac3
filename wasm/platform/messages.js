@@ -938,17 +938,11 @@ function handleMessage(msg) {
       if (typeof finishAppsModeAfterStreamTransition === 'function') {
         finishAppsModeAfterStreamTransition();
       }
-      // Restore the main Hosts screen directly; it does not depend on the failed host API.
-      showHostsMode();
+      // Restore the main Hosts screen while keeping its ambient background stopped.
+      showHostsMode(true, true);
       $('#host-grid').stop(true, true).show();
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
-      if (typeof hideStreamTransitionBackground === "function") {
-        hideStreamTransitionBackground();
-      } else {
-        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
-        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
-      }
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
       $('body').css('backgroundColor', '#282C38');
@@ -956,6 +950,16 @@ function handleMessage(msg) {
       Navigation.change(Views.Hosts);
       Navigation.start();
       Navigation.switch();
+
+      // Reactivate the selected ambient background immediately before the transition
+      // fades out, so it is already running when the Hosts UI is revealed.
+      updateAmbientBackgroundActivation(true);
+      if (typeof hideStreamTransitionBackground === "function") {
+        hideStreamTransitionBackground();
+      } else {
+        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
+        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
+      }
       snackbarLogLong(t('Could not load apps from the host. Returning to the main list.'));
     };
 
@@ -1025,6 +1029,11 @@ function handleMessage(msg) {
     };
 
     var hideTransitionAndBeginRecovery = function() {
+      // showAppsMode has completed its UI fade and all app-list recovery work.
+      // Restart ambient animation now, immediately before the transition fades out.
+      if (typeof updateAmbientBackgroundActivation === 'function') {
+        updateAmbientBackgroundActivation(true);
+      }
       if (typeof hideStreamTransitionBackground === 'function') {
         hideStreamTransitionBackground(beginRecoveryAfterTransition);
       } else {
