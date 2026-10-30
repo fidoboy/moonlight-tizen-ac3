@@ -3,7 +3,7 @@ const hoveredClassName = 'hovered';
 // Dedicated Web Audio engine for short interface effects. The MP3 is fetched and decoded
 // once while the application starts, then played from an AudioBuffer without per-click
 // network, media-element or decoder initialization.
-let navigationSoundEnabled = true;
+let navigationSoundEnabled = false;
 let navigationSoundContext = null;
 let navigationSoundBuffer = null;
 let navigationSoundData = null;
@@ -184,9 +184,7 @@ function playNavigationSound() {
   }
 }
 
-// Start fetching and decoding the short effect as early as possible. The context remains
-// suspended until Tizen permits playback following a user interaction.
-initializeNavigationAudioEngine().catch(function() {});
+// The persisted preference is loaded by index.js before the audio engine is initialized.
 
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
