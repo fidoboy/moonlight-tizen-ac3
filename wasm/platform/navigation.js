@@ -1,24 +1,29 @@
 const hoveredClassName = 'hovered';
 
-// Play a short UI sound only when directional navigation changes the focused item.
+// Play a short UI sound only when directional navigation changes the highlighted item.
 const navigationSound = typeof Audio !== 'undefined' ? new Audio('static/res/click.mp3') : null;
 if (navigationSound) {
   navigationSound.preload = 'auto';
+  navigationSound.load();
 }
-let lastFocusedElement = null;
+let lastNavigationElement = null;
 let isDirectionalNavigation = false;
 
-function playNavigationSound() {
+function playNavigationSoundForElement(element) {
+  if (!isDirectionalNavigation || !element || lastNavigationElement === element) return;
+  lastNavigationElement = element;
   if (!navigationSound) return;
 
   try {
     navigationSound.currentTime = 0;
     const playback = navigationSound.play();
     if (playback && typeof playback.catch === 'function') {
-      playback.catch(() => {});
+      playback.catch(error => {
+        console.warn('[navigation.js] Navigation sound playback failed:', error);
+      });
     }
   } catch (error) {
-    // Audio playback must never interfere with UI navigation.
+    console.warn('[navigation.js] Navigation sound playback failed:', error);
   }
 }
 
@@ -136,6 +141,8 @@ function mark(target) {
   const element = resolveElement(target);
   // Check if the element exists before marking
   if (element) {
+    // Directional list navigation often changes the highlighted item without calling focusElement().
+    playNavigationSoundForElement(element);
     // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
@@ -180,11 +187,7 @@ function focusElement(target) {
     return;
   }
 
-  const focusChanged = lastFocusedElement !== element;
-  lastFocusedElement = element;
-  if (isDirectionalNavigation && focusChanged) {
-    playNavigationSound();
-  }
+  playNavigationSoundForElement(element);
 
   // Check if the element is a SELECT dropdown
   if (element.tagName === 'SELECT') {
