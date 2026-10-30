@@ -5463,7 +5463,6 @@ function stopAmbientSymbolsAnimation() {
 
 function destroyAmbientBackground(preset) {
   if (preset === 'waves') {
-    var waveWrapper = document.getElementById('ambient-trails');
     var waveSvg = document.getElementById('ambient-wave-svg');
     if (waveSvg) {
       if (!ambientWaveTemplate) ambientWaveTemplate = waveSvg.cloneNode(true);
