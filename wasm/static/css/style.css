@@ -193,10 +193,8 @@ body {
     border: 0;
     box-shadow: none;
     border-radius: 8px;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
+    background-image: none;
+    background-color: var(--theme-accent);
 }
 .mdl-progress > .progressbar,
 .mdl-progress > .bufferbar,
@@ -585,7 +583,7 @@ body {
 }
 #runningAppDialog #stopRemoteApp {
     margin-bottom: 0;
-    background: rgba(244, 67, 54, 0.52) !important;
+    background: rgba(244, 67, 54, 0.32) !important;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
