@@ -145,6 +145,9 @@ function playNavigationSound() {
   var context = navigationSoundContext;
   if (context.state === 'closed') return;
 
+  // Preserve the previous player's no-overlap behavior for rapid navigation input.
+  if (navigationSoundSources.length > 0) return;
+
   if (context.state === 'suspended') {
     try {
       var resumeResult = context.resume();
