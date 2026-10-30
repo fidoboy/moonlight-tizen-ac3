@@ -205,6 +205,8 @@ body {
     right: auto;
     background: var(--theme-accent);
     background-image: none;
+    -webkit-filter: blur(0.6px);
+    filter: blur(0.6px);
     transition: none;
     transform-origin: left center;
     -webkit-animation-duration: 2.4s;
