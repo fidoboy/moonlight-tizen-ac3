@@ -210,6 +210,30 @@
     });
 
     updateLocalizedSelections();
+
+    // Keep the Dolby symbol embedded in the translated settings heading.
+    const dolbyHeading = document.getElementById('dolbyAudioHeading');
+    if (dolbyHeading) {
+      const translatedHeading = t('Dolby audio output');
+      const dolbyIndex = translatedHeading.toLowerCase().indexOf('dolby');
+      if (dolbyIndex >= 0) {
+        const beforeDolby = translatedHeading.slice(0, dolbyIndex);
+        const dolbyAndAfter = translatedHeading.slice(dolbyIndex);
+        const icon = document.createElement('img');
+        icon.className = 'dolby-audio-heading-icon';
+        icon.src = 'static/res/ic_dolby_double_d.svg';
+        icon.alt = '';
+        icon.setAttribute('aria-hidden', 'true');
+        // replaceChildren() is not available in some older Tizen WebKit versions.
+        while (dolbyHeading.firstChild) {
+          dolbyHeading.removeChild(dolbyHeading.firstChild);
+        }
+        dolbyHeading.appendChild(document.createTextNode(beforeDolby));
+        dolbyHeading.appendChild(icon);
+        dolbyHeading.appendChild(document.createTextNode(dolbyAndAfter));
+      }
+    }
+
     state.refreshCallbacks.forEach((cb) => cb());
   }
 

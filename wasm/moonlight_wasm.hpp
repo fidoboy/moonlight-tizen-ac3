@@ -104,6 +104,7 @@ class MoonlightInstance {
     bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
     std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
     std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats);
+  void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
   MessageResult StopStream();
 
   MessageResult CancelRequest();
@@ -247,6 +248,8 @@ class MoonlightInstance {
   AudioBackend m_AudioBackend;
   bool m_OpticalOutputEnabled {false};
   int m_AudioConfig;
+  std::string m_DolbyChannelLayout {"Back"};
+  std::string m_DolbyDecodingMode {"Hardware"};
   std::atomic<uint64_t> m_AudioBytesReceived {0};
   bool m_AudioSyncEnabled;
   int m_AudioJitterMs;

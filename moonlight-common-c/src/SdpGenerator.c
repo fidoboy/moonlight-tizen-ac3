@@ -536,6 +536,26 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (err == 0) {
+        uint32_t encryptionStatus = 0;
+
+        if (EncryptionFeaturesEnabled & SS_ENC_VIDEO) {
+            encryptionStatus |= LI_ENCRYPTION_VIDEO;
+        }
+        if (AudioEncryptionEnabled) {
+            encryptionStatus |= LI_ENCRYPTION_AUDIO;
+        }
+        // Publish whether the host supports the modern control-encryption flag
+        // separately from whether it is enabled. If unsupported, the UI classifies
+        // encryption using video and audio only instead of guessing the control state.
+        if (EncryptionFeaturesSupported & SS_ENC_CONTROL_V2) {
+            encryptionStatus |= LI_ENCRYPTION_CONTROL_SUPPORTED;
+            if (EncryptionFeaturesEnabled & SS_ENC_CONTROL_V2) {
+                encryptionStatus |= LI_ENCRYPTION_CONTROL;
+            }
+        }
+
+        // Publish only after the complete SDP option list has been built successfully.
+        EncryptionStatus = (int)encryptionStatus;
         return optionHead;
     }
 

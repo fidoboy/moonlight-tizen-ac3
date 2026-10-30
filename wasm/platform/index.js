@@ -50,6 +50,8 @@ var pairingCert; // Loads the generated certificate
 var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
 var isInGame = false; // Flag indicating whether the game has started, initial value is false
+var dolbyDecodingModeSupported = false;
+var dolbyDecodingModeSupportChecked = false;
 
 // Shared UI timing: change this single value to tune all interface fades.
 const UI_FADE_DURATION_MS = 300;
@@ -65,6 +67,37 @@ function resolveUiElement(elementOrId) {
   return elementOrId || null;
 }
 
+var deferredMainUiActions = [];
+
+function isMainUiLayerActive() {
+  var layer = document.getElementById('main-ui-layer');
+  if (!layer || layer.classList.contains('ui-inactive') || isInGame === true ||
+      getComputedStyle(layer).display === 'none' || uiLayerFadeTimers['main-ui-layer']) {
+    return false;
+  }
+  return (parseFloat(getComputedStyle(layer).opacity) || 0) >= 0.999;
+}
+
+function runWhenMainUiActive(callback) {
+  if (typeof callback !== 'function') return;
+  if (isMainUiLayerActive()) {
+    callback();
+    return;
+  }
+  deferredMainUiActions.push(callback);
+}
+
+function flushDeferredMainUiActions() {
+  if (!isMainUiLayerActive() || deferredMainUiActions.length === 0) return;
+  var pendingActions = deferredMainUiActions.splice(0);
+  pendingActions.forEach(function(callback) {
+    try { callback(); }
+    catch (error) {
+      console.error('%c[index.js, flushDeferredMainUiActions]', 'color: red;', 'Deferred main UI action failed:', error);
+    }
+  });
+}
+
 function showUiLayer(layerId, callback) {
   var layer = resolveUiElement(layerId);
   if (!layer) { if (typeof callback === 'function') callback(); return; }
@@ -72,12 +105,15 @@ function showUiLayer(layerId, callback) {
   var computedOpacity = computedDisplay === 'none' ? 0 : (parseFloat(getComputedStyle(layer).opacity) || 0);
   if (computedDisplay !== 'none' && computedOpacity >= 0.999 && !uiLayerFadeTimers[layerId]) {
     if (typeof callback === 'function') callback();
+    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
     return;
   }
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
   layer._uiFadeTarget = 'visible';
+  // The root class is the authoritative global inactive state for the main Web UI.
+  if (layer.id === 'main-ui-layer') layer.classList.remove('ui-inactive');
   layer.style.transition = 'none';
   layer.style.display = 'block';
   layer.setAttribute('aria-hidden', 'false');
@@ -92,10 +128,12 @@ function showUiLayer(layerId, callback) {
     if (layer._uiFadeToken !== token) return;
     delete uiLayerFadeTimers[layerId];
     if (typeof callback === 'function') callback();
+    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
   }, UI_FADE_DURATION_MS);
 }
 
-function hideUiLayer(layerId, callback) {
+function hideUiLayer(layerId, callback, durationMs) {
+  var fadeDuration = (typeof durationMs === 'number' && durationMs >= 0) ? durationMs : UI_FADE_DURATION_MS;
   var layer = resolveUiElement(layerId);
   if (!layer || getComputedStyle(layer).display === 'none') {
     if (typeof callback === 'function') callback();
@@ -106,16 +144,33 @@ function hideUiLayer(layerId, callback) {
   var token = (layer._uiFadeToken || 0) + 1;
   layer._uiFadeToken = token;
   layer._uiFadeTarget = 'hidden';
-  layer.style.transition = 'opacity ' + UI_FADE_DURATION_MS + 'ms ease-in-out';
+  layer.style.transition = 'opacity ' + fadeDuration + 'ms ease-in-out';
   layer.style.opacity = '0';
   uiLayerFadeTimers[layerId] = window.setTimeout(function() {
     if (layer._uiFadeToken !== token) return;
+    if (layer.id === 'main-ui-layer') layer.classList.add('ui-inactive');
     layer.style.display = 'none';
     layer.setAttribute('aria-hidden', 'true');
     layer.style.opacity = '';
     delete uiLayerFadeTimers[layerId];
     if (typeof callback === 'function') callback();
-  }, UI_FADE_DURATION_MS);
+  }, fadeDuration);
+}
+
+function hideUiLayerImmediately(layerId) {
+  var layer = resolveUiElement(layerId);
+  if (!layer) return;
+  if (uiLayerFadeTimers[layerId]) {
+    window.clearTimeout(uiLayerFadeTimers[layerId]);
+    delete uiLayerFadeTimers[layerId];
+  }
+  layer._uiFadeToken = (layer._uiFadeToken || 0) + 1;
+  layer._uiFadeTarget = 'hidden';
+  layer.style.transition = 'none';
+  layer.style.opacity = '0';
+  if (layer.id === 'main-ui-layer') layer.classList.add('ui-inactive');
+  layer.style.display = 'none';
+  layer.setAttribute('aria-hidden', 'true');
 }
 
 function fadeInUiElement(elementOrId, displayValue, callback) {
@@ -384,8 +439,8 @@ function attachListeners() {
   $('#refreshHostsBtn').on('click', refreshHosts);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
+  installNavigationTooltipActionHiding();
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
-  $('#quitRunningAppBtn').on('click', quitAppDialog);
   $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
   $('.videoFramerateMenu li').on('click', saveFramerate);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
@@ -393,7 +448,10 @@ function attachListeners() {
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
+  $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
+  $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
+  initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
@@ -406,6 +464,8 @@ function attachListeners() {
   $('.audioBackendMenu li').on('click', saveAudioBackend);
   $('.audioConfigMenu li').on('click', saveAudioConfiguration);
   $('#ac3AudioModeSwitch').on('click', saveAc3AudioMode);
+  $('.dolbyChannelLayoutMenu li').on('click', saveDolbyChannelLayout);
+  $('.dolbyDecodingModeMenu li').on('click', saveDolbyDecodingMode);
   $('#audioSyncSwitch').on('click', saveAudioSync);
   $('#jitterSlider').on('input', saveAudioJitter);
   $('#playHostAudioSwitch').on('click', savePlayHostAudio);
@@ -437,8 +497,11 @@ function attachListeners() {
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('selectBitrate', Views.SelectBitrateMenu);
   registerMenu('selectLanguage', Views.SelectLanguageMenu);
+  registerMenu('selectAmbientBackground', Views.AmbientBackgroundMenu);
   registerMenu('selectAudioBackend', Views.SelectAudioBackendMenu);
   registerMenu('selectAudio', Views.SelectAudioMenu);
+  registerMenu('selectDolbyChannelLayout', Views.SelectDolbyChannelLayoutMenu);
+  registerMenu('selectDolbyDecodingMode', Views.SelectDolbyDecodingModeMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
@@ -544,8 +607,130 @@ function hideNativeLaunchScreen() {
   }
 }
 
+function loadConfigSummarySettings(callback) {
+  // Preload every persisted setting displayed in the summary strip before the
+  // native splash is released. getData invokes its callback on both success and
+  // read failure, so the barrier cannot be held by a missing setting.
+  var pending = 10;
+  var finished = false;
+  function completeOne() {
+    pending--;
+    if (pending === 0 && !finished) {
+      finished = true;
+      updateConfigSummaryBar();
+      updateHdrControlState();
+      callback();
+    }
+  }
+  function applyMenuValue(key, selector, value) {
+    if (value == null) return;
+    $(selector + ' li').each(function() {
+      if ($(this).data('value') === value) {
+        var target = $(selector === '.videoResolutionMenu' ? '#selectResolution' :
+          selector === '.videoFramerateMenu' ? '#selectFramerate' :
+          selector === '.audioBackendMenu' ? '#selectAudioBackend' :
+          selector === '.audioConfigMenu' ? '#selectAudio' : '#selectCodec');
+        target.text($(this).text()).attr('data-value', value).data('value', value);
+      }
+    });
+  }
+  function applySwitch(key, selector, defaultEnabled) {
+    getData(key, function(result) {
+      var value = result && result[key];
+      var enabled = value == null ? defaultEnabled :
+        (value === true || value === 'true' || value === 1);
+      var input = document.querySelector(selector);
+      if (input) {
+        if (input.MaterialSwitch) {
+          if (enabled) input.MaterialSwitch.on();
+          else input.MaterialSwitch.off();
+        } else {
+          input.checked = enabled;
+        }
+      }
+      completeOne();
+    });
+  }
+
+  getData('resolution', function(result) {
+    var value = result && result.resolution;
+    if (value != null) {
+      var width = parseInt(value.split(':')[0], 10);
+      if (width > maxSupportedWidth) value = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
+      applyMenuValue('resolution', '.videoResolutionMenu', value);
+    }
+    completeOne();
+  });
+  getData('frameRate', function(result) {
+    applyMenuValue('frameRate', '.videoFramerateMenu', result && result.frameRate);
+    completeOne();
+  });
+  getData('bitrate', function(result) {
+    var value = result && result.bitrate != null ? result.bitrate : '10';
+    var slider = document.getElementById('bitrateSlider');
+    if (slider) slider.value = value;
+    var label = document.getElementById('selectBitrate');
+    if (label) label.textContent = value + ' Mbps';
+    completeOne();
+  });
+  getData('audioBackend', function(result) {
+    applyMenuValue('audioBackend', '.audioBackendMenu', result && result.audioBackend);
+    completeOne();
+  });
+  getData('audioConfig', function(result) {
+    applyMenuValue('audioConfig', '.audioConfigMenu', result && result.audioConfig);
+    completeOne();
+  });
+  getData('videoCodec', function(result) {
+    applyMenuValue('videoCodec', '.videoCodecMenu', result && result.videoCodec);
+    completeOne();
+  });
+  applySwitch('optimizeBitrate', '#optimizeBitrateBtn', false);
+  applySwitch('hdrMode', '#hdrModeBtn', false);
+  applySwitch('ac3AudioMode', '#ac3AudioModeBtn', false);
+  applySwitch('gameMode', '#gameModeBtn',
+    parseFloat(platformVer) < 9.0 && parseFloat(platformVer) !== 5.5);
+}
+
+// Hide navigation tooltips before any top-bar action starts. Keep them hidden
+// until both pointer hover and keyboard focus have left the activated button.
+function installNavigationTooltipActionHiding() {
+  const navigationButtonSelector =
+    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #supportBtn, ' +
+    '#restoreDefaultsBtn, #updateAppBtn';
+
+  document.addEventListener('click', function(event) {
+    const button = event.target && event.target.closest
+      ? event.target.closest(navigationButtonSelector) : null;
+    if (!button) return;
+
+    const tooltip = document.querySelector(
+      '#popup-layer .mdl-tooltip[for="' + button.id + '"]'
+    );
+    if (tooltip) {
+      tooltip.classList.add('ui-hidden-for-action');
+      tooltip.classList.remove('is-active');
+    }
+  }, true);
+
+  function restoreTooltipWhenButtonIsInactive(event) {
+    const button = event.target && event.target.closest
+      ? event.target.closest(navigationButtonSelector) : null;
+    if (!button || (event.relatedTarget && button.contains(event.relatedTarget))) return;
+    if (button.matches(':hover') || button.matches(':focus')) return;
+
+    const tooltip = document.querySelector(
+      '#popup-layer .mdl-tooltip[for="' + button.id + '"]'
+    );
+    if (tooltip) tooltip.classList.remove('ui-hidden-for-action');
+  }
+
+  document.addEventListener('mouseout', restoreTooltipWhenButtonIsInactive, true);
+  document.addEventListener('focusout', restoreTooltipWhenButtonIsInactive, true);
+}
+
 function maybeReleaseNativeLaunchScreen() {
-  // For a normal launch, locales are the only prerequisite for revealing the UI.
+  // Normal launch waits for locale and all settings shown in the summary strip.
   // Direct Smart Hub launches keep the pre-hidden UI and their existing startup path.
   if (_directSmartHubLaunch || !isStartupLocaleReady ||
       isNativeLaunchScreenReleaseStarted || isNativeLaunchScreenReleased) {
@@ -554,33 +739,56 @@ function maybeReleaseNativeLaunchScreen() {
 
   isNativeLaunchScreenReleaseStarted = true;
 
-  // These operations only prepare the first visible host screen; restoration remains deferred.
+  // Prepare the first Hosts screen underneath the native splash.
   var headerTitle = document.getElementById('header-title');
   if (headerTitle) headerTitle.textContent = t('Hosts');
-  $('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').hide();
+  $('#goBackBtn, #restoreDefaultsBtn').hide();
   $('#settingsBtn, #supportBtn, #updateAppBtn').show();
   $('#settings-list, #game-grid, #wasmSpinner').hide();
-
   document.documentElement.classList.remove('app-starting');
 
-  // Give the browser a rendering opportunity, then allow the native splash a little
-  // extra time to finish its animation and audio before releasing it.
-  var releaseSplashAndScheduleRestore = function() {
-    var layout = document.querySelector('.mdl-layout');
-    if (layout) void layout.getBoundingClientRect();
+  var prepareSummaryAndReleaseSplash = function() {
+    initializeConfigSummaryBar();
 
-    nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
-      nativeLaunchScreenReleaseTimeout = null;
-      hideNativeLaunchScreen();
-      scheduleDeferredNormalStartup();
-    }, 1500);
+    // Give the browser a rendering opportunity, then allow the native splash a little
+    // extra time to finish its animation and audio before releasing it.
+    var releaseSplashAndScheduleRestore = function() {
+      var layout = document.querySelector('.mdl-layout');
+      if (layout) void layout.getBoundingClientRect();
+
+      nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
+        nativeLaunchScreenReleaseTimeout = null;
+        hideNativeLaunchScreen();
+        scheduleDeferredNormalStartup();
+      }, 1500);
+    };
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(releaseSplashAndScheduleRestore);
+    } else {
+      window.setTimeout(releaseSplashAndScheduleRestore, 0);
+    }
   };
 
-  if (typeof window.requestAnimationFrame === 'function') {
-    window.requestAnimationFrame(releaseSplashAndScheduleRestore);
-  } else {
-    window.setTimeout(releaseSplashAndScheduleRestore, 0);
-  }
+  // Load the visibility preference first, then wait for all values shown by the
+  // strip before laying it out and starting the splash-release sequence.
+  getData('showConfigSummaryBar', function(previousValue) {
+    var storedValue = previousValue && previousValue.showConfigSummaryBar;
+    var enabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    var summarySwitch = document.querySelector('#showConfigSummaryBtn');
+    if (summarySwitch && summarySwitch.MaterialSwitch) {
+      if (enabled) summarySwitch.MaterialSwitch.on();
+      else summarySwitch.MaterialSwitch.off();
+    }
+    configSummaryPreferenceLoaded = true;
+    // Load the selected palette before releasing the native splash so the original
+    // colors are never briefly shown when a non-default theme was saved.
+    getData('colorTheme', function(themeResult) {
+      applyColorTheme(themeResult && themeResult.colorTheme);
+      loadConfigSummarySettings(prepareSummaryAndReleaseSplash);
+    });
+  });
 }
 
 function scheduleDeferredNormalStartup() {
@@ -596,30 +804,50 @@ function startDeferredNormalStartup() {
   isDeferredStartupStarted = true;
   deferredStartupTimeout = null;
 
-  // Start the remaining work only after the UI is visible and Tizen's splash is released.
-  if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
-    window.componentHandler.upgradeDom();
-  }
-  loadUserData();
-  initializeConfigSummaryBar();
-
+  // Reveal only the Hosts UI, with interaction locked. Do not show snackbars,
+  // initialize components, or start recovery/scanning during the splash transition.
   if (!isStartupUiRestored) {
     isStartupUiRestored = true;
     restoreUiAfterWasmLoad();
+  }
+
+  var startStartupWork = function() {
+    // The UI has now had a full rendering grace period. Only now may startup
+    // messages and initialization begin.
     if (!isStartupHostsLoaded) showStartupHostsSnackbar();
-  }
 
-  // WebAssembly compilation and host/network initialization are deliberately deferred.
-  if (typeof window.startNormalStartupWasm === 'function') {
-    window.startNormalStartupWasm();
+    // Give the snackbar/UI another rendering opportunity before CPU-heavy work.
+    window.setTimeout(function() {
+      if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
+        window.componentHandler.upgradeDom();
+      }
+      // Restore the cached update badge only after the normal UI is visible and the
+      // native splash is gone. Keep it aligned with the start of host recovery.
+      restoreUpdateBadgeFromCache();
+      loadUserData();
+
+      if (typeof window.startNormalStartupWasm === 'function') {
+        window.startNormalStartupWasm();
+      } else {
+        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+      }
+
+      probeSmartHubSupport().then(function() {
+        handleDeepLink();
+        window.addEventListener('appcontrol', handleDeepLink);
+      });
+    }, 50);
+  };
+
+  // Start the grace period only after the browser has had a rendering opportunity
+  // for the newly visible Web UI; this avoids competing with the splash transition.
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(function() {
+      window.setTimeout(startStartupWork, 200);
+    });
   } else {
-    console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+    window.setTimeout(startStartupWork, 200);
   }
-
-  probeSmartHubSupport().then(function() {
-    handleDeepLink();
-    window.addEventListener('appcontrol', handleDeepLink);
-  });
 }
 
 function maybeRestoreUiAfterStartup() {
@@ -696,26 +924,29 @@ function updateHostStatusIndicator(host) {
     }
   }
 
-  // If the indicator element is not found, exit the function early
+  // Do not show a status icon until a network check has established the host state.
   if (!indicator) {
     return;
   }
-  // Set the appropriate status indicator based on the host status
-  if (host.online === undefined || host.online === null) {
+  if (host._statusVerified !== true || host.online === undefined || host.online === null) {
     indicator.style.display = 'none';
+    indicator.textContent = '';
   } else if (!host.online) {
     indicator.style.display = 'block';
-    indicator.innerHTML = 'warning';
-  } else if (host.online && !host.paired) {
+    indicator.textContent = 'power_off';
+  } else if (!host.paired) {
     indicator.style.display = 'block';
-    indicator.innerHTML = 'lock';
+    indicator.textContent = 'lock';
   } else {
-    indicator.style.display = 'none';
-    indicator.innerHTML = '';
+    indicator.style.display = 'block';
+    indicator.textContent = 'check';
   }
 }
 
 function beginBackgroundPollingOfHost(host) {
+  // Never start host checks or polling while the stream is active.
+  if (isInGame === true) return Promise.resolve();
+
   // Clear any existing polling interval for this host before starting a new one.
   // Without this, every call to beginBackgroundPollingOfHost (e.g. on each navigation
   // back to the host view) would leak the old setInterval, causing multiple overlapping
@@ -739,7 +970,16 @@ function beginBackgroundPollingOfHost(host) {
     host.online = false;
     host._memCachedApplist = null;
   }).finally(function() {
-    // Update the UI after the network finishes
+    // The in-flight request may finish during streaming, but it must not restart
+    // periodic polling or update the hidden host UI.
+    if (isInGame === true) {
+      host._consecutivePollFailures = 0;
+      host._pollCompletionCallbacks = [];
+      return;
+    }
+
+    // The completed network poll is the source of truth for the displayed status.
+    host._statusVerified = true;
     updateHostStatusIndicator(host);
 
     // Reset poll state so that recovery polls from the interval below start with
@@ -757,21 +997,17 @@ function beginBackgroundPollingOfHost(host) {
     host._pollCompletionCallbacks = [];
 
     var scheduleNextPoll = function(delay) {
-      // Stop if the poll was canceled (ID removed from activePolls)
-      if (!activePolls.hasOwnProperty(host.serverUid)) return;
+      // Stop if polling was canceled or streaming has started.
+      if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
 
       activePolls[host.serverUid] = window.setTimeout(function() {
-        // In case it was canceled while waiting
-        if (!activePolls.hasOwnProperty(host.serverUid)) return;
+        // In case it was canceled while waiting or streaming has started
+        if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true) return;
 
         host.pollServer(function(returnedHost) {
-          // Update the UI after the network finishes
+          // The request may complete after polling was stopped or streaming began.
+          if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
           updateHostStatusIndicator(returnedHost);
-
-          // In case it was canceled while the network request was running
-          if (!activePolls.hasOwnProperty(host.serverUid)) return;
-
-          // Schedule the next poll for 5 seconds AFTER this one finished
           scheduleNextPoll(5000);
         });
       }, delay);
@@ -789,6 +1025,9 @@ function beginBackgroundPollingOfHost(host) {
 }
 
 function startPollingHosts() {
+  // Calls from startup/discovery callbacks must not restart polling during a stream.
+  if (isInGame === true) return Promise.resolve();
+
   var pollPromises = [];
   for (var hostUID in hosts) {
     pollPromises.push(beginBackgroundPollingOfHost(hosts[hostUID]));
@@ -812,8 +1051,12 @@ function stopPollingHosts() {
   }
 }
 
+var persistentSnackbarVisible = false;
+
 function snackbarLog(...args) {
   dismissStartupHostsSnackbar();
+  dismissPersistentSnackbar();
+  setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
   var data = {
@@ -825,6 +1068,8 @@ function snackbarLog(...args) {
 
 function snackbarLogLong(...args) {
   dismissStartupHostsSnackbar();
+  dismissPersistentSnackbar();
+  setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
   var data = {
@@ -834,16 +1079,47 @@ function snackbarLogLong(...args) {
   document.querySelector('#snackbar').MaterialSnackbar.showSnackbar(data);
 }
 
+function setSnackbarProgress(isVisible) {
+  const snackbarElement = document.getElementById('snackbar');
+  if (snackbarElement) snackbarElement.classList.toggle('is-progress', isVisible === true);
+}
+
+function snackbarLogPersistent(...args) {
+  dismissStartupHostsSnackbar();
+  setSnackbarProgress(true);
+  const translatedMessage = t(...args);
+  console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
+  // MDL treats timeout: 0 as "use the default timeout", so use the largest
+  // supported timer value and let the next snackbar replace this one explicitly.
+  document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+    message: translatedMessage,
+    timeout: 2147483647
+  });
+  persistentSnackbarVisible = true;
+}
+
+function dismissPersistentSnackbar() {
+  if (!persistentSnackbarVisible) return;
+  const snackbarElement = document.querySelector('#snackbar');
+  if (snackbarElement && snackbarElement.MaterialSnackbar &&
+      typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+    snackbarElement.MaterialSnackbar.cleanup_();
+  }
+  persistentSnackbarVisible = false;
+  setSnackbarProgress(false);
+}
+
 function showStartupHostsSnackbar() {
+  setSnackbarProgress(true);
   const snackbarElement = document.querySelector('#snackbar');
   if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
-    snackbarLogLong('Loading configured hosts...');
+    snackbarLogPersistent('Loading configured hosts...');
     startupHostsSnackbarVisible = true;
     return;
   }
   snackbarElement.MaterialSnackbar.showSnackbar({
     message: t('Loading configured hosts...'),
-    timeout: 5000
+    timeout: 2147483647
   });
   startupHostsSnackbarVisible = true;
 }
@@ -856,6 +1132,7 @@ function dismissStartupHostsSnackbar() {
     snackbarElement.MaterialSnackbar.cleanup_();
   }
   startupHostsSnackbarVisible = false;
+  setSnackbarProgress(false);
 }
 
 var isManualHostRefreshRunning = false;
@@ -872,7 +1149,7 @@ function refreshHosts() {
     button.setAttribute('aria-busy', 'true');
   }
 
-  snackbarLog('Scanning the local network to discover new hosts...');
+  snackbarLogPersistent('Scanning the local network to discover new hosts...');
 
   // Refresh known-host status first, then pause background polling while scanning the subnet.
   // This follows startup behavior and helps avoid exhausting Tizen's network stack.
@@ -893,28 +1170,33 @@ function refreshHosts() {
     })
     .then(function() {
       isSubnetScanFinished = true;
-      startPollingHosts();
-      snackbarLog('Network scan completed.');
+      if (isInGame !== true) startPollingHosts();
+      runWhenMainUiActive(function() { snackbarLog('Network scan completed.'); });
     })
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
       isSubnetScanFinished = true;
-      startPollingHosts();
-      snackbarLogLong('Network scan failed.');
+      if (isInGame !== true) startPollingHosts();
+      runWhenMainUiActive(function() { snackbarLogLong('Network scan failed.'); });
     })
     .finally(function() {
       isManualHostRefreshRunning = false;
-      if (button) {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-      }
-      unlockHostListInteraction();
+      runWhenMainUiActive(function() {
+        if (button) {
+          button.disabled = false;
+          button.removeAttribute('aria-busy');
+        }
+        unlockHostListInteraction();
+      });
     });
 }
 
 // Handle layout elements when displaying the Hosts view
-function showHostsMode(skipPollingRestart) {
+function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
+  if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
+  $('#main-content').removeClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Hosts'));
@@ -931,7 +1213,6 @@ function showHostsMode(skipPollingRestart) {
   $('#game-grid').hide();
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#quitRunningAppBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -1000,9 +1281,13 @@ function unlockHostListInteraction() {
 }
 
 function finishInitialHostDiscovery() {
-  // Unlock navigation as soon as the completion snackbar is shown, not when it disappears.
-  snackbarLog('Network scan completed.');
-  unlockHostListInteraction();
+  runWhenMainUiActive(function() {
+    snackbarLog('Network scan completed.');
+    unlockHostListInteraction();
+    // Start the ambient background only after startup host discovery and network scanning finish.
+    $('#main-ui-layer').addClass('ambient-trails-ready');
+    updateAmbientBackgroundActivation(true);
+  });
 }
 
 var appListInteractionLocked = false;
@@ -1017,7 +1302,6 @@ function unlockAppListInteraction() {
   appListInteractionLocked = false;
   $('#game-grid').removeClass('app-list-locked');
   Navigation.start();
-  Navigation.switch();
 }
 
 var viewLoadingSnackbarTimer = null;
@@ -1025,7 +1309,7 @@ var viewLoadingSnackbarTimer = null;
 function scheduleViewLoadingSnackbar(message) {
   clearTimeout(viewLoadingSnackbarTimer);
   viewLoadingSnackbarTimer = setTimeout(function() {
-    snackbarLogLong(message);
+    snackbarLogPersistent(message);
   }, 1000);
 }
 
@@ -1035,7 +1319,7 @@ function clearViewLoadingSnackbarTimer() {
 }
 
 // Return to the Hosts grid with a short fade transition.
-function showHosts() {
+function showHosts(onShown) {
   Navigation.stop();
   scheduleViewLoadingSnackbar('Loading Hosts...');
 
@@ -1048,19 +1332,23 @@ function showHosts() {
 
     $('#host-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
       clearViewLoadingSnackbarTimer();
+      dismissPersistentSnackbar();
       Navigation.switch();
+      if (typeof onShown === 'function') onShown();
     });
   });
 }
 
 function restoreUiAfterWasmLoad() {
+  loadAmbientBackgroundPreference();
+
   // Show the localized UI immediately; host restoration and connectivity checks run independently.
   document.documentElement.classList.remove('app-starting');
 
   // Stop navigation before showing the loading screen
   Navigation.stop();
 
-  $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn, #quitRunningAppBtn').show();
+  $('#main-header').children().not('#goBackBtn, #restoreDefaultsBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner, #settings-list, #game-grid').show();
   $('#wasmSpinner').hide();
 
@@ -1149,7 +1437,7 @@ function hostChosen(host, onSuccessCallback) {
     } else {
       // Let the user know what to do to bring the host back online and until then, we'll be back to the previous view.
       console.error('%c[index.js, hostChosen]', 'color: green;', 'Error: Connection to host failed or host is offline!');
-      snackbarLogLong('Failed to connect to %1$s. Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.', 'the host');
+      snackbarLogLong('Host %1$s appears to be offline right now. Make sure it is powered on and that the GameStream server is running on the remote host.', host.hostname || t('the host'));
     }
     return;
   }
@@ -1463,7 +1751,7 @@ function addHostDialog() {
     _nvhttpHost.httpPort = parsedHostInput.port;
     console.log('%c[index.js, addHostDialog]', 'color: green;', 'Sending connection request to host address ' + _nvhttpHost.hostname);
     _nvhttpHost.refreshServerInfoAtAddress(parsedHostInput.addr).then(function(success) {
-      snackbarLog('Connecting to %1$s...', _nvhttpHost.hostname);
+      snackbarLogPersistent('Connecting to %1$s...', _nvhttpHost.hostname);
       // Close the dialog if the user has provided the IP address
       console.log('%c[index.js, addHostDialog]', 'color: green;', 'Closing app dialog and returning.');
       fadeOutUiElement(addHostOverlay);
@@ -1785,7 +2073,7 @@ function addHostToGrid(host, ismDNSDiscovered) {
   // Create the host center icon to indicate the host's status (online/offline/unpaired)
   var hostStatusIndicator = $('<i>', {
     id: 'host-status-' + host.serverUid,
-    class: 'material-icons host-center-icon'
+    class: 'material-symbols-outlined host-center-icon'
   });
 
   // Append the host text to the host title wrapper
@@ -2241,7 +2529,9 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
+  $('#main-ui-layer').removeClass('waves-active');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
+  $('#main-content').addClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
   $('#header-title').html(t('Settings'));
@@ -2259,7 +2549,6 @@ function showSettingsMode() {
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
-  $('#quitRunningAppBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -2274,6 +2563,18 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Stop every ambient background before the Settings loading/transition screen is shown.
+  updateAmbientBackgroundActivation(false);
+
+  // Restore the Settings screen to its initial category and clear any previously
+  // selected category or visible options before entering it again.
+  Views.Settings.view.reset();
+  resetSettingsView();
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.scrollTop = 0;
+  }
+
   // Hide the configuration summary immediately during the transition to Settings.
   configSummaryTemporarilyHidden = true;
   updateConfigSummaryBar();
@@ -2297,7 +2598,7 @@ function showSettings() {
 
     // Show the main header after the loading screen is complete
     $('#main-header').children().show();
-    $('#main-header').css({'backgroundColor': '#333846', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
+    $('#main-header').css({'backgroundColor': 'var(--theme-surface-deep)', 'boxShadow': '0 0 4px 0 rgba(0, 0, 0, 1)'});
 
     // Show the settings list section
     $('#settings-list').removeClass('hide-container');
@@ -2329,6 +2630,15 @@ function resetSettingsView() {
 
 // Navigate to the provided settings view by pushing the target view and set the focus to the setting
 function navigateSettingsView(view) {
+  // Every settings section starts at its first option and at the top of the pane.
+  if (view && view.view && typeof view.view.reset === 'function') {
+    view.view.reset();
+  }
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.scrollTop = 0;
+  }
+
   Navigation.pop();
   Navigation.push(view);
   setTimeout(() => Navigation.switch(), 250);
@@ -2347,6 +2657,15 @@ function handleSettingsView(category) {
   if (targetPaneOptions) {
     // Show the pane view
     targetPaneOptions.style.display = 'block';
+
+    // Determine whether the right pane has real content overflow before adding
+    // the extra bottom space; the safety padding itself must not trigger the test.
+    const settingsPane = document.getElementById('settings-right-pane');
+    if (settingsPane) {
+      const currentPaddingBottom = parseFloat(window.getComputedStyle(settingsPane).paddingBottom) || 0;
+      const contentOverflows = settingsPane.scrollHeight - currentPaddingBottom > settingsPane.clientHeight + 2;
+      settingsPane.classList.toggle('has-effective-scroll', contentOverflows);
+    }
   } else {
     // Otherwise, exit early
     return;
@@ -2397,12 +2716,22 @@ function navigationGuideDialog() {
   // Find the existing overlay and dialog elements
   var navGuideDialogOverlay = document.querySelector('#navGuideDialogOverlay');
   var navGuideDialog = document.querySelector('#navGuideDialog');
+  var navGuideDialogContent = document.getElementById('navGuideDialogContent');
+
+  // Start the guide at the top whenever the dialog is opened.
+  document.getElementById('navGuideDialogContent').scrollTop = 0;
 
   // Show the dialog and push the view
   fadeInUiElement(navGuideDialogOverlay, 'flex');
   showUiDialog(navGuideDialog);
   isDialogOpen = true;
   Navigation.push(Views.NavigationGuideDialog);
+
+  // Reset after the dialog is visible and after navigation has applied focus.
+  requestAnimationFrame(() => {
+    navGuideDialogContent.scrollTop = 0;
+    window.setTimeout(() => { navGuideDialogContent.scrollTop = 0; }, 150);
+  });
 
   // Close the dialog if the Close button is pressed
   $('#closeNavGuide').off('click');
@@ -2496,9 +2825,13 @@ function formatUpdateTimestamp(ms) {
 
 // Show the Update App button when a new update is found
 function updateAppButton(latestVersion) {
-  // Prevent adding duplicate buttons if one already exists
+  // Update the existing button if a newer release version was found.
   if ($('#updateAppBtn').length > 0) {
-    console.log('%c[index.js, updateAppButton]', 'color: green;', 'Update App button already exists. Skipping duplicate creation!');
+    $('#updateAppBtnText')
+      .attr('data-param', latestVersion)
+      .text(t('New update v%1$s', latestVersion));
+    $('#updateAppBtn').show();
+    console.log('%c[index.js, updateAppButton]', 'color: green;', 'Updated the existing Update App button.');
     return;
   }
 
@@ -2532,6 +2865,7 @@ function updateAppButton(latestVersion) {
   });
   // Create the layout spacer dynamically
   var extraLayoutSpacer = $('<div>', {
+    id: 'updateAppBtnSpacer',
     class: 'mdl-layout-spacer'
   });
   // Append elements inside the button
@@ -2598,11 +2932,21 @@ function updateAppDialog(latestVersion, releaseNotes) {
     dialogPolyfill.registerDialog(updateAppDialog[0]);
   }
 
+  // Start the release notes at the top whenever the dialog is opened.
+  document.getElementById('updateAppDialogContent').scrollTop = 0;
+
   // Show the dialog and push the view
   fadeInUiElement(updateAppDialogOverlay, 'flex');
   showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
+
+  // Reset after the dialog is visible and after navigation has applied focus.
+  const updateDialogContent = document.getElementById('updateAppDialogContent');
+  requestAnimationFrame(() => {
+    updateDialogContent.scrollTop = 0;
+    window.setTimeout(() => { updateDialogContent.scrollTop = 0; }, 150);
+  });
 }
 
 function saveAutomaticUpdateChecks() {
@@ -2614,20 +2958,42 @@ function saveAutomaticUpdateChecks() {
 }
 
 // Check for updates when the Check for Updates button is pressed
+// Restore the update badge from the last successfully fetched release version.
+// This runs on every normal startup, regardless of the automatic-check setting or interval.
+function restoreUpdateBadgeFromCache() {
+  getData(UPDATE_VERSION, function(vResult) {
+    var cachedVersion = vResult[UPDATE_VERSION];
+    if (cachedVersion !== undefined && cachedVersion !== null &&
+        checkVersionUpdate(appInfo.version, cachedVersion)) {
+      updateAppButton(cachedVersion);
+    } else {
+      // A cached release that is no newer than this installation must not leave a stale badge.
+      $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
+    }
+  });
+}
+
+// Check for updates when the Check for Updates button is pressed
 function checkForAppUpdates() {
   console.log('%c[index.js, checkForAppUpdates]', 'color: green;', 'Checking for new application updates...');
-  snackbarLog('Checking for available Moonlight updates...');
+  snackbarLogPersistent('Checking for available Moonlight updates...');
   // Fetch the latest release data from the GitHub API
   fetchLatestRelease().then(({ latestVersion, releaseNotes }) => {
+    // Persist the successfully fetched release version so the update badge survives app restarts.
+    storeData(UPDATE_VERSION, latestVersion);
+
     setTimeout(() => {
       // Check if a new version update is available
       if (checkVersionUpdate(appInfo.version, latestVersion)) {
+        // The update dialog is the result of this check, so remove its persistent progress snackbar.
+        dismissPersistentSnackbar();
         // Show the Update Moonlight dialog with new version and release notes to inform user to update the app
         updateAppDialog(latestVersion, releaseNotes);
-        // Create and display the Update App button so they can access it later if they close the dialog
+        // Create or refresh the Update App button so it remains available after the dialog closes
         updateAppButton(latestVersion);
       } else {
-        // Otherwise, show a snackbar message to inform the user that the app is already up to date
+        // A successful check confirms that the installed app is current; no update badge is needed.
+        $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
         snackbarLogLong('Your app is already up to date! You\'re on the latest version.');
       }
     }, 1500);
@@ -2671,24 +3037,29 @@ function checkForAppUpdatesAtStartup() {
         console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', 'Performing auto-check for new application updates...');
         // Fetch the latest release data from the GitHub API
         fetchLatestRelease().then(({ latestVersion }) => {
+          // Persist the result and timestamp only after the release request succeeds.
+          storeData(UPDATE_VERSION, latestVersion);
+          var successfulCheckTime = Date.now();
+          storeData(UPDATE_TIMESTAMP, successfulCheckTime);
+          console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', `Successful auto-check timestamp stored: ${formatUpdateTimestamp(successfulCheckTime)}`);
+
           setTimeout(() => {
             // Check if a new version update is available
             if (checkVersionUpdate(appInfo.version, latestVersion)) {
-              // Show snackbar message with new version to inform user to update the app
+              // Show snackbar message to inform user to update the app
               snackbarLogLong('Version %1$s is now available! Check out the latest features & improvements.', latestVersion);
               // Create and display the Update App button with tooltip and additional layout spacer
               updateAppButton(latestVersion);
+            } else {
+              // The installed app is current; remove any stale update button from this session.
+              $('#updateAppBtn, #updateAppBtnTooltip, #updateAppBtnSpacer').remove();
             }
           }, 100);
-          // Save the fetched version as the last known update version
-          storeData(UPDATE_VERSION, latestVersion);
         }).catch(error => {
+          // Do not update UPDATE_TIMESTAMP on failure; the next app launch can retry immediately.
           console.error('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', 'Error: Failed to fetch the release data!', error);
           snackbarLogLong('Cannot automatically check for updates at this time!');
         });
-        // Save the current time as the last update check timestamp
-        storeData(UPDATE_TIMESTAMP, currentTime);
-        console.log('%c[index.js, checkForAppUpdatesAtStartup]', 'color: green;', `New auto-check timestamp stored: ${formatUpdateTimestamp(currentTime)}`);
       } else {
         var timeLeft = UPDATE_INTERVAL - (currentTime - lastChecked);
         var hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
@@ -3008,28 +3379,39 @@ function sortTitles(list, sortOrder) {
 }
 
 // Handle layout elements when displaying the Apps view
-function showAppsMode() {
+function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
+  if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
+  $('#main-content').removeClass('settings-view-active');
 
   hideStreamDiagnosticsLayer();
-  $('#header-title').html(t('Apps'));
+  var appsTitle = api && api.hostname
+    ? t('Apps in %1$s', api.hostname)
+    : t('Apps');
+  $('#header-title').text(appsTitle);
   $('#header-logo').show();
   $('#main-header').show();
   $('.mdl-layout__content').show();
   $('#goBackBtn').show();
-  $('#quitRunningAppBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#host-grid').hide();
   $('#settings-list').hide();
-  // Fade in the Apps grid after the Hosts grid has faded out.
-  $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
-    clearViewLoadingSnackbarTimer();
+  // Keep an already-visible, locked Apps grid in place during an in-place refresh.
+  // Only use the full fade transition when entering Apps from another view.
+  var preserveVisibleAppGrid = appListInteractionLocked && $('#game-grid').children('.game-container').length > 0;
+  var finishAppsGridReveal = function() {
+    if (!deferPostTransitionActions) clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
-      unlockAppListInteraction();
+      if (!keepInteractionLocked) unlockAppListInteraction();
     } else {
       Navigation.switch();
     }
-  });
+  };
+  if (preserveVisibleAppGrid) {
+    finishAppsGridReveal();
+  } else {
+    $('#game-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, finishAppsGridReveal);
+  }
   $('.nav-menu-parent').hide();
   $('#updateAppBtn').hide();
   $('#settingsBtn').hide();
@@ -3038,11 +3420,14 @@ function showAppsMode() {
   $('#restoreDefaultsBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
-  $('body').css('backgroundColor', '#282C38');
+  $('body').css({ background: '', backgroundColor: '' });
 
-  showUiLayer('main-ui-layer');
-  isInGame = false;
-  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+  showUiLayer('main-ui-layer', afterShown);
+  if (!deferPostTransitionActions) {
+    isInGame = false;
+    if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
+  }
+  if (!deferPostTransitionActions && startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
       checkForAppUpdatesAtStartup();
@@ -3050,8 +3435,25 @@ function showAppsMode() {
   }
   // We want to eventually poll on the app screen, but we can't now because
   // it slows down box art loading and we don't update the UI live anyway.
+  if (!deferPostTransitionActions) {
+    stopPollingHosts();
+    if (!appListInteractionLocked) Navigation.start();
+  }
+}
+
+// Complete the non-visual Apps-mode work only after the stream transition has disappeared.
+function finishAppsModeAfterStreamTransition() {
+  isInGame = false;
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
+  if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
+    startupUpdateCheckTimeout = window.setTimeout(function() {
+      startupUpdateCheckTimeout = null;
+      checkForAppUpdatesAtStartup();
+    }, 0);
+  }
   stopPollingHosts();
   if (!appListInteractionLocked) Navigation.start();
+  flushDeferredMainUiActions();
 }
 
 // Show the Apps grid
@@ -3070,21 +3472,31 @@ function showApps(host, options) {
     Navigation.stop();
     if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Show a snackbar only if loading and transitioning takes more than one second,
-    // unless the Apps list is being restored behind the full-screen stream-closing transition.
+    // Normal navigation waits one second before showing feedback. Stream recovery
+    // already displays a persistent snackbar from refreshHostAndReturnToApps().
     if (!(options && options.suppressLoadingSnackbar)) {
-      scheduleViewLoadingSnackbar('Loading Apps...');
+      if (options && options.showLoadingSnackbarImmediately) {
+        if (!persistentSnackbarVisible) snackbarLogPersistent('Loading Apps...');
+      } else {
+        scheduleViewLoadingSnackbar('Loading Apps...');
+      }
     }
 
     // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
     $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
-    // Remove all game container elements from the game grid and from any other div elements
-    $('#game-grid').empty();
-    $('div.game-container').remove();
+    // Keep the current cards in place during a locked refresh (stream recovery / app close).
+    // Normal host navigation still starts with a clean grid.
+    if (!appListInteractionLocked) {
+      $('#game-grid').empty();
+      $('div.game-container').remove();
+    }
 
     setTimeout(() => {
-      host.getAppList().then(function(appList) {
+      var appListRequest = (options && options.forceRefreshAppList)
+        ? host.getAppListWithCacheFlush()
+        : host.getAppList();
+      appListRequest.then(function(appList) {
         // Show the game grid section
         $('#game-grid').show();
 
@@ -3093,9 +3505,12 @@ function showApps(host, options) {
           var emptyAppListImg = new Image();
           emptyAppListImg.src = 'static/res/applist_empty.svg';
           $('#game-grid').html(emptyAppListImg);
-          snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
+          if (!(options && options.suppressEmptyListSnackbar)) {
+            snackbarLogLong('Your list is currently empty. Please add your favorite apps to the list.');
+          }
+          clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
-          showAppsMode();
+          showAppsMode(!!(options && options.keepInteractionLocked));
           resolve();
           return;
         }
@@ -3106,6 +3521,26 @@ function showApps(host, options) {
         const sortOrder = sortAppsListSwitch.checked ? 'DESC' : 'ASC';
         // If game grid is populated, sort the app list
         const sortedAppList = sortTitles(appList, sortOrder);
+
+        if (appListInteractionLocked) {
+          // Reconcile by app ID instead of tearing down the entire visible list.
+          const grid = document.getElementById('game-grid');
+          const desiredIds = new Set(sortedAppList.map(function(app) {
+            return 'game-container-' + app.id;
+          }));
+          Array.from(grid.querySelectorAll('.game-container')).forEach(function(card) {
+            if (!desiredIds.has(card.id)) card.remove();
+          });
+          sortedAppList.forEach(function(app) {
+            const card = document.getElementById('game-container-' + app.id);
+            if (!card) return;
+            const title = card.querySelector('.game-text');
+            if (title && title.textContent !== app.title) {
+              title.textContent = app.title;
+              title.classList.toggle('disable-animation', app.title.length <= 20);
+            }
+          });
+        }
 
         if (_isSmartHubSupported) {
           var oldApps = (_previewApps[host.serverUid] && _previewApps[host.serverUid].apps) || [];
@@ -3145,6 +3580,9 @@ function showApps(host, options) {
         window.previewPromises = [];
 
         sortedAppList.forEach(function(app) {
+          // Existing cards keep their DOM and artwork during an in-place refresh.
+          if (appListInteractionLocked && document.getElementById('game-container-' + app.id)) return;
+
           // Double clicking the button will cause multiple box arts to appear.
           // To mitigate this, we ensure that we don't add a duplicate box art.
           // This isn't perfect: there's lots of RTTs before the logic prevents anything.
@@ -3202,8 +3640,13 @@ function showApps(host, options) {
               }
               // Block subsequent clicks immediately
               isClickPrevented = true;
-              // Start the game when the Click key is pressed
-              startGame(host, app.id);
+              // A click on the currently running app offers Resume or Stop instead of
+              // immediately reconnecting to the existing stream.
+              if (host.currentGame == app.id) {
+                showRunningAppDialog(host, app.id, app.title);
+              } else {
+                startGame(host, app.id);
+              }
               // Reset the click flag after 2 second delay
               setTimeout(() => isClickPrevented = false, 2000);
             });
@@ -3269,6 +3712,16 @@ function showApps(host, options) {
           boxArtPromises.push(boxArtPromise);
         });
 
+        if (appListInteractionLocked) {
+          // Reorder only where necessary, retaining DOM nodes and loaded artwork for unchanged apps.
+          const grid = document.getElementById('game-grid');
+          sortedAppList.forEach(function(app, index) {
+            const card = document.getElementById('game-container-' + app.id);
+            const currentAtIndex = grid.children[index] || null;
+            if (card && card !== currentAtIndex) grid.insertBefore(card, currentAtIndex);
+          });
+        }
+
         // Check all game containers for the current running app and apply CSS styling accordingly
         stylizeBoxArts(host, sortedAppList);
 
@@ -3290,8 +3743,10 @@ function showApps(host, options) {
           }
         }
 
-        // Navigate to the Apps view
-        showAppsMode();
+        // Navigate to the Apps view without starting diagnostic audio playback.
+        showAppsMode(!!(options && options.keepInteractionLocked));
+        clearViewLoadingSnackbarTimer();
+        if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
         resolve();
 
         Promise.all(settledPromises).then(function() {
@@ -3307,16 +3762,19 @@ function showApps(host, options) {
           });
         });
       }, function(failedAppList) {
+        clearViewLoadingSnackbarTimer();
         console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
         $('#game-grid').html(errorAppListImg);
-        snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
+        if (!(options && options.suppressLoadingSnackbar)) {
+          snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
+        }
 
         // During stream recovery, do not expose an error Apps screen or unlock the stale
         // grid. Let the caller's recovery handler return to Hosts in one consistent step.
         if (!appListInteractionLocked) {
-          showAppsMode();
+          showAppsMode(!!(options && options.keepInteractionLocked));
         }
         reject(failedAppList);
       });
@@ -3324,8 +3782,56 @@ function showApps(host, options) {
   });
 }
 
+// Offer a direct choice when the selected app is already running on this host.
+function showRunningAppDialog(host, appId, appTitle) {
+  if (window._streamTerminationRecoveryInProgress || isDialogOpen) return;
+
+  var overlay = document.getElementById('runningAppDialogOverlay');
+  var dialog = document.getElementById('runningAppDialog');
+  var message = document.getElementById('runningAppDialogText');
+  message.textContent = t('%1$s is already running on the host.', appTitle);
+
+  fadeInUiElement(overlay, 'flex');
+  showUiDialog(dialog);
+  isDialogOpen = true;
+  Navigation.push(Views.RunningAppDialog);
+
+  function closeDialog(restoreFocus) {
+    fadeOutUiElement(overlay);
+    closeUiDialog(dialog);
+    isDialogOpen = false;
+    Navigation.pop();
+    if (window.cancelRunningAppDialog === cancelRunningAppDialog) {
+      delete window.cancelRunningAppDialog;
+    }
+    if (restoreFocus) Navigation.switch();
+  }
+
+  // Back/Escape cancels this choice without resuming or stopping the remote app.
+  function cancelRunningAppDialog() {
+    closeDialog(true);
+  }
+  window.cancelRunningAppDialog = cancelRunningAppDialog;
+
+  $('#resumeRunningApp').off('click').on('click', function() {
+    closeDialog(false);
+    startGame(host, appId);
+  });
+
+  $('#stopRemoteApp').off('click').on('click', function() {
+    closeDialog(false);
+    // Match the existing Quit Running App action, without asking for confirmation twice.
+    stopGame(api, function() {
+      setTimeout(function() { Navigation.switch(); }, 3000);
+    });
+  });
+}
+
 // Show a confirmation with the Quit App dialog before stopping the running app
 function quitAppDialog() {
+  // Stream termination recovery owns the Apps UI until the refreshed list is ready.
+  if (window._streamTerminationRecoveryInProgress) return;
+
   if (api.currentGame === 0) {
     // If no app is running, show snackbar message
     snackbarLog('No app is currently running.');
@@ -3381,7 +3887,16 @@ var streamTransitionStars = [];
 var streamTransitionAnimationFrame = null;
 var streamTransitionVisible = false;
 var streamTransitionBackgroundEnabled = true;
+const AMBIENT_BACKGROUND_PRESETS = {
+  'waves': 'waves-active',
+  'bubbles': 'bubbles-active',
+  'symbols': 'symbols-active',
+  'none': null
+};
+var ambientBackgroundPreset = 'waves';
+var ambientBackgroundPreferenceLoaded = false;
 var streamTransitionHiding = false;
+var streamTransitionAfterHiddenCallbacks = [];
 var streamTransitionFirstFrameCallback = null;
 var streamTransitionRevealTimeout = null;
 var streamTransitionTeardownTimeout = null;
@@ -3471,6 +3986,135 @@ function animateStreamTransitionBackground() {
   streamTransitionAnimationFrame = window.requestAnimationFrame(animateStreamTransitionBackground);
 }
 
+var streamEncryptionStatusPollTimeout = null;
+var streamEncryptionStatusPollingActive = false;
+var streamEncryptionStatusVisibleAt = null;
+// Cached once per stream negotiation and reused by every UI surface.
+var currentStreamEncryptionStatus = null;
+const STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS = 3000;
+// hideStreamTransitionBackground() spends this long fading status and then the transition layer.
+const STREAM_TRANSITION_HIDE_ANIMATION_MS = UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS + 500;
+
+function resetStreamEncryptionStatus() {
+  streamEncryptionStatusVisibleAt = null;
+  currentStreamEncryptionStatus = null;
+  stopStreamEncryptionStatusPolling();
+  ['streamEncryptionStatus', 'performanceStatsEncryptionStatus'].forEach(function(id) {
+    var statusElement = document.getElementById(id);
+    if (statusElement) statusElement.style.display = 'none';
+  });
+  ['streamEncryptionIcon', 'performanceStatsEncryptionIcon'].forEach(function(id) {
+    var iconElement = document.getElementById(id);
+    if (iconElement) iconElement.innerHTML = '';
+  });
+  ['streamEncryptionMessage', 'performanceStatsEncryptionMessage'].forEach(function(id) {
+    var messageElement = document.getElementById(id);
+    if (messageElement) messageElement.textContent = '';
+  });
+}
+
+function stopStreamEncryptionStatusPolling() {
+  streamEncryptionStatusPollingActive = false;
+  if (streamEncryptionStatusPollTimeout !== null) {
+    window.clearTimeout(streamEncryptionStatusPollTimeout);
+    streamEncryptionStatusPollTimeout = null;
+  }
+}
+
+function renderStreamEncryptionStatus(status, targetIds) {
+  var statusTargets = [
+    {
+      status: document.getElementById('streamEncryptionStatus'),
+      icon: document.getElementById('streamEncryptionIcon'),
+      message: document.getElementById('streamEncryptionMessage'),
+      className: 'stream-encryption-status'
+    },
+    {
+      status: document.getElementById('performanceStatsEncryptionStatus'),
+      icon: document.getElementById('performanceStatsEncryptionIcon'),
+      message: document.getElementById('performanceStatsEncryptionMessage'),
+      className: 'stream-encryption-status performance-stats-encryption-status'
+    }
+  ].filter(function(target) {
+    return target.status && target.icon && target.message &&
+      (!targetIds || targetIds.indexOf(target.status.id) !== -1);
+  });
+  if (!statusTargets.length) return;
+
+  // Classify connection security using only the media streams. Control-channel
+  // encryption is negotiated independently and does not reflect the host's
+  // LAN/WAN media-encryption setting.
+  var videoEncrypted = (status & 0x01) !== 0;
+  var audioEncrypted = (status & 0x02) !== 0;
+  var allEncrypted = videoEncrypted && audioEncrypted;
+  var statusClass, iconName, message;
+
+  if (allEncrypted) {
+    iconName = 'lock';
+    statusClass = 'encrypted';
+    message = t('Using a secure connection');
+  } else if (videoEncrypted || audioEncrypted) {
+    iconName = 'privacy_tip';
+    statusClass = 'partially-encrypted';
+    var unencryptedMask = (!videoEncrypted ? 1 : 0) | (!audioEncrypted ? 2 : 0);
+    var warningKeys = {
+      1: 'Partial encryption warning: video',
+      2: 'Partial encryption warning: audio',
+      3: 'Partial encryption warning: video and audio'
+    };
+    message = t(warningKeys[unencryptedMask]);
+  } else {
+    iconName = 'lock_open';
+    statusClass = 'unencrypted';
+    message = t('Using an unencrypted connection');
+  }
+
+  statusTargets.forEach(function(target) {
+    target.status.className = target.className + ' ' + statusClass;
+    target.icon.textContent = iconName;
+    target.message.textContent = message;
+
+    if (target.status.id === 'performanceStatsEncryptionStatus') {
+      target.status.style.display = 'flex';
+      return;
+    }
+
+    // The transition status must remain hidden until the transition controller reveals it.
+    // If the encryption result arrives late, reveal it only after the initial status delay,
+    // and never allow polling to bring it back during the fade-out.
+    var transitionLayer = document.getElementById('stream-transition-layer');
+    if (!transitionLayer || getComputedStyle(transitionLayer).display === 'none' ||
+        streamTransitionHiding || streamTransitionStatusTimeout !== null) {
+      return;
+    }
+
+    streamEncryptionStatusVisibleAt = Date.now();
+    fadeInUiElement(target.status, 'flex');
+  });
+}
+function pollStreamEncryptionStatus() {
+  streamEncryptionStatusPollTimeout = null;
+  if (!streamEncryptionStatusPollingActive) return;
+  if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
+    var status = Module.getEncryptionStatus();
+    if (typeof status === 'number' && status >= 0) {
+      currentStreamEncryptionStatus = status;
+      renderStreamEncryptionStatus(currentStreamEncryptionStatus);
+      stopStreamEncryptionStatusPolling();
+      return;
+    }
+  }
+
+  // The C core publishes the status after constructing the RTSP stream configuration.
+  streamEncryptionStatusPollTimeout = window.setTimeout(pollStreamEncryptionStatus, 100);
+}
+
+function startStreamEncryptionStatusPolling() {
+  stopStreamEncryptionStatusPolling();
+  streamEncryptionStatusPollingActive = true;
+  pollStreamEncryptionStatus();
+}
+
 function showStreamTransitionBackground(onVisible) {
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
@@ -3482,12 +4126,19 @@ function showStreamTransitionBackground(onVisible) {
   var revealTransitionContent = function() {
     streamTransitionRevealTimeout = null;
     if (!streamTransitionVisible || streamTransitionHiding) return;
-    showUiLayer('stream-transition-layer');
+    // Keep the normal Web UI behind the transition while it fades in. Only switch the
+    // underlying layout after the transition layer is fully opaque.
+    showUiLayer('stream-transition-layer', onVisible);
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
       if (!streamTransitionVisible) return;
-      // Start the starfield first; reveal the status content 100 ms later.
-      fadeInUiElement('loadingSpinner', 'inline-block', onVisible);
+      // Reveal both status messages together, 100 ms after the starfield starts.
+      fadeInUiElement('loadingSpinner', 'inline-block');
+      var encryptionStatus = document.getElementById('streamEncryptionStatus');
+      if (encryptionStatus && document.getElementById('streamEncryptionMessage').textContent) {
+        streamEncryptionStatusVisibleAt = Date.now();
+        fadeInUiElement(encryptionStatus, 'flex');
+      }
     }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
   };
 
@@ -3528,17 +4179,20 @@ function showStreamTransitionBackground(onVisible) {
   animateStreamTransitionBackground();
 }
 
-function hideStreamTransitionBackground() {
+function hideStreamTransitionBackground(afterHidden) {
+  if (typeof afterHidden === 'function') streamTransitionAfterHiddenCallbacks.push(afterHidden);
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   // Repeated readiness/termination notifications must not keep restarting the hide delay.
+  // Callers still get notified when the already-running fadeout completes.
   if (streamTransitionHiding) return;
   streamTransitionHiding = true;
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
   if (streamTransitionTeardownTimeout !== null) { window.clearTimeout(streamTransitionTeardownTimeout); streamTransitionTeardownTimeout = null; }
 
-  // Fade out status content first; the starfield continues for another 100 ms afterwards.
+  // Fade out both status messages together; the starfield continues for another 100 ms afterwards.
   fadeOutUiElement('loadingSpinner');
+  fadeOutUiElement('streamEncryptionStatus');
   streamTransitionHideLayerTimeout = window.setTimeout(function() {
     streamTransitionHideLayerTimeout = null;
     hideUiLayer('stream-transition-layer', function() {
@@ -3553,7 +4207,12 @@ function hideStreamTransitionBackground() {
       streamTransitionContext = null;
       streamTransitionCanvas = null;
       streamTransitionTeardownTimeout = null;
-    });
+      var completedCallbacks = streamTransitionAfterHiddenCallbacks.splice(0);
+      completedCallbacks.forEach(function(callback) {
+        try { callback(); }
+        catch (error) { console.error('%c[index.js, hideStreamTransitionBackground]', 'color: red;', 'Post-transition callback failed:', error); }
+      });
+    }, 500);
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
 
@@ -3573,38 +4232,58 @@ function handleNormalStreamVideoReady() {
   });
   $('#listener').addClass('fullscreen');
 
-  // Keep the transition visible briefly after playback starts, then fade it away.
+  // Keep the transition visible briefly after playback starts, and ensure the encryption
+  // indicator has been visible for at least 3 seconds before the transition is fully hidden.
   window.setTimeout(function() {
-    if (typeof hideStreamTransitionBackground === 'function') {
+    if (typeof hideStreamTransitionBackground !== 'function') return;
+
+    var elapsed = streamEncryptionStatusVisibleAt === null
+      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
+      : Date.now() - streamEncryptionStatusVisibleAt;
+    var waitForEncryptionStatus = Math.max(0,
+      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
+    window.setTimeout(function() {
       hideStreamTransitionBackground();
-    }
-  }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+    }, waitForEncryptionStatus);
+  }, 200);
 }
 
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Hide the entire main UI layer; its descendants inherit that hidden state.
-  hideUiLayer('main-ui-layer', function() {
-    // Stop any in-flight child animations only after the complete layer has faded away.
-    $('#main-ui-layer').find('*').stop(true, false);
+  return new Promise(function(resolve) {
+    // Keep the Web UI visible during the transition layer's fade-in. The callback runs
+    // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
+    var enterFullscreenStreamLayout = function() {
+      // Stop every ambient background animation only after the transition layer is fully opaque.
+      updateAmbientBackgroundActivation(false);
+      hideUiLayerImmediately('main-ui-layer');
+      $('#main-ui-layer').find('*').stop(true, false);
+      $('#main-content').addClass('fullscreen');
+      $('#listener').addClass('fullscreen');
+      isInGame = true;
+      fullscreenWasmModule();
+      handleOnScreenOverlays();
+      showUiLayer('stream-diagnostics-layer');
+      Navigation.stop();
+      resolve();
+    };
+
+    // The transition layer owns the visibility of the starfield and all status content.
+    // Show or hide the layer as a whole; never toggle its children individually.
+    if (!window._directSmartHubLaunch) {
+      window._normalStreamVideoReady = false;
+      // A new connection has unknown encryption until the core publishes its negotiated configuration.
+      resetStreamEncryptionStatus();
+      if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+        Module.resetEncryptionStatus();
+      }
+      showStreamTransitionBackground(enterFullscreenStreamLayout);
+      startStreamEncryptionStatusPolling();
+    } else {
+      enterFullscreenStreamLayout();
+    }
   });
-
-  $('#main-content').addClass('fullscreen');
-  $('#listener').addClass('fullscreen');
-
-  // The transition layer owns the visibility of the starfield and all status content.
-  // Show or hide the layer as a whole; never toggle its children individually.
-  if (!window._directSmartHubLaunch) {
-    window._normalStreamVideoReady = false;
-    showStreamTransitionBackground();
-  }
-
-  isInGame = true;
-  fullscreenWasmModule();
-  handleOnScreenOverlays();
-  showUiLayer('stream-diagnostics-layer');
-    Navigation.stop();
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
@@ -3656,7 +4335,7 @@ function startGame(host, appID) {
 
   // Refresh the server info, because the user might have quit the game
   host.refreshServerInfo().then(function(ret) {
-    (_directSmartHubLaunch ? Promise.resolve({ id: appID, title: String(appID) }) : host.getAppById(appID)).then(function(appToStart) {
+    (_directSmartHubLaunch ? Promise.resolve({ id: appID, title: String(appID) }) : host.getAppById(appID)).then(async function(appToStart) {
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         host.getAppById(host.currentGame).then(function(currentApp) {
           // Find the existing overlay and dialog elements
@@ -3768,9 +4447,33 @@ function startGame(host, appID) {
       }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
 
-      // Shows a loading message to launch the application and start stream mode
+      // Keep the active session labels available to JavaScript termination handling.
+      window._activeStreamAppName = appToStart.title || String(appID);
+      window._activeStreamHostName = host.hostname || '';
+      window._manualStreamStopRequested = false;
+
+      // Show the transition first. Only after it is fully visible may the local UI
+      // audio engine be closed; host launch/resume requests must wait for that shutdown.
       $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
-      showStreamMode();
+      await showStreamMode();
+      $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
+      try {
+        if (typeof setNavigationSoundEnabled === 'function') {
+          await setNavigationSoundEnabled(false);
+        }
+      } catch (audioShutdownError) {
+        console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
+        if (_directSmartHubLaunch) {
+          directSmartHubLaunchFailure(t('Could not prepare local audio for streaming.'));
+        } else {
+          showApps(host).then(function() {
+            hideStreamTransitionBackground();
+            snackbarLogLong('Could not prepare local audio for streaming.');
+          });
+        }
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
@@ -3811,7 +4514,9 @@ function startGame(host, appID) {
             host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
             framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
             audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
-            gameMode, disableWarnings, performanceStats
+            gameMode, disableWarnings, performanceStats,
+            $('#selectDolbyChannelLayout').data('value') || 'Back',
+            $('#selectDolbyDecodingMode').data('value') || 'Hardware'
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
@@ -3874,7 +4579,9 @@ function startGame(host, appID) {
           host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
           framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
           audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
-          gameMode, disableWarnings, performanceStats
+          gameMode, disableWarnings, performanceStats,
+          $('#selectDolbyChannelLayout').data('value') || 'Back',
+          $('#selectDolbyDecodingMode').data('value') || 'Hardware'
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
@@ -3897,71 +4604,79 @@ function startGame(host, appID) {
       if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Failed to launch %1$s', String(appID)));
     });
   }, function(failedRefreshInfo) {
-    console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
+    console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
     if (_directSmartHubLaunch) {
-      directSmartHubLaunchFailure(t('Failed to connect to %1$s. Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.', host.hostname || t('the host')));
+      directSmartHubLaunchFailure(t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
+      return;
     }
+    showHosts(function() {
+      snackbarLogLong('Host %1$s is no longer available.', host.hostname || t('the host'));
+    });
   });
 }
 
-// Stop the running app title, refresh the server info, and then return to Apps grid
+// Stop the running app title, report the result, and then refresh the Apps grid.
 function stopGame(host, callbackFunction) {
+  // Prevent a manual quit operation from racing the post-stream recovery sequence.
+  if (window._streamTerminationRecoveryInProgress) return;
+
   isInGame = false;
 
   if (!host.paired) {
     return;
   }
 
-  // Keep the Apps grid dimmed and non-interactive until it has been refreshed.
+  // Keep the Apps grid dimmed and non-interactive until the result has been reported
+  // and the refreshed list has finished rendering.
   lockAppListInteraction();
+  snackbarLogPersistent('Closing application...');
 
-  // Hide the configuration strip while the host app is closing, so it cannot
-  // overlap the full-screen transition shown by the TV.
-  configSummaryTemporarilyHidden = true;
-  updateConfigSummaryBar();
+  var operationFinished = false;
+  function finishQuitOperation(message, appTitle, success) {
+    if (operationFinished) return;
+    operationFinished = true;
 
-  function restoreConfigSummaryAfterQuit() {
-    configSummaryTemporarilyHidden = false;
-    updateConfigSummaryBar();
+    // Replace the progress snackbar with the final result before starting any refresh.
+    // Keep this result visible while the app list is reloaded silently.
+    if (appTitle) snackbarLog(message, appTitle);
+    else snackbarLog(message);
+
+    Promise.resolve().then(function() {
+      return host.refreshServerInfo();
+    }).catch(function(failedRefreshInfo) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info after closing the app:', failedRefreshInfo);
+    }).then(function() {
+      return showApps(host, {
+        suppressLoadingSnackbar: true,
+        suppressEmptyListSnackbar: true,
+        keepInteractionLocked: true
+      });
+    }).catch(function(error) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
+    }).then(function() {
+      unlockAppListInteraction();
+      if (success && typeof callbackFunction === 'function') callbackFunction();
+    });
   }
 
-  host.refreshServerInfo().then(function(ret) {
-    host.getAppById(host.currentGame).then(function(runningApp) {
-      if (!runningApp) {
-        snackbarLog('No app is currently running.');
-        restoreConfigSummaryAfterQuit();
-        unlockAppListInteraction();
-        return;
-      }
-      var appTitle = runningApp.title;
-      snackbarLog('Quitting %1$s...', appTitle);
-      host.quitApp().then(function(ret2) {
-        snackbarLog('Successfully quit %1$s', appTitle);
-        host.refreshServerInfo().then(function(ret3) {
-          // Refresh to show no app is currently running
-          showApps(host).finally(function() {
-            restoreConfigSummaryAfterQuit();
-            if (typeof(callbackFunction) === "function") callbackFunction();
-          });
-        }, function(failedRefreshInfo2) {
-          console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo2 + ' and failed server was: ' + '\n', host, '\n' + host.toString());
-          restoreConfigSummaryAfterQuit();
-          unlockAppListInteraction();
-        });
-      }, function(failedQuitApp) {
-        console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
-        restoreConfigSummaryAfterQuit();
-        unlockAppListInteraction();
-      });
-    }, function(failedGetApp) {
-      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to get app ID! Returned error was: ' + failedGetApp + '!');
-      restoreConfigSummaryAfterQuit();
-      unlockAppListInteraction();
+  host.refreshServerInfo().then(function() {
+    return host.getAppById(host.currentGame);
+  }).then(function(runningApp) {
+    if (!runningApp) {
+      finishQuitOperation('No app is currently running.');
+      return;
+    }
+
+    var appTitle = runningApp.title;
+    host.quitApp().then(function() {
+      finishQuitOperation('Successfully quit %1$s', appTitle, true);
+    }, function(failedQuitApp) {
+      console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
+      finishQuitOperation('Failed to quit %1$s', appTitle);
     });
-  }, function(failedRefreshInfo) {
-    console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + ' and failed server was: ' + '\n', host, '\n' + host.toString());
-    restoreConfigSummaryAfterQuit();
-    unlockAppListInteraction();
+  }).catch(function(error) {
+    console.error('%c[index.js, stopGame]', 'color: green;', 'Unable to complete the close-app request:', error);
+    finishQuitOperation('Unable to close the application.');
   });
 }
 
@@ -4015,10 +4730,16 @@ function getStreamMenuOptions() {
       id: 'streamMenuDisconnect',
       text: t('Disconnect'),
       action: function() {
-        Module.stopStream();
+        requestManualStreamStop();
       }
     },
   ];
+}
+
+function requestManualStreamStop() {
+  // The native termination callback does not distinguish local and host-initiated graceful closure.
+  window._manualStreamStopRequested = true;
+  Module.stopStream();
 }
 
 function streamMenuDialog() {
@@ -4504,6 +5225,83 @@ function saveIpAddressFieldMode() {
   }, 100);
 }
 
+const COLOR_THEME_DEFAULT = 'original';
+const COLOR_THEME_IDS = ['original', 'black-orange', 'graphite-red', 'forest', 'midnight-violet'];
+let activeColorTheme = COLOR_THEME_DEFAULT;
+let focusedColorTheme = COLOR_THEME_DEFAULT;
+
+function normalizeColorTheme(theme) {
+  return COLOR_THEME_IDS.includes(theme) ? theme : COLOR_THEME_DEFAULT;
+}
+
+function syncColorThemeCards() {
+  document.querySelectorAll('#themeSelector .theme-card').forEach((card) => {
+    const theme = card.getAttribute('data-theme');
+    card.classList.toggle('is-selected', theme === activeColorTheme);
+    card.classList.toggle('is-focused-theme', theme === focusedColorTheme);
+    card.setAttribute('aria-pressed', theme === activeColorTheme ? 'true' : 'false');
+    const label = card.querySelector('span[data-i18n]');
+    if (label) card.setAttribute('aria-label', label.textContent.trim());
+  });
+}
+
+function setFocusedColorTheme(theme) {
+  focusedColorTheme = normalizeColorTheme(theme);
+  syncColorThemeCards();
+}
+
+function moveColorThemeFocus(direction) {
+  const currentIndex = COLOR_THEME_IDS.indexOf(focusedColorTheme);
+  const nextIndex = (currentIndex + direction + COLOR_THEME_IDS.length) % COLOR_THEME_IDS.length;
+  setFocusedColorTheme(COLOR_THEME_IDS[nextIndex]);
+}
+
+function applyColorTheme(theme) {
+  activeColorTheme = normalizeColorTheme(theme);
+  focusedColorTheme = activeColorTheme;
+  document.body.setAttribute('data-color-theme', activeColorTheme);
+  syncColorThemeCards();
+}
+
+function saveColorTheme(theme) {
+  const selectedTheme = normalizeColorTheme(theme);
+  applyColorTheme(selectedTheme);
+  storeData('colorTheme', selectedTheme, null);
+}
+
+function initializeColorThemeSelector() {
+  const selector = document.getElementById('themeSelector');
+  if (!selector) return;
+
+  selector.addEventListener('focus', function() {
+    setFocusedColorTheme(activeColorTheme);
+  });
+
+  selector.addEventListener('click', function(event) {
+    const card = event.target.closest ? event.target.closest('.theme-card') : null;
+    if (card && selector.contains(card)) {
+      saveColorTheme(card.getAttribute('data-theme'));
+    } else {
+      saveColorTheme(focusedColorTheme);
+    }
+  });
+
+}
+
+function saveNavigationSoundPreference() {
+  setTimeout(function() {
+    const enabled = $('#navigationSoundSwitch').parent().hasClass('is-checked');
+    navigationSoundPreferenceEnabled = enabled;
+    console.log('%c[index.js, saveNavigationSoundPreference]', 'color: green;', 'Saving navigation sounds preference: ' + enabled);
+    storeData('navigationSoundEnabled', enabled, null);
+    if (typeof setNavigationSoundEnabled === 'function') {
+      Promise.resolve(setNavigationSoundEnabled(enabled)).catch(function(error) {
+        console.error('%c[index.js, saveNavigationSoundPreference]', 'color: red;', 'Could not apply navigation sounds preference:', error);
+      });
+    }
+  }, 100);
+}
+
 function saveConfigSummaryVisibility() {
   setTimeout(() => {
     const enabled = $('#showConfigSummarySwitch').parent().hasClass('is-checked');
@@ -4512,6 +5310,290 @@ function saveConfigSummaryVisibility() {
     configSummaryPreferenceLoaded = true;
     updateConfigSummaryBar();
   }, 100);
+}
+
+// Ambient interface background presets are keyed by stable values so additional
+// animations can be registered without changing the persistence mechanism.
+var AMBIENT_GAMEPAD_COUNT = 12;
+var ambientWaveTemplate = null;
+var ambientBubbleContainer = null;
+var ambientBubbleElements = [];
+var ambientBubbleAnimationInitialized = false;
+var AMBIENT_SYMBOL_COUNT = 20;
+var AMBIENT_SYMBOLS = ['joystick', 'missing_controller', 'connected_tv'];
+var ambientSymbolsContainer = null;
+var ambientSymbolElements = [];
+var ambientSymbolsInitialized = false;
+
+function randomAmbientBubbleValue(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function initializeBubbleAnimation() {
+  if (ambientBubbleAnimationInitialized) return;
+  ambientBubbleContainer = document.getElementById('ambient-bubbles');
+  if (!ambientBubbleContainer) return;
+
+  var fragment = document.createDocumentFragment();
+  var sizes = [];
+  for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
+    sizes.push(1 + (i / Math.max(1, AMBIENT_GAMEPAD_COUNT - 1)) * 14);
+  }
+  // Shuffle the evenly spaced sizes so their positions are not ordered.
+  for (var j = sizes.length - 1; j > 0; j--) {
+    var swapIndex = Math.floor(Math.random() * (j + 1));
+    var temp = sizes[j];
+    sizes[j] = sizes[swapIndex];
+    sizes[swapIndex] = temp;
+  }
+
+  for (var i = 0; i < AMBIENT_GAMEPAD_COUNT; i++) {
+    var element = document.createElement('span');
+    var size = sizes[i];
+    // Smaller icons rise faster; larger icons rise more slowly.
+    var duration = 4 + ((size - 1) / 14) * 8;
+    element.className = 'ambient-gamepad';
+    element.textContent = 'stadia_controller';
+    element.style.setProperty('--gamepad-left', randomAmbientBubbleValue(-5, 100) + '%');
+    element.style.setProperty('--gamepad-size', size * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+    element.style.setProperty('--gamepad-duration', duration + 's');
+    element.style.setProperty('--gamepad-delay', -randomAmbientBubbleValue(0, duration) + 's');
+    element.style.setProperty('--gamepad-opacity', randomAmbientBubbleValue(0.2, 0.7));
+    element.style.setProperty('--gamepad-blur', randomAmbientBubbleValue(0, 3) + 'px');
+    element.style.setProperty('--gamepad-rotation', randomAmbientBubbleValue(0, 360) + 'deg');
+    element.style.setProperty('--gamepad-rotation-direction', Math.random() < 0.5 ? '-180deg' : '180deg');
+    fragment.appendChild(element);
+    ambientBubbleElements.push(element);
+  }
+  ambientBubbleContainer.appendChild(fragment);
+  ambientBubbleAnimationInitialized = true;
+}
+
+function startAmbientBubbleAnimation() {
+  initializeBubbleAnimation();
+  if (!ambientBubbleContainer) return;
+  ambientBubbleContainer.classList.add('ambient-gamepads-active');
+}
+
+function stopAmbientBubbleAnimation() {
+  if (ambientBubbleContainer) ambientBubbleContainer.classList.remove('ambient-gamepads-active');
+}
+
+function randomAmbientSymbolCell(excludedCells) {
+  var available = [];
+  for (var i = 0; i < AMBIENT_SYMBOL_COUNT; i++) {
+    if (excludedCells.indexOf(i) === -1) available.push(i);
+  }
+  return available.length
+    ? available[Math.floor(Math.random() * available.length)]
+    : Math.floor(Math.random() * AMBIENT_SYMBOL_COUNT);
+}
+
+function configureAmbientSymbol(element, cell, stagger) {
+  var column = cell % 5;
+  var row = Math.floor(cell / 5);
+  var jitterX = randomAmbientBubbleValue(-5, 5);
+  var jitterY = randomAmbientBubbleValue(-5, 5);
+  var duration = randomAmbientBubbleValue(4, 7);
+
+  element.dataset.cell = String(cell);
+  element.textContent = AMBIENT_SYMBOLS[Math.floor(Math.random() * AMBIENT_SYMBOLS.length)];
+  element.style.setProperty('--symbol-left', ((column + 0.5) * 20 + jitterX) + '%');
+  element.style.setProperty('--symbol-top', ((row + 0.5) * 25 + jitterY) + '%');
+  element.style.setProperty('--symbol-size', randomAmbientBubbleValue(2.5, 13) * Math.max(1, window.innerWidth || 1) / 100 + 'px');
+  element.style.setProperty('--symbol-duration', duration + 's');
+  element.style.setProperty('--symbol-delay', stagger ? -randomAmbientBubbleValue(0, duration * 0.85) + 's' : '0s');
+}
+
+function recycleAmbientSymbol(element) {
+  if (!ambientSymbolsContainer || !ambientSymbolsContainer.classList.contains('ambient-symbols-active')) return;
+
+  var occupiedCells = ambientSymbolElements
+    .filter(function(other) { return other !== element; })
+    .map(function(other) { return parseInt(other.dataset.cell, 10); });
+  configureAmbientSymbol(element, randomAmbientSymbolCell(occupiedCells), false);
+  element.classList.remove('ambient-symbol-animating');
+  void element.offsetWidth;
+  element.classList.add('ambient-symbol-animating');
+}
+
+function initializeAmbientSymbols() {
+  if (ambientSymbolsInitialized) return;
+  ambientSymbolsContainer = document.getElementById('ambient-symbols');
+  if (!ambientSymbolsContainer) return;
+
+  var cells = [];
+  for (var i = 0; i < AMBIENT_SYMBOL_COUNT; i++) cells.push(i);
+  for (var j = cells.length - 1; j > 0; j--) {
+    var swapIndex = Math.floor(Math.random() * (j + 1));
+    var temp = cells[j];
+    cells[j] = cells[swapIndex];
+    cells[swapIndex] = temp;
+  }
+
+  var fragment = document.createDocumentFragment();
+  for (var k = 0; k < AMBIENT_SYMBOL_COUNT; k++) {
+    var element = document.createElement('span');
+    element.className = 'ambient-symbol';
+    configureAmbientSymbol(element, cells[k], true);
+    element.addEventListener('animationend', function() {
+      recycleAmbientSymbol(this);
+    });
+    fragment.appendChild(element);
+    ambientSymbolElements.push(element);
+  }
+  ambientSymbolsContainer.appendChild(fragment);
+  ambientSymbolsInitialized = true;
+}
+
+function startAmbientSymbolsAnimation() {
+  initializeAmbientSymbols();
+  if (!ambientSymbolsContainer) return;
+  ambientSymbolsContainer.classList.add('ambient-symbols-active');
+  ambientSymbolElements.forEach(function(element) {
+    if (!element.classList.contains('ambient-symbol-animating')) {
+      element.classList.add('ambient-symbol-animating');
+    }
+  });
+}
+
+function stopAmbientSymbolsAnimation() {
+  if (ambientSymbolsContainer) ambientSymbolsContainer.classList.remove('ambient-symbols-active');
+}
+
+function destroyAmbientBackground(preset) {
+  if (preset === 'waves') {
+    var waveSvg = document.getElementById('ambient-wave-svg');
+    if (waveSvg) {
+      if (!ambientWaveTemplate) ambientWaveTemplate = waveSvg.cloneNode(true);
+      if (waveSvg.parentNode) waveSvg.parentNode.removeChild(waveSvg);
+    }
+    return;
+  }
+
+  if (preset === 'bubbles') {
+    stopAmbientBubbleAnimation();
+    if (ambientBubbleContainer) {
+      while (ambientBubbleContainer.firstChild) {
+        ambientBubbleContainer.removeChild(ambientBubbleContainer.firstChild);
+      }
+    }
+    ambientBubbleElements.length = 0;
+    ambientBubbleAnimationInitialized = false;
+    return;
+  }
+
+  if (preset === 'symbols') {
+    stopAmbientSymbolsAnimation();
+    if (ambientSymbolsContainer) {
+      while (ambientSymbolsContainer.firstChild) {
+        ambientSymbolsContainer.removeChild(ambientSymbolsContainer.firstChild);
+      }
+    }
+    ambientSymbolElements.length = 0;
+    ambientSymbolsInitialized = false;
+  }
+}
+
+function restoreAmbientWaveBackground() {
+  var waveWrapper = document.getElementById('ambient-trails');
+  if (!waveWrapper || document.getElementById('ambient-wave-svg') || !ambientWaveTemplate) return;
+  waveWrapper.appendChild(ambientWaveTemplate.cloneNode(true));
+}
+
+function updateAmbientBackgroundActivation(activate) {
+  var mainUi = document.getElementById('main-ui-layer');
+  if (!mainUi) return;
+
+  // Hide ambient backgrounds immediately while entering Settings; restore them on content views.
+  mainUi.classList.toggle('ambient-background-hidden', !activate);
+  mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
+  Object.keys(AMBIENT_BACKGROUND_PRESETS).forEach(function(preset) {
+    var presetClass = AMBIENT_BACKGROUND_PRESETS[preset];
+    if (presetClass) mainUi.classList.remove(presetClass);
+  });
+
+  var activeClass = AMBIENT_BACKGROUND_PRESETS[ambientBackgroundPreset];
+  if (activate && ambientBackgroundPreferenceLoaded && activeClass) {
+    mainUi.classList.add(activeClass);
+  }
+
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'waves') {
+    restoreAmbientWaveBackground();
+  }
+
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'bubbles') {
+    startAmbientBubbleAnimation();
+  } else {
+    stopAmbientBubbleAnimation();
+  }
+
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'symbols') {
+    startAmbientSymbolsAnimation();
+  } else {
+    stopAmbientSymbolsAnimation();
+  }
+}
+
+function applyAmbientBackgroundPreset(preset, persist) {
+  var previousPreset = ambientBackgroundPreset;
+  ambientBackgroundPreset = Object.prototype.hasOwnProperty.call(AMBIENT_BACKGROUND_PRESETS, preset)
+    ? preset : 'waves';
+  if (previousPreset !== ambientBackgroundPreset) {
+    destroyAmbientBackground(previousPreset);
+  }
+
+  var selector = document.getElementById('selectAmbientBackground');
+  if (selector) {
+    var selectedOption = document.querySelector('.ambientBackgroundMenu .mdl-menu__item[data-value="' + ambientBackgroundPreset + '"]');
+    var selectedLabel = selectedOption ? selectedOption.textContent.trim() : ambientBackgroundPreset;
+    var presetLabelKey = ambientBackgroundPreset === 'none' ? 'None' :
+      (ambientBackgroundPreset === 'bubbles' ? 'Bubbles' :
+        (ambientBackgroundPreset === 'symbols' ? 'Symbols' : 'Waves'));
+    selector.textContent = window.i18n && typeof window.i18n.t === 'function'
+      ? window.i18n.t(presetLabelKey)
+      : selectedLabel;
+    selector.setAttribute('data-value', ambientBackgroundPreset);
+    if (window.jQuery) $(selector).data('value', ambientBackgroundPreset);
+  }
+
+  var mainUi = document.getElementById('main-ui-layer');
+  if (mainUi) mainUi.setAttribute('data-ambient-background', ambientBackgroundPreset);
+
+  // Preserve the current screen's activation state while applying a new preset.
+  var mainContent = document.getElementById('main-content');
+  var contentScreenActive = mainUi &&
+    !mainUi.classList.contains('ui-inactive') &&
+    mainContent && !mainContent.classList.contains('settings-view-active');
+  updateAmbientBackgroundActivation(!!contentScreenActive);
+
+  if (persist) {
+    storeData('ambientBackgroundPreset', ambientBackgroundPreset, null);
+  }
+}
+
+function loadAmbientBackgroundPreference() {
+  getData('ambientBackgroundPreset', function(previousValue) {
+    var storedValue = previousValue && previousValue.ambientBackgroundPreset;
+    ambientBackgroundPreferenceLoaded = true;
+    applyAmbientBackgroundPreset(
+      typeof storedValue === 'string' ? storedValue : 'waves',
+      false
+    );
+
+    // Startup may have reached the Hosts view while the saved preference was loading.
+    var mainUi = document.getElementById('main-ui-layer');
+    if (mainUi && !mainUi.classList.contains('ui-inactive') &&
+        !document.getElementById('settings-list').offsetParent) {
+      updateAmbientBackgroundActivation(true);
+    }
+  });
+}
+
+function saveAmbientBackgroundPreset() {
+  var chosenPreset = $(this).data('value');
+  if (!chosenPreset) return;
+  applyAmbientBackgroundPreset(chosenPreset, true);
 }
 
 function saveStreamTransitionBackground() {
@@ -4647,6 +5729,7 @@ function saveAudioConfiguration() {
   setAudioSelectorValue('#selectAudio', '.audioConfigMenu', chosenAudioConfig);
   console.log('%c[index.js, saveAudioConfiguration]', 'color: green;', 'Saving audioConfig value: ' + chosenAudioConfig);
   storeData('audioConfig', chosenAudioConfig, null);
+  updateDolbyAudioAdvancedSettings();
 }
 
 // Update a backend/layout selector by its stable value, using the localized menu label.
@@ -4660,6 +5743,67 @@ function setAudioSelectorValue(buttonSelector, menuSelector, value) {
 
 // Optical passthrough requires EMSS, but the channel layout remains the user's choice.
 // Keep existing IDs and stored keys for preference compatibility.
+function setDolbySelectorValue(buttonSelector, menuSelector, value) {
+  const item = $(menuSelector + ' li').filter(function() {
+    return String($(this).data('value')) === value;
+  }).first();
+  if (!item.length) return;
+  $(buttonSelector).text(item.text()).attr('data-value', value).data('value', value);
+}
+
+function updateDolbyAudioAdvancedSettings() {
+  const dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  const is51Selected = $('#selectAudio').data('value') === '51Surround';
+  const layoutEnabled = dolbyEnabled && is51Selected;
+  $('#selectDolbyChannelLayout')
+    .prop('disabled', !layoutEnabled)
+    .toggleClass('mdl-button--disabled', !layoutEnabled)
+    .attr('aria-disabled', layoutEnabled ? 'false' : 'true')
+    .attr('tabindex', layoutEnabled ? '0' : '-1');
+  $('#selectDolbyDecodingMode')
+    .prop('disabled', !dolbyEnabled)
+    .toggleClass('mdl-button--disabled', !dolbyEnabled)
+    .attr('aria-disabled', dolbyEnabled ? 'false' : 'true')
+    .attr('tabindex', dolbyEnabled ? '0' : '-1');
+  $('#dolbyDecodingModeOption').toggle(dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported);
+}
+
+function initializeDolbyDecodingModeSupport(attempt) {
+  attempt = attempt || 0;
+  if (typeof Module !== 'undefined' && typeof Module.hasDecodingModeSupport === 'function') {
+    try {
+      dolbyDecodingModeSupported = Module.hasDecodingModeSupport() === true;
+      dolbyDecodingModeSupportChecked = true;
+    } catch (error) {
+      dolbyDecodingModeSupported = false;
+      dolbyDecodingModeSupportChecked = true;
+      console.warn('Could not query EMSS decoding-mode support:', error);
+    }
+    updateDolbyAudioAdvancedSettings();
+    return;
+  }
+  if (attempt < 50) {
+    window.setTimeout(function() { initializeDolbyDecodingModeSupport(attempt + 1); }, 100);
+  } else {
+    dolbyDecodingModeSupported = false;
+    dolbyDecodingModeSupportChecked = true;
+    updateDolbyAudioAdvancedSettings();
+  }
+}
+
+function saveDolbyChannelLayout() {
+  const value = String($(this).data('value') || 'Back');
+  setDolbySelectorValue('#selectDolbyChannelLayout', '.dolbyChannelLayoutMenu', value);
+  storeData('dolbyChannelLayout', value, null);
+  updateDolbyAudioAdvancedSettings();
+}
+
+function saveDolbyDecodingMode() {
+  const value = String($(this).data('value') || 'Hardware');
+  setDolbySelectorValue('#selectDolbyDecodingMode', '.dolbyDecodingModeMenu', value);
+  storeData('dolbyDecodingMode', value, null);
+}
+
 function updateAc3AudioModeUI(enabled) {
   if (enabled) {
     setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', 'EMSS');
@@ -4685,6 +5829,7 @@ function updateAc3AudioModeUI(enabled) {
     .attr('tabindex', '0');
 
   updateAudioBackendSettings();
+  updateDolbyAudioAdvancedSettings();
 }
 
 function saveAc3AudioMode() {
@@ -4752,21 +5897,39 @@ function saveDecryptHostAudio() {
 
 function saveVideoCodec() {
   var chosenVideoCodec = $(this).data('value');
-  const selectedH264Codec = $('#h264').data('value');
-  const enabledHdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked');
 
-  // Check if HDR mode is enabled and prevent any incompatible HDR codec from being selected
-  if (enabledHdrMode && chosenVideoCodec === selectedH264Codec) { // Selecting H.264 while HDR mode is enabled
-    // H.264 does not support HDR profile, so stay on H.264 codec
-    updateVideoCodec('#h264', selectedH264Codec);
-    snackbarLog('HDR has been disabled due to unsupported H.264 codec.');
-    // Turn off the HDR mode switch and save the state
-    document.querySelector('#hdrModeBtn').MaterialSwitch.off();
+  updateVideoCodec(this, chosenVideoCodec);
+  updateHdrControlState();
+}
+
+function updateHdrControlState() {
+  const hdrInput = document.getElementById('hdrModeSwitch');
+  const hdrSwitch = document.getElementById('hdrModeBtn');
+  const isH264 = $('#selectCodec').data('value') === 'H264';
+
+  if (!hdrInput || !hdrSwitch) return;
+
+  // H.264 does not support HDR: force it off and disable the entire setting.
+  if (isH264 && hdrInput.checked) {
+    if (hdrSwitch.MaterialSwitch) {
+      hdrSwitch.MaterialSwitch.off();
+    } else {
+      hdrInput.checked = false;
+    }
     updateHdrMode();
-  } else { // Selecting other video codecs while HDR mode is disabled
-    // Continue to select the SDR profile of other video codecs
-    updateVideoCodec(this, chosenVideoCodec);
   }
+
+  // Update both the native input and MDL's own disabled state. Changing only
+  // input.disabled leaves MDL's is-disabled class behind on some builds.
+  hdrInput.disabled = isH264;
+  if (hdrSwitch.MaterialSwitch) {
+    if (isH264) {
+      hdrSwitch.MaterialSwitch.disable();
+    } else {
+      hdrSwitch.MaterialSwitch.enable();
+    }
+  }
+  syncDisabledSwitchAppearance(hdrInput);
 }
 
 function updateVideoCodec(chosenCodecId, chosenCodecValue) {
@@ -5022,6 +6185,16 @@ function restoreDefaultsSettingsValues() {
   document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off();
   storeData('ipAddressFieldMode', defaultIpAddressFieldMode, null);
 
+  const defaultNavigationSoundEnabled = true;
+  navigationSoundPreferenceEnabled = defaultNavigationSoundEnabled;
+  document.querySelector('#navigationSoundBtn').MaterialSwitch.on();
+  storeData('navigationSoundEnabled', defaultNavigationSoundEnabled, null);
+  if (typeof setNavigationSoundEnabled === 'function') {
+    Promise.resolve(setNavigationSoundEnabled(defaultNavigationSoundEnabled)).catch(function(error) {
+      console.error('%c[index.js, restoreDefaultsSettingsValues]', 'color: red;', 'Could not restore navigation sounds:', error);
+    });
+  }
+
   const defaultShowConfigSummaryBar = true;
   document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
   storeData('showConfigSummaryBar', defaultShowConfigSummaryBar, null);
@@ -5032,6 +6205,10 @@ function restoreDefaultsSettingsValues() {
   streamTransitionBackgroundEnabled = defaultStreamTransitionBackground;
   document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
   storeData('streamTransitionBackground', defaultStreamTransitionBackground, null);
+
+  // Restore the default application color theme.
+  applyColorTheme(COLOR_THEME_DEFAULT);
+  storeData('colorTheme', COLOR_THEME_DEFAULT, null);
 
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
@@ -5338,6 +6515,23 @@ function loadUserDataCb() {
     handleIpAddressFieldMode();
   });
 
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load navigation sounds preference.');
+  getData('navigationSoundEnabled', function(previousValue) {
+    const storedValue = previousValue && previousValue.navigationSoundEnabled;
+    navigationSoundPreferenceEnabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (navigationSoundPreferenceEnabled) {
+      document.querySelector('#navigationSoundBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#navigationSoundBtn').MaterialSwitch.off();
+    }
+    if (typeof setNavigationSoundEnabled === 'function') {
+      Promise.resolve(setNavigationSoundEnabled(navigationSoundPreferenceEnabled)).catch(function(error) {
+        console.error('%c[index.js, loadUserDataCb]', 'color: red;', 'Could not apply navigation sounds preference:', error);
+      });
+    }
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar visibility preference.');
   getData('showConfigSummaryBar', function(previousValue) {
     const storedValue = previousValue.showConfigSummaryBar;
@@ -5468,7 +6662,17 @@ function loadUserDataCb() {
         }
       });
     }
+    updateDolbyAudioAdvancedSettings();
   });
+  getData('dolbyChannelLayout', function(previousValue) {
+    if (previousValue.dolbyChannelLayout != null) setDolbySelectorValue('#selectDolbyChannelLayout', '.dolbyChannelLayoutMenu', previousValue.dolbyChannelLayout);
+    updateDolbyAudioAdvancedSettings();
+  });
+  getData('dolbyDecodingMode', function(previousValue) {
+    if (previousValue.dolbyDecodingMode != null) setDolbySelectorValue('#selectDolbyDecodingMode', '.dolbyDecodingModeMenu', previousValue.dolbyDecodingMode);
+    updateDolbyAudioAdvancedSettings();
+  });
+  initializeDolbyDecodingModeSupport();
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored AC-3 audio mode preference.');
   getData('ac3AudioMode', function(previousValue) {
@@ -5745,7 +6949,10 @@ function loadHTTPCertsCb() {
             return;
           }
 
-          snackbarLog('Scanning the local network to discover new hosts...');
+          // Do not show main-UI feedback if the initial checks finish during streaming.
+          if (isInGame !== true) {
+            snackbarLogPersistent('Scanning the local network to discover new hosts...');
+          }
           // Stop background polling while sweeping the subnet to prevent network exhaustion.
           stopPollingHosts();
           return startSubnetScanner();
@@ -6179,6 +7386,7 @@ function probeSmartHubSupport() {
 }
 
 // Do not create the summary bar until the persisted preference has been loaded.
+var navigationSoundPreferenceEnabled = true;
 var configSummaryPreferenceLoaded = false;
 var configSummaryTemporarilyHidden = false;
 
@@ -6270,7 +7478,9 @@ function updateConfigSummaryBar() {
   var titleText = headerTitle ? headerTitle.textContent.trim() : '';
   var onHostsOrAppsTransition = titleText === t('Hosts') || titleText === t('Apps');
   var onSettingsScreen = titleText === t('Settings') || isVisible(document.getElementById('settings-list'));
-  var desiredDisplay = !isInGame && !onSettingsScreen &&
+  // The whole main UI layer is hidden during streaming, so visibility does not
+  // need to depend on isInGame here; this function only manages the strip within that layer.
+  var desiredDisplay = !onSettingsScreen &&
     (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
@@ -6333,9 +7543,12 @@ function updateConfigSummaryBar() {
   toggleFor('#gameModeSwitch', '#summaryGameMode');
 }
 
+var configSummaryBarInitialized = false;
+
 function initializeConfigSummaryBar() {
   updateConfigSummaryBar();
-  if (typeof MutationObserver !== 'function' || !document.body) return;
+  if (configSummaryBarInitialized || typeof MutationObserver !== 'function' || !document.body) return;
+  configSummaryBarInitialized = true;
 
   // Track setting changes and screen navigation without coupling the strip to each handler.
   var observer = new MutationObserver(function() {

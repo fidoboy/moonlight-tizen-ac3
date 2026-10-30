@@ -7,9 +7,16 @@ const SyncFunctions = {
   'httpInit': (...args) => Module.httpInit(...args),
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
-  audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode,
-  disableWarnings, performanceStats */
-  'startRequest': (...args) => Module.startStream(...args),
+  audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
+  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode */
+  'startRequest': (...args) => {
+    const dolbyChannelLayout = args[31] || 'Back';
+    const dolbyDecodingMode = args[32] || 'Hardware';
+    if (typeof Module.setDolbyAudioOptions === 'function') {
+      Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
+    }
+    return Module.startStream(...args.slice(0, 31));
+  },
   // no parameters
   'stopRequest': (...args) => Module.stopStream(...args),
   // no parameters
@@ -92,6 +99,9 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Encoder mode: (Automatic|Hardware|Software)/g, function(match, mode) {
+      return t('Encoder mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
+    })
     .replace(/Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order/g, function(match, recovered, failed, outOfOrder) {
       return t('Audio FEC:') + ' ' + recovered + ' ' + t(Number(recovered) === 1 ? 'FEC recovered (singular)' : 'FEC recovered') +
         ' · ' + failed + ' ' + t(Number(failed) === 1 ? 'FEC failed (singular)' : 'FEC failed') +
@@ -119,6 +129,7 @@ var performanceStatsStreamTerminated = false;
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
+var performanceStatsPendingFirstReveal = false;
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -139,6 +150,22 @@ const PERFORMANCE_STATS_GRAPH_COLORS = {
 function resetPerformanceStatsGraph() {
   performanceStatsGraphSamples.length = 0;
   performanceStatsHostLatencyLatest = null;
+  performanceStatsPendingFirstReveal = false;
+}
+
+// Reveal the overlay only after both its text and the first network graph sample are ready.
+function revealPerformanceStatsOverlayWhenReady() {
+  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
+      performanceStatsGraphSamples.length === 0) return;
+
+  var overlay = document.getElementById('performance-stats');
+  if (!overlay) return;
+
+  var text = overlay.querySelector('.performance-stats-text');
+  if (!text || !text.textContent.trim()) return;
+
+  performanceStatsPendingFirstReveal = false;
+  fadeInUiElement(overlay, 'inline-block');
 }
 
 // Avoid collecting samples or drawing canvases while the diagnostics overlay is hidden.
@@ -161,7 +188,8 @@ function ensurePerformanceStatsOverlayElements() {
   var textElement = container.querySelector('.performance-stats-text');
   var canvas = container.querySelector('#performance-stats-graph');
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
-  if (!textElement || !canvas || !hostCanvas) {
+  var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
+  if (!textElement || !canvas || !hostCanvas || !encryptionStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
 
@@ -187,12 +215,37 @@ function ensurePerformanceStatsOverlayElements() {
     hostCanvas.style.height = PERFORMANCE_STATS_GRAPH_HEIGHT + 'px';
     hostCanvas.style.marginTop = '16px';
 
+    encryptionStatus = document.createElement('div');
+    encryptionStatus.id = 'performanceStatsEncryptionStatus';
+    encryptionStatus.className = 'stream-encryption-status performance-stats-encryption-status';
+    encryptionStatus.setAttribute('aria-live', 'polite');
+
+    var encryptionIcon = document.createElement('i');
+    encryptionIcon.id = 'performanceStatsEncryptionIcon';
+    encryptionIcon.className = 'stream-encryption-icon material-icons';
+    encryptionIcon.setAttribute('aria-hidden', 'true');
+    encryptionIcon.textContent = 'lock';
+
+    var encryptionMessage = document.createElement('span');
+    encryptionMessage.id = 'performanceStatsEncryptionMessage';
+
+    encryptionStatus.appendChild(encryptionIcon);
+    encryptionStatus.appendChild(encryptionMessage);
     container.appendChild(textElement);
     container.appendChild(canvas);
     container.appendChild(hostCanvas);
+    container.appendChild(encryptionStatus);
   }
 
-  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas };
+  // The stream-negotiation result is cached by the transition screen. Reuse it
+  // here instead of querying the core again, since this overlay may be created later.
+  if (typeof currentStreamEncryptionStatus === 'number' &&
+      currentStreamEncryptionStatus >= 0 &&
+      typeof renderStreamEncryptionStatus === 'function') {
+    renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
+  }
+
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
 }
 
 function getPerformanceStatsGraphColor(sample) {
@@ -377,6 +430,7 @@ function handlePerformanceStatsGraphMessage(message) {
   }
   drawPerformanceStatsGraph();
   drawHostProcessingLatencyGraph();
+  revealPerformanceStatsOverlayWhenReady();
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
@@ -714,6 +768,8 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Stop encryption-status polling for every termination path, including negotiation failures.
+    stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     hideStreamDiagnosticsLayer(function() {
@@ -774,44 +830,86 @@ function handleMessage(msg) {
       return;
     }
 
-    // Standard Moonlight launches retain their existing termination messages and return-to-apps flow.
-    // Lock and dim the stale Apps grid for the entire asynchronous refresh/recovery period.
+    // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
+    // This also prevents the manual Quit App action from racing the recovery request.
+    window._streamTerminationRecoveryInProgress = true;
+    var quitRunningAppButton = document.getElementById('quitRunningAppBtn');
+    if (quitRunningAppButton) quitRunningAppButton.disabled = true;
     if (typeof lockAppListInteraction === 'function') {
       lockAppListInteraction();
     }
-    // Set the message first, then show the complete transition layer.
+    // Keep the transition on screen long enough for the shutdown status to be read.
+    // The status content itself appears after a short reveal delay, so allow 3.5 s
+    // from the start of the transition before beginning its fade-out.
+    var streamTerminationTransitionShownAt = Date.now();
+    var streamTerminationMinimumVisibleMs = 3500;
+
+    // Classify the closing transition using only state and error codes already exposed to JavaScript.
+    var manualStreamStopRequested = window._manualStreamStopRequested === true;
+    window._manualStreamStopRequested = false;
+    var activeStreamAppName = window._activeStreamAppName || t('Apps');
+    var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('Host');
+    var transitionStatusMessage;
+    if (manualStreamStopRequested) {
+      transitionStatusMessage = t('Stopping stream %1$s...', activeStreamAppName);
+    } else {
+      switch (errorCode) {
+        case 0:
+          transitionStatusMessage = t('Streaming session with %1$s ended normally.', activeStreamHostName);
+          break;
+        case -100:
+        case -101:
+          transitionStatusMessage = t('Video stream from %1$s stopped being received.', activeStreamHostName);
+          break;
+        case -102:
+          transitionStatusMessage = t('The connection to %1$s ended unexpectedly.', activeStreamHostName);
+          break;
+        case -103:
+          transitionStatusMessage = t('Protected (DRM) content on %1$s ended the session.', activeStreamHostName);
+          break;
+        case -104:
+          transitionStatusMessage = t('An error occurred while processing the video stream from %1$s.', activeStreamHostName);
+          break;
+        case -200:
+          transitionStatusMessage = t('The local device could not start the video stream.');
+          break;
+        default:
+          transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
+          break;
+      }
+    }
+
+    // Set the message first, then show the complete transition layer. The local UI
+    // audio engine is rebuilt only after this layer is fully visible.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinnerMessage').text(t('Stopping stream...'));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
+    var resolveLocalAudioRestoration;
+    var localAudioRestoration = new Promise(function(resolve) {
+      resolveLocalAudioRestoration = resolve;
+    });
+    var restoreLocalAudioAfterTransitionAppears = function() {
+      if (window._directSmartHubLaunch) {
+        resolveLocalAudioRestoration();
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
+      var restoration = typeof setNavigationSoundEnabled === 'function'
+        ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
+        : Promise.resolve();
+      Promise.resolve(restoration).catch(function(audioRestoreError) {
+        // A sound-effects failure must not strand the user in the closing transition.
+        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
+      }).then(function() {
+        $('#loadingSpinnerMessage').text(transitionStatusMessage);
+        resolveLocalAudioRestoration();
+      });
+    };
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground();
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-    }
-    switch (errorCode) {
-      case 0: // ML_ERROR_GRACEFUL_TERMINATION
-        break;
-      case -100: // ML_ERROR_NO_VIDEO_TRAFFIC
-        snackbarLogLong('No video received from host. Check the host PC\'s firewall and port forwarding rules.');
-        break;
-      case -101: // ML_ERROR_NO_VIDEO_FRAME
-        snackbarLogLong('Your network connection isn\'t performing well. Reduce your video bitrate setting or try a faster connection.');
-        break;
-      case -102: // ML_ERROR_UNEXPECTED_EARLY_TERMINATION
-        snackbarLogLong('Something went wrong on your host PC when starting the stream. Restart your host PC and try again.');
-        break;
-      case -103: // ML_ERROR_PROTECTED_CONTENT
-        snackbarLogLong('An issue occurred on your host PC while starting the stream. Make sure you don\'t have any DRM-protected content open on your host PC.');
-        break;
-      case -104: // ML_ERROR_FRAME_CONVERSION
-        snackbarLogLong('The host PC reported a fatal video encoding error. Try disabling HDR mode, changing the streaming resolution, or changing your host PC\'s display resolution.');
-        break;
-      case -200: // ERROR_VIDEO_SETUP_FAILED
-        snackbarLogLong('The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.');
-        break;
-      default:
-        snackbarLogLong('Connection terminated');
-        break;
+      restoreLocalAudioAfterTransitionAppears();
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
@@ -833,19 +931,20 @@ function handleMessage(msg) {
         window.isDialogOpen = false;
       }
 
-      // Clear the recovery lock as well as its visual state before restoring Hosts.
+      // Clear the recovery state and lock before restoring Hosts.
+      window._streamTerminationRecoveryInProgress = false;
+      var quitButtonAfterFailure = document.getElementById('quitRunningAppBtn');
+      if (quitButtonAfterFailure) quitButtonAfterFailure.disabled = false;
       if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
-      // Restore the main Hosts screen directly; it does not depend on the failed host API.
-      showHostsMode();
+      // Complete stream teardown before restoring Hosts, then restart host polling there.
+      if (typeof finishAppsModeAfterStreamTransition === 'function') {
+        finishAppsModeAfterStreamTransition();
+      }
+      // Restore the main Hosts screen while keeping its ambient background stopped.
+      showHostsMode(true, true);
       $('#host-grid').stop(true, true).show();
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
-      if (typeof hideStreamTransitionBackground === "function") {
-        hideStreamTransitionBackground();
-      } else {
-        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
-        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
-      }
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
       $('body').css('backgroundColor', '#282C38');
@@ -853,48 +952,116 @@ function handleMessage(msg) {
       Navigation.change(Views.Hosts);
       Navigation.start();
       Navigation.switch();
-      snackbarLogLong('Could not load apps from the host. Returning to Hosts.');
+
+      // Reactivate the selected ambient background immediately before the transition
+      // fades out, so it is already running when the Hosts UI is revealed.
+      updateAmbientBackgroundActivation(true);
+      if (typeof hideStreamTransitionBackground === "function") {
+        hideStreamTransitionBackground();
+      } else {
+        var failedRecoveryLayer = document.getElementById('stream-transition-layer');
+        if (failedRecoveryLayer) failedRecoveryLayer.style.display = 'none';
+      }
+      snackbarLogLong(t('Could not load apps from the host. Returning to the main list.'));
     };
 
     var refreshHostAndReturnToApps = function() {
+      // The Apps grid remains locked during recovery. The caller has already waited
+      // at least 200 ms after the closing transition disappeared, so feedback can now
+      // appear without the normal 1-second delay.
+      snackbarLogPersistent('Loading Apps...');
       // Refreshing server info is useful, but failure must not prevent recovery.
       Promise.resolve().then(function() {
         return api.refreshServerInfo();
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
-        // Reuse the existing Apps grid: the list itself has not changed just because the stream ended.
-        // showAppsMode restores the view and unlocks app-list interaction without another getAppList request.
-        showAppsMode();
-        Navigation.switch();
-        if (!window.isDialogOpen) {
-          Navigation.change(Views.Apps);
-        }
-        // Hide the complete transition layer, then stop the background animation 100 ms later.
-        if (typeof hideStreamTransitionBackground === "function") {
-          hideStreamTransitionBackground();
-        } else {
-          var returnedToAppsLayer = document.getElementById('stream-transition-layer');
-          if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
-        }
+        // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
+        // and the current-game highlighting reflect the host's state after the stream.
+        // showApps keeps the interaction lock in place until the refreshed list is rendered.
+        return showApps(api, {
+          forceRefreshAppList: true,
+          showLoadingSnackbarImmediately: true
+        }).then(function() {
+          Navigation.switch();
+          if (!window.isDialogOpen) {
+            Navigation.change(Views.Apps);
+          }
+          // Hide the complete transition layer, then stop the background animation 100 ms later.
+          if (typeof hideStreamTransitionBackground === "function") {
+            hideStreamTransitionBackground();
+          } else {
+            var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+            if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+          }
+          // Only resume ordinary UI actions after the refreshed Apps list is rendered.
+          if (typeof finishAppsModeAfterStreamTransition === 'function') {
+            finishAppsModeAfterStreamTransition();
+          }
+          window._streamTerminationRecoveryInProgress = false;
+          var quitButtonAfterRecovery = document.getElementById('quitRunningAppBtn');
+          if (quitButtonAfterRecovery) quitButtonAfterRecovery.disabled = false;
+        });
       }).catch(function(failure) {
         returnToHostsAfterRecoveryFailure(failure);
       });
     };
 
-    if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
-      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-      api.quitApp().then(function() {
-        console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
-        refreshHostAndReturnToApps();
-      }, function(failedQuitApp) {
-        console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
-        snackbarLogLong('Could not automatically quit the host app.');
-        refreshHostAndReturnToApps();
-      });
-    } else {
-      refreshHostAndReturnToApps();
-    }
+    // Keep the Web UI hidden while the closing transition is shown. Reveal it only
+    // shortly before the transition starts fading out, avoiding a flash of the page
+    // background behind the animated starfield.
+    var beginRecoveryAfterTransition = function() {
+      window.setTimeout(function() {
+        // Resume ordinary UI state and flush deferred UI actions only after the full
+        // transition fadeout and the additional 200 ms breathing room.
+        if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
+          console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
+          api.quitApp().then(function() {
+            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
+            refreshHostAndReturnToApps();
+          }, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
+            snackbarLogLong('Could not automatically quit the host app.');
+            refreshHostAndReturnToApps();
+          });
+        } else {
+          refreshHostAndReturnToApps();
+        }
+      }, 200);
+    };
+
+    var hideTransitionAndBeginRecovery = function() {
+      // showAppsMode has completed its UI fade and all app-list recovery work.
+      // Restart ambient animation now, immediately before the transition fades out.
+      if (typeof updateAmbientBackgroundActivation === 'function') {
+        updateAmbientBackgroundActivation(true);
+      }
+      if (typeof hideStreamTransitionBackground === 'function') {
+        hideStreamTransitionBackground(beginRecoveryAfterTransition);
+      } else {
+        var returnedToAppsLayer = document.getElementById('stream-transition-layer');
+        if (returnedToAppsLayer) returnedToAppsLayer.style.display = 'none';
+        beginRecoveryAfterTransition();
+      }
+    };
+
+    var showAppsUiBeforeTransitionCloses = function() {
+      // showAppsMode completes the normal UI fade before invoking its callback.
+      // Starting the transition fade there leaves only a brief overlap between layers.
+      showAppsMode(true, hideTransitionAndBeginRecovery, true);
+    };
+
+    // Do not continue recovery or reveal the Apps UI until the local audio engine
+    // has been recreated and click.mp3 has been decoded.
+    localAudioRestoration.then(function() {
+      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+        (Date.now() - streamTerminationTransitionShownAt);
+      if (remainingTransitionMs > 0) {
+        window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
+      } else {
+        showAppsUiBeforeTransitionCloses();
+      }
+    });
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.
@@ -959,16 +1126,31 @@ function handleMessage(msg) {
     });
   } else if (msg.indexOf('StatMsg: ') === 0) {
     if (performanceStatsStreamTerminated) return;
-    // Show the overlay for this streaming session without changing the saved preference.
-    fadeInUiElement('performance-stats', 'inline-block');
-    $('#performance-stats').css('background', 'rgba(0, 0, 0, 0.70)');
-    if (isPerformanceStatsOverlayVisible()) {
-      var statsElements = ensurePerformanceStatsOverlayElements();
-      if (statsElements) {
-        var sourceStatsText = msg.replace('StatMsg: ', '');
-        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-        drawPerformanceStatsGraph();
-        drawHostProcessingLatencyGraph();
+
+    var statsOverlay = document.getElementById('performance-stats');
+    if (!statsOverlay) return;
+    var overlayWasVisible = isPerformanceStatsOverlayVisible();
+
+    // Keep the overlay transparent while the first statistics message is rendered.
+    // fadeInUiElement schedules the opacity transition on the next animation frame,
+    // so the first visible frame already contains the populated statistics.
+    if (!overlayWasVisible) {
+      statsOverlay.style.display = 'inline-block';
+      statsOverlay.style.opacity = '0';
+      performanceStatsPendingFirstReveal = true;
+    }
+    statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+
+    var statsElements = ensurePerformanceStatsOverlayElements();
+    if (statsElements) {
+      var sourceStatsText = msg.replace('StatMsg: ', '');
+      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+      drawPerformanceStatsGraph();
+      drawHostProcessingLatencyGraph();
+
+      if (!overlayWasVisible) {
+        // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
+        revealPerformanceStatsOverlayWhenReady();
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {

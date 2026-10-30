@@ -36,6 +36,15 @@ uint32_t SunshineFeatureFlags;
 uint32_t EncryptionFeaturesSupported;
 uint32_t EncryptionFeaturesRequested;
 uint32_t EncryptionFeaturesEnabled;
+volatile int EncryptionStatus = -1;
+
+void LiResetEncryptionStatus(void) {
+    EncryptionStatus = -1;
+}
+
+int LiGetEncryptionStatus(void) {
+    return EncryptionStatus;
+}
 
 // Connection stages
 static const char* stageNames[STAGE_MAX] = {
@@ -210,6 +219,9 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
     void* audioContext, int arFlags) {
     int err;
+
+    // Do not expose a previous stream's encryption status while this connection negotiates.
+    EncryptionStatus = -1;
 
     if (drCallbacks != NULL && (drCallbacks->capabilities & CAPABILITY_PULL_RENDERER) && drCallbacks->submitDecodeUnit) {
         Limelog("CAPABILITY_PULL_RENDERER cannot be set with a submitDecodeUnit callback\n");

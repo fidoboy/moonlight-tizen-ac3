@@ -13,6 +13,8 @@ extern char* g_UniqueId;
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
+#include "samsung/wasm/emss_version_info.h"
+
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
@@ -72,6 +74,14 @@ MoonlightInstance::MoonlightInstance()
 
 MoonlightInstance::~MoonlightInstance() { 
   m_Dispatcher.stop();
+}
+
+void MoonlightInstance::SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode) {
+  m_DolbyChannelLayout = channelLayout == "Normal" ? "Normal" : "Back";
+  m_DolbyDecodingMode = (decodingMode == "HardwareWithFallback" || decodingMode == "Software")
+    ? decodingMode : "Hardware";
+  PostToJs("Setting Dolby channel layout to: " + m_DolbyChannelLayout);
+  PostToJs("Setting Dolby decoding mode to: " + m_DolbyDecodingMode);
 }
 
 void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
@@ -679,6 +689,11 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats);
 }
 
+void setDolbyAudioOptions(std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
+  if (!g_Instance) return;
+  g_Instance->SetDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
+}
+
 MessageResult stopStream() {
   PostToJs("Stopping the streaming session...");
   return g_Instance->StopStream();
@@ -690,6 +705,10 @@ MessageResult cancelRequest() {
 
 void toggleStats() {
   g_Instance->TogglePerformanceStats();
+}
+
+bool hasDecodingModeSupport() {
+  return samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
 }
 
 void stun(int callbackId) {
@@ -741,6 +760,10 @@ void PostPromiseMessage(int callbackId, const std::string& type, const std::vect
 EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::value_object<MessageResult>("MessageResult").field("type", &MessageResult::type).field("ret", &MessageResult::ret);
   emscripten::function("startStream", &startStream);
+  emscripten::function("setDolbyAudioOptions", &setDolbyAudioOptions);
+  emscripten::function("resetEncryptionStatus", &LiResetEncryptionStatus);
+  emscripten::function("getEncryptionStatus", &LiGetEncryptionStatus);
+  emscripten::function("hasDecodingModeSupport", &hasDecodingModeSupport);
   emscripten::function("stopStream", &stopStream);
   emscripten::function("cancelRequest", &cancelRequest);
   emscripten::function("toggleStats", &toggleStats);
