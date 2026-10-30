@@ -186,21 +186,25 @@ body {
     margin: 0 auto;
     transform: translate(-50%, -50%);
 }
-#loadingSpinner > .bar1,
-#loadingSpinner > .bar3 {
+#loadingSpinner .loading-spinner-track,
+#loadingSpinner .loading-spinner-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
     border: 0;
-    box-shadow: none;
     border-radius: 8px;
-    background-image: none;
-    background-color: var(--theme-accent);
+    box-shadow: none;
 }
-
-/* Keep MDL's indeterminate-bar geometry and timing, but animate with transforms
-   to avoid the rendering trail caused by continuously changing left/width. */
-#loadingSpinner > .bar1,
-#loadingSpinner > .bar3 {
+#loadingSpinner .loading-spinner-track {
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.3);
+}
+#loadingSpinner .loading-spinner-bar {
     left: 0;
     right: auto;
+    background: var(--theme-accent);
+    background-image: none;
     transition: none;
     transform-origin: left center;
     -webkit-animation-duration: 2s;
@@ -210,15 +214,13 @@ body {
     -webkit-animation-timing-function: linear;
     animation-timing-function: linear;
 }
-
-#loadingSpinner > .bar1 {
-    width: 75% !important;
+#loadingSpinner .loading-spinner-bar--primary {
+    width: 75%;
     -webkit-animation-name: loading-spinner-indeterminate1;
     animation-name: loading-spinner-indeterminate1;
 }
-
-#loadingSpinner > .bar3 {
-    width: 25% !important;
+#loadingSpinner .loading-spinner-bar--secondary {
+    width: 25%;
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
 }
@@ -252,16 +254,10 @@ body {
 .mdl-progress > .auxbar {
     border-radius: 8px;
 }
-#loadingSpinner > .progressbar,
-#loadingSpinner > .auxbar,
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
 #wasmSpinner > .auxbar {
     background-color: var(--theme-accent);
-}
-#loadingSpinner > .bufferbar {
-    background-image: none;
-    background-color: rgba(255, 255, 255, 0.3);
 }
 #wasmSpinnerLogo {
     width: 30%;
