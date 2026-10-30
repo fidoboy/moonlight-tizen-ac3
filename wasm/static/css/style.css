@@ -1902,6 +1902,8 @@ body {
     z-index: 0;
     opacity: 0;
     transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 #main-ui-layer[data-ambient-background="waves"].waves-active.ambient-trails-ready .ambient-wave-wrapper {
     opacity: 0.25;
@@ -1923,6 +1925,8 @@ body {
     z-index: 0;
     opacity: 0;
     transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 #main-ui-layer[data-ambient-background="bubbles"].bubbles-active .bubbles-background {
     display: block;
@@ -1949,6 +1953,8 @@ body {
     z-index: 0;
     opacity: 0;
     transition: opacity 700ms ease-in-out;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 #main-ui-layer[data-ambient-background="symbols"].symbols-active .symbols-background {
     display: block;
@@ -1978,7 +1984,7 @@ body {
     -webkit-font-smoothing: antialiased;
     font-size: var(--symbol-size);
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.12);
+    transform: translate3d(-50%, -50%, 0) scale(0.12);
     animation: none;
     will-change: transform, opacity;
 }
@@ -1993,12 +1999,12 @@ body {
     }
     90% {
         opacity: 0.12;
-        transform: translate(-50%, -50%) scale(1.05);
+        transform: translate3d(-50%, -50%, 0) scale(1.05);
         animation-timing-function: ease-in;
     }
     100% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(1.4);
+        transform: translate3d(-50%, -50%, 0) scale(1.4);
     }
 }
 #ambient-bubbles .ambient-gamepad {
@@ -2021,7 +2027,8 @@ body {
     font-size: var(--gamepad-size);
     opacity: var(--gamepad-opacity);
     filter: blur(var(--gamepad-blur));
-    transform: translateY(0) rotate(var(--gamepad-rotation));
+    -webkit-transform: translate3d(0, 0, 0) rotate(var(--gamepad-rotation));
+    transform: translate3d(0, 0, 0) rotate(var(--gamepad-rotation));
     animation: ambient-gamepad-rise var(--gamepad-duration) linear var(--gamepad-delay) infinite;
     animation-play-state: paused;
     will-change: transform, opacity;
@@ -2031,11 +2038,11 @@ body {
 }
 @keyframes ambient-gamepad-rise {
     from {
-        transform: translateY(100%) rotate(var(--gamepad-rotation));
+        transform: translate3d(0, 100%, 0) rotate(var(--gamepad-rotation));
         opacity: var(--gamepad-opacity);
     }
     to {
-        transform: translateY(-20vh) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
+        transform: translate3d(0, -20vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
         opacity: 0;
     }
 }
@@ -2046,4 +2053,6 @@ body {
     display: block;
     width: 100%;
     height: 100%;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
