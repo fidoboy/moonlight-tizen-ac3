@@ -146,14 +146,23 @@ jobs:
           import json
           from pathlib import Path
 
-          en = json.loads(Path("wasm/static/locales/en-US.json").read_text(encoding="utf-8"))
-          es = json.loads(Path("wasm/static/locales/es-ES.json").read_text(encoding="utf-8"))
-          missing = sorted(set(en) - set(es))
-          extra = sorted(set(es) - set(en))
-          if missing or extra:
-              raise SystemExit(f"Spanish locale keys differ: Missing={missing!r}; extra={extra!r}")
+          locale_dir = Path("wasm/static/locales")
+          en = json.loads((locale_dir / "en-US.json").read_text(encoding="utf-8"))
 
-          pt = json.loads(Path("wasm/static/locales/pt-BR.json").read_text(encoding="utf-8"))
+          for locale_path in sorted(locale_dir.glob("*.json")):
+              if locale_path.name == "en-US.json":
+                  continue
+              locale = json.loads(locale_path.read_text(encoding="utf-8"))
+              missing = sorted(set(en) - set(locale))
+              extra = sorted(set(locale) - set(en))
+              if missing or extra:
+                  raise SystemExit(
+                      f"{locale_path.name} keys differ from en-US.json: "
+                      f"Missing={missing!r}; extra={extra!r}"
+                  )
+
+          es = json.loads((locale_dir / "es-ES.json").read_text(encoding="utf-8"))
+          pt = json.loads((locale_dir / "pt-BR.json").read_text(encoding="utf-8"))
           required = {
               "Audio stream:",
               "Dolby audio output",
@@ -180,7 +189,8 @@ jobs:
           missing_docs = [name for name in docs if not Path(name).is_file()]
           if missing_docs:
               raise SystemExit(f"Missing documentation pages: {missing_docs!r}")
-          print(f"Locale checks passed; {len(docs)} local documentation pages are present.")
+          locale_count = len(list(locale_dir.glob("*.json")))
+          print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
           PY
 
       - name: Build Tizen widget
