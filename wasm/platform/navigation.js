@@ -145,8 +145,14 @@ function playNavigationSound() {
   var context = navigationSoundContext;
   if (context.state === 'closed') return;
 
-  // Preserve the previous player's no-overlap behavior for rapid navigation input.
-  if (navigationSoundSources.length > 0) return;
+  // A new focus movement must always produce feedback. Stop the previous short
+  // effect before starting the next one instead of silently dropping this event.
+  navigationSoundSources.forEach(function(activeSource) {
+    activeSource.onended = null;
+    try { activeSource.stop(0); } catch (error) {}
+    try { activeSource.disconnect(); } catch (error) {}
+  });
+  navigationSoundSources = [];
 
   if (context.state === 'suspended') {
     try {
@@ -332,8 +338,9 @@ function elementId(target) {
 function focusElement(target) {
   const element = resolveElement(target);
   const listener = document.getElementById('listener');
+  const previousActiveElement = document.activeElement;
   // Remove focus from the currently focused element first
-  blurElement(document.activeElement);
+  blurElement(previousActiveElement);
   // Check if the element exists before adding focus
   if (!element) {
     console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
@@ -346,6 +353,11 @@ function focusElement(target) {
     // Delegate focus to the hidden listener element
     if (listener && typeof listener.focus === 'function') {
       listener.focus();
+      if (previousActiveElement && previousActiveElement !== document.body &&
+          previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
+          typeof playNavigationSound === 'function') {
+        playNavigationSound();
+      }
     }
     return;
   }
@@ -381,6 +393,15 @@ function focusElement(target) {
       }
     } else {
       element.focus();
+    }
+
+    // Trigger the effect only for a real move between focused controls. Initial
+    // focus restoration from the body/hidden listener remains silent.
+    if (previousActiveElement && previousActiveElement !== document.body &&
+        previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
+        previousActiveElement !== document.activeElement &&
+        typeof playNavigationSound === 'function') {
+      playNavigationSound();
     }
   }
 }
