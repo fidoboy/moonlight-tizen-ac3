@@ -10,9 +10,10 @@ let lastNavigationElement = null;
 let isDirectionalNavigation = false;
 
 function playNavigationSoundForElement(element) {
-  if (!isDirectionalNavigation || !element || lastNavigationElement === element) return;
+  if (!element) return;
+  const focusChanged = lastNavigationElement !== element;
   lastNavigationElement = element;
-  if (!navigationSound) return;
+  if (!isDirectionalNavigation || !focusChanged || !navigationSound) return;
 
   try {
     navigationSound.currentTime = 0;
