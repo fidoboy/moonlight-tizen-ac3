@@ -1969,7 +1969,7 @@ body {
         transform: translate(-50%, -50%) scale(0.12);
         animation-timing-function: ease-in;
     }
-    80% {
+    90% {
         opacity: 0.12;
         transform: translate(-50%, -50%) scale(1.05);
         animation-timing-function: ease-in;
