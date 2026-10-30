@@ -125,6 +125,7 @@
   "Connection terminated": "Connexion terminée",
   "Connection to %1$s lost.": "La connexion avec %1$s a été perdue.",
   "Connection warnings": "Avertissements de connexion",
+  "When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.": "Si cette option est désactivée, aucun avertissement ne s’affichera à l’écran lorsque la qualité de la connexion avec l’hôte se dégrade.",
   "Continue": "Continuer",
   "Could not automatically quit the host app.": "Impossible de fermer automatiquement l’application de l’hôte.",
   "D-PAD DOWN": "D-PAD DOWN",
