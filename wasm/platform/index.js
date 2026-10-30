@@ -2453,12 +2453,12 @@ function hostDetailsDialog(host) {
     class: 'host-details-text',
     html: [
       t('Name: %1$s', escapeHTML(host.hostname)),
-      t('State: %1$s', escapeHTML(host.online) ? t('ONLINE') : t('OFFLINE')),
+      t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
       t('Active Address: %1$s', escapeHTML(host.address) && escapeHTML(host.externalPort) ? escapeHTML(host.address) + ':' + escapeHTML(host.externalPort) : t('NULL')),
       t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
       t('Local Address: %1$s', escapeHTML(host.localAddress) && escapeHTML(host.externalPort) ? escapeHTML(host.localAddress) + ':' + escapeHTML(host.externalPort) : t('NULL')),
       t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
-      t('Pair State: %1$s', escapeHTML(host.paired) ? t('PAIRED') : t('UNPAIRED')),
+      t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED')),
       t('Running Game ID: %1$s', escapeHTML(host.currentGame)),
       t('HTTP Port: %1$s', escapeHTML(host.httpPort) ? escapeHTML(host.httpPort) : t('NULL')),
       t('HTTPS Port: %1$s', escapeHTML(host.httpsPort) ? escapeHTML(host.httpsPort) : t('NULL'))
