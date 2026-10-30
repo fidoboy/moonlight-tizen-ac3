@@ -560,7 +560,10 @@ body {
     text-transform: uppercase;
 }
 #runningAppDialog .mdl-dialog__actions button {
+    height: auto;
+    padding: 16px 16px;
     font-size: 1.8rem;
+    line-height: 1.3;
 }
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
