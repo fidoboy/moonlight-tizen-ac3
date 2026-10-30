@@ -3987,6 +3987,7 @@ function animateStreamTransitionBackground() {
 }
 
 var streamEncryptionStatusPollTimeout = null;
+var streamEncryptionStatusPollingActive = false;
 var streamEncryptionStatusVisibleAt = null;
 // Cached once per stream negotiation and reused by every UI surface.
 var currentStreamEncryptionStatus = null;
@@ -4013,6 +4014,7 @@ function resetStreamEncryptionStatus() {
 }
 
 function stopStreamEncryptionStatusPolling() {
+  streamEncryptionStatusPollingActive = false;
   if (streamEncryptionStatusPollTimeout !== null) {
     window.clearTimeout(streamEncryptionStatusPollTimeout);
     streamEncryptionStatusPollTimeout = null;
@@ -4092,11 +4094,13 @@ function renderStreamEncryptionStatus(status, targetIds) {
 }
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
+  if (!streamEncryptionStatusPollingActive) return;
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
     var status = Module.getEncryptionStatus();
     if (typeof status === 'number' && status >= 0) {
       currentStreamEncryptionStatus = status;
       renderStreamEncryptionStatus(currentStreamEncryptionStatus);
+      stopStreamEncryptionStatusPolling();
       return;
     }
   }
@@ -4107,6 +4111,7 @@ function pollStreamEncryptionStatus() {
 
 function startStreamEncryptionStatusPolling() {
   stopStreamEncryptionStatusPolling();
+  streamEncryptionStatusPollingActive = true;
   pollStreamEncryptionStatus();
 }
 
