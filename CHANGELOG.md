@@ -11,6 +11,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Fixed
 - **Host details status:** Fixed the host details dialog always displaying hosts as online and paired, regardless of their actual `online` and `paired` boolean values.
+- **Gamepad navigation sounds:** Fixed an issue that could prevent navigation sounds from playing under certain conditions when navigating with a gamepad.
 
 ## v1.0.8 — Dolby audio and interface improvements
 
