@@ -203,8 +203,12 @@ body {
 #loadingSpinner .loading-spinner-bar {
     left: 0;
     right: auto;
-    background: var(--theme-accent);
-    background-image: none;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        var(--theme-accent-40) 42%,
+        var(--theme-accent) 100%
+    );
     transition: none;
     transform-origin: left center;
     -webkit-animation-duration: 2s;
@@ -219,17 +223,18 @@ body {
     position: absolute;
     top: -2px;
     right: -2px;
-    width: 18%;
-    min-width: 8px;
+    width: 28%;
+    min-width: 12px;
     height: calc(100% + 4px);
     border-radius: 50%;
     background: radial-gradient(
         ellipse at right center,
         var(--theme-accent) 0%,
-        var(--theme-accent) 22%,
+        var(--theme-accent) 28%,
+        var(--theme-accent-40) 58%,
         transparent 100%
     );
-    box-shadow: 0 0 7px 2px var(--theme-accent);
+    box-shadow: 0 0 10px 3px var(--theme-accent);
     pointer-events: none;
 }
 #loadingSpinner .loading-spinner-bar--primary {
