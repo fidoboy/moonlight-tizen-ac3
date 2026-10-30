@@ -2,11 +2,6 @@
 
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
-## Highlights
-
-- **Dolby audio configuration:** Added two new settings for Dolby Digital audio: a dedicated speaker layout selector (Side Surround or Rear Surround) and a decoding mode selector (Hardware, Automatic or Software).
-- **Enhanced interface experience:** Introduced new animated background options, multiple selectable color themes in settings, refined navigation feedback and optional interface sound effects.
-- **Streaming and performance improvements:** Refined stream transitions, diagnostics and background animation lifecycle, alongside updates to core Moonlight components.
 
 ## v1.0.8 — Dolby audio and interface improvements
 
