@@ -2,6 +2,33 @@
 
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
+## Highlights
+
+- **Dolby audio configuration:** Added two new settings for Dolby Digital audio: a dedicated speaker layout selector (Side Surround or Rear Surround) and a decoding mode selector (Hardware, Automatic or Software).
+- **Enhanced interface experience:** Introduced new animated background options, multiple selectable color themes in settings, refined navigation feedback and optional interface sound effects.
+- **Streaming and performance improvements:** Refined stream transitions, diagnostics and background animation lifecycle, alongside updates to core Moonlight components.
+
+## v1.0.8 — Dolby audio and interface improvements
+
+### Added
+- **Dolby speaker layout:** Added a dedicated setting to select the 5.1 speaker configuration used for Dolby Digital audio, with Side Surround and Rear Surround options.
+- **Dolby decoding mode:** Added a setting to select between Hardware, Automatic and Software decoding modes for Dolby Digital audio.
+- **Interface backgrounds:** Added three optional background styles and interface customization options.
+- **Interface color themes:** Added selectable application color themes, configurable from the settings menu.
+- **Interface sound effects:** Added optional audio feedback for navigation and interface events, which can be enabled or disabled in settings.
+- **Settings navigation:** Improved navigation and focus handling throughout the settings interface, including the layout and behavior of selection menus.
+- **Streaming statistics:** Added decoder mode and connection encryption status to the statistics overlay.
+- **Connection encryption status:** Added information about the connection's encryption status to the host negotiation screen before a new stream starts.
+
+### Changed
+- **Streaming transitions:** Refined the visual behavior of stream transitions and the return to the main interface.
+- **Moonlight components:** Updated upstream components and dependencies, including Opus to version 1.6.1, while preserving the Tizen-specific adaptations required by this fork.
+- **Circular list navigation:** Changed navigation in the host and application lists to wrap around, returning to the first item when moving past the last one.
+
+### Fixed
+- **HDR codec switching:** Fixed HDR setting state handling when switching between H.264 and HDR-compatible codecs (HEVC and AV1), ensuring the setting is disabled for H.264 and re-enabled for supported codecs.
+- **Settings panel scrolling:** Fixed settings navigation so that scrolling through the options no longer moves the entire screen, keeping the left section navigation stationary while the right settings panel scrolls independently. Also improved focused-item visibility to prevent elements from being obscured at the bottom edge of the screen.
+
 ## v1.0.7 — Navigation and streaming transition improvements
 
 ### Added
