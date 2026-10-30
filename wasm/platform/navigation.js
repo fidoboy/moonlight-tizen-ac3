@@ -1,5 +1,27 @@
 const hoveredClassName = 'hovered';
 
+// Play a short UI sound only when directional navigation changes the focused item.
+const navigationSound = typeof Audio !== 'undefined' ? new Audio('static/res/click.mp3') : null;
+if (navigationSound) {
+  navigationSound.preload = 'auto';
+}
+let lastFocusedElement = null;
+let isDirectionalNavigation = false;
+
+function playNavigationSound() {
+  if (!navigationSound) return;
+
+  try {
+    navigationSound.currentTime = 0;
+    const playback = navigationSound.play();
+    if (playback && typeof playback.catch === 'function') {
+      playback.catch(() => {});
+    }
+  } catch (error) {
+    // Audio playback must never interfere with UI navigation.
+  }
+}
+
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
@@ -157,6 +179,13 @@ function focusElement(target) {
     console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
     return;
   }
+
+  const focusChanged = lastFocusedElement !== element;
+  lastFocusedElement = element;
+  if (isDirectionalNavigation && focusChanged) {
+    playNavigationSound();
+  }
+
   // Check if the element is a SELECT dropdown
   if (element.tagName === 'SELECT') {
     // Delegate focus to the hidden listener element
@@ -2291,7 +2320,13 @@ const Navigation = (function() {
 
       const view = Stack.get();
       if (view[name]) {
-        view[name]();
+        const previousDirectionalState = isDirectionalNavigation;
+        isDirectionalNavigation = ['up', 'down', 'left', 'right'].includes(name);
+        try {
+          view[name]();
+        } finally {
+          isDirectionalNavigation = previousDirectionalState;
+        }
       }
     };
   }
