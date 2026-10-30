@@ -125,6 +125,7 @@
   "Connection terminated": "Connection terminated",
   "Connection to %1$s lost.": "Соединение с хостом %1$s потеряно.",
   "Connection warnings": "Предупреждения о подключении",
+  "When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.": "Если отключить этот параметр, предупреждения на экране больше не будут отображаться при ухудшении качества соединения с хостом.",
   "Continue": "Продолжить",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
   "D-PAD DOWN": "D-PAD DOWN",
