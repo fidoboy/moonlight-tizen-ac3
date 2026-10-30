@@ -4705,12 +4705,14 @@ function requestManualStreamStop() {
 }
 
 function streamMenuDialog() {
-  // Keep only the dialog itself in the popup layer. A fullscreen overlay, even
-  // transparent, can force Tizen to recompose the hardware video plane.
+  var streamMenuDialogOverlay = $('<div>', {
+    id: 'streamMenuDialogOverlay',
+    class: 'dialog-overlay'
+  }).appendTo('#popup-layer');
   var streamMenuDialog = $('<dialog>', {
     id: 'streamMenuDialog',
-    class: 'mdl-dialog stream-menu-dialog'
-  }).appendTo('#popup-layer');
+    class: 'mdl-dialog'
+  }).appendTo(streamMenuDialogOverlay);
   $('<h3>', {
     id: 'streamMenuDialogTitle',
     class: 'mdl-dialog__title',
@@ -4755,6 +4757,7 @@ function streamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
+  fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
   Views.StreamMenuDialog.view.index = 0;
@@ -4764,17 +4767,20 @@ function streamMenuDialog() {
 }
 
 function closeStreamMenuDialog(returnToStream) {
-  var dialogElement = $('#streamMenuDialog')[0];
-  if (!dialogElement || dialogElement._closingUiDialog) {
+  var streamMenuDialogOverlay = $('#streamMenuDialogOverlay');
+  if (streamMenuDialogOverlay.length === 0 || streamMenuDialogOverlay[0]._closingUiDialog) {
     return;
   }
-  dialogElement._closingUiDialog = true;
+  var overlayElement = streamMenuDialogOverlay[0];
+  var dialogElement = $('#streamMenuDialog')[0];
+  overlayElement._closingUiDialog = true;
   Navigation.pop();
   Navigation.stop();
   window.removeEventListener('mousemove', stopMouseMovePropagation, true);
+  fadeOutUiElement(overlayElement);
   isDialogOpen = false;
   closeUiDialog(dialogElement, function() {
-    $(dialogElement).remove();
+    streamMenuDialogOverlay.remove();
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
       videoElement.focus();
@@ -4815,7 +4821,7 @@ function directSmartHubVideoReady(videoElement) {
 function toggleStreamMenuDialog() {
   var videoElement = document.getElementById('wasm_module');
 
-  if ($('#streamMenuDialog').length > 0) {
+  if ($('#streamMenuDialogOverlay').length > 0) {
     closeStreamMenuDialog(true);
   } else if (videoElement && !isDialogOpen && videoElement.style.display !== 'none' &&
       (!window._directSmartHubLaunch || directSmartHubVideoReady(videoElement))) {
