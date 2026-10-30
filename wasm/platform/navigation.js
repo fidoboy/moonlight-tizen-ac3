@@ -1,5 +1,46 @@
 const hoveredClassName = 'hovered';
 
+// Navigation sounds are strictly disabled while a stream is starting or active.
+// Create the HTML audio element lazily, only after an actual navigation event.
+let navigationSoundEnabled = true;
+let navigationSoundAudio = null;
+
+function setNavigationSoundEnabled(enabled) {
+  navigationSoundEnabled = enabled === true;
+
+  if (!navigationSoundEnabled && navigationSoundAudio) {
+    navigationSoundAudio.pause();
+    try { navigationSoundAudio.currentTime = 0; } catch (error) {}
+  }
+}
+
+function playNavigationSound() {
+  if (!navigationSoundEnabled || isInGame === true) return;
+
+  if (!navigationSoundAudio) {
+    navigationSoundAudio = new Audio('static/res/click.mp3');
+    navigationSoundAudio.preload = 'auto';
+    navigationSoundAudio.addEventListener('error', function() {
+      console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
+        'Could not load navigation sound:', navigationSoundAudio.error);
+    });
+  }
+
+  try {
+    navigationSoundAudio.currentTime = 0;
+    const playback = navigationSoundAudio.play();
+    if (playback && typeof playback.catch === 'function') {
+      playback.catch(function(error) {
+        console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
+          'Navigation sound playback was rejected:', error);
+      });
+    }
+  } catch (error) {
+    console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
+      'Navigation sound playback failed:', error);
+  }
+}
+
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
