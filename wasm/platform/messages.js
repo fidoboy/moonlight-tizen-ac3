@@ -768,6 +768,8 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Stop encryption-status polling for every termination path, including negotiation failures.
+    stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
     hideStreamDiagnosticsLayer(function() {
