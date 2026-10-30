@@ -1,101 +1,80 @@
 const hoveredClassName = 'hovered';
 
-// Keep a silent audio stream open while the UI is active. The MP3 contains
-// silent samples; volume remains at 1 so the media pipeline is not muted.
-const navigationSilenceSource = 'data:audio/mpeg;base64,//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xLEKYPAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+xDEU4PAAAGkAAAAIAAANIAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EsR9A8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7EMSnA8AAAaQAAAAgAAA0gAAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sSxNCDwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+// Use one DOM-attached audio element for both navigation clicks and the
+// application-list test sound. The silent keep-alive is disabled during this
+// diagnostic test so it cannot interfere with audible playback.
 let navigationSoundEnabled = true;
 let navigationSoundAudio = null;
-let navigationKeepAliveAudio = null;
 
-function startNavigationAudioKeepAlive() {
+function getNavigationSoundAudio() {
+  if (!navigationSoundAudio) {
+    navigationSoundAudio = document.createElement('audio');
+    navigationSoundAudio.preload = 'auto';
+    navigationSoundAudio.volume = 1;
+    navigationSoundAudio.hidden = true;
+    navigationSoundAudio.addEventListener('playing', function() {
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Audio playback started:', navigationSoundAudio.currentSrc);
+    });
+    navigationSoundAudio.addEventListener('ended', function() {
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Audio playback ended:', navigationSoundAudio.currentSrc);
+    });
+    navigationSoundAudio.addEventListener('error', function() {
+      console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio playback error:', navigationSoundAudio.error, navigationSoundAudio.currentSrc);
+    });
+    document.body.appendChild(navigationSoundAudio);
+  }
+  return navigationSoundAudio;
+}
+
+function playNavigationAudio(source, avoidInterruptingCurrentPlayback) {
   if (!navigationSoundEnabled || isInGame === true) return;
 
-  if (!navigationKeepAliveAudio) {
-    navigationKeepAliveAudio = new Audio(navigationSilenceSource);
-    navigationKeepAliveAudio.preload = 'auto';
-    navigationKeepAliveAudio.loop = true;
-    navigationKeepAliveAudio.volume = 1;
-    navigationKeepAliveAudio.addEventListener('error', function() {
-      if (navigationKeepAliveAudio) {
-        console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
-          'Could not load silent keep-alive audio:', navigationKeepAliveAudio.error);
-      }
-    });
+  const audio = getNavigationSoundAudio();
+  if (avoidInterruptingCurrentPlayback && !audio.paused) return;
+
+  const currentSource = audio.getAttribute('src');
+  if (currentSource !== source) {
+    audio.src = source;
+    audio.load();
+  } else {
+    try {
+      audio.currentTime = 0;
+    } catch (error) {
+      console.warn('%c[navigation.js, audio]', 'color: gray;', 'Could not reset audio playback position:', error);
+    }
   }
 
-  if (!navigationKeepAliveAudio.paused) return;
-
   try {
-    const playback = navigationKeepAliveAudio.play();
+    const playback = audio.play();
     if (playback && typeof playback.catch === 'function') {
       playback.catch(function(error) {
-        console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
-          'Silent keep-alive playback was rejected:', error);
+        console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio playback was rejected:', error, source);
       });
     }
   } catch (error) {
-    console.warn('%c[navigation.js, startNavigationAudioKeepAlive]', 'color: gray;',
-      'Silent keep-alive playback failed:', error);
+    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio playback failed:', error, source);
   }
-}
-
-function stopNavigationAudioKeepAlive() {
-  if (!navigationKeepAliveAudio) return;
-
-  navigationKeepAliveAudio.pause();
-  navigationKeepAliveAudio.removeAttribute('src');
-  navigationKeepAliveAudio.load();
-  navigationKeepAliveAudio = null;
 }
 
 function setNavigationSoundEnabled(enabled) {
   navigationSoundEnabled = enabled === true;
 
-  if (navigationSoundEnabled) {
-    startNavigationAudioKeepAlive();
-    return;
-  }
+  if (navigationSoundEnabled || !navigationSoundAudio) return;
 
-  // Release all interface audio before the streaming audio pipeline starts.
-  stopNavigationAudioKeepAlive();
-
-  if (navigationSoundAudio) {
-    navigationSoundAudio.pause();
-    navigationSoundAudio.removeAttribute('src');
-    navigationSoundAudio.load();
-    navigationSoundAudio = null;
-  }
+  navigationSoundAudio.pause();
+  navigationSoundAudio.removeAttribute('src');
+  navigationSoundAudio.load();
+  navigationSoundAudio.remove();
+  navigationSoundAudio = null;
 }
 
 function playNavigationSound() {
-  if (!navigationSoundEnabled || isInGame === true) return;
+  // Do not interrupt the longer presentation sound with a short navigation click.
+  playNavigationAudio('static/res/click.wav', true);
+}
 
-  // Retry here as well: the first remote-control interaction may be the first
-  // user gesture that permits media playback on the TV.
-  startNavigationAudioKeepAlive();
-
-  if (!navigationSoundAudio) {
-    navigationSoundAudio = new Audio('static/res/click.mp3');
-    navigationSoundAudio.preload = 'auto';
-    navigationSoundAudio.addEventListener('error', function() {
-      console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
-        'Could not load navigation sound:', navigationSoundAudio.error);
-    });
-  }
-
-  try {
-    navigationSoundAudio.currentTime = 0;
-    const playback = navigationSoundAudio.play();
-    if (playback && typeof playback.catch === 'function') {
-      playback.catch(function(error) {
-        console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
-          'Navigation sound playback was rejected:', error);
-      });
-    }
-  } catch (error) {
-    console.warn('%c[navigation.js, playNavigationSound]', 'color: gray;',
-      'Navigation sound playback failed:', error);
-  }
+function playNavigationPresentationSound() {
+  playNavigationAudio('static/res/swell-presentation.wav', false);
 }
 
 // Check if the provided object is an HTML element
