@@ -1994,7 +1994,7 @@ body {
 @keyframes ambient-symbol-bloom {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0.12);
+        transform: translate3d(-50%, -50%, 0) scale(0.12);
         animation-timing-function: ease-in;
     }
     90% {
