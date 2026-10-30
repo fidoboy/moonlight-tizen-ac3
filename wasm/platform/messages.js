@@ -877,14 +877,37 @@ function handleMessage(msg) {
       }
     }
 
-    // Set the message first, then show the complete transition layer.
+    // Set the message first, then show the complete transition layer. The local UI
+    // audio engine is rebuilt only after this layer is fully visible.
     window._normalStreamVideoReady = false;
     $('#loadingSpinnerMessage').text(transitionStatusMessage);
+    var resolveLocalAudioRestoration;
+    var localAudioRestoration = new Promise(function(resolve) {
+      resolveLocalAudioRestoration = resolve;
+    });
+    var restoreLocalAudioAfterTransitionAppears = function() {
+      if (window._directSmartHubLaunch) {
+        resolveLocalAudioRestoration();
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
+      var restoration = typeof setNavigationSoundEnabled === 'function'
+        ? setNavigationSoundEnabled(true)
+        : Promise.resolve();
+      Promise.resolve(restoration).catch(function(audioRestoreError) {
+        // A sound-effects failure must not strand the user in the closing transition.
+        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
+      }).then(function() {
+        $('#loadingSpinnerMessage').text(transitionStatusMessage);
+        resolveLocalAudioRestoration();
+      });
+    };
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground();
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
+      restoreLocalAudioAfterTransitionAppears();
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
@@ -1017,15 +1040,17 @@ function handleMessage(msg) {
       showAppsMode(true, hideTransitionAndBeginRecovery, true);
     };
 
-    // Preserve the closing transition for at least the minimum duration. Only then
-    // reveal the Apps UI, and begin hiding the transition as soon as that reveal finishes.
-    var remainingTransitionMs = streamTerminationMinimumVisibleMs -
-      (Date.now() - streamTerminationTransitionShownAt);
-    if (remainingTransitionMs > 0) {
-      window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
-    } else {
-      showAppsUiBeforeTransitionCloses();
-    }
+    // Do not continue recovery or reveal the Apps UI until the local audio engine
+    // has been recreated and click.mp3 has been decoded.
+    localAudioRestoration.then(function() {
+      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+        (Date.now() - streamTerminationTransitionShownAt);
+      if (remainingTransitionMs > 0) {
+        window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
+      } else {
+        showAppsUiBeforeTransitionCloses();
+      }
+    });
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.

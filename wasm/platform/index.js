@@ -3739,12 +3739,8 @@ function showApps(host, options) {
           }
         }
 
-        // Navigate to the Apps view, then play a longer WAV to verify
-        // audible HTML5 playback independently of the short navigation click.
+        // Navigate to the Apps view without starting diagnostic audio playback.
         showAppsMode(!!(options && options.keepInteractionLocked));
-        if (typeof playNavigationPresentationSound === 'function') {
-          playNavigationPresentationSound();
-        }
         clearViewLoadingSnackbarTimer();
         if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
         resolve();
@@ -4246,34 +4242,37 @@ function handleNormalStreamVideoReady() {
 // Handle layout elements when displaying the Stream view
 function showStreamMode() {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  // Keep the Web UI visible during the transition layer's fade-in. The callback runs
-  // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
-  var enterFullscreenStreamLayout = function() {
-    hideUiLayerImmediately('main-ui-layer');
-    $('#main-ui-layer').find('*').stop(true, false);
-    $('#main-content').addClass('fullscreen');
-    $('#listener').addClass('fullscreen');
-    isInGame = true;
-    fullscreenWasmModule();
-    handleOnScreenOverlays();
-    showUiLayer('stream-diagnostics-layer');
-    Navigation.stop();
-  };
+  return new Promise(function(resolve) {
+    // Keep the Web UI visible during the transition layer's fade-in. The callback runs
+    // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
+    var enterFullscreenStreamLayout = function() {
+      hideUiLayerImmediately('main-ui-layer');
+      $('#main-ui-layer').find('*').stop(true, false);
+      $('#main-content').addClass('fullscreen');
+      $('#listener').addClass('fullscreen');
+      isInGame = true;
+      fullscreenWasmModule();
+      handleOnScreenOverlays();
+      showUiLayer('stream-diagnostics-layer');
+      Navigation.stop();
+      resolve();
+    };
 
-  // The transition layer owns the visibility of the starfield and all status content.
-  // Show or hide the layer as a whole; never toggle its children individually.
-  if (!window._directSmartHubLaunch) {
-    window._normalStreamVideoReady = false;
-    // A new connection has unknown encryption until the core publishes its negotiated configuration.
-    resetStreamEncryptionStatus();
-    if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
-      Module.resetEncryptionStatus();
+    // The transition layer owns the visibility of the starfield and all status content.
+    // Show or hide the layer as a whole; never toggle its children individually.
+    if (!window._directSmartHubLaunch) {
+      window._normalStreamVideoReady = false;
+      // A new connection has unknown encryption until the core publishes its negotiated configuration.
+      resetStreamEncryptionStatus();
+      if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+        Module.resetEncryptionStatus();
+      }
+      showStreamTransitionBackground(enterFullscreenStreamLayout);
+      startStreamEncryptionStatusPolling();
+    } else {
+      enterFullscreenStreamLayout();
     }
-    showStreamTransitionBackground(enterFullscreenStreamLayout);
-    startStreamEncryptionStatusPolling();
-  } else {
-    enterFullscreenStreamLayout();
-  }
+  });
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
@@ -4325,7 +4324,7 @@ function startGame(host, appID) {
 
   // Refresh the server info, because the user might have quit the game
   host.refreshServerInfo().then(function(ret) {
-    (_directSmartHubLaunch ? Promise.resolve({ id: appID, title: String(appID) }) : host.getAppById(appID)).then(function(appToStart) {
+    (_directSmartHubLaunch ? Promise.resolve({ id: appID, title: String(appID) }) : host.getAppById(appID)).then(async function(appToStart) {
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         host.getAppById(host.currentGame).then(function(currentApp) {
           // Find the existing overlay and dialog elements
@@ -4442,12 +4441,28 @@ function startGame(host, appID) {
       window._activeStreamHostName = host.hostname || '';
       window._manualStreamStopRequested = false;
 
-      // Shows a loading message to launch the application and start stream mode
+      // Show the transition first. Only after it is fully visible may the local UI
+      // audio engine be closed; host launch/resume requests must wait for that shutdown.
       $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
-      // Block all interface audio before the stream transition begins. This is separate
-      // from isInGame because the stream is already being prepared at this point.
-      if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(false);
-      showStreamMode();
+      await showStreamMode();
+      $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
+      try {
+        if (typeof setNavigationSoundEnabled === 'function') {
+          await setNavigationSoundEnabled(false);
+        }
+      } catch (audioShutdownError) {
+        console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
+        if (_directSmartHubLaunch) {
+          directSmartHubLaunchFailure(t('Could not prepare local audio for streaming.'));
+        } else {
+          showApps(host).then(function() {
+            hideStreamTransitionBackground();
+            snackbarLogLong('Could not prepare local audio for streaming.');
+          });
+        }
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
