@@ -235,15 +235,30 @@ body {
         transparent 100%
     );
     box-shadow: 0 0 10px 3px var(--theme-accent);
+    opacity: 0;
+    -webkit-animation-duration: 2s;
+    animation-duration: 2s;
+    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: infinite;
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
     pointer-events: none;
 }
 #loadingSpinner .loading-spinner-bar--primary {
     -webkit-animation-name: loading-spinner-indeterminate1;
     animation-name: loading-spinner-indeterminate1;
 }
+#loadingSpinner .loading-spinner-bar--primary::after {
+    -webkit-animation-name: loading-spinner-glow1;
+    animation-name: loading-spinner-glow1;
+}
 #loadingSpinner .loading-spinner-bar--secondary {
     -webkit-animation-name: loading-spinner-indeterminate2;
     animation-name: loading-spinner-indeterminate2;
+}
+#loadingSpinner .loading-spinner-bar--secondary::after {
+    -webkit-animation-name: loading-spinner-glow2;
+    animation-name: loading-spinner-glow2;
 }
 
 /* Animate against the track's width directly. Transform percentages were based on
@@ -270,6 +285,38 @@ body {
     0%, 50% { left: 0; width: 0; }
     75% { left: 0; width: 25%; }
     100% { left: 100%; width: 0; }
+}
+
+@-webkit-keyframes loading-spinner-glow1 {
+    0% { opacity: 0; }
+    8% { opacity: 0.65; }
+    15%, 50% { opacity: 1; }
+    65% { opacity: 0.5; }
+    75%, 100% { opacity: 0; }
+}
+
+@keyframes loading-spinner-glow1 {
+    0% { opacity: 0; }
+    8% { opacity: 0.65; }
+    15%, 50% { opacity: 1; }
+    65% { opacity: 0.5; }
+    75%, 100% { opacity: 0; }
+}
+
+@-webkit-keyframes loading-spinner-glow2 {
+    0%, 50% { opacity: 0; }
+    58% { opacity: 0.65; }
+    65%, 85% { opacity: 1; }
+    95% { opacity: 0.5; }
+    100% { opacity: 0; }
+}
+
+@keyframes loading-spinner-glow2 {
+    0%, 50% { opacity: 0; }
+    58% { opacity: 0.65; }
+    65%, 85% { opacity: 1; }
+    95% { opacity: 0.5; }
+    100% { opacity: 0; }
 }
 
 .mdl-progress > .progressbar,
