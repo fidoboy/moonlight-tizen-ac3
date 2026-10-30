@@ -1,33 +1,30 @@
 const hoveredClassName = 'hovered';
 
-// Play a short UI sound only when directional navigation changes the highlighted item.
+// Keep one audio element and trigger it synchronously from the remote key handler.
 const navigationSound = typeof Audio !== 'undefined' ? new Audio('static/res/click.mp3') : null;
 if (navigationSound) {
   navigationSound.preload = 'auto';
+  navigationSound.addEventListener('error', function() {
+    console.error('[navigation.js] Could not load navigation sound:', navigationSound.currentSrc || navigationSound.src);
+  });
   navigationSound.load();
 }
-let lastNavigationElement = null;
-let isDirectionalNavigation = false;
 
-function playNavigationSoundForElement(element) {
-  if (!element) return;
-  const focusChanged = lastNavigationElement !== element;
-  lastNavigationElement = element;
-  if (!isDirectionalNavigation || !focusChanged || !navigationSound) return;
-
+window.playNavigationSound = function() {
+  if (!navigationSound) return;
   try {
+    navigationSound.pause();
     navigationSound.currentTime = 0;
     const playback = navigationSound.play();
     if (playback && typeof playback.catch === 'function') {
-      playback.catch(error => {
-        console.warn('[navigation.js] Navigation sound playback failed:', error);
+      playback.catch(function(error) {
+        console.error('[navigation.js] Navigation sound playback was rejected:', error);
       });
     }
   } catch (error) {
-    console.warn('[navigation.js] Navigation sound playback failed:', error);
+    console.error('[navigation.js] Navigation sound playback failed:', error);
   }
-}
-
+};
 // Check if the provided object is an HTML element
 function isHtmlElement(el) {
   return (typeof HTMLElement !== 'undefined') && el instanceof HTMLElement;
@@ -142,8 +139,6 @@ function mark(target) {
   const element = resolveElement(target);
   // Check if the element exists before marking
   if (element) {
-    // Directional list navigation often changes the highlighted item without calling focusElement().
-    playNavigationSoundForElement(element);
     // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
@@ -188,7 +183,6 @@ function focusElement(target) {
     return;
   }
 
-  playNavigationSoundForElement(element);
 
   // Check if the element is a SELECT dropdown
   if (element.tagName === 'SELECT') {
