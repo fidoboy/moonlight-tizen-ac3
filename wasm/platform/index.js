@@ -448,6 +448,7 @@ function attachListeners() {
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
+  $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
   initializeColorThemeSelector();
@@ -1192,7 +1193,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart) {
-  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
   $('#main-content').removeClass('settings-view-active');
@@ -3421,7 +3422,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   showUiLayer('main-ui-layer', afterShown);
   if (!deferPostTransitionActions) {
     isInGame = false;
-    if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
+    if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   }
   if (!deferPostTransitionActions && startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
@@ -3440,7 +3441,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
 // Complete the non-visual Apps-mode work only after the stream transition has disappeared.
 function finishAppsModeAfterStreamTransition() {
   isInGame = false;
-  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(true);
+  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
@@ -5277,6 +5278,20 @@ function initializeColorThemeSelector() {
 
 }
 
+function saveNavigationSoundPreference() {
+  setTimeout(function() {
+    const enabled = $('#navigationSoundSwitch').parent().hasClass('is-checked');
+    navigationSoundPreferenceEnabled = enabled;
+    console.log('%c[index.js, saveNavigationSoundPreference]', 'color: green;', 'Saving navigation sounds preference: ' + enabled);
+    storeData('navigationSoundEnabled', enabled, null);
+    if (typeof setNavigationSoundEnabled === 'function') {
+      Promise.resolve(setNavigationSoundEnabled(enabled)).catch(function(error) {
+        console.error('%c[index.js, saveNavigationSoundPreference]', 'color: red;', 'Could not apply navigation sounds preference:', error);
+      });
+    }
+  }, 100);
+}
+
 function saveConfigSummaryVisibility() {
   setTimeout(() => {
     const enabled = $('#showConfigSummarySwitch').parent().hasClass('is-checked');
@@ -6113,6 +6128,16 @@ function restoreDefaultsSettingsValues() {
   document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off();
   storeData('ipAddressFieldMode', defaultIpAddressFieldMode, null);
 
+  const defaultNavigationSoundEnabled = true;
+  navigationSoundPreferenceEnabled = defaultNavigationSoundEnabled;
+  document.querySelector('#navigationSoundBtn').MaterialSwitch.on();
+  storeData('navigationSoundEnabled', defaultNavigationSoundEnabled, null);
+  if (typeof setNavigationSoundEnabled === 'function') {
+    Promise.resolve(setNavigationSoundEnabled(defaultNavigationSoundEnabled)).catch(function(error) {
+      console.error('%c[index.js, restoreDefaultsSettingsValues]', 'color: red;', 'Could not restore navigation sounds:', error);
+    });
+  }
+
   const defaultShowConfigSummaryBar = true;
   document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
   storeData('showConfigSummaryBar', defaultShowConfigSummaryBar, null);
@@ -6431,6 +6456,23 @@ function loadUserDataCb() {
     }
     // Handle the IP address field visibility based on switch state
     handleIpAddressFieldMode();
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load navigation sounds preference.');
+  getData('navigationSoundEnabled', function(previousValue) {
+    const storedValue = previousValue && previousValue.navigationSoundEnabled;
+    navigationSoundPreferenceEnabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (navigationSoundPreferenceEnabled) {
+      document.querySelector('#navigationSoundBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#navigationSoundBtn').MaterialSwitch.off();
+    }
+    if (typeof setNavigationSoundEnabled === 'function') {
+      Promise.resolve(setNavigationSoundEnabled(navigationSoundPreferenceEnabled)).catch(function(error) {
+        console.error('%c[index.js, loadUserDataCb]', 'color: red;', 'Could not apply navigation sounds preference:', error);
+      });
+    }
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar visibility preference.');
@@ -7287,6 +7329,7 @@ function probeSmartHubSupport() {
 }
 
 // Do not create the summary bar until the persisted preference has been loaded.
+var navigationSoundPreferenceEnabled = true;
 var configSummaryPreferenceLoaded = false;
 var configSummaryTemporarilyHidden = false;
 
