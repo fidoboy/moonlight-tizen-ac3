@@ -2481,13 +2481,12 @@ const Navigation = (function() {
 
       const view = Stack.get();
       if (view[name]) {
-        const previousTarget = ['up', 'down', 'left', 'right'].includes(name)
-          ? document.querySelector('.hovered')
-          : null;
+        const isDirectional = ['up', 'down', 'left', 'right'].includes(name);
+        const previousTarget = isDirectional ? document.querySelector('.hovered') : null;
 
         view[name]();
 
-        if (previousTarget !== document.querySelector('.hovered') &&
+        if (isDirectional && previousTarget !== document.querySelector('.hovered') &&
             typeof playNavigationSound === 'function') {
           playNavigationSound();
         }
