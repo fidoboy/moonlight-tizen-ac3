@@ -565,6 +565,13 @@ body {
     font-size: 1.8rem;
     line-height: 1.3;
 }
+#runningAppDialog #resumeRunningApp {
+    margin-bottom: 24px;
+}
+#runningAppDialog #stopRemoteApp {
+    margin-bottom: 0;
+    background-color: rgba(244, 67, 54, 0.72);
+}
 .mdl-dialog__content button, .mdl-dialog__actions button {
     width: 100%;
     margin-bottom: 10px;
