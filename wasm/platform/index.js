@@ -5315,6 +5315,7 @@ function saveConfigSummaryVisibility() {
 // Ambient interface background presets are keyed by stable values so additional
 // animations can be registered without changing the persistence mechanism.
 var AMBIENT_GAMEPAD_COUNT = 12;
+var ambientWaveTemplate = null;
 var ambientBubbleContainer = null;
 var ambientBubbleElements = [];
 var ambientBubbleAnimationInitialized = false;
@@ -5460,6 +5461,39 @@ function stopAmbientSymbolsAnimation() {
   if (ambientSymbolsContainer) ambientSymbolsContainer.classList.remove('ambient-symbols-active');
 }
 
+function destroyAmbientBackground(preset) {
+  if (preset === 'waves') {
+    var waveWrapper = document.getElementById('ambient-trails');
+    var waveSvg = document.getElementById('ambient-wave-svg');
+    if (waveSvg) {
+      if (!ambientWaveTemplate) ambientWaveTemplate = waveSvg.cloneNode(true);
+      waveSvg.remove();
+    }
+    return;
+  }
+
+  if (preset === 'bubbles') {
+    stopAmbientBubbleAnimation();
+    if (ambientBubbleContainer) ambientBubbleContainer.replaceChildren();
+    ambientBubbleElements.length = 0;
+    ambientBubbleAnimationInitialized = false;
+    return;
+  }
+
+  if (preset === 'symbols') {
+    stopAmbientSymbolsAnimation();
+    if (ambientSymbolsContainer) ambientSymbolsContainer.replaceChildren();
+    ambientSymbolElements.length = 0;
+    ambientSymbolsInitialized = false;
+  }
+}
+
+function restoreAmbientWaveBackground() {
+  var waveWrapper = document.getElementById('ambient-trails');
+  if (!waveWrapper || document.getElementById('ambient-wave-svg') || !ambientWaveTemplate) return;
+  waveWrapper.appendChild(ambientWaveTemplate.cloneNode(true));
+}
+
 function updateAmbientBackgroundActivation(activate) {
   var mainUi = document.getElementById('main-ui-layer');
   if (!mainUi) return;
@@ -5477,6 +5511,10 @@ function updateAmbientBackgroundActivation(activate) {
     mainUi.classList.add(activeClass);
   }
 
+  if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'waves') {
+    restoreAmbientWaveBackground();
+  }
+
   if (activate && ambientBackgroundPreferenceLoaded && ambientBackgroundPreset === 'bubbles') {
     startAmbientBubbleAnimation();
   } else {
@@ -5491,8 +5529,12 @@ function updateAmbientBackgroundActivation(activate) {
 }
 
 function applyAmbientBackgroundPreset(preset, persist) {
+  var previousPreset = ambientBackgroundPreset;
   ambientBackgroundPreset = Object.prototype.hasOwnProperty.call(AMBIENT_BACKGROUND_PRESETS, preset)
     ? preset : 'waves';
+  if (previousPreset !== ambientBackgroundPreset) {
+    destroyAmbientBackground(previousPreset);
+  }
 
   var selector = document.getElementById('selectAmbientBackground');
   if (selector) {
