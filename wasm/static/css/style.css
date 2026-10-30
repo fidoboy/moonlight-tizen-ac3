@@ -269,7 +269,7 @@ body {
 @keyframes loading-spinner-indeterminate2 {
     0%, 50% { transform: translateX(0) scaleX(0); }
     75% { transform: translateX(0) scaleX(1); }
-    100% { transform: translateX(285.714286%) scaleX(0); }
+    100% { transform: translateX(400%) scaleX(0); }
 }
 
 .mdl-progress > .progressbar,
