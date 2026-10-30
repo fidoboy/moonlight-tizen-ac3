@@ -1,3 +1,13 @@
+function navigateWithSound(direction) {
+  var previousFocus = document.querySelector('.hovered') || document.activeElement;
+  Navigation[direction]();
+  var currentFocus = document.querySelector('.hovered') || document.activeElement;
+  if (currentFocus && currentFocus !== previousFocus &&
+      typeof window.playNavigationSound === 'function') {
+    window.playNavigationSound();
+  }
+}
+
 function remoteControllerHandler(e) {
   isGamepadActive = false;
   const keyCode = e.keyCode;
@@ -5,19 +15,19 @@ function remoteControllerHandler(e) {
   switch (keyCode) {
     case tvKey.KEY_UP:
       // Navigate in the up direction
-      Navigation.up();
+      navigateWithSound('up');
       break;
     case tvKey.KEY_DOWN:
       // Navigate in the down direction
-      Navigation.down();
+      navigateWithSound('down');
       break;
     case tvKey.KEY_LEFT:
       // Navigate in the left direction
-      Navigation.left();
+      navigateWithSound('left');
       break;
     case tvKey.KEY_RIGHT:
       // Navigate in the right direction
-      Navigation.right();
+      navigateWithSound('right');
       break;
     case tvKey.KEY_ENTER:
     case tvKey.KEY_REMOTE_ENTER:
