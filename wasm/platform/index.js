@@ -6181,12 +6181,12 @@ function restoreDefaultsSettingsValues() {
   $('#bitrateSlider')[0].MaterialSlider.change(defaultBitrate);
   storeData('bitrate', defaultBitrate, null);
 
-  const defaultFramePacing = false;
-  document.querySelector('#framePacingBtn').MaterialSwitch.off();
+  const defaultFramePacing = true;
+  document.querySelector('#framePacingBtn').MaterialSwitch.on();
   storeData('framePacing', defaultFramePacing, null);
 
-  const defaultIpAddressFieldMode = false;
-  document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off();
+  const defaultIpAddressFieldMode = true;
+  document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.on();
   storeData('ipAddressFieldMode', defaultIpAddressFieldMode, null);
 
   const defaultNavigationSoundEnabled = true;
@@ -6498,7 +6498,7 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored framePacing preferences.');
   getData('framePacing', function(previousValue) {
     if (previousValue.framePacing == null) {
-      document.querySelector('#framePacingBtn').MaterialSwitch.off(); // Set the default state
+      document.querySelector('#framePacingBtn').MaterialSwitch.on(); // Set the default state
     } else if (previousValue.framePacing == false) {
       document.querySelector('#framePacingBtn').MaterialSwitch.off();
     } else {
@@ -6509,7 +6509,7 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored ipAddressFieldMode preferences.');
   getData('ipAddressFieldMode', function(previousValue) {
     if (previousValue.ipAddressFieldMode == null) {
-      document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off(); // Set the default state
+      document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.on(); // Set the default state
     } else if (previousValue.ipAddressFieldMode == false) {
       document.querySelector('#ipAddressFieldModeBtn').MaterialSwitch.off();
     } else {
