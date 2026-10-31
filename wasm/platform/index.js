@@ -4455,7 +4455,6 @@ function startGame(host, appID) {
       // Show the transition first. Only after it is fully visible may the local UI
       // audio engine be closed; host launch/resume requests must wait for that shutdown.
       $('#loadingSpinnerTitle').text(t('Starting %1$s...', appToStart.title));
-      $('#loadingSpinnerMessage').text(t('Preparing connection...'));
       $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
       await showStreamMode();
       $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
