@@ -345,7 +345,7 @@ body {
     margin: 0 auto;
     animation: fadeInOut 3s infinite;
 }
-#wasmSpinnerMessage, #loadingSpinnerMessage {
+#wasmSpinnerMessage, #loadingSpinnerTitle, #loadingSpinnerMessage {
     color: var(--theme-text-primary);
     margin: 35px;
     font-size: 2rem;
@@ -353,6 +353,20 @@ body {
     line-height: normal;
     letter-spacing: 0.5px;
     text-align: center;
+}
+#loadingSpinnerTitle {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 18px);
+    width: 80vw;
+    max-width: 80vw;
+    box-sizing: border-box;
+    margin: 0;
+    transform: translateX(-50%);
+}
+#loadingSpinnerMessage {
+    color: #999999;
+    font-size: 1.5rem;
 }
 .stream-encryption-status {
     display: none;
@@ -2166,7 +2180,7 @@ body {
         opacity: var(--gamepad-opacity);
     }
     to {
-        transform: translate3d(0, -20vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
+        transform: translate3d(0, -30vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
         opacity: 0;
     }
 }

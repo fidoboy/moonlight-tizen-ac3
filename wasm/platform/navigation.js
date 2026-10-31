@@ -351,11 +351,6 @@ function focusElement(target) {
     // Delegate focus to the hidden listener element
     if (listener && typeof listener.focus === 'function') {
       listener.focus();
-      if (previousActiveElement && previousActiveElement !== document.body &&
-          previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
-          typeof playNavigationSound === 'function') {
-        playNavigationSound();
-      }
     }
     return;
   }
@@ -391,15 +386,6 @@ function focusElement(target) {
       }
     } else {
       element.focus();
-    }
-
-    // Trigger the effect only for a real move between focused controls. Initial
-    // focus restoration from the body/hidden listener remains silent.
-    if (previousActiveElement && previousActiveElement !== document.body &&
-        previousActiveElement !== document.documentElement && previousActiveElement.id !== 'listener' &&
-        previousActiveElement !== document.activeElement &&
-        typeof playNavigationSound === 'function') {
-      playNavigationSound();
     }
   }
 }
@@ -2495,7 +2481,15 @@ const Navigation = (function() {
 
       const view = Stack.get();
       if (view[name]) {
+        const isDirectional = ['up', 'down', 'left', 'right'].includes(name);
+        const previousTarget = isDirectional ? document.querySelector('.hovered') : null;
+
         view[name]();
+
+        if (isDirectional && previousTarget !== document.querySelector('.hovered') &&
+            typeof playNavigationSound === 'function') {
+          playNavigationSound();
+        }
       }
     };
   }

@@ -99,8 +99,8 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
-    .replace(/Encoder mode: (Automatic|Hardware|Software)/g, function(match, mode) {
-      return t('Encoder mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
+    .replace(/Decoding mode: (Automatic|Hardware|Software)/g, function(match, mode) {
+      return t('Decoding mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
     })
     .replace(/Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order/g, function(match, recovered, failed, outOfOrder) {
       return t('Audio FEC:') + ' ' + recovered + ' ' + t(Number(recovered) === 1 ? 'FEC recovered (singular)' : 'FEC recovered') +
@@ -882,6 +882,7 @@ function handleMessage(msg) {
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
     window._normalStreamVideoReady = false;
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
     $('#loadingSpinnerMessage').text(transitionStatusMessage);
     var resolveLocalAudioRestoration;
     var localAudioRestoration = new Promise(function(resolve) {
@@ -1076,7 +1077,7 @@ function handleMessage(msg) {
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
   } else if (msg.indexOf('ProgressMsg: ') === 0) {
-    // Show progress message under loading spinner
+    // Show progress message below the transition bar, keeping the app title fixed above it.
     $('#loadingSpinnerMessage').text(translateBackendMessage(msg.replace('ProgressMsg: ', '')));
   } else if (msg.indexOf('TransientMsg: ') === 0) {
     // Show transient message as notification

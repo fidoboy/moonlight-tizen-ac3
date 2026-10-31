@@ -85,6 +85,7 @@
       <div class="loading-spinner-track"></div>
       <div class="loading-spinner-bar loading-spinner-bar--primary"></div>
       <div class="loading-spinner-bar loading-spinner-bar--secondary"></div>
+      <h4 id="loadingSpinnerTitle"></h4>
       <h4 id="loadingSpinnerMessage"></h4>
     </div>
       <div id="streamEncryptionStatus" class="stream-encryption-status" aria-live="polite">
@@ -775,7 +776,7 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Connection warnings">Connection warnings</label>
-              <span class="mdl-list__item-text-body"></span>
+              <span class="mdl-list__item-text-body" data-i18n="When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.">When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.</span>
               <div id="connectionWarningsMenu">
                 <label id="disableWarningsBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="disableWarningsSwitch">
                   <input type="checkbox" id="disableWarningsSwitch" class="mdl-switch__input">
@@ -787,7 +788,7 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Performance statistics">Performance statistics</label>
-              <span class="mdl-list__item-text-body"></span>
+              <span class="mdl-list__item-text-body" data-i18n="When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.">When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.</span>
               <div id="performanceStatsMenu">
                 <label id="performanceStatsBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="performanceStatsSwitch">
                   <input type="checkbox" id="performanceStatsSwitch" class="mdl-switch__input">

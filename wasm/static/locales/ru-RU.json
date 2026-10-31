@@ -125,6 +125,7 @@
   "Connection terminated": "Connection terminated",
   "Connection to %1$s lost.": "Соединение с хостом %1$s потеряно.",
   "Connection warnings": "Предупреждения о подключении",
+  "When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.": "Если отключить этот параметр, предупреждения на экране больше не будут отображаться при ухудшении качества соединения с хостом.",
   "Continue": "Продолжить",
   "Could not automatically quit the host app.": "Could not automatically quit the host app.",
   "D-PAD DOWN": "D-PAD DOWN",
@@ -155,7 +156,7 @@
   "Enable Dolby Digital": "Enable Dolby Digital",
   "Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.": "Включите эту настройку, чтобы согласовывать с хостом звук Dolby Digital (DD) или Dolby Digital Plus (DD+) вместо формата по умолчанию. Это позволяет передавать объёмный звук 5.1 через оптический выход телевизора; при совместимом оборудовании также могут использоваться HDMI и другие подключения. Dolby Digital использует меньше пропускной способности, чем Opus, который обычно передают хосты, совместимые с GameStream. Если хост не предоставляет этот формат, Moonlight всегда вернётся к Opus.",
   "Enabling this option may result in video freezing on the first rendered frame, black screen, unstable performance, and other streaming issues.<br><br>": "Enabling this option may result in video freezing on the first rendered frame, black screen, unstable performance, and other streaming issues.<br><br>",
-  "Encoder mode:": "Режим кодировщика:",
+  "Decoding mode:": "Декодирование звука:",
   "Encrypted connection": "Зашифрованное соединение",
   "Enter IP, Hostname or [IP]:Port...": "Enter IP, Hostname or [IP]:Port...",
   "Error %1$s: %2$s": "Error %1$s: %2$s",
@@ -284,6 +285,7 @@
   "Partially encrypted connection; unencrypted: %1$s": "Соединение зашифровано частично; без шифрования: %1$s",
   "Performance overlay position": "Положение блока статистики",
   "Performance statistics": "Статистика производительности",
+  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "Если включить этот параметр, во время трансляции будет отображаться наложение со всей информацией о подключении, а также графиками задержки и качества сетевого соединения. Его также можно включить вручную во время любой трансляции через меню, которое открывается нажатием кнопки Play/Pause на пульте телевизора.",
   "Platform Version: Tizen %1$s": "Platform Version: Tizen %1$s",
   "Play audio on host": "Воспроизводить звук на хосте",
   "Please enter a valid host address!": "Введите корректный адрес хоста!",
@@ -500,5 +502,9 @@
   "Navigation sounds": "Звуки навигации",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Включает или отключает звуки навигации в интерфейсе Moonlight.",
   "Enable navigation sounds": "Включить звуки навигации",
-  "Apps in %1$s": "Приложения на %1$s"
+  "Apps in %1$s": "Приложения на %1$s",
+  "Closing %1$s...": "Закрытие %1$s...",
+  "Switching to streaming mode...": "Переключение в режим потоковой передачи…",
+  "Requesting stream from host...": "Запрос сеанса потоковой передачи у хоста…",
+  "Resuming %1$s...": "Возобновление %1$s…"
 }

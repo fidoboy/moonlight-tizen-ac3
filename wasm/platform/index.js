@@ -587,7 +587,7 @@ function changeUiModeForWasmLoad() {
 
   // Startup progress is shown in a snackbar, not a full-screen spinner.
   $('#wasmSpinner').hide();
-  $('#wasmSpinnerMessage, #loadingSpinnerMessage').empty();
+  $('#wasmSpinnerMessage, #loadingSpinnerTitle, #loadingSpinnerMessage').empty();
 }
 
 function hideNativeLaunchScreen() {
@@ -2453,12 +2453,12 @@ function hostDetailsDialog(host) {
     class: 'host-details-text',
     html: [
       t('Name: %1$s', escapeHTML(host.hostname)),
-      t('State: %1$s', escapeHTML(host.online) ? t('ONLINE') : t('OFFLINE')),
+      t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
       t('Active Address: %1$s', escapeHTML(host.address) && escapeHTML(host.externalPort) ? escapeHTML(host.address) + ':' + escapeHTML(host.externalPort) : t('NULL')),
       t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
       t('Local Address: %1$s', escapeHTML(host.localAddress) && escapeHTML(host.externalPort) ? escapeHTML(host.localAddress) + ':' + escapeHTML(host.externalPort) : t('NULL')),
       t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
-      t('Pair State: %1$s', escapeHTML(host.paired) ? t('PAIRED') : t('UNPAIRED')),
+      t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED')),
       t('Running Game ID: %1$s', escapeHTML(host.currentGame)),
       t('HTTP Port: %1$s', escapeHTML(host.httpPort) ? escapeHTML(host.httpPort) : t('NULL')),
       t('HTTPS Port: %1$s', escapeHTML(host.httpsPort) ? escapeHTML(host.httpsPort) : t('NULL'))
@@ -4454,7 +4454,9 @@ function startGame(host, appID) {
 
       // Show the transition first. Only after it is fully visible may the local UI
       // audio engine be closed; host launch/resume requests must wait for that shutdown.
-      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
+      var streamTitleMessage = host.currentGame == appID ? 'Resuming %1$s...' : 'Starting %1$s...';
+      $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
+      $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
       await showStreamMode();
       $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
       try {
@@ -4473,11 +4475,12 @@ function startGame(host, appID) {
         }
         return;
       }
-      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
+      $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
         // If the app is already running, we can just resume it
+        $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
         return host.resumeApp(
           streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate
           optimizeGames, // Optimize game settings (SOPS)
@@ -4537,6 +4540,7 @@ function startGame(host, appID) {
       }
 
       // If the user wants to launch the app, then we start launching it
+      $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
       host.launchApp(
         appID, // App ID
         streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate

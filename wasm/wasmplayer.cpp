@@ -876,18 +876,18 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
     if (g_Instance != nullptr && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      const char* encoderModeString = "Hardware";
+      const char* decodingModeString = "Hardware";
       if (hasDecodingMode) {
         if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
-          encoderModeString = "Automatic";
+          decodingModeString = "Automatic";
         } else if (g_Instance->m_DolbyDecodingMode == "Software") {
-          encoderModeString = "Software";
+          decodingModeString = "Software";
         }
       }
       ret = snprintf(
         &output[offset], length - offset,
-        "Encoder mode: %s\n",
-        encoderModeString
+        "Decoding mode: %s\n",
+        decodingModeString
       );
       if (ret < 0 || ret >= length - offset) {
         assert(false);

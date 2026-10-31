@@ -125,6 +125,7 @@
   "Connection terminated": "Connexion terminée",
   "Connection to %1$s lost.": "La connexion avec %1$s a été perdue.",
   "Connection warnings": "Avertissements de connexion",
+  "When disabled, no on-screen warning overlay will be shown if the connection quality with the host deteriorates.": "Si cette option est désactivée, aucun avertissement ne s’affichera à l’écran lorsque la qualité de la connexion avec l’hôte se dégrade.",
   "Continue": "Continuer",
   "Could not automatically quit the host app.": "Impossible de fermer automatiquement l’application de l’hôte.",
   "D-PAD DOWN": "D-PAD DOWN",
@@ -155,7 +156,7 @@
   "Enable Dolby Digital": "Activer Dolby Digital",
   "Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.": "Activez cette option pour négocier avec l’hôte le format Dolby Digital (DD) ou Dolby Digital Plus (DD+) plutôt que le format audio par défaut. Elle permet de transmettre le son surround 5.1 via la sortie optique du téléviseur, et peut également fonctionner en HDMI ou avec d’autres connexions compatibles. Le Dolby Digital utilise moins de bande passante que l’Opus habituellement envoyé par les hôtes compatibles avec GameStream. Si l’hôte ne fournit pas ce format, Moonlight revient toujours à Opus.",
   "Enabling this option may result in video freezing on the first rendered frame, black screen, unstable performance, and other streaming issues.<br><br>": "L’activation de cette option peut figer la vidéo sur la première image, provoquer un écran noir, des performances instables et d’autres problèmes de diffusion.<br><br>",
-  "Encoder mode:": "Mode de l’encodeur :",
+  "Decoding mode:": "Décodage audio :",
   "Encrypted connection": "Connexion chiffrée",
   "Enter IP, Hostname or [IP]:Port...": "Saisissez l’adresse IP, le nom d’hôte ou [IP]:Port…",
   "Error %1$s: %2$s": "Erreur %1$s : %2$s",
@@ -284,6 +285,7 @@
   "Partially encrypted connection; unencrypted: %1$s": "Connexion partiellement chiffrée ; éléments non chiffrés : %1$s",
   "Performance overlay position": "Position de la superposition des statistiques",
   "Performance statistics": "Statistiques de performances",
+  "When enabled, an overlay will be displayed during streaming with connection information and network latency and connection quality graphs. You can also enable it manually during any streaming session from the menu opened by pressing the Play/Pause button on the TV remote.": "Si cette option est activée, une superposition s’affichera pendant le streaming avec toutes les informations de connexion ainsi que des graphiques de latence et de qualité de la connexion réseau. Vous pouvez également l’activer manuellement pendant n’importe quelle session de streaming depuis le menu qui apparaît lorsque vous appuyez sur le bouton Lecture/Pause de la télécommande du téléviseur.",
   "Platform Version: Tizen %1$s": "Version de la plateforme : Tizen %1$s",
   "Play audio on host": "Lire le son sur l’hôte",
   "Please enter a valid host address!": "Saisissez une adresse d’hôte valide !",
@@ -500,5 +502,9 @@
   "Navigation sounds": "Sons de navigation",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Active ou désactive les sons de navigation dans l’interface de Moonlight.",
   "Enable navigation sounds": "Activer les sons de navigation",
-  "Apps in %1$s": "Applications sur %1$s"
+  "Apps in %1$s": "Applications sur %1$s",
+  "Closing %1$s...": "Fermeture de %1$s…",
+  "Switching to streaming mode...": "Passage en mode streaming…",
+  "Requesting stream from host...": "Demande de session streaming à l’hôte…",
+  "Resuming %1$s...": "Reprise de %1$s…"
 }

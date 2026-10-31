@@ -3,6 +3,19 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.0.9
+
+### Added
+
+### Changed
+- **Localization and interface descriptions:** Updated and corrected translations across all supported languages for greater consistency and a formal, user-appropriate tone. Added new explanatory descriptions to interface settings, including Connection warnings and Performance statistics.
+- **Streaming transition status messages:** Improved the information displayed during stream startup and shutdown, with a persistent title identifying whether an application is starting or resuming and clearer, contextual status messages below the progress bar.
+
+### Fixed
+- **Statistics overlay terminology:** Clarified the Dolby audio decoding label in the statistics overlay across all supported translations.
+- **Host details status:** Fixed the host details dialog always displaying hosts as online and paired, regardless of their actual `online` and `paired` boolean values.
+- **Gamepad navigation sounds:** Fixed an issue that could prevent navigation sounds from playing under certain conditions when navigating with a gamepad.
+
 ## v1.0.8 — Dolby audio and interface improvements
 
 ### Added
