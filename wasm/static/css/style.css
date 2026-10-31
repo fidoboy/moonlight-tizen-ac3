@@ -1655,7 +1655,7 @@ body {
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__container {
+.videoCodecMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
@@ -1725,7 +1725,7 @@ body {
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
 #ambientBackgroundMenu > #selectAmbientBackground, #configSummaryPositionMenu > #selectConfigSummaryPosition, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
-#dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
+#configSummaryPositionMenu > #selectConfigSummaryPosition, #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
     color: var(--theme-text-primary);
