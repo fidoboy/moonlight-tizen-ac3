@@ -503,5 +503,7 @@
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Active ou désactive les sons de navigation dans l’interface de Moonlight.",
   "Enable navigation sounds": "Activer les sons de navigation",
   "Apps in %1$s": "Applications sur %1$s",
-  "Closing %1$s...": "Fermeture de %1$s…"
+  "Closing %1$s...": "Fermeture de %1$s…",
+  "Switching to streaming mode...": "Passage en mode streaming…",
+  "Requesting stream from host...": "Demande de session streaming à l’hôte…"
 }
