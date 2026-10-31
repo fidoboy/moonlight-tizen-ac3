@@ -502,5 +502,6 @@
   "Navigation sounds": "Suoni di navigazione",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Attivi o disattivi i suoni di navigazione nell’interfaccia di Moonlight.",
   "Enable navigation sounds": "Attivi i suoni di navigazione",
-  "Apps in %1$s": "Applicazioni su %1$s"
+  "Apps in %1$s": "Applicazioni su %1$s",
+  "Closing %1$s...": "Chiusura di %1$s..."
 }
