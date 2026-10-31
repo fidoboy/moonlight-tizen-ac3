@@ -110,7 +110,11 @@ body {
     height: 100%;
     box-sizing: border-box;
 }
-#main-ui-layer { z-index: 10; opacity: 0; background: var(--theme-background); }
+#main-ui-layer {
+    z-index: 10;
+    opacity: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 100%), var(--theme-background);
+}
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
     display: none !important;
@@ -447,8 +451,7 @@ body {
    Navigation Menu
 ============================= */
 #settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn {
-    background-color: var(--theme-surface);
-    width: 50px;
+    background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
     border-radius: 8px;
@@ -897,8 +900,7 @@ body {
     color: var(--theme-text-primary);
     font-size: 1.45rem;
     line-height: 36px;
-    letter-spacing: 0.5px;
-    left: 8px;
+    letter-spacing: 0.5px;    left: 8px;
 }
 #autoWolCheckboxContainer .mdl-switch__track {
     left: 10px;
@@ -1347,8 +1349,7 @@ body {
 #performance-stats.performance-stats-position-bottom-right {
     bottom: 10px;
     right: 10px;
-    top: auto;
-    left: auto;
+    top: auto;    left: auto;
 }
 /* =============================
    Settings Section
@@ -1797,8 +1798,7 @@ body {
 /* A disabled switch's visible label is its parent, not the hidden input. */
 .mdl-switch.ui-disabled {
     opacity: 0.52 !important;
-    filter: grayscale(0.55);
-    cursor: not-allowed !important;
+    filter: grayscale(0.55);    cursor: not-allowed !important;
 }
 .mdl-switch.ui-disabled .mdl-switch__label,
 .mdl-switch.ui-disabled .mdl-switch__track,
