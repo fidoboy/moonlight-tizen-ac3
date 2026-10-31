@@ -12,7 +12,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Streaming transition status messages:** Improved the information displayed during stream startup and shutdown, with a persistent title identifying whether an application is starting or resuming and clearer, contextual status messages below the progress bar.
 
 ### Fixed
-- **Statistics overlay terminology:** Corrected the Dolby audio setting label from encoder mode to decoding mode, including all supported translations.
+- **Statistics overlay terminology:** Clarified the Dolby audio decoding label in the statistics overlay across all supported translations.
 - **Host details status:** Fixed the host details dialog always displaying hosts as online and paired, regardless of their actual `online` and `paired` boolean values.
 - **Gamepad navigation sounds:** Fixed an issue that could prevent navigation sounds from playing under certain conditions when navigating with a gamepad.
 
@@ -90,7 +90,8 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Added
 - **Host removal confirmation:** Added a confirmation warning before removing a host to help prevent accidental deletions.
 - **Configurable configuration summary:** Added a persistent Interface Settings option to show or hide the configuration summary bar on the Hosts and Apps screens.
-- **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.- **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
+- **Live connection statistics:** Added connection-quality and host-latency graphs to the performance statistics overlay, along with a setting to customize its position on screen.
+- **Enhanced native launch screen:** Added an animated starfield with perspective trails and progressive deceleration, the Dolby Double-D logo, and synchronized audio to the native startup animation.
 - **Portrait launch screen support:** Added orientation-specific launch-screen assets for landscape and portrait layouts.
 
 ### Changed
@@ -98,6 +99,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Configuration summary presentation:** Added dedicated icons for resolution, frame rate, bitrate, optimal bitrate, HDR, video codec, audio and gamepad information. Improved spacing, alignment, and resolution labels.
 - **Performance statistics overlay:** Improved readability and layout, increased background opacity, refined graph spacing and scaling, and added more padding around the overlay content.
 - **Streaming controls:** Improved media-key handling and the behavior of the Stream Menu when streaming is launched directly from a Smart Hub game or application shortcut.
+
 ### Fixed
 - **Stream Menu on direct launches:** Fixed an issue that prevented Play/Pause or Back/Return from opening the Stream Menu during streams started through the direct PAYLOAD launch path.
 - **Premature Stream Menu access:** Prevented the Stream Menu from opening while the connection status message is still displayed and before video is available.
@@ -168,7 +170,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 ### Base client v1.18.0
 
 ### Added
-- Added automatic selection of the last opened host and app when navigating between views- Introduced a new 'Decrypt host audio' setting intended for Wolf and Punktfunk-style hosts
+- Added automatic selection of the last opened host and app when navigating between views
+- Introduced a new 'Decrypt host audio' setting intended for Wolf and Punktfunk-style hosts
 - Added a 'Disabled' option to the 'Audio backend' setting to disable audio output from the TV
 
 ### Changed
@@ -197,7 +200,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Base client v1.17.1
 
-### Added- Reintroduced i18n workflow to synchronize locale files from the source of truth
+### Added
+- Reintroduced i18n workflow to synchronize locale files from the source of truth
 
 ### Changed
 - Extended the Game Mode restrictions to newer platform versions (Tizen 9.0+)
@@ -246,6 +250,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Fixed toast messages being translated twice and translated strings appearing in browser console
 
 ### Base client v1.16.0
+
 ### Added
 - Introduced a new 'Audio backend' setting for switching between EMSS and Web Audio
 - Added Web Audio as an alternative audio backend alongside the existing EMSS implementation
@@ -296,7 +301,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Introduced a new 'Language' setting to manually change the application language
 - Added support for automatic language detection based on the TV system language
 - Added translations for the application interface and backend-generated messages
-- Added the ability to change the application language without restarting the app- Added Portuguese Brazilian (pt-BR) language support to the language selector
+- Added the ability to change the application language without restarting the app
+- Added Portuguese Brazilian (pt-BR) language support to the language selector
 - Preserved English (en-US) as the base and fallback language for untranslated strings
 
 ### Changed
@@ -325,6 +331,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Optimized dependency downloads to significantly reduce Docker image build times
+
 ### Fixed
 - Fixed an issue where automatic host discovery could occasionally restore outdated IP addresses
 - Fixed a race condition where the first app was selected before the app list had fully loaded
@@ -395,6 +402,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Fixed navigation index out of bounds upon host deletion
 - Fixed navigation input being active during loading screens
 - Fixed a bug in the pairing process that was causing random pairing failures
+
 ### Base client v1.10.3
 
 ### Added
@@ -402,7 +410,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Refactored Dockerfile to remove unused dependencies and steps
-- Replaced the snackbar with a proper dialog in DialogMsg and ignored .DS_Store- Optimized Dockerfile to cache backend build layers during frontend changes
+- Replaced the snackbar with a proper dialog in DialogMsg and ignored .DS_Store
+- Optimized Dockerfile to cache backend build layers during frontend changes
 - Improved issue templates and included 'Discussions' link for quick interaction
 
 ### Base client v1.10.2
@@ -482,6 +491,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Expanded initial decode buffer size from 128 KB to 1 MB to improve playback stability
 - Reduced the level profiles of all video formats to ensure better device compatibility
 - Refined on-screen overlays for better alignment to screen edges and improved readability
+
 ### Fixed
 - Fixed an issue where server polling continued in the background during an active stream session
 
@@ -495,6 +505,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added accurate tracking, calculation, and measurement logic for video performance statistics
 - Handled performance stats updates and displayed metrics derived from stream performance
 - Implemented shortcut functionality to toggle performance stats via remote control, keyboard, and gamepad
+
 ### Base client v1.7.1
 
 ### Added
@@ -559,6 +570,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Fixed
 - Minor bug fixes, code refactoring and general improvements
+
 ### Base client v1.5.0
 
 ### Added
@@ -593,7 +605,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added a new 'Audio Settings' category which will contain audio settings
 - Added 'HDR mode' parameter to launch and resume requests to auto-toggle HDR on host PC
 
-### Changed- Reorganized settings by moving options across different categories for better grouping
+### Changed
+- Reorganized settings by moving options across different categories for better grouping
 - Improved handling of video codec selection and HDR mode state for better value determination
 - Enhanced server codec mode support for proper value handling based on the selected video format
 
@@ -638,6 +651,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Fixed an issue where the bitrate slider was ignoring decimal values due to incorrect parsing
 
 ### Base client v1.2.19
+
 ### Added
 - Added more system details and improved structure in the 'System Info' placeholder
 
@@ -692,7 +706,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added a scrolling text animation for host and game titles when focusing on the card
 
 ### Changed
-- Improved the structure of the host and game containers by refining all their elements- Enhanced styling and visibility in the 'Hosts' and 'Apps' views for rows, cards, and titles
+- Improved the structure of the host and game containers by refining all their elements
+- Enhanced styling and visibility in the 'Hosts' and 'Apps' views for rows, cards, and titles
 - Improved navigation in the 'Hosts' and 'Apps' views while reducing repetitive code
 
 ### Fixed
@@ -715,7 +730,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added the application logo with animation to the splash screen
 
 ### Changed
-- Increased the spinner size with rounded corners and enhanced text visibility- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
+- Increased the spinner size with rounded corners and enhanced text visibility
+- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
 - Moved the 'icons' folder to the 'static' directory for better organization of assets
 - Replaced the function to stop the streaming session with the correct one for keyboard input
 
@@ -792,8 +808,10 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added a new 'Input Settings' category which will be used to hold input settings
 - Introduced a new 'Rumble feedback' setting that allows changing the state of the rumble feature for the gamepad
 - Introduced a new 'Mouse emulation' setting that allows changing the state of the mouse feature for the gamepad
+
 ### Fixed
 - Minor bug fixes, improved visual styling and general improvements
+
 ### Dependencies
 - Updated 'material-icons' library to the latest version
 
@@ -872,7 +890,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 ### Base client v1.2.0
 
 ### Added
-- Introduced 'AV1' as a new video codec option in the 'Video codec' settings- Implemented logic to handle server codec mode support checks
+- Introduced 'AV1' as a new video codec option in the 'Video codec' settings
+- Implemented logic to handle server codec mode support checks
 - Added the High Level 5.1 profiles for AV1 and AV1 Main10 codecs
 
 ### Fixed
@@ -890,6 +909,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Refactored code for improved structure and readability
 
 ### Base client v1.1.19
+
 ### Added
 - Added a new 'Tizen' privilege: 'Fullscreen' which allows the application to use the full screen view
 - Disabled the 'Continue' button to prevent multiple connection requests when adding a host
@@ -950,7 +970,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Added a new 'Drop Down' icon for multi-select buttons
 
 ### Changed
-- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility- Changed the color of the 'Power Off' icon to white as the default
+- Adjusted the size of the 'Add Host' and 'Host Container' icons for better visibility
+- Changed the color of the 'Power Off' icon to white as the default
 - Enhanced the visual stylization application-wide
 
 ### Base client v1.1.13
@@ -989,6 +1010,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Minor bug fixes and general improvements
 
 ### Base client v1.1.10
+
 ### Added
 - Added bitrate presets for '120 FPS' frame rate option
 - Added workflow for automated Docker image publishing
@@ -1028,6 +1050,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Implemented all navigation views for full interaction within the 'Settings' container
 - Implemented navigation to go to the previous or next category in 'Settings' view
 - Implemented functionality to handle category clicks and show the settings options in the right pane
+
 ### Base client v1.1.6
 
 ### Added
@@ -1088,7 +1111,8 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 - Updated directory paths for certain core files
 
 ### Removed
-- Removed all unnecessary core files of the 'ChromeOS' version- Removed all unnecessary code components of the 'ChromeOS' version
+- Removed all unnecessary core files of the 'ChromeOS' version
+- Removed all unnecessary code components of the 'ChromeOS' version
 
 ### Fixed
 - Fixed spelling errors in the code
@@ -1107,6 +1131,7 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Changed
 - Updated stream configurations to align with the latest versions of modules
+
 ### Dependencies
 - Updated 'moonlight-common-c' module from `50c0a51` to `3ed3ba6`
 - Updated 'opus' module from v1.4 `82ac57d` to v1.4 `c854997`
@@ -1186,4 +1211,155 @@ The entries below document the historical [Brightcraft](https://github.com/brigh
 
 ### Fixed
 - Fixed spelling errors in the code
+
 ### Base client v1.0.14
+
+### Added
+- Expanded settings: Introduced '90 FPS' and '120 FPS' frame rate options
+
+### Changed
+- Increased the maximum bitrate slider for the bitrate menu from '100 Mbps' to '150 Mbps'
+- Updated server codec and video format
+
+### Fixed
+- Fixed focus navigation issue for settings items
+- Fixed bitrate presets for '90 FPS' and '120 FPS' frame rate options
+- Fixed the order of combination keys for both keyboard and gamepad buttons to stop streaming sessions
+
+### Base client v1.0.13
+
+### Changed
+- Updated all core implementation files for 'Tizen'
+
+### Dependencies
+- Updated 'opus' module from v1.1.3 `f6f8487` to v1.4 `82ac57d`
+
+### Base client v1.0.12
+
+### Added
+- Introduced a new 'Rumble Feedback' feature for gamepad input
+
+### Changed
+- Updated video codecs to a newer version
+- Updated all core implementation files for 'ChromeOS'
+
+### Removed
+- Removed the 'SLOW_AUDIO_DECODER' condition to resolve a garbled audio playback issue occurring at the beginning of the stream
+
+### Base client v1.0.11
+
+### Added
+- Introduced a new 'Support' button and a new 'Support' dialog
+- Added the QR code to 'Support' dialog which redirects to a guide
+- Implemented functionality for handling the 'Support' dialog
+
+### Changed
+- Minor enhancements in visual stylization application-wide
+
+### Base client v1.0.10
+
+### Added
+- Introduced a new button: 'Remove All Hosts' in the navigation bar
+- Implemented functionality for handling the 'Remove All Hosts' with confirmation
+
+### Fixed
+- Fixed control navigation issues in multiple views
+- Refactored code for improved structure and readability
+
+### Base client v1.0.9
+
+### Added
+- Introduced a new 'Pointing Device' feature for mouse input
+- Added tooltip for 'Back' icon button
+- Enhancement the UI: Added 'Overlay' for all dialogs
+
+### Changed
+- Enhanced overall visual stylization application-wide
+
+### Base client v1.0.8
+
+### Added
+- Disabled text selection highlighting application-wide
+
+### Changed
+- Reverted a change and added comments for improved code clarity
+- Optimized control navigation application-wide
+
+### Fixed
+- Refactored code for improved structure and readability
+
+### Base client v1.0.7
+
+### Added
+- Enhanced card hover styles for better appearance
+
+### Changed
+- Aligned 'Add Host' and 'Hosts PC' text to the center
+- Increased the font size application-wide for better readability
+- Changed the text content in the 'Pairing' dialog for better clarity
+- Improved the readability of dialog texts and snack bar logs
+
+### Base client v1.0.6
+
+### Added
+- Enhanced button focus styles for better appearance
+
+### Changed
+- Adjusted the width of dialogs application-wide
+- Adjusted padding for title and content text in dialogs
+- Increased the width of the input field in the 'Add Host' dialog
+- Adjusted dialog buttons to increase their size
+
+### Base client v1.0.5
+
+### Added
+- Introduced a new 'Exit Moonlight' dialog
+- Implemented dynamic handling for 'Exit Moonlight' dialog
+- Show 'Exit Moonlight' dialog via 'Back' button on 'Hosts' view
+
+### Base client v1.0.4
+
+### Added
+- Added comments to improve code clarity and understanding
+
+### Changed
+- Updated '480p' resolution setting
+- Updated default bitrate setting from '10 Mbps' to '20 Mbps'
+- Reordered 'STOP_STREAM_BUTTONS_FLAGS' buttons
+
+### Base client v1.0.3
+
+### Added
+- Expanded settings: Introduced '480p' resolution option
+- Added bitrate presets for '480p' resolution option
+
+### Changed
+- Changed default bitrate presets and resolution settings from '720p' to '1080p'
+
+### Base client v1.0.2
+
+### Changed
+- Updated the 'Frame Pacing' icon for better appearance in the Settings menu
+- Enhanced dialog and error messages application-wide
+
+### Removed
+- Removed extra white spaces and code formatting
+
+### Fixed
+- Fixed spelling errors in the code
+
+### Base client v1.0.1
+
+### Changed
+- Dockerfile has been updated for the build process
+- Updated widget name and description
+- Improved app logo icons for enhanced appearance in the Smart Hub
+
+### Base client v1.0.0
+
+### Added
+- Expanded settings: Introduced '1440p' resolution option
+- Added bitrate presets for '1440p' resolution option
+- Added a new 'Tizen' privilege: 'TV Audio' which allows to change the volume in the application
+- Expanded TV key functionality to allow changing the volume from the remote control
+- Implemented 'STOP_STREAM_BUTTONS_FLAGS' condition to specify a combination of buttons on the gamepad for stopping streaming sessions
