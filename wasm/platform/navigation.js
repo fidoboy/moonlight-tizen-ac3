@@ -1397,7 +1397,7 @@ const Views = {
       'selectLanguage',
       'themeSelector',
       'selectAmbientBackground',
-      'showConfigSummaryBtn',
+      'selectConfigSummaryPosition',
       'navigationSoundBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
@@ -1439,6 +1439,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  ConfigSummaryPositionMenu: {
+    isActive: () => isPopupMenuActive('configSummaryPositionMenu'),
+    view: new ListView(() => document.querySelectorAll('.configSummaryPositionMenu .mdl-menu__item')),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectConfigSummaryPosition'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectConfigSummaryPosition');
+      closeActiveVisibleMenu();
+      focusElement('selectConfigSummaryPosition');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectConfigSummaryPosition');
     },
     leave: function() {
       unmark(this.view.current());
