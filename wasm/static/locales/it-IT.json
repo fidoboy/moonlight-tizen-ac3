@@ -505,5 +505,6 @@
   "Apps in %1$s": "Applicazioni su %1$s",
   "Closing %1$s...": "Chiusura di %1$s...",
   "Switching to streaming mode...": "Passaggio alla modalità streaming...",
-  "Requesting stream from host...": "Richiesta della sessione di streaming all'host..."
+  "Requesting stream from host...": "Richiesta della sessione di streaming all'host...",
+  "Resuming %1$s...": "Ripresa di %1$s..."
 }
