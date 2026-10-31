@@ -4454,7 +4454,8 @@ function startGame(host, appID) {
 
       // Show the transition first. Only after it is fully visible may the local UI
       // audio engine be closed; host launch/resume requests must wait for that shutdown.
-      $('#loadingSpinnerTitle').text(t('Starting %1$s...', appToStart.title));
+      var streamTitleMessage = host.currentGame == appID ? 'Resuming %1$s...' : 'Starting %1$s...';
+      $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
       $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
       await showStreamMode();
       $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
@@ -4474,7 +4475,7 @@ function startGame(host, appID) {
         }
         return;
       }
-      $('#loadingSpinnerTitle').text(t('Starting %1$s...', appToStart.title));
+      $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
