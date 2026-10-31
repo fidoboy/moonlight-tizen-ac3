@@ -113,7 +113,7 @@ body {
 #main-ui-layer {
     z-index: 10;
     opacity: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 100%), var(--theme-background);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.28) 12%, rgba(0, 0, 0, 0.12) 30%, rgba(0, 0, 0, 0) 55%), var(--theme-background);
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
