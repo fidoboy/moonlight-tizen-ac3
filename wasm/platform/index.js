@@ -505,6 +505,7 @@ function attachListeners() {
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
+  registerMenu('selectConfigSummaryPosition', Views.ConfigSummaryPositionMenu);
 
   $(window).resize(fullscreenWasmModule);
 
