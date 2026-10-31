@@ -1845,6 +1845,12 @@ body {
     scrollbar-width: thin;
     flex: 0 0 auto;
 }
+
+/* The bottom summary overlays the background with a stronger translucent backing. */
+#configSummaryBar.config-summary-bottom {
+    background: rgba(0, 0, 0, 0.7);
+}
+
 .config-summary-item {
     display: inline-flex;
     flex: 0 0 auto;
