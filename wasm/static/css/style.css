@@ -1589,14 +1589,14 @@ body {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #ipAddressFieldModeBtn, #showConfigSummaryBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn,
 #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
@@ -1660,7 +1660,7 @@ body {
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .performanceStatsPositionMenu, .mdl-menu__outline {
+.videoCodecMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
@@ -1724,7 +1724,7 @@ body {
 }
 #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
-#ambientBackgroundMenu > #selectAmbientBackground, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
+#ambientBackgroundMenu > #selectAmbientBackground, #configSummaryPositionMenu > #selectConfigSummaryPosition, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
 #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
@@ -1764,8 +1764,8 @@ body {
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
-#showConfigSummaryBtn:hover, #showConfigSummaryBtn:focus, #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
+#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
 #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
