@@ -156,7 +156,7 @@
   "Enable Dolby Digital": "Dolby Digital aktivieren",
   "Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.": "Aktivieren Sie diese Option, um mit dem Host Dolby Digital (DD) oder Dolby Digital Plus (DD+) anstelle des Standardformats auszuhandeln. Damit kann 5.1-Surround-Sound über den optischen TV-Ausgang übertragen werden; bei kompatibler Ausstattung ist dies auch über HDMI oder andere Verbindungen möglich. Dolby Digital benötigt weniger Bandbreite als Opus, das GameStream-kompatible Hosts standardmäßig senden. Wenn der Host das Format nicht anbietet, verwendet Moonlight weiterhin Opus.",
   "Enabling this option may result in video freezing on the first rendered frame, black screen, unstable performance, and other streaming issues.<br><br>": "Diese Option kann dazu führen, dass das Video beim ersten gerenderten Frame einfriert, ein schwarzer Bildschirm erscheint oder die Leistung instabil wird.<br><br>",
-  "Encoder mode:": "Encoder-Modus:",
+  "Decoding mode:": "Decodierungsmodus:",
   "Encrypted connection": "Verschlüsselte Verbindung",
   "Enter IP, Hostname or [IP]:Port...": "IP-Adresse, Hostname oder [IP]:Port eingeben …",
   "Error %1$s: %2$s": "Fehler %1$s: %2$s",
