@@ -503,5 +503,7 @@
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Enable or disable navigation sounds in the Moonlight interface.",
   "Enable navigation sounds": "Enable navigation sounds",
   "Apps in %1$s": "Apps in %1$s",
-  "Closing %1$s...": "Closing %1$s..."
+  "Closing %1$s...": "Closing %1$s...",
+  "Switching to streaming mode...": "Switching to streaming mode...",
+  "Requesting stream from host...": "Requesting stream from host..."
 }
