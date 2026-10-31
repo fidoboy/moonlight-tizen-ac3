@@ -99,8 +99,8 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
-    .replace(/Encoder mode: (Automatic|Hardware|Software)/g, function(match, mode) {
-      return t('Encoder mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
+    .replace(/Decoding mode: (Automatic|Hardware|Software)/g, function(match, mode) {
+      return t('Decoding mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
     })
     .replace(/Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order/g, function(match, recovered, failed, outOfOrder) {
       return t('Audio FEC:') + ' ' + recovered + ' ' + t(Number(recovered) === 1 ? 'FEC recovered (singular)' : 'FEC recovered') +
