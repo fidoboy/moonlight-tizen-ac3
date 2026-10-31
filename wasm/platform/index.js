@@ -447,7 +447,7 @@ function attachListeners() {
   $('#bitrateSlider').on('input', saveBitrate);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
-  $('#showConfigSummarySwitch').on('click', saveConfigSummaryVisibility);
+  $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -774,13 +774,7 @@ function maybeReleaseNativeLaunchScreen() {
   // strip before laying it out and starting the splash-release sequence.
   getData('showConfigSummaryBar', function(previousValue) {
     var storedValue = previousValue && previousValue.showConfigSummaryBar;
-    var enabled = storedValue == null || storedValue === true ||
-      storedValue === 'true' || storedValue === 1;
-    var summarySwitch = document.querySelector('#showConfigSummaryBtn');
-    if (summarySwitch && summarySwitch.MaterialSwitch) {
-      if (enabled) summarySwitch.MaterialSwitch.on();
-      else summarySwitch.MaterialSwitch.off();
-    }
+    applyConfigSummaryPosition(storedValue == null ? 'top' : storedValue);
     configSummaryPreferenceLoaded = true;
     // Load the selected palette before releasing the native splash so the original
     // colors are never briefly shown when a non-default theme was saved.
@@ -5306,14 +5300,37 @@ function saveNavigationSoundPreference() {
   }, 100);
 }
 
-function saveConfigSummaryVisibility() {
-  setTimeout(() => {
-    const enabled = $('#showConfigSummarySwitch').parent().hasClass('is-checked');
-    console.log('%c[index.js, saveConfigSummaryVisibility]', 'color: green;', 'Saving configuration summary bar visibility: ' + enabled);
-    storeData('showConfigSummaryBar', enabled, null);
-    configSummaryPreferenceLoaded = true;
-    updateConfigSummaryBar();
-  }, 100);
+function normalizeConfigSummaryPosition(value) {
+  if (value === 'top' || value === 'bottom' || value === 'hidden') return value;
+  // Migrate the boolean preference used by previous versions.
+  if (value === false || value === 'false' || value === 0) return 'hidden';
+  return 'top';
+}
+
+function applyConfigSummaryPosition(value) {
+  var position = normalizeConfigSummaryPosition(value);
+  var button = document.getElementById('selectConfigSummaryPosition');
+  if (button) {
+    var option = document.querySelector('.configSummaryPositionMenu li[data-value="' + position + '"]');
+    if (option) button.textContent = option.textContent;
+    button.setAttribute('data-value', position);
+    $(button).data('value', position);
+  }
+  return position;
+}
+
+function saveConfigSummaryPosition() {
+  var position = normalizeConfigSummaryPosition($(this).data('value'));
+  var button = document.getElementById('selectConfigSummaryPosition');
+  if (button) {
+    button.textContent = this.textContent;
+    button.setAttribute('data-value', position);
+    $(button).data('value', position);
+  }
+  console.log('%c[index.js, saveConfigSummaryPosition]', 'color: green;', 'Saving configuration summary bar position: ' + position);
+  storeData('showConfigSummaryBar', position, null);
+  configSummaryPreferenceLoaded = true;
+  updateConfigSummaryBar();
 }
 
 // Ambient interface background presets are keyed by stable values so additional
@@ -6199,8 +6216,8 @@ function restoreDefaultsSettingsValues() {
     });
   }
 
-  const defaultShowConfigSummaryBar = true;
-  document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
+  const defaultShowConfigSummaryBar = 'top';
+  applyConfigSummaryPosition(defaultShowConfigSummaryBar);
   storeData('showConfigSummaryBar', defaultShowConfigSummaryBar, null);
   configSummaryPreferenceLoaded = true;
   updateConfigSummaryBar();
@@ -6536,16 +6553,10 @@ function loadUserDataCb() {
     }
   });
 
-  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar visibility preference.');
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar position preference.');
   getData('showConfigSummaryBar', function(previousValue) {
-    const storedValue = previousValue.showConfigSummaryBar;
-    const enabled = storedValue == null || storedValue === true ||
-      storedValue === 'true' || storedValue === 1;
-    if (enabled) {
-      document.querySelector('#showConfigSummaryBtn').MaterialSwitch.on();
-    } else {
-      document.querySelector('#showConfigSummaryBtn').MaterialSwitch.off();
-    }
+    const storedValue = previousValue && previousValue.showConfigSummaryBar;
+    applyConfigSummaryPosition(storedValue == null ? 'top' : storedValue);
     configSummaryPreferenceLoaded = true;
     if (!_directSmartHubLaunch) {
       updateConfigSummaryBar();
@@ -7450,18 +7461,31 @@ function createConfigSummaryBar() {
 }
 
 function updateConfigSummaryBar() {
-  var visibilitySwitch = document.getElementById('showConfigSummarySwitch');
-  var summaryEnabled = configSummaryPreferenceLoaded && !!visibilitySwitch && visibilitySwitch.checked;
+  var positionButton = document.getElementById('selectConfigSummaryPosition');
+  var summaryPosition = configSummaryPreferenceLoaded && positionButton
+    ? normalizeConfigSummaryPosition(positionButton.getAttribute('data-value')) : 'hidden';
   var bar = document.getElementById('configSummaryBar');
 
-  // An opt-out removes the element entirely, rather than keeping a hidden DOM subtree.
-  if (!summaryEnabled) {
+  // Hidden removes the element entirely instead of retaining an invisible DOM subtree.
+  if (summaryPosition === 'hidden') {
     if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
     return;
   }
 
   if (!bar) bar = createConfigSummaryBar();
   if (!bar) return;
+
+  // Keep the strip in normal layout flow, above or below the main content.
+  var mainContent = document.getElementById('main-content');
+  if (mainContent && mainContent.parentNode) {
+    if (summaryPosition === 'bottom') {
+      if (bar.parentNode !== mainContent.parentNode || bar.previousSibling !== mainContent) {
+        mainContent.parentNode.insertBefore(bar, mainContent.nextSibling);
+      }
+    } else if (bar.parentNode !== mainContent.parentNode || bar.nextSibling !== mainContent) {
+      mainContent.parentNode.insertBefore(bar, mainContent);
+    }
+  }
 
   // Keep the element in the DOM, but suppress it during UI transitions that must not show the summary bar.
   if (configSummaryTemporarilyHidden) {
