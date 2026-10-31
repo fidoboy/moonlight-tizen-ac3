@@ -587,7 +587,7 @@ function changeUiModeForWasmLoad() {
 
   // Startup progress is shown in a snackbar, not a full-screen spinner.
   $('#wasmSpinner').hide();
-  $('#wasmSpinnerMessage, #loadingSpinnerMessage').empty();
+  $('#wasmSpinnerMessage, #loadingSpinnerTitle, #loadingSpinnerMessage').empty();
 }
 
 function hideNativeLaunchScreen() {
@@ -4454,7 +4454,7 @@ function startGame(host, appID) {
 
       // Show the transition first. Only after it is fully visible may the local UI
       // audio engine be closed; host launch/resume requests must wait for that shutdown.
-      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
+      $('#loadingSpinnerTitle').text(t('Starting %1$s...', appToStart.title));
       await showStreamMode();
       $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
       try {
@@ -4473,7 +4473,7 @@ function startGame(host, appID) {
         }
         return;
       }
-      $('#loadingSpinnerMessage').text(t('Starting %1$s...', appToStart.title));
+      $('#loadingSpinnerTitle').text(t('Starting %1$s...', appToStart.title));
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
