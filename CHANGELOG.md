@@ -8,6 +8,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Added
 
 ### Changed
+- **Localization and interface descriptions:** Updated and corrected translations across all supported languages for greater consistency and a formal, user-appropriate tone. Added new explanatory descriptions to interface settings, including Connection warnings and Performance statistics.
 
 ### Fixed
 - **Host details status:** Fixed the host details dialog always displaying hosts as online and paired, regardless of their actual `online` and `paired` boolean values.
