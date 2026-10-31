@@ -502,5 +502,6 @@
   "Navigation sounds": "Звуки навигации",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Включает или отключает звуки навигации в интерфейсе Moonlight.",
   "Enable navigation sounds": "Включить звуки навигации",
-  "Apps in %1$s": "Приложения на %1$s"
+  "Apps in %1$s": "Приложения на %1$s",
+  "Closing %1$s...": "Закрытие %1$s..."
 }
