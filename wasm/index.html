@@ -391,17 +391,17 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Configuration summary bar">Configuration summary bar</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Shows the current streaming configuration below the title on the Hosts and Apps screens.">
-                - Shows the current streaming configuration below the title on the Hosts and Apps screens.
+              <span class="mdl-list__item-text-body" data-i18n="- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.">
+                - Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.
               </span>
-              <div id="configSummaryVisibilityMenu">
-                <label id="showConfigSummaryBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="showConfigSummarySwitch">
-                  <input type="checkbox" id="showConfigSummarySwitch" class="mdl-switch__input" checked>
-                  <span class="mdl-switch__label" data-i18n="Show the configuration summary bar">
-                    Show the configuration summary bar
-                  </span>
-                </label>
+              <div id="configSummaryPositionMenu">
+                <button type="button" id="selectConfigSummaryPosition" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="top">Top</button>
               </div>
+              <ul class="configSummaryPositionMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectConfigSummaryPosition">
+                <li class="mdl-menu__item" data-value="top" data-i18n="Top">Top</li>
+                <li class="mdl-menu__item" data-value="bottom" data-i18n="Bottom">Bottom</li>
+                <li class="mdl-menu__item" data-value="hidden" data-i18n="Hidden">Hidden</li>
+              </ul>
             </div>
             <div class="setting-option">
               <label data-i18n="Navigation sounds">Navigation sounds</label>
