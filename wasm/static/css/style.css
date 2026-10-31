@@ -2166,7 +2166,7 @@ body {
         opacity: var(--gamepad-opacity);
     }
     to {
-        transform: translate3d(0, -20vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
+        transform: translate3d(0, -30vh, 0) rotate(calc(var(--gamepad-rotation) + var(--gamepad-rotation-direction)));
         opacity: 0;
     }
 }
