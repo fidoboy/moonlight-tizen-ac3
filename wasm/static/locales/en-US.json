@@ -505,5 +505,6 @@
   "Apps in %1$s": "Apps in %1$s",
   "Closing %1$s...": "Closing %1$s...",
   "Switching to streaming mode...": "Switching to streaming mode...",
-  "Requesting stream from host...": "Requesting stream from host..."
+  "Requesting stream from host...": "Requesting stream from host...",
+  "Resuming %1$s...": "Resuming %1$s..."
 }
