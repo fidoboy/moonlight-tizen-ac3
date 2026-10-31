@@ -7476,6 +7476,8 @@ function updateConfigSummaryBar() {
   if (!bar) bar = createConfigSummaryBar();
   if (!bar) return;
 
+  bar.classList.toggle('config-summary-bottom', summaryPosition === 'bottom');
+
   // Keep the strip in normal layout flow, above or below the main content.
   var mainContent = document.getElementById('main-content');
   if (mainContent && mainContent.parentNode) {
