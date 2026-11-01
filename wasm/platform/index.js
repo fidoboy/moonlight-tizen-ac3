@@ -1055,7 +1055,7 @@ function beginBackgroundPollingOfHost(host) {
   activePolls[host.serverUid] = null;
 
   // Refresh server info before attempting to start background polling of the host
-  return host.refreshServerInfo().then(function(ret) {
+  return withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
     console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
     
     // The fast-path ping succeeded! Mark the host online instantly to prevent the UI from
@@ -3982,7 +3982,7 @@ function quitAppDialog() {
     snackbarLog('No app is currently running.');
     return;
   } else {
-    api.getAppById(api.currentGame).then(function(currentGame) {
+    withOperationTimeout(api.getAppById(api.currentGame), 10000, 'Running application lookup for quit confirmation').then(function(currentGame) {
       // Find the existing overlay and dialog elements
       var quitAppOverlay = document.querySelector('#quitAppDialogOverlay');
       var quitAppDialog = document.querySelector('#quitAppDialog');
@@ -4559,7 +4559,7 @@ function startGame(host, appID) {
       title: _directSmartHubLaunch.appName || String(appID)
     }) : host.getAppById(appID)), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
-        host.getAppById(host.currentGame).then(function(currentApp) {
+        withOperationTimeout(host.getAppById(host.currentGame), STREAM_OPERATION_TIMEOUTS.appLookup, 'Currently running application lookup').then(function(currentApp) {
           // Find the existing overlay and dialog elements
           var quitAppOverlay = document.querySelector('#quitAppDialogOverlay');
           var quitAppDialog = document.querySelector('#quitAppDialog');
