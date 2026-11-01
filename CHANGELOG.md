@@ -3,6 +3,20 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.1.0
+
+### Added
+- **Configuration summary position:** Added an Interface Settings menu to place the configuration summary bar at the top or bottom of the Hosts and Apps screens, or hide it entirely. The new menu supports navigation and selection with the TV remote control.
+
+### Changed
+- **Main interface background:** Replaced the flat main-interface background with a vertical gradient that darkens towards the bottom while preserving the selected color theme.
+- **Bottom configuration summary:** Increased the bar's background opacity to approximately 70% when displayed at the bottom of the screen, improving readability while keeping its contents fully opaque.
+- **Default interface settings:** Enabled Video frame pacing and Host address field mode by default.
+
+### Fixed
+- **Docker build directory ownership:** Ensured the Moonlight project directory is created with the correct build-user ownership, allowing the build process to access Git metadata and inject the commit SHA reliably.
+
+
 ## v1.0.9
 
 ### Added
