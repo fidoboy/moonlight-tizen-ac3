@@ -806,32 +806,39 @@ function startDeferredNormalStartup() {
     restoreUiAfterWasmLoad();
   }
 
+  var runStartupWork = function() {
+    if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
+      window.componentHandler.upgradeDom();
+    }
+    // Restore the cached update badge only after the normal UI is visible and the
+    // native splash is gone. Keep it aligned with the start of host recovery.
+    restoreUpdateBadgeFromCache();
+    loadUserData();
+
+    if (typeof window.startNormalStartupWasm === 'function') {
+      window.startNormalStartupWasm();
+    } else {
+      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+    }
+
+    probeSmartHubSupport().then(function() {
+      handleDeepLink();
+      window.addEventListener('appcontrol', handleDeepLink);
+    });
+  };
+
   var startStartupWork = function() {
     // The UI has now had a full rendering grace period. Only now may startup
     // messages and initialization begin.
-    if (!isStartupHostsLoaded) showStartupHostsSnackbar();
-
-    // Give the snackbar/UI another rendering opportunity before CPU-heavy work.
-    window.setTimeout(function() {
-      if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
-        window.componentHandler.upgradeDom();
-      }
-      // Restore the cached update badge only after the normal UI is visible and the
-      // native splash is gone. Keep it aligned with the start of host recovery.
-      restoreUpdateBadgeFromCache();
-      loadUserData();
-
-      if (typeof window.startNormalStartupWasm === 'function') {
-        window.startNormalStartupWasm();
-      } else {
-        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-      }
-
-      probeSmartHubSupport().then(function() {
-        handleDeepLink();
-        window.addEventListener('appcontrol', handleDeepLink);
+    if (!isStartupHostsLoaded) {
+      // Do not start CPU-heavy initialization until the snackbar has completed
+      // its slide-in transition and the browser has had another rendering frame.
+      showStartupHostsSnackbar(function() {
+        window.requestAnimationFrame(runStartupWork);
       });
-    }, 50);
+    } else {
+      window.setTimeout(runStartupWork, 50);
+    }
   };
 
   // Start the grace period only after the browser has had a rendering opportunity
@@ -1104,14 +1111,46 @@ function dismissPersistentSnackbar() {
   setSnackbarProgress(false);
 }
 
-function showStartupHostsSnackbar() {
+function showStartupHostsSnackbar(onShown) {
   setSnackbarProgress(true);
   const snackbarElement = document.querySelector('#snackbar');
+  var transitionFinished = false;
+  var transitionFallback = null;
+
+  function finishSnackbarEntrance() {
+    if (transitionFinished) return;
+    transitionFinished = true;
+    if (snackbarElement) {
+      snackbarElement.removeEventListener('transitionend', onSnackbarTransitionEnd);
+    }
+    if (transitionFallback !== null) {
+      window.clearTimeout(transitionFallback);
+      transitionFallback = null;
+    }
+    if (typeof onShown === 'function') onShown();
+  }
+
+  function onSnackbarTransitionEnd(event) {
+    if (event.target === snackbarElement && event.propertyName === 'transform') {
+      finishSnackbarEntrance();
+    }
+  }
+
+  if (snackbarElement) {
+    snackbarElement.addEventListener('transitionend', onSnackbarTransitionEnd);
+    // Safety fallback for runtimes that do not dispatch transitionend reliably.
+    transitionFallback = window.setTimeout(finishSnackbarEntrance, UI_FADE_DURATION_MS + 50);
+  }
+
   if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
     snackbarLogPersistent('Loading configured hosts...');
     startupHostsSnackbarVisible = true;
+    if (!snackbarElement) {
+      window.requestAnimationFrame(finishSnackbarEntrance);
+    }
     return;
   }
+
   snackbarElement.MaterialSnackbar.showSnackbar({
     message: t('Loading configured hosts...'),
     timeout: 2147483647
