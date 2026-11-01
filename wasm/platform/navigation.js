@@ -829,18 +829,26 @@ const Views = {
     },
     down: function() {},
     left: function() {
-      const previousItem = this.view.prev();
-      if (previousItem) {
-        focusElement(previousItem);
-        scrollHostCardIntoView(previousItem);
-      }
+      const cards = this.view.func();
+      if (!cards.length) return;
+
+      unmark(cards[this.view.index]);
+      this.view.index = (this.view.index - 1 + cards.length) % cards.length;
+      const previousItem = cards[this.view.index];
+      mark(previousItem);
+      focusElement(previousItem);
+      scrollHostCardIntoView(previousItem);
     },
     right: function() {
-      const nextItem = this.view.next();
-      if (nextItem) {
-        focusElement(nextItem);
-        scrollHostCardIntoView(nextItem);
-      }
+      const cards = this.view.func();
+      if (!cards.length) return;
+
+      unmark(cards[this.view.index]);
+      this.view.index = (this.view.index + 1) % cards.length;
+      const nextItem = cards[this.view.index];
+      mark(nextItem);
+      focusElement(nextItem);
+      scrollHostCardIntoView(nextItem);
     },
     accept: function() {
       const currentItem = resolveElement(this.view.current());
