@@ -442,6 +442,11 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       g_Instance->m_VideoTrack.SetListener(&g_Instance->m_VideoTrackListener);
     } else {
       ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      if (videoFormat & VIDEO_FORMAT_H264) {
+        PostToJs(std::string("H264TrackRejectedMsg: ") + h264Level->name + "," +
+          std::to_string(width) + "," + std::to_string(height) + "," + std::to_string(redrawRate));
+        return ERROR_H264_TRACK_REJECTED;
+      }
       return ERROR_VIDEO_SETUP_FAILED;
     }
   }

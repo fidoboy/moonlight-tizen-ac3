@@ -126,6 +126,7 @@ function replaceKnownStatsLabels(text) {
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
+var h264TrackRejectionClosingMessage = null;
 
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
@@ -639,6 +640,7 @@ var _queuedPairing = null;
 
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
+    if (method === 'startRequest') h264TrackRejectionClosingMessage = null;
     // Starting a request resets the cancel flag in C++, so a canceled pairing request
     // that is still waiting in the JS queue must not start afterwards
     if (method === 'cancelRequest' && _queuedPairing) {
@@ -787,6 +789,8 @@ function handleMessage(msg) {
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
+    h264TrackRejectionClosingMessage = null;
 
     // A startup watchdog already owns the visible error and recovery/exit sequence.
     // Ignore the native stop acknowledgement to prevent a second UI transition.
@@ -823,6 +827,9 @@ function handleMessage(msg) {
           break;
         case -200:
           directClosingMessage = t('The local device could not start the video stream.');
+          break;
+        case -201:
+          directClosingMessage = streamH264TrackRejectionMessage || t('The TV rejected the H.264 video configuration.');
           break;
         default:
           directClosingMessage = t('Connection to %1$s lost.', directHostName);
@@ -910,6 +917,9 @@ function handleMessage(msg) {
           break;
         case -200:
           transitionStatusMessage = t('The local device could not start the video stream.');
+          break;
+        case -201:
+          transitionStatusMessage = streamH264TrackRejectionMessage || t('The TV rejected the H.264 video configuration.');
           break;
         default:
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
@@ -1117,6 +1127,20 @@ function handleMessage(msg) {
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
+  } else if (msg.indexOf('H264TrackRejectedMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
+    var h264TrackDetails = msg.replace('H264TrackRejectedMsg: ', '').split(',');
+    if (h264TrackDetails.length === 4 && h264TrackDetails.every(function(value) { return value.trim() !== ''; })) {
+      var h264Level = h264TrackDetails[0].trim();
+      var h264Width = h264TrackDetails[1].trim();
+      var h264Height = h264TrackDetails[2].trim();
+      var h264FrameRate = h264TrackDetails[3].trim();
+      h264TrackRejectionClosingMessage = t('The TV does not support the selected H.264 configuration (Level %1$s, %2$s×%3$s at %4$s FPS). Try a different manual H.264 level, reduce the resolution or frame rate, or select HEVC/AV1 if your host supports it.', h264Level, h264Width, h264Height, h264FrameRate);
+      $('#loadingSpinnerMessage').text(t('The TV rejected H.264 Level %1$s (%2$s×%3$s at %4$s FPS).', h264Level, h264Width, h264Height, h264FrameRate));
+    } else {
+      h264TrackRejectionClosingMessage = t('The TV rejected the H.264 video configuration.');
+      $('#loadingSpinnerMessage').text(h264TrackRejectionClosingMessage);
+    }
   } else if (msg.indexOf('ProgressMsg: ') === 0) {
     if (window._streamStartupFailureHandled) return;
     // Show progress message below the transition bar, keeping the app title fixed above it.

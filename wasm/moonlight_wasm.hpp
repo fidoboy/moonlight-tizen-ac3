@@ -92,8 +92,10 @@ enum class AudioBackend {
 
 constexpr const char* kCanvasName = "#wasm_module";
 
-// The TV rejected the video track or did not start it before the media setup timeout.
+// The local video pipeline could not be initialized or did not start before its timeout.
 #define ERROR_VIDEO_SETUP_FAILED -200
+// The TV explicitly rejected the selected H.264 video-track configuration.
+#define ERROR_H264_TRACK_REJECTED -201
 
 class MoonlightInstance {
   public:
