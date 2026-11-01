@@ -43,9 +43,9 @@ description: "Начало работы с Moonlight Tizen и хостами, с
 
 ## 4. Включите Dolby через оптический выход (необязательно)
 
-Для Dolby passthrough нужна соответствующая [экспериментальная сборка Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio). Можно напрямую скачать сборку Windows для [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) или [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip). Также нужны совместимый аудиотракт телевизора и ресивер или акустическая система, поддерживающие формат.
+Dolby passthrough официально поддерживается в [Vibeshine 2.0.3 и более поздних версиях](https://github.com/Nonary/vibeshine/releases/tag/2.0.3). **Рекомендуется использовать Vibeshine в качестве хоста для потоковой передачи звука Dolby.**
 
-Кроме того, Dolby passthrough доступен в [Vibeshine 2.0.3 или более поздней версии](https://github.com/Nonary/vibeshine/releases/tag/2.0.3).
+**Альтернатива: экспериментальная сборка Sunshine.** Dolby passthrough также доступен в [экспериментальной ветке Sunshine, поддерживаемой для этого проекта](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3), которая всё ещё ожидает проверки в основном проекте. Скачайте сборку Windows для [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) или [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip).
 
 1. Подключите оптический выход телевизора к ресиверу или акустической системе.
 2. В настройках звука телевизора выберите режим, передающий поддерживаемый битстрим Dolby, а не принудительный стерео PCM. Названия режимов зависят от модели.
