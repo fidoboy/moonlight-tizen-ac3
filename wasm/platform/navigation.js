@@ -699,22 +699,83 @@ function markSelectedMenuItem(view, triggerId) {
 }
 
 // Keep the Hosts view as a single horizontal carousel without changing Apps navigation.
+function getHostsCarouselLayout(grid) {
+  const cards = Array.from(grid.children).filter(card =>
+    card.id === 'addHostContainer' || card.classList.contains('host-container')
+  );
+  if (!cards.length) return { cards, visibleCount: 0, step: 0, sideMargin: 0 };
+
+  const firstCard = cards[0];
+  const style = window.getComputedStyle(firstCard);
+  const marginLeft = parseFloat(style.marginLeft) || 0;
+  const marginRight = parseFloat(style.marginRight) || 0;
+  const step = firstCard.getBoundingClientRect().width + marginLeft + marginRight;
+  // Keep more than one card-width of clear space on both sides whenever the
+  // viewport permits it. On very narrow screens, preserve at least one card.
+  const sideMargin = Math.min(step + 20, Math.max(0, (grid.clientWidth - step) / 2));
+  const visibleCount = Math.max(1, Math.floor((grid.clientWidth - 2 * sideMargin) / step));
+  return { cards, visibleCount, step, sideMargin };
+}
+
 function updateHostsCarousel() {
   const grid = document.getElementById('host-grid');
   if (!grid) return;
 
-  const hasHorizontalOverflow = grid.scrollWidth > grid.clientWidth + 1;
-  grid.classList.toggle('host-grid-centered', !hasHorizontalOverflow);
-  grid.classList.toggle('host-grid-overflow-left', grid.scrollLeft > 1);
-  grid.classList.toggle('host-grid-overflow-right',
-    hasHorizontalOverflow && grid.scrollLeft + grid.clientWidth < grid.scrollWidth - 1);
+  const layout = getHostsCarouselLayout(grid);
+  const { cards, visibleCount, step, sideMargin } = layout;
+  if (!cards.length) {
+    grid.classList.remove('host-grid-centered', 'host-grid-overflow-left', 'host-grid-overflow-right');
+    return;
+  }
+
+  const hasOverflow = cards.length > visibleCount;
+  if (!hasOverflow) {
+    grid.classList.add('host-grid-centered');
+    grid.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
+    grid.style.paddingLeft = '0px';
+    grid.style.paddingRight = '0px';
+    grid.dataset.carouselStart = '0';
+    if (grid.scrollLeft !== 0) grid.scrollLeft = 0;
+    return;
+  }
+
+  grid.classList.remove('host-grid-centered');
+  grid.style.paddingLeft = sideMargin + 'px';
+  grid.style.paddingRight = sideMargin + 'px';
+
+  const maxStart = Math.max(0, cards.length - visibleCount);
+  const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
+  grid.dataset.carouselStart = String(start);
+  const targetScrollLeft = start * step;
+  if (Math.abs(grid.scrollLeft - targetScrollLeft) > 1) grid.scrollLeft = targetScrollLeft;
+
+  grid.classList.toggle('host-grid-overflow-left', start > 0);
+  grid.classList.toggle('host-grid-overflow-right', start < maxStart);
 }
 
 function scrollHostCardIntoView(target) {
+  const grid = document.getElementById('host-grid');
   const element = resolveElement(target);
-  if (!element || !element.closest || !element.closest('#host-grid')) return;
-  element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-  requestAnimationFrame(updateHostsCarousel);
+  if (!grid || !element || !element.closest || !element.closest('#host-grid')) return;
+
+  const layout = getHostsCarouselLayout(grid);
+  const index = layout.cards.indexOf(element);
+  if (index < 0 || !layout.step) return;
+
+  if (layout.cards.length <= layout.visibleCount) {
+    updateHostsCarousel();
+    return;
+  }
+
+  const maxStart = layout.cards.length - layout.visibleCount;
+  const start = Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)));
+  grid.dataset.carouselStart = String(start);
+  grid.style.paddingLeft = layout.sideMargin + 'px';
+  grid.style.paddingRight = layout.sideMargin + 'px';
+  grid.classList.remove('host-grid-centered');
+  grid.classList.toggle('host-grid-overflow-left', start > 0);
+  grid.classList.toggle('host-grid-overflow-right', start < maxStart);
+  grid.scrollTo({ left: start * layout.step, behavior: 'smooth' });
 }
 
 (function initializeHostsCarousel() {
