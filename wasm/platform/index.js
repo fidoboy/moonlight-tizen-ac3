@@ -3631,6 +3631,15 @@ function showApps(host, options) {
     var isOperationCancelled = function() {
       return !!(operationToken && operationToken.cancelled);
     };
+    if (operationToken) {
+      operationToken.cancel = function() {
+        if (operationToken.cancelled) return;
+        operationToken.cancelled = true;
+        var cancellationError = new Error('Application list operation was cancelled.');
+        cancellationError.name = 'AbortError';
+        reject(cancellationError);
+      };
+    }
     // Safety checking should happen before attempting to show the app list
     if (!host || !host.paired) {
       console.error('%c[index.js, showApps]', 'color: green;', 'Error: Unable to initialize the host properly! Host object: ', host);
@@ -5002,7 +5011,7 @@ function stopGame(host, callbackFunction) {
         keepInteractionLocked: true,
         operationToken: appListOperation
       }), 10000, 'Application list refresh after app shutdown', function() {
-        appListOperation.cancelled = true;
+        appListOperation.cancel();
       });
     }).catch(function(error) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
