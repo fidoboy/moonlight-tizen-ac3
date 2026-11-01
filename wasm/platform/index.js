@@ -4435,7 +4435,10 @@ function startGame(host, appID) {
 
   // Refresh the server info, because the user might have quit the game
   host.refreshServerInfo().then(function(ret) {
-    (_directSmartHubLaunch ? Promise.resolve({ id: appID, title: String(appID) }) : host.getAppById(appID)).then(async function(appToStart) {
+    (_directSmartHubLaunch ? Promise.resolve({
+      id: appID,
+      title: _directSmartHubLaunch.appName || String(appID)
+    }) : host.getAppById(appID)).then(async function(appToStart) {
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         host.getAppById(host.currentGame).then(function(currentApp) {
           // Find the existing overlay and dialog elements
@@ -6668,7 +6671,11 @@ function loadDirectSmartHubStreamSettings() {
     'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground'
   ];
 
-  return Promise.all(keys.map(readStoredPreference)).then(function(values) {
+  return new Promise(function(resolve) {
+    openIndexDB(resolve);
+  }).then(function() {
+    return Promise.all(keys.map(readStoredPreference));
+  }).then(function(values) {
     var stored = {};
     keys.forEach(function(key, index) { stored[key] = values[index]; });
 
