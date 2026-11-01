@@ -44,6 +44,6 @@ Como alternativa, envie uma tag Git como `v1.0.1` depois de configurar a versão
 
 ## Notas de desenvolvimento de áudio
 
-O passthrough Dolby exige o cliente Tizen e um host Sunshine experimental compatível. É opcional e nunca deve desativar o caminho OPUS padrão para hosts que não oferecem AC-3/E-AC-3. Ao testar, verifique a negociação e a saída reais pelo caminho óptico previsto do televisor, e não apenas a configuração selecionada.
+O passthrough Dolby exige o cliente Tizen e um host compatível. **A opção preferencial é o Vibeshine 2.0.3 ou posterior**, que inclui suporte oficial à transmissão de áudio Dolby Digital. **O Sunshine é uma alternativa opcional**: no momento, o suporte está disponível somente em uma branch experimental e aguarda aprovação para inclusão em uma versão oficial. O passthrough Dolby é opcional e nunca deve desativar o caminho OPUS padrão para hosts que não oferecem AC-3/E-AC-3. Ao testar, verifique a negociação e a saída reais pelo caminho óptico previsto do televisor, e não apenas a configuração selecionada.
 
 Mantenha os pull requests objetivos, preserve os avisos de licença e documente comportamentos dependentes do hardware e as condições de teste.
