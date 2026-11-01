@@ -12,10 +12,11 @@ const SyncFunctions = {
   'startRequest': (...args) => {
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
+    const h264Level = args[33] || 'Auto';
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
-    return Module.startStream(...args.slice(0, 31));
+    return Module.startStream(...args.slice(0, 31), h264Level);
   },
   // no parameters
   'stopRequest': (...args) => Module.stopStream(...args),
