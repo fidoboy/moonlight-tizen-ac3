@@ -1024,7 +1024,7 @@ function handleMessage(msg) {
           showLoadingSnackbarImmediately: true,
           operationToken: appListOperation
         }), 10000, 'Application list recovery', function() {
-          appListOperation.cancelled = true;
+          appListOperation.cancel();
         }).then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
