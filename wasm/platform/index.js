@@ -4362,7 +4362,13 @@ function showStreamMode(streamWidth, streamHeight) {
         var warningOverlay = document.getElementById('connection-warnings');
         var statsOverlay = document.getElementById('performance-stats');
         if (warningOverlay) warningOverlay.style.display = _directSmartHubStreamSettings.disableWarnings ? 'none' : 'inline-block';
-        if (statsOverlay) statsOverlay.style.display = _directSmartHubStreamSettings.performanceStats ? 'inline-block' : 'none';
+        if (statsOverlay) {
+          statsOverlay.style.display = _directSmartHubStreamSettings.performanceStats ? 'inline-block' : 'none';
+          ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach(function(corner) {
+            statsOverlay.classList.remove('performance-stats-position-' + corner);
+          });
+          statsOverlay.classList.add('performance-stats-position-' + _directSmartHubStreamSettings.performanceStatsPosition);
+        }
       }
 
       hideUiLayerImmediately('main-ui-layer');
@@ -6668,7 +6674,7 @@ function loadDirectSmartHubStreamSettings() {
     'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
     'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
     'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground'
+    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition'
   ];
 
   return new Promise(function(resolve) {
@@ -6722,6 +6728,7 @@ function loadDirectSmartHubStreamSettings() {
       gameMode: boolValue(stored.gameMode, gameModeDefault) ? 1 : 0,
       disableWarnings: boolValue(stored.disableWarnings, false) ? 1 : 0,
       performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
+      performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
       dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
       dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
     };
@@ -7589,10 +7596,9 @@ function setDirectSmartHubStatus(message) {
 function updateDirectSmartHubStartingStatus(hostName) {
   if (!_directSmartHubLaunch) return;
   var appName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
-  var normalizedHostName = (typeof hostName === 'string') ? hostName.trim() : '';
-  var title = t('Starting %1$s...', appName);
-  if (normalizedHostName) title += ' ' + t('on %1$s', normalizedHostName);
-  setDirectSmartHubStatus(title);
+  setDirectSmartHubStatus(t('Starting %1$s...', appName));
+  var message = document.getElementById('loadingSpinnerMessage');
+  if (message) message.textContent = t('Switching to streaming mode...');
 }
 
 function hideDirectSmartHubStatus() {
