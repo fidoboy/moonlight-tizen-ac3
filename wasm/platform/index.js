@@ -8,6 +8,7 @@ var modelName = webapis.productinfo.getRealModel(); // Retrieve the device model
 var modelGroup = webapis.productinfo.getModelCode(); // Retrieve the device model group
 var is4kPanel = false;
 var is8kPanel = false;
+var panelCapabilitiesChecked = false;
 var maxSupportedWidth = 1920;
 var maxSupportedHeight = 1080;
 
@@ -1711,6 +1712,7 @@ function refreshPanelResolutionCapabilities() {
 
   is4kPanel = supports4k;
   is8kPanel = supports8k;
+  panelCapabilitiesChecked = true;
 
   if (is8kPanel) {
     maxSupportedWidth = 7680;
@@ -6929,7 +6931,7 @@ function loadSystemInfo() {
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Series: ' + (modelSeries ? modelSeries : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Name: ' + (modelName ? modelName : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Group: ' + (modelGroup ? modelGroup : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (is4kPanel ? 'Yes' : 'No'));
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (panelCapabilitiesChecked ? (is4kPanel ? 'Yes' : 'No') : 'Not checked'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'HDR Capable: ' + (isHdrCapable === null ? 'Not checked' : (isHdrCapable ? 'Yes' : 'No')));
     // Insert the system information as text, then render the experimental marker
     // with the same shared badge class used by other experimental settings.
