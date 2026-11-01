@@ -1097,9 +1097,7 @@ function handleMessage(msg) {
 
   } else if (msg === 'Connection Established') {
     // Connection negotiation completed; now bound the wait for the first decoded frame.
-    if (typeof armStreamStartupWatchdog === 'function' && window.STREAM_OPERATION_TIMEOUTS) {
-      armStreamStartupWatchdog('video', window.STREAM_OPERATION_TIMEOUTS.firstVideoFrame);
-    }
+    if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
     // This marks connection setup, not the availability of the first decoded video frame.
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
