@@ -6677,7 +6677,7 @@ function loadDirectSmartHubStreamSettings() {
     'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
     'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
     'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition'
+    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme'
   ];
 
   return new Promise(function(resolve) {
@@ -6737,6 +6737,13 @@ function loadDirectSmartHubStreamSettings() {
     };
 
     streamTransitionBackgroundEnabled = boolValue(stored.streamTransitionBackground, true);
+
+    // Apply only the saved theme token needed by the transition's CSS variables.
+    // Do not run applyColorTheme(), which also initializes the hidden theme cards.
+    activeColorTheme = normalizeColorTheme(stored.colorTheme);
+    focusedColorTheme = activeColorTheme;
+    document.body.setAttribute('data-color-theme', activeColorTheme);
+
     _directSmartHubSettingsReady = true;
     console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB:', _directSmartHubStreamSettings);
     maybeStartDirectSmartHubLaunch();
