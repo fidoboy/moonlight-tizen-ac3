@@ -2043,6 +2043,7 @@ function addTemporaryHostCarouselTestCards(template) {
       'aria-label': 'TEST Host ' + i
     }).addClass('host-carousel-test-card');
 
+    testCard.find('.mdl-card__title').attr('id', testId + '-card');
     testCard.find('.host-text').text('TEST Host ' + i);
     testCard.find('.host-menu').attr({
       id: testId + '-menu',
@@ -2149,8 +2150,13 @@ function addHostToGrid(host, ismDNSDiscovered) {
     hostMenuDialog(host);
   });
 
-  // Append the host container to the host grid
-  $('#host-grid').append(hostContainer);
+  // Keep real hosts before temporary test cards when additional hosts are restored.
+  var firstTestCard = document.querySelector('#host-grid > .host-carousel-test-card');
+  if (firstTestCard) {
+    firstTestCard.parentNode.insertBefore(hostContainer[0], firstTestCard);
+  } else {
+    $('#host-grid').append(hostContainer);
+  }
 
   // Temporary fake cards make the horizontal carousel testable with a single real host.
   addTemporaryHostCarouselTestCards(hostContainer);
