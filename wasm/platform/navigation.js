@@ -713,12 +713,10 @@ function getHostsCarouselLayout(grid) {
   const marginLeft = parseFloat(style.marginLeft) || 0;
   const marginRight = parseFloat(style.marginRight) || 0;
   const step = firstCard.offsetWidth + marginLeft + marginRight;
-  // Keep more than one card-width of clear space on both sides whenever the
-  // viewport permits it. On very narrow screens, preserve at least one card.
-  const minimumSideMargin = step + 20;
-  const visibleCount = Math.max(1, Math.floor((grid.clientWidth - 2 * minimumSideMargin) / step));
-  // Use the exact leftover space so every page of cards is centered, including
-  // the first and last page, with no partially visible cards.
+  // The viewport reserves fixed side gutters for the arrows. Calculate the
+  // visible page only from the grid's remaining width, fitting complete cards.
+  const visibleCount = Math.max(1, Math.floor(grid.clientWidth / step));
+  // Center the complete-card group within the usable grid area.
   const sideMargin = Math.max(0, (grid.clientWidth - visibleCount * step) / 2);
   return { cards, visibleCount, step, sideMargin };
 }
