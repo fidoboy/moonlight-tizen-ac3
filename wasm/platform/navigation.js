@@ -1890,6 +1890,7 @@ const Views = {
   VideoSettings: {
     view: new ListView(() => [
       'selectCodec',
+      ...(document.getElementById('selectCodec')?.dataset.value === 'H264' ? ['selectH264Level'] : []),
       'hdrModeBtn',
       'fullRangeBtn',
       'gameModeBtn'
@@ -1959,6 +1960,26 @@ const Views = {
     leave: function() {
       unmark(this.view.current());
     },
+  },
+  SelectH264LevelMenu: {
+    isActive: () => isPopupMenuActive('h264LevelMenu'),
+    view: new ListView(() => document.querySelectorAll('.h264LevelMenu .mdl-menu__item')),
+    up: function() { this.view.prevOption(); },
+    down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectH264Level'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectH264Level');
+      closeActiveVisibleMenu();
+      focusElement('selectH264Level');
+    },
+    press: function() {}, switch: function() {},
+    enter: function() { markSelectedMenuItem(this.view, 'selectH264Level'); },
+    leave: function() { unmark(this.view.current()); },
   },
   SelectPerformanceStatsPositionMenu: {
     isActive: () => isPopupMenuActive('performanceStatsPositionMenu'),
