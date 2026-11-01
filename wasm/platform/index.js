@@ -4780,9 +4780,12 @@ function getStreamMenuOptions() {
 }
 
 function requestManualStreamStop() {
-  // The native termination callback does not distinguish local and host-initiated graceful closure.
-  window._manualStreamStopRequested = true;
-  Module.stopStream();
+  // Reveal the closing transition completely before asking the native core to stop the stream.
+  showStreamTransitionBackground(function() {
+    // The native termination callback does not distinguish local and host-initiated graceful closure.
+    window._manualStreamStopRequested = true;
+    Module.stopStream();
+  });
 }
 
 function streamMenuDialog() {
