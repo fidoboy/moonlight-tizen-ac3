@@ -4945,7 +4945,10 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
         }));
       }
     }
-    if (typeof onClosed === 'function') onClosed();
+    if (typeof onClosed === 'function') {
+      // Leave a little extra breathing room after both menu layers have faded out.
+      setTimeout(onClosed, 200);
+    }
   }
 
   fadeOutUiElement(overlayElement, function() {
