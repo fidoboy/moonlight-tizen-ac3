@@ -698,40 +698,69 @@ function markSelectedMenuItem(view, triggerId) {
   mark(view.current());
 }
 
+// Keep the Hosts view as a single horizontal carousel without changing Apps navigation.
+function updateHostsCarousel() {
+  const grid = document.getElementById('host-grid');
+  if (!grid) return;
+
+  const hasHorizontalOverflow = grid.scrollWidth > grid.clientWidth + 1;
+  grid.classList.toggle('host-grid-centered', !hasHorizontalOverflow);
+  grid.classList.toggle('host-grid-overflow-left', grid.scrollLeft > 1);
+  grid.classList.toggle('host-grid-overflow-right',
+    hasHorizontalOverflow && grid.scrollLeft + grid.clientWidth < grid.scrollWidth - 1);
+}
+
+function scrollHostCardIntoView(target) {
+  const element = resolveElement(target);
+  if (!element || !element.closest || !element.closest('#host-grid')) return;
+  element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  requestAnimationFrame(updateHostsCarousel);
+}
+
+(function initializeHostsCarousel() {
+  function bind() {
+    const grid = document.getElementById('host-grid');
+    if (!grid || grid.dataset.carouselBound === 'true') return;
+    grid.dataset.carouselBound = 'true';
+    grid.addEventListener('scroll', updateHostsCarousel, { passive: true });
+    window.addEventListener('resize', updateHostsCarousel);
+    updateHostsCarousel();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  } else {
+    bind();
+  }
+})();
+
 const Views = {
   Hosts: {
-    view: new ListView(() => document.getElementById('host-grid').children),
+    view: new ListView(() => Array.from(document.querySelectorAll('#host-grid > #addHostContainer, #host-grid > .host-container'))),
     up: function() {
-      // If there are more rows behind, then go to the previous row
-      if (this.view.prevCardRow(5)) {
-        focusElement(this.view.current());
+      // The Hosts carousel has one row: Up leaves the row for the selected card's menu.
+      const currentItem = resolveElement(this.view.current());
+      if (currentItem && currentItem.id !== 'addHostContainer') {
+        Navigation.change(Views.HostsMenuHighlight);
+        focusElement(Views.HostsMenuHighlight.view.current());
       } else {
-        // If there are no more rows, check if the current item is a host
-        const currentItem = resolveElement(this.view.current());
-        if (currentItem && currentItem.id !== 'addHostContainer') {
-          // Navigate to the HostsMenuHighlight view to highlight the host's menu icon
-          Navigation.change(Views.HostsMenuHighlight);
-          focusElement(Views.HostsMenuHighlight.view.current());
-        } else {
-          // Set focus on the first navigation item in HostsNav view when transitioning from Add Host container
-          Navigation.change(Views.HostsNav);
-          focusElement(Views.HostsNav.view.current());
-        }
+        Navigation.change(Views.HostsNav);
+        focusElement(Views.HostsNav.view.current());
       }
     },
-    down: function() {
-      // If there are more rows after, then go to the next row
-      if (this.view.nextCardRow(5)) {
-        focusElement(this.view.current());
-      }
-    },
+    down: function() {},
     left: function() {
-      this.view.prevCard(5);
-      focusElement(this.view.current());
+      const previousItem = this.view.prev();
+      if (previousItem) {
+        focusElement(previousItem);
+        scrollHostCardIntoView(previousItem);
+      }
     },
     right: function() {
-      this.view.nextCard(5);
-      focusElement(this.view.current());
+      const nextItem = this.view.next();
+      if (nextItem) {
+        focusElement(nextItem);
+        scrollHostCardIntoView(nextItem);
+      }
     },
     accept: function() {
       const currentItem = resolveElement(this.view.current());
@@ -762,16 +791,14 @@ const Views = {
     },
     switch: function() {
       const currentItem = resolveElement(this.view.current());
-      // Check if the current item is the Add Host container
+      updateHostsCarousel();
       if (currentItem && currentItem.id === 'addHostContainer') {
-        // Set focus on the Add Host container itself
         focusElement(currentItem);
-      } else {
-        // Scroll to the current Host card row to ensure is visible when switching back from another view
-        this.view.currentCardRow(5);
-        // If the current item has children, set focus on the first child element (the host card)
+        scrollHostCardIntoView(currentItem);
+      } else if (currentItem) {
         const hostCard = currentItem.children ? currentItem.children[0] : null;
         focusElement(hostCard);
+        scrollHostCardIntoView(currentItem);
       }
     },
     enter: function() {
