@@ -45,7 +45,7 @@ Beginne bei einer neuen Einrichtung mit vorsichtigen Standardwerten für Auflös
 
 Dolby-Passthrough benötigt den passenden experimentellen [Sunshine-ac3-audio-Build](https://github.com/fidoboy/Sunshine/tree/ac3-audio). Du kannst den Windows-Build für [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) oder [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip) direkt herunterladen. Zusätzlich sind ein kompatibler TV-Audiopfad und ein Receiver oder Soundsystem erforderlich, das das Format unterstützt.
 
-Alternativ ist Dolby-Passthrough auch in der [Vibeshine-2.0.2-Nightly-Version](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d) verfügbar.
+Alternativ ist Dolby-Passthrough auch mit [Vibeshine 2.0.3 oder höher](https://github.com/Nonary/vibeshine/releases/tag/2.0.3) verfügbar.
 
 1. Verbinde den optischen Ausgang des Fernsehers mit dem Receiver oder Soundsystem.
 2. Wähle in den TV-Audioeinstellungen einen Ausgabemodus, der einen unterstützten Dolby-Bitstream durchleitet, statt Stereo-PCM zu erzwingen. Die genaue Bezeichnung variiert nach Modell.

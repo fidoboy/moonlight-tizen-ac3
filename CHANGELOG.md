@@ -42,7 +42,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Added
 - **Animated transition background:** Added an animated starfield background during stream transitions, with an option in the app's interface settings to enable or disable this feature.
 - **Navigation feedback:** Added contextual snackbar notifications when loading hosts and applications takes longer than expected.
-- **Vibeshine compatibility:** Verified compatibility with Vibeshine using the [2.0.2 nightly build](https://github.com/Nonary/vibeshine/releases/tag/2.0.2-nightly.d20261025.ddf42cfa263d).
+- **Vibeshine compatibility:** Verified Dolby compatibility with the stable [Vibeshine 2.0.3 release](https://github.com/Nonary/vibeshine/releases/tag/2.0.3).
 
 ### Changed
 - **Host and application navigation:** Refined transitions between the Hosts and Apps screens, with smoother animations and improved loading feedback.
