@@ -57,7 +57,7 @@ var dolbyDecodingModeSupportChecked = false;
 // leaving either launch path indefinitely on its loading screen.
 const STREAM_OPERATION_TIMEOUTS = {
   hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
-  hostLaunch: 30000, streamConnection: 30000, firstVideoFrame: 20000
+  hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 20000
 };
 const STREAM_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
 var streamStartupWatchdogTimeout = null;
@@ -6845,8 +6845,11 @@ function readStoredPreferences(keys) {
         var request = objectStore.get(key);
         request.onsuccess = function() {
           try {
-            var storedValue = request.result ? JSON.parse(request.result) : null;
-            values[key] = storedValue && storedValue[key] !== undefined ? storedValue[key] : null;
+            var storedValue = request.result !== undefined && request.result !== null
+              ? JSON.parse(request.result) : null;
+            values[key] = storedValue !== null && typeof storedValue === 'object' &&
+              Object.prototype.hasOwnProperty.call(storedValue, key)
+                ? storedValue[key] : storedValue;
             remaining--;
             if (remaining === 0) resolve(values);
           } catch (error) {
@@ -6879,11 +6882,11 @@ function loadDirectSmartHubStreamSettings() {
     'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect'
   ];
 
-  return new Promise(function(resolve) {
+  return withOperationTimeout(new Promise(function(resolve) {
     openIndexDB(resolve);
   }).then(function() {
     return readStoredPreferences(keys);
-  }).then(function(stored) {
+  }), 10000, 'Saved streaming preferences load').then(function(stored) {
     var resolution = stored.resolution || '1280:720';
     var width = parseInt(resolution.split(':')[0], 10);
     if (!isFinite(width) || width <= 0) resolution = '1280:720';
@@ -8122,7 +8125,7 @@ function onWindowLoad() {
 
   if (_directSmartHubLaunch) {
     // Bound the entire direct-launch preparation, including certificate and saved-host restore.
-    armStreamStartupWatchdog('initialization', 30000);
+    armStreamStartupWatchdog('initialization', 15000);
     // Register only stream-specific remote controls. Do not initialize home-screen navigation.
     initDirectSamsungKeys();
     initSpecialKeys();
@@ -8136,7 +8139,7 @@ function onWindowLoad() {
     var directLocalePromise = window._directSmartHubLocalePromise || Promise.resolve();
     withOperationTimeout(Promise.resolve(directLocalePromise).then(function() {
       return loadDirectSmartHubStreamSettings();
-    }), 20000, 'Direct launch initialization').catch(function(error) {
+    }), 15000, 'Direct launch initialization').catch(function(error) {
       console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Direct-stream initialization failed:', error);
       directSmartHubLaunchFailure(t('Moonlight could not initialize the streaming interface.'));
     });
