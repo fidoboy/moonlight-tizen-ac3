@@ -996,13 +996,43 @@ body {
    Hosts Section
 ============================= */
 #host-grid {
+    position: relative;
     display: flex;
     flex: 1;
+    box-sizing: border-box;
     margin: 15px 0;
-    padding: 15px 80px 15px 80px;
-    flex-flow: row wrap;
+    padding: 30px 80px;
+    flex-flow: row nowrap;
     align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+}
+#host-grid.host-grid-centered {
     justify-content: center;
+}
+#host-grid.host-grid-overflow-left::before,
+#host-grid.host-grid-overflow-right::after {
+    position: absolute;
+    top: 50%;
+    z-index: 5;
+    color: rgba(255, 255, 255, 0.68);
+    font-family: 'Material Icons';
+    font-size: 48px;
+    font-weight: normal;
+    line-height: 1;
+    pointer-events: none;
+    transform: translateY(-50%);
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+#host-grid.host-grid-overflow-left::before {
+    content: 'chevron_left';
+    left: 22px;
+}
+#host-grid.host-grid-overflow-right::after {
+    content: 'chevron_right';
+    right: 22px;
 }
 #host-grid.host-list-locked {
     opacity: 0.4;
@@ -1016,7 +1046,7 @@ body {
     min-height: 235px;
     margin: 20px 28px 45px 28px;
     border-radius: 8px;
-    flex-basis: 16.2%;
+    flex: 0 0 285px;
     cursor: pointer;
     text-align: center;
     will-change: transform;
