@@ -471,6 +471,7 @@ function attachListeners() {
   $('#playHostAudioSwitch').on('click', savePlayHostAudio);
   $('#decryptHostAudioSwitch').on('click', saveDecryptHostAudio);
   $('.videoCodecMenu li').on('click', saveVideoCodec);
+  $('.h264LevelMenu li').on('click', saveH264Level);
   $('#hdrModeSwitch').on('click', saveHdrMode);
   $('#fullRangeSwitch').on('click', saveFullRange);
   $('#gameModeSwitch').on('click', saveGameMode);
@@ -504,6 +505,7 @@ function attachListeners() {
   registerMenu('selectDolbyDecodingMode', Views.SelectDolbyDecodingModeMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
   registerMenu('selectCodec', Views.SelectCodecMenu);
+  registerMenu('selectH264Level', Views.SelectH264LevelMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
   registerMenu('selectConfigSummaryPosition', Views.ConfigSummaryPositionMenu);
 
@@ -620,6 +622,7 @@ function loadConfigSummarySettings(callback) {
       finished = true;
       updateConfigSummaryBar();
       updateHdrControlState();
+      updateH264LevelControlState();
       callback();
     }
   }
@@ -4474,6 +4477,7 @@ function startGame(host, appID) {
       const playHostAudio = $('#playHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const decryptHostAudio = $('#decryptHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
       var videoCodec = $('#selectCodec').data('value').toString();
+      var h264Level = $('#selectH264Level').data('value') || 'Auto';
       const hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const fullRange = $('#fullRangeSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const gameMode = $('#gameModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
@@ -4498,6 +4502,7 @@ function startGame(host, appID) {
       '\n Play host audio: ' + playHostAudio + 
       '\n Decrypt host audio: ' + decryptHostAudio + 
       '\n Video codec: ' + videoCodec + 
+      '\n H.264 level: ' + h264Level + 
       '\n Video HDR mode: ' + hdrMode + 
       '\n Full color range: ' + fullRange + 
       '\n Game Mode: ' + gameMode + 
@@ -4582,7 +4587,8 @@ function startGame(host, appID) {
             audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
             gameMode, disableWarnings, performanceStats,
             $('#selectDolbyChannelLayout').data('value') || 'Back',
-            $('#selectDolbyDecodingMode').data('value') || 'Hardware'
+            $('#selectDolbyDecodingMode').data('value') || 'Hardware',
+            h264Level
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
@@ -4648,7 +4654,8 @@ function startGame(host, appID) {
           audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
           gameMode, disableWarnings, performanceStats,
           $('#selectDolbyChannelLayout').data('value') || 'Back',
-          $('#selectDolbyDecodingMode').data('value') || 'Hardware'
+          $('#selectDolbyDecodingMode').data('value') || 'Hardware',
+          h264Level
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
@@ -6021,6 +6028,25 @@ function saveVideoCodec() {
 
   updateVideoCodec(this, chosenVideoCodec);
   updateHdrControlState();
+  updateH264LevelControlState();
+}
+
+function saveH264Level() {
+  var chosenLevel = $(this).data('value');
+  $('#selectH264Level').text($(this).text())
+    .attr('data-value', chosenLevel).data('value', chosenLevel);
+  console.log('%c[index.js, saveH264Level]', 'color: green;', 'Saving H.264 level override: ' + chosenLevel);
+  storeData('h264Level', chosenLevel, null);
+}
+
+function updateH264LevelControlState() {
+  const button = document.getElementById('selectH264Level');
+  if (!button) return;
+
+  const enabled = $('#selectCodec').data('value') === 'H264';
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', String(!enabled));
+  button.classList.toggle('is-disabled', !enabled);
 }
 
 function updateHdrControlState() {
@@ -6852,6 +6878,20 @@ function loadUserDataCb() {
         }
       });
     }
+    updateH264LevelControlState();
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored H.264 level preference.');
+  getData('h264Level', function(previousValue) {
+    const savedLevel = previousValue && previousValue.h264Level;
+    const selectedLevel = savedLevel == null ? 'Auto' : String(savedLevel);
+    $('.h264LevelMenu li').each(function() {
+      if ($(this).data('value') === selectedLevel) {
+        $('#selectH264Level').text($(this).text())
+          .attr('data-value', selectedLevel).data('value', selectedLevel);
+      }
+    });
+    updateH264LevelControlState();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored hdrMode preferences.');
