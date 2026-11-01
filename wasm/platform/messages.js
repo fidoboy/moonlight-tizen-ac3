@@ -1021,7 +1021,7 @@ function handleMessage(msg) {
         return withOperationTimeout(showApps(api, {
           forceRefreshAppList: true,
           showLoadingSnackbarImmediately: true
-        }), 20000, 'Application list recovery').then(function() {
+        }), 10000, 'Application list recovery').then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
