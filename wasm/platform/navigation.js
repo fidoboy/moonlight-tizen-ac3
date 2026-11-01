@@ -797,9 +797,12 @@ function scrollHostCardIntoView(target) {
   const maxStart = layout.cards.length - layout.visibleCount;
   const start = Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)));
   grid.dataset.carouselStart = String(start);
-  grid.style.width = layout.pageWidth + 'px';
-  grid.style.paddingLeft = '0px';
-  grid.style.paddingRight = '0px';
+  // Preserve the same side allowance used by updateHostsCarousel().
+  // Removing it here clips the scaled first/last card at the grid's scrollport.
+  const overflowAllowance = 28;
+  grid.style.width = (layout.pageWidth + overflowAllowance * 2) + 'px';
+  grid.style.paddingLeft = overflowAllowance + 'px';
+  grid.style.paddingRight = overflowAllowance + 'px';
   grid.classList.remove('host-grid-centered');
   viewport.classList.toggle('host-grid-overflow-left', start > 0);
   viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
