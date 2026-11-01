@@ -106,6 +106,7 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
+  window._streamStartupFailureHandled = true;
   var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
     : t('The host did not establish the streaming connection in time.'));
@@ -4514,6 +4515,7 @@ function handleOnScreenOverlays() {
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
 function startGame(host, appID) {
   streamStartupFailureHandled = false;
+  window._streamStartupFailureHandled = false;
   clearStreamStartupWatchdog();
   if (!host || !host.paired) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Attempted to start a game, but the host was not initialized properly! Host object: ', host);
