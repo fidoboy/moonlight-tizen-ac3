@@ -5097,16 +5097,18 @@ function openIndexDB(callback) {
   }
 
   console.log('%c[index.js, openIndexDB]', 'color: green;', 'Opening IndexedDB...');
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persisted().then(persistent => {
-      if (persistent) {
-        console.log('%c[index.js, openIndexDB]', 'color: green;', 'Storage will not be cleared except by explicit user action.');
-      } else {
-        console.log('%c[index.js, openIndexDB]', 'color: green;', 'Storage may be cleared by the UA under storage pressure.');
-      }
-    });
-  } else {
-    console.warn('%c[index.js, openIndexDB]', 'color: green;', 'Warning: Persistent storage is not available!');
+  if (!_directSmartHubLaunch) {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(persistent => {
+        if (persistent) {
+          console.log('%c[index.js, openIndexDB]', 'color: green;', 'Storage will not be cleared except by explicit user action.');
+        } else {
+          console.log('%c[index.js, openIndexDB]', 'color: green;', 'Storage may be cleared by the UA under storage pressure.');
+        }
+      });
+    } else {
+      console.warn('%c[index.js, openIndexDB]', 'color: green;', 'Warning: Persistent storage is not available!');
+    }
   }
 
   if (!indexedDB) {
