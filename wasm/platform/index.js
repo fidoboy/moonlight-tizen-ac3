@@ -6413,7 +6413,7 @@ function updateHdrControlState() {
   const hdrInput = document.getElementById('hdrModeSwitch');
   const hdrSwitch = document.getElementById('hdrModeBtn');
   const isH264 = $('#selectCodec').data('value') === 'H264';
-  const isUnavailable = isH264 || isHdrCapable !== true;
+  const isUnavailable = isH264 || isHdrCapable === false;
 
   if (!hdrInput || !hdrSwitch) return;
 
