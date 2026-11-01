@@ -724,7 +724,7 @@ function getHostsCarouselLayout(grid) {
   const usableWidth = Math.max(0, viewport.clientWidth - horizontalPadding);
   const visibleCount = Math.min(4, Math.max(1, Math.floor(usableWidth / step)));
   const pageWidth = Math.min(cards.length, visibleCount) * step;
-  return { cards, visibleCount, step, pageWidth };
+  return { cards, visibleCount, step, pageWidth, usableWidth };
 }
 
 function updateHostsCarouselIndicators() {
@@ -740,84 +740,66 @@ function updateHostsCarouselIndicators() {
 
 function updateHostsCarousel() {
   const grid = document.getElementById('host-grid');
+  const clip = document.getElementById('hosts-carousel-clip');
   const viewport = document.getElementById('hosts-carousel-viewport');
-  if (!grid || !viewport) return;
+  if (!grid || !clip || !viewport) return;
 
   const layout = getHostsCarouselLayout(grid);
   const { cards, visibleCount, step, pageWidth } = layout;
   if (!cards.length) {
-    grid.classList.remove('host-grid-centered');
+    clip.style.width = '0px';
     grid.style.width = '0px';
+    grid.style.transform = 'translate3d(4px, 0, 0)';
     viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
     return;
   }
 
   const hasOverflow = cards.length > visibleCount;
-  // Extend the grid's clipping boundary so scaled edge cards remain visible
-  // without changing the cards' resting positions or spacing.
-  const leftOverflowAllowance = 28;
-  const rightOverflowAllowance = 40;
-  grid.style.width = (pageWidth + leftOverflowAllowance + rightOverflowAllowance) + 'px';
-  grid.style.paddingLeft = leftOverflowAllowance + 'px';
-  grid.style.paddingRight = rightOverflowAllowance + 'px';
-  if (!hasOverflow) {
-    grid.classList.add('host-grid-centered');
-    viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
-    grid.dataset.carouselStart = '0';
-    if (grid.scrollLeft !== 0) grid.scrollLeft = 0;
-    return;
-  }
-
-  grid.classList.remove('host-grid-centered');
-
   const maxStart = Math.max(0, cards.length - visibleCount);
-  const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
+  const start = hasOverflow
+    ? Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)))
+    : 0;
+
   grid.dataset.carouselStart = String(start);
-  const targetScrollLeft = start * step;
-  if (Math.abs(grid.scrollLeft - targetScrollLeft) > 1) grid.scrollLeft = targetScrollLeft;
 
-  viewport.classList.toggle('host-grid-overflow-left', start > 0);
-  viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
+  // The clip window contains exactly one page plus 4px of zoom clearance
+  // on each side. The full card row remains unclipped inside that window.
+  clip.style.width = (pageWidth + 8) + 'px';
+  grid.style.width = (cards.length * step) + 'px';
+  grid.style.transform = 'translate3d(' + (4 - start * step) + 'px, 0, 0)';
+
+  viewport.classList.toggle('host-grid-overflow-left', hasOverflow && start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', hasOverflow && start < maxStart);
 }
-
 function scrollHostCardIntoView(target) {
   const grid = document.getElementById('host-grid');
+  const clip = document.getElementById('hosts-carousel-clip');
   const viewport = document.getElementById('hosts-carousel-viewport');
   const element = resolveElement(target);
-  if (!grid || !viewport || !element || !element.closest || !element.closest('#host-grid')) return;
+  if (!grid || !clip || !viewport || !element || !element.closest || !element.closest('#host-grid')) return;
 
   const layout = getHostsCarouselLayout(grid);
   const index = layout.cards.indexOf(element);
   if (index < 0 || !layout.step) return;
 
-  if (layout.cards.length <= layout.visibleCount) {
-    updateHostsCarousel();
-    return;
-  }
+  const maxStart = Math.max(0, layout.cards.length - layout.visibleCount);
+  const start = layout.cards.length > layout.visibleCount
+    ? Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)))
+    : 0;
 
-  const maxStart = layout.cards.length - layout.visibleCount;
-  const start = Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)));
   grid.dataset.carouselStart = String(start);
-  // Preserve the same side allowance used by updateHostsCarousel().
-  // Removing it here clips the scaled first/last card at the grid's scrollport.
-  const leftOverflowAllowance = 28;
-  const rightOverflowAllowance = 40;
-  grid.style.width = (layout.pageWidth + leftOverflowAllowance + rightOverflowAllowance) + 'px';
-  grid.style.paddingLeft = leftOverflowAllowance + 'px';
-  grid.style.paddingRight = rightOverflowAllowance + 'px';
-  grid.classList.remove('host-grid-centered');
+  clip.style.width = (layout.pageWidth + 8) + 'px';
+  grid.style.width = (layout.cards.length * layout.step) + 'px';
+  grid.style.transform = 'translate3d(' + (4 - start * layout.step) + 'px, 0, 0)';
+
   viewport.classList.toggle('host-grid-overflow-left', start > 0);
   viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
-  grid.scrollTo({ left: start * layout.step, behavior: 'smooth' });
 }
-
 (function initializeHostsCarousel() {
   function bind() {
     const grid = document.getElementById('host-grid');
     if (!grid || grid.dataset.carouselBound === 'true') return;
     grid.dataset.carouselBound = 'true';
-    // Scrolling only updates the indicators; it must not interrupt smooth paging.
-    grid.addEventListener('scroll', updateHostsCarouselIndicators, { passive: true });
     window.addEventListener('resize', updateHostsCarousel);
     updateHostsCarousel();
   }
