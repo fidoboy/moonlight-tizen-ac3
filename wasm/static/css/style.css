@@ -139,6 +139,11 @@ body {
     );
 }
 
+/* The Black and orange theme is uniformly black, so this layer has no gradient to render. */
+body[data-color-theme="black-orange"] #background-layer {
+    display: none !important;
+}
+
 /* Tiled grain overlay; avoids applying an SVG filter to the full background layer. */
 #background-layer::after {
     content: '';
@@ -148,7 +153,7 @@ body {
     bottom: 0;
     left: 0;
     pointer-events: none;
-    opacity: 0.18;
+    opacity: 0.08;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 180px 180px;
