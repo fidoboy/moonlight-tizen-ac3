@@ -47,6 +47,10 @@ var common = (function() {
   function attachDefaultListeners() {
     var listenerDiv = document.getElementById('listener');
     listenerDiv.addEventListener('message', handleMessage, true);
+
+    // Direct Smart Hub launches need only the WASM message bridge. Do not bind
+    // the main UI controls, navigation, discovery or settings event handlers.
+    if (window._directSmartHubLaunch) return;
     if (typeof window.attachListeners !== 'undefined') {
       window.attachListeners();
     }
@@ -109,11 +113,20 @@ var common = (function() {
     // If the page loads before the Native Client module loads, then set the
     // status message indicating that the module is still loading.  Otherwise,
     // do not change the status message.
-    updateStatus('Page loaded.');
+    if (!window._directSmartHubLaunch) {
+      updateStatus('Page loaded.');
+    }
     attachDefaultListeners();
 
     if (window._directSmartHubLaunch) {
-      // Preserve the fast direct-launch path: start WebAssembly immediately.
+      // Load translations without refreshing or initializing the hidden main UI.
+      window._directSmartHubLocalePromise = (window.i18n && typeof window.i18n.initForStream === 'function')
+        ? window.i18n.initForStream()
+        : Promise.resolve();
+      window._directSmartHubLocalePromise.catch(function(error) {
+        console.warn('[common.js] Could not load direct-stream translations:', error);
+      });
+      // Start WebAssembly immediately; only its message bridge is attached above.
       createWASMModule();
     } else {
       // Normal startup waits until the localized UI has been displayed for 500 ms.
