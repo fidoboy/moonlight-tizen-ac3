@@ -53,6 +53,91 @@ var isInGame = false; // Flag indicating whether the game has started, initial v
 var dolbyDecodingModeSupported = false;
 var dolbyDecodingModeSupportChecked = false;
 
+// Per-operation limits prevent a stalled Tizen subsystem or host request from
+// leaving either launch path indefinitely on its loading screen.
+const STREAM_OPERATION_TIMEOUTS = {
+  hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
+  hostLaunch: 30000, streamConnection: 30000, firstVideoFrame: 20000
+};
+const STREAM_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
+var streamStartupWatchdogTimeout = null;
+var streamStartupFailureHandled = false;
+
+function withOperationTimeout(operation, timeoutMs, operationName) {
+  return new Promise(function(resolve, reject) {
+    var settled = false;
+    var timeoutId = window.setTimeout(function() {
+      if (settled) return;
+      settled = true;
+      var error = new Error(operationName + ' timed out after ' + timeoutMs + ' ms');
+      error.name = 'TimeoutError';
+      error.operation = operationName;
+      reject(error);
+    }, timeoutMs);
+    Promise.resolve(operation).then(function(value) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      resolve(value);
+    }, function(error) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      reject(error);
+    });
+  });
+}
+
+function clearStreamStartupWatchdog() {
+  if (streamStartupWatchdogTimeout !== null) {
+    window.clearTimeout(streamStartupWatchdogTimeout);
+    streamStartupWatchdogTimeout = null;
+  }
+}
+
+function armStreamStartupWatchdog(stage, timeoutMs) {
+  clearStreamStartupWatchdog();
+  streamStartupWatchdogTimeout = window.setTimeout(function() {
+    streamStartupWatchdogTimeout = null;
+    streamStartupTimeoutFailure(stage);
+  }, timeoutMs);
+}
+
+function streamStartupTimeoutFailure(stage) {
+  if (streamStartupFailureHandled) return;
+  streamStartupFailureHandled = true;
+  var message = stage === 'video'
+    ? t('The host connected, but no video frame was received in time.')
+    : t('The host did not establish the streaming connection in time.');
+  console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
+  try { sendMessage('stopRequest', []); }
+  catch (error) { console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error); }
+
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(message);
+    return;
+  }
+  $('#loadingSpinnerTitle').text(t('Connection Error'));
+  $('#loadingSpinnerMessage').text(message);
+  var shownAt = Date.now();
+  var finishFailure = function() {
+    var remaining = Math.max(0, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS - (Date.now() - shownAt));
+    window.setTimeout(function() {
+      isInGame = false;
+      showHosts(function() {
+        hideStreamTransitionBackground();
+        snackbarLogLong(message);
+      });
+    }, remaining);
+  };
+  if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
+  else {
+    var layer = document.getElementById('stream-transition-layer');
+    if (layer) layer.style.display = 'block';
+    finishFailure();
+  }
+}
+
 // Shared UI timing: change this single value to tune all interface fades.
 const UI_FADE_DURATION_MS = 300;
 const STREAM_TRANSITION_ELEMENT_OFFSET_MS = 100;
@@ -4428,6 +4513,8 @@ function handleOnScreenOverlays() {
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
 function startGame(host, appID) {
+  streamStartupFailureHandled = false;
+  clearStreamStartupWatchdog();
   if (!host || !host.paired) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Attempted to start a game, but the host was not initialized properly! Host object: ', host);
     if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
@@ -4459,12 +4546,12 @@ function startGame(host, appID) {
   }
 
   // Refresh the server info, because the user might have quit the game
-  host.refreshServerInfo().then(function(ret) {
+  withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
     if (_directSmartHubLaunch) host.online = true;
-    (_directSmartHubLaunch ? Promise.resolve({
+    withOperationTimeout((_directSmartHubLaunch ? Promise.resolve({
       id: appID,
       title: _directSmartHubLaunch.appName || String(appID)
-    }) : host.getAppById(appID)).then(async function(appToStart) {
+    }) : host.getAppById(appID)), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         host.getAppById(host.currentGame).then(function(currentApp) {
           // Find the existing overlay and dialog elements
@@ -4644,7 +4731,7 @@ function startGame(host, appID) {
         $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
         try {
           if (typeof setNavigationSoundEnabled === 'function') {
-            await setNavigationSoundEnabled(false);
+            await withOperationTimeout(setNavigationSoundEnabled(false), STREAM_OPERATION_TIMEOUTS.audioShutdown, 'Local audio shutdown');
           }
         } catch (audioShutdownError) {
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
@@ -4661,7 +4748,7 @@ function startGame(host, appID) {
       if (host.currentGame == appID) {
         // If the app is already running, we can just resume it
         $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
-        return host.resumeApp(
+        return withOperationTimeout(host.resumeApp(
           streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate
           optimizeGames, // Optimize game settings (SOPS)
           rikey, rikeyid, // Remote input key and key ID
@@ -4669,7 +4756,7 @@ function startGame(host, appID) {
           playHostAudio, // Play audio on host and client device
           0x030002, // Surround channel mask << 16 | Surround channel count
           gamepadMask // Connect gamepad mask
-        ).then(function(launchResult) {
+        ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app resume').then(function(launchResult) {
           $xml = $($.parseXML(launchResult.toString()));
           $root = $xml.find('root');
           var status_code = $root.attr('status_code');
@@ -4692,6 +4779,7 @@ function startGame(host, appID) {
           }
           // Keep the lightweight canvas running until the first native stream frame is visible.
           // Start stream request
+          armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
             host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
@@ -4722,7 +4810,7 @@ function startGame(host, appID) {
 
       // If the user wants to launch the app, then we start launching it
       $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
-      host.launchApp(
+      withOperationTimeout(host.launchApp(
         appID, // App ID
         streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate
         optimizeGames, // Optimize game settings (SOPS)
@@ -4731,7 +4819,7 @@ function startGame(host, appID) {
         playHostAudio, // Play audio on host and client device
         0x030002, // Surround channel mask << 16 | Surround channel count
         gamepadMask // Connect gamepad mask
-      ).then(function(launchResult) {
+      ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app launch').then(function(launchResult) {
         $xml = $($.parseXML(launchResult.toString()));
         $root = $xml.find('root');
         var status_code = $root.attr('status_code');
@@ -4759,6 +4847,7 @@ function startGame(host, appID) {
         }
         // Keep the lightweight canvas running until the first native stream frame is visible.
         // Start stream request
+        armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
           host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
@@ -7691,17 +7780,27 @@ if (_directSmartHubLaunch) {
 function directSmartHubLaunchFailure(message) {
   if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
   _directSmartHubLaunchFailed = true;
+  clearStreamStartupWatchdog();
   console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', message);
-  window.setTimeout(function() {
-    try {
-      window.alert(message || 'Unable to launch the selected app.');
-    } catch (error) {
-      console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not display launch error:', error);
-    } finally {
+  var title = document.getElementById('loadingSpinnerTitle');
+  var status = document.getElementById('loadingSpinnerMessage');
+  if (title) title.textContent = t('Unable to start streaming');
+  if (status) status.textContent = message || t('Unable to launch the selected app.');
+
+  var shownAt = Date.now();
+  var exitAfterMessage = function() {
+    var remaining = Math.max(0, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS - (Date.now() - shownAt));
+    window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
-    }
-  }, 0);
+    }, remaining);
+  };
+  if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
+  else {
+    var layer = document.getElementById('stream-transition-layer');
+    if (layer) layer.style.display = 'block';
+    exitAfterMessage();
+  }
 }
 
 function maybeStartDirectSmartHubLaunch() {
