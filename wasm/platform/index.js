@@ -7575,23 +7575,22 @@ function updatePreviewData() {
 
 function setDirectSmartHubStatus(message) {
   if (!_directSmartHubLaunch) return;
-  var statusElement = document.getElementById('directSmartHubStatus');
-  if (!statusElement) return;
-  statusElement.textContent = message;
-  statusElement.style.display = 'flex';
+  var title = document.getElementById('loadingSpinnerTitle');
+  if (title) title.textContent = message;
 }
 
 function updateDirectSmartHubStartingStatus(hostName) {
   if (!_directSmartHubLaunch) return;
-  var appName = _directSmartHubLaunch.appName || 'aplicación';
+  var appName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
   var normalizedHostName = (typeof hostName === 'string') ? hostName.trim() : '';
-  setDirectSmartHubStatus('Iniciando ' + appName +
-    (normalizedHostName ? ' en ' + normalizedHostName : '') + '...');
+  var title = t('Starting %1$s...', appName);
+  if (normalizedHostName) title += ' ' + t('on %1$s', normalizedHostName);
+  setDirectSmartHubStatus(title);
 }
 
 function hideDirectSmartHubStatus() {
-  var statusElement = document.getElementById('directSmartHubStatus');
-  if (statusElement) statusElement.style.display = 'none';
+  // Kept as a compatibility no-op for older message handlers. Direct launches
+  // now use the shared stream-transition layer instead of a separate status panel.
 }
 
 if (_directSmartHubLaunch) {
