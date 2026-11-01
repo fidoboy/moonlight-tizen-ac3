@@ -4723,11 +4723,25 @@ function startGame(host, appID) {
       var streamTitleMessage = host.currentGame == appID ? 'Resuming %1$s...' : 'Starting %1$s...';
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
       $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
-      if (_directSmartHubLaunch) {
-        await (window._directSmartHubTransitionPromise || showStreamMode(streamWidth, streamHeight));
-        window._directSmartHubTransitionPromise = null;
-      } else {
-        await showStreamMode(streamWidth, streamHeight);
+      try {
+        if (_directSmartHubLaunch) {
+          await withOperationTimeout(
+            window._directSmartHubTransitionPromise || showStreamMode(streamWidth, streamHeight),
+            5000,
+            'Transition screen preparation'
+          );
+          window._directSmartHubTransitionPromise = null;
+        } else {
+          await withOperationTimeout(
+            showStreamMode(streamWidth, streamHeight),
+            5000,
+            'Transition screen preparation'
+          );
+        }
+      } catch (transitionError) {
+        console.error('%c[index.js, startGame]', 'color: red;', 'Could not prepare the stream transition screen:', transitionError);
+        streamStartupTimeoutFailure('connection', t('Could not prepare the streaming screen.'));
+        return;
       }
       if (!_directSmartHubLaunch) {
         $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
