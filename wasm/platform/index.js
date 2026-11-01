@@ -57,7 +57,7 @@ var dolbyDecodingModeSupportChecked = false;
 // leaving either launch path indefinitely on its loading screen.
 const STREAM_OPERATION_TIMEOUTS = {
   hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
-  hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 20000
+  hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 10000
 };
 const STREAM_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
 var streamStartupWatchdogTimeout = null;
@@ -4956,7 +4956,7 @@ function stopGame(host, callbackFunction) {
         suppressLoadingSnackbar: true,
         suppressEmptyListSnackbar: true,
         keepInteractionLocked: true
-      }), 20000, 'Application list refresh after app shutdown');
+      }), 10000, 'Application list refresh after app shutdown');
     }).catch(function(error) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
     }).then(function() {
