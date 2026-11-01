@@ -1204,6 +1204,7 @@ function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   $('#refreshHostsBtn').show();
   $('#supportBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
+  $('#hosts-carousel-viewport').show();
   $('#settings-list').hide();
   $('#game-grid').hide();
   $('#goBackBtn').hide();
@@ -2574,6 +2575,11 @@ function showSettingsMode() {
   $('#goBackBtn').show();
   $('#restoreDefaultsBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
+  // The carousel viewport owns the Hosts arrows and must be hidden as a whole
+  // when entering Settings; hiding only the nested grid leaves its indicators visible.
+  $('#hosts-carousel-viewport')
+    .removeClass('host-grid-overflow-left host-grid-overflow-right')
+    .hide();
   $('#host-grid').hide();
   $('#game-grid').hide();
   $('.nav-menu-parent').hide();
