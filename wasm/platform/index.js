@@ -3432,6 +3432,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('.mdl-layout__content').show();
   $('#goBackBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
+  $('#hosts-carousel-viewport').hide();
   $('#host-grid').hide();
   $('#settings-list').hide();
   // Keep an already-visible, locked Apps grid in place during an in-place refresh.
