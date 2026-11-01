@@ -6674,11 +6674,42 @@ function loadSystemInfo() {
   }
 }
 
-function readStoredPreference(key) {
-  return new Promise(function(resolve) {
-    getData(key, function(value) {
-      resolve(value && value[key] !== undefined ? value[key] : null);
-    });
+function readStoredPreferences(keys) {
+  return new Promise(function(resolve, reject) {
+    try {
+      var transaction = db.transaction(storeName, 'readonly');
+      var objectStore = transaction.objectStore(storeName);
+      var values = {};
+      var remaining = keys.length;
+
+      if (remaining === 0) {
+        resolve(values);
+        return;
+      }
+
+      keys.forEach(function(key) {
+        var request = objectStore.get(key);
+        request.onsuccess = function() {
+          try {
+            var storedValue = request.result ? JSON.parse(request.result) : null;
+            values[key] = storedValue && storedValue[key] !== undefined ? storedValue[key] : null;
+            remaining--;
+            if (remaining === 0) resolve(values);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        request.onerror = function() {
+          reject(request.error || new Error('Could not read setting: ' + key));
+        };
+      });
+
+      transaction.onerror = function() {
+        reject(transaction.error || new Error('Could not read streaming settings.'));
+      };
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
@@ -6697,11 +6728,8 @@ function loadDirectSmartHubStreamSettings() {
   return new Promise(function(resolve) {
     openIndexDB(resolve);
   }).then(function() {
-    return Promise.all(keys.map(readStoredPreference));
-  }).then(function(values) {
-    var stored = {};
-    keys.forEach(function(key, index) { stored[key] = values[index]; });
-
+    return readStoredPreferences(keys);
+  }).then(function(stored) {
     var resolution = stored.resolution || '1280:720';
     var width = parseInt(resolution.split(':')[0], 10);
     if (!isFinite(width) || width <= 0) resolution = '1280:720';
