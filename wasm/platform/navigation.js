@@ -716,7 +716,7 @@ function getHostsCarouselLayout(grid) {
 
   // The viewport reserves fixed side gutters for the arrows. Size the
   // scrolling grid to the exact width of complete cards that fit in that area.
-  const viewport = grid.parentElement;
+  const viewport = document.getElementById('hosts-carousel-viewport');
   const viewportStyle = window.getComputedStyle(viewport);
   const horizontalPadding =
     (parseFloat(viewportStyle.paddingLeft) || 0) +
