@@ -6602,6 +6602,20 @@ function initSamsungKeys() {
   platformOnLoad(handler);
 }
 
+function initDirectSamsungKeys() {
+  console.log('%c[index.js, initDirectSamsungKeys]', 'color: green;', 'Registering only the TV keys required during direct streaming...');
+  platformOnLoad({
+    initRemoteController: true,
+    focusId: 'wasm_module',
+    buttonsToRegister: [
+      'MediaPlayPause',
+      'MediaPause',
+      'MediaPlay'
+    ],
+    onKeydownListener: remoteControllerHandler
+  });
+}
+
 function initSpecialKeys() {
   console.log('%c[index.js, initSpecialKeys]', 'color: green;', 'Initializing special TV input keys...');
 
@@ -7960,7 +7974,9 @@ function onWindowLoad() {
   }
 
   if (_directSmartHubLaunch) {
-    // Direct launches must not initialize navigation, UI controls, or UI audio.
+    // Register only stream-specific remote controls. Do not initialize home-screen navigation.
+    initDirectSamsungKeys();
+    initSpecialKeys();
     console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Direct Smart Hub app launch detected: ' + JSON.stringify(_directSmartHubLaunch));
     try {
       if (window.screen && typeof window.screen.show === 'function') window.screen.show();
