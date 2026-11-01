@@ -1103,6 +1103,8 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
+    // Ignore late native notifications after the startup sequence has already been aborted.
+    if (window._streamStartupFailureHandled) return;
     // Connection negotiation completed; now bound the wait for the first decoded frame.
     if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
     // This marks connection setup, not the availability of the first decoded video frame.
@@ -1112,9 +1114,11 @@ function handleMessage(msg) {
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
   } else if (msg.indexOf('ProgressMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
     // Show progress message below the transition bar, keeping the app title fixed above it.
     $('#loadingSpinnerMessage').text(translateBackendMessage(msg.replace('ProgressMsg: ', '')));
   } else if (msg.indexOf('TransientMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
     var transientMessage = translateBackendMessage(msg.replace('TransientMsg: ', ''));
     if (window._directSmartHubLaunch) {
       $('#loadingSpinnerMessage').text(transientMessage);
@@ -1122,6 +1126,7 @@ function handleMessage(msg) {
       snackbarLogLong(transientMessage);
     }
   } else if (msg.indexOf('DialogMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
     var dialogMessage = translateBackendMessage(msg.replace('DialogMsg: ', ''));
     if (window._directSmartHubLaunch) {
       directSmartHubLaunchFailure(dialogMessage);
@@ -1129,6 +1134,8 @@ function handleMessage(msg) {
       warningDialog(t('Connection Error'), dialogMessage);
     }
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
+    // A late first-frame notification must not revive a stream whose startup failed.
+    if (window._streamStartupFailureHandled) return;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
