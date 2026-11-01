@@ -4812,8 +4812,13 @@ function streamMenuDialog() {
       text: menuOption.text
     });
     streamMenuDialogOption.click(function() {
-      closeStreamMenuDialog(true);
-      menuOption.action();
+      if (menuOption.id === 'streamMenuDisconnect') {
+        // Let the menu finish fading out before the stream termination starts its transition.
+        closeStreamMenuDialog(false, menuOption.action);
+      } else {
+        closeStreamMenuDialog(true);
+        menuOption.action();
+      }
     });
     streamMenuDialogOption.appendTo(streamMenuDialogContent);
   });
@@ -4847,20 +4852,25 @@ function streamMenuDialog() {
   setTimeout(() => Navigation.switch(), 5);
 }
 
-function closeStreamMenuDialog(returnToStream) {
+function closeStreamMenuDialog(returnToStream, onClosed) {
   var streamMenuDialogOverlay = $('#streamMenuDialogOverlay');
   if (streamMenuDialogOverlay.length === 0 || streamMenuDialogOverlay[0]._closingUiDialog) {
     return;
   }
   var overlayElement = streamMenuDialogOverlay[0];
   var dialogElement = $('#streamMenuDialog')[0];
+  var overlayFadeOutComplete = false;
+  var dialogFadeOutComplete = false;
+  var closedCallbackCalled = false;
   overlayElement._closingUiDialog = true;
   Navigation.pop();
   Navigation.stop();
   window.removeEventListener('mousemove', stopMouseMovePropagation, true);
-  fadeOutUiElement(overlayElement);
   isDialogOpen = false;
-  closeUiDialog(dialogElement, function() {
+
+  function finishClosing() {
+    if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
+    closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
@@ -4871,6 +4881,16 @@ function closeStreamMenuDialog(returnToStream) {
         }));
       }
     }
+    if (typeof onClosed === 'function') onClosed();
+  }
+
+  fadeOutUiElement(overlayElement, function() {
+    overlayFadeOutComplete = true;
+    finishClosing();
+  });
+  closeUiDialog(dialogElement, function() {
+    dialogFadeOutComplete = true;
+    finishClosing();
   });
 }
 
