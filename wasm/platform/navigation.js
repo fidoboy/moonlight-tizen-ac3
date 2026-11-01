@@ -714,8 +714,8 @@ function getHostsCarouselLayout(grid) {
   const marginRight = parseFloat(style.marginRight) || 0;
   const step = firstCard.offsetWidth + marginLeft + marginRight;
 
-  // The viewport reserves fixed side gutters for the arrows. Size the
-  // scrolling grid to the exact width of complete cards that fit in that area.
+  // The outer viewport reserves fixed side gutters for the arrows. The
+  // dedicated clip window is sized to one complete page of cards.
   const viewport = document.getElementById('hosts-carousel-viewport');
   const viewportStyle = window.getComputedStyle(viewport);
   const horizontalPadding =
@@ -725,17 +725,6 @@ function getHostsCarouselLayout(grid) {
   const visibleCount = Math.min(4, Math.max(1, Math.floor(usableWidth / step)));
   const pageWidth = Math.min(cards.length, visibleCount) * step;
   return { cards, visibleCount, step, pageWidth, usableWidth };
-}
-
-function updateHostsCarouselIndicators() {
-  const grid = document.getElementById('host-grid');
-  const viewport = document.getElementById('hosts-carousel-viewport');
-  if (!grid || !viewport) return;
-  const layout = getHostsCarouselLayout(grid);
-  const maxStart = Math.max(0, layout.cards.length - layout.visibleCount);
-  const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
-  viewport.classList.toggle('host-grid-overflow-left', maxStart > 0 && start > 0);
-  viewport.classList.toggle('host-grid-overflow-right', maxStart > 0 && start < maxStart);
 }
 
 function updateHostsCarousel() {
