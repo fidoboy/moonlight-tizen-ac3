@@ -10,7 +10,6 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Changed
 - **Main interface background:** Replaced the flat main-interface background with a vertical gradient that darkens towards the bottom while preserving the selected color theme.
-- **Bottom configuration summary:** Increased the bar's background opacity to approximately 70% when displayed at the bottom of the screen, improving readability while keeping its contents fully opaque.
 - **Default interface settings:** Enabled Video frame pacing and Host address field mode by default.
 
 ### Fixed
