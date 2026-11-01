@@ -1037,13 +1037,25 @@ body {
     right: 80px;
 }
 
+/* Clip the Hosts row independently from its moving card track. The extra
+   8px lets a centered 1.2x edge-card zoom remain visible without exposing
+   the next card. */
+#hosts-carousel-clip {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+}
 #host-grid {
     position: relative;
     display: flex;
     flex: 0 0 auto;
     width: auto;
-    /* The carousel grid intentionally extends 28px beyond each side so
-       centered edge-card zoom remains inside the parent viewport. */
     max-width: none;
     height: 100%;
     min-width: 0;
@@ -1055,12 +1067,9 @@ body {
     align-items: center;
     align-content: center;
     justify-content: flex-start;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    scroll-behavior: auto;
-}
-#host-grid.host-grid-centered {
-    justify-content: center;
+    overflow: visible;
+    transform: translate3d(4px, 0, 0);
+    transition: transform 0.25s ease-in-out;
 }
 #host-grid.host-list-locked {
     opacity: 0.4;
