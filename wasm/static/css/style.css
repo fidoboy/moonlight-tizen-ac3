@@ -1,6 +1,7 @@
 /* Application color themes. The original values preserve the existing default appearance. */
 :root {
     --theme-background: #282C38;
+    --theme-background-dark: #1A1C24;
     --theme-surface: #404354;
     --theme-surface-deep: #333846;
     --theme-surface-hover: #484C5F;
@@ -17,6 +18,7 @@
 }
 body[data-color-theme="black-orange"] {
     --theme-background: #000000;
+    --theme-background-dark: #000000;
     --theme-surface: #171717;
     --theme-surface-deep: #090909;
     --theme-surface-hover: #292929;
@@ -33,6 +35,7 @@ body[data-color-theme="black-orange"] {
 }
 body[data-color-theme="graphite-red"] {
     --theme-background: #202124;
+    --theme-background-dark: #151516;
     --theme-surface: #333438;
     --theme-surface-deep: #18191B;
     --theme-surface-hover: #48494D;
@@ -49,6 +52,7 @@ body[data-color-theme="graphite-red"] {
 }
 body[data-color-theme="forest"] {
     --theme-background: #18211D;
+    --theme-background-dark: #0F1512;
     --theme-surface: #26352E;
     --theme-surface-deep: #111A15;
     --theme-surface-hover: #34483D;
@@ -65,6 +69,7 @@ body[data-color-theme="forest"] {
 }
 body[data-color-theme="midnight-violet"] {
     --theme-background: #171827;
+    --theme-background-dark: #0F1019;
     --theme-surface: #2A2B42;
     --theme-surface-deep: #10111D;
     --theme-surface-hover: #3A3B58;
@@ -113,12 +118,21 @@ body {
 #main-ui-layer {
     z-index: 10;
     opacity: 0;
-    background:
-        url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.0' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncG type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncB type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncA type='linear' slope='0.035'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
-        linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.28) 12%, rgba(0, 0, 0, 0.12) 30%, rgba(0, 0, 0, 0) 55%),
-        var(--theme-background);
-    background-size: 200px 200px, auto, auto;
-    background-repeat: repeat, no-repeat, no-repeat;
+    isolation: isolate;
+    background: transparent;
+}
+#main-ui-layer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+        to bottom,
+        var(--theme-background) 0%,
+        var(--theme-background-dark) 100%
+    );
+    filter: url(#background-grain);
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
@@ -1021,7 +1035,7 @@ body {
     position: absolute;
     top: 50%;
     z-index: 5;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.2);
     font-family: 'Material Icons';
     font-size: 96px;
     font-weight: normal;
