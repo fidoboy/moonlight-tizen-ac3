@@ -715,7 +715,7 @@ function getHostsCarouselLayout(grid) {
   const step = firstCard.offsetWidth + marginLeft + marginRight;
   // The viewport reserves fixed side gutters for the arrows. Calculate the
   // visible page only from the grid's remaining width, fitting complete cards.
-  const visibleCount = Math.max(1, Math.floor(grid.clientWidth / step));
+  const visibleCount = Math.min(4, Math.max(1, Math.floor(grid.clientWidth / step)));
   // Center the complete-card group within the usable grid area.
   const sideMargin = Math.max(0, (grid.clientWidth - visibleCount * step) / 2);
   return { cards, visibleCount, step, sideMargin };
