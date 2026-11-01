@@ -769,6 +769,7 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
@@ -835,13 +836,13 @@ function handleMessage(msg) {
         }
       };
       var finishDirectLaunch = function() {
-        // Keep the same transition visible briefly so the closing message can be read.
-        window.setTimeout(exitDirectLaunch, 2500);
+        // Keep the closing status visible long enough to be read before leaving Tizen.
+        window.setTimeout(exitDirectLaunch, 3000);
       };
 
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-          window.api.quitApp().then(finishDirectLaunch, function(failedQuitApp) {
+          withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
             console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
             finishDirectLaunch();
           });
@@ -925,7 +926,7 @@ function handleMessage(msg) {
       }
       $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       var restoration = typeof setNavigationSoundEnabled === 'function'
-        ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
+        ? withOperationTimeout(setNavigationSoundEnabled(navigationSoundPreferenceEnabled), 10000, 'Local audio restoration')
         : Promise.resolve();
       Promise.resolve(restoration).catch(function(audioRestoreError) {
         // A sound-effects failure must not strand the user in the closing transition.
@@ -1003,17 +1004,17 @@ function handleMessage(msg) {
       snackbarLogPersistent('Loading Apps...');
       // Refreshing server info is useful, but failure must not prevent recovery.
       Promise.resolve().then(function() {
-        return api.refreshServerInfo();
+        return withOperationTimeout(api.refreshServerInfo(), 15000, 'Host information refresh after streaming');
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
         // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
         // and the current-game highlighting reflect the host's state after the stream.
         // showApps keeps the interaction lock in place until the refreshed list is rendered.
-        return showApps(api, {
+        return withOperationTimeout(showApps(api, {
           forceRefreshAppList: true,
           showLoadingSnackbarImmediately: true
-        }).then(function() {
+        }), 20000, 'Application list recovery').then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
@@ -1047,7 +1048,7 @@ function handleMessage(msg) {
         // transition fadeout and the additional 200 ms breathing room.
         if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
           console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-          api.quitApp().then(function() {
+          withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown').then(function() {
             console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
             refreshHostAndReturnToApps();
           }, function(failedQuitApp) {
@@ -1095,6 +1096,10 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
+    // Connection negotiation completed; now bound the wait for the first decoded frame.
+    if (typeof armStreamStartupWatchdog === 'function' && window.STREAM_OPERATION_TIMEOUTS) {
+      armStreamStartupWatchdog('video', window.STREAM_OPERATION_TIMEOUTS.firstVideoFrame);
+    }
     // This marks connection setup, not the availability of the first decoded video frame.
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
@@ -1119,6 +1124,7 @@ function handleMessage(msg) {
       warningDialog(t('Connection Error'), dialogMessage);
     }
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
+    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
     // "playing" event is also wired as a fallback for builds that omit this message.
