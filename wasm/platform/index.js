@@ -120,14 +120,13 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   $('#loadingSpinnerTitle').text(t('Connection Error'));
   $('#loadingSpinnerMessage').text(message);
   var finishFailure = function() {
-    var shownAt = Date.now();
     window.setTimeout(function() {
       isInGame = false;
       showHosts(function() {
         hideStreamTransitionBackground();
         snackbarLogLong(message);
       });
-    }, remaining);
+    }, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
   else {
@@ -4371,6 +4370,7 @@ function hideStreamTransitionBackground(afterHidden) {
 function handleNormalStreamVideoReady() {
   if (window._directSmartHubLaunch || !isInGame || window._normalStreamVideoReady) return;
 
+  clearStreamStartupWatchdog();
   window._normalStreamVideoReady = true;
   $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
     background: 'transparent',
@@ -4402,6 +4402,7 @@ function handleNormalStreamVideoReady() {
 // Finalize a direct Smart Hub stream without relying on the normal UI readiness path.
 function handleDirectSmartHubVideoReady() {
   if (!window._directSmartHubLaunch || !isInGame || window._directSmartHubVideoReady) return;
+  clearStreamStartupWatchdog();
   window._directSmartHubVideoReady = true;
 
   var body = document.body;
@@ -7808,7 +7809,7 @@ function directSmartHubLaunchFailure(message) {
     window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
-    }, remaining);
+    }, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
   else {
