@@ -384,6 +384,9 @@ function focusElement(target) {
           settingsPane.scrollTop += elementRect.bottom - visibleBottom;
         }
       }
+    } else if (element.closest && element.closest('#host-grid')) {
+      // Let the carousel control horizontal positioning without browser auto-scroll.
+      element.focus({ preventScroll: true });
     } else {
       element.focus();
     }
@@ -709,7 +712,7 @@ function getHostsCarouselLayout(grid) {
   const style = window.getComputedStyle(firstCard);
   const marginLeft = parseFloat(style.marginLeft) || 0;
   const marginRight = parseFloat(style.marginRight) || 0;
-  const step = firstCard.getBoundingClientRect().width + marginLeft + marginRight;
+  const step = firstCard.offsetWidth + marginLeft + marginRight;
   // Keep more than one card-width of clear space on both sides whenever the
   // viewport permits it. On very narrow screens, preserve at least one card.
   const minimumSideMargin = step + 20;
