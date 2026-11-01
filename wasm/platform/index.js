@@ -1693,36 +1693,42 @@ function initIpAddressFields() {
 
 function refreshPanelResolutionCapabilities() {
   var productInfo = typeof webapis !== 'undefined' && webapis.productinfo;
-  var supports4k = false;
-  var supports8k = false;
+  var supports4k = null;
+  var supports8k = null;
 
-  try {
-    if (productInfo && typeof productInfo.isUdPanelSupported === 'function') {
-      supports4k = productInfo.isUdPanelSupported() === true;
+  // A missing API, an exception, or an unexpected return value means unknown,
+  // not unsupported. Only an explicit false result may impose a restriction.
+  if (productInfo && typeof productInfo.isUdPanelSupported === 'function') {
+    try {
+      var result4k = productInfo.isUdPanelSupported();
+      if (result4k === true || result4k === false) supports4k = result4k;
+    } catch (error) {
+      console.warn('%c[index.js, refreshPanelResolutionCapabilities]', 'color: gray;', 'Could not determine UHD panel capability:', error);
     }
-    if (productInfo && typeof productInfo.is8KPanelSupported === 'function') {
-      supports8k = productInfo.is8KPanelSupported() === true;
+  }
+  if (productInfo && typeof productInfo.is8KPanelSupported === 'function') {
+    try {
+      var result8k = productInfo.is8KPanelSupported();
+      if (result8k === true || result8k === false) supports8k = result8k;
+    } catch (error) {
+      console.warn('%c[index.js, refreshPanelResolutionCapabilities]', 'color: gray;', 'Could not determine 8K panel capability:', error);
     }
-  } catch (error) {
-    // If the capability query fails, keep the conservative Full HD limit.
-    console.warn('%c[index.js, refreshPanelResolutionCapabilities]', 'color: gray;', 'Could not determine panel resolution capabilities:', error);
-    supports4k = false;
-    supports8k = false;
   }
 
   is4kPanel = supports4k;
   is8kPanel = supports8k;
   panelCapabilitiesChecked = true;
 
-  if (is8kPanel) {
+  if (is8kPanel === true || is8kPanel === null) {
+    // Unknown 8K capability must not hide the option from the user.
     maxSupportedWidth = 7680;
     maxSupportedHeight = 4320;
-  } else if (is4kPanel) {
+  } else if (is4kPanel === true || is4kPanel === null) {
+    // Explicitly not 8K, but UHD is either confirmed or still unknown.
     maxSupportedWidth = 3840;
     maxSupportedHeight = 2160;
   } else {
-    // Do not infer UHD decoding/panel support from window.screen dimensions.
-    // Non-UHD panels are limited to Full HD in the resolution selector.
+    // Both UHD and 8K have been explicitly reported as unsupported.
     maxSupportedWidth = 1920;
     maxSupportedHeight = 1080;
   }
@@ -1736,14 +1742,15 @@ function refreshPanelResolutionCapabilities() {
 }
 
 function refreshHdrCapability() {
+  isHdrCapable = null;
   try {
-    isHdrCapable = typeof webapis !== 'undefined' &&
-      webapis.avinfo &&
-      typeof webapis.avinfo.isHdrTvSupport === 'function' &&
-      webapis.avinfo.isHdrTvSupport() === true;
+    if (typeof webapis !== 'undefined' && webapis.avinfo &&
+        typeof webapis.avinfo.isHdrTvSupport === 'function') {
+      var result = webapis.avinfo.isHdrTvSupport();
+      if (result === true || result === false) isHdrCapable = result;
+    }
   } catch (error) {
-    // If HDR capability cannot be determined, keep the setting unavailable.
-    isHdrCapable = false;
+    // An unavailable or failing query is unknown, not proof that HDR is unsupported.
     console.warn('%c[index.js, refreshHdrCapability]', 'color: gray;', 'Could not determine HDR capability:', error);
   }
 
@@ -6419,7 +6426,7 @@ function updateHdrControlState() {
 
   if (!hdrInput || !hdrSwitch) return;
 
-  // HDR requires both a compatible codec and an HDR-capable TV.
+  // HDR requires a compatible codec. Disable it for the TV only when lack of HDR is confirmed.
   if (isUnavailable && hdrInput.checked) {
     if (hdrSwitch.MaterialSwitch) {
       hdrSwitch.MaterialSwitch.off();
@@ -6931,7 +6938,7 @@ function loadSystemInfo() {
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Series: ' + (modelSeries ? modelSeries : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Name: ' + (modelName ? modelName : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Group: ' + (modelGroup ? modelGroup : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (panelCapabilitiesChecked ? (is4kPanel ? 'Yes' : 'No') : 'Not checked'));
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (!panelCapabilitiesChecked ? 'Not checked' : (is4kPanel === null ? 'Unknown' : (is4kPanel ? 'Yes' : 'No'))));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'HDR Capable: ' + (isHdrCapable === null ? 'Not checked' : (isHdrCapable ? 'Yes' : 'No')));
     // Insert the system information as text, then render the experimental marker
     // with the same shared badge class used by other experimental settings.
