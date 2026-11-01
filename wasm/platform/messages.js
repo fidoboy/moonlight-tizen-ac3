@@ -1067,11 +1067,6 @@ function handleMessage(msg) {
 
   } else if (msg === 'Connection Established') {
     // This marks connection setup, not the availability of the first decoded video frame.
-    // Keep the direct-launch connection status until this callback arrives.
-    if (window._directSmartHubLaunch) {
-      var directStatusOnConnect = document.getElementById('directSmartHubStatus');
-      if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
-    }
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
     $('body').css('backgroundColor', 'transparent');
@@ -1113,12 +1108,6 @@ function handleMessage(msg) {
       } else {
         $('#listener').addClass('fullscreen');
       }
-    }
-    // Hide the lightweight direct-launch status when the video-ready notification arrives.
-    if (window._directSmartHubLaunch) {
-      // Use direct DOM access for compatibility with older Tizen WebKit engines.
-      var directStatusElement = document.getElementById('directSmartHubStatus');
-      if (directStatusElement) directStatusElement.style.display = 'none';
     }
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
