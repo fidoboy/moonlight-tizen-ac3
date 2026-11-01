@@ -114,8 +114,16 @@ function streamStartupTimeoutFailure(stage, customMessage) {
       : t('The host did not establish the streaming connection in time.')));
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
   if (isInGame) {
-    try { sendMessage('stopRequest', []); }
-    catch (error) { console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error); }
+    try {
+      var stopResult = sendMessage('stopRequest', []);
+      if (stopResult && typeof stopResult.catch === 'function') {
+        stopResult.catch(function(error) {
+          console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error);
+        });
+      }
+    } catch (error) {
+      console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error);
+    }
   }
 
   if (_directSmartHubLaunch) {
