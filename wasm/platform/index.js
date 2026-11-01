@@ -7927,7 +7927,13 @@ function onWindowLoad() {
       console.warn('%c[index.js, onWindowLoad]', 'color: gray;', 'Could not dismiss native launch screen early:', error);
     }
     hideUiLayerImmediately('main-ui-layer');
-    loadDirectSmartHubStreamSettings();
+    var directLocalePromise = window._directSmartHubLocalePromise || Promise.resolve();
+    directLocalePromise.then(function() {
+      loadDirectSmartHubStreamSettings();
+    }).catch(function(error) {
+      console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Direct-stream localization initialization failed:', error);
+      directSmartHubLaunchFailure('Moonlight could not initialize the streaming interface.');
+    });
     return;
   }
 
