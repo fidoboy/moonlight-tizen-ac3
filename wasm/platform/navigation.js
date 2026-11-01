@@ -725,29 +725,32 @@ function getHostsCarouselLayout(grid) {
 
 function updateHostsCarouselIndicators() {
   const grid = document.getElementById('host-grid');
-  if (!grid) return;
+  const viewport = document.getElementById('hosts-carousel-viewport');
+  if (!grid || !viewport) return;
   const layout = getHostsCarouselLayout(grid);
   const maxStart = Math.max(0, layout.cards.length - layout.visibleCount);
   const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
-  grid.classList.toggle('host-grid-overflow-left', maxStart > 0 && start > 0);
-  grid.classList.toggle('host-grid-overflow-right', maxStart > 0 && start < maxStart);
+  viewport.classList.toggle('host-grid-overflow-left', maxStart > 0 && start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', maxStart > 0 && start < maxStart);
 }
 
 function updateHostsCarousel() {
   const grid = document.getElementById('host-grid');
-  if (!grid) return;
+  const viewport = document.getElementById('hosts-carousel-viewport');
+  if (!grid || !viewport) return;
 
   const layout = getHostsCarouselLayout(grid);
   const { cards, visibleCount, step, sideMargin } = layout;
   if (!cards.length) {
-    grid.classList.remove('host-grid-centered', 'host-grid-overflow-left', 'host-grid-overflow-right');
+    grid.classList.remove('host-grid-centered');
+    viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
     return;
   }
 
   const hasOverflow = cards.length > visibleCount;
   if (!hasOverflow) {
     grid.classList.add('host-grid-centered');
-    grid.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
+    viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
     grid.style.paddingLeft = '0px';
     grid.style.paddingRight = '0px';
     grid.dataset.carouselStart = '0';
@@ -765,14 +768,15 @@ function updateHostsCarousel() {
   const targetScrollLeft = start * step;
   if (Math.abs(grid.scrollLeft - targetScrollLeft) > 1) grid.scrollLeft = targetScrollLeft;
 
-  grid.classList.toggle('host-grid-overflow-left', start > 0);
-  grid.classList.toggle('host-grid-overflow-right', start < maxStart);
+  viewport.classList.toggle('host-grid-overflow-left', start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
 }
 
 function scrollHostCardIntoView(target) {
   const grid = document.getElementById('host-grid');
+  const viewport = document.getElementById('hosts-carousel-viewport');
   const element = resolveElement(target);
-  if (!grid || !element || !element.closest || !element.closest('#host-grid')) return;
+  if (!grid || !viewport || !element || !element.closest || !element.closest('#host-grid')) return;
 
   const layout = getHostsCarouselLayout(grid);
   const index = layout.cards.indexOf(element);
@@ -789,8 +793,8 @@ function scrollHostCardIntoView(target) {
   grid.style.paddingLeft = layout.sideMargin + 'px';
   grid.style.paddingRight = layout.sideMargin + 'px';
   grid.classList.remove('host-grid-centered');
-  grid.classList.toggle('host-grid-overflow-left', start > 0);
-  grid.classList.toggle('host-grid-overflow-right', start < maxStart);
+  viewport.classList.toggle('host-grid-overflow-left', start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
   grid.scrollTo({ left: start * layout.step, behavior: 'smooth' });
 }
 
