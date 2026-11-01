@@ -4226,7 +4226,7 @@ function showStreamTransitionBackground(onVisible) {
         if (typeof onVisible !== 'function') return;
         window.setTimeout(function() {
           if (streamTransitionVisible && !streamTransitionHiding) onVisible();
-        }, 200);
+        }, 400);
       });
 
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
