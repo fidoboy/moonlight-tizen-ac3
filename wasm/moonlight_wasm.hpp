@@ -103,7 +103,8 @@ class MoonlightInstance {
     std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
     bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
     std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-    std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats);
+    std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+    std::string h264Level);
   void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
   MessageResult StopStream();
 
@@ -256,6 +257,7 @@ class MoonlightInstance {
   bool m_PlayHostAudioEnabled;
   bool m_DecryptHostAudioEnabled;
   bool m_HdrModeEnabled;
+  std::string m_H264Level {"Auto"};
   bool m_FullRangeEnabled;
   bool m_GameModeEnabled;
   bool m_DisableWarningsEnabled;
@@ -321,7 +323,8 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats);
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string h264Level);
 MessageResult stopStream();
 
 MessageResult cancelRequest();
