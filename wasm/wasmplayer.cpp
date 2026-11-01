@@ -104,6 +104,15 @@ static const H264LevelLimit* SelectH264Level(int width, int height, int frameRat
 }
 
 
+static const H264LevelLimit* FindH264Level(const std::string& levelName) {
+  for (const auto& level : kH264LevelLimits) {
+    if (level.name == levelName) {
+      return &level;
+    }
+  }
+  return nullptr;
+}
+
 static std::vector<unsigned char> s_DecodeBuffer;
 
 static TimeStamp s_frameDuration;
@@ -364,10 +373,17 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     const char *mimetype = "video/mp4"; // MIME-type: Video MP4 Container
     std::string h264MimeType;
     if (videoFormat & VIDEO_FORMAT_H264) {
-      const auto* h264Level = SelectH264Level(width, height, redrawRate);
+      const bool automaticLevel = g_Instance->m_H264Level == "Auto";
+      const auto* h264Level = automaticLevel
+        ? SelectH264Level(width, height, redrawRate)
+        : FindH264Level(g_Instance->m_H264Level);
       if (h264Level == nullptr) {
-        ClLogMessage("H.264 stream dimensions or frame rate exceed the supported level range (%dx%d at %d FPS)\n",
-          width, height, redrawRate);
+        if (automaticLevel) {
+          ClLogMessage("H.264 stream dimensions or frame rate exceed the supported level range (%dx%d at %d FPS)\n",
+            width, height, redrawRate);
+        } else {
+          ClLogMessage("Invalid manual H.264 level selected: %s\n", g_Instance->m_H264Level.c_str());
+        }
         return -1;
       }
 
@@ -376,8 +392,8 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         h264Level->levelIdc);
       h264MimeType = codecString;
       mimetype = h264MimeType.c_str();
-      ClLogMessage("Video codec profile selected: H.264 High Profile Level %s (%dx%d at %d FPS)\n",
-        h264Level->name, width, height, redrawRate);
+      ClLogMessage("Video codec profile selected: H.264 High Profile Level %s (%s, %dx%d at %d FPS)\n",
+        h264Level->name, automaticLevel ? "automatic" : "manual override", width, height, redrawRate);
     } else if (videoFormat & VIDEO_FORMAT_H265) {
       mimetype = "video/mp4; codecs=\"hev1.1.6.L153.B0\""; // Video Codec: HEVC Main Level Profile 5.1
       /* NOTE: Depending on the capabilities of the TV, it may support higher-level codec profiles, such as:
