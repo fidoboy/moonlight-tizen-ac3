@@ -103,12 +103,12 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
   }, timeoutMs);
 }
 
-function streamStartupTimeoutFailure(stage) {
+function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
-  var message = stage === 'video'
+  var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
-    : t('The host did not establish the streaming connection in time.');
+    : t('The host did not establish the streaming connection in time.'));
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
   try { sendMessage('stopRequest', []); }
   catch (error) { console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error); }
@@ -4735,6 +4735,10 @@ function startGame(host, appID) {
           }
         } catch (audioShutdownError) {
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
+          if (audioShutdownError && audioShutdownError.name === 'TimeoutError') {
+            streamStartupTimeoutFailure('connection', t('Could not close the local audio engine in time.'));
+            return;
+          }
           showApps(host).then(function() {
             hideStreamTransitionBackground();
             snackbarLogLong('Could not prepare local audio for streaming.');
@@ -4792,6 +4796,10 @@ function startGame(host, appID) {
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
+          if (failedResumeApp && failedResumeApp.name === 'TimeoutError') {
+            streamStartupTimeoutFailure('connection', t('The host did not respond to the resume request in time.'));
+            return;
+          }
           if (_directSmartHubLaunch) {
             directSmartHubLaunchFailure(t('Failed to resume %1$s', appToStart.title));
             return;
@@ -4860,6 +4868,10 @@ function startGame(host, appID) {
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
+        if (failedLaunchApp && failedLaunchApp.name === 'TimeoutError') {
+          streamStartupTimeoutFailure('connection', t('The host did not respond to the launch request in time.'));
+          return;
+        }
         if (_directSmartHubLaunch) {
           directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
           return;
@@ -4876,10 +4888,16 @@ function startGame(host, appID) {
       });
     }).catch(function(failedAppLookup) {
       console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to retrieve app ' + appID + ': ' + failedAppLookup);
-      if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Failed to launch %1$s', String(appID)));
+      if (failedAppLookup && failedAppLookup.name === 'TimeoutError') {
+        streamStartupTimeoutFailure('connection', t('The host did not respond while retrieving the application.'));
+      } else if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Failed to launch %1$s', String(appID)));
     });
   }, function(failedRefreshInfo) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
+    if (failedRefreshInfo && failedRefreshInfo.name === 'TimeoutError') {
+      streamStartupTimeoutFailure('connection', t('%1$s did not respond in time.', host.hostname || t('The host')));
+      return;
+    }
     if (_directSmartHubLaunch) {
       directSmartHubLaunchFailure(t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
       return;
