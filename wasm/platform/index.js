@@ -4315,52 +4315,81 @@ function handleNormalStreamVideoReady() {
   }, 200);
 }
 
+// Finalize a direct Smart Hub stream without relying on the normal UI readiness path.
+function handleDirectSmartHubVideoReady() {
+  if (!window._directSmartHubLaunch || !isInGame || window._directSmartHubVideoReady) return;
+  window._directSmartHubVideoReady = true;
+
+  var body = document.body;
+  if (body) body.style.backgroundColor = 'transparent';
+  var video = document.getElementById('wasm_module');
+  if (video) {
+    video.style.display = '';
+    video.style.background = 'transparent';
+    video.style.backgroundColor = 'transparent';
+  }
+  var listener = document.getElementById('listener');
+  if (listener) listener.classList.add('fullscreen');
+
+  window.setTimeout(function() {
+    var elapsed = streamEncryptionStatusVisibleAt === null
+      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
+      : Date.now() - streamEncryptionStatusVisibleAt;
+    var waitForEncryptionStatus = Math.max(0,
+      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
+    window.setTimeout(function() {
+      hideStreamTransitionBackground();
+    }, waitForEncryptionStatus);
+  }, 200);
+}
+
 // Handle layout elements when displaying the Stream view
-function showStreamMode() {
+function showStreamMode(streamWidth, streamHeight) {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   return new Promise(function(resolve) {
-    // Keep the Web UI visible during the transition layer's fade-in. The callback runs
-    // only once that layer is opaque, so the UI is never replaced by the page's flat body color.
+    var isDirectLaunch = !!window._directSmartHubLaunch;
     var enterFullscreenStreamLayout = function() {
-      // Stop every ambient background animation only after the transition layer is fully opaque.
-      updateAmbientBackgroundActivation(false);
+      if (!isDirectLaunch) {
+        // Normal launches also stop the ambient backgrounds and UI animations.
+        updateAmbientBackgroundActivation(false);
+        $('#main-ui-layer').find('*').stop(true, false);
+        $('#main-content').addClass('fullscreen');
+        handleOnScreenOverlays();
+        Navigation.stop();
+      } else {
+        // Only stream overlays are configured here; no settings controls or UI systems
+        // are initialized for the direct Smart Hub route.
+        var warningOverlay = document.getElementById('connection-warnings');
+        var statsOverlay = document.getElementById('performance-stats');
+        if (warningOverlay) warningOverlay.style.display = _directSmartHubStreamSettings.disableWarnings ? 'none' : 'inline-block';
+        if (statsOverlay) statsOverlay.style.display = _directSmartHubStreamSettings.performanceStats ? 'inline-block' : 'none';
+      }
+
       hideUiLayerImmediately('main-ui-layer');
-      $('#main-ui-layer').find('*').stop(true, false);
-      $('#main-content').addClass('fullscreen');
       $('#listener').addClass('fullscreen');
       isInGame = true;
-      fullscreenWasmModule();
-      handleOnScreenOverlays();
+      fullscreenWasmModule(streamWidth, streamHeight);
       showUiLayer('stream-diagnostics-layer');
-      Navigation.stop();
       resolve();
     };
 
-    // The transition layer owns the visibility of the starfield and all status content.
-    // Show or hide the layer as a whole; never toggle its children individually.
-    if (!window._directSmartHubLaunch) {
-      window._normalStreamVideoReady = false;
-      // A new connection has unknown encryption until the core publishes its negotiated configuration.
-      resetStreamEncryptionStatus();
-      if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
-        Module.resetEncryptionStatus();
-      }
-      showStreamTransitionBackground(function() {
-        // Start checking the negotiated encryption state only after the transition
-        // background and progress UI have finished appearing.
-        startStreamEncryptionStatusPolling();
-        enterFullscreenStreamLayout();
-      });
-    } else {
-      enterFullscreenStreamLayout();
+    // Both entry paths use the same transition layer, progress messages and encryption indicator.
+    window._normalStreamVideoReady = false;
+    resetStreamEncryptionStatus();
+    if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+      Module.resetEncryptionStatus();
     }
+    showStreamTransitionBackground(function() {
+      startStreamEncryptionStatusPolling();
+      enterFullscreenStreamLayout();
+    });
   });
 }
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
-function fullscreenWasmModule() {
-  var streamWidth = $('#selectResolution').data('value').split(':')[0];
-  var streamHeight = $('#selectResolution').data('value').split(':')[1];
+function fullscreenWasmModule(configuredWidth, configuredHeight) {
+  var streamWidth = configuredWidth || $('#selectResolution').data('value').split(':')[0];
+  var streamHeight = configuredHeight || $('#selectResolution').data('value').split(':')[1];
   var screenWidth = window.innerWidth;
   var screenHeight = window.innerHeight;
 
@@ -7596,17 +7625,11 @@ function maybeStartDirectSmartHubLaunch() {
     return;
   }
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
-  host.pollServer(function(returnedHost) {
-    if (_directSmartHubLaunchFailed) return;
-    if (!returnedHost || !returnedHost.online) {
-      directSmartHubLaunchFailure(t('Failed to connect to %1$s. Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.', host.hostname || t('the host')));
-      return;
-    }
-    host.online = true;
-    api = host;
-    localStorage.setItem('lastOpenedHost', host.serverUid);
-    startGame(host, _directSmartHubLaunch.appId);
-  });
+  // startGame performs one host-specific server-info refresh before launching.
+  // Do not run the background host-polling path for a direct Smart Hub request.
+  api = host;
+  localStorage.setItem('lastOpenedHost', host.serverUid);
+  startGame(host, _directSmartHubLaunch.appId);
 }
 
 function probeSmartHubSupport() {
