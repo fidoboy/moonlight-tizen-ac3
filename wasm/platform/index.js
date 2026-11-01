@@ -4609,6 +4609,7 @@ function startGame(host, appID) {
           return;
         }, function(failedCurrentApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to get the current running app from ' + host.hostname + '\n Returned error was: ' + failedCurrentApp + '!', '\n Host object: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
+          streamStartupTimeoutFailure('connection', t('Could not retrieve information about the currently running application.'));
           return;
         });
         return;
