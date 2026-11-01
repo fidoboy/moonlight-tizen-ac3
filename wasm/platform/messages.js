@@ -793,10 +793,37 @@ function handleMessage(msg) {
     if (window._directSmartHubLaunch) {
       // Reuse the shared transition layer for the closing status; never restore the home UI.
       resetStreamEncryptionStatus();
+      var directHostName = window._activeStreamHostName || t('Host');
+      var directAppName = window._activeStreamAppName || t('Apps');
+      var directClosingMessage;
+      switch (errorCode) {
+        case 0:
+          directClosingMessage = t('Streaming session with %1$s ended normally.', directHostName);
+          break;
+        case -100:
+        case -101:
+          directClosingMessage = t('Video stream from %1$s stopped being received.', directHostName);
+          break;
+        case -102:
+          directClosingMessage = t('The connection to %1$s ended unexpectedly.', directHostName);
+          break;
+        case -103:
+          directClosingMessage = t('Protected (DRM) content on %1$s ended the session.', directHostName);
+          break;
+        case -104:
+          directClosingMessage = t('An error occurred while processing the video stream from %1$s.', directHostName);
+          break;
+        case -200:
+          directClosingMessage = t('The local device could not start the video stream.');
+          break;
+        default:
+          directClosingMessage = t('Connection to %1$s lost.', directHostName);
+          break;
+      }
       var closingTitle = document.getElementById('loadingSpinnerTitle');
       var closingMessage = document.getElementById('loadingSpinnerMessage');
-      if (closingTitle) closingTitle.textContent = t('Closing the streaming session...');
-      if (closingMessage) closingMessage.textContent = t('The connection has ended.');
+      if (closingTitle) closingTitle.textContent = t('Closing %1$s...', directAppName);
+      if (closingMessage) closingMessage.textContent = directClosingMessage;
       var shouldQuitDirectHostApp = errorCode === 0 &&
         !!(window._directSmartHubStreamSettings &&
           window._directSmartHubStreamSettings.quitAppAfterDisconnect);
