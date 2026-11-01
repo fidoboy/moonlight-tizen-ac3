@@ -118,21 +118,12 @@ body {
 #main-ui-layer {
     z-index: 10;
     opacity: 0;
-    isolation: isolate;
-    background: transparent;
-}
-#main-ui-layer::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
     background: linear-gradient(
         to bottom,
         var(--theme-background) 0%,
+        var(--theme-background) 40%,
         var(--theme-background-dark) 100%
     );
-    filter: url(#background-grain);
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
