@@ -4434,6 +4434,22 @@ function startGame(host, appID) {
   }
   localStorage.setItem('lastOpenedApp_' + host.serverUid, appID);
 
+  if (_directSmartHubLaunch) {
+    // Reveal the shared transition immediately, while the one required server-info
+    // request is in progress. This replaces the former standalone Smart Hub status text.
+    var directSettings = _directSmartHubStreamSettings;
+    if (!directSettings) {
+      directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+      return;
+    }
+    var directAppName = _directSmartHubLaunch.appName || String(appID);
+    $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
+    $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
+    window._directSmartHubTransitionPromise = showStreamMode(
+      directSettings.streamWidth, directSettings.streamHeight
+    );
+  }
+
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
   // handler of the key press that started the stream, because the audio context of a device
   // with an autoplay policy can only be created from a user gesture
@@ -4616,7 +4632,12 @@ function startGame(host, appID) {
       var streamTitleMessage = host.currentGame == appID ? 'Resuming %1$s...' : 'Starting %1$s...';
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
       $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
-      await showStreamMode(streamWidth, streamHeight);
+      if (_directSmartHubLaunch) {
+        await (window._directSmartHubTransitionPromise || showStreamMode(streamWidth, streamHeight));
+        window._directSmartHubTransitionPromise = null;
+      } else {
+        await showStreamMode(streamWidth, streamHeight);
+      }
       if (!_directSmartHubLaunch) {
         $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
         try {
