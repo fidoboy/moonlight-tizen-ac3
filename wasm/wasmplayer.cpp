@@ -91,6 +91,12 @@ static const H264LevelLimit* SelectH264Level(int width, int height, int frameRat
   const uint64_t macroblocksPerSecond = frameSizeMbs * static_cast<uint64_t>(frameRate);
 
   for (const auto& level : kH264LevelLimits) {
+    // Automatic selection is limited to the practical TV range: Level 3.1 through 5.2.
+    // Keep the full table intact because manual overrides may still select other levels.
+    if (level.levelIdc < 31 || level.levelIdc > 52) {
+      continue;
+    }
+
     const uint64_t maxDimensionSquared = static_cast<uint64_t>(level.maxFrameSizeMbs) * 8;
     if (frameSizeMbs <= level.maxFrameSizeMbs &&
         widthMbs * widthMbs <= maxDimensionSquared &&
