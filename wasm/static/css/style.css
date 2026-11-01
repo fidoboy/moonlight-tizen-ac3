@@ -128,7 +128,13 @@ body {
     height: 100%;
     z-index: 0;
     pointer-events: none;
-    background: #ff00ff;
+    background: linear-gradient(
+        to bottom,
+        var(--theme-background) 0%,
+        var(--theme-background) 40%,
+        var(--theme-background-dark) 100%
+    );
+    filter: url(#background-grain);
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
