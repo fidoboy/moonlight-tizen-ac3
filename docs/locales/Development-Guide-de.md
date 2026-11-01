@@ -44,6 +44,6 @@ Alternativ kannst du nach der Aktualisierung von `res/config.xml` einen Git-Tag 
 
 ## Hinweise zur Audioentwicklung
 
-Dolby-Passthrough setzt den Tizen-Client und einen kompatiblen experimentellen Sunshine-Host voraus. Es ist optional und darf den standardmäßigen OPUS-Pfad für Hosts ohne AC-3/E-AC-3 niemals deaktivieren. Prüfe bei Tests die tatsächliche Aushandlung und Ausgabe über den vorgesehenen optischen Audiopfad des Fernsehers, nicht nur die gewählte Einstellung.
+Dolby-Passthrough erfordert den Tizen-Client und einen kompatiblen Host. **Die bevorzugte Option ist Vibeshine 2.0.3 oder neuer**, da diese Version die Dolby-Digital-Audioübertragung offiziell unterstützt. **Sunshine ist eine optionale Alternative**: Die Unterstützung ist derzeit nur in einem experimentellen Branch verfügbar und muss noch für die Aufnahme in eine offizielle Sunshine-Version freigegeben werden. Dolby-Passthrough ist optional und darf den standardmäßigen OPUS-Pfad für Hosts ohne AC-3/E-AC-3 niemals deaktivieren. Prüfe bei Tests die tatsächliche Aushandlung und Ausgabe über den vorgesehenen optischen Audiopfad des Fernsehers, nicht nur die gewählte Einstellung.
 
 Halte Pull Requests gezielt, erhalte Lizenzhinweise und dokumentiere hardwareabhängiges Verhalten sowie Testbedingungen.
