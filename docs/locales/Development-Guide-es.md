@@ -44,6 +44,6 @@ Como alternativa, después de establecer la versión correspondiente en `res/con
 
 ## Notas de desarrollo de audio
 
-El passthrough Dolby requiere el cliente Tizen y un host Sunshine experimental compatible. Es opcional y nunca debe deshabilitar la ruta OPUS predeterminada en hosts que no ofrecen AC-3/E-AC-3. Durante las pruebas, verifica la negociación real y la salida a través de la ruta óptica prevista del televisor; no te limites a comprobar el ajuste seleccionado.
+El passthrough Dolby requiere el cliente Tizen y un host compatible. **La opción preferida es Vibeshine 2.0.3 o posterior**, que incluye oficialmente la transmisión de audio Dolby Digital. **Sunshine es una alternativa opcional**: por el momento, su compatibilidad está disponible únicamente en una rama experimental y está pendiente de aprobación para su inclusión en una versión oficial. El passthrough Dolby es opcional y nunca debe deshabilitar la ruta OPUS predeterminada en hosts que no ofrecen AC-3/E-AC-3. Durante las pruebas, verifica la negociación real y la salida a través de la ruta óptica prevista del televisor; no te limites a comprobar el ajuste seleccionado.
 
 Mantén las solicitudes de cambios centradas, conserva los avisos de licencia y documenta el comportamiento dependiente del hardware y las condiciones de prueba.
