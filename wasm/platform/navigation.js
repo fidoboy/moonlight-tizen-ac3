@@ -712,9 +712,22 @@ function getHostsCarouselLayout(grid) {
   const step = firstCard.getBoundingClientRect().width + marginLeft + marginRight;
   // Keep more than one card-width of clear space on both sides whenever the
   // viewport permits it. On very narrow screens, preserve at least one card.
-  const sideMargin = Math.min(step + 20, Math.max(0, (grid.clientWidth - step) / 2));
-  const visibleCount = Math.max(1, Math.floor((grid.clientWidth - 2 * sideMargin) / step));
+  const minimumSideMargin = step + 20;
+  const visibleCount = Math.max(1, Math.floor((grid.clientWidth - 2 * minimumSideMargin) / step));
+  // Use the exact leftover space so every page of cards is centered, including
+  // the first and last page, with no partially visible cards.
+  const sideMargin = Math.max(0, (grid.clientWidth - visibleCount * step) / 2);
   return { cards, visibleCount, step, sideMargin };
+}
+
+function updateHostsCarouselIndicators() {
+  const grid = document.getElementById('host-grid');
+  if (!grid) return;
+  const layout = getHostsCarouselLayout(grid);
+  const maxStart = Math.max(0, layout.cards.length - layout.visibleCount);
+  const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
+  grid.classList.toggle('host-grid-overflow-left', maxStart > 0 && start > 0);
+  grid.classList.toggle('host-grid-overflow-right', maxStart > 0 && start < maxStart);
 }
 
 function updateHostsCarousel() {
@@ -783,7 +796,8 @@ function scrollHostCardIntoView(target) {
     const grid = document.getElementById('host-grid');
     if (!grid || grid.dataset.carouselBound === 'true') return;
     grid.dataset.carouselBound = 'true';
-    grid.addEventListener('scroll', updateHostsCarousel, { passive: true });
+    // Scrolling only updates the indicators; it must not interrupt smooth paging.
+    grid.addEventListener('scroll', updateHostsCarouselIndicators, { passive: true });
     window.addEventListener('resize', updateHostsCarousel);
     updateHostsCarousel();
   }
