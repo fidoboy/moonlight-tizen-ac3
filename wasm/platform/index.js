@@ -4367,7 +4367,9 @@ function showStreamMode(streamWidth, streamHeight) {
           ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach(function(corner) {
             statsOverlay.classList.remove('performance-stats-position-' + corner);
           });
-          statsOverlay.classList.add('performance-stats-position-' + _directSmartHubStreamSettings.performanceStatsPosition);
+          var statsPosition = _directSmartHubStreamSettings.performanceStatsPosition;
+          if (['top-left', 'top-right', 'bottom-left', 'bottom-right'].indexOf(statsPosition) === -1) statsPosition = 'top-left';
+          statsOverlay.classList.add('performance-stats-position-' + statsPosition);
         }
       }
 
@@ -4441,6 +4443,7 @@ function startGame(host, appID) {
 
   // Refresh the server info, because the user might have quit the game
   host.refreshServerInfo().then(function(ret) {
+    if (_directSmartHubLaunch) host.online = true;
     (_directSmartHubLaunch ? Promise.resolve({
       id: appID,
       title: _directSmartHubLaunch.appName || String(appID)
@@ -7939,6 +7942,7 @@ window.onload = onWindowLoad;
 
 // Gamepad connected events
 window.addEventListener('gamepadconnected', function(e) {
+  if (_directSmartHubLaunch) return;
   const connectedGamepad = e.gamepad;
   const gamepadIndex = connectedGamepad.index;
   const rumbleFeedbackSwitch = document.getElementById('rumbleFeedbackSwitch');
@@ -7963,6 +7967,7 @@ window.addEventListener('gamepadconnected', function(e) {
 
 // Gamepad disconnected events
 window.addEventListener('gamepaddisconnected', function(e) {
+  if (_directSmartHubLaunch) return;
   const disconnectedGamepad = e.gamepad;
   const gamepadIndex = disconnectedGamepad.index;
   console.log('%c[index.js, gamepaddisconnected]', 'color: green;', 'Gamepad disconnected:\n' + JSON.stringify(disconnectedGamepad), disconnectedGamepad);
