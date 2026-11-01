@@ -4212,20 +4212,30 @@ function showStreamTransitionBackground(onVisible) {
   var revealTransitionContent = function() {
     streamTransitionRevealTimeout = null;
     if (!streamTransitionVisible || streamTransitionHiding) return;
-    // Keep the normal Web UI behind the transition while it fades in. Only switch the
-    // underlying layout after the transition layer is fully opaque.
-    showUiLayer('stream-transition-layer', onVisible);
+
+    // Keep the normal Web UI behind the transition while its background fades in.
+    showUiLayer('stream-transition-layer');
+
+    // Wait for the background fade to finish, then reveal the progress UI. The
+    // connection work must not begin until that second fade has also completed.
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
-      if (!streamTransitionVisible) return;
-      // Reveal both status messages together, 100 ms after the starfield starts.
-      fadeInUiElement('loadingSpinner', 'inline-block');
+      if (!streamTransitionVisible || streamTransitionHiding) return;
+
+      fadeInUiElement('loadingSpinner', 'inline-block', function() {
+        if (typeof onVisible !== 'function') return;
+        window.setTimeout(function() {
+          if (streamTransitionVisible && !streamTransitionHiding) onVisible();
+        }, 200);
+      });
+
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
-      if (encryptionStatus && document.getElementById('streamEncryptionMessage').textContent) {
+      var encryptionMessage = document.getElementById('streamEncryptionMessage');
+      if (encryptionStatus && encryptionMessage && encryptionMessage.textContent) {
         streamEncryptionStatusVisibleAt = Date.now();
         fadeInUiElement(encryptionStatus, 'flex');
       }
-    }, STREAM_TRANSITION_ELEMENT_OFFSET_MS);
+    }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
   };
 
   var canvas = createStreamTransitionBackground();
