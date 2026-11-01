@@ -137,7 +137,6 @@ body {
         var(--theme-background) 40%,
         var(--theme-background-dark) 100%
     );
-    filter: url(#background-grain);
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
