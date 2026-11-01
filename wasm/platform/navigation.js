@@ -755,10 +755,11 @@ function updateHostsCarousel() {
   const hasOverflow = cards.length > visibleCount;
   // Extend the grid's clipping boundary so scaled edge cards remain visible
   // without changing the cards' resting positions or spacing.
-  const overflowAllowance = 28;
-  grid.style.width = (pageWidth + overflowAllowance * 2) + 'px';
-  grid.style.paddingLeft = overflowAllowance + 'px';
-  grid.style.paddingRight = overflowAllowance + 'px';
+  const leftOverflowAllowance = 28;
+  const rightOverflowAllowance = 40;
+  grid.style.width = (pageWidth + leftOverflowAllowance + rightOverflowAllowance) + 'px';
+  grid.style.paddingLeft = leftOverflowAllowance + 'px';
+  grid.style.paddingRight = rightOverflowAllowance + 'px';
   if (!hasOverflow) {
     grid.classList.add('host-grid-centered');
     viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
@@ -799,10 +800,11 @@ function scrollHostCardIntoView(target) {
   grid.dataset.carouselStart = String(start);
   // Preserve the same side allowance used by updateHostsCarousel().
   // Removing it here clips the scaled first/last card at the grid's scrollport.
-  const overflowAllowance = 28;
-  grid.style.width = (layout.pageWidth + overflowAllowance * 2) + 'px';
-  grid.style.paddingLeft = overflowAllowance + 'px';
-  grid.style.paddingRight = overflowAllowance + 'px';
+  const leftOverflowAllowance = 28;
+  const rightOverflowAllowance = 40;
+  grid.style.width = (layout.pageWidth + leftOverflowAllowance + rightOverflowAllowance) + 'px';
+  grid.style.paddingLeft = leftOverflowAllowance + 'px';
+  grid.style.paddingRight = rightOverflowAllowance + 'px';
   grid.classList.remove('host-grid-centered');
   viewport.classList.toggle('host-grid-overflow-left', start > 0);
   viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
