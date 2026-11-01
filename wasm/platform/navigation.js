@@ -753,9 +753,12 @@ function updateHostsCarousel() {
   }
 
   const hasOverflow = cards.length > visibleCount;
-  grid.style.width = pageWidth + 'px';
-  grid.style.paddingLeft = '0px';
-  grid.style.paddingRight = '0px';
+  // Extend the grid's clipping boundary so scaled edge cards remain visible
+  // without changing the cards' resting positions or spacing.
+  const overflowAllowance = 28;
+  grid.style.width = (pageWidth + overflowAllowance * 2) + 'px';
+  grid.style.paddingLeft = overflowAllowance + 'px';
+  grid.style.paddingRight = overflowAllowance + 'px';
   if (!hasOverflow) {
     grid.classList.add('host-grid-centered');
     viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
