@@ -1018,10 +1018,14 @@ function handleMessage(msg) {
         // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
         // and the current-game highlighting reflect the host's state after the stream.
         // showApps keeps the interaction lock in place until the refreshed list is rendered.
+        var appListOperation = { cancelled: false };
         return withOperationTimeout(showApps(api, {
           forceRefreshAppList: true,
-          showLoadingSnackbarImmediately: true
-        }), 10000, 'Application list recovery').then(function() {
+          showLoadingSnackbarImmediately: true,
+          operationToken: appListOperation
+        }), 10000, 'Application list recovery', function() {
+          appListOperation.cancelled = true;
+        }).then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
             Navigation.change(Views.Apps);
