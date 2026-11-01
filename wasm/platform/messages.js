@@ -791,18 +791,15 @@ function handleMessage(msg) {
     // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
     // but always exit this client regardless of whether the stream ended normally or with an error.
     if (window._directSmartHubLaunch) {
-      // Paint a minimal status message before exiting; do not restore the home UI.
-      if (typeof window.setDirectSmartHubStatus === 'function') {
-        var directLaunchHostName = window._directSmartHubLaunch && window._directSmartHubLaunch.hostName;
-        if (!directLaunchHostName && window._directSmartHubHost) {
-          directLaunchHostName = window._directSmartHubHost.hostname;
-        }
-        window.setDirectSmartHubStatus(directLaunchHostName
-          ? 'Finalizando transmisión con ' + directLaunchHostName + '...'
-          : 'Cerrando la transmisión...');
-      }
+      // Reuse the shared transition layer for the closing status; never restore the home UI.
+      resetStreamEncryptionStatus();
+      var closingTitle = document.getElementById('loadingSpinnerTitle');
+      var closingMessage = document.getElementById('loadingSpinnerMessage');
+      if (closingTitle) closingTitle.textContent = t('Closing the streaming session...');
+      if (closingMessage) closingMessage.textContent = t('The connection has ended.');
       var shouldQuitDirectHostApp = errorCode === 0 &&
-        $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
+        !!(window._directSmartHubStreamSettings &&
+          window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var exitDirectLaunch = function() {
         try {
           tizen.application.getCurrentApplication().exit();
@@ -811,22 +808,27 @@ function handleMessage(msg) {
         }
       };
       var finishDirectLaunch = function() {
-        // Give the browser one paint opportunity so the status is visible even when
-        // no host-app quit request is needed.
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(exitDirectLaunch);
+        // Keep the same transition visible briefly so the closing message can be read.
+        window.setTimeout(exitDirectLaunch, 2500);
+      };
+
+      var showDirectClosingTransition = function() {
+        if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
+          window.api.quitApp().then(finishDirectLaunch, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+            finishDirectLaunch();
+          });
         } else {
-          window.setTimeout(exitDirectLaunch, 0);
+          finishDirectLaunch();
         }
       };
 
-      if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-        window.api.quitApp().then(finishDirectLaunch, function(failedQuitApp) {
-          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
-          finishDirectLaunch();
-        });
+      if (typeof showStreamTransitionBackground === 'function') {
+        showStreamTransitionBackground(showDirectClosingTransition);
       } else {
-        finishDirectLaunch();
+        var directTransitionLayer = document.getElementById('stream-transition-layer');
+        if (directTransitionLayer) directTransitionLayer.style.display = 'block';
+        showDirectClosingTransition();
       }
       return;
     }
