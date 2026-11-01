@@ -20,7 +20,7 @@ description: "Known compatibility issues and technical limitations of Moonlight 
 - The client targets supported Samsung TVs running Tizen 5.5 or newer, but capabilities vary by model and firmware.
 - Game Mode and high refresh-rate options may be restricted by the OS or TV capabilities even if a setting is visible.
 - Some TVs have a 100 Mbps Ethernet port. Its practical throughput is lower than 100 Mbps, but a wired connection can still be faster and more stable than Wi-Fi on a particular TV. Compare the actual throughput and stability of both paths rather than assuming that 5 GHz Wi-Fi is always preferable. Account for FEC, audio traffic and bursty frame delivery near the Ethernet limit.
-- H.264's advertised MIME level is selected dynamically from the requested resolution and frame rate, using the H.264 limits for macroblocks per frame and per second. This only describes the stream requirements; it does not prove that a TV decoder supports that level or combination. Higher frame rates and resolutions remain model- and firmware-dependent and may fail to start.
+- H.264's advertised MIME level is selected automatically from the requested resolution and frame rate, using the H.264 limits for macroblocks per frame and per second. The Video Settings menu also allows a manual level override for compatibility testing. This only changes the level advertised to the TV; it does not prove that the decoder supports that level or combination. Higher frame rates and resolutions remain model- and firmware-dependent and may fail to start.
 - Video resolution, frame rate, HDR, AV1 and high bitrates also depend on the TV decoder and host GPU encoder. Unsupported combinations may fall back or fail to start.
 
 ## Independent project and release status
