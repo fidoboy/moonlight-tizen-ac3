@@ -59,7 +59,7 @@ function initializeNavigationAudioEngine() {
   }
 
   var context = navigationSoundContext;
-  navigationSoundInitializationPromise = loadNavigationSoundData().then(function(data) {
+  var initializationPromise = loadNavigationSoundData().then(function(data) {
     return decodeNavigationSound(context, data);
   }).then(function(buffer) {
     if (navigationSoundContext !== context || !navigationSoundEnabled) return false;
@@ -76,39 +76,51 @@ function initializeNavigationAudioEngine() {
     console.error('%c[navigation.js, audio]', 'color: red;', 'Could not initialize the local audio engine:', error);
     throw error;
   }).finally(function() {
-    navigationSoundInitializationPromise = null;
+    // An older initialization must not clear a newer attempt started after shutdown.
+    if (navigationSoundInitializationPromise === initializationPromise) {
+      navigationSoundInitializationPromise = null;
+    }
   });
 
-  return navigationSoundInitializationPromise;
+  navigationSoundInitializationPromise = initializationPromise;
+  return initializationPromise;
 }
 
 function closeNavigationAudioEngine() {
-  var lifecycleId = ++navigationSoundLifecycleId;
+  ++navigationSoundLifecycleId;
   navigationSoundEnabled = false;
 
-  var pendingInitialization = navigationSoundInitializationPromise || Promise.resolve();
-  return Promise.resolve(pendingInitialization).catch(function(error) {
-    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio initialization did not finish before shutdown:', error);
-  }).then(function() {
-    // A timeout or a later UI restoration may have re-enabled sounds while
-    // initialization/shutdown was pending. Never let this stale close win.
-    if (lifecycleId !== navigationSoundLifecycleId || navigationSoundEnabled) return false;
-    var context = navigationSoundContext;
+  // Detach the current initialization immediately. Waiting for fetch/decode here
+  // could leave the AudioContext alive forever if that work never settles.
+  var pendingInitialization = navigationSoundInitializationPromise;
+  navigationSoundInitializationPromise = null;
+  var context = navigationSoundContext;
+  if (navigationSoundContext === context) {
     navigationSoundContext = null;
     navigationSoundBuffer = null;
+  }
 
-    navigationSoundSources.forEach(function(source) {
-      try { source.stop(0); } catch (error) {}
-      try { source.disconnect(); } catch (error) {}
-    });
-    navigationSoundSources = [];
-
-    if (!context || context.state === 'closed') return;
-    context.onstatechange = null;
-    return context.close().then(function() {
-      console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine closed.');
-    });
+  // Detach the old sources before closing so a later re-enable can safely create
+  // and track sources belonging to a new AudioContext.
+  var sources = navigationSoundSources;
+  navigationSoundSources = [];
+  sources.forEach(function(source) {
+    try { source.stop(0); } catch (error) {}
+    try { source.disconnect(); } catch (error) {}
   });
+
+  // The initialization promise is intentionally not awaited: its completion checks
+  // the context identity and cannot publish a buffer for this now-detached context.
+  if (!context || context.state === 'closed') return Promise.resolve(false);
+  context.onstatechange = null;
+  try {
+    return Promise.resolve(context.close()).then(function() {
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine closed.');
+      return true;
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 function setNavigationSoundEnabled(enabled) {
