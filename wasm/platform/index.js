@@ -324,6 +324,7 @@ var _directSmartHubLaunch = window._directSmartHubLaunch || null;
 var _directSmartHubHost = null;
 var _directSmartHubHostReady = false;
 var _directSmartHubSettingsReady = false;
+var _directSmartHubStreamSettings = null;
 var _directSmartHubLaunchStarted = false;
 var _directSmartHubLaunchFailed = false;
 
@@ -6575,6 +6576,87 @@ function loadSystemInfo() {
   }
 }
 
+function readStoredPreference(key) {
+  return new Promise(function(resolve) {
+    getData(key, function(value) {
+      resolve(value && value[key] !== undefined ? value[key] : null);
+    });
+  });
+}
+
+// Smart Hub launches read only stream-related preferences. They are kept as plain
+// data and never applied to the hidden Material Design controls or UI subsystems.
+function loadDirectSmartHubStreamSettings() {
+  var keys = [
+    'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
+    'rumbleFeedback', 'mouseEmulation', 'flipABfaceButtons', 'flipXYfaceButtons',
+    'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
+    'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
+    'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
+    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground'
+  ];
+
+  return Promise.all(keys.map(readStoredPreference)).then(function(values) {
+    var stored = {};
+    keys.forEach(function(key, index) { stored[key] = values[index]; });
+
+    var resolution = stored.resolution || '1280:720';
+    var width = parseInt(resolution.split(':')[0], 10);
+    if (!isFinite(width) || width <= 0) resolution = '1280:720';
+    else if (width > maxSupportedWidth) {
+      resolution = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
+    }
+
+    var ac3Enabled = stored.ac3AudioMode === true || stored.ac3AudioMode === 'true' || stored.ac3AudioMode === 1;
+    var audioConfig = stored.audioConfig || 'Stereo';
+    if (ac3Enabled && audioConfig === '71Surround') audioConfig = '51Surround';
+
+    var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
+    function boolValue(value, defaultValue) {
+      if (value == null) return defaultValue;
+      return value === true || value === 'true' || value === 1;
+    }
+
+    _directSmartHubStreamSettings = {
+      resolution: resolution,
+      streamWidth: resolution.split(':')[0],
+      streamHeight: resolution.split(':')[1],
+      frameRate: String(stored.frameRate || '60'),
+      bitrate: (parseFloat(stored.bitrate != null ? stored.bitrate : 10) * 1000),
+      framePacing: boolValue(stored.framePacing, true) ? 1 : 0,
+      optimizeGames: boolValue(stored.optimizeGames, false) ? 1 : 0,
+      rumbleFeedback: boolValue(stored.rumbleFeedback, false) ? 1 : 0,
+      mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
+      flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
+      flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
+      opticalOutputEnabled: ac3Enabled,
+      audioBackend: ac3Enabled ? 'EMSS' : (stored.audioBackend || 'EMSS'),
+      audioConfig: audioConfig,
+      audioSync: boolValue(stored.audioSync, false) ? 1 : 0,
+      audioJitter: parseInt(stored.audioJitter != null ? stored.audioJitter : 100, 10),
+      playHostAudio: boolValue(stored.playHostAudio, false) ? 1 : 0,
+      decryptHostAudio: boolValue(stored.decryptHostAudio, false) ? 1 : 0,
+      videoCodec: stored.videoCodec || 'H264',
+      h264Level: stored.h264Level == null ? 'Auto' : String(stored.h264Level),
+      hdrMode: boolValue(stored.hdrMode, false) ? 1 : 0,
+      fullRange: boolValue(stored.fullRange, false) ? 1 : 0,
+      gameMode: boolValue(stored.gameMode, gameModeDefault) ? 1 : 0,
+      disableWarnings: boolValue(stored.disableWarnings, false) ? 1 : 0,
+      performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
+      dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
+      dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
+    };
+
+    streamTransitionBackgroundEnabled = boolValue(stored.streamTransitionBackground, true);
+    _directSmartHubSettingsReady = true;
+    console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB:', _directSmartHubStreamSettings);
+    maybeStartDirectSmartHubLaunch();
+  }).catch(function(error) {
+    console.error('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: red;', 'Could not load direct stream preferences:', error);
+    directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+  });
+}
+
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
   openIndexDB(loadUserDataCb);
@@ -7741,25 +7823,30 @@ function initializeConfigSummaryBar() {
 
 function onWindowLoad() {
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Moonlight\'s main window loaded.');
-  initSamsungKeys();
-  initSpecialKeys();
+  if (!_directSmartHubLaunch) {
+    initSamsungKeys();
+    initSpecialKeys();
+  }
 
-  // The explicit displayVideo callback is not guaranteed by every backend build.
-  // The actual HTML video element's playing event is the browser-level readiness signal.
+  // The HTML video element's playing event is a fallback for builds without displayVideo.
   var streamVideoElement = document.getElementById('wasm_module');
   if (streamVideoElement) {
-    streamVideoElement.addEventListener('playing', handleNormalStreamVideoReady);
+    streamVideoElement.addEventListener('playing', function() {
+      if (_directSmartHubLaunch) handleDirectSmartHubVideoReady();
+      else handleNormalStreamVideoReady();
+    });
   }
 
   if (_directSmartHubLaunch) {
-    // Preserve the existing direct-launch path: it has no deferred-startup delay.
-    loadUserData();
+    // Direct launches must not initialize navigation, UI controls, or UI audio.
     console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Direct Smart Hub app launch detected: ' + JSON.stringify(_directSmartHubLaunch));
     try {
       if (window.screen && typeof window.screen.show === 'function') window.screen.show();
     } catch (error) {
       console.warn('%c[index.js, onWindowLoad]', 'color: gray;', 'Could not dismiss native launch screen early:', error);
     }
+    hideUiLayerImmediately('main-ui-layer');
+    loadDirectSmartHubStreamSettings();
     return;
   }
 
