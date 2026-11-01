@@ -118,6 +118,13 @@ body {
 #main-ui-layer {
     z-index: 10;
     opacity: 0;
+    background: transparent;
+}
+#background-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background: linear-gradient(
         to bottom,
         var(--theme-background) 0%,
@@ -135,6 +142,7 @@ body {
 #main-ui-layer > .mdl-layout {
     position: absolute;
     inset: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
 }
