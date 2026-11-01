@@ -788,6 +788,13 @@ function handleMessage(msg) {
     $('body').css('backgroundColor', '#282C38');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
 
+    // A startup watchdog already owns the visible error and recovery/exit sequence.
+    // Ignore the native stop acknowledgement to prevent a second UI transition.
+    if (window._streamStartupFailureHandled) {
+      isInGame = false;
+      return;
+    }
+
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
     // but always exit this client regardless of whether the stream ended normally or with an error.
