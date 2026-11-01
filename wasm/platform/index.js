@@ -4383,6 +4383,7 @@ function showStreamMode(streamWidth, streamHeight) {
 
     // Both entry paths use the same transition layer, progress messages and encryption indicator.
     window._normalStreamVideoReady = false;
+    if (isDirectLaunch) window._directSmartHubVideoReady = false;
     resetStreamEncryptionStatus();
     if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
       Module.resetEncryptionStatus();
