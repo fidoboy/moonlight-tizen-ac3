@@ -6,28 +6,13 @@ var platformVer = tizen.systeminfo.getCapability("http://tizen.org/feature/platf
 var modelSeries = webapis.productinfo.getModel(); // Retrieve the device model series
 var modelName = webapis.productinfo.getRealModel(); // Retrieve the device model name
 var modelGroup = webapis.productinfo.getModelCode(); // Retrieve the device model group
-var is4kPanel = typeof webapis.productinfo.isUdPanelSupported === 'function' && webapis.productinfo.isUdPanelSupported(); // Check if the device supports 4K panel
-var is8kPanel = typeof webapis.productinfo.is8KPanelSupported === 'function' && webapis.productinfo.is8KPanelSupported(); // Check if the device supports 8K panel
-
+var is4kPanel = false;
+var is8kPanel = false;
 var maxSupportedWidth = 1920;
 var maxSupportedHeight = 1080;
-try {
-  if (is8kPanel) {
-    maxSupportedWidth = 7680;
-    maxSupportedHeight = 4320;
-  } else if (is4kPanel) {
-    maxSupportedWidth = 3840;
-    maxSupportedHeight = 2160;
-  } else {
-    // Check if the physical screen resolution happens to be 1440p
-    if (window.screen.width >= 2560 || window.screen.height >= 1440) {
-      maxSupportedWidth = 2560;
-      maxSupportedHeight = 1440;
-    }
-  }
-} catch (e) {
-  console.error("Error fetching panel capabilities: " + e.message);
-}
+
+// Query the panel capabilities at startup and again whenever Video settings are opened.
+refreshPanelResolutionCapabilities();
 var isHdrCapable = webapis.avinfo.isHdrTvSupport(); // Check if the device supports HDR
 var hosts = {}; // Hosts is an associative array of NvHTTP objects, keyed by server UID
 var isHostOpening = false; // Prevents concurrent hostChosen executions, initial value is false
@@ -553,7 +538,9 @@ function attachListeners() {
   $('#goBackBtn').on('click', showHosts);
   installNavigationTooltipActionHiding();
   $('#restoreDefaultsBtn').on('click', restoreDefaultsDialog);
-  $('.videoResolutionMenu li:not(.unsupported-resolution)').on('click', saveResolution);
+  $('.videoResolutionMenu li').on('click', function() {
+    if (!this.hidden && !this.disabled) saveResolution.call(this);
+  });
   $('.videoFramerateMenu li').on('click', saveFramerate);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
@@ -1704,18 +1691,87 @@ function initIpAddressFields() {
   });
 }
 
+function refreshPanelResolutionCapabilities() {
+  var productInfo = typeof webapis !== 'undefined' && webapis.productinfo;
+  var supports4k = false;
+  var supports8k = false;
+
+  try {
+    if (productInfo && typeof productInfo.isUdPanelSupported === 'function') {
+      supports4k = productInfo.isUdPanelSupported() === true;
+    }
+    if (productInfo && typeof productInfo.is8KPanelSupported === 'function') {
+      supports8k = productInfo.is8KPanelSupported() === true;
+    }
+  } catch (error) {
+    // If the capability query fails, keep the conservative Full HD limit.
+    console.warn('%c[index.js, refreshPanelResolutionCapabilities]', 'color: gray;', 'Could not determine panel resolution capabilities:', error);
+    supports4k = false;
+    supports8k = false;
+  }
+
+  is4kPanel = supports4k;
+  is8kPanel = supports8k;
+
+  if (is8kPanel) {
+    maxSupportedWidth = 7680;
+    maxSupportedHeight = 4320;
+  } else if (is4kPanel) {
+    maxSupportedWidth = 3840;
+    maxSupportedHeight = 2160;
+  } else {
+    // Do not infer UHD decoding/panel support from window.screen dimensions.
+    // Non-UHD panels are limited to Full HD in the resolution selector.
+    maxSupportedWidth = 1920;
+    maxSupportedHeight = 1080;
+  }
+
+  console.log('%c[index.js, refreshPanelResolutionCapabilities]', 'color: green;', 'Panel resolution capability:', {
+    is4kPanel: is4kPanel,
+    is8kPanel: is8kPanel,
+    maxSupportedWidth: maxSupportedWidth,
+    maxSupportedHeight: maxSupportedHeight
+  });
+}
+
 function filterUnsupportedResolutions() {
   $('.videoResolutionMenu li').each(function() {
     var resData = $(this).data('value');
-    if (resData) {
-      var resWidth = parseInt(resData.split(':')[0], 10);
-      if (resWidth > maxSupportedWidth) {
-        $(this).addClass('mdl-menu__item--full-bleed-divider unsupported-resolution');
-        $(this).attr('disabled', 'disabled');
-        $(this).text($(this).text() + ' [Unsupported]');
-      }
-    }
+    if (!resData) return;
+
+    var resWidth = parseInt(resData.split(':')[0], 10);
+    var unsupported = !Number.isFinite(resWidth) || resWidth > maxSupportedWidth;
+
+    // Hide unsupported choices instead of leaving disabled entries in the menu.
+    this.hidden = unsupported;
+    this.disabled = unsupported;
+    $(this).attr('aria-disabled', unsupported ? 'true' : 'false');
+    $(this).toggleClass('unsupported-resolution', unsupported);
   });
+}
+
+function updateVideoResolutionAvailability() {
+  refreshPanelResolutionCapabilities();
+  filterUnsupportedResolutions();
+
+  var selectedResolution = $('#selectResolution').attr('data-value') || $('#selectResolution').data('value');
+  var selectedWidth = selectedResolution ? parseInt(selectedResolution.split(':')[0], 10) : 0;
+
+  if (!selectedResolution || !Number.isFinite(selectedWidth) || selectedWidth > maxSupportedWidth) {
+    var fallbackResolution = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
+    var fallbackOption = $('.videoResolutionMenu li').filter(function() {
+      return $(this).data('value') === fallbackResolution;
+    }).first();
+
+    if (fallbackOption.length && !fallbackOption[0].hidden) {
+      $('#selectResolution')
+        .text(fallbackOption.text())
+        .attr('data-value', fallbackResolution)
+        .data('value', fallbackResolution);
+      storeData('resolution', fallbackResolution, null);
+      updateConfigSummaryBar();
+    }
+  }
 }
 
 function isValidPort(port) {
@@ -2813,6 +2869,11 @@ function navigateSettingsView(view) {
 
 // Handle category selection, display appropriate options, and navigate to the provided settings pane
 function handleSettingsView(category) {
+  // Refresh the panel capability before exposing the Video settings and its resolution menu.
+  if (category === 'videoSettings') {
+    updateVideoResolutionAvailability();
+  }
+
   // Reset the current settings view before navigating to the next settings view
   resetSettingsView();
 
