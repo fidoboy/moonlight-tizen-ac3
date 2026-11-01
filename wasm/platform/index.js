@@ -6691,7 +6691,7 @@ function loadDirectSmartHubStreamSettings() {
     'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
     'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
     'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme'
+    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect'
   ];
 
   return new Promise(function(resolve) {
@@ -6746,6 +6746,7 @@ function loadDirectSmartHubStreamSettings() {
       disableWarnings: boolValue(stored.disableWarnings, false) ? 1 : 0,
       performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
       performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
+      quitAppAfterDisconnect: boolValue(stored.quitAppAfterDisconnect, false),
       dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
       dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
     };
