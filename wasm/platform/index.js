@@ -5056,13 +5056,6 @@ function directSmartHubVideoReady(videoElement) {
     return false;
   }
 
-  // Do not expose the menu while either direct-launch connection status is still
-  // visible. The connection callback can precede the first decoded video frame.
-  var directStatus = document.getElementById('directSmartHubStatus');
-  if (directStatus && window.getComputedStyle(directStatus).display !== 'none') {
-    return false;
-  }
-
   var transitionLayer = document.getElementById('stream-transition-layer');
   if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
     return false;
@@ -7618,23 +7611,13 @@ function updatePreviewData() {
 // The Smart Hub payload was parsed exactly once by the early script in index.html.
 
 
-function setDirectSmartHubStatus(message) {
-  if (!_directSmartHubLaunch) return;
-  var title = document.getElementById('loadingSpinnerTitle');
-  if (title) title.textContent = message;
-}
-
-function updateDirectSmartHubStartingStatus(hostName) {
+function updateDirectSmartHubStartingStatus() {
   if (!_directSmartHubLaunch) return;
   var appName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
-  setDirectSmartHubStatus(t('Starting %1$s...', appName));
+  var title = document.getElementById('loadingSpinnerTitle');
   var message = document.getElementById('loadingSpinnerMessage');
+  if (title) title.textContent = t('Starting %1$s...', appName);
   if (message) message.textContent = t('Switching to streaming mode...');
-}
-
-function hideDirectSmartHubStatus() {
-  // Kept as a compatibility no-op for older message handlers. Direct launches
-  // now use the shared stream-transition layer instead of a separate status panel.
 }
 
 if (_directSmartHubLaunch) {
