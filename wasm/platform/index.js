@@ -62,6 +62,12 @@ const STREAM_OPERATION_TIMEOUTS = {
 const STREAM_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
 var streamStartupWatchdogTimeout = null;
 var streamStartupFailureHandled = false;
+var streamStartupGeneration = 0;
+
+function isStreamStartupCurrent(generation) {
+  return generation === streamStartupGeneration && !streamStartupFailureHandled &&
+    (!_directSmartHubLaunch || !_directSmartHubLaunchFailed);
+}
 
 function withOperationTimeout(operation, timeoutMs, operationName) {
   return new Promise(function(resolve, reject) {
@@ -97,8 +103,10 @@ function clearStreamStartupWatchdog() {
 
 function armStreamStartupWatchdog(stage, timeoutMs) {
   clearStreamStartupWatchdog();
+  var startupGeneration = streamStartupGeneration;
   streamStartupWatchdogTimeout = window.setTimeout(function() {
     streamStartupWatchdogTimeout = null;
+    if (!isStreamStartupCurrent(startupGeneration)) return;
     streamStartupTimeoutFailure(stage);
   }, timeoutMs);
 }
@@ -106,6 +114,7 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
+  streamStartupGeneration++;
   window._streamStartupFailureHandled = true;
   var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
@@ -4529,6 +4538,8 @@ function handleOnScreenOverlays() {
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
 function startGame(host, appID) {
+  streamStartupGeneration++;
+  var startupGeneration = streamStartupGeneration;
   streamStartupFailureHandled = false;
   window._streamStartupFailureHandled = false;
   clearStreamStartupWatchdog();
@@ -4564,13 +4575,16 @@ function startGame(host, appID) {
 
   // Refresh the server info, because the user might have quit the game
   withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
+    if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
     withOperationTimeout((_directSmartHubLaunch ? Promise.resolve({
       id: appID,
       title: _directSmartHubLaunch.appName || String(appID)
     }) : host.getAppById(appID)), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
+      if (!isStreamStartupCurrent(startupGeneration)) return;
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         withOperationTimeout(host.getAppById(host.currentGame), STREAM_OPERATION_TIMEOUTS.appLookup, 'Currently running application lookup').then(function(currentApp) {
+          if (!isStreamStartupCurrent(startupGeneration)) return;
           // Find the existing overlay and dialog elements
           var quitAppOverlay = document.querySelector('#quitAppDialogOverlay');
           var quitAppDialog = document.querySelector('#quitAppDialog');
@@ -4746,6 +4760,7 @@ function startGame(host, appID) {
             5000,
             'Transition screen preparation'
           );
+          if (!isStreamStartupCurrent(startupGeneration)) return;
           window._directSmartHubTransitionPromise = null;
         } else {
           await withOperationTimeout(
@@ -4753,8 +4768,10 @@ function startGame(host, appID) {
             5000,
             'Transition screen preparation'
           );
+          if (!isStreamStartupCurrent(startupGeneration)) return;
         }
       } catch (transitionError) {
+        if (!isStreamStartupCurrent(startupGeneration)) return;
         console.error('%c[index.js, startGame]', 'color: red;', 'Could not prepare the stream transition screen:', transitionError);
         streamStartupTimeoutFailure('connection', t('Could not prepare the streaming screen.'));
         return;
@@ -4764,8 +4781,10 @@ function startGame(host, appID) {
         try {
           if (typeof setNavigationSoundEnabled === 'function') {
             await withOperationTimeout(setNavigationSoundEnabled(false), STREAM_OPERATION_TIMEOUTS.audioShutdown, 'Local audio shutdown');
+            if (!isStreamStartupCurrent(startupGeneration)) return;
           }
         } catch (audioShutdownError) {
+          if (!isStreamStartupCurrent(startupGeneration)) return;
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
           streamStartupTimeoutFailure('connection', t('Could not prepare the local audio engine for streaming.'));
           return;
@@ -4786,6 +4805,7 @@ function startGame(host, appID) {
           0x030002, // Surround channel mask << 16 | Surround channel count
           gamepadMask // Connect gamepad mask
         ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app resume').then(function(launchResult) {
+          if (!isStreamStartupCurrent(startupGeneration)) return;
           $xml = $($.parseXML(launchResult.toString()));
           $root = $xml.find('root');
           var status_code = $root.attr('status_code');
@@ -4853,6 +4873,7 @@ function startGame(host, appID) {
         0x030002, // Surround channel mask << 16 | Surround channel count
         gamepadMask // Connect gamepad mask
       ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app launch').then(function(launchResult) {
+        if (!isStreamStartupCurrent(startupGeneration)) return;
         $xml = $($.parseXML(launchResult.toString()));
         $root = $xml.find('root');
         var status_code = $root.attr('status_code');
@@ -4912,10 +4933,12 @@ function startGame(host, appID) {
         return;
       });
     }).catch(function(failedAppLookup) {
+      if (!isStreamStartupCurrent(startupGeneration)) return;
       console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to retrieve app ' + appID + ': ' + failedAppLookup);
       streamStartupTimeoutFailure('connection', t('The host did not return the requested application.'));
     });
   }, function(failedRefreshInfo) {
+    if (!isStreamStartupCurrent(startupGeneration)) return;
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
     streamStartupTimeoutFailure('connection', t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
   });
@@ -7814,6 +7837,9 @@ if (_directSmartHubLaunch) {
 function directSmartHubLaunchFailure(message) {
   if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
   _directSmartHubLaunchFailed = true;
+  streamStartupGeneration++;
+  streamStartupFailureHandled = true;
+  window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
   console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', message);
   var title = document.getElementById('loadingSpinnerTitle');
