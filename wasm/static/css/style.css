@@ -1016,7 +1016,7 @@ body {
     position: absolute;
     top: 50%;
     z-index: 5;
-    color: rgba(255, 255, 255, 0.68);
+    color: rgba(255, 255, 255, 0.5);
     font-family: 'Material Icons';
     font-size: 96px;
     font-weight: normal;
@@ -1027,11 +1027,11 @@ body {
 }
 .hosts-carousel-viewport.host-grid-overflow-left::before {
     content: 'chevron_left';
-    left: 48px;
+    left: 80px;
 }
 .hosts-carousel-viewport.host-grid-overflow-right::after {
     content: 'chevron_right';
-    right: 48px;
+    right: 80px;
 }
 
 #host-grid {
