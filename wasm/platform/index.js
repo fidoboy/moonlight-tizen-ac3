@@ -4932,6 +4932,11 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
   window.removeEventListener('mousemove', stopMouseMovePropagation, true);
   isDialogOpen = false;
 
+  // Hide the statistics overlay alongside the menu; the 200ms pause is only for the closing transition.
+  if (typeof onClosed === 'function') {
+    hideStreamDiagnosticsLayer();
+  }
+
   function finishClosing() {
     if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
     closedCallbackCalled = true;
