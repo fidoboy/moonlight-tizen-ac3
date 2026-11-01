@@ -1100,7 +1100,11 @@ function handleMessage(msg) {
         }, 100);
       }
     } else {
-      $('#listener').addClass('fullscreen');
+      if (typeof handleDirectSmartHubVideoReady === 'function') {
+        handleDirectSmartHubVideoReady();
+      } else {
+        $('#listener').addClass('fullscreen');
+      }
     }
     // Hide the lightweight direct-launch status when the video-ready notification arrives.
     if (window._directSmartHubLaunch) {
