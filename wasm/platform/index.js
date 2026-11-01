@@ -2885,10 +2885,8 @@ function navigateSettingsView(view) {
 function handleSettingsView(category) {
   // Refresh display capabilities before exposing the Video settings.
   if (category === 'videoSettings') {
-    refreshPanelResolutionCapabilities();
-    refreshHdrCapability();
-    filterUnsupportedResolutions();
     updateVideoResolutionAvailability();
+    refreshHdrCapability();
     updateHdrControlState();
   }
 
