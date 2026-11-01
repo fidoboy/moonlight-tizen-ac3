@@ -4454,11 +4454,15 @@ function handleDirectSmartHubVideoReady() {
 }
 
 // Handle layout elements when displaying the Stream view
-function showStreamMode(streamWidth, streamHeight) {
+function showStreamMode(streamWidth, streamHeight, startupGeneration) {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   return new Promise(function(resolve) {
     var isDirectLaunch = !!window._directSmartHubLaunch;
     var enterFullscreenStreamLayout = function() {
+      if (typeof startupGeneration === 'number' && !isStreamStartupCurrent(startupGeneration)) {
+        resolve();
+        return;
+      }
       if (!isDirectLaunch) {
         // Normal launches also stop the ambient backgrounds and UI animations.
         updateAmbientBackgroundActivation(false);
@@ -4562,7 +4566,7 @@ function startGame(host, appID) {
     $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
     $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
     window._directSmartHubTransitionPromise = showStreamMode(
-      directSettings.streamWidth, directSettings.streamHeight
+      directSettings.streamWidth, directSettings.streamHeight, startupGeneration
     );
   }
 
@@ -4630,6 +4634,7 @@ function startGame(host, appID) {
 
           return;
         }, function(failedCurrentApp) {
+          if (!isStreamStartupCurrent(startupGeneration)) return;
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to get the current running app from ' + host.hostname + '\n Returned error was: ' + failedCurrentApp + '!', '\n Host object: ' + '\n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
           streamStartupTimeoutFailure('connection', t('Could not retrieve information about the currently running application.'));
           return;
@@ -4764,7 +4769,7 @@ function startGame(host, appID) {
           window._directSmartHubTransitionPromise = null;
         } else {
           await withOperationTimeout(
-            showStreamMode(streamWidth, streamHeight),
+            showStreamMode(streamWidth, streamHeight, startupGeneration),
             5000,
             'Transition screen preparation'
           );
