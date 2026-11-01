@@ -3,6 +3,9 @@
 #include <condition_variable>
 #include <chrono>
 #include <functional>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
 #include <mutex>
 
 #include <h264_stream.h>
@@ -41,6 +44,65 @@ static uint32_t s_VideoFormat = 0;
 static uint32_t s_Width = 0;
 static uint32_t s_Height = 0;
 static uint32_t s_Framerate = 0;
+
+// H.264 level limits from Annex A (macroblocks per frame and per second).
+// Select the lowest level that can describe the requested stream dimensions and frame rate.
+struct H264LevelLimit {
+  uint8_t levelIdc;
+  uint32_t maxFrameSizeMbs;
+  uint32_t maxMacroblocksPerSecond;
+  const char* name;
+};
+
+static constexpr H264LevelLimit kH264LevelLimits[] = {
+  { 10, 99, 1485, "1.0" },
+  { 11, 396, 3000, "1.1" },
+  { 12, 396, 6000, "1.2" },
+  { 13, 396, 11880, "1.3" },
+  { 20, 396, 11880, "2.0" },
+  { 21, 792, 19800, "2.1" },
+  { 22, 1620, 20250, "2.2" },
+  { 30, 1620, 40500, "3.0" },
+  { 31, 3600, 108000, "3.1" },
+  { 32, 5120, 216000, "3.2" },
+  { 40, 8192, 245760, "4.0" },
+  { 41, 8192, 245760, "4.1" },
+  { 42, 8704, 522240, "4.2" },
+  { 50, 22080, 589824, "5.0" },
+  { 51, 36864, 983040, "5.1" },
+  { 52, 36864, 2073600, "5.2" },
+  { 60, 139264, 4177920, "6.0" },
+  { 61, 139264, 8355840, "6.1" },
+  { 62, 139264, 16711680, "6.2" },
+};
+
+static const H264LevelLimit* SelectH264Level(int width, int height, int frameRate) {
+  if (width <= 0 || height <= 0 || frameRate <= 0) {
+    return nullptr;
+  }
+
+  const uint64_t widthMbs = (static_cast<uint64_t>(width) + 15) / 16;
+  const uint64_t heightMbs = (static_cast<uint64_t>(height) + 15) / 16;
+  const uint64_t frameSizeMbs = widthMbs * heightMbs;
+  const uint64_t maxUint64 = std::numeric_limits<uint64_t>::max();
+  if (frameSizeMbs > maxUint64 / static_cast<uint64_t>(frameRate)) {
+    return nullptr;
+  }
+  const uint64_t macroblocksPerSecond = frameSizeMbs * static_cast<uint64_t>(frameRate);
+
+  for (const auto& level : kH264LevelLimits) {
+    const uint64_t maxDimensionSquared = static_cast<uint64_t>(level.maxFrameSizeMbs) * 8;
+    if (frameSizeMbs <= level.maxFrameSizeMbs &&
+        widthMbs * widthMbs <= maxDimensionSquared &&
+        heightMbs * heightMbs <= maxDimensionSquared &&
+        macroblocksPerSecond <= level.maxMacroblocksPerSecond) {
+      return &level;
+    }
+  }
+
+  return nullptr;
+}
+
 
 static std::vector<unsigned char> s_DecodeBuffer;
 
@@ -300,11 +362,22 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
   }
   {
     const char *mimetype = "video/mp4"; // MIME-type: Video MP4 Container
+    std::string h264MimeType;
     if (videoFormat & VIDEO_FORMAT_H264) {
-      mimetype = "video/mp4; codecs=\"avc1.64002A\""; // Video codec: H.264 High Level Profile 4.2
-      /* NOTE: Depending on the capabilities of the TV, it may support higher-level codec profiles, such as:
-      5.1 (avc1.640033); */
-      ClLogMessage("Video codec profile selected: H.264 High Level Profile 4.2\n");
+      const auto* h264Level = SelectH264Level(width, height, redrawRate);
+      if (h264Level == nullptr) {
+        ClLogMessage("H.264 stream dimensions or frame rate exceed the supported level range (%dx%d at %d FPS)\n",
+          width, height, redrawRate);
+        return -1;
+      }
+
+      char codecString[64];
+      std::snprintf(codecString, sizeof(codecString), "video/mp4; codecs=\"avc1.6400%02X\"",
+        h264Level->levelIdc);
+      h264MimeType = codecString;
+      mimetype = h264MimeType.c_str();
+      ClLogMessage("Video codec profile selected: H.264 High Profile Level %s (%dx%d at %d FPS)\n",
+        h264Level->name, width, height, redrawRate);
     } else if (videoFormat & VIDEO_FORMAT_H265) {
       mimetype = "video/mp4; codecs=\"hev1.1.6.L153.B0\""; // Video Codec: HEVC Main Level Profile 5.1
       /* NOTE: Depending on the capabilities of the TV, it may support higher-level codec profiles, such as:
