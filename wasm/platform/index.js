@@ -69,7 +69,7 @@ function isStreamStartupCurrent(generation) {
     (!_directSmartHubLaunch || !_directSmartHubLaunchFailed);
 }
 
-function withOperationTimeout(operation, timeoutMs, operationName) {
+function withOperationTimeout(operation, timeoutMs, operationName, onTimeout) {
   return new Promise(function(resolve, reject) {
     var settled = false;
     var timeoutId = window.setTimeout(function() {
@@ -78,6 +78,12 @@ function withOperationTimeout(operation, timeoutMs, operationName) {
       var error = new Error(operationName + ' timed out after ' + timeoutMs + ' ms');
       error.name = 'TimeoutError';
       error.operation = operationName;
+      if (typeof onTimeout === 'function') {
+        try { onTimeout(error); }
+        catch (callbackError) {
+          console.warn('%c[index.js, withOperationTimeout]', 'color: gray;', 'Timeout cancellation callback failed:', callbackError);
+        }
+      }
       reject(error);
     }, timeoutMs);
     Promise.resolve(operation).then(function(value) {
@@ -3621,6 +3627,10 @@ function finishAppsModeAfterStreamTransition() {
 // Show the Apps grid
 function showApps(host, options) {
   return new Promise((resolve, reject) => {
+    var operationToken = options && options.operationToken;
+    var isOperationCancelled = function() {
+      return !!(operationToken && operationToken.cancelled);
+    };
     // Safety checking should happen before attempting to show the app list
     if (!host || !host.paired) {
       console.error('%c[index.js, showApps]', 'color: green;', 'Error: Unable to initialize the host properly! Host object: ', host);
@@ -3655,10 +3665,12 @@ function showApps(host, options) {
     }
 
     setTimeout(() => {
+      if (isOperationCancelled()) return;
       var appListRequest = (options && options.forceRefreshAppList)
         ? host.getAppListWithCacheFlush()
         : host.getAppList();
       appListRequest.then(function(appList) {
+        if (isOperationCancelled()) return;
         // Show the game grid section
         $('#game-grid').show();
 
@@ -3912,6 +3924,7 @@ function showApps(host, options) {
         resolve();
 
         Promise.all(settledPromises).then(function() {
+          if (isOperationCancelled()) return;
           // Resume background polling now that all box art downloads are complete
           beginBackgroundPollingOfHost(host);
 
@@ -3919,11 +3932,13 @@ function showApps(host, options) {
           // before sending the updated data to the background service.
           var previewsDone = window.previewPromises || [];
           Promise.all(previewsDone).then(function() {
+            if (isOperationCancelled()) return;
             savePreviewApps();
             updatePreviewData();
           });
         });
       }, function(failedAppList) {
+        if (isOperationCancelled()) return;
         clearViewLoadingSnackbarTimer();
         console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
@@ -4980,11 +4995,15 @@ function stopGame(host, callbackFunction) {
     }).catch(function(failedRefreshInfo) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info after closing the app:', failedRefreshInfo);
     }).then(function() {
+      var appListOperation = { cancelled: false };
       return withOperationTimeout(showApps(host, {
         suppressLoadingSnackbar: true,
         suppressEmptyListSnackbar: true,
-        keepInteractionLocked: true
-      }), 10000, 'Application list refresh after app shutdown');
+        keepInteractionLocked: true,
+        operationToken: appListOperation
+      }), 10000, 'Application list refresh after app shutdown', function() {
+        appListOperation.cancelled = true;
+      });
     }).catch(function(error) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
     }).then(function() {
