@@ -125,12 +125,7 @@ body {
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: linear-gradient(
-        to bottom,
-        var(--theme-background) 0%,
-        var(--theme-background) 40%,
-        var(--theme-background-dark) 100%
-    );
+    background: #ff00ff;
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
