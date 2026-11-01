@@ -17,17 +17,21 @@ function loadNavigationSoundData() {
   if (navigationSoundData) return Promise.resolve(navigationSoundData);
   if (navigationSoundLoadPromise) return navigationSoundLoadPromise;
 
-  navigationSoundLoadPromise = fetch('static/res/click.mp3').then(function(response) {
+  var loadPromise = fetch('static/res/click.mp3').then(function(response) {
     if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading click.mp3');
     return response.arrayBuffer();
   }).then(function(data) {
     navigationSoundData = data;
     return data;
   }).finally(function() {
-    navigationSoundLoadPromise = null;
+    // A stale fetch must not clear a newer request started after audio shutdown.
+    if (navigationSoundLoadPromise === loadPromise) {
+      navigationSoundLoadPromise = null;
+    }
   });
 
-  return navigationSoundLoadPromise;
+  navigationSoundLoadPromise = loadPromise;
+  return loadPromise;
 }
 
 function decodeNavigationSound(context, data) {
@@ -93,6 +97,9 @@ function closeNavigationAudioEngine() {
   // Detach the current initialization immediately. Waiting for fetch/decode here
   // could leave the AudioContext alive forever if that work never settles.
   navigationSoundInitializationPromise = null;
+  // Do not let a stalled fetch shared by the old initialization block a fresh
+  // attempt when the UI audio engine is restored.
+  navigationSoundLoadPromise = null;
   var context = navigationSoundContext;
   if (navigationSoundContext === context) {
     navigationSoundContext = null;
