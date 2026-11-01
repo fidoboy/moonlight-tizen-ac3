@@ -4918,15 +4918,15 @@ function stopGame(host, callbackFunction) {
     else snackbarLog(message);
 
     Promise.resolve().then(function() {
-      return host.refreshServerInfo();
+      return withOperationTimeout(host.refreshServerInfo(), 15000, 'Host refresh after app shutdown');
     }).catch(function(failedRefreshInfo) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to refresh server info after closing the app:', failedRefreshInfo);
     }).then(function() {
-      return showApps(host, {
+      return withOperationTimeout(showApps(host, {
         suppressLoadingSnackbar: true,
         suppressEmptyListSnackbar: true,
         keepInteractionLocked: true
-      });
+      }), 20000, 'Application list refresh after app shutdown');
     }).catch(function(error) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Failed to refresh the Apps list after the close operation:', error);
     }).then(function() {
@@ -4935,8 +4935,8 @@ function stopGame(host, callbackFunction) {
     });
   }
 
-  host.refreshServerInfo().then(function() {
-    return host.getAppById(host.currentGame);
+  withOperationTimeout(host.refreshServerInfo(), 15000, 'Host refresh before app shutdown').then(function() {
+    return withOperationTimeout(host.getAppById(host.currentGame), 10000, 'Running application lookup');
   }).then(function(runningApp) {
     if (!runningApp) {
       finishQuitOperation('No app is currently running.');
@@ -4944,7 +4944,7 @@ function stopGame(host, callbackFunction) {
     }
 
     var appTitle = runningApp.title;
-    host.quitApp().then(function() {
+    withOperationTimeout(host.quitApp(), 10000, 'Host app shutdown').then(function() {
       finishQuitOperation('Successfully quit %1$s', appTitle, true);
     }, function(failedQuitApp) {
       console.error('%c[index.js, stopGame]', 'color: green;', 'Error: Failed to quit app! Returned error was: ' + failedQuitApp + '!');
