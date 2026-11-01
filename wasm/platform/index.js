@@ -4020,6 +4020,9 @@ function quitAppDialog() {
           setTimeout(() => Navigation.switch(), 3000);
         });
       });
+    }).catch(function(error) {
+      console.error('%c[index.js, quitAppDialog]', 'color: red;', 'Could not retrieve the currently running application:', error);
+      snackbarLogLong('Could not retrieve the currently running application.');
     });
   }
 }
