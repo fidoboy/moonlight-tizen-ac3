@@ -2028,6 +2028,33 @@ function autoWolDialog(host, onSuccess, onCancel) {
   sendWakeRequest();
 }
 
+// TEMPORARY UI TEST DATA: remove this block after validating Hosts carousel navigation.
+const HOST_CAROUSEL_TEST_MODE = true;
+const HOST_CAROUSEL_TEST_CARD_COUNT = 9;
+
+function addTemporaryHostCarouselTestCards(template) {
+  if (!HOST_CAROUSEL_TEST_MODE || $('#host-grid > .host-carousel-test-card').length) return;
+
+  for (var i = 1; i <= HOST_CAROUSEL_TEST_CARD_COUNT; i++) {
+    var testCard = template.clone(false, false);
+    var testId = 'host-carousel-test-' + i;
+    testCard.attr({
+      id: testId,
+      'aria-label': 'TEST Host ' + i
+    }).addClass('host-carousel-test-card');
+
+    testCard.find('.host-text').text('TEST Host ' + i);
+    testCard.find('.host-menu').attr({
+      id: testId + '-menu',
+      'aria-label': 'TEST Host ' + i + ' menu'
+    });
+    testCard.find('.host-center-icon').attr('id', testId + '-status');
+    $('#host-grid').append(testCard);
+  }
+
+  if (typeof updateHostsCarousel === 'function') updateHostsCarousel();
+}
+
 // Add the new NvHTTP Host object inside the host grid
 function addHostToGrid(host, ismDNSDiscovered) {
   // Create the host container with the appropriate attributes for the host card
@@ -2124,6 +2151,10 @@ function addHostToGrid(host, ismDNSDiscovered) {
 
   // Append the host container to the host grid
   $('#host-grid').append(hostContainer);
+
+  // Temporary fake cards make the horizontal carousel testable with a single real host.
+  addTemporaryHostCarouselTestCards(hostContainer);
+  if (typeof updateHostsCarousel === 'function') updateHostsCarousel();
 
   // Store the host object in the hosts array using its server UID as the key
   hosts[host.serverUid] = host;
