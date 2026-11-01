@@ -11,9 +11,8 @@ var is8kPanel = false;
 var maxSupportedWidth = 1920;
 var maxSupportedHeight = 1080;
 
-// Query the panel capabilities at startup and again whenever Video settings are opened.
-refreshPanelResolutionCapabilities();
-var isHdrCapable = webapis.avinfo.isHdrTvSupport(); // Check if the device supports HDR
+// Display capabilities are queried when the Video settings are opened.
+var isHdrCapable = null;
 var hosts = {}; // Hosts is an associative array of NvHTTP objects, keyed by server UID
 var isHostOpening = false; // Prevents concurrent hostChosen executions, initial value is false
 var isHostsLoaded = false; // Indicates if IndexedDB has finished loading hosts
@@ -1734,6 +1733,21 @@ function refreshPanelResolutionCapabilities() {
   });
 }
 
+function refreshHdrCapability() {
+  try {
+    isHdrCapable = typeof webapis !== 'undefined' &&
+      webapis.avinfo &&
+      typeof webapis.avinfo.isHdrTvSupport === 'function' &&
+      webapis.avinfo.isHdrTvSupport() === true;
+  } catch (error) {
+    // If HDR capability cannot be determined, keep the setting unavailable.
+    isHdrCapable = false;
+    console.warn('%c[index.js, refreshHdrCapability]', 'color: gray;', 'Could not determine HDR capability:', error);
+  }
+
+  console.log('%c[index.js, refreshHdrCapability]', 'color: green;', 'HDR capable:', isHdrCapable);
+}
+
 function filterUnsupportedResolutions() {
   $('.videoResolutionMenu li').each(function() {
     var resData = $(this).data('value');
@@ -2869,9 +2883,13 @@ function navigateSettingsView(view) {
 
 // Handle category selection, display appropriate options, and navigate to the provided settings pane
 function handleSettingsView(category) {
-  // Refresh the panel capability before exposing the Video settings and its resolution menu.
+  // Refresh display capabilities before exposing the Video settings.
   if (category === 'videoSettings') {
+    refreshPanelResolutionCapabilities();
+    refreshHdrCapability();
+    filterUnsupportedResolutions();
     updateVideoResolutionAvailability();
+    updateHdrControlState();
   }
 
   // Reset the current settings view before navigating to the next settings view
@@ -6397,11 +6415,12 @@ function updateHdrControlState() {
   const hdrInput = document.getElementById('hdrModeSwitch');
   const hdrSwitch = document.getElementById('hdrModeBtn');
   const isH264 = $('#selectCodec').data('value') === 'H264';
+  const isUnavailable = isH264 || isHdrCapable !== true;
 
   if (!hdrInput || !hdrSwitch) return;
 
-  // H.264 does not support HDR: force it off and disable the entire setting.
-  if (isH264 && hdrInput.checked) {
+  // HDR requires both a compatible codec and an HDR-capable TV.
+  if (isUnavailable && hdrInput.checked) {
     if (hdrSwitch.MaterialSwitch) {
       hdrSwitch.MaterialSwitch.off();
     } else {
@@ -6412,9 +6431,9 @@ function updateHdrControlState() {
 
   // Update both the native input and MDL's own disabled state. Changing only
   // input.disabled leaves MDL's is-disabled class behind on some builds.
-  hdrInput.disabled = isH264;
+  hdrInput.disabled = isUnavailable;
   if (hdrSwitch.MaterialSwitch) {
-    if (isH264) {
+    if (isUnavailable) {
       hdrSwitch.MaterialSwitch.disable();
     } else {
       hdrSwitch.MaterialSwitch.enable();
@@ -6913,7 +6932,7 @@ function loadSystemInfo() {
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Name: ' + (modelName ? modelName : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Group: ' + (modelGroup ? modelGroup : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (is4kPanel ? 'Yes' : 'No'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'HDR Capable: ' + (isHdrCapable ? 'Yes' : 'No'));
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'HDR Capable: ' + (isHdrCapable === null ? 'Not checked' : (isHdrCapable ? 'Yes' : 'No')));
     // Insert the system information as text, then render the experimental marker
     // with the same shared badge class used by other experimental settings.
     systemInfoPlaceholder.textContent =
