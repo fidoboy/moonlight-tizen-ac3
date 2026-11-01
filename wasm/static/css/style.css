@@ -1004,6 +1004,7 @@ body {
     padding: 30px 80px;
     flex-flow: row nowrap;
     align-items: center;
+    align-content: center;
     justify-content: flex-start;
     overflow-x: hidden;
     overflow-y: hidden;
