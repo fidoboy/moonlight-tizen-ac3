@@ -88,14 +88,14 @@ Download `Moonlight.wgt` or `Moonlight-ForceGM.wgt` from the [latest stable rele
 
 The guides are maintained in this repository and describe this project's current behavior.
 
-- [Quick Start Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Quick-Start-Guide.md)
-- [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md)
-- [Updating Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Updating-Guide.md)
-- [Features Overview](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Features-Overview.md)
-- [Frequently Asked Questions](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Frequently-Asked-Questions.md)
-- [Known Issues and Limitations](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Known-Issues-and-Limitations.md)
-- [Troubleshooting Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Troubleshooting-Guide.md)
-- [Development Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Development-Guide.md)
+- [Quick Start Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Quick-Start-Guide.html)
+- [Installation Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Installation-Guide.html)
+- [Updating Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Updating-Guide.html)
+- [Features Overview](https://fidoboy.github.io/moonlight-tizen-ac3/Features-Overview.html)
+- [Frequently Asked Questions](https://fidoboy.github.io/moonlight-tizen-ac3/Frequently-Asked-Questions.html)
+- [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html)
+- [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html)
+- [Development Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Development-Guide.html)
 
 ---
 
@@ -122,7 +122,7 @@ See the project's [CHANGELOG](https://github.com/fidoboy/moonlight-tizen-ac3/blo
 
 ## 🛠️ Contributing and reporting issues
 
-This project is developed and maintained independently. Please report reproducible bugs or request features through [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose). Before reporting a problem, consult the [Troubleshooting Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Troubleshooting-Guide.md) and [Known Issues and Limitations](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Known-Issues-and-Limitations.md). Do not include pairing PINs, passwords, private keys, or other secrets in reports. For code contributions, open a pull request against `master` with a focused description and test results where possible. Consult the local [Development Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Development-Guide.md) for build and release procedures.
+This project is developed and maintained independently. Please report reproducible bugs or request features through [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose). Before reporting a problem, consult the [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html) and [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html). Do not include pairing PINs, passwords, private keys, or other secrets in reports. For code contributions, open a pull request against `master` with a focused description and test results where possible. Consult the local [Development Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Development-Guide.md) for build and release procedures.
 
 
 ---
