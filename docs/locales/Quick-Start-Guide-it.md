@@ -43,9 +43,9 @@ Per una nuova configurazione, inizia con valori prudenti di risoluzione, frequen
 
 ## 4. Abilita l'uscita ottica Dolby (facoltativo)
 
-Il passthrough Dolby richiede la [build sperimentale Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio) corrispondente. Puoi scaricare direttamente la build Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) oppure [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip). Servono inoltre un percorso audio compatibile sul televisore e un ricevitore o sistema audio che supporti il formato.
+Il passthrough Dolby è supportato ufficialmente da [Vibeshine 2.0.3 o versioni successive](https://github.com/Nonary/vibeshine/releases/tag/2.0.3). **Consigliato: usa Vibeshine come host di streaming per l'audio Dolby.**
 
-In alternativa, il passthrough Dolby è disponibile anche con [Vibeshine 2.0.3 o versioni successive](https://github.com/Nonary/vibeshine/releases/tag/2.0.3).
+**Alternativa: build sperimentale di Sunshine.** Il passthrough Dolby è disponibile anche nel [branch sperimentale di Sunshine mantenuto per questo progetto](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3), ancora in attesa della revisione nel progetto upstream. Scarica la build Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) oppure [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip).
 
 1. Collega l'uscita ottica del televisore al ricevitore o al sistema audio.
 2. Nelle impostazioni audio del televisore, scegli una modalità che inoltri un bitstream Dolby supportato invece di forzare PCM stereo. Le etichette esatte variano in base al modello.
