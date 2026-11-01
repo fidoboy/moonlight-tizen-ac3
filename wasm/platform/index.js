@@ -4374,8 +4374,12 @@ function showStreamMode() {
       if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
         Module.resetEncryptionStatus();
       }
-      showStreamTransitionBackground(enterFullscreenStreamLayout);
-      startStreamEncryptionStatusPolling();
+      showStreamTransitionBackground(function() {
+        // Start checking the negotiated encryption state only after the transition
+        // background and progress UI have finished appearing.
+        startStreamEncryptionStatusPolling();
+        enterFullscreenStreamLayout();
+      });
     } else {
       enterFullscreenStreamLayout();
     }
