@@ -1238,6 +1238,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
+  $('#background-layer').show();
   if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showHostsMode]', 'color: green;', 'Entering "Show Hosts" mode.');
@@ -2614,6 +2615,9 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Remove the background layer entirely while Settings is displayed.
+  $('#background-layer').hide();
+
   // Stop every ambient background before the Settings loading/transition screen is shown.
   updateAmbientBackgroundActivation(false);
 
@@ -3431,6 +3435,7 @@ function sortTitles(list, sortOrder) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
+  $('#background-layer').show();
   if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
