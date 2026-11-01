@@ -1005,7 +1005,7 @@ body {
     height: 100%;
     min-height: 0;
     margin-top: -20px;
-    padding: 0 100px;
+    padding: 0 120px;
     box-sizing: border-box;
     overflow: hidden;
 }
@@ -1018,7 +1018,7 @@ body {
     z-index: 5;
     color: rgba(255, 255, 255, 0.68);
     font-family: 'Material Icons';
-    font-size: 48px;
+    font-size: 96px;
     font-weight: normal;
     line-height: 1;
     pointer-events: none;
@@ -1027,11 +1027,11 @@ body {
 }
 .hosts-carousel-viewport.host-grid-overflow-left::before {
     content: 'chevron_left';
-    left: 22px;
+    left: 48px;
 }
 .hosts-carousel-viewport.host-grid-overflow-right::after {
     content: 'chevron_right';
-    right: 22px;
+    right: 48px;
 }
 
 #host-grid {
