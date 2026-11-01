@@ -834,7 +834,11 @@ function startDeferredNormalStartup() {
       // Do not start CPU-heavy initialization until the snackbar has completed
       // its slide-in transition and the browser has had another rendering frame.
       showStartupHostsSnackbar(function() {
-        window.requestAnimationFrame(runStartupWork);
+        if (typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(runStartupWork);
+        } else {
+          window.setTimeout(runStartupWork, 0);
+        }
       });
     } else {
       window.setTimeout(runStartupWork, 50);
@@ -1146,7 +1150,11 @@ function showStartupHostsSnackbar(onShown) {
     snackbarLogPersistent('Loading configured hosts...');
     startupHostsSnackbarVisible = true;
     if (!snackbarElement) {
-      window.requestAnimationFrame(finishSnackbarEntrance);
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(finishSnackbarEntrance);
+      } else {
+        window.setTimeout(finishSnackbarEntrance, 0);
+      }
     }
     return;
   }
