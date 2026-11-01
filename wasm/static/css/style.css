@@ -1039,7 +1039,9 @@ body {
     display: flex;
     flex: 0 0 auto;
     width: auto;
-    max-width: 100%;
+    /* The carousel grid intentionally extends 28px beyond each side so
+       centered edge-card zoom remains inside the parent viewport. */
+    max-width: none;
     height: 100%;
     min-width: 0;
     min-height: 0;
