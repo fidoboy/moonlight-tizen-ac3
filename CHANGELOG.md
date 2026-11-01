@@ -7,7 +7,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Added
 - **Dynamic H.264 level selection:** Selects the lowest H.264 level that satisfies the requested resolution and frame rate, based on the standard macroblocks-per-frame and macroblocks-per-second limits. Streams exceeding the supported Level 6.2 limits are rejected instead of being advertised with an inaccurate level.
-- **H.264 level override:** Added a Video Settings selector with Automatic (recommended) as the default and manual levels from 3.0 to 6.2 for hardware compatibility testing. The selector is enabled only when H.264 is selected.
+- **H.264 level override:** Added a Video Settings selector with Automatic (recommended) as the default and manual levels from 3.0 to 5.2 for hardware compatibility testing. This selector is enabled only when H.264 is selected.
 - **Configuration summary position:** Added an Interface Settings menu to place the configuration summary bar at the top or bottom of the Hosts and Apps screens, or hide it entirely.
 
 ### Changed
