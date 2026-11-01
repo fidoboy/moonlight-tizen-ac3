@@ -114,9 +114,11 @@ body {
     z-index: 10;
     opacity: 0;
     background:
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.0' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncG type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncB type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncA type='linear' slope='0.035'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.0' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncG type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncB type='linear' slope='0.12' intercept='0.44'/%3E%3CfeFuncA type='linear' slope='0.035'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E"),
         linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.28) 12%, rgba(0, 0, 0, 0.12) 30%, rgba(0, 0, 0, 0) 55%),
         var(--theme-background);
+    background-size: 200px 200px, auto, auto;
+    background-repeat: repeat, no-repeat, no-repeat;
 }
 /* This root state overrides every descendant's visibility and interaction state. */
 #main-ui-layer.ui-inactive {
@@ -1019,7 +1021,7 @@ body {
     position: absolute;
     top: 50%;
     z-index: 5;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.3);
     font-family: 'Material Icons';
     font-size: 96px;
     font-weight: normal;
