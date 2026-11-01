@@ -10,6 +10,8 @@ let navigationSoundData = null;
 let navigationSoundLoadPromise = null;
 let navigationSoundInitializationPromise = null;
 let navigationSoundSources = [];
+// Invalidates late audio lifecycle completions when the preference changes again.
+let navigationSoundLifecycleId = 0;
 
 function loadNavigationSoundData() {
   if (navigationSoundData) return Promise.resolve(navigationSoundData);
@@ -81,12 +83,16 @@ function initializeNavigationAudioEngine() {
 }
 
 function closeNavigationAudioEngine() {
+  var lifecycleId = ++navigationSoundLifecycleId;
   navigationSoundEnabled = false;
 
   var pendingInitialization = navigationSoundInitializationPromise || Promise.resolve();
   return Promise.resolve(pendingInitialization).catch(function(error) {
     console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio initialization did not finish before shutdown:', error);
   }).then(function() {
+    // A timeout or a later UI restoration may have re-enabled sounds while
+    // initialization/shutdown was pending. Never let this stale close win.
+    if (lifecycleId !== navigationSoundLifecycleId || navigationSoundEnabled) return false;
     var context = navigationSoundContext;
     navigationSoundContext = null;
     navigationSoundBuffer = null;
@@ -109,7 +115,9 @@ function setNavigationSoundEnabled(enabled) {
   if (enabled !== true) return closeNavigationAudioEngine();
 
   navigationSoundEnabled = true;
+  var lifecycleId = ++navigationSoundLifecycleId;
   return initializeNavigationAudioEngine().then(function(ready) {
+    if (lifecycleId !== navigationSoundLifecycleId || !navigationSoundEnabled) return false;
     // The context may be recreated outside a user gesture after streaming. Attempt to
     // resume it here; playNavigationSound() retries from the next genuine user gesture
     // if Tizen's autoplay policy keeps it suspended.
