@@ -6605,6 +6605,22 @@ function initSamsungKeys() {
   platformOnLoad(handler);
 }
 
+function directStreamRemoteControllerHandler(e) {
+  var keyCode = e.keyCode;
+  if (typeof tvKey === 'undefined') return;
+
+  switch (keyCode) {
+    case tvKey.KEY_PLAY_PAUSE:
+    case tvKey.KEY_PAUSE:
+    case tvKey.KEY_PLAY:
+      if (isInGame) {
+        e.preventDefault();
+        toggleStreamMenuDialog();
+      }
+      break;
+  }
+}
+
 function initDirectSamsungKeys() {
   console.log('%c[index.js, initDirectSamsungKeys]', 'color: green;', 'Registering only the TV keys required during direct streaming...');
   platformOnLoad({
