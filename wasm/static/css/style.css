@@ -1078,6 +1078,13 @@ body {
 #host-grid .mdl-shadow--4dp {
     box-shadow: unset;
 }
+/* Keep the zoom of the outer cards inside the carousel's clipping edges. */
+#host-grid > .mdl-card:first-child:not(:last-child) {
+    transform-origin: left center;
+}
+#host-grid > .mdl-card:last-child:not(:first-child) {
+    transform-origin: right center;
+}
 #host-grid .mdl-card.hovered, #host-grid .mdl-card:hover,
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
     z-index: 2;
