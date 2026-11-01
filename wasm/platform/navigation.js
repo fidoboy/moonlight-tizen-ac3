@@ -706,19 +706,25 @@ function getHostsCarouselLayout(grid) {
   const cards = Array.from(grid.children).filter(card =>
     card.id === 'addHostContainer' || card.classList.contains('host-container')
   );
-  if (!cards.length) return { cards, visibleCount: 0, step: 0, sideMargin: 0 };
+  if (!cards.length) return { cards, visibleCount: 0, step: 0, pageWidth: 0 };
 
   const firstCard = cards[0];
   const style = window.getComputedStyle(firstCard);
   const marginLeft = parseFloat(style.marginLeft) || 0;
   const marginRight = parseFloat(style.marginRight) || 0;
   const step = firstCard.offsetWidth + marginLeft + marginRight;
-  // The viewport reserves fixed side gutters for the arrows. Calculate the
-  // visible page only from the grid's remaining width, fitting complete cards.
-  const visibleCount = Math.min(4, Math.max(1, Math.floor(grid.clientWidth / step)));
-  // Center the complete-card group within the usable grid area.
-  const sideMargin = Math.max(0, (grid.clientWidth - visibleCount * step) / 2);
-  return { cards, visibleCount, step, sideMargin };
+
+  // The viewport reserves fixed side gutters for the arrows. Size the
+  // scrolling grid to the exact width of complete cards that fit in that area.
+  const viewport = grid.parentElement;
+  const viewportStyle = window.getComputedStyle(viewport);
+  const horizontalPadding =
+    (parseFloat(viewportStyle.paddingLeft) || 0) +
+    (parseFloat(viewportStyle.paddingRight) || 0);
+  const usableWidth = Math.max(0, viewport.clientWidth - horizontalPadding);
+  const visibleCount = Math.min(4, Math.max(1, Math.floor(usableWidth / step)));
+  const pageWidth = Math.min(cards.length, visibleCount) * step;
+  return { cards, visibleCount, step, pageWidth };
 }
 
 function updateHostsCarouselIndicators() {
@@ -738,27 +744,27 @@ function updateHostsCarousel() {
   if (!grid || !viewport) return;
 
   const layout = getHostsCarouselLayout(grid);
-  const { cards, visibleCount, step, sideMargin } = layout;
+  const { cards, visibleCount, step, pageWidth } = layout;
   if (!cards.length) {
     grid.classList.remove('host-grid-centered');
+    grid.style.width = '0px';
     viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
     return;
   }
 
   const hasOverflow = cards.length > visibleCount;
+  grid.style.width = pageWidth + 'px';
+  grid.style.paddingLeft = '0px';
+  grid.style.paddingRight = '0px';
   if (!hasOverflow) {
     grid.classList.add('host-grid-centered');
     viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
-    grid.style.paddingLeft = '0px';
-    grid.style.paddingRight = '0px';
     grid.dataset.carouselStart = '0';
     if (grid.scrollLeft !== 0) grid.scrollLeft = 0;
     return;
   }
 
   grid.classList.remove('host-grid-centered');
-  grid.style.paddingLeft = sideMargin + 'px';
-  grid.style.paddingRight = sideMargin + 'px';
 
   const maxStart = Math.max(0, cards.length - visibleCount);
   const start = Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)));
@@ -788,8 +794,9 @@ function scrollHostCardIntoView(target) {
   const maxStart = layout.cards.length - layout.visibleCount;
   const start = Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)));
   grid.dataset.carouselStart = String(start);
-  grid.style.paddingLeft = layout.sideMargin + 'px';
-  grid.style.paddingRight = layout.sideMargin + 'px';
+  grid.style.width = layout.pageWidth + 'px';
+  grid.style.paddingLeft = '0px';
+  grid.style.paddingRight = '0px';
   grid.classList.remove('host-grid-centered');
   viewport.classList.toggle('host-grid-overflow-left', start > 0);
   viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
