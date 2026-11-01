@@ -122,7 +122,7 @@ See the project's [CHANGELOG](https://github.com/fidoboy/moonlight-tizen-ac3/blo
 
 ## 🛠️ Contributing and reporting issues
 
-This project is developed and maintained independently. Please report reproducible bugs or request features through [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose). Before reporting a problem, consult the [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html) and [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html). Do not include pairing PINs, passwords, private keys, or other secrets in reports. For code contributions, open a pull request against `master` with a focused description and test results where possible. Consult the local [Development Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Development-Guide.md) for build and release procedures.
+This project is developed and maintained independently. Please report reproducible bugs or request features through [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose). Before reporting a problem, consult the [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html) and [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html). Do not include pairing PINs, passwords, private keys, or other secrets in reports. For code contributions, open a pull request against `master` with a focused description and test results where possible. Consult the local [Development Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Development-Guide.html) for build and release procedures.
 
 
 ---
