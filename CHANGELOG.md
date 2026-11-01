@@ -11,6 +11,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Configuration summary position:** Added an Interface Settings menu to place the configuration summary bar at the top or bottom of the Hosts and Apps screens, or hide it entirely.
 
 ### Changed
+- **Smart Hub quick-start screen:** Reworked the direct-launch startup screen to use the same streaming transition layer as the regular interface, with consistent background, progress and status messaging, and connection-encryption feedback. The streamlined launch path restores the saved streaming settings and connects directly to the selected host and application without loading the full interface.
 - **Ethernet guidance:** Clarified that a TV's 100 Mbps Ethernet connection can be more stable or faster than Wi-Fi on a particular model; users should compare measured throughput and stability rather than assume Wi-Fi is always preferable.
 - **Video troubleshooting:** Added guidance for identifying NVENC encoder saturation when actual stream throughput is far below the configured bitrate, including controlled tests with the preset, two-pass encoding and spatial AQ.
 - **Main interface background:** Replaced the flat main-interface background with a vertical gradient that darkens towards the bottom while preserving the selected color theme.
