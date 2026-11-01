@@ -109,7 +109,9 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   window._streamStartupFailureHandled = true;
   var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
-    : t('The host did not establish the streaming connection in time.'));
+    : (stage === 'initialization'
+      ? t('Moonlight could not prepare the saved host and streaming settings in time.')
+      : t('The host did not establish the streaming connection in time.')));
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
   try { sendMessage('stopRequest', []); }
   catch (error) { console.warn('%c[index.js, streamStartupTimeoutFailure]', 'color: gray;', 'Could not stop the timed-out stream request:', error); }
@@ -8105,6 +8107,8 @@ function onWindowLoad() {
   }
 
   if (_directSmartHubLaunch) {
+    // Bound the entire direct-launch preparation, including certificate and saved-host restore.
+    armStreamStartupWatchdog('initialization', 30000);
     // Register only stream-specific remote controls. Do not initialize home-screen navigation.
     initDirectSamsungKeys();
     initSpecialKeys();
