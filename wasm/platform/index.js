@@ -4400,7 +4400,7 @@ function startGame(host, appID) {
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
   // handler of the key press that started the stream, because the audio context of a device
   // with an autoplay policy can only be created from a user gesture
-  if (isWebAudioBackendSelected()) {
+  if (!_directSmartHubLaunch && isWebAudioBackendSelected()) {
     startAudioScheduler();
   }
 
@@ -4460,34 +4460,79 @@ function startGame(host, appID) {
         return;
       }
 
-      // Retrieve all stream configuration options from the Settings view
-      var streamWidth = $('#selectResolution').data('value').split(':')[0];
-      var streamHeight = $('#selectResolution').data('value').split(':')[1];
-      var frameRate = $('#selectFramerate').data('value').toString();
-      var bitrate = parseFloat($('#bitrateSlider').val()) * 1000;
-      var rikey = generateRemoteInputKey();
-      var rikeyid = generateRemoteInputKeyId();
-      var gamepadMask = getConnectedGamepadMask();
-      const framePacing = $('#framePacingSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const optimizeGames = $('#optimizeGamesSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const rumbleFeedback = $('#rumbleFeedbackSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const mouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
-      var audioBackend = opticalOutputEnabled ? 'EMSS' : $('#selectAudioBackend').data('value').toString();
-      var audioConfig = $('#selectAudio').data('value').toString();
-      const audioSync = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const audioJitter = parseInt($('#jitterSlider').val());
-      const playHostAudio = $('#playHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const decryptHostAudio = $('#decryptHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      var videoCodec = $('#selectCodec').data('value').toString();
-      var h264Level = $('#selectH264Level').data('value') || 'Auto';
-      const hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const fullRange = $('#fullRangeSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const gameMode = $('#gameModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const disableWarnings = $('#disableWarningsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-      const performanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+      // Normal launches read the live controls. Smart Hub launches use the
+      // stream-only snapshot loaded directly from IndexedDB, without touching UI controls.
+      var streamWidth, streamHeight, frameRate, bitrate, rikey, rikeyid, gamepadMask;
+      var framePacing, optimizeGames, rumbleFeedback, mouseEmulation;
+      var flipABfaceButtons, flipXYfaceButtons, opticalOutputEnabled;
+      var audioBackend, audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio;
+      var videoCodec, h264Level, hdrMode, fullRange, gameMode, disableWarnings, performanceStats;
+      var dolbyChannelLayout, dolbyDecodingMode;
+
+      if (_directSmartHubLaunch) {
+        var directSettings = _directSmartHubStreamSettings;
+        if (!directSettings) {
+          directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+          return;
+        }
+        streamWidth = directSettings.streamWidth;
+        streamHeight = directSettings.streamHeight;
+        frameRate = directSettings.frameRate;
+        bitrate = directSettings.bitrate;
+        framePacing = directSettings.framePacing;
+        optimizeGames = directSettings.optimizeGames;
+        rumbleFeedback = directSettings.rumbleFeedback;
+        mouseEmulation = directSettings.mouseEmulation;
+        flipABfaceButtons = directSettings.flipABfaceButtons;
+        flipXYfaceButtons = directSettings.flipXYfaceButtons;
+        opticalOutputEnabled = directSettings.opticalOutputEnabled;
+        audioBackend = directSettings.audioBackend;
+        audioConfig = directSettings.audioConfig;
+        audioSync = directSettings.audioSync;
+        audioJitter = directSettings.audioJitter;
+        playHostAudio = directSettings.playHostAudio;
+        decryptHostAudio = directSettings.decryptHostAudio;
+        videoCodec = directSettings.videoCodec;
+        h264Level = directSettings.h264Level;
+        hdrMode = directSettings.hdrMode;
+        fullRange = directSettings.fullRange;
+        gameMode = directSettings.gameMode;
+        disableWarnings = directSettings.disableWarnings;
+        performanceStats = directSettings.performanceStats;
+        dolbyChannelLayout = directSettings.dolbyChannelLayout;
+        dolbyDecodingMode = directSettings.dolbyDecodingMode;
+      } else {
+        streamWidth = $('#selectResolution').data('value').split(':')[0];
+        streamHeight = $('#selectResolution').data('value').split(':')[1];
+        frameRate = $('#selectFramerate').data('value').toString();
+        bitrate = parseFloat($('#bitrateSlider').val()) * 1000;
+        framePacing = $('#framePacingSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        optimizeGames = $('#optimizeGamesSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        rumbleFeedback = $('#rumbleFeedbackSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        mouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+        audioBackend = opticalOutputEnabled ? 'EMSS' : $('#selectAudioBackend').data('value').toString();
+        audioConfig = $('#selectAudio').data('value').toString();
+        audioSync = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        audioJitter = parseInt($('#jitterSlider').val());
+        playHostAudio = $('#playHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        decryptHostAudio = $('#decryptHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        videoCodec = $('#selectCodec').data('value').toString();
+        h264Level = $('#selectH264Level').data('value') || 'Auto';
+        hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        fullRange = $('#fullRangeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        gameMode = $('#gameModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        disableWarnings = $('#disableWarningsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        performanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        dolbyChannelLayout = $('#selectDolbyChannelLayout').data('value') || 'Back';
+        dolbyDecodingMode = $('#selectDolbyDecodingMode').data('value') || 'Hardware';
+      }
+
+      rikey = generateRemoteInputKey();
+      rikeyid = generateRemoteInputKeyId();
+      gamepadMask = getConnectedGamepadMask();
 
       console.log('%c[index.js, startGame]', 'color: green;', 'startRequest:' + 
       '\n Host address: ' + host.address + ':' + host.httpPort + 
@@ -4515,7 +4560,7 @@ function startGame(host, appID) {
       '\n Performance statistics: ' + performanceStats);
 
       // Hide on-screen overlays until the streaming session begins
-      if (typeof beginPerformanceStatsStream === 'function') {
+      if (performanceStats && typeof beginPerformanceStatsStream === 'function') {
         beginPerformanceStatsStream();
       }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
@@ -4530,23 +4575,21 @@ function startGame(host, appID) {
       var streamTitleMessage = host.currentGame == appID ? 'Resuming %1$s...' : 'Starting %1$s...';
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
       $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
-      await showStreamMode();
-      $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
-      try {
-        if (typeof setNavigationSoundEnabled === 'function') {
-          await setNavigationSoundEnabled(false);
-        }
-      } catch (audioShutdownError) {
-        console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
-        if (_directSmartHubLaunch) {
-          directSmartHubLaunchFailure(t('Could not prepare local audio for streaming.'));
-        } else {
+      await showStreamMode(streamWidth, streamHeight);
+      if (!_directSmartHubLaunch) {
+        $('#loadingSpinnerMessage').text(t('Closing local audio engine...'));
+        try {
+          if (typeof setNavigationSoundEnabled === 'function') {
+            await setNavigationSoundEnabled(false);
+          }
+        } catch (audioShutdownError) {
+          console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
           showApps(host).then(function() {
             hideStreamTransitionBackground();
             snackbarLogLong('Could not prepare local audio for streaming.');
           });
+          return;
         }
-        return;
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
@@ -4591,8 +4634,8 @@ function startGame(host, appID) {
             framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
             audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
             gameMode, disableWarnings, performanceStats,
-            $('#selectDolbyChannelLayout').data('value') || 'Back',
-            $('#selectDolbyDecodingMode').data('value') || 'Hardware',
+            dolbyChannelLayout,
+            dolbyDecodingMode,
             h264Level
           ]);
         }, function(failedResumeApp) {
@@ -4658,8 +4701,8 @@ function startGame(host, appID) {
           framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons,
           audioBackend, audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange,
           gameMode, disableWarnings, performanceStats,
-          $('#selectDolbyChannelLayout').data('value') || 'Back',
-          $('#selectDolbyDecodingMode').data('value') || 'Hardware',
+          dolbyChannelLayout,
+          dolbyDecodingMode,
           h264Level
         ]);
       }, function(failedLaunchApp) {
