@@ -4735,14 +4735,7 @@ function startGame(host, appID) {
           }
         } catch (audioShutdownError) {
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not close the local UI audio engine; aborting stream startup:', audioShutdownError);
-          if (audioShutdownError && audioShutdownError.name === 'TimeoutError') {
-            streamStartupTimeoutFailure('connection', t('Could not close the local audio engine in time.'));
-            return;
-          }
-          showApps(host).then(function() {
-            hideStreamTransitionBackground();
-            snackbarLogLong('Could not prepare local audio for streaming.');
-          });
+          streamStartupTimeoutFailure('connection', t('Could not prepare the local audio engine for streaming.'));
           return;
         }
       }
@@ -4888,23 +4881,11 @@ function startGame(host, appID) {
       });
     }).catch(function(failedAppLookup) {
       console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to retrieve app ' + appID + ': ' + failedAppLookup);
-      if (failedAppLookup && failedAppLookup.name === 'TimeoutError') {
-        streamStartupTimeoutFailure('connection', t('The host did not respond while retrieving the application.'));
-      } else if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Failed to launch %1$s', String(appID)));
+      streamStartupTimeoutFailure('connection', t('The host did not return the requested application.'));
     });
   }, function(failedRefreshInfo) {
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
-    if (failedRefreshInfo && failedRefreshInfo.name === 'TimeoutError') {
-      streamStartupTimeoutFailure('connection', t('%1$s did not respond in time.', host.hostname || t('The host')));
-      return;
-    }
-    if (_directSmartHubLaunch) {
-      directSmartHubLaunchFailure(t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
-      return;
-    }
-    showHosts(function() {
-      snackbarLogLong('Host %1$s is no longer available.', host.hostname || t('the host'));
-    });
+    streamStartupTimeoutFailure('connection', t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
   });
 }
 
@@ -8119,11 +8100,11 @@ function onWindowLoad() {
     }
     hideUiLayerImmediately('main-ui-layer');
     var directLocalePromise = window._directSmartHubLocalePromise || Promise.resolve();
-    directLocalePromise.then(function() {
-      loadDirectSmartHubStreamSettings();
-    }).catch(function(error) {
-      console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Direct-stream localization initialization failed:', error);
-      directSmartHubLaunchFailure('Moonlight could not initialize the streaming interface.');
+    withOperationTimeout(Promise.resolve(directLocalePromise).then(function() {
+      return loadDirectSmartHubStreamSettings();
+    }), 20000, 'Direct launch initialization').catch(function(error) {
+      console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Direct-stream initialization failed:', error);
+      directSmartHubLaunchFailure(t('Moonlight could not initialize the streaming interface.'));
     });
     return;
   }
