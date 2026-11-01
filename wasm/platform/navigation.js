@@ -92,7 +92,6 @@ function closeNavigationAudioEngine() {
 
   // Detach the current initialization immediately. Waiting for fetch/decode here
   // could leave the AudioContext alive forever if that work never settles.
-  var pendingInitialization = navigationSoundInitializationPromise;
   navigationSoundInitializationPromise = null;
   var context = navigationSoundContext;
   if (navigationSoundContext === context) {
