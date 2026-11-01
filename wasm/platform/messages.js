@@ -1081,11 +1081,19 @@ function handleMessage(msg) {
     // Show progress message below the transition bar, keeping the app title fixed above it.
     $('#loadingSpinnerMessage').text(translateBackendMessage(msg.replace('ProgressMsg: ', '')));
   } else if (msg.indexOf('TransientMsg: ') === 0) {
-    // Show transient message as notification
-    snackbarLogLong(translateBackendMessage(msg.replace('TransientMsg: ', '')));
+    var transientMessage = translateBackendMessage(msg.replace('TransientMsg: ', ''));
+    if (window._directSmartHubLaunch) {
+      $('#loadingSpinnerMessage').text(transientMessage);
+    } else {
+      snackbarLogLong(transientMessage);
+    }
   } else if (msg.indexOf('DialogMsg: ') === 0) {
-    // Show dialog message using the warning dialog
-    warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
+    var dialogMessage = translateBackendMessage(msg.replace('DialogMsg: ', ''));
+    if (window._directSmartHubLaunch) {
+      directSmartHubLaunchFailure(dialogMessage);
+    } else {
+      warningDialog(t('Connection Error'), dialogMessage);
+    }
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
