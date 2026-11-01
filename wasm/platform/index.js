@@ -3435,7 +3435,6 @@ function sortTitles(list, sortOrder) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
-  $('#background-layer').show();
   if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
