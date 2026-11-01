@@ -3568,8 +3568,8 @@ function showApps(host, options) {
       }
     }
 
-    // Fade out the Hosts grid, matching the Apps-to-Hosts transition.
-    $('#host-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
+    // Fade out the Hosts viewport so its cards and overflow indicators disappear together.
+    $('#hosts-carousel-viewport').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
     // Keep the current cards in place during a locked refresh (stream recovery / app close).
     // Normal host navigation still starts with a clean grid.
