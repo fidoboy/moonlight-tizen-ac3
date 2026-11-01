@@ -4617,7 +4617,8 @@ function startGame(host, appID) {
       '\n Performance statistics: ' + performanceStats);
 
       // Hide on-screen overlays until the streaming session begins
-      if (performanceStats && typeof beginPerformanceStatsStream === 'function') {
+      if ((!_directSmartHubLaunch || performanceStats) &&
+          typeof beginPerformanceStatsStream === 'function') {
         beginPerformanceStatsStream();
       }
       $('#connection-warnings, #performance-stats').css('background', 'transparent').text('');
