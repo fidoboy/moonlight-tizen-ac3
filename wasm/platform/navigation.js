@@ -1890,7 +1890,7 @@ const Views = {
   VideoSettings: {
     view: new ListView(() => [
       'selectCodec',
-      ...(document.getElementById('selectCodec')?.dataset.value === 'H264' ? ['selectH264Level'] : []),
+      ...(document.getElementById('selectCodec') && document.getElementById('selectCodec').dataset.value === 'H264' ? ['selectH264Level'] : []),
       'hdrModeBtn',
       'fullRangeBtn',
       'gameModeBtn'
