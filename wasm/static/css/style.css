@@ -995,26 +995,22 @@ body {
 /* =============================
    Hosts Section
 ============================= */
-#host-grid {
+.hosts-carousel-viewport {
     position: relative;
     display: flex;
-    flex: 1;
-    box-sizing: border-box;
-    margin: 15px 0;
-    padding: 30px 0;
-    flex-flow: row nowrap;
+    flex: 1 1 auto;
     align-items: center;
-    align-content: center;
-    justify-content: flex-start;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    scroll-behavior: auto;
-}
-#host-grid.host-grid-centered {
     justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
-#host-grid.host-grid-overflow-left::before,
-#host-grid.host-grid-overflow-right::after {
+
+/* The arrows belong to the stationary viewport, never to the scrolling card row. */
+.hosts-carousel-viewport.host-grid-overflow-left::before,
+.hosts-carousel-viewport.host-grid-overflow-right::after {
     position: absolute;
     top: 50%;
     z-index: 5;
@@ -1027,13 +1023,36 @@ body {
     transform: translateY(-50%);
     text-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
 }
-#host-grid.host-grid-overflow-left::before {
+.hosts-carousel-viewport.host-grid-overflow-left::before {
     content: 'chevron_left';
     left: 22px;
 }
-#host-grid.host-grid-overflow-right::after {
+.hosts-carousel-viewport.host-grid-overflow-right::after {
     content: 'chevron_right';
     right: 22px;
+}
+
+#host-grid {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    flex-flow: row nowrap;
+    align-items: center;
+    align-content: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    scroll-behavior: auto;
+}
+#host-grid.host-grid-centered {
+    justify-content: center;
 }
 #host-grid.host-list-locked {
     opacity: 0.4;
@@ -1045,7 +1064,7 @@ body {
     width: 285px;
     height: 235px;
     min-height: 235px;
-    margin: 20px 28px 45px 28px;
+    margin: 0 28px;
     border-radius: 8px;
     flex: 0 0 285px;
     cursor: pointer;
