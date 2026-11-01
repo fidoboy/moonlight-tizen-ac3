@@ -1001,14 +1001,14 @@ body {
     flex: 1;
     box-sizing: border-box;
     margin: 15px 0;
-    padding: 30px 80px;
+    padding: 30px 0;
     flex-flow: row nowrap;
     align-items: center;
     align-content: center;
     justify-content: flex-start;
     overflow-x: hidden;
     overflow-y: hidden;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
 }
 #host-grid.host-grid-centered {
     justify-content: center;
