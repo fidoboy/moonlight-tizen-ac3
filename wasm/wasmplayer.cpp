@@ -378,6 +378,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
   {
     const char *mimetype = "video/mp4"; // MIME-type: Video MP4 Container
     std::string h264MimeType;
+    std::string h264LevelName;
     if (videoFormat & VIDEO_FORMAT_H264) {
       const bool automaticLevel = g_Instance->m_H264Level == "Auto";
       const auto* h264Level = automaticLevel
@@ -392,6 +393,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         }
         return -1;
       }
+      h264LevelName = h264Level->name;
 
       char codecString[64];
       std::snprintf(codecString, sizeof(codecString), "video/mp4; codecs=\"avc1.6400%02X\"",
@@ -443,7 +445,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     } else {
       ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
       if (videoFormat & VIDEO_FORMAT_H264) {
-        PostToJs(std::string("H264TrackRejectedMsg: ") + h264Level->name + "," +
+        PostToJs(std::string("H264TrackRejectedMsg: ") + h264LevelName + "," +
           std::to_string(width) + "," + std::to_string(height) + "," + std::to_string(redrawRate));
         return ERROR_H264_TRACK_REJECTED;
       }
