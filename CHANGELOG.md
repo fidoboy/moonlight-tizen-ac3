@@ -7,13 +7,14 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Added
 - **Dynamic H.264 level selection:** Selects the lowest H.264 level that satisfies the requested resolution and frame rate, based on the standard macroblocks-per-frame and macroblocks-per-second limits. Streams exceeding the supported Level 6.2 limits are rejected instead of being advertised with an inaccurate level.
+- **H.264 level override:** Added a Video Settings selector with Automatic (recommended) as the default and manual levels from 3.0 to 6.2 for hardware compatibility testing. The selector is enabled only when H.264 is selected.
 
 ### Changed
 - **Ethernet guidance:** Clarified that a TV's 100 Mbps Ethernet connection can be more stable or faster than Wi-Fi on a particular model; users should compare measured throughput and stability rather than assume Wi-Fi is always preferable.
 - **Video troubleshooting:** Added guidance for identifying NVENC encoder saturation when actual stream throughput is far below the configured bitrate, including controlled tests with the preset, two-pass encoding and spatial AQ.
 
 ### Fixed
-- **H.264 MIME profile:** Replaced the fixed Level 4.2 codec string with a resolution- and frame-rate-aware profile-level-id. This advertises stream requirements but does not imply that every TV decoder supports the selected level.
+- **H.264 MIME profile:** Replaced the fixed Level 4.2 codec string with a resolution- and frame-rate-aware profile-level-id. Automatic mode advertises the recommended level; a manual selection overrides it. Neither mode implies that every TV decoder supports the selected level.
 
 ## v1.1.0
 
