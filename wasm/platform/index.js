@@ -119,9 +119,8 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   }
   $('#loadingSpinnerTitle').text(t('Connection Error'));
   $('#loadingSpinnerMessage').text(message);
-  var shownAt = Date.now();
   var finishFailure = function() {
-    var remaining = Math.max(0, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS - (Date.now() - shownAt));
+    var shownAt = Date.now();
     window.setTimeout(function() {
       isInGame = false;
       showHosts(function() {
@@ -7805,9 +7804,7 @@ function directSmartHubLaunchFailure(message) {
   if (title) title.textContent = t('Unable to start streaming');
   if (status) status.textContent = message || t('Unable to launch the selected app.');
 
-  var shownAt = Date.now();
   var exitAfterMessage = function() {
-    var remaining = Math.max(0, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS - (Date.now() - shownAt));
     window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
