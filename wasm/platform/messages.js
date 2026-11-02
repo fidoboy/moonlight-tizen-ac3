@@ -1154,7 +1154,9 @@ function handleMessage(msg) {
         // The transition is now fully hidden and the Apps interface is visible.
         // Keep the error modal open until the user acknowledges it; refresh the
         // host's app list only after the dialog is dismissed.
-        if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
+        // Keep the Apps grid locked and dimmed while the error dialog is open.
+        // The post-dialog showApps() refresh reuses the existing cards and unlocks
+        // interaction only after the refreshed list has been rendered.
         if (typeof finishAppsModeAfterStreamTransition === 'function') {
           finishAppsModeAfterStreamTransition(true);
         }
