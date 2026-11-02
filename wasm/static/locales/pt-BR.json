@@ -545,5 +545,8 @@
   "Resuming %1$s...": "Retomando %1$s...",
   "No video packets were received from %1$s.": "Nenhum pacote de vídeo foi recebido de %1$s.",
   "A keyframe from %1$s could not be received.": "Não foi possível receber um quadro-chave de %1$s.",
-  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "A conexão foi interrompida devido à perda de um quadro-chave durante a recepção. Pacotes de vídeo chegaram, mas o cliente não conseguiu montar um quadro-chave completo (quadro IDR)."
+  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "A conexão foi interrompida devido à perda de um quadro-chave durante a recepção. Pacotes de vídeo chegaram, mas o cliente não conseguiu montar um quadro-chave completo (quadro IDR).",
+  "No video packets were received.": "Nenhum pacote de vídeo foi recebido.",
+  "Keyframes were lost.": "Houve perda de quadros-chave.",
+  "The connection was interrupted because no video packets were received from the host during startup.": "A conexão foi interrompida porque nenhum pacote de vídeo foi recebido do host desde o início."
 }
