@@ -1102,7 +1102,7 @@ function handleMessage(msg) {
         if (errorQuitButton) errorQuitButton.disabled = false;
         warningDialog(t('Connection Error'), streamErrorDialogMessage, function() {
           refreshHostAndReturnToApps();
-        }, true);
+        }, true, 'OK');
         return;
       }
 
