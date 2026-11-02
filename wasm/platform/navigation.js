@@ -859,7 +859,7 @@ const Views = {
     },
     down: function() {},
     left: function() {
-      const cards = this.view.func();
+      const cards = normalizeHostsViewIndex(this.view);
       if (!cards.length) return;
 
       this.view.index = (this.view.index - 1 + cards.length) % cards.length;
@@ -869,7 +869,7 @@ const Views = {
       scrollHostCardIntoView(previousItem);
     },
     right: function() {
-      const cards = this.view.func();
+      const cards = normalizeHostsViewIndex(this.view);
       if (!cards.length) return;
 
       this.view.index = (this.view.index + 1) % cards.length;
