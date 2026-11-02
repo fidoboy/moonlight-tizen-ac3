@@ -220,6 +220,15 @@ class MoonlightInstance {
     MoonlightInstance* m_Instance;
   };
 
+  class MediaElementListener
+    : public samsung::html::HTMLMediaElementListener {
+  public:
+    MediaElementListener(MoonlightInstance* instance);
+    void OnError(samsung::html::MediaError error_code, const char* error_msg) override;
+  private:
+    MoonlightInstance* m_Instance;
+  };
+
   bool WaitFor(std::condition_variable* variable, std::function<bool()> condition, std::chrono::milliseconds timeout);
   static int MediaSetupWaitFailed(const char* step);
 
