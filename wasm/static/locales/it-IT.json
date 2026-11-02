@@ -545,5 +545,8 @@
   "Resuming %1$s...": "Ripresa di %1$s...",
   "No video packets were received from %1$s.": "Non è stato ricevuto alcun pacchetto video da %1$s.",
   "A keyframe from %1$s could not be received.": "Non è stato possibile ricevere un fotogramma chiave da %1$s.",
-  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "La connessione è stata interrotta a causa della perdita di un fotogramma chiave durante la ricezione. Erano arrivati pacchetti video, ma il client non è riuscito a ricostruire un fotogramma chiave completo (fotogramma IDR)."
+  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "La connessione è stata interrotta a causa della perdita di un fotogramma chiave durante la ricezione. Erano arrivati pacchetti video, ma il client non è riuscito a ricostruire un fotogramma chiave completo (fotogramma IDR).",
+  "No video packets were received.": "Non è stato ricevuto alcun pacchetto video.",
+  "Keyframes were lost.": "Si è verificata una perdita di fotogrammi chiave.",
+  "The connection was interrupted because no video packets were received from the host during startup.": "La connessione è stata interrotta perché dall’inizio non è stato ricevuto alcun pacchetto video dall’host."
 }
