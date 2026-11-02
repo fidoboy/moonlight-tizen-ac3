@@ -138,7 +138,7 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     isInGame = false;
     showHosts(function() {
       hideStreamTransitionBackground(function() {
-        warningDialog(t('Connection Error'), message, null, true, 'OK');
+        warningDialog(t('Error'), message, null, true, 'OK', { code: null, apiMessage: null });
       });
     });
   };
@@ -3381,19 +3381,62 @@ function restoreDefaultsDialog() {
 }
 
 // Show the Warning dialog
-function warningDialog(title, message, onClose, plainText, buttonLabel) {
+function warningDialog(title, message, onClose, plainText, buttonLabel, streamErrorDetails) {
   // Find the existing overlay and dialog elements
   var warningDialogOverlay = document.querySelector('#warningDialogOverlay');
   var warningDialog = document.querySelector('#warningDialog');
+  var titleElement = document.getElementById('warningDialogTitle');
+  var textElement = document.getElementById('warningDialogText');
 
-  // Change the dialog title and text element with a custom warning message
-  document.getElementById('warningDialogTitle').innerHTML = t(title);
-  if (plainText) {
-    document.getElementById('warningDialogText').textContent = t(message);
-    document.getElementById('warningDialogText').style.whiteSpace = 'pre-wrap';
+  // Stream errors use a dedicated title treatment and keep the API's original
+  // diagnostic text separate from the localized explanation.
+  if (streamErrorDetails) {
+    titleElement.textContent = '';
+    titleElement.style.display = 'flex';
+    titleElement.style.alignItems = 'center';
+    var errorIcon = document.createElement('span');
+    errorIcon.className = 'material-icons';
+    errorIcon.setAttribute('aria-hidden', 'true');
+    errorIcon.textContent = 'error';
+    errorIcon.style.fontSize = '28px';
+    errorIcon.style.marginRight = '10px';
+    titleElement.appendChild(errorIcon);
+    var errorTitle = document.createElement('span');
+    var errorCode = streamErrorDetails.code;
+    errorTitle.textContent = t('Error') +
+      (typeof errorCode === 'number' && Number.isFinite(errorCode) && errorCode !== 0
+        ? ' ' + String(errorCode) : '');
+    titleElement.appendChild(errorTitle);
+
+    textElement.textContent = '';
+    textElement.style.whiteSpace = 'pre-wrap';
+    var primaryMessage = document.createElement('div');
+    primaryMessage.textContent = t(message);
+    textElement.appendChild(primaryMessage);
+
+    var apiMessage = streamErrorDetails.apiMessage;
+    if (typeof apiMessage === 'string' && apiMessage.length > 0) {
+      var technicalMessage = document.createElement('div');
+      technicalMessage.className = 'stream-error-api-message';
+      technicalMessage.textContent = apiMessage;
+      technicalMessage.style.fontSize = '0.72em';
+      technicalMessage.style.lineHeight = '1.35';
+      technicalMessage.style.marginTop = '14px';
+      technicalMessage.style.opacity = '0.78';
+      technicalMessage.style.overflowWrap = 'anywhere';
+      textElement.appendChild(technicalMessage);
+    }
   } else {
-    document.getElementById('warningDialogText').innerHTML = t(message);
-    document.getElementById('warningDialogText').style.whiteSpace = '';
+    titleElement.style.display = '';
+    titleElement.style.alignItems = '';
+    titleElement.innerHTML = t(title);
+    if (plainText) {
+      textElement.textContent = t(message);
+      textElement.style.whiteSpace = 'pre-wrap';
+    } else {
+      textElement.innerHTML = t(message);
+      textElement.style.whiteSpace = '';
+    }
   }
 
   // Show the dialog and push the view
