@@ -133,8 +133,8 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   $('#loadingSpinnerTitle').text(t('Connection Error'));
   $('#loadingSpinnerMessage').text(message);
   var finishFailure = function() {
-    // The full interface will show the error in a snackbar, so no minimum
-    // transition-message display time is needed for this launch path.
+    // The full interface will show the error in a modal after it has returned
+    // and the transition layer has completely disappeared.
     isInGame = false;
     showHosts(function() {
       hideStreamTransitionBackground(function() {
