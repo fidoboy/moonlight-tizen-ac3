@@ -3706,9 +3706,11 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
 }
 
 // Complete the non-visual Apps-mode work only after the stream transition has disappeared.
-function finishAppsModeAfterStreamTransition() {
+function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
   isInGame = false;
-  if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
+  if (!skipNavigationAudioRestore && typeof setNavigationSoundEnabled === 'function') {
+    setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
+  }
   if (startupUpdateCheckPending && startupUpdateCheckTimeout === null) {
     startupUpdateCheckTimeout = window.setTimeout(function() {
       startupUpdateCheckTimeout = null;
