@@ -227,10 +227,41 @@ void MoonlightInstance::VideoTrackListener::OnTrackOpen() {
   LiRequestIdrFrame();
 }
 
-void MoonlightInstance::VideoTrackListener::OnTrackClosed(samsung::wasm::ElementaryMediaTrack::CloseReason) {
-  ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackClosed\n");
+void MoonlightInstance::VideoTrackListener::OnTrackClosed(EmssTrackCloseReason reason) {
+  const char* reasonName = "unknown";
+  switch (reason) {
+    case EmssTrackCloseReason::kSourceClosed: reasonName = "source-closed"; break;
+    case EmssTrackCloseReason::kSourceError: reasonName = "source-error"; break;
+    case EmssTrackCloseReason::kSourceDetached: reasonName = "source-detached"; break;
+    case EmssTrackCloseReason::kSourceSuspended: reasonName = "source-suspended"; break;
+    case EmssTrackCloseReason::kTrackDisabled: reasonName = "track-disabled"; break;
+    case EmssTrackCloseReason::kTrackEnded: reasonName = "track-ended"; break;
+    case EmssTrackCloseReason::kTrackSeeking: reasonName = "track-seeking"; break;
+    case EmssTrackCloseReason::kUnknown: reasonName = "unknown"; break;
+  }
+  ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackClosed (reason=%s, value=%d)\n",
+    reasonName, static_cast<int>(reason));
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_VideoStarted = false;
+  if (reason == EmssTrackCloseReason::kSourceError) {
+    PostToJs("VideoTrackCloseErrorMsg: The media source closed because of an error.");
+  }
+}
+
+MoonlightInstance::MediaElementListener::MediaElementListener(
+  MoonlightInstance* instance
+) : m_Instance(instance) {}
+
+void MoonlightInstance::MediaElementListener::OnError(
+  samsung::html::MediaError errorCode, const char* errorMessage
+) {
+  const int numericErrorCode = static_cast<int>(errorCode);
+  const std::string detail = errorMessage ? errorMessage : "";
+  ClLogMessage("HTMLMediaElement::OnError (code=%d): %s\n",
+    numericErrorCode, detail.c_str());
+  // Samsung owns errorMessage and its lifetime ends when this callback returns.
+  // Copy it into the JS message immediately; the UI will display it only after teardown.
+  PostToJs("MediaPipelineErrorMsg: " + std::to_string(numericErrorCode) + "|" + detail);
 }
 
 void MoonlightInstance::VideoTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
