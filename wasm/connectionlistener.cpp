@@ -16,7 +16,8 @@ void MoonlightInstance::ClStageFailed(int stage, int errorCode) {
     return;
   }
   // The stream termination message already explains why the video setup failed
-  if (stage == STAGE_VIDEO_STREAM_START && errorCode == ERROR_VIDEO_SETUP_FAILED) {
+  if (stage == STAGE_VIDEO_STREAM_START &&
+      (errorCode == ERROR_VIDEO_SETUP_FAILED || errorCode == ERROR_H264_TRACK_REJECTED)) {
     return;
   }
   PostToJs(std::string("DialogMsg: ") + std::string(LiGetStageName(stage)) + std::string(" failed (error ") + std::to_string(errorCode) + std::string(")"));

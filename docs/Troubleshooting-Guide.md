@@ -32,9 +32,11 @@ See the [Installation Guide](Installation-Guide.html) and [Samsung's official TV
 ## Stream starts but video freezes, goes black or drops frames
 
 - Start with a lower resolution, 60 FPS and a conservative bitrate.
-- Verify that the selected video codec is supported by both TV and host GPU.
+- Verify that the selected video codec, resolution and frame rate are supported by both the TV decoder and host GPU.
+- If using H.264, remember that Moonlight advertises the minimum H.264 level required by the requested resolution and frame rate. This does not guarantee that the TV supports that level; test a lower resolution or frame rate if stream setup fails.
+- If the image is heavily pixelated despite a high configured bitrate, check host encoder load before increasing the bitrate. With NVENC, compare GPU video-encoder utilization and actual network throughput against the configured bitrate. A saturated encoder can emit substantially less data than requested. As a diagnostic, try a less demanding NVENC preset and temporarily disable two-pass encoding and spatial AQ, then compare the results.
 - Update GPU drivers and Sunshine if the issue also occurs from other clients.
-- If wired Ethernet is unstable at high bitrates, test another network path. Some TVs have Fast Ethernet ports despite the host being connected at Gigabit speeds.
+- If wired Ethernet is unstable at high bitrates, compare it with a reliable 5 GHz Wi-Fi connection on the TV. Some TVs have Fast Ethernet ports despite the host being connected at Gigabit speeds; however, Ethernet may still outperform Wi-Fi on a particular model. Compare measured throughput and stability, including FEC and audio overhead, rather than assuming either connection is always better.
 
 ## No audio or audio has the wrong channel layout
 

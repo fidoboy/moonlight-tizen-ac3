@@ -3,6 +3,9 @@
 #include <condition_variable>
 #include <chrono>
 #include <functional>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
 #include <mutex>
 
 #include <h264_stream.h>
@@ -38,9 +41,89 @@ static constexpr uint32_t kSampleRate = 48000;
 static constexpr std::chrono::milliseconds kMediaSetupTimeout{5000};
 
 static uint32_t s_VideoFormat = 0;
+static std::string s_H264LevelName;
 static uint32_t s_Width = 0;
 static uint32_t s_Height = 0;
 static uint32_t s_Framerate = 0;
+
+// H.264 level limits from Annex A (macroblocks per frame and per second).
+// Select the lowest level that can describe the requested stream dimensions and frame rate.
+struct H264LevelLimit {
+  uint8_t levelIdc;
+  uint32_t maxFrameSizeMbs;
+  uint32_t maxMacroblocksPerSecond;
+  const char* name;
+};
+
+static constexpr H264LevelLimit kH264LevelLimits[] = {
+  { 10, 99, 1485, "1.0" },
+  { 11, 396, 3000, "1.1" },
+  { 12, 396, 6000, "1.2" },
+  { 13, 396, 11880, "1.3" },
+  { 20, 396, 11880, "2.0" },
+  { 21, 792, 19800, "2.1" },
+  { 22, 1620, 20250, "2.2" },
+  { 30, 1620, 40500, "3.0" },
+  { 31, 3600, 108000, "3.1" },
+  { 32, 5120, 216000, "3.2" },
+  { 40, 8192, 245760, "4.0" },
+  { 41, 8192, 245760, "4.1" },
+  { 42, 8704, 522240, "4.2" },
+  { 50, 22080, 589824, "5.0" },
+  { 51, 36864, 983040, "5.1" },
+  { 52, 36864, 2073600, "5.2" },
+  { 60, 139264, 4177920, "6.0" },
+  { 61, 139264, 8355840, "6.1" },
+  { 62, 139264, 16711680, "6.2" },
+};
+
+static const H264LevelLimit* SelectH264Level(int width, int height, int frameRate) {
+  if (width <= 0 || height <= 0 || frameRate <= 0) {
+    return nullptr;
+  }
+
+  const uint64_t widthMbs = (static_cast<uint64_t>(width) + 15) / 16;
+  const uint64_t heightMbs = (static_cast<uint64_t>(height) + 15) / 16;
+  const uint64_t frameSizeMbs = widthMbs * heightMbs;
+  const uint64_t maxUint64 = std::numeric_limits<uint64_t>::max();
+  if (frameSizeMbs > maxUint64 / static_cast<uint64_t>(frameRate)) {
+    return nullptr;
+  }
+  const uint64_t macroblocksPerSecond = frameSizeMbs * static_cast<uint64_t>(frameRate);
+
+  for (const auto& level : kH264LevelLimits) {
+    // Automatic selection is limited to the practical TV range: Level 3.1 through 5.2.
+    // Keep the full table intact because manual overrides may still select other levels.
+    if (level.levelIdc < 31 || level.levelIdc > 52) {
+      continue;
+    }
+
+    const uint64_t maxDimensionSquared = static_cast<uint64_t>(level.maxFrameSizeMbs) * 8;
+    if (frameSizeMbs <= level.maxFrameSizeMbs &&
+        widthMbs * widthMbs <= maxDimensionSquared &&
+        heightMbs * heightMbs <= maxDimensionSquared &&
+        macroblocksPerSecond <= level.maxMacroblocksPerSecond) {
+      return &level;
+    }
+  }
+
+  return nullptr;
+}
+
+
+static const H264LevelLimit* FindH264Level(const std::string& levelName) {
+  for (const auto& level : kH264LevelLimits) {
+    std::string levelId = level.name;
+    for (char& character : levelId) {
+      if (character == '.') character = '_';
+    }
+    // Accept both the new transport-safe identifier and legacy dotted preferences.
+    if (levelId == levelName || level.name == levelName) {
+      return &level;
+    }
+  }
+  return nullptr;
+}
 
 static std::vector<unsigned char> s_DecodeBuffer;
 
@@ -150,10 +233,43 @@ void MoonlightInstance::VideoTrackListener::OnTrackOpen() {
   LiRequestIdrFrame();
 }
 
-void MoonlightInstance::VideoTrackListener::OnTrackClosed(samsung::wasm::ElementaryMediaTrack::CloseReason) {
-  ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackClosed\n");
-  std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
-  m_Instance->m_VideoStarted = false;
+void MoonlightInstance::VideoTrackListener::OnTrackClosed(EmssTrackCloseReason reason) {
+  const char* reasonName = "unknown";
+  switch (reason) {
+    case EmssTrackCloseReason::kSourceClosed: reasonName = "source-closed"; break;
+    case EmssTrackCloseReason::kSourceError: reasonName = "source-error"; break;
+    case EmssTrackCloseReason::kSourceDetached: reasonName = "source-detached"; break;
+    case EmssTrackCloseReason::kSourceSuspended: reasonName = "source-suspended"; break;
+    case EmssTrackCloseReason::kTrackDisabled: reasonName = "track-disabled"; break;
+    case EmssTrackCloseReason::kTrackEnded: reasonName = "track-ended"; break;
+    case EmssTrackCloseReason::kTrackSeeking: reasonName = "track-seeking"; break;
+    case EmssTrackCloseReason::kUnknown: reasonName = "unknown"; break;
+  }
+  ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackClosed (reason=%s, value=%d)\n",
+    reasonName, static_cast<int>(reason));
+  {
+    std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
+    m_Instance->m_VideoStarted = false;
+  }
+  if (reason == EmssTrackCloseReason::kSourceError) {
+    PostToJs("VideoTrackCloseErrorMsg: The media source closed because of an error.");
+  }
+}
+
+MoonlightInstance::MediaElementListener::MediaElementListener(
+  MoonlightInstance* instance
+) : m_Instance(instance) {}
+
+void MoonlightInstance::MediaElementListener::OnError(
+  samsung::html::MediaError errorCode, const char* errorMessage
+) {
+  const int numericErrorCode = static_cast<int>(errorCode);
+  const std::string detail = errorMessage ? errorMessage : "";
+  ClLogMessage("HTMLMediaElement::OnError (code=%d): %s\n",
+    numericErrorCode, detail.c_str());
+  // Samsung owns errorMessage and its lifetime ends when this callback returns.
+  // Copy it into the JS message immediately; the UI will display it only after teardown.
+  PostToJs("MediaPipelineErrorMsg: " + std::to_string(numericErrorCode) + "|" + detail);
 }
 
 void MoonlightInstance::VideoTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
@@ -175,6 +291,8 @@ bool MoonlightInstance::InitializeRenderingSurface(int width, int height) {
 }
 
 int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags) {
+  // Clear the previous session's level before selecting the codec for this stream.
+  s_H264LevelName.clear();
   // Bind the media source to the media element
   g_Instance->m_MediaElement.SetSrc(g_Instance->m_Source.get());
   g_Instance->m_SourceAttached = true;
@@ -300,11 +418,32 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
   }
   {
     const char *mimetype = "video/mp4"; // MIME-type: Video MP4 Container
+    std::string h264MimeType;
+    std::string h264LevelName;
     if (videoFormat & VIDEO_FORMAT_H264) {
-      mimetype = "video/mp4; codecs=\"avc1.64002A\""; // Video codec: H.264 High Level Profile 4.2
-      /* NOTE: Depending on the capabilities of the TV, it may support higher-level codec profiles, such as:
-      5.1 (avc1.640033); */
-      ClLogMessage("Video codec profile selected: H.264 High Level Profile 4.2\n");
+      const bool automaticLevel = g_Instance->m_H264Level == "Auto";
+      const auto* h264Level = automaticLevel
+        ? SelectH264Level(width, height, redrawRate)
+        : FindH264Level(g_Instance->m_H264Level);
+      if (h264Level == nullptr) {
+        if (automaticLevel) {
+          ClLogMessage("H.264 stream dimensions or frame rate exceed the supported level range (%dx%d at %d FPS)\n",
+            width, height, redrawRate);
+        } else {
+          ClLogMessage("Invalid manual H.264 level selected: %s\n", g_Instance->m_H264Level.c_str());
+        }
+        return -1;
+      }
+      h264LevelName = h264Level->name;
+      s_H264LevelName = h264LevelName;
+
+      char codecString[64];
+      std::snprintf(codecString, sizeof(codecString), "video/mp4; codecs=\"avc1.6400%02X\"",
+        h264Level->levelIdc);
+      h264MimeType = codecString;
+      mimetype = h264MimeType.c_str();
+      ClLogMessage("Video codec profile selected: H.264 High Profile Level %s (%s, %dx%d at %d FPS)\n",
+        h264Level->name, automaticLevel ? "automatic" : "manual override", width, height, redrawRate);
     } else if (videoFormat & VIDEO_FORMAT_H265) {
       mimetype = "video/mp4; codecs=\"hev1.1.6.L153.B0\""; // Video Codec: HEVC Main Level Profile 5.1
       /* NOTE: Depending on the capabilities of the TV, it may support higher-level codec profiles, such as:
@@ -345,8 +484,17 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     if (add_track_result) {
       g_Instance->m_VideoTrack = std::move(*add_track_result);
       g_Instance->m_VideoTrack.SetListener(&g_Instance->m_VideoTrackListener);
+      if (videoFormat & VIDEO_FORMAT_H264) {
+      }
     } else {
+      if (videoFormat & VIDEO_FORMAT_H264) {
+      }
       ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      if (videoFormat & VIDEO_FORMAT_H264) {
+        PostToJs(std::string("H264TrackRejectedMsg: ") + h264LevelName + "," +
+          std::to_string(width) + "," + std::to_string(height) + "," + std::to_string(redrawRate));
+        return ERROR_H264_TRACK_REJECTED;
+      }
       return ERROR_VIDEO_SETUP_FAILED;
     }
   }
@@ -777,6 +925,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   int ret;
   int offset = 0;
   const char* codecString;
+  std::string codecStringStorage;
 
   // Start with an empty string
   output[offset] = 0;
@@ -784,7 +933,10 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   // Determine the video format being used and assign a readable string
   switch (s_VideoFormat) {
     case VIDEO_FORMAT_H264: // H.264 codec
-      codecString = "H.264";
+      codecStringStorage = s_H264LevelName.empty()
+        ? "H.264"
+        : "H.264 L" + s_H264LevelName;
+      codecString = codecStringStorage.c_str();
       break;
     case VIDEO_FORMAT_H265: // HEVC codec
       codecString = "HEVC";

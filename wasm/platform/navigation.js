@@ -10,22 +10,28 @@ let navigationSoundData = null;
 let navigationSoundLoadPromise = null;
 let navigationSoundInitializationPromise = null;
 let navigationSoundSources = [];
+// Invalidates late audio lifecycle completions when the preference changes again.
+let navigationSoundLifecycleId = 0;
 
 function loadNavigationSoundData() {
   if (navigationSoundData) return Promise.resolve(navigationSoundData);
   if (navigationSoundLoadPromise) return navigationSoundLoadPromise;
 
-  navigationSoundLoadPromise = fetch('static/res/click.mp3').then(function(response) {
+  var loadPromise = fetch('static/res/click.mp3').then(function(response) {
     if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading click.mp3');
     return response.arrayBuffer();
   }).then(function(data) {
     navigationSoundData = data;
     return data;
   }).finally(function() {
-    navigationSoundLoadPromise = null;
+    // A stale fetch must not clear a newer request started after audio shutdown.
+    if (navigationSoundLoadPromise === loadPromise) {
+      navigationSoundLoadPromise = null;
+    }
   });
 
-  return navigationSoundLoadPromise;
+  navigationSoundLoadPromise = loadPromise;
+  return loadPromise;
 }
 
 function decodeNavigationSound(context, data) {
@@ -57,7 +63,7 @@ function initializeNavigationAudioEngine() {
   }
 
   var context = navigationSoundContext;
-  navigationSoundInitializationPromise = loadNavigationSoundData().then(function(data) {
+  var initializationPromise = loadNavigationSoundData().then(function(data) {
     return decodeNavigationSound(context, data);
   }).then(function(buffer) {
     if (navigationSoundContext !== context || !navigationSoundEnabled) return false;
@@ -74,42 +80,62 @@ function initializeNavigationAudioEngine() {
     console.error('%c[navigation.js, audio]', 'color: red;', 'Could not initialize the local audio engine:', error);
     throw error;
   }).finally(function() {
-    navigationSoundInitializationPromise = null;
+    // An older initialization must not clear a newer attempt started after shutdown.
+    if (navigationSoundInitializationPromise === initializationPromise) {
+      navigationSoundInitializationPromise = null;
+    }
   });
 
-  return navigationSoundInitializationPromise;
+  navigationSoundInitializationPromise = initializationPromise;
+  return initializationPromise;
 }
 
 function closeNavigationAudioEngine() {
+  ++navigationSoundLifecycleId;
   navigationSoundEnabled = false;
 
-  var pendingInitialization = navigationSoundInitializationPromise || Promise.resolve();
-  return Promise.resolve(pendingInitialization).catch(function(error) {
-    console.warn('%c[navigation.js, audio]', 'color: gray;', 'Audio initialization did not finish before shutdown:', error);
-  }).then(function() {
-    var context = navigationSoundContext;
+  // Detach the current initialization immediately. Waiting for fetch/decode here
+  // could leave the AudioContext alive forever if that work never settles.
+  navigationSoundInitializationPromise = null;
+  // Do not let a stalled fetch shared by the old initialization block a fresh
+  // attempt when the UI audio engine is restored.
+  navigationSoundLoadPromise = null;
+  var context = navigationSoundContext;
+  if (navigationSoundContext === context) {
     navigationSoundContext = null;
     navigationSoundBuffer = null;
+  }
 
-    navigationSoundSources.forEach(function(source) {
-      try { source.stop(0); } catch (error) {}
-      try { source.disconnect(); } catch (error) {}
-    });
-    navigationSoundSources = [];
-
-    if (!context || context.state === 'closed') return;
-    context.onstatechange = null;
-    return context.close().then(function() {
-      console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine closed.');
-    });
+  // Detach the old sources before closing so a later re-enable can safely create
+  // and track sources belonging to a new AudioContext.
+  var sources = navigationSoundSources;
+  navigationSoundSources = [];
+  sources.forEach(function(source) {
+    try { source.stop(0); } catch (error) {}
+    try { source.disconnect(); } catch (error) {}
   });
+
+  // The initialization promise is intentionally not awaited: its completion checks
+  // the context identity and cannot publish a buffer for this now-detached context.
+  if (!context || context.state === 'closed') return Promise.resolve(false);
+  context.onstatechange = null;
+  try {
+    return Promise.resolve(context.close()).then(function() {
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Local audio engine closed.');
+      return true;
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 function setNavigationSoundEnabled(enabled) {
   if (enabled !== true) return closeNavigationAudioEngine();
 
   navigationSoundEnabled = true;
+  var lifecycleId = ++navigationSoundLifecycleId;
   return initializeNavigationAudioEngine().then(function(ready) {
+    if (lifecycleId !== navigationSoundLifecycleId || !navigationSoundEnabled) return false;
     // The context may be recreated outside a user gesture after streaming. Attempt to
     // resume it here; playNavigationSound() retries from the next genuine user gesture
     // if Tizen's autoplay policy keeps it suspended.
@@ -296,11 +322,11 @@ function clickElement(target) {
 }
 
 // Mark an element based on various target types
+// Mark one element, ensuring no previous selection remains highlighted anywhere.
 function mark(target) {
+  unmark();
   const element = resolveElement(target);
-  // Check if the element exists before marking
   if (element) {
-    // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
   } else {
@@ -308,17 +334,18 @@ function mark(target) {
   }
 }
 
-// Unmark an element based on various target types
-function unmark(target) {
-  const element = resolveElement(target);
-  // Check if the element exists before un-marking
-  if (element) {
-    // Remove the hovered class and dispatch the event
+// Clear every highlighted element in the interface.
+function unmark() {
+  document.querySelectorAll('.' + hoveredClassName).forEach(function(element) {
     element.classList.remove(hoveredClassName);
     element.dispatchEvent(new Event('mouseleave'));
-  } else {
-    console.error('%c[navigation.js, unmark]', 'color: gray;', 'Cannot unmark the unresolved target:', target);
-  }
+  });
+}
+
+function normalizeHostsViewIndex(view) {
+  const cards = view.func();
+  view.index = cards.length ? Math.max(0, Math.min(view.index, cards.length - 1)) : 0;
+  return cards;
 }
 
 // Get the current ID of a target element
@@ -384,6 +411,9 @@ function focusElement(target) {
           settingsPane.scrollTop += elementRect.bottom - visibleBottom;
         }
       }
+    } else if (element.closest && element.closest('#host-grid')) {
+      // Let the carousel control horizontal positioning without browser auto-scroll.
+      element.focus({ preventScroll: true });
     } else {
       element.focus();
     }
@@ -698,40 +728,138 @@ function markSelectedMenuItem(view, triggerId) {
   mark(view.current());
 }
 
+// Keep the Hosts view as a single horizontal carousel without changing Apps navigation.
+function getHostsCarouselLayout(grid) {
+  const cards = Array.from(grid.children).filter(card =>
+    card.id === 'addHostContainer' || card.classList.contains('host-container')
+  );
+  if (!cards.length) return { cards, visibleCount: 0, step: 0, pageWidth: 0 };
+
+  const firstCard = cards[0];
+  const style = window.getComputedStyle(firstCard);
+  const marginLeft = parseFloat(style.marginLeft) || 0;
+  const marginRight = parseFloat(style.marginRight) || 0;
+  const step = firstCard.offsetWidth + marginLeft + marginRight;
+
+  // The outer viewport reserves fixed side gutters for the arrows. The
+  // dedicated clip window is sized to one complete page of cards.
+  const viewport = document.getElementById('hosts-carousel-viewport');
+  const viewportStyle = window.getComputedStyle(viewport);
+  const horizontalPadding =
+    (parseFloat(viewportStyle.paddingLeft) || 0) +
+    (parseFloat(viewportStyle.paddingRight) || 0);
+  const usableWidth = Math.max(0, viewport.clientWidth - horizontalPadding);
+  const visibleCount = Math.min(4, Math.max(1, Math.floor(usableWidth / step)));
+  const pageWidth = Math.min(cards.length, visibleCount) * step;
+  return { cards, visibleCount, step, pageWidth, usableWidth };
+}
+
+function updateHostsCarousel() {
+  const grid = document.getElementById('host-grid');
+  const clip = document.getElementById('hosts-carousel-clip');
+  const viewport = document.getElementById('hosts-carousel-viewport');
+  if (!grid || !clip || !viewport) return;
+
+  const layout = getHostsCarouselLayout(grid);
+  const { cards, visibleCount, step, pageWidth } = layout;
+  if (!cards.length) {
+    clip.style.width = '0px';
+    grid.style.width = '0px';
+    grid.style.transform = 'translate3d(4px, 0, 0)';
+    viewport.classList.remove('host-grid-overflow-left', 'host-grid-overflow-right');
+    return;
+  }
+
+  const hasOverflow = cards.length > visibleCount;
+  const maxStart = Math.max(0, cards.length - visibleCount);
+  const start = hasOverflow
+    ? Math.min(maxStart, Math.max(0, parseInt(grid.dataset.carouselStart || '0', 10)))
+    : 0;
+
+  grid.dataset.carouselStart = String(start);
+
+  // The clip window contains exactly one page plus 4px of zoom clearance
+  // on each side. The full card row remains unclipped inside that window.
+  clip.style.width = (pageWidth + 8) + 'px';
+  grid.style.width = (cards.length * step) + 'px';
+  grid.style.transform = 'translate3d(' + (4 - start * step) + 'px, 0, 0)';
+
+  viewport.classList.toggle('host-grid-overflow-left', hasOverflow && start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', hasOverflow && start < maxStart);
+}
+function scrollHostCardIntoView(target) {
+  const grid = document.getElementById('host-grid');
+  const clip = document.getElementById('hosts-carousel-clip');
+  const viewport = document.getElementById('hosts-carousel-viewport');
+  const element = resolveElement(target);
+  if (!grid || !clip || !viewport || !element || !element.closest || !element.closest('#host-grid')) return;
+
+  const layout = getHostsCarouselLayout(grid);
+  const index = layout.cards.indexOf(element);
+  if (index < 0 || !layout.step) return;
+
+  const maxStart = Math.max(0, layout.cards.length - layout.visibleCount);
+  const start = layout.cards.length > layout.visibleCount
+    ? Math.min(maxStart, Math.max(0, index - Math.floor(layout.visibleCount / 2)))
+    : 0;
+
+  grid.dataset.carouselStart = String(start);
+  clip.style.width = (layout.pageWidth + 8) + 'px';
+  grid.style.width = (layout.cards.length * layout.step) + 'px';
+  grid.style.transform = 'translate3d(' + (4 - start * layout.step) + 'px, 0, 0)';
+
+  viewport.classList.toggle('host-grid-overflow-left', start > 0);
+  viewport.classList.toggle('host-grid-overflow-right', start < maxStart);
+}
+(function initializeHostsCarousel() {
+  function bind() {
+    const grid = document.getElementById('host-grid');
+    if (!grid || grid.dataset.carouselBound === 'true') return;
+    grid.dataset.carouselBound = 'true';
+    window.addEventListener('resize', updateHostsCarousel);
+    updateHostsCarousel();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  } else {
+    bind();
+  }
+})();
+
 const Views = {
   Hosts: {
-    view: new ListView(() => document.getElementById('host-grid').children),
+    view: new ListView(() => Array.from(document.querySelectorAll('#host-grid > #addHostContainer, #host-grid > .host-container'))),
     up: function() {
-      // If there are more rows behind, then go to the previous row
-      if (this.view.prevCardRow(5)) {
-        focusElement(this.view.current());
+      // The Hosts carousel has one row: Up leaves the row for the selected card's menu.
+      const currentItem = resolveElement(this.view.current());
+      if (currentItem && currentItem.id !== 'addHostContainer') {
+        Navigation.change(Views.HostsMenuHighlight);
+        focusElement(Views.HostsMenuHighlight.view.current());
       } else {
-        // If there are no more rows, check if the current item is a host
-        const currentItem = resolveElement(this.view.current());
-        if (currentItem && currentItem.id !== 'addHostContainer') {
-          // Navigate to the HostsMenuHighlight view to highlight the host's menu icon
-          Navigation.change(Views.HostsMenuHighlight);
-          focusElement(Views.HostsMenuHighlight.view.current());
-        } else {
-          // Set focus on the first navigation item in HostsNav view when transitioning from Add Host container
-          Navigation.change(Views.HostsNav);
-          focusElement(Views.HostsNav.view.current());
-        }
+        Navigation.change(Views.HostsNav);
+        focusElement(Views.HostsNav.view.current());
       }
     },
-    down: function() {
-      // If there are more rows after, then go to the next row
-      if (this.view.nextCardRow(5)) {
-        focusElement(this.view.current());
-      }
-    },
+    down: function() {},
     left: function() {
-      this.view.prevCard(5);
-      focusElement(this.view.current());
+      const cards = normalizeHostsViewIndex(this.view);
+      if (!cards.length) return;
+
+      this.view.index = (this.view.index - 1 + cards.length) % cards.length;
+      const previousItem = cards[this.view.index];
+      mark(previousItem);
+      focusElement(previousItem);
+      scrollHostCardIntoView(previousItem);
     },
     right: function() {
-      this.view.nextCard(5);
-      focusElement(this.view.current());
+      const cards = normalizeHostsViewIndex(this.view);
+      if (!cards.length) return;
+
+      this.view.index = (this.view.index + 1) % cards.length;
+      const nextItem = cards[this.view.index];
+      mark(nextItem);
+      focusElement(nextItem);
+      scrollHostCardIntoView(nextItem);
     },
     accept: function() {
       const currentItem = resolveElement(this.view.current());
@@ -761,26 +889,27 @@ const Views = {
       }
     },
     switch: function() {
+      const cards = normalizeHostsViewIndex(this.view);
+      if (!cards.length) return;
       const currentItem = resolveElement(this.view.current());
-      // Check if the current item is the Add Host container
+      updateHostsCarousel();
       if (currentItem && currentItem.id === 'addHostContainer') {
-        // Set focus on the Add Host container itself
         focusElement(currentItem);
-      } else {
-        // Scroll to the current Host card row to ensure is visible when switching back from another view
-        this.view.currentCardRow(5);
-        // If the current item has children, set focus on the first child element (the host card)
+        scrollHostCardIntoView(currentItem);
+      } else if (currentItem) {
         const hostCard = currentItem.children ? currentItem.children[0] : null;
         focusElement(hostCard);
+        scrollHostCardIntoView(currentItem);
       }
     },
     enter: function() {
-      mark(this.view.current());
+      const cards = normalizeHostsViewIndex(this.view);
+      mark(cards[this.view.index]);
       // Disable the IP address text input field when entering the Hosts view
       handleIpTextFieldState(false);
     },
     leave: function() {
-      unmark(this.view.current());
+      unmark();
     },
   },
   HostsNav: {
@@ -1397,7 +1526,7 @@ const Views = {
       'selectLanguage',
       'themeSelector',
       'selectAmbientBackground',
-      'showConfigSummaryBtn',
+      'selectConfigSummaryPosition',
       'navigationSoundBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
@@ -1439,6 +1568,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  ConfigSummaryPositionMenu: {
+    isActive: () => isPopupMenuActive('configSummaryPositionMenu'),
+    view: new ListView(() => document.querySelectorAll('.configSummaryPositionMenu .mdl-menu__item')),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectConfigSummaryPosition'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectConfigSummaryPosition');
+      closeActiveVisibleMenu();
+      focusElement('selectConfigSummaryPosition');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectConfigSummaryPosition');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1759,6 +1918,7 @@ const Views = {
   VideoSettings: {
     view: new ListView(() => [
       'selectCodec',
+      ...(document.getElementById('selectCodec') && document.getElementById('selectCodec').dataset.value === 'H264' ? ['selectH264Level'] : []),
       'hdrModeBtn',
       'fullRangeBtn',
       'gameModeBtn'
@@ -1828,6 +1988,26 @@ const Views = {
     leave: function() {
       unmark(this.view.current());
     },
+  },
+  SelectH264LevelMenu: {
+    isActive: () => isPopupMenuActive('h264LevelMenu'),
+    view: new ListView(() => document.querySelectorAll('.h264LevelMenu .mdl-menu__item')),
+    up: function() { this.view.prevOption(); },
+    down: function() { this.view.nextOption(); },
+    left: function() {}, right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectH264Level'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectH264Level');
+      closeActiveVisibleMenu();
+      focusElement('selectH264Level');
+    },
+    press: function() {}, switch: function() {},
+    enter: function() { markSelectedMenuItem(this.view, 'selectH264Level'); },
+    leave: function() { unmark(this.view.current()); },
   },
   SelectPerformanceStatsPositionMenu: {
     isActive: () => isPopupMenuActive('performanceStatsPositionMenu'),
@@ -2127,7 +2307,13 @@ const Views = {
       focusElement(this.view.current());
     },
     enter: function() {
-      mark(this.view.current());
+      const cards = this.view.func();
+      if (!cards || !cards.length) return;
+
+      // The Apps view can be pushed before showApps() has populated the grid.
+      // Keep the selected index valid before marking the current card.
+      this.view.index = Math.max(0, Math.min(this.view.index, cards.length - 1));
+      mark(cards[this.view.index]);
     },
     leave: function() {
       unmark(this.view.current());
@@ -2501,12 +2687,17 @@ const Navigation = (function() {
       return viewStack[viewStack.length - 1];
     }
 
-    function push(view, hostname) {
+    function push(view, hostname, restoreNavigationFocus) {
       if (get()) {
         get().leave();
       }
       if (hostname !== undefined) {
         view.hostname = hostname;
+      }
+      // Some modal dialogs must be immediately operable from the remote/gamepad,
+      // even when the previous view had already lost navigation focus.
+      if (restoreNavigationFocus) {
+        hasFocus = true;
       }
       viewStack.push(view);
       get().enter();

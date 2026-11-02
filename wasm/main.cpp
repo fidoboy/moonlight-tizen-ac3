@@ -58,6 +58,7 @@ MoonlightInstance::MoonlightInstance()
     m_VideoStarted(false),
     m_AudioSessionId(0),
     m_VideoSessionId(0),
+    m_MediaElementListener(this),
     m_MediaElement("wasm_module"),
     m_Source(nullptr),
     m_SourceListener(this),
@@ -69,6 +70,7 @@ MoonlightInstance::MoonlightInstance()
     m_StopThread(0),
     m_SourceClosed(false),
     m_SourceAttached(false) {
+      m_MediaElement.SetListener(&m_MediaElementListener);
       m_Dispatcher.start();
     }
 
@@ -307,7 +309,8 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string h264Level) {
   
   if (m_StopThread != 0) {
     pthread_join(m_StopThread, NULL);
@@ -343,6 +346,8 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   PostToJs("Setting the Play host audio to: " + std::to_string(playHostAudio));
   PostToJs("Setting the Decrypt host audio to: " + std::to_string(decryptHostAudio));
   PostToJs("Setting the Video codec to: " + videoCodec);
+  m_H264Level = h264Level.empty() ? "Auto" : h264Level;
+  PostToJs("Setting the H.264 level override to: " + m_H264Level);
   PostToJs("Setting the Video HDR mode to: " + std::to_string(hdrMode));
   PostToJs("Setting the Full color range to: " + std::to_string(fullRange));
   PostToJs("Setting the Game mode to: " + std::to_string(gameMode));
@@ -682,11 +687,12 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats) {
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string h264Level) {
   PostToJs("Starting the streaming session...");
   return g_Instance->StartStream(host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend, audioConfig, opticalOutputEnabled, audioSync,
-  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats);
+  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats, h264Level);
 }
 
 void setDolbyAudioOptions(std::string dolbyChannelLayout, std::string dolbyDecodingMode) {

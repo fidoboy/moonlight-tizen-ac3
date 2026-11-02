@@ -38,6 +38,7 @@ RUN ln -sf /usr/bin/python2 /usr/bin/python
 RUN useradd -m -s /bin/bash moonlight
 USER moonlight
 WORKDIR /home/moonlight
+RUN mkdir -p /home/moonlight/moonlight-tizen
 
 # Install Tizen Studio CLI and configure the toolchain path
 RUN aria2c -x 5 -s 5 -o web-cli_Tizen_Studio_6.1_ubuntu-64.bin 'https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin'

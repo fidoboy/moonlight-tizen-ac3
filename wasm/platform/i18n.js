@@ -294,6 +294,31 @@
     });
   }
 
+  // Load only the translation dictionaries for direct streaming. Unlike init(),
+  // this path deliberately avoids refreshUI() and does not touch any UI controls.
+  function initForStream() {
+    if (state.initialized) return Promise.resolve(state.effectiveLocale);
+
+    return readStoredPreference().then((storedPreference) => {
+      const preference = storedPreference || 'auto';
+      state.localePreference = preference;
+      return loadLocaleFile(SOURCE_LOCALE)
+        .then((sourceDict) => { state.sourceDictionary = sourceDict || {}; })
+        .catch(() => { state.sourceDictionary = {}; })
+        .then(() => preference === 'auto' ? detectLocale() :
+          Promise.resolve(SUPPORTED_LOCALES.includes(preference) ? preference : SOURCE_LOCALE))
+        .then((effectiveLocale) => loadLocaleFile(effectiveLocale)
+          .catch(() => state.sourceDictionary)
+          .then((dict) => {
+            state.effectiveLocale = effectiveLocale;
+            state.dictionary = dict || {};
+            updateDocumentLanguage(effectiveLocale);
+            state.initialized = true;
+            return effectiveLocale;
+          }));
+    });
+  }
+
   function init() {
     if (state.initialized) {
       return Promise.resolve(state.effectiveLocale);
@@ -319,6 +344,7 @@
 
   global.i18n = {
     init,
+    initForStream,
     t,
     _n,
     refreshUI,

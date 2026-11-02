@@ -356,8 +356,8 @@ int initializeControlStream(void) {
     firstFrameTimeMs = 0;
     currentEnetSequenceNumber = 0;
     usePeriodicPing = APP_VERSION_AT_LEAST(7, 1, 415);
-    encryptionCtx = PltCreateCryptoContext();
-    decryptionCtx = PltCreateCryptoContext();
+    encryptionCtx = PltCreateCryptoContext(0);
+    decryptionCtx = PltCreateCryptoContext(CTRL_CHANNEL_COUNT);
     hdrEnabled = false;
     memset(&hdrMetadata, 0, sizeof(hdrMetadata));
 
@@ -595,9 +595,10 @@ static bool encryptControlMessage(PNVCTL_ENCRYPTED_PACKET_HEADER encPacket, PNVC
 }
 
 // Caller must free() *packet on success!!!
-static bool decryptControlMessageToV1(PNVCTL_ENCRYPTED_PACKET_HEADER encPacket, int encPacketLength, PNVCTL_ENET_PACKET_HEADER_V1* packet, int* packetLength) {
+static bool decryptControlMessageToV1(uint8_t channelId, PNVCTL_ENCRYPTED_PACKET_HEADER encPacket, int encPacketLength, PNVCTL_ENET_PACKET_HEADER_V1* packet, int* packetLength) {
     unsigned char iv[16] = { 0 };
     int ivSize;
+    int cipherFlags;
 
     *packet = NULL;
 
@@ -631,10 +632,12 @@ static bool decryptControlMessageToV1(PNVCTL_ENCRYPTED_PACKET_HEADER encPacket, 
 
         // Use 12-byte IV which is ideal for AES-GCM
         ivSize = 12;
+        cipherFlags = 0;
     }
     else {
         // This is a truncating cast, but it's what Nvidia does, so we have to mimic it.
         iv[0] = (unsigned char)encPacket->seq;
+        cipherFlags = CIPHER_FLAG_NO_REPLAY_CHECK;
 
         // Nvidia's old style encryption uses a 16-byte IV
         ivSize = 16;
@@ -648,7 +651,7 @@ static bool decryptControlMessageToV1(PNVCTL_ENCRYPTED_PACKET_HEADER encPacket, 
 
     LC_ASSERT(ivSize <= (int)sizeof(iv));
     LC_ASSERT(ivSize == 12 || ivSize == 16);
-    if (!PltDecryptMessage(decryptionCtx, ALGORITHM_AES_GCM, 0,
+    if (!PltDecryptMessage(decryptionCtx, ALGORITHM_AES_GCM, cipherFlags, channelId, encPacket->seq,
                            (unsigned char*)StreamConfig.remoteInputAesKey, sizeof(StreamConfig.remoteInputAesKey),
                            iv, ivSize,
                            (unsigned char*)(encPacket + 1), AES_GCM_TAG_LENGTH, // The tag is located right after the header
@@ -721,7 +724,7 @@ static bool sendMessageEnet(short ptype, short paylen, const void* payload, uint
 
         encPacket = (PNVCTL_ENCRYPTED_PACKET_HEADER)enetPacket->data;
         encPacket->encryptedHeaderType = 0x0001;
-        encPacket->length = sizeof(encPacket->seq) + AES_GCM_TAG_LENGTH + sizeof(*packet) + paylen;
+        encPacket->length = (unsigned short)(sizeof(encPacket->seq) + AES_GCM_TAG_LENGTH + sizeof(*packet) + paylen);
         encPacket->seq = currentEnetSequenceNumber++;
 
         // Construct the plaintext data for encryption in the output buffer
@@ -777,7 +780,7 @@ static bool sendMessageEnet(short ptype, short paylen, const void* payload, uint
         err = enet_host_service(client, NULL, 0);
 
         // Wait until the packet is actually sent to provide backpressure on senders
-        if (flags & ENET_PACKET_FLAG_RELIABLE) {
+        if (paylen < (ENET_HOST_DEFAULT_MTU - 128) && (flags & ENET_PACKET_FLAG_RELIABLE)) {
             // Don't wait longer than 10 milliseconds to avoid blocking callers for too long
             for (int i = 0; err >= 0 && i < 10; i++) {
                 // Break on disconnected, acked/freed, or sent (pending ack).
@@ -889,10 +892,25 @@ static bool sendMessageAndDiscardReply(short ptype, short paylen, const void* pa
 // pending receives first. It works around what appears to be a bug in ENet
 // where pending disconnects can cause loss of unprocessed received data.
 static int ignoreDisconnectIntercept(ENetHost* host, ENetEvent* event) {
-    if (host->receivedDataLength == sizeof(ENetProtocolHeader) + sizeof(ENetProtocolDisconnect)) {
+    if (host->receivedDataLength >= sizeof(ENetProtocolCommandHeader)) {
         ENetProtocolHeader* protoHeader = (ENetProtocolHeader*)host->receivedData;
-        ENetProtocolDisconnect* disconnect = (ENetProtocolDisconnect*)(protoHeader + 1);
         enet_uint16 peerID = ENET_NET_TO_HOST_16(protoHeader->peerID);
+        size_t headerSize = (peerID & ENET_PROTOCOL_HEADER_FLAG_SENT_TIME) ?
+                            sizeof(ENetProtocolHeader) :
+                            sizeof(ENetProtocolHeader) - sizeof(protoHeader->sentTime);
+        ENetProtocolDisconnect* disconnect;
+
+        // ENet appends the checksum after the optional sentTime field.
+        if (host->checksum != NULL) {
+            headerSize += sizeof(enet_uint32);
+        }
+
+        // A disconnect datagram contains exactly one disconnect command.
+        if (host->receivedDataLength != headerSize + sizeof(ENetProtocolDisconnect)) {
+            return 0;
+        }
+
+        disconnect = (ENetProtocolDisconnect*)(host->receivedData + headerSize);
         enet_uint8 sessionID = (peerID & ENET_PROTOCOL_HEADER_SESSION_MASK) >> ENET_PROTOCOL_HEADER_SESSION_SHIFT;
 
         peerID &= ~(ENET_PROTOCOL_HEADER_FLAG_MASK | ENET_PROTOCOL_HEADER_SESSION_MASK);
@@ -1251,7 +1269,7 @@ static void controlReceiveThreadFunc(void* context) {
 
                     ctlHdr = NULL;
                     packetLength = (int)event.packet->dataLength;
-                    if (!decryptControlMessageToV1(encHdr, packetLength, &ctlHdr, &packetLength)) {
+                    if (!decryptControlMessageToV1(event.channelID, encHdr, packetLength, &ctlHdr, &packetLength)) {
                         Limelog("Failed to decrypt control packet of size %d\n", event.packet->dataLength);
                         enet_packet_destroy(event.packet);
                         continue;

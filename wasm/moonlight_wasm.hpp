@@ -92,8 +92,10 @@ enum class AudioBackend {
 
 constexpr const char* kCanvasName = "#wasm_module";
 
-// The TV rejected the video track or did not start it before the media setup timeout.
+// The local video pipeline could not be initialized or did not start before its timeout.
 #define ERROR_VIDEO_SETUP_FAILED -200
+// The TV explicitly rejected the selected H.264 video-track configuration.
+#define ERROR_H264_TRACK_REJECTED -201
 
 class MoonlightInstance {
   public:
@@ -103,7 +105,8 @@ class MoonlightInstance {
     std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
     bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
     std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-    std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats);
+    std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+    std::string h264Level);
   void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
   MessageResult StopStream();
 
@@ -201,7 +204,7 @@ class MoonlightInstance {
   public:
     AudioTrackListener(MoonlightInstance* instance);
     void OnTrackOpen() override;
-    void OnTrackClosed(EmssTrackCloseReason) override;
+    void OnTrackClosed(EmssTrackCloseReason reason) override;
     void OnSessionIdChanged(samsung::wasm::SessionId new_session_id) override;
   private:
     MoonlightInstance* m_Instance;
@@ -213,6 +216,15 @@ class MoonlightInstance {
     void OnTrackOpen() override;
     void OnTrackClosed(EmssTrackCloseReason) override;
     void OnSessionIdChanged(samsung::wasm::SessionId new_session_id) override;
+  private:
+    MoonlightInstance* m_Instance;
+  };
+
+  class MediaElementListener
+    : public samsung::html::HTMLMediaElementListener {
+  public:
+    MediaElementListener(MoonlightInstance* instance);
+    void OnError(samsung::html::MediaError error_code, const char* error_msg) override;
   private:
     MoonlightInstance* m_Instance;
   };
@@ -256,6 +268,7 @@ class MoonlightInstance {
   bool m_PlayHostAudioEnabled;
   bool m_DecryptHostAudioEnabled;
   bool m_HdrModeEnabled;
+  std::string m_H264Level {"Auto"};
   bool m_FullRangeEnabled;
   bool m_GameModeEnabled;
   bool m_DisableWarningsEnabled;
@@ -293,6 +306,7 @@ class MoonlightInstance {
   pthread_t m_StopThread;
   std::atomic<samsung::wasm::SessionId> m_AudioSessionId;
   std::atomic<samsung::wasm::SessionId> m_VideoSessionId;
+  MediaElementListener m_MediaElementListener;
   samsung::html::HTMLMediaElement m_MediaElement;
   std::unique_ptr<samsung::wasm::ElementaryMediaStreamSource> m_Source;
   SourceListener m_SourceListener;
@@ -321,7 +335,8 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
-  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats);
+  std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
+  std::string h264Level);
 MessageResult stopStream();
 
 MessageResult cancelRequest();

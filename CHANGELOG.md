@@ -3,6 +3,27 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.1.0
+
+### Added
+- **Dynamic H.264 level selection:** Selects the lowest H.264 level that satisfies the requested resolution and frame rate, based on the standard macroblocks-per-frame and macroblocks-per-second limits. Streams exceeding the supported Level 6.2 limits are rejected instead of being advertised with an inaccurate level.
+- **H.264 level override:** Added a Video Settings selector with Automatic (recommended) as the default and manual levels from 3.0 to 5.2 for hardware compatibility testing. This selector is enabled only when H.264 is selected.
+- **Configuration summary position:** Added an Interface Settings menu to place the configuration summary bar at the top or bottom of the Hosts and Apps screens, or hide it entirely.
+
+### Changed
+- **Subsystem operation timeouts:** Improved timeout handling across application subsystems. When an operation exceeds its time limit, Moonlight now displays a contextual message and aborts the operation instead of waiting indefinitely.
+- **Smart Hub quick-start screen:** Reworked the direct-launch startup screen to use the same streaming transition layer as the regular interface, with consistent background, progress and status messaging, and connection-encryption feedback. The streamlined launch path restores the saved streaming settings and connects directly to the selected host and application without loading the full interface.
+- **Project documentation — Ethernet guidance:** Updated the project documentation to clarify that a TV's 100 Mbps Ethernet connection can be more stable or faster than Wi-Fi on a particular model; users should compare measured throughput and stability rather than assume Wi-Fi is always preferable. This is a documentation-only change, not a code change.
+- **Project documentation — Video troubleshooting:** Expanded the project documentation with guidance for identifying NVENC encoder saturation when actual stream throughput is far below the configured bitrate, including controlled tests with the preset, two-pass encoding and spatial AQ. This is a documentation-only change, not a code change.
+- **Main interface background:** Replaced the flat main-interface background with a vertical gradient that darkens towards the bottom while preserving the selected color theme.
+- **Default interface settings:** Enabled Video frame pacing and Host address field mode by default.
+
+### Fixed
+- **H.264 MIME profile:** Replaced the fixed Level 4.2 codec string with a resolution- and frame-rate-aware profile-level-id. Automatic mode advertises the recommended level; a manual selection overrides it. Neither mode implies that every TV decoder supports the selected level.
+- **Docker build directory ownership:** Ensured the Moonlight project directory is created with the correct build-user ownership, allowing the build process to access Git metadata and inject the commit SHA reliably.
+- **Graceful stream disconnection (Moonlight Common C):** Fixed the ENet disconnect interceptor so it also recognizes disconnect datagrams with the shorter header that omits the optional `sentTime` field. This allows Moonlight to process the host's graceful termination notification instead of treating the session as an unexpected connection loss.
+
+
 ## v1.0.9
 
 ### Added

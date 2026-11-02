@@ -12,10 +12,14 @@ const SyncFunctions = {
   'startRequest': (...args) => {
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
+    const rawH264Level = args[33];
+    const h264Level = rawH264Level == null || rawH264Level === ''
+      ? 'Auto'
+      : String(rawH264Level).replace(/\./g, '_');
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
-    return Module.startStream(...args.slice(0, 31));
+    return Module.startStream(...args.slice(0, 31), h264Level);
   },
   // no parameters
   'stopRequest': (...args) => Module.stopStream(...args),
@@ -125,6 +129,27 @@ function replaceKnownStatsLabels(text) {
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
+var h264TrackRejectionClosingMessage = null;
+var pendingStreamDialogMessage = null;
+var pendingStreamApiMessage = null;
+var pendingMediaPipelineErrorMessage = null;
+var pendingMediaPipelineApiMessage = null;
+var pendingVideoTrackCloseErrorMessage = null;
+var pendingVideoTrackCloseApiMessage = null;
+var pendingMediaPipelineStopRequested = false;
+
+function stopStreamAfterMediaPipelineError() {
+  if (pendingMediaPipelineStopRequested || !isInGame ||
+      window._streamStartupFailureHandled || window._manualStreamStopRequested) return;
+  pendingMediaPipelineStopRequested = true;
+  try {
+    Promise.resolve(sendMessage('stopRequest', [])).catch(function(error) {
+      console.warn('%c[messages.js, stopStreamAfterMediaPipelineError]', 'color: gray;', 'Could not stop the stream after a media pipeline error:', error);
+    });
+  } catch (error) {
+    console.warn('%c[messages.js, stopStreamAfterMediaPipelineError]', 'color: gray;', 'Could not stop the stream after a media pipeline error:', error);
+  }
+}
 
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
@@ -638,6 +663,16 @@ var _queuedPairing = null;
 
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
+    if (method === 'startRequest') {
+      h264TrackRejectionClosingMessage = null;
+      pendingStreamDialogMessage = null;
+      pendingStreamApiMessage = null;
+      pendingMediaPipelineErrorMessage = null;
+      pendingMediaPipelineApiMessage = null;
+      pendingVideoTrackCloseErrorMessage = null;
+      pendingVideoTrackCloseApiMessage = null;
+      pendingMediaPipelineStopRequested = false;
+    }
     // Starting a request resets the cancel flag in C++, so a canceled pairing request
     // that is still waiting in the JS queue must not start afterwards
     if (method === 'cancelRequest' && _queuedPairing) {
@@ -768,6 +803,7 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
@@ -785,23 +821,88 @@ function handleMessage(msg) {
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
+    var streamDialogMessage = pendingStreamDialogMessage;
+    var streamApiMessage = pendingStreamApiMessage;
+    var streamMediaPipelineErrorMessage = pendingMediaPipelineErrorMessage;
+    var streamMediaPipelineApiMessage = pendingMediaPipelineApiMessage;
+    var streamVideoTrackCloseErrorMessage = pendingVideoTrackCloseErrorMessage;
+    var streamVideoTrackCloseApiMessage = pendingVideoTrackCloseApiMessage;
+    h264TrackRejectionClosingMessage = null;
+    pendingStreamDialogMessage = null;
+    pendingStreamApiMessage = null;
+    pendingMediaPipelineErrorMessage = null;
+    pendingMediaPipelineApiMessage = null;
+    pendingVideoTrackCloseErrorMessage = null;
+    pendingVideoTrackCloseApiMessage = null;
+
+    // A startup watchdog already owns the visible error and recovery/exit sequence.
+    // Ignore the native stop acknowledgement to prevent a second UI transition.
+    if (window._streamStartupFailureHandled) {
+      isInGame = false;
+      return;
+    }
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
     // but always exit this client regardless of whether the stream ended normally or with an error.
     if (window._directSmartHubLaunch) {
-      // Paint a minimal status message before exiting; do not restore the home UI.
-      if (typeof window.setDirectSmartHubStatus === 'function') {
-        var directLaunchHostName = window._directSmartHubLaunch && window._directSmartHubLaunch.hostName;
-        if (!directLaunchHostName && window._directSmartHubHost) {
-          directLaunchHostName = window._directSmartHubHost.hostname;
-        }
-        window.setDirectSmartHubStatus(directLaunchHostName
-          ? 'Finalizando transmisión con ' + directLaunchHostName + '...'
-          : 'Cerrando la transmisión...');
+      // Reuse the shared transition layer for the closing status; never restore the home UI.
+      resetStreamEncryptionStatus();
+      var directHostName = window._activeStreamHostName || t('Host');
+      var directAppName = window._activeStreamAppName || t('Apps');
+      var directClosingMessage;
+      switch (errorCode) {
+        case 0:
+          directClosingMessage = t('Streaming session with %1$s ended normally.', directHostName);
+          break;
+        case -100:
+          directClosingMessage = t('No video packets were received.');
+          break;
+        case -101:
+          directClosingMessage = t('Keyframes were lost.');
+          break;
+        case -102:
+          directClosingMessage = t('The connection to %1$s ended unexpectedly.', directHostName);
+          break;
+        case -103:
+          directClosingMessage = t('Protected (DRM) content on %1$s ended the session.', directHostName);
+          break;
+        case -104:
+          directClosingMessage = t('An error occurred while processing the video stream from %1$s.', directHostName);
+          break;
+        case -200:
+          directClosingMessage = t('The local device could not start the video stream.');
+          break;
+        case -201:
+          directClosingMessage = t('The TV rejected the H.264 video configuration.');
+          break;
+        default:
+          directClosingMessage = t('Connection to %1$s lost.', directHostName);
+          break;
+      }
+      var closingTitle = document.getElementById('loadingSpinnerTitle');
+      var closingMessage = document.getElementById('loadingSpinnerMessage');
+      if (closingTitle) closingTitle.textContent = t('Closing %1$s...', directAppName);
+      if (closingMessage) closingMessage.textContent = directClosingMessage;
+      var directStreamHasError = errorCode !== 0 || !!streamMediaPipelineErrorMessage ||
+        !!streamDialogMessage || !!streamH264TrackRejectionMessage ||
+        !!streamVideoTrackCloseErrorMessage;
+      if (directStreamHasError) {
+        // Smart Hub has no diagnostic dialog: keep every failure status concise.
+        directClosingMessage = streamMediaPipelineErrorMessage
+          ? t('The TV media player reported an error.')
+          : (streamH264TrackRejectionMessage
+            ? t('The TV rejected the H.264 video configuration.')
+            : ((streamDialogMessage || streamVideoTrackCloseErrorMessage)
+              ? t('Unable to launch the selected app.')
+              : directClosingMessage));
       }
       var shouldQuitDirectHostApp = errorCode === 0 &&
-        $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
+        !streamMediaPipelineErrorMessage && !streamDialogMessage &&
+        !streamH264TrackRejectionMessage && !streamVideoTrackCloseErrorMessage &&
+        !!(window._directSmartHubStreamSettings &&
+          window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var exitDirectLaunch = function() {
         try {
           tizen.application.getCurrentApplication().exit();
@@ -810,22 +911,27 @@ function handleMessage(msg) {
         }
       };
       var finishDirectLaunch = function() {
-        // Give the browser one paint opportunity so the status is visible even when
-        // no host-app quit request is needed.
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(exitDirectLaunch);
+        // Keep the closing status visible long enough to be read before leaving Tizen.
+        window.setTimeout(exitDirectLaunch, directStreamHasError ? 4500 : 3000);
+      };
+
+      var showDirectClosingTransition = function() {
+        if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
+          withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+            finishDirectLaunch();
+          });
         } else {
-          window.setTimeout(exitDirectLaunch, 0);
+          finishDirectLaunch();
         }
       };
 
-      if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-        window.api.quitApp().then(finishDirectLaunch, function(failedQuitApp) {
-          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
-          finishDirectLaunch();
-        });
+      if (typeof showStreamTransitionBackground === 'function') {
+        showStreamTransitionBackground(showDirectClosingTransition);
       } else {
-        finishDirectLaunch();
+        var directTransitionLayer = document.getElementById('stream-transition-layer');
+        if (directTransitionLayer) directTransitionLayer.style.display = 'block';
+        showDirectClosingTransition();
       }
       return;
     }
@@ -847,6 +953,10 @@ function handleMessage(msg) {
     // Classify the closing transition using only state and error codes already exposed to JavaScript.
     var manualStreamStopRequested = window._manualStreamStopRequested === true;
     window._manualStreamStopRequested = false;
+    var hasStreamError = !manualStreamStopRequested && (errorCode !== 0 ||
+      !!streamMediaPipelineErrorMessage || !!streamDialogMessage ||
+      !!streamH264TrackRejectionMessage || !!streamVideoTrackCloseErrorMessage);
+    if (hasStreamError) streamTerminationMinimumVisibleMs = 0;
     var activeStreamAppName = window._activeStreamAppName || t('Apps');
     var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('Host');
     var transitionStatusMessage;
@@ -858,8 +968,10 @@ function handleMessage(msg) {
           transitionStatusMessage = t('Streaming session with %1$s ended normally.', activeStreamHostName);
           break;
         case -100:
+          transitionStatusMessage = t('No video packets were received.');
+          break;
         case -101:
-          transitionStatusMessage = t('Video stream from %1$s stopped being received.', activeStreamHostName);
+          transitionStatusMessage = t('Keyframes were lost.');
           break;
         case -102:
           transitionStatusMessage = t('The connection to %1$s ended unexpectedly.', activeStreamHostName);
@@ -873,11 +985,32 @@ function handleMessage(msg) {
         case -200:
           transitionStatusMessage = t('The local device could not start the video stream.');
           break;
+        case -201:
+          transitionStatusMessage = t('The TV rejected the H.264 video configuration.');
+          break;
         default:
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
           break;
       }
     }
+
+    if (hasStreamError && errorCode === 0) {
+      transitionStatusMessage = streamMediaPipelineErrorMessage
+        ? t('The TV media player reported an error.')
+        : (streamDialogMessage || streamH264TrackRejectionMessage ||
+          streamVideoTrackCloseErrorMessage || t('Connection to %1$s lost.', activeStreamHostName));
+    }
+
+    var streamErrorDialogMessage = streamMediaPipelineErrorMessage ||
+      streamDialogMessage || streamH264TrackRejectionMessage ||
+      streamVideoTrackCloseErrorMessage ||
+      (errorCode === -100
+        ? t('The connection was interrupted because no video packets were received from the host during startup.')
+        : (errorCode === -101
+          ? t('The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).')
+          : transitionStatusMessage));
+    var streamErrorApiMessage = streamMediaPipelineApiMessage ||
+      streamApiMessage || streamVideoTrackCloseApiMessage || null;
 
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
@@ -893,10 +1026,20 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
         return;
       }
-      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       var restoration = typeof setNavigationSoundEnabled === 'function'
-        ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
+        ? withOperationTimeout(setNavigationSoundEnabled(navigationSoundPreferenceEnabled), 10000, 'Local audio restoration')
         : Promise.resolve();
+      if (hasStreamError) {
+        // Do not hold the user on the transition for local UI audio restoration after
+        // a connection failure. The interface can return immediately while audio
+        // restoration completes independently in the background.
+        Promise.resolve(restoration).catch(function(audioRestoreError) {
+          console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
+        });
+        resolveLocalAudioRestoration();
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       Promise.resolve(restoration).catch(function(audioRestoreError) {
         // A sound-effects failure must not strand the user in the closing transition.
         console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
@@ -914,7 +1057,7 @@ function handleMessage(msg) {
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
-    var shouldQuitHostApp = errorCode === 0 &&
+    var shouldQuitHostApp = errorCode === 0 && !hasStreamError &&
       $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -973,16 +1116,20 @@ function handleMessage(msg) {
       snackbarLogPersistent('Loading Apps...');
       // Refreshing server info is useful, but failure must not prevent recovery.
       Promise.resolve().then(function() {
-        return api.refreshServerInfo();
+        return withOperationTimeout(api.refreshServerInfo(), 15000, 'Host information refresh after streaming');
       }).catch(function(failedRefreshInfo) {
         console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Error: Failed to refresh server info:', failedRefreshInfo);
       }).then(function() {
         // Re-fetch the host's app list and rebuild the Apps grid so both the available apps
         // and the current-game highlighting reflect the host's state after the stream.
         // showApps keeps the interaction lock in place until the refreshed list is rendered.
-        return showApps(api, {
+        var appListOperation = { cancelled: false };
+        return withOperationTimeout(showApps(api, {
           forceRefreshAppList: true,
-          showLoadingSnackbarImmediately: true
+          showLoadingSnackbarImmediately: true,
+          operationToken: appListOperation
+        }), 10000, 'Application list recovery', function() {
+          appListOperation.cancel();
         }).then(function() {
           Navigation.switch();
           if (!window.isDialogOpen) {
@@ -1012,12 +1159,34 @@ function handleMessage(msg) {
     // shortly before the transition starts fading out, avoiding a flash of the page
     // background behind the animated starfield.
     var beginRecoveryAfterTransition = function() {
+      if (hasStreamError) {
+        // The transition is now fully hidden and the Apps interface is visible.
+        // Keep the error modal open until the user acknowledges it; refresh the
+        // host's app list only after the dialog is dismissed.
+        // Keep the Apps grid locked and dimmed while the error dialog is open.
+        // The post-dialog showApps() refresh reuses the existing cards and unlocks
+        // interaction only after the refreshed list has been rendered.
+        if (typeof finishAppsModeAfterStreamTransition === 'function') {
+          finishAppsModeAfterStreamTransition(true);
+        }
+        window._streamTerminationRecoveryInProgress = false;
+        var errorQuitButton = document.getElementById('quitRunningAppBtn');
+        if (errorQuitButton) errorQuitButton.disabled = false;
+        warningDialog(t('Error'), streamErrorDialogMessage, function() {
+          refreshHostAndReturnToApps();
+        }, true, 'OK', {
+          code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
+          apiMessage: streamErrorApiMessage
+        });
+        return;
+      }
+
       window.setTimeout(function() {
         // Resume ordinary UI state and flush deferred UI actions only after the full
         // transition fadeout and the additional 200 ms breathing room.
         if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
           console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-          api.quitApp().then(function() {
+          withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown').then(function() {
             console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
             refreshHostAndReturnToApps();
           }, function(failedQuitApp) {
@@ -1065,27 +1234,91 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
+    // Ignore late native notifications after the startup sequence has already been aborted.
+    if (window._streamStartupFailureHandled) return;
+    // Connection negotiation completed; now bound the wait for the first decoded frame.
+    if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
     // This marks connection setup, not the availability of the first decoded video frame.
-    // Keep the direct-launch connection status until this callback arrives.
-    if (window._directSmartHubLaunch) {
-      var directStatusOnConnect = document.getElementById('directSmartHubStatus');
-      if (directStatusOnConnect) directStatusOnConnect.style.display = 'none';
-    }
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
     $('body').css('backgroundColor', 'transparent');
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
+  } else if (msg.indexOf('MediaPipelineErrorMsg: ') === 0) {
+    // MediaSource may report a format error while it is being closed. Such a
+    // callback is a teardown side effect, not a failure of the active stream.
+    if (window._manualStreamStopRequested || window._streamTerminationRecoveryInProgress) {
+      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Ignoring media pipeline error during stream teardown.');
+      return;
+    }
+    var mediaErrorPayload = msg.replace('MediaPipelineErrorMsg: ', '');
+    // Keep the localized explanation as the primary message and preserve the
+    // API payload verbatim for the smaller diagnostic line in the error dialog.
+    pendingMediaPipelineErrorMessage = t('The TV media player reported an error.');
+    pendingMediaPipelineApiMessage = mediaErrorPayload;
+    stopStreamAfterMediaPipelineError();
+    if (window._directSmartHubLaunch) {
+      $('#loadingSpinnerMessage').text(pendingMediaPipelineErrorMessage);
+    } else if (!window._streamStartupFailureHandled) {
+      $('#loadingSpinnerMessage').text(t('The TV media player reported an error.'));
+    }
+  } else if (msg.indexOf('VideoTrackCloseErrorMsg: ') === 0) {
+    // Ignore track-close errors emitted as a consequence of an intentional stop.
+    if (window._manualStreamStopRequested || window._streamTerminationRecoveryInProgress) {
+      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Ignoring video track close error during stream teardown.');
+      return;
+    }
+    var videoTrackCloseApiMessage = msg.replace('VideoTrackCloseErrorMsg: ', '');
+    pendingVideoTrackCloseErrorMessage = t(videoTrackCloseApiMessage);
+    pendingVideoTrackCloseApiMessage = videoTrackCloseApiMessage;
+    stopStreamAfterMediaPipelineError();
+    if (window._directSmartHubLaunch) {
+      $('#loadingSpinnerMessage').text(pendingVideoTrackCloseErrorMessage);
+    }
+  } else if (msg.indexOf('H264TrackRejectedMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
+    var h264TrackDetails = msg.replace('H264TrackRejectedMsg: ', '').split(',');
+    if (h264TrackDetails.length === 4 && h264TrackDetails.every(function(value) { return value.trim() !== ''; })) {
+      var h264Level = h264TrackDetails[0].trim();
+      var h264Width = h264TrackDetails[1].trim();
+      var h264Height = h264TrackDetails[2].trim();
+      var h264FrameRate = h264TrackDetails[3].trim();
+      h264TrackRejectionClosingMessage = t('The TV does not support the selected H.264 configuration (Level %1$s, %2$s×%3$s at %4$s FPS). Try a different manual H.264 level, reduce the resolution or frame rate, or select HEVC/AV1 if your host supports it.', h264Level, h264Width, h264Height, h264FrameRate);
+      $('#loadingSpinnerMessage').text(t('The TV rejected H.264 Level %1$s (%2$s×%3$s at %4$s FPS).', h264Level, h264Width, h264Height, h264FrameRate));
+    } else {
+      h264TrackRejectionClosingMessage = t('The TV rejected the H.264 video configuration.');
+      $('#loadingSpinnerMessage').text(h264TrackRejectionClosingMessage);
+    }
   } else if (msg.indexOf('ProgressMsg: ') === 0) {
+    if (window._streamStartupFailureHandled) return;
     // Show progress message below the transition bar, keeping the app title fixed above it.
     $('#loadingSpinnerMessage').text(translateBackendMessage(msg.replace('ProgressMsg: ', '')));
   } else if (msg.indexOf('TransientMsg: ') === 0) {
-    // Show transient message as notification
-    snackbarLogLong(translateBackendMessage(msg.replace('TransientMsg: ', '')));
+    if (window._streamStartupFailureHandled) return;
+    var transientMessage = translateBackendMessage(msg.replace('TransientMsg: ', ''));
+    if (window._directSmartHubLaunch ||
+        (isInGame && window._normalStreamVideoReady !== true && !window._streamStartupFailureHandled)) {
+      $('#loadingSpinnerMessage').text(transientMessage);
+    } else {
+      snackbarLogLong(transientMessage);
+    }
   } else if (msg.indexOf('DialogMsg: ') === 0) {
-    // Show dialog message using the warning dialog
-    warningDialog(t('Connection Error'), translateBackendMessage(msg.replace('DialogMsg: ', '')));
+    if (window._streamStartupFailureHandled) return;
+    var apiDialogMessage = msg.replace('DialogMsg: ', '');
+    var dialogMessage = translateBackendMessage(apiDialogMessage);
+    if (window._directSmartHubLaunch) {
+      // Smart Hub launch has no full UI: retain only a concise status, never API diagnostics.
+      directSmartHubLaunchFailure(t('Unable to launch the selected app.'));
+    } else {
+      pendingStreamDialogMessage = dialogMessage;
+      pendingStreamApiMessage = apiDialogMessage;
+      $('#loadingSpinnerTitle').text(t('Connection Error'));
+      $('#loadingSpinnerMessage').text(t('Unable to launch the selected app.'));
+    }
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
+    // A late first-frame notification must not revive a stream whose startup failed.
+    if (window._streamStartupFailureHandled) return;
+    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
     // "playing" event is also wired as a fallback for builds that omit this message.
@@ -1099,13 +1332,11 @@ function handleMessage(msg) {
         }, 100);
       }
     } else {
-      $('#listener').addClass('fullscreen');
-    }
-    // Hide the lightweight direct-launch status when the video-ready notification arrives.
-    if (window._directSmartHubLaunch) {
-      // Use direct DOM access for compatibility with older Tizen WebKit engines.
-      var directStatusElement = document.getElementById('directSmartHubStatus');
-      if (directStatusElement) directStatusElement.style.display = 'none';
+      if (typeof handleDirectSmartHubVideoReady === 'function') {
+        handleDirectSmartHubVideoReady();
+      } else {
+        $('#listener').addClass('fullscreen');
+      }
     }
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
