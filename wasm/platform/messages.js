@@ -128,8 +128,11 @@ function replaceKnownStatsLabels(text) {
 var performanceStatsStreamTerminated = false;
 var h264TrackRejectionClosingMessage = null;
 var pendingStreamDialogMessage = null;
+var pendingStreamApiMessage = null;
 var pendingMediaPipelineErrorMessage = null;
+var pendingMediaPipelineApiMessage = null;
 var pendingVideoTrackCloseErrorMessage = null;
+var pendingVideoTrackCloseApiMessage = null;
 var pendingMediaPipelineStopRequested = false;
 
 function stopStreamAfterMediaPipelineError() {
@@ -660,8 +663,11 @@ var sendMessage = function(method, params) {
     if (method === 'startRequest') {
       h264TrackRejectionClosingMessage = null;
       pendingStreamDialogMessage = null;
+      pendingStreamApiMessage = null;
       pendingMediaPipelineErrorMessage = null;
+      pendingMediaPipelineApiMessage = null;
       pendingVideoTrackCloseErrorMessage = null;
+      pendingVideoTrackCloseApiMessage = null;
       pendingMediaPipelineStopRequested = false;
     }
     // Starting a request resets the cancel flag in C++, so a canceled pairing request
@@ -814,12 +820,18 @@ function handleMessage(msg) {
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
     var streamDialogMessage = pendingStreamDialogMessage;
+    var streamApiMessage = pendingStreamApiMessage;
     var streamMediaPipelineErrorMessage = pendingMediaPipelineErrorMessage;
+    var streamMediaPipelineApiMessage = pendingMediaPipelineApiMessage;
     var streamVideoTrackCloseErrorMessage = pendingVideoTrackCloseErrorMessage;
+    var streamVideoTrackCloseApiMessage = pendingVideoTrackCloseApiMessage;
     h264TrackRejectionClosingMessage = null;
     pendingStreamDialogMessage = null;
+    pendingStreamApiMessage = null;
     pendingMediaPipelineErrorMessage = null;
+    pendingMediaPipelineApiMessage = null;
     pendingVideoTrackCloseErrorMessage = null;
+    pendingVideoTrackCloseApiMessage = null;
 
     // A startup watchdog already owns the visible error and recovery/exit sequence.
     // Ignore the native stop acknowledgement to prevent a second UI transition.
@@ -858,7 +870,7 @@ function handleMessage(msg) {
           directClosingMessage = t('The local device could not start the video stream.');
           break;
         case -201:
-          directClosingMessage = streamH264TrackRejectionMessage || t('The TV rejected the H.264 video configuration.');
+          directClosingMessage = t('The TV rejected the H.264 video configuration.');
           break;
         default:
           directClosingMessage = t('Connection to %1$s lost.', directHostName);
@@ -873,8 +885,8 @@ function handleMessage(msg) {
         !!streamVideoTrackCloseErrorMessage;
       if (directStreamHasError) {
         directClosingMessage = streamMediaPipelineErrorMessage ||
-          streamDialogMessage || streamH264TrackRejectionMessage ||
-          streamVideoTrackCloseErrorMessage || directClosingMessage;
+          (streamH264TrackRejectionMessage ? t('The TV rejected the H.264 video configuration.') : null) ||
+          streamDialogMessage || streamVideoTrackCloseErrorMessage || directClosingMessage;
       }
       var shouldQuitDirectHostApp = errorCode === 0 &&
         !streamMediaPipelineErrorMessage && !streamDialogMessage &&
@@ -962,7 +974,7 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The local device could not start the video stream.');
           break;
         case -201:
-          transitionStatusMessage = streamH264TrackRejectionMessage || t('The TV rejected the H.264 video configuration.');
+          transitionStatusMessage = t('The TV rejected the H.264 video configuration.');
           break;
         default:
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
@@ -980,6 +992,8 @@ function handleMessage(msg) {
     var streamErrorDialogMessage = streamMediaPipelineErrorMessage ||
       streamDialogMessage || streamH264TrackRejectionMessage ||
       streamVideoTrackCloseErrorMessage || transitionStatusMessage;
+    var streamErrorApiMessage = streamMediaPipelineApiMessage ||
+      streamApiMessage || streamVideoTrackCloseApiMessage || null;
 
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
@@ -1139,9 +1153,12 @@ function handleMessage(msg) {
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');
         if (errorQuitButton) errorQuitButton.disabled = false;
-        warningDialog(t('Connection Error'), streamErrorDialogMessage, function() {
+        warningDialog(t('Error'), streamErrorDialogMessage, function() {
           refreshHostAndReturnToApps();
-        }, true, 'OK');
+        }, true, 'OK', {
+          code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
+          apiMessage: streamErrorApiMessage
+        });
         return;
       }
 
@@ -1210,12 +1227,10 @@ function handleMessage(msg) {
     $('#wasm_module').focus();
   } else if (msg.indexOf('MediaPipelineErrorMsg: ') === 0) {
     var mediaErrorPayload = msg.replace('MediaPipelineErrorMsg: ', '');
-    var mediaErrorSeparator = mediaErrorPayload.indexOf('|');
-    var mediaErrorCode = mediaErrorSeparator >= 0 ? mediaErrorPayload.slice(0, mediaErrorSeparator) : 'unknown';
-    var mediaErrorDetail = mediaErrorSeparator >= 0 ? mediaErrorPayload.slice(mediaErrorSeparator + 1).trim() : '';
-    pendingMediaPipelineErrorMessage = t('The TV media player reported an error.') +
-      '\n\n' + t('Media error code: %1$s', mediaErrorCode) +
-      (mediaErrorDetail ? '\n' + t('Details: %1$s', mediaErrorDetail) : '');
+    // Keep the localized explanation as the primary message and preserve the
+    // API payload verbatim for the smaller diagnostic line in the error dialog.
+    pendingMediaPipelineErrorMessage = t('The TV media player reported an error.');
+    pendingMediaPipelineApiMessage = mediaErrorPayload;
     stopStreamAfterMediaPipelineError();
     if (window._directSmartHubLaunch) {
       $('#loadingSpinnerMessage').text(pendingMediaPipelineErrorMessage);
@@ -1223,7 +1238,9 @@ function handleMessage(msg) {
       $('#loadingSpinnerMessage').text(t('The TV media player reported an error.'));
     }
   } else if (msg.indexOf('VideoTrackCloseErrorMsg: ') === 0) {
-    pendingVideoTrackCloseErrorMessage = t(msg.replace('VideoTrackCloseErrorMsg: ', ''));
+    var videoTrackCloseApiMessage = msg.replace('VideoTrackCloseErrorMsg: ', '');
+    pendingVideoTrackCloseErrorMessage = t(videoTrackCloseApiMessage);
+    pendingVideoTrackCloseApiMessage = videoTrackCloseApiMessage;
     stopStreamAfterMediaPipelineError();
     if (window._directSmartHubLaunch) {
       $('#loadingSpinnerMessage').text(pendingVideoTrackCloseErrorMessage);
@@ -1249,18 +1266,22 @@ function handleMessage(msg) {
   } else if (msg.indexOf('TransientMsg: ') === 0) {
     if (window._streamStartupFailureHandled) return;
     var transientMessage = translateBackendMessage(msg.replace('TransientMsg: ', ''));
-    if (window._directSmartHubLaunch) {
+    if (window._directSmartHubLaunch ||
+        (isInGame && window._normalStreamVideoReady !== true && !window._streamStartupFailureHandled)) {
       $('#loadingSpinnerMessage').text(transientMessage);
     } else {
       snackbarLogLong(transientMessage);
     }
   } else if (msg.indexOf('DialogMsg: ') === 0) {
     if (window._streamStartupFailureHandled) return;
-    var dialogMessage = translateBackendMessage(msg.replace('DialogMsg: ', ''));
+    var apiDialogMessage = msg.replace('DialogMsg: ', '');
+    var dialogMessage = translateBackendMessage(apiDialogMessage);
     if (window._directSmartHubLaunch) {
-      directSmartHubLaunchFailure(dialogMessage);
+      // Smart Hub launch has no full UI: retain only a concise status, never API diagnostics.
+      directSmartHubLaunchFailure(t('Unable to launch the selected app.'));
     } else {
       pendingStreamDialogMessage = dialogMessage;
+      pendingStreamApiMessage = apiDialogMessage;
       $('#loadingSpinnerTitle').text(t('Connection Error'));
       $('#loadingSpinnerMessage').text(dialogMessage);
     }
