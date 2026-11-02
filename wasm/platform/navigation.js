@@ -347,6 +347,24 @@ function unmark(target) {
   }
 }
 
+// Clear every highlighted host-grid item before assigning a new selection.
+function unmarkHostGrid() {
+  document.querySelectorAll('#host-grid .hovered').forEach(function(element) {
+    unmark(element);
+  });
+}
+
+function markHostGrid(target) {
+  unmarkHostGrid();
+  if (target) mark(target);
+}
+
+function normalizeHostsViewIndex(view) {
+  const cards = view.func();
+  view.index = cards.length ? Math.max(0, Math.min(view.index, cards.length - 1)) : 0;
+  return cards;
+}
+
 // Get the current ID of a target element
 function elementId(target) {
   const element = resolveElement(target);
@@ -844,10 +862,9 @@ const Views = {
       const cards = this.view.func();
       if (!cards.length) return;
 
-      unmark(cards[this.view.index]);
       this.view.index = (this.view.index - 1 + cards.length) % cards.length;
       const previousItem = cards[this.view.index];
-      mark(previousItem);
+      markHostGrid(previousItem);
       focusElement(previousItem);
       scrollHostCardIntoView(previousItem);
     },
@@ -855,10 +872,9 @@ const Views = {
       const cards = this.view.func();
       if (!cards.length) return;
 
-      unmark(cards[this.view.index]);
       this.view.index = (this.view.index + 1) % cards.length;
       const nextItem = cards[this.view.index];
-      mark(nextItem);
+      markHostGrid(nextItem);
       focusElement(nextItem);
       scrollHostCardIntoView(nextItem);
     },
@@ -890,6 +906,8 @@ const Views = {
       }
     },
     switch: function() {
+      const cards = normalizeHostsViewIndex(this.view);
+      if (!cards.length) return;
       const currentItem = resolveElement(this.view.current());
       updateHostsCarousel();
       if (currentItem && currentItem.id === 'addHostContainer') {
@@ -902,12 +920,13 @@ const Views = {
       }
     },
     enter: function() {
-      mark(this.view.current());
+      const cards = normalizeHostsViewIndex(this.view);
+      markHostGrid(cards[this.view.index]);
       // Disable the IP address text input field when entering the Hosts view
       handleIpTextFieldState(false);
     },
     leave: function() {
-      unmark(this.view.current());
+      unmarkHostGrid();
     },
   },
   HostsNav: {
