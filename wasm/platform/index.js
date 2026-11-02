@@ -3448,10 +3448,10 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
     titleElement.style.display = 'flex';
     titleElement.style.alignItems = 'center';
     var errorIcon = document.createElement('span');
-    errorIcon.className = 'material-icons';
+    errorIcon.className = 'material-symbols-outlined';
     errorIcon.setAttribute('aria-hidden', 'true');
     errorIcon.textContent = 'error';
-    errorIcon.style.fontSize = '28px';
+    errorIcon.style.fontSize = '36px';
     errorIcon.style.marginRight = '10px';
     titleElement.appendChild(errorIcon);
     var errorTitle = document.createElement('span');
