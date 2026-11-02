@@ -130,6 +130,19 @@ var h264TrackRejectionClosingMessage = null;
 var pendingStreamDialogMessage = null;
 var pendingMediaPipelineErrorMessage = null;
 var pendingVideoTrackCloseErrorMessage = null;
+var pendingMediaPipelineStopRequested = false;
+
+function stopStreamAfterMediaPipelineError() {
+  if (pendingMediaPipelineStopRequested || !isInGame || window._streamStartupFailureHandled) return;
+  pendingMediaPipelineStopRequested = true;
+  try {
+    Promise.resolve(sendMessage('stopRequest', [])).catch(function(error) {
+      console.warn('%c[messages.js, stopStreamAfterMediaPipelineError]', 'color: gray;', 'Could not stop the stream after a media pipeline error:', error);
+    });
+  } catch (error) {
+    console.warn('%c[messages.js, stopStreamAfterMediaPipelineError]', 'color: gray;', 'Could not stop the stream after a media pipeline error:', error);
+  }
+}
 
 // Rolling one-minute history for the performance statistics graph.
 var performanceStatsGraphSamples = [];
@@ -648,6 +661,7 @@ var sendMessage = function(method, params) {
       pendingStreamDialogMessage = null;
       pendingMediaPipelineErrorMessage = null;
       pendingVideoTrackCloseErrorMessage = null;
+      pendingMediaPipelineStopRequested = false;
     }
     // Starting a request resets the cancel flag in C++, so a canceled pairing request
     // that is still waiting in the JS queue must not start afterwards
@@ -853,12 +867,15 @@ function handleMessage(msg) {
       var closingMessage = document.getElementById('loadingSpinnerMessage');
       if (closingTitle) closingTitle.textContent = t('Closing %1$s...', directAppName);
       if (closingMessage) closingMessage.textContent = directClosingMessage;
-      if (errorCode !== 0) {
+      if (errorCode !== 0 || streamMediaPipelineErrorMessage || streamDialogMessage ||
+          streamH264TrackRejectionMessage || streamVideoTrackCloseErrorMessage) {
         directClosingMessage = streamMediaPipelineErrorMessage ||
           streamDialogMessage || streamH264TrackRejectionMessage ||
           streamVideoTrackCloseErrorMessage || directClosingMessage;
       }
       var shouldQuitDirectHostApp = errorCode === 0 &&
+        !streamMediaPipelineErrorMessage && !streamDialogMessage &&
+        !streamH264TrackRejectionMessage && !streamVideoTrackCloseErrorMessage &&
         !!(window._directSmartHubStreamSettings &&
           window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var exitDirectLaunch = function() {
@@ -911,7 +928,9 @@ function handleMessage(msg) {
     // Classify the closing transition using only state and error codes already exposed to JavaScript.
     var manualStreamStopRequested = window._manualStreamStopRequested === true;
     window._manualStreamStopRequested = false;
-    var hasStreamError = errorCode !== 0 && !manualStreamStopRequested;
+    var hasStreamError = !manualStreamStopRequested && (errorCode !== 0 ||
+      !!streamMediaPipelineErrorMessage || !!streamDialogMessage ||
+      !!streamH264TrackRejectionMessage || !!streamVideoTrackCloseErrorMessage);
     if (hasStreamError) streamTerminationMinimumVisibleMs = 0;
     var activeStreamAppName = window._activeStreamAppName || t('Apps');
     var activeStreamHostName = window._activeStreamHostName || (typeof api !== 'undefined' && api && api.hostname) || t('Host');
@@ -987,7 +1006,7 @@ function handleMessage(msg) {
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
-    var shouldQuitHostApp = errorCode === 0 &&
+    var shouldQuitHostApp = errorCode === 0 && !hasStreamError &&
       $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -1177,6 +1196,7 @@ function handleMessage(msg) {
     pendingMediaPipelineErrorMessage = t('The TV media player reported an error.') +
       '\n\n' + t('Media error code: %1$s', mediaErrorCode) +
       (mediaErrorDetail ? '\n' + t('Details: %1$s', mediaErrorDetail) : '');
+    stopStreamAfterMediaPipelineError();
     if (window._directSmartHubLaunch) {
       $('#loadingSpinnerMessage').text(pendingMediaPipelineErrorMessage);
     } else if (!window._streamStartupFailureHandled) {
@@ -1184,6 +1204,7 @@ function handleMessage(msg) {
     }
   } else if (msg.indexOf('VideoTrackCloseErrorMsg: ') === 0) {
     pendingVideoTrackCloseErrorMessage = t(msg.replace('VideoTrackCloseErrorMsg: ', ''));
+    stopStreamAfterMediaPipelineError();
     if (window._directSmartHubLaunch) {
       $('#loadingSpinnerMessage').text(pendingVideoTrackCloseErrorMessage);
     }
