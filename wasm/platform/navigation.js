@@ -2307,7 +2307,13 @@ const Views = {
       focusElement(this.view.current());
     },
     enter: function() {
-      mark(this.view.current());
+      const cards = this.view.func();
+      if (!cards || !cards.length) return;
+
+      // The Apps view can be pushed before showApps() has populated the grid.
+      // Keep the selected index valid before marking the current card.
+      this.view.index = Math.max(0, Math.min(this.view.index, cards.length - 1));
+      mark(cards[this.view.index]);
     },
     leave: function() {
       unmark(this.view.current());
