@@ -133,7 +133,8 @@ var pendingVideoTrackCloseErrorMessage = null;
 var pendingMediaPipelineStopRequested = false;
 
 function stopStreamAfterMediaPipelineError() {
-  if (pendingMediaPipelineStopRequested || !isInGame || window._streamStartupFailureHandled) return;
+  if (pendingMediaPipelineStopRequested || !isInGame ||
+      window._streamStartupFailureHandled || window._manualStreamStopRequested) return;
   pendingMediaPipelineStopRequested = true;
   try {
     Promise.resolve(sendMessage('stopRequest', [])).catch(function(error) {
@@ -965,6 +966,13 @@ function handleMessage(msg) {
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
           break;
       }
+    }
+
+    if (hasStreamError && errorCode === 0) {
+      transitionStatusMessage = streamMediaPipelineErrorMessage
+        ? t('The TV media player reported an error.')
+        : (streamDialogMessage || streamH264TrackRejectionMessage ||
+          streamVideoTrackCloseErrorMessage || t('Connection to %1$s lost.', activeStreamHostName));
     }
 
     var streamErrorDialogMessage = streamMediaPipelineErrorMessage ||
