@@ -241,8 +241,10 @@ void MoonlightInstance::VideoTrackListener::OnTrackClosed(EmssTrackCloseReason r
   }
   ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackClosed (reason=%s, value=%d)\n",
     reasonName, static_cast<int>(reason));
-  std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
-  m_Instance->m_VideoStarted = false;
+  {
+    std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
+    m_Instance->m_VideoStarted = false;
+  }
   if (reason == EmssTrackCloseReason::kSourceError) {
     PostToJs("VideoTrackCloseErrorMsg: The media source closed because of an error.");
   }
