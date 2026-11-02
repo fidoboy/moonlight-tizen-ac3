@@ -1142,7 +1142,7 @@ body[data-color-theme="black-orange"] #background-layer {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #host-grid .mdl-shadow--4dp {
     box-shadow: unset;
@@ -1151,7 +1151,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #host-grid .mdl-card:focus, #host-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px var(--theme-accent);
+    box-shadow: 0 0 0 3px var(--theme-accent);
 }
 #host-grid .host-cell-inactive {
     box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
@@ -1160,7 +1160,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px #F44336;
+    box-shadow: 0 0 0 3px #F44336;
 }
 #host-grid .mdl-card__title {
     padding: 0;
@@ -1266,7 +1266,7 @@ body[data-color-theme="black-orange"] #background-layer {
     cursor: pointer;
     text-align: center;
     will-change: transform;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 #game-grid .mdl-card img {
     width: 100%;
@@ -1285,7 +1285,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px var(--theme-accent);
+    box-shadow: 0 0 0 3px var(--theme-accent);
 }
 #game-grid .current-game-active::before {
     content: "";
@@ -1327,7 +1327,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #game-grid .current-game-active:focus, #game-grid .current-game-active:active {
     z-index: 2;
     transform: scale(1.2);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), 0 0 0 3px #8BC34A;
+    box-shadow: 0 0 0 3px #8BC34A;
 }
 #game-grid .mdl-card__title {
     padding: 0;
