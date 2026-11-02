@@ -12,7 +12,17 @@ const SyncFunctions = {
   'startRequest': (...args) => {
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
-    const h264Level = args[33] || 'Auto';
+    const rawH264Level = args[33];
+    const h264Level = rawH264Level == null || rawH264Level === ''
+      ? 'Auto'
+      : String(rawH264Level).replace(/\./g, '_');
+    console.log('[H264] messages.js startRequest', {
+      argumentCount: args.length,
+      levelArgumentIndex: 33,
+      rawLevel: rawH264Level,
+      rawLevelType: typeof rawH264Level,
+      forwardedLevel: h264Level
+    });
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
