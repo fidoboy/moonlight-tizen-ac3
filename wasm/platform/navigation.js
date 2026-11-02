@@ -322,11 +322,11 @@ function clickElement(target) {
 }
 
 // Mark an element based on various target types
+// Mark one element, ensuring no previous selection remains highlighted anywhere.
 function mark(target) {
+  unmark();
   const element = resolveElement(target);
-  // Check if the element exists before marking
   if (element) {
-    // Add the hovered class and dispatch the event
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
   } else {
@@ -334,29 +334,12 @@ function mark(target) {
   }
 }
 
-// Unmark an element based on various target types
-function unmark(target) {
-  const element = resolveElement(target);
-  // Check if the element exists before un-marking
-  if (element) {
-    // Remove the hovered class and dispatch the event
+// Clear every highlighted element in the interface.
+function unmark() {
+  document.querySelectorAll('.' + hoveredClassName).forEach(function(element) {
     element.classList.remove(hoveredClassName);
     element.dispatchEvent(new Event('mouseleave'));
-  } else {
-    console.error('%c[navigation.js, unmark]', 'color: gray;', 'Cannot unmark the unresolved target:', target);
-  }
-}
-
-// Clear every highlighted host-grid item before assigning a new selection.
-function unmarkHostGrid() {
-  document.querySelectorAll('#host-grid .hovered').forEach(function(element) {
-    unmark(element);
   });
-}
-
-function markHostGrid(target) {
-  unmarkHostGrid();
-  if (target) mark(target);
 }
 
 function normalizeHostsViewIndex(view) {
@@ -864,7 +847,7 @@ const Views = {
 
       this.view.index = (this.view.index - 1 + cards.length) % cards.length;
       const previousItem = cards[this.view.index];
-      markHostGrid(previousItem);
+      mark(previousItem);
       focusElement(previousItem);
       scrollHostCardIntoView(previousItem);
     },
@@ -874,7 +857,7 @@ const Views = {
 
       this.view.index = (this.view.index + 1) % cards.length;
       const nextItem = cards[this.view.index];
-      markHostGrid(nextItem);
+      mark(nextItem);
       focusElement(nextItem);
       scrollHostCardIntoView(nextItem);
     },
@@ -921,12 +904,12 @@ const Views = {
     },
     enter: function() {
       const cards = normalizeHostsViewIndex(this.view);
-      markHostGrid(cards[this.view.index]);
+      mark(cards[this.view.index]);
       // Disable the IP address text input field when entering the Hosts view
       handleIpTextFieldState(false);
     },
     leave: function() {
-      unmarkHostGrid();
+      unmark();
     },
   },
   HostsNav: {
