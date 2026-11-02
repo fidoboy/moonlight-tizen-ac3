@@ -3150,26 +3150,97 @@ function checkVersionUpdate(currentVersion, latestVersion) {
 }
 
 // Extract only the release notes section from the released update
-function extractReleaseNotes(releaseNotes) {
-  // Support both upstream "What's Changed" notes and this project's "Highlights" section
-  const match = releaseNotes.match(/## (?:What's Changed:?|Highlights)\r?\n+([\s\S]+?)(?=\r?\n+## |\r?\n+\*\*Full Changelog\*\*|$)/);
-  // Return null if release notes section is not found or does not match expected format
-  if (!match) {
-    return null;
+// Render the small Markdown subset used by GitHub release highlights without trusting remote HTML.
+function appendReleaseNoteInlineMarkdown(parent, text) {
+  const tokenPattern = /(\[([^\]]+)\]\((https:\/\/[^\s)]+)\)|\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tokenPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parent.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+
+    if (match[2] && /^https:\/\/[^\s]+$/i.test(match[3])) {
+      const link = document.createElement('a');
+      link.textContent = match[2];
+      link.href = match[3];
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      parent.appendChild(link);
+    } else if (match[4] !== undefined) {
+      const strong = document.createElement('strong');
+      strong.textContent = match[4];
+      parent.appendChild(strong);
+    } else if (match[5] !== undefined) {
+      const emphasis = document.createElement('em');
+      emphasis.textContent = match[5];
+      parent.appendChild(emphasis);
+    } else {
+      parent.appendChild(document.createTextNode(match[0]));
+    }
+
+    lastIndex = tokenPattern.lastIndex;
   }
-  // Clean and format each release note line into a user-friendly bullet list
-  return match[1].split('\n').map(line => {
-	  let cleaned = line.trim();
-	  // Remove contributor attribution and PR references
-	  cleaned = cleaned.replace(/\s+by\s+@[^]+$/i, '');
-	  // Convert list item to bullet point
-	  cleaned = cleaned.replace(/^-\s*/, '• ');
-	  // Add trailing period if missing
-	  if (cleaned && !cleaned.endsWith('.')) {
-	    cleaned += '.';
-	  }
-	  return cleaned;
-  }).filter(line => line !== '').join('<br>');
+
+  if (lastIndex < text.length) {
+    parent.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+}
+
+function renderReleaseNotesMarkdown(markdown, container) {
+  container.textContent = '';
+  const lines = String(markdown || '').replace(/\r\n?/g, '\n').split('\n');
+  let paragraphLines = [];
+  let list = null;
+
+  function flushParagraph() {
+    if (!paragraphLines.length) return;
+    const paragraph = document.createElement('p');
+    paragraph.className = 'update-release-notes-paragraph';
+    appendReleaseNoteInlineMarkdown(paragraph, paragraphLines.join(' '));
+    container.appendChild(paragraph);
+    paragraphLines = [];
+  }
+
+  lines.forEach(function(line) {
+    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+    if (bullet) {
+      flushParagraph();
+      if (!list) {
+        list = document.createElement('ul');
+        list.className = 'update-release-notes-list';
+        container.appendChild(list);
+      }
+      const item = document.createElement('li');
+      appendReleaseNoteInlineMarkdown(item, bullet[1].trim());
+      list.appendChild(item);
+      return;
+    }
+
+    list = null;
+    if (!line.trim()) {
+      flushParagraph();
+      return;
+    }
+    paragraphLines.push(line.trim());
+  });
+
+  flushParagraph();
+}
+
+// Extract only the release notes section from the released update.
+function extractReleaseNotes(releaseNotes) {
+  // Support both upstream "What's Changed" notes and this project's "Highlights" section.
+  const match = String(releaseNotes || '').match(/## (?:What's Changed:?|Highlights)\r?\n+([\s\S]+?)(?=\r?\n+## |\r?\n+\*\*Full Changelog\*\*|$)/);
+  if (!match) return null;
+
+  return match[1].split('\n').map(function(line) {
+    let cleaned = line.trim();
+    cleaned = cleaned.replace(/\s+by\s+@[^]+$/i, '');
+    if (cleaned && !cleaned.endsWith('.')) cleaned += '.';
+    return cleaned;
+  }).filter(Boolean).join('\n');
 }
 
 // Format the update timestamp into a readable string as "dd/mm/yyyy hh:mm"
@@ -3266,17 +3337,29 @@ function updateAppButton(latestVersion) {
 
 // Show the Update Moonlight dialog
 function updateAppDialog(latestVersion, releaseNotes) {
-  // Find the existing overlay and dialog elements
   var updateAppDialogOverlay = $('#updateAppDialogOverlay');
   var updateAppDialog = $('#updateAppDialog');
+  const content = document.getElementById('updateAppDialogText');
+  content.textContent = '';
 
-  // Update the dialog text dynamically
-  $('#updateAppDialogText').html(
-	t('Version %1$s is now available! Update manually to enjoy new features and improvements.<br><br>', latestVersion) + 
-	t('<strong>What\'s Changed:</strong><br>%1$s', releaseNotes)
-  );
+  const intro = document.createElement('p');
+  intro.className = 'update-release-notes-intro';
+  const introText = t('Version %1$s is now available! Update manually to enjoy new features and improvements.<br><br>', latestVersion)
+    .replace(/<br\\s*\\/?\\s*>/gi, '\\n');
+  introText.split('\\n').forEach(function(part, index) {
+    if (index > 0) intro.appendChild(document.createElement('br'));
+    if (part) intro.appendChild(document.createTextNode(part));
+  });
+  content.appendChild(intro);
 
-  // Set up the Close button
+  const heading = document.createElement('p');
+  heading.className = 'update-release-notes-heading';
+  const headingStrong = document.createElement('strong');
+  headingStrong.textContent = "What's Changed:";
+  heading.appendChild(headingStrong);
+  content.appendChild(heading);
+  renderReleaseNotesMarkdown(releaseNotes, content);
+
   $('#closeUpdateApp').off('click').on('click', function() {
     console.log('%c[index.js, updateAppDialog]', 'color: green;', 'Closing app dialog and returning.');
     updateAppDialogOverlay.css('display', 'none');
@@ -3286,22 +3369,16 @@ function updateAppDialog(latestVersion, releaseNotes) {
     Navigation.switch();
   });
 
-  // Check if the dialog element does not support the showModal method
   if (!updateAppDialog[0].showModal) {
-    // Register the dialog with dialogPolyfill to enable modal functionality for older browsers
     dialogPolyfill.registerDialog(updateAppDialog[0]);
   }
 
-  // Start the release notes at the top whenever the dialog is opened.
   document.getElementById('updateAppDialogContent').scrollTop = 0;
-
-  // Show the dialog and push the view
   fadeInUiElement(updateAppDialogOverlay, 'flex');
   showUiDialog(updateAppDialog[0]);
   isDialogOpen = true;
   Navigation.push(Views.UpdateMoonlightDialog);
 
-  // Reset after the dialog is visible and after navigation has applied focus.
   const updateDialogContent = document.getElementById('updateAppDialogContent');
   requestAnimationFrame(() => {
     updateDialogContent.scrollTop = 0;
