@@ -21,6 +21,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Fixed
 - **H.264 MIME profile:** Replaced the fixed Level 4.2 codec string with a resolution- and frame-rate-aware profile-level-id. Automatic mode advertises the recommended level; a manual selection overrides it. Neither mode implies that every TV decoder supports the selected level.
 - **Docker build directory ownership:** Ensured the Moonlight project directory is created with the correct build-user ownership, allowing the build process to access Git metadata and inject the commit SHA reliably.
+- **Graceful stream disconnection (Moonlight Common C):** Fixed the ENet disconnect interceptor so it also recognizes disconnect datagrams with the shorter header that omits the optional `sentTime` field. This allows Moonlight to process the host's graceful termination notification instead of treating the session as an unexpected connection loss.
 
 
 ## v1.0.9
