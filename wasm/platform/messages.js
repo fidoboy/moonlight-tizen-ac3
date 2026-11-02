@@ -857,8 +857,10 @@ function handleMessage(msg) {
           directClosingMessage = t('Streaming session with %1$s ended normally.', directHostName);
           break;
         case -100:
+          directClosingMessage = t('No video packets were received from %1$s.', directHostName);
+          break;
         case -101:
-          directClosingMessage = t('Video stream from %1$s stopped being received.', directHostName);
+          directClosingMessage = t('A keyframe from %1$s could not be received.', directHostName);
           break;
         case -102:
           directClosingMessage = t('The connection to %1$s ended unexpectedly.', directHostName);
@@ -966,8 +968,10 @@ function handleMessage(msg) {
           transitionStatusMessage = t('Streaming session with %1$s ended normally.', activeStreamHostName);
           break;
         case -100:
+          transitionStatusMessage = t('No video packets were received from %1$s.', activeStreamHostName);
+          break;
         case -101:
-          transitionStatusMessage = t('Video stream from %1$s stopped being received.', activeStreamHostName);
+          transitionStatusMessage = t('A keyframe from %1$s could not be received.', activeStreamHostName);
           break;
         case -102:
           transitionStatusMessage = t('The connection to %1$s ended unexpectedly.', activeStreamHostName);
@@ -999,7 +1003,10 @@ function handleMessage(msg) {
 
     var streamErrorDialogMessage = streamMediaPipelineErrorMessage ||
       streamDialogMessage || streamH264TrackRejectionMessage ||
-      streamVideoTrackCloseErrorMessage || transitionStatusMessage;
+      streamVideoTrackCloseErrorMessage ||
+      (errorCode === -101
+        ? t('The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).')
+        : transitionStatusMessage);
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
 
