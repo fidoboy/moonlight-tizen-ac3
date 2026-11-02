@@ -44,7 +44,7 @@ const STREAM_OPERATION_TIMEOUTS = {
   hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
   hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 10000
 };
-const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
+const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 4500;
 var streamStartupWatchdogTimeout = null;
 var streamStartupFailureHandled = false;
 var streamStartupGeneration = 0;
@@ -7981,7 +7981,7 @@ function directSmartHubLaunchFailure(message) {
     window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
-    }, 4500);
+    }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
   else {
