@@ -4558,6 +4558,9 @@ function startStreamEncryptionStatusPolling() {
 }
 
 function showStreamTransitionBackground(onVisible) {
+  // The stream menu must never remain visible above a startup or shutdown transition.
+  if ($('#streamMenuDialogOverlay').length > 0) closeStreamMenuDialog(false);
+
   if (streamTransitionRevealTimeout !== null) { window.clearTimeout(streamTransitionRevealTimeout); streamTransitionRevealTimeout = null; }
   if (streamTransitionStatusTimeout !== null) { window.clearTimeout(streamTransitionStatusTimeout); streamTransitionStatusTimeout = null; }
   if (streamTransitionHideLayerTimeout !== null) { window.clearTimeout(streamTransitionHideLayerTimeout); streamTransitionHideLayerTimeout = null; }
@@ -5487,11 +5490,18 @@ function directSmartHubVideoReady(videoElement) {
 
 function toggleStreamMenuDialog() {
   var videoElement = document.getElementById('wasm_module');
+  var streamMenuDialogOverlay = $('#streamMenuDialogOverlay');
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  var transitionActive = streamTransitionVisible ||
+    (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none');
+  var videoReady = videoElement && videoElement.style.display !== 'none' &&
+    videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0;
+  var streamReady = window._normalStreamVideoReady || window._directSmartHubVideoReady;
 
-  if ($('#streamMenuDialogOverlay').length > 0) {
-    closeStreamMenuDialog(true);
-  } else if (videoElement && !isDialogOpen && videoElement.style.display !== 'none' &&
-      (!window._directSmartHubLaunch || directSmartHubVideoReady(videoElement))) {
+  if (streamMenuDialogOverlay.length > 0) {
+    // During teardown, close without returning focus to a video covered by the transition.
+    closeStreamMenuDialog(isInGame && !transitionActive && streamReady && videoReady);
+  } else if (isInGame && !transitionActive && streamReady && videoReady && !isDialogOpen) {
     streamMenuDialog();
   }
 }
