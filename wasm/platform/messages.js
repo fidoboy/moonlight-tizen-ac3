@@ -985,10 +985,20 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
         return;
       }
-      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       var restoration = typeof setNavigationSoundEnabled === 'function'
         ? withOperationTimeout(setNavigationSoundEnabled(navigationSoundPreferenceEnabled), 10000, 'Local audio restoration')
         : Promise.resolve();
+      if (hasStreamError) {
+        // Do not hold the user on the transition for local UI audio restoration after
+        // a connection failure. The interface can return immediately while audio
+        // restoration completes independently in the background.
+        Promise.resolve(restoration).catch(function(audioRestoreError) {
+          console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
+        });
+        resolveLocalAudioRestoration();
+        return;
+      }
+      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
       Promise.resolve(restoration).catch(function(audioRestoreError) {
         // A sound-effects failure must not strand the user in the closing transition.
         console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
@@ -1114,7 +1124,7 @@ function handleMessage(msg) {
         // host's app list only after the dialog is dismissed.
         if (typeof unlockAppListInteraction === 'function') unlockAppListInteraction();
         if (typeof finishAppsModeAfterStreamTransition === 'function') {
-          finishAppsModeAfterStreamTransition();
+          finishAppsModeAfterStreamTransition(true);
         }
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');
