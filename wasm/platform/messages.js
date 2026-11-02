@@ -868,8 +868,10 @@ function handleMessage(msg) {
       var closingMessage = document.getElementById('loadingSpinnerMessage');
       if (closingTitle) closingTitle.textContent = t('Closing %1$s...', directAppName);
       if (closingMessage) closingMessage.textContent = directClosingMessage;
-      if (errorCode !== 0 || streamMediaPipelineErrorMessage || streamDialogMessage ||
-          streamH264TrackRejectionMessage || streamVideoTrackCloseErrorMessage) {
+      var directStreamHasError = errorCode !== 0 || !!streamMediaPipelineErrorMessage ||
+        !!streamDialogMessage || !!streamH264TrackRejectionMessage ||
+        !!streamVideoTrackCloseErrorMessage;
+      if (directStreamHasError) {
         directClosingMessage = streamMediaPipelineErrorMessage ||
           streamDialogMessage || streamH264TrackRejectionMessage ||
           streamVideoTrackCloseErrorMessage || directClosingMessage;
@@ -888,7 +890,7 @@ function handleMessage(msg) {
       };
       var finishDirectLaunch = function() {
         // Keep the closing status visible long enough to be read before leaving Tizen.
-        window.setTimeout(exitDirectLaunch, 4500);
+        window.setTimeout(exitDirectLaunch, directStreamHasError ? 4500 : 3000);
       };
 
       var showDirectClosingTransition = function() {
