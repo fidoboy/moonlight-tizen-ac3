@@ -3189,7 +3189,6 @@ function appendReleaseNoteInlineMarkdown(parent, text) {
 }
 
 function renderReleaseNotesMarkdown(markdown, container) {
-  container.textContent = '';
   const lines = String(markdown || '').replace(/\r\n?/g, '\n').split('\n');
   let paragraphLines = [];
   let list = null;
