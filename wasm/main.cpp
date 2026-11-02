@@ -63,12 +63,14 @@ MoonlightInstance::MoonlightInstance()
     m_SourceListener(this),
     m_AudioTrackListener(this),
     m_VideoTrackListener(this),
+    m_MediaElementListener(this),
     m_AudioTrack(),
     m_VideoTrack(),
     m_ConnectionCancelled(false),
     m_StopThread(0),
     m_SourceClosed(false),
     m_SourceAttached(false) {
+      m_MediaElement.SetListener(&m_MediaElementListener);
       m_Dispatcher.start();
     }
 
