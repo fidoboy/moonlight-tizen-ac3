@@ -113,7 +113,12 @@ static const H264LevelLimit* SelectH264Level(int width, int height, int frameRat
 
 static const H264LevelLimit* FindH264Level(const std::string& levelName) {
   for (const auto& level : kH264LevelLimits) {
-    if (level.name == levelName) {
+    std::string levelId = level.name;
+    for (char& character : levelId) {
+      if (character == '.') character = '_';
+    }
+    // Accept both the new transport-safe identifier and legacy dotted preferences.
+    if (levelId == levelName || level.name == levelName) {
       return &level;
     }
   }
@@ -411,6 +416,8 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     std::string h264MimeType;
     std::string h264LevelName;
     if (videoFormat & VIDEO_FORMAT_H264) {
+      ClLogMessage("[H264] StartupVidDecSetup received stored identifier '%s' (%dx%d at %d FPS)\n",
+        g_Instance->m_H264Level.c_str(), width, height, redrawRate);
       const bool automaticLevel = g_Instance->m_H264Level == "Auto";
       const auto* h264Level = automaticLevel
         ? SelectH264Level(width, height, redrawRate)
@@ -432,6 +439,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         h264Level->levelIdc);
       h264MimeType = codecString;
       mimetype = h264MimeType.c_str();
+      ClLogMessage("[H264] Resolved identifier '%s' to Level %s (level_idc=%u, %s); MIME='%s'\n",
+        g_Instance->m_H264Level.c_str(), h264Level->name, static_cast<unsigned>(h264Level->levelIdc),
+        automaticLevel ? "automatic" : "manual override", mimetype);
       ClLogMessage("Video codec profile selected: H.264 High Profile Level %s (%s, %dx%d at %d FPS)\n",
         h264Level->name, automaticLevel ? "automatic" : "manual override", width, height, redrawRate);
     } else if (videoFormat & VIDEO_FORMAT_H265) {
@@ -474,7 +484,11 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
     if (add_track_result) {
       g_Instance->m_VideoTrack = std::move(*add_track_result);
       g_Instance->m_VideoTrack.SetListener(&g_Instance->m_VideoTrackListener);
+      if (videoFormat & VIDEO_FORMAT_H264) {
+        ClLogMessage("[H264] AddTrack accepted MIME='%s'\n", mimetype);
+      }
     } else {
+      ClLogMessage("[H264] AddTrack rejected MIME='%s' (%dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
       ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
       if (videoFormat & VIDEO_FORMAT_H264) {
         PostToJs(std::string("H264TrackRejectedMsg: ") + h264LevelName + "," +
