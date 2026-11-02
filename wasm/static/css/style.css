@@ -943,6 +943,26 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: normal;
     letter-spacing: 0.5px;
 }
+#updateAppDialogText .update-release-notes-intro {
+    margin: 0 0 1.1rem;
+}
+#updateAppDialogText .update-release-notes-heading {
+    margin: 0 0 0.35rem;
+}
+#updateAppDialogText .update-release-notes-paragraph {
+    margin: 0 0 0.65rem;
+}
+#updateAppDialogText .update-release-notes-list {
+    margin: 0.25rem 0 1rem;
+    padding-left: 1.5em;
+}
+#updateAppDialogText .update-release-notes-list li {
+    margin-bottom: 0.45rem;
+}
+#updateAppDialogText a {
+    color: var(--theme-accent);
+    text-decoration: underline;
+}
 #autoWolCheckboxContainer {
     margin-top: 36px;
     margin-bottom: 16px;
