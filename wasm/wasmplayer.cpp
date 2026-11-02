@@ -41,6 +41,7 @@ static constexpr uint32_t kSampleRate = 48000;
 static constexpr std::chrono::milliseconds kMediaSetupTimeout{5000};
 
 static uint32_t s_VideoFormat = 0;
+static std::string s_H264LevelName;
 static uint32_t s_Width = 0;
 static uint32_t s_Height = 0;
 static uint32_t s_Framerate = 0;
@@ -285,6 +286,8 @@ bool MoonlightInstance::InitializeRenderingSurface(int width, int height) {
 }
 
 int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags) {
+  // Clear the previous session's level before selecting the codec for this stream.
+  s_H264LevelName.clear();
   // Bind the media source to the media element
   g_Instance->m_MediaElement.SetSrc(g_Instance->m_Source.get());
   g_Instance->m_SourceAttached = true;
@@ -427,6 +430,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         return -1;
       }
       h264LevelName = h264Level->name;
+      s_H264LevelName = h264LevelName;
 
       char codecString[64];
       std::snprintf(codecString, sizeof(codecString), "video/mp4; codecs=\"avc1.6400%02X\"",
@@ -912,6 +916,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   int ret;
   int offset = 0;
   const char* codecString;
+  std::string codecStringStorage;
 
   // Start with an empty string
   output[offset] = 0;
@@ -919,7 +924,10 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   // Determine the video format being used and assign a readable string
   switch (s_VideoFormat) {
     case VIDEO_FORMAT_H264: // H.264 codec
-      codecString = "H.264";
+      codecStringStorage = s_H264LevelName.empty()
+        ? "H.264"
+        : "H.264 L" + s_H264LevelName;
+      codecString = codecStringStorage.c_str();
       break;
     case VIDEO_FORMAT_H265: // HEVC codec
       codecString = "HEVC";
