@@ -4932,6 +4932,9 @@ function startGame(host, appID) {
         dolbyDecodingMode = $('#selectDolbyDecodingMode').data('value') || 'Hardware';
       }
 
+      // Keep H.264 level identifiers transport-safe and compatible with older saved preferences.
+      h264Level = normalizeH264LevelId(h264Level);
+
       rikey = generateRemoteInputKey();
       rikeyid = generateRemoteInputKeyId();
       gamepadMask = getConnectedGamepadMask();
@@ -6497,8 +6500,13 @@ function saveVideoCodec() {
   updateH264LevelControlState();
 }
 
+function normalizeH264LevelId(value) {
+  const level = value == null ? 'Auto' : String(value).trim();
+  return level === 'Auto' ? 'Auto' : level.replace(/\./g, '_');
+}
+
 function saveH264Level() {
-  var chosenLevel = $(this).data('value');
+  var chosenLevel = normalizeH264LevelId($(this).data('value'));
   $('#selectH264Level').text($(this).text())
     .attr('data-value', chosenLevel).data('value', chosenLevel);
   console.log('%c[index.js, saveH264Level]', 'color: green;', 'Saving H.264 level override: ' + chosenLevel);
@@ -7161,7 +7169,7 @@ function loadDirectSmartHubStreamSettings() {
       playHostAudio: boolValue(stored.playHostAudio, false) ? 1 : 0,
       decryptHostAudio: boolValue(stored.decryptHostAudio, false) ? 1 : 0,
       videoCodec: stored.videoCodec || 'H264',
-      h264Level: stored.h264Level == null ? 'Auto' : String(stored.h264Level),
+      h264Level: normalizeH264LevelId(stored.h264Level),
       hdrMode: boolValue(stored.hdrMode, false) ? 1 : 0,
       fullRange: boolValue(stored.fullRange, false) ? 1 : 0,
       gameMode: boolValue(stored.gameMode, gameModeDefault) ? 1 : 0,
@@ -7500,7 +7508,7 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored H.264 level preference.');
   getData('h264Level', function(previousValue) {
     const savedLevel = previousValue && previousValue.h264Level;
-    const selectedLevel = savedLevel == null ? 'Auto' : String(savedLevel);
+    const selectedLevel = normalizeH264LevelId(savedLevel);
     $('.h264LevelMenu li').each(function() {
       if ($(this).data('value') === selectedLevel) {
         $('#selectH264Level').text($(this).text())
