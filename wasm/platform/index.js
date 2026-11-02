@@ -12,7 +12,7 @@ var panelCapabilitiesChecked = false;
 var maxSupportedWidth = 1920;
 var maxSupportedHeight = 1080;
 
-// Display capabilities are queried when the Video settings are opened.
+// Display capabilities are queried once when the Settings screen is entered.
 var isHdrCapable = null;
 var hosts = {}; // Hosts is an associative array of NvHTTP objects, keyed by server UID
 var isHostOpening = false; // Prevents concurrent hostChosen executions, initial value is false
@@ -529,7 +529,6 @@ function attachListeners() {
   });
 
   initIpAddressFields();
-  filterUnsupportedResolutions();
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
@@ -1774,7 +1773,6 @@ function filterUnsupportedResolutions() {
 }
 
 function updateVideoResolutionAvailability() {
-  refreshPanelResolutionCapabilities();
   filterUnsupportedResolutions();
 
   var selectedResolution = $('#selectResolution').attr('data-value') || $('#selectResolution').data('value');
@@ -2812,6 +2810,13 @@ function showSettings() {
   // Stop every ambient background before the Settings loading/transition screen is shown.
   updateAmbientBackgroundActivation(false);
 
+  // Query display capabilities once on entry so every Settings category can use
+  // the same panel resolution and HDR information without repeating the queries.
+  refreshPanelResolutionCapabilities();
+  refreshHdrCapability();
+  updateVideoResolutionAvailability();
+  updateHdrControlState();
+
   // Restore the Settings screen to its initial category and clear any previously
   // selected category or visible options before entering it again.
   Views.Settings.view.reset();
@@ -2892,13 +2897,6 @@ function navigateSettingsView(view) {
 
 // Handle category selection, display appropriate options, and navigate to the provided settings pane
 function handleSettingsView(category) {
-  // Refresh display capabilities before exposing the Video settings.
-  if (category === 'videoSettings') {
-    updateVideoResolutionAvailability();
-    refreshHdrCapability();
-    updateHdrControlState();
-  }
-
   // Reset the current settings view before navigating to the next settings view
   resetSettingsView();
 
