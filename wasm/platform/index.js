@@ -138,7 +138,7 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     isInGame = false;
     showHosts(function() {
       hideStreamTransitionBackground(function() {
-        warningDialog(t('Connection Error'), message, null, true);
+        warningDialog(t('Connection Error'), message, null, true, 'OK');
       });
     });
   };
@@ -3381,7 +3381,7 @@ function restoreDefaultsDialog() {
 }
 
 // Show the Warning dialog
-function warningDialog(title, message, onClose, plainText) {
+function warningDialog(title, message, onClose, plainText, buttonLabel) {
   // Find the existing overlay and dialog elements
   var warningDialogOverlay = document.querySelector('#warningDialogOverlay');
   var warningDialog = document.querySelector('#warningDialog');
@@ -3400,6 +3400,11 @@ function warningDialog(title, message, onClose, plainText) {
   isDialogOpen = true;
   Navigation.push(Views.WarningDialog);
 
+  // Use an explicit acknowledgement label for connection errors; restore the
+  // standard Close label after dismissal so other warning dialogs remain unchanged.
+  var acknowledgementLabel = buttonLabel || 'Close';
+  $('#closeWarning').attr('data-i18n', acknowledgementLabel).text(t(acknowledgementLabel));
+
   // Ensure the continueWarning button is hidden for standard warnings
   $('#continueWarning').hide();
   // Add single-button class for CSS styling when only Close button is visible
@@ -3413,6 +3418,7 @@ function warningDialog(title, message, onClose, plainText) {
     closeUiDialog(warningDialog);
     isDialogOpen = false;
     warningDialog.classList.remove('single-button');
+    $('#closeWarning').attr('data-i18n', 'Close').text(t('Close'));
     Navigation.pop();
     Navigation.switch();
     if (typeof onClose === 'function') onClose();
