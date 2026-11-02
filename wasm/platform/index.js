@@ -3553,7 +3553,7 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
   fadeInUiElement(warningDialogOverlay, 'flex');
   showUiDialog(warningDialog);
   isDialogOpen = true;
-  Navigation.push(Views.WarningDialog);
+  Navigation.push(Views.WarningDialog, undefined, !!streamErrorDetails);
 
   // Use an explicit acknowledgement label for connection errors; restore the
   // standard Close label after dismissal so other warning dialogs remain unchanged.
