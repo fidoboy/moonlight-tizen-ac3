@@ -2810,13 +2810,6 @@ function showSettings() {
   // Stop every ambient background before the Settings loading/transition screen is shown.
   updateAmbientBackgroundActivation(false);
 
-  // Query display capabilities once on entry so every Settings category can use
-  // the same panel resolution and HDR information without repeating the queries.
-  refreshPanelResolutionCapabilities();
-  refreshHdrCapability();
-  updateVideoResolutionAvailability();
-  updateHdrControlState();
-
   // Restore the Settings screen to its initial category and clear any previously
   // selected category or visible options before entering it again.
   Views.Settings.view.reset();
@@ -2844,6 +2837,13 @@ function showSettings() {
   $('#wasmSpinnerMessage').text(t('Loading Settings...'));
 
   setTimeout(() => {
+    // The loading spinner has now been visible for 500 ms. Query panel and HDR
+    // capabilities while it remains on screen, then apply them before showing Settings.
+    refreshPanelResolutionCapabilities();
+    refreshHdrCapability();
+    updateVideoResolutionAvailability();
+    updateHdrControlState();
+
     // Hide the spinner after successfully retrieving the setting list
     $('#wasmSpinner').hide();
 
