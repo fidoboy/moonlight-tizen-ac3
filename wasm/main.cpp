@@ -346,9 +346,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   PostToJs("Setting the Play host audio to: " + std::to_string(playHostAudio));
   PostToJs("Setting the Decrypt host audio to: " + std::to_string(decryptHostAudio));
   PostToJs("Setting the Video codec to: " + videoCodec);
-  ClLogMessage("[H264] StartStream received level identifier '%s'\n", h264Level.c_str());
   m_H264Level = h264Level.empty() ? "Auto" : h264Level;
-  ClLogMessage("[H264] Stored level identifier '%s'\n", m_H264Level.c_str());
   PostToJs("Setting the H.264 level override to: " + m_H264Level);
   PostToJs("Setting the Video HDR mode to: " + std::to_string(hdrMode));
   PostToJs("Setting the Full color range to: " + std::to_string(fullRange));
