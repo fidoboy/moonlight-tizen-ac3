@@ -1283,7 +1283,7 @@ function handleMessage(msg) {
       pendingStreamDialogMessage = dialogMessage;
       pendingStreamApiMessage = apiDialogMessage;
       $('#loadingSpinnerTitle').text(t('Connection Error'));
-      $('#loadingSpinnerMessage').text(dialogMessage);
+      $('#loadingSpinnerMessage').text(t('Unable to launch the selected app.'));
     }
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
     // A late first-frame notification must not revive a stream whose startup failed.
