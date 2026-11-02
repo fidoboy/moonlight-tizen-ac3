@@ -150,6 +150,59 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   }
 }
 
+// Non-timeout host launch failures follow the same transition -> UI -> error-dialog
+// sequence, while retaining the host API status code and its original message.
+function streamStartupApiFailure(host, message, errorCode, apiMessage) {
+  if (streamStartupFailureHandled) return;
+  streamStartupFailureHandled = true;
+  streamStartupGeneration++;
+  window._streamStartupFailureHandled = true;
+  clearStreamStartupWatchdog();
+
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(message);
+    return;
+  }
+
+  var numericErrorCode = errorCode == null || errorCode === ''
+    ? null : Number(errorCode);
+  if (!Number.isFinite(numericErrorCode) || numericErrorCode === 0) {
+    numericErrorCode = null;
+  }
+  var rawApiMessage = typeof apiMessage === 'string' ? apiMessage : '';
+  $('#loadingSpinnerTitle').text(t('Connection Error'));
+  $('#loadingSpinnerMessage').text(message);
+  isInGame = false;
+
+  var showErrorDialog = function() {
+    hideStreamTransitionBackground(function() {
+      warningDialog(t('Error'), message, null, true, 'OK', {
+        code: numericErrorCode,
+        apiMessage: rawApiMessage
+      });
+    });
+  };
+
+  showApps(host, {
+    suppressLoadingSnackbar: true,
+    suppressEmptyListSnackbar: true
+  }).then(function() {
+    Navigation.switch();
+    Navigation.change(Views.Apps);
+    showErrorDialog();
+  }).catch(function(recoveryError) {
+    console.error('%c[index.js, streamStartupApiFailure]', 'color: red;', 'Could not restore the Apps view after a launch error:', recoveryError);
+    // Fall back to Hosts without showing a secondary snackbar that could obscure the error.
+    showHostsMode(true, true);
+    $('#host-grid').stop(true, true).show();
+    $('#game-grid').stop(true, true).hide();
+    $('#settings-list').hide();
+    Navigation.change(Views.Hosts);
+    Navigation.switch();
+    showErrorDialog();
+  });
+}
+
 // Shared UI timing: change this single value to tune all interface fades.
 const UI_FADE_DURATION_MS = 300;
 const STREAM_TRANSITION_ELEMENT_OFFSET_MS = 100;
@@ -4983,19 +5036,17 @@ function startGame(host, appID) {
           var status_code = $root.attr('status_code');
           var status_message = $root.attr('status_message');
           if (status_code != 200) {
+            var apiStatusMessage = status_message;
             if (_directSmartHubLaunch) {
-              directSmartHubLaunchFailure(t('Error %1$s: %2$s', status_code, status_message));
+              directSmartHubLaunchFailure(t('Failed to resume %1$s', appToStart.title));
               return;
             }
-            $('#loadingSpinnerMessage').text('');
-            snackbarLogLong('Error %1$s: %2$s', status_code, status_message);
-            showApps(host).then(() => {
-              // Scroll to the current game row
-              Navigation.switch();
-              // Switch to Apps view
-              Navigation.change(Views.Apps);
-            setTimeout(hideStreamTransitionBackground, 100);
-            });
+            streamStartupApiFailure(
+              host,
+              t('Failed to resume %1$s', appToStart.title),
+              status_code,
+              apiStatusMessage
+            );
             return;
           }
           // Keep the lightweight canvas running until the first native stream frame is visible.
@@ -5017,18 +5068,15 @@ function startGame(host, appID) {
             streamStartupTimeoutFailure('connection', t('The host did not respond to the resume request in time.'));
             return;
           }
-          if (_directSmartHubLaunch) {
-            directSmartHubLaunchFailure(t('Failed to resume %1$s', appToStart.title));
-            return;
-          }
-          snackbarLog('Failed to resume %1$s', appToStart.title);
-          showApps(host).then(() => {
-            // Scroll to the current game row
-            Navigation.switch();
-            // Switch to Apps view
-            Navigation.change(Views.Apps);
-            setTimeout(hideStreamTransitionBackground, 100);
-          });
+          var resumeApiMessage = typeof failedResumeApp === 'string'
+            ? failedResumeApp
+            : (failedResumeApp && typeof failedResumeApp.message === 'string' ? failedResumeApp.message : '');
+          streamStartupApiFailure(
+            host,
+            t('Failed to resume %1$s', appToStart.title),
+            failedResumeApp && failedResumeApp.code,
+            resumeApiMessage
+          );
           return;
         });
       }
@@ -5051,24 +5099,18 @@ function startGame(host, appID) {
         var status_code = $root.attr('status_code');
         var status_message = $root.attr('status_message');
         if (status_code != 200) {
+          var apiStatusMessage = status_message;
           if (_directSmartHubLaunch) {
-            directSmartHubLaunchFailure(t('Error %1$s: %2$s', status_code, status_message));
+            directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
             return;
           }
+          var launchErrorMessage = t('Failed to launch %1$s', appToStart.title);
           if (status_code == 4294967295 && status_message == 'Invalid') {
-            // Special case handling an audio capture error which GFE doesn't provide any useful status message
+            // GFE uses this sentinel without a useful status message for audio capture failures.
             status_code = 418;
-            status_message = t('Audio capture device is missing. Please reinstall the audio drivers.');
+            launchErrorMessage = t('Audio capture device is missing. Please reinstall the audio drivers.');
           }
-          $('#loadingSpinnerMessage').text('');
-          snackbarLogLong('Error %1$s: %2$s', status_code, status_message);
-          showApps(host).then(() => {
-            // Scroll to the current game row
-            Navigation.switch();
-            // Switch to Apps view
-            Navigation.change(Views.Apps);
-            setTimeout(hideStreamTransitionBackground, 100);
-          });
+          streamStartupApiFailure(host, launchErrorMessage, status_code, apiStatusMessage);
           return;
         }
         // Keep the lightweight canvas running until the first native stream frame is visible.
@@ -5090,18 +5132,15 @@ function startGame(host, appID) {
           streamStartupTimeoutFailure('connection', t('The host did not respond to the launch request in time.'));
           return;
         }
-        if (_directSmartHubLaunch) {
-          directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
-          return;
-        }
-        snackbarLog('Failed to launch %1$s', appToStart.title);
-        showApps(host).then(() => {
-          // Scroll to the current game row
-          Navigation.switch();
-          // Switch to Apps view
-          Navigation.change(Views.Apps);
-            setTimeout(hideStreamTransitionBackground, 100);
-        });
+        var launchApiMessage = typeof failedLaunchApp === 'string'
+          ? failedLaunchApp
+          : (failedLaunchApp && typeof failedLaunchApp.message === 'string' ? failedLaunchApp.message : '');
+        streamStartupApiFailure(
+          host,
+          t('Failed to launch %1$s', appToStart.title),
+          failedLaunchApp && failedLaunchApp.code,
+          launchApiMessage
+        );
         return;
       });
     }).catch(function(failedAppLookup) {
