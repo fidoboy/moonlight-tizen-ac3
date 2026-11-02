@@ -9,8 +9,8 @@ var modelGroup = webapis.productinfo.getModelCode(); // Retrieve the device mode
 var is4kPanel = false;
 var is8kPanel = false;
 var panelCapabilitiesChecked = false;
-var maxSupportedWidth = 1920;
-var maxSupportedHeight = 1080;
+var maxSupportedWidth;
+var maxSupportedHeight;
 
 // Display capabilities are queried once when the Settings screen is entered.
 var isHdrCapable = null;
@@ -811,8 +811,8 @@ function loadConfigSummarySettings(callback) {
   getData('resolution', function(result) {
     var value = result && result.resolution;
     if (value != null) {
-      var width = parseInt(value.split(':')[0], 10);
-      if (width > maxSupportedWidth) value = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
+      // Restore the saved preference unchanged. Panel limits are applied only
+      // when Settings explicitly queries the display capabilities.
       applyMenuValue('resolution', '.videoResolutionMenu', value);
     }
     completeOne();
@@ -7130,9 +7130,6 @@ function loadDirectSmartHubStreamSettings() {
     var resolution = stored.resolution || '1280:720';
     var width = parseInt(resolution.split(':')[0], 10);
     if (!isFinite(width) || width <= 0) resolution = '1280:720';
-    else if (width > maxSupportedWidth) {
-      resolution = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
-    }
 
     var ac3Enabled = stored.ac3AudioMode === true || stored.ac3AudioMode === 'true' || stored.ac3AudioMode === 1;
     var audioConfig = stored.audioConfig || 'Stereo';
@@ -7214,11 +7211,8 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored resolution preferences.');
   getData('resolution', function(previousValue) {
     if (previousValue.resolution != null) {
-      var resWidth = parseInt(previousValue.resolution.split(':')[0], 10);
-      if (resWidth > maxSupportedWidth) {
-        previousValue.resolution = maxSupportedWidth >= 3840 ? '3840:2160' : '1920:1080';
-        storeData('resolution', previousValue.resolution, null);
-      }
+      // Do not validate against panel capabilities here: they are queried only
+      // when the user enters Settings, and startup must preserve this preference.
       $('.videoResolutionMenu li').each(function() {
         if ($(this).data('value') === previousValue.resolution) {
           // Update the video resolution field based on the given value
