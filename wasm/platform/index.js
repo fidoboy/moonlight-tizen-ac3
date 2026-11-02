@@ -44,7 +44,7 @@ const STREAM_OPERATION_TIMEOUTS = {
   hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
   hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 10000
 };
-const STREAM_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
+const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 3000;
 var streamStartupWatchdogTimeout = null;
 var streamStartupFailureHandled = false;
 var streamStartupGeneration = 0;
@@ -133,13 +133,13 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   $('#loadingSpinnerTitle').text(t('Connection Error'));
   $('#loadingSpinnerMessage').text(message);
   var finishFailure = function() {
-    window.setTimeout(function() {
-      isInGame = false;
-      showHosts(function() {
-        hideStreamTransitionBackground();
-        snackbarLogLong(message);
-      });
-    }, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS);
+    // The full interface will show the error in a snackbar, so no minimum
+    // transition-message display time is needed for this launch path.
+    isInGame = false;
+    showHosts(function() {
+      hideStreamTransitionBackground();
+      snackbarLogLong(message);
+    });
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
   else {
@@ -7969,7 +7969,7 @@ function directSmartHubLaunchFailure(message) {
     window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
-    }, STREAM_STARTUP_ERROR_MIN_VISIBLE_MS);
+    }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
   else {
