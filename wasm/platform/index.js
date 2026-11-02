@@ -112,6 +112,9 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     : (stage === 'initialization'
       ? t('Moonlight could not prepare the saved host and streaming settings in time.')
       : t('The host did not establish the streaming connection in time.')));
+  var transitionMessage = stage === 'video'
+    ? t('Connection ended. Frame loss detected.')
+    : message;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
   if (isInGame) {
     try {
@@ -127,11 +130,11 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   }
 
   if (_directSmartHubLaunch) {
-    directSmartHubLaunchFailure(message);
+    directSmartHubLaunchFailure(transitionMessage);
     return;
   }
   $('#loadingSpinnerTitle').text(t('Connection Error'));
-  $('#loadingSpinnerMessage').text(message);
+  $('#loadingSpinnerMessage').text(transitionMessage);
   var finishFailure = function() {
     // The full interface will show the error in a modal after it has returned
     // and the transition layer has completely disappeared.
