@@ -3451,10 +3451,12 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
     errorIcon.className = 'material-symbols-outlined';
     errorIcon.setAttribute('aria-hidden', 'true');
     errorIcon.textContent = 'error';
-    errorIcon.style.fontSize = '36px';
+    errorIcon.style.fontSize = '42px';
     errorIcon.style.marginRight = '10px';
     titleElement.appendChild(errorIcon);
     var errorTitle = document.createElement('span');
+    // Keep the title text at the dialog's original heading size; only the icon grows.
+    errorTitle.style.fontSize = '2.8rem';
     var errorCode = streamErrorDetails.code;
     errorTitle.textContent = t('Error') +
       (typeof errorCode === 'number' && Number.isFinite(errorCode) && errorCode !== 0
