@@ -5099,6 +5099,7 @@ function startGame(host, appID) {
         var status_code = $root.attr('status_code');
         var status_message = $root.attr('status_message');
         if (status_code != 200) {
+          var apiStatusCode = status_code;
           var apiStatusMessage = status_message;
           if (_directSmartHubLaunch) {
             directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
@@ -5110,7 +5111,7 @@ function startGame(host, appID) {
             status_code = 418;
             launchErrorMessage = t('Audio capture device is missing. Please reinstall the audio drivers.');
           }
-          streamStartupApiFailure(host, launchErrorMessage, status_code, apiStatusMessage);
+          streamStartupApiFailure(host, launchErrorMessage, apiStatusCode, apiStatusMessage);
           return;
         }
         // Keep the lightweight canvas running until the first native stream frame is visible.
