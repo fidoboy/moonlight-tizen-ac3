@@ -931,6 +931,11 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
+.host-details-https-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
 #pairingDialogText, #deleteHostDialogText, .host-details-text, #appSupportDialogText,
 #autoWolDialogText, #navGuideDialogText, #updateAppDialogText, #restoreDefaultsDialogText, #quitAppDialogText,
 #warningDialogText, #restartAppDialogText, #exitAppDialogText {
