@@ -3149,7 +3149,6 @@ function checkVersionUpdate(currentVersion, latestVersion) {
   return false;
 }
 
-// Extract only the release notes section from the released update
 // Render the small Markdown subset used by GitHub release highlights without trusting remote HTML.
 function appendReleaseNoteInlineMarkdown(parent, text) {
   const tokenPattern = /(\[([^\]]+)\]\((https:\/\/[^\s)]+)\)|\*\*(.+?)\*\*|\*(.+?)\*)/g;
