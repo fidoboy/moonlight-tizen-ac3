@@ -542,5 +542,8 @@
   "Closing %1$s...": "Закрытие %1$s...",
   "Switching to streaming mode...": "Переключение в режим потоковой передачи…",
   "Requesting stream from host...": "Запрос сеанса потоковой передачи у хоста…",
-  "Resuming %1$s...": "Возобновление %1$s…"
+  "Resuming %1$s...": "Возобновление %1$s…",
+  "No video packets were received from %1$s.": "От %1$s не было получено ни одного видеопакета.",
+  "A keyframe from %1$s could not be received.": "Не удалось получить ключевой кадр от %1$s.",
+  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "Соединение было прервано из-за потери ключевого кадра во время приёма. Видеопакеты поступали, но клиент не смог собрать полный ключевой кадр (кадр IDR)."
 }
