@@ -884,9 +884,14 @@ function handleMessage(msg) {
         !!streamDialogMessage || !!streamH264TrackRejectionMessage ||
         !!streamVideoTrackCloseErrorMessage;
       if (directStreamHasError) {
-        directClosingMessage = streamMediaPipelineErrorMessage ||
-          (streamH264TrackRejectionMessage ? t('The TV rejected the H.264 video configuration.') : null) ||
-          streamDialogMessage || streamVideoTrackCloseErrorMessage || directClosingMessage;
+        // Smart Hub has no diagnostic dialog: keep every failure status concise.
+        directClosingMessage = streamMediaPipelineErrorMessage
+          ? t('The TV media player reported an error.')
+          : (streamH264TrackRejectionMessage
+            ? t('The TV rejected the H.264 video configuration.')
+            : ((streamDialogMessage || streamVideoTrackCloseErrorMessage)
+              ? t('Unable to launch the selected app.')
+              : directClosingMessage));
       }
       var shouldQuitDirectHostApp = errorCode === 0 &&
         !streamMediaPipelineErrorMessage && !streamDialogMessage &&
