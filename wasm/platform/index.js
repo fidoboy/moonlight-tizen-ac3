@@ -30,6 +30,49 @@ var isNativeLaunchScreenReleaseStarted = false;
 var isNativeLaunchScreenReleased = false;
 var nativeLaunchScreenReleaseTimeout = null;
 var isSubnetScanFinished = false; // Indicates if the initial subnet scan has completed
+var subnetScannerLoadPromise = null;
+
+// Load the legacy DNS helpers and the Tizen subnet scanner only when discovery is
+// actually requested. Keep a shared promise so startup, manual refresh and WOL
+// cannot race into loading duplicate script instances.
+function ensureSubnetScannerLoaded() {
+  if (typeof window.startSubnetScanner === 'function') {
+    return Promise.resolve();
+  }
+  if (subnetScannerLoadPromise) {
+    return subnetScannerLoadPromise;
+  }
+
+  function loadDiscoveryScript(src) {
+    return new Promise(function(resolve, reject) {
+      var script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.async = false;
+      script.src = src;
+      script.onload = function() { resolve(); };
+      script.onerror = function() {
+        reject(new Error('Failed to load network discovery script: ' + src));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  subnetScannerLoadPromise = loadDiscoveryScript('static/js/mdns-browser/dns.js')
+    .then(function() {
+      return loadDiscoveryScript('static/js/mdns-browser/main.js');
+    })
+    .then(function() {
+      if (typeof window.startSubnetScanner !== 'function') {
+        throw new Error('Network subnet scanner did not initialize correctly');
+      }
+    })
+    .catch(function(error) {
+      subnetScannerLoadPromise = null;
+      throw error;
+    });
+
+  return subnetScannerLoadPromise;
+}
 var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
 var pairingCert; // Loads the generated certificate
 var myUniqueid;
@@ -1363,10 +1406,9 @@ function refreshHosts() {
     })
     .then(function() {
       stopPollingHosts();
-      if (typeof startSubnetScanner !== 'function') {
-        throw new Error('Subnet scanner is unavailable');
-      }
-      return startSubnetScanner();
+      return ensureSubnetScannerLoaded().then(function() {
+        return startSubnetScanner();
+      });
     })
     .then(function() {
       isSubnetScanFinished = true;
@@ -2265,11 +2307,11 @@ function autoWolDialog(host, onSuccess, onCancel) {
         if (!isPolling) return;
 
         // Continuously sweep the subnet to catch the host if it wakes up with a new DHCP IP
-        var scanPromise = (typeof startSubnetScanner === 'function')
-          ? Promise.resolve(startSubnetScanner()).catch(function(e){
-              console.warn('%c[index.js, autoWolDialog]', 'color: orange;', 'Subnet scan failed during WOL wait, continuing to poll:', e);
-            })
-          : Promise.resolve();
+        var scanPromise = ensureSubnetScannerLoaded().then(function() {
+          return startSubnetScanner();
+        }).catch(function(e) {
+          console.warn('%c[index.js, autoWolDialog]', 'color: orange;', 'Subnet scan failed during WOL wait, continuing to poll:', e);
+        });
 
         scanPromise.then(function() {
           if (!isPolling) return; // In case the dialog was closed during the scan
@@ -7739,17 +7781,15 @@ function loadHTTPCertsCb() {
         maybeRestoreUiAfterStartup();
 
         initialHostChecks.then(function() {
-          if (typeof startSubnetScanner !== 'function') {
-            return;
-          }
-
           // Do not show main-UI feedback if the initial checks finish during streaming.
           if (isInGame !== true) {
             snackbarLogPersistent('Scanning the local network to discover new hosts...');
           }
           // Stop background polling while sweeping the subnet to prevent network exhaustion.
           stopPollingHosts();
-          return startSubnetScanner();
+          return ensureSubnetScannerLoaded().then(function() {
+            return startSubnetScanner();
+          });
         }).catch(function(error) {
           console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet scan failed:', error);
         }).finally(function() {
