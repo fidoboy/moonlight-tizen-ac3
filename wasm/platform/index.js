@@ -3390,8 +3390,10 @@ function warningDialog(title, message, onClose, plainText, buttonLabel) {
   document.getElementById('warningDialogTitle').innerHTML = t(title);
   if (plainText) {
     document.getElementById('warningDialogText').textContent = t(message);
+    document.getElementById('warningDialogText').style.whiteSpace = 'pre-wrap';
   } else {
     document.getElementById('warningDialogText').innerHTML = t(message);
+    document.getElementById('warningDialogText').style.whiteSpace = '';
   }
 
   // Show the dialog and push the view
