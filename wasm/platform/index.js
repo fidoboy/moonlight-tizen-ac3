@@ -8301,6 +8301,10 @@ function updateConfigSummaryBar() {
   var bitrate = textFor('#selectBitrate', '10 Mbps');
   if (!/mbps/i.test(bitrate)) bitrate += ' Mbps';
   var codec = textFor('#selectCodec', 'H264').replace(/^H\.264$/i, 'H264');
+  if (/^H264$/i.test(codec)) {
+    var h264Level = textFor('#selectH264Level', 'Auto');
+    codec = 'h264 (' + (/^Auto$/i.test(h264Level) ? 'auto' : 'L' + h264Level) + ')';
+  }
   var audioValue = textFor('#selectAudio', 'Stereo');
   var audio = audioValue === '51Surround' ? '5.1' :
     (audioValue === '71Surround' ? '7.1' :
