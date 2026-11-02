@@ -488,7 +488,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         ClLogMessage("[H264] AddTrack accepted MIME='%s'\n", mimetype);
       }
     } else {
-      ClLogMessage("[H264] AddTrack rejected MIME='%s' (%dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      if (videoFormat & VIDEO_FORMAT_H264) {
+        ClLogMessage("[H264] AddTrack rejected MIME='%s' (%dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
+      }
       ClLogMessage("The TV rejected the video track (%s, %dx%d at %d FPS)\n", mimetype, width, height, redrawRate);
       if (videoFormat & VIDEO_FORMAT_H264) {
         PostToJs(std::string("H264TrackRejectedMsg: ") + h264LevelName + "," +
