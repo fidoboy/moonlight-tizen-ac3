@@ -545,5 +545,8 @@
   "Resuming %1$s...": "Resuming %1$s...",
   "No video packets were received from %1$s.": "No video packets were received from %1$s.",
   "A keyframe from %1$s could not be received.": "A keyframe from %1$s could not be received.",
-  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame)."
+  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).",
+  "No video packets were received.": "No video packets were received.",
+  "Keyframes were lost.": "Keyframes were lost.",
+  "The connection was interrupted because no video packets were received from the host during startup.": "The connection was interrupted because no video packets were received from the host during startup."
 }
