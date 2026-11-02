@@ -137,8 +137,9 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     // transition-message display time is needed for this launch path.
     isInGame = false;
     showHosts(function() {
-      hideStreamTransitionBackground();
-      snackbarLogLong(message);
+      hideStreamTransitionBackground(function() {
+        warningDialog(t('Connection Error'), message, null, true);
+      });
     });
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
@@ -3380,14 +3381,18 @@ function restoreDefaultsDialog() {
 }
 
 // Show the Warning dialog
-function warningDialog(title, message) {
+function warningDialog(title, message, onClose, plainText) {
   // Find the existing overlay and dialog elements
   var warningDialogOverlay = document.querySelector('#warningDialogOverlay');
   var warningDialog = document.querySelector('#warningDialog');
 
   // Change the dialog title and text element with a custom warning message
   document.getElementById('warningDialogTitle').innerHTML = t(title);
-  document.getElementById('warningDialogText').innerHTML = t(message);
+  if (plainText) {
+    document.getElementById('warningDialogText').textContent = t(message);
+  } else {
+    document.getElementById('warningDialogText').innerHTML = t(message);
+  }
 
   // Show the dialog and push the view
   fadeInUiElement(warningDialogOverlay, 'flex');
@@ -3410,6 +3415,7 @@ function warningDialog(title, message) {
     warningDialog.classList.remove('single-button');
     Navigation.pop();
     Navigation.switch();
+    if (typeof onClose === 'function') onClose();
   });
 }
 
@@ -7969,7 +7975,7 @@ function directSmartHubLaunchFailure(message) {
     window.setTimeout(function() {
       try { tizen.application.getCurrentApplication().exit(); }
       catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
-    }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
+    }, 4500);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
   else {
