@@ -306,12 +306,12 @@ class MoonlightInstance {
   pthread_t m_StopThread;
   std::atomic<samsung::wasm::SessionId> m_AudioSessionId;
   std::atomic<samsung::wasm::SessionId> m_VideoSessionId;
+  MediaElementListener m_MediaElementListener;
   samsung::html::HTMLMediaElement m_MediaElement;
   std::unique_ptr<samsung::wasm::ElementaryMediaStreamSource> m_Source;
   SourceListener m_SourceListener;
   AudioTrackListener m_AudioTrackListener;
   VideoTrackListener m_VideoTrackListener;
-  MediaElementListener m_MediaElementListener;
   samsung::wasm::ElementaryMediaTrack m_AudioTrack;
   samsung::wasm::ElementaryMediaTrack m_VideoTrack;
   std::atomic<bool> m_SourceClosed;
