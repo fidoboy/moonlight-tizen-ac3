@@ -2687,12 +2687,17 @@ const Navigation = (function() {
       return viewStack[viewStack.length - 1];
     }
 
-    function push(view, hostname) {
+    function push(view, hostname, restoreNavigationFocus) {
       if (get()) {
         get().leave();
       }
       if (hostname !== undefined) {
         view.hostname = hostname;
+      }
+      // Some modal dialogs must be immediately operable from the remote/gamepad,
+      // even when the previous view had already lost navigation focus.
+      if (restoreNavigationFocus) {
+        hasFocus = true;
       }
       viewStack.push(view);
       get().enter();
