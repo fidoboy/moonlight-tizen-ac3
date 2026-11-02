@@ -204,7 +204,7 @@ class MoonlightInstance {
   public:
     AudioTrackListener(MoonlightInstance* instance);
     void OnTrackOpen() override;
-    void OnTrackClosed(EmssTrackCloseReason) override;
+    void OnTrackClosed(EmssTrackCloseReason reason) override;
     void OnSessionIdChanged(samsung::wasm::SessionId new_session_id) override;
   private:
     MoonlightInstance* m_Instance;
@@ -311,6 +311,7 @@ class MoonlightInstance {
   SourceListener m_SourceListener;
   AudioTrackListener m_AudioTrackListener;
   VideoTrackListener m_VideoTrackListener;
+  MediaElementListener m_MediaElementListener;
   samsung::wasm::ElementaryMediaTrack m_AudioTrack;
   samsung::wasm::ElementaryMediaTrack m_VideoTrack;
   std::atomic<bool> m_SourceClosed;
