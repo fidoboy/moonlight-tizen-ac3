@@ -2740,6 +2740,16 @@ function hostDetailsDialog(host) {
     class: 'mdl-dialog__content'
   }).appendTo(hostDetailsDialog);
 
+  // The external port identifies the transport currently used for this host.
+  // Show a lock only when it matches the host's HTTPS port.
+  var isHttpsPortInUse = host.externalPort != null && host.httpsPort != null &&
+    Number(host.externalPort) === Number(host.httpsPort);
+  var httpsLockIcon = isHttpsPortInUse
+    ? '<i class="material-symbols-outlined host-details-https-icon" aria-hidden="true">lock</i>'
+    : '';
+  var activeAddress = escapeHTML(host.address);
+  var localAddress = escapeHTML(host.localAddress);
+
   // Add a paragraph with multiple lines of text
   $('<p>', {
     id: 'hostDetailsDialogText-' + host.serverUid,
@@ -2747,9 +2757,9 @@ function hostDetailsDialog(host) {
     html: [
       t('Name: %1$s', escapeHTML(host.hostname)),
       t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
-      t('Active Address: %1$s', escapeHTML(host.address) && escapeHTML(host.externalPort) ? escapeHTML(host.address) + ':' + escapeHTML(host.externalPort) : t('NULL')),
+      t('Active Address: %1$s', activeAddress ? httpsLockIcon + activeAddress : t('NULL')),
       t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
-      t('Local Address: %1$s', escapeHTML(host.localAddress) && escapeHTML(host.externalPort) ? escapeHTML(host.localAddress) + ':' + escapeHTML(host.externalPort) : t('NULL')),
+      t('Local Address: %1$s', localAddress ? httpsLockIcon + localAddress : t('NULL')),
       t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
       t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED')),
       t('Running Game ID: %1$s', escapeHTML(host.currentGame)),
