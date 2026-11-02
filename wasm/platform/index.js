@@ -8313,7 +8313,8 @@ function updateConfigSummaryBar() {
   var codec = textFor('#selectCodec', 'H264').replace(/^H\.264$/i, 'H264');
   if (/^H264$/i.test(codec)) {
     var h264Level = textFor('#selectH264Level', 'Auto');
-    codec = 'h264 (' + (/^Auto$/i.test(h264Level) ? 'auto' : 'L' + h264Level) + ')';
+    var displayH264Level = /^Auto$/i.test(h264Level) ? 'auto' : 'L' + h264Level.replace(/_/g, '.');
+    codec = 'H264 (' + displayH264Level + ')';
   }
   var audioValue = textFor('#selectAudio', 'Stereo');
   var audio = audioValue === '51Surround' ? '5.1' :
