@@ -261,10 +261,15 @@ MoonlightInstance::MediaElementListener::MediaElementListener(
 ) : m_Instance(instance) {}
 
 void MoonlightInstance::MediaElementListener::OnError(
-  samsung::html::MediaError, const char*
+  samsung::html::MediaError errorCode, const char* errorMessage
 ) {
-  // Temporarily disabled for regression testing: do not forward HTMLMediaElement
-  // errors to the Web UI or trigger any stream-termination handling.
+  const int numericErrorCode = static_cast<int>(errorCode);
+  const std::string detail = errorMessage ? errorMessage : "";
+  ClLogMessage("HTMLMediaElement::OnError (code=%d): %s\n",
+    numericErrorCode, detail.c_str());
+  // Samsung owns errorMessage and its lifetime ends when this callback returns.
+  // Copy it into the JS message immediately; the UI will display it only after teardown.
+  PostToJs("MediaPipelineErrorMsg: " + std::to_string(numericErrorCode) + "|" + detail);
 }
 
 void MoonlightInstance::VideoTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
