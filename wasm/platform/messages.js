@@ -1231,6 +1231,12 @@ function handleMessage(msg) {
     $('#wasm_module').css('display', '');
     $('#wasm_module').focus();
   } else if (msg.indexOf('MediaPipelineErrorMsg: ') === 0) {
+    // MediaSource may report a format error while it is being closed. Such a
+    // callback is a teardown side effect, not a failure of the active stream.
+    if (window._manualStreamStopRequested || window._streamTerminationRecoveryInProgress) {
+      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Ignoring media pipeline error during stream teardown.');
+      return;
+    }
     var mediaErrorPayload = msg.replace('MediaPipelineErrorMsg: ', '');
     // Keep the localized explanation as the primary message and preserve the
     // API payload verbatim for the smaller diagnostic line in the error dialog.
@@ -1243,6 +1249,11 @@ function handleMessage(msg) {
       $('#loadingSpinnerMessage').text(t('The TV media player reported an error.'));
     }
   } else if (msg.indexOf('VideoTrackCloseErrorMsg: ') === 0) {
+    // Ignore track-close errors emitted as a consequence of an intentional stop.
+    if (window._manualStreamStopRequested || window._streamTerminationRecoveryInProgress) {
+      console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Ignoring video track close error during stream teardown.');
+      return;
+    }
     var videoTrackCloseApiMessage = msg.replace('VideoTrackCloseErrorMsg: ', '');
     pendingVideoTrackCloseErrorMessage = t(videoTrackCloseApiMessage);
     pendingVideoTrackCloseApiMessage = videoTrackCloseApiMessage;
