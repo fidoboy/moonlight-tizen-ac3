@@ -542,5 +542,8 @@
   "Closing %1$s...": "Closing %1$s...",
   "Switching to streaming mode...": "Switching to streaming mode...",
   "Requesting stream from host...": "Requesting stream from host...",
-  "Resuming %1$s...": "Resuming %1$s..."
+  "Resuming %1$s...": "Resuming %1$s...",
+  "No video packets were received from %1$s.": "No video packets were received from %1$s.",
+  "A keyframe from %1$s could not be received.": "A keyframe from %1$s could not be received.",
+  "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame)."
 }
