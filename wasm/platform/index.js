@@ -3345,7 +3345,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
   const intro = document.createElement('p');
   intro.className = 'update-release-notes-intro';
   const introText = t('Version %1$s is now available! Update manually to enjoy new features and improvements.<br><br>', latestVersion)
-    .replace(/<br\\s*\\/?\\s*>/gi, '\\n');
+    .replace(/<br\s*\/?\s*>/gi, '\n');
   introText.split('\\n').forEach(function(part, index) {
     if (index > 0) intro.appendChild(document.createElement('br'));
     if (part) intro.appendChild(document.createTextNode(part));
