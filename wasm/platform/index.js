@@ -8128,7 +8128,9 @@ function loadHTTPCertsCb() {
               ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
               : Promise.resolve();
             return phase3SnackbarPromise.then(function() {
-              stopPollingHosts();
+              // Keep the configured-host polling started in phase 2 running during discovery.
+              // The subnet scan excludes their known IPv4 addresses, so it does not need to
+              // stop and restart their polling.
               return ensureSubnetScannerLoaded().then(function() {
                 return startSubnetScanner(phase2QueriedIPs);
               });
@@ -8136,12 +8138,12 @@ function loadHTTPCertsCb() {
           }).catch(function(error) {
             console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
           }).finally(function() {
-            // Close phase 3 before resuming normal phase 4 monitoring.
+            // Phase 2 already started polling configured hosts; phase 3 discovery
+            // starts polling only for newly discovered hosts.
             return dismissPersistentSnackbar().then(function() {
               return waitForSnackbarPhaseCourtesy();
             }).then(function() {
               isSubnetScanFinished = true;
-              startPollingHosts();
               finishInitialHostDiscovery();
             });
           });
