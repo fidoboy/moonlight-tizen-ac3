@@ -7891,33 +7891,36 @@ function loadHTTPCertsCb() {
           _previewApps = (storedPreview.previewApps != null) ? storedPreview.previewApps : {};
           updatePreviewData();
         });
-        console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Loading previously connected hosts...');
-        
-        // Immediately start polling known hosts so they are ready for Smart Hub or instant clicks.
-        // We wait for all known hosts to finish their initial ping before launching the subnet scanner
-        // to guarantee that the 254 scanner requests don't choke the network stack and cause known hosts to timeout.
-        const initialHostChecks = startPollingHosts().catch(function(error) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
-        });
+        console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
-        // The stored host list is already rendered. Show it while network checks run.
+        // Phase 1: restore the saved host list locally. Do not perform network requests
+        // while the "Loading configured hosts..." startup message is being displayed.
         isStartupHostsLoaded = true;
         dismissStartupHostsSnackbar();
         maybeRestoreUiAfterStartup();
 
-        initialHostChecks.then(function() {
-          // Do not show main-UI feedback if the initial checks finish during streaming.
+        // Phase 2: verify only the hosts already present in the saved list.
+        // Complete these checks before subnet discovery so its requests cannot starve them.
+        if (isInGame !== true) {
+          snackbarLogPersistent('Checking configured hosts...');
+        }
+        startPollingHosts().catch(function(error) {
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
+        }).then(function() {
+          // Phase 3: discover additional hosts on the local subnet. The scanner
+          // excludes addresses already represented by configured hosts.
           if (isInGame !== true) {
             snackbarLogPersistent('Scanning the local network to discover new hosts...');
           }
-          // Stop background polling while sweeping the subnet to prevent network exhaustion.
+          // No periodic polling should compete with the subnet sweep.
           stopPollingHosts();
           return ensureSubnetScannerLoaded().then(function() {
             return startSubnetScanner();
           });
         }).catch(function(error) {
-          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet scan failed:', error);
+          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
         }).finally(function() {
+          // Phase 4: resume normal periodic monitoring of all known hosts.
           isSubnetScanFinished = true;
           startPollingHosts();
           finishInitialHostDiscovery();
