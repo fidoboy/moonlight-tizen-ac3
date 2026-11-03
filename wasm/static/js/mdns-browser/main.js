@@ -90,7 +90,7 @@ window.abortSubnetScan = function() {
   }
 };
 
-function startSubnetScanner() {
+function startSubnetScanner(excludedIPs) {
   // Do not begin a new subnet scan while the stream is active.
   if (isInGame === true) {
     console.log('%c[main.js, startSubnetScanner]', 'color: orange;', 'Skipping subnet scan while streaming.');
@@ -127,9 +127,22 @@ function startSubnetScanner() {
       }
       window.subnetScanAbortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       
+      // Startup phase 3 passes the IPv4 addresses already checked in phase 2.
+      // Manual refresh and Auto WOL omit this argument and retain a complete /24 scan.
+      var excludedIPSet = Object.create(null);
+      if (Array.isArray(excludedIPs)) {
+        excludedIPs.forEach(function(ip) {
+          if (typeof ip === 'string') excludedIPSet[ip] = true;
+        });
+      }
+
       var IPs = [];
-      for (var i = 1; i <= 254; i++) IPs.push(subnet + '.' + i);
-      
+      for (var i = 1; i <= 254; i++) {
+        var candidateIP = subnet + '.' + i;
+        if (!excludedIPSet[candidateIP]) IPs.push(candidateIP);
+      }
+      console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Subnet scan will probe', IPs.length, 'of 254 addresses; excluded', 254 - IPs.length, 'already-queried addresses.');
+
       var index = 0;
       var activeCount = 0;
       var concurrency = 64; // Throttle to 64 to save Tizen's ARP queue
