@@ -9,6 +9,8 @@
 #include <vector>
 #include <mutex>
 
+#include <emscripten.h>
+
 #include <h264_stream.h>
 
 #include <assert.h>
@@ -135,6 +137,9 @@ static bool s_HevcCllAvailable = false;
 static bool s_HevcHdrSeiInspectionFailed = false;
 static bool s_HdrMetadataFallbackStatusLogged = false;
 static bool s_HdrMetadataFallbackInspectionWarningLogged = false;
+static bool s_HdrMetadataDebugStripStatusLogged = false;
+static bool s_HdrMetadataDebugStripRemovalLogged = false;
+static bool s_HdrMetadataDebugStripWarningLogged = false;
 
 struct HevcHdrMetadataFallbackResult {
   bool inspected;
@@ -267,6 +272,267 @@ static void AppendSeiValue(std::vector<unsigned char>& rbsp, size_t value) {
     value -= 0xFF;
   }
   rbsp.push_back(static_cast<unsigned char>(value));
+}
+
+
+// Debug-only test hook: remove only the static HDR metadata payloads while
+// retaining every other SEI message in the original prefix/suffix SEI NAL.
+static bool FilterHevcHdrMetadataSeiNalForDebug(
+  const unsigned char* nal,
+  size_t nalLength,
+  std::vector<unsigned char>& filteredNal,
+  bool& keepNal,
+  bool& removedMdcv,
+  bool& removedCll
+) {
+  if (nalLength < 3) {
+    return false;
+  }
+
+  const unsigned int nalUnitType = (nal[0] >> 1) & 0x3F;
+  if (nalUnitType != 39 && nalUnitType != 40) {
+    return false;
+  }
+
+  std::vector<unsigned char> rbsp;
+  rbsp.reserve(nalLength - 2);
+  unsigned int zeroCount = 0;
+
+  for (size_t i = 2; i < nalLength; ++i) {
+    const unsigned char value = nal[i];
+    if (zeroCount >= 2 && value == 0x03 &&
+        i + 1 < nalLength && nal[i + 1] <= 0x03) {
+      zeroCount = 0;
+      continue;
+    }
+
+    rbsp.push_back(value);
+    zeroCount = value == 0 ? zeroCount + 1 : 0;
+  }
+
+  size_t trailingZeroBytes = 0;
+  while (!rbsp.empty() && rbsp.back() == 0) {
+    rbsp.pop_back();
+    ++trailingZeroBytes;
+  }
+
+  if (rbsp.empty() || rbsp.back() != 0x80) {
+    return false;
+  }
+
+  const size_t payloadEnd = rbsp.size() - 1;
+  size_t position = 0;
+  bool foundMdcv = false;
+  bool foundCll = false;
+  bool keptAnyPayload = false;
+  std::vector<unsigned char> filteredRbsp;
+  filteredRbsp.reserve(rbsp.size());
+
+  const auto readSeiValue = [&rbsp, payloadEnd](
+    size_t& cursor,
+    size_t& value
+  ) -> bool {
+    value = 0;
+    while (cursor < payloadEnd) {
+      const unsigned int byteValue = rbsp[cursor++];
+      if (value > std::numeric_limits<size_t>::max() - byteValue) {
+        return false;
+      }
+      value += byteValue;
+      if (byteValue != 0xFF) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  while (position < payloadEnd) {
+    size_t payloadType = 0;
+    size_t payloadSize = 0;
+    if (!readSeiValue(position, payloadType) ||
+        !readSeiValue(position, payloadSize) ||
+        payloadSize > payloadEnd - position) {
+      return false;
+    }
+
+    if (payloadType == 137) {
+      foundMdcv = true;
+    } else if (payloadType == 144) {
+      foundCll = true;
+    } else {
+      AppendSeiValue(filteredRbsp, payloadType);
+      AppendSeiValue(filteredRbsp, payloadSize);
+      filteredRbsp.insert(
+        filteredRbsp.end(),
+        rbsp.begin() + position,
+        rbsp.begin() + position + payloadSize);
+      keptAnyPayload = true;
+    }
+
+    position += payloadSize;
+  }
+
+  if (position != payloadEnd) {
+    return false;
+  }
+
+  // Preserve the original NAL byte-for-byte when nothing needed stripping.
+  if (!foundMdcv && !foundCll) {
+    filteredNal.assign(nal, nal + nalLength);
+    keepNal = true;
+    return true;
+  }
+
+  filteredNal.clear();
+  keepNal = keptAnyPayload;
+
+  if (keptAnyPayload) {
+    filteredRbsp.push_back(0x80); // rbsp_trailing_bits
+    filteredNal.push_back(nal[0]);
+    filteredNal.push_back(nal[1]);
+
+    // Re-escape RBSP into EBSP after removing the selected SEI messages.
+    zeroCount = 0;
+    for (const unsigned char value : filteredRbsp) {
+      if (zeroCount >= 2 && value <= 0x03) {
+        filteredNal.push_back(0x03);
+        zeroCount = 0;
+      }
+      filteredNal.push_back(value);
+      zeroCount = value == 0 ? zeroCount + 1 : 0;
+    }
+  }
+
+  // Keep Annex-B trailing_zero_8bits even when the SEI NAL becomes empty.
+  filteredNal.insert(filteredNal.end(), trailingZeroBytes, 0x00);
+  removedMdcv = foundMdcv;
+  removedCll = foundCll;
+  return true;
+}
+
+static bool StripHevcHdrMetadataSeiForDebug(
+  std::vector<unsigned char>& data,
+  size_t& dataLength,
+  bool& removedMdcv,
+  bool& removedCll
+) {
+  removedMdcv = false;
+  removedCll = false;
+
+  if (dataLength == 0 || dataLength > data.size()) {
+    return false;
+  }
+
+  std::vector<unsigned char> filteredData;
+  filteredData.reserve(dataLength);
+
+  size_t searchFrom = 0;
+  size_t copiedUntil = 0;
+  bool foundStartCode = false;
+
+  while (searchFrom < dataLength) {
+    size_t startCodeOffset = 0;
+    size_t startCodeLength = 0;
+    if (!FindAnnexBStartCode(
+          data, dataLength, searchFrom, startCodeOffset, startCodeLength)) {
+      break;
+    }
+
+    foundStartCode = true;
+    if (startCodeOffset < copiedUntil) {
+      return false;
+    }
+
+    filteredData.insert(
+      filteredData.end(),
+      data.begin() + copiedUntil,
+      data.begin() + startCodeOffset);
+
+    const size_t nalOffset = startCodeOffset + startCodeLength;
+    if (nalOffset + 2 > dataLength) {
+      return false;
+    }
+
+    size_t nextStartCodeOffset = 0;
+    size_t nextStartCodeLength = 0;
+    const bool hasNextNal = FindAnnexBStartCode(
+      data, dataLength, nalOffset + 2,
+      nextStartCodeOffset, nextStartCodeLength);
+    const size_t nalEnd = hasNextNal ? nextStartCodeOffset : dataLength;
+    if (nalEnd < nalOffset + 2) {
+      return false;
+    }
+
+    const unsigned int nalUnitType = (data[nalOffset] >> 1) & 0x3F;
+    if (nalUnitType == 39 || nalUnitType == 40) {
+      std::vector<unsigned char> filteredNal;
+      bool keepNal = false;
+      bool removedMdcvFromNal = false;
+      bool removedCllFromNal = false;
+
+      if (!FilterHevcHdrMetadataSeiNalForDebug(
+            data.data() + nalOffset,
+            nalEnd - nalOffset,
+            filteredNal,
+            keepNal,
+            removedMdcvFromNal,
+            removedCllFromNal)) {
+        return false;
+      }
+
+      // Omit the start code too when all messages in the SEI NAL were removed.
+      if (keepNal) {
+        filteredData.insert(
+          filteredData.end(),
+          data.begin() + startCodeOffset,
+          data.begin() + nalOffset);
+      }
+      filteredData.insert(
+        filteredData.end(),
+        filteredNal.begin(),
+        filteredNal.end());
+
+      removedMdcv = removedMdcv || removedMdcvFromNal;
+      removedCll = removedCll || removedCllFromNal;
+    } else {
+      filteredData.insert(
+        filteredData.end(),
+        data.begin() + startCodeOffset,
+        data.begin() + nalEnd);
+    }
+
+    copiedUntil = nalEnd;
+    if (!hasNextNal) {
+      break;
+    }
+    searchFrom = nextStartCodeOffset;
+  }
+
+  if (!foundStartCode || copiedUntil > dataLength) {
+    return false;
+  }
+
+  if (copiedUntil < dataLength) {
+    filteredData.insert(
+      filteredData.end(),
+      data.begin() + copiedUntil,
+      data.begin() + dataLength);
+  }
+
+  if (filteredData.size() > data.size()) {
+    data.resize(filteredData.size());
+  }
+  if (!filteredData.empty()) {
+    memcpy(data.data(), filteredData.data(), filteredData.size());
+  }
+  dataLength = filteredData.size();
+  return true;
+}
+
+static bool IsDebugModeEnabled() {
+  return EM_ASM_INT({
+    return typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true;
+  }) != 0;
 }
 
 static void AppendBigEndian16(std::vector<unsigned char>& buffer, uint16_t value) {
@@ -1017,6 +1283,38 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
   if (s_VideoFormat & VIDEO_FORMAT_H265_MAIN10) {
     SS_HDR_METADATA hdrMetadata = {};
     if (LiGetHdrMetadata(&hdrMetadata)) {
+      // Temporary test: in debug builds, simulate missing in-band static HDR
+      // metadata before the normal fallback inspects the access unit.
+      if (IsDebugModeEnabled()) {
+        if (!s_HdrMetadataDebugStripStatusLogged) {
+          ClLogMessage(
+            "HEVC HDR DEBUG test: stripping in-band MDCV (137) and CLL (144) SEI payloads before fallback.\n");
+          s_HdrMetadataDebugStripStatusLogged = true;
+        }
+
+        bool removedMdcv = false;
+        bool removedCll = false;
+        size_t debugPacketLength = offset;
+        if (!StripHevcHdrMetadataSeiForDebug(
+              s_DecodeBuffer, debugPacketLength, removedMdcv, removedCll)) {
+          if (!s_HdrMetadataDebugStripWarningLogged) {
+            ClLogMessage(
+              "HEVC HDR DEBUG test: unable to safely strip SEI payloads; access unit left unchanged.\n");
+            s_HdrMetadataDebugStripWarningLogged = true;
+          }
+        } else {
+          offset = static_cast<unsigned int>(debugPacketLength);
+          if ((removedMdcv || removedCll) &&
+              !s_HdrMetadataDebugStripRemovalLogged) {
+            ClLogMessage(
+              "HEVC HDR DEBUG test: removed original MDCV=%s, CLL=%s SEI payloads.\n",
+              removedMdcv ? "yes" : "no",
+              removedCll ? "yes" : "no");
+            s_HdrMetadataDebugStripRemovalLogged = true;
+          }
+        }
+      }
+
       size_t packetLength = offset;
       const auto fallback = ApplyHevcHdrMetadataFallback(
         s_DecodeBuffer,
