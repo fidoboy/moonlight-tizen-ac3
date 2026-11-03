@@ -1,5 +1,78 @@
 // Tizen's native splash overlays the normal WebUI until hideNativeLaunchScreen() is called.
 
+// Build-time logging controls. The release build stays quiet unless DEBUG_MODE is injected by CI.
+var DEBUG_MODE = false;
+var LOG_SHOW_CERTS = false;
+
+// Keep normal runtime logs limited to the small set of lifecycle events useful to users.
+(function installRuntimeLogPolicy() {
+  var originalLog = console.log ? console.log.bind(console) : function() {};
+  var originalInfo = console.info ? console.info.bind(console) : function() {};
+  var originalDebug = console.debug ? console.debug.bind(console) : function() {};
+  var originalWarn = console.warn ? console.warn.bind(console) : function() {};
+  var originalError = console.error ? console.error.bind(console) : function() {};
+
+  function isEssentialLog(args) {
+    var tag = typeof args[0] === 'string' ? args[0] : '';
+    var message = args.slice(2).map(function(value) {
+      return typeof value === 'string' ? value : '';
+    }).join(' ');
+    return (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM runtime initialized') !== -1) ||
+      (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('main window loaded') !== -1) ||
+      (tag.indexOf('[index.js, loadSystemInfo]') !== -1 && message.indexOf('App Version:') !== -1) ||
+      tag.indexOf('[index.js, showStreamMode]') !== -1 ||
+      (tag.indexOf('[index.js, exitAppDialog]') !== -1 && message.indexOf('exiting application') !== -1);
+  }
+
+  function sanitizeLogValue(value, key, seen) {
+    if (key && /private.?key/i.test(key)) return '[PRIVATE KEY REDACTED]';
+    if (key && /^(cert|certificate)$/i.test(key) && !LOG_SHOW_CERTS) return '[CERTIFICATE REDACTED]';
+    if (typeof value === 'string') {
+      return value
+        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, LOG_SHOW_CERTS ? '// Tizen's native splash overlays the normal WebUI until hideNativeLaunchScreen() is called.
+
+' : '[CERTIFICATE REDACTED]')
+        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, '[PRIVATE KEY REDACTED]');
+    }
+    if (!value || typeof value !== 'object') return value;
+    seen = seen || [];
+    if (seen.indexOf(value) !== -1) return '[Circular]';
+    seen.push(value);
+    var output = Array.isArray(value) ? [] : {};
+    Object.keys(value).forEach(function(childKey) {
+      try { output[childKey] = sanitizeLogValue(value[childKey], childKey, seen); }
+      catch (error) { output[childKey] = '[Unavailable]'; }
+    });
+    seen.pop();
+    return output;
+  }
+
+  function safeArgs(args) {
+    return args.map(function(value) { return sanitizeLogValue(value, '', []); });
+  }
+
+  console.log = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if (!DEBUG_MODE && !isEssentialLog(args)) return;
+    originalLog.apply(null, safeArgs(args));
+  };
+  console.info = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if (!DEBUG_MODE && !isEssentialLog(args)) return;
+    originalInfo.apply(null, safeArgs(args));
+  };
+  console.debug = function() {
+    if (!DEBUG_MODE) return;
+    originalDebug.apply(null, safeArgs(Array.prototype.slice.call(arguments)));
+  };
+  console.warn = function() {
+    originalWarn.apply(null, safeArgs(Array.prototype.slice.call(arguments)));
+  };
+  console.error = function() {
+    originalError.apply(null, safeArgs(Array.prototype.slice.call(arguments)));
+  };
+})();
+
 // Initialize global variables and constants
 var appInfo = tizen.application.getAppInfo(); // Retrieve the application information
 var platformVer = tizen.systeminfo.getCapability("http://tizen.org/feature/platform.version"); // Retrieve the device platform version
@@ -5631,9 +5704,7 @@ const dbVersion = 1.0;
 let db = null;
 const dbName = 'GameStreamingDB';
 const storeName = 'GameStreamingStore';
-// IndexedDB values may contain pairing certificates and private keys. Keep their
-// contents out of normal logs; enable only temporarily for local debugging.
-const LOG_DATABASE_VALUES = false;
+// IndexedDB values may contain pairing certificates and private keys.
 
 // Based on example from https://hacks.mozilla.org/2012/02/storing-images-and-files-in-indexeddb/
 function createObjectStore(dataBase) {
@@ -5716,10 +5787,11 @@ function getData(key, callbackFunction) {
 
       // Retrieve the data that was stored
       readRequest.onsuccess = function(e) {
-        if (LOG_DATABASE_VALUES) {
-          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ' + readRequest.result);
-        } else {
-          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key);
+        if (DEBUG_MODE) {
+          var databaseValue = key === 'cert' && !LOG_SHOW_CERTS
+            ? '[CERTIFICATE REDACTED]'
+            : readRequest.result;
+          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
         }
         let value = null;
         if (readRequest.result) {
@@ -5754,10 +5826,11 @@ function storeData(key, data, callbackFunction) {
       const put = transaction.objectStore(storeName).put(JSON.stringify(data), key);
 
       transaction.oncomplete = function(e) {
-        if (LOG_DATABASE_VALUES) {
-          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ' + JSON.stringify(data));
-        } else {
-          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key);
+        if (DEBUG_MODE) {
+          var databaseValue = key === 'cert' && !LOG_SHOW_CERTS
+            ? '[CERTIFICATE REDACTED]'
+            : data;
+          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ', databaseValue);
         }
         if (callbackFunction) {
           callbackFunction();
