@@ -24,10 +24,10 @@ jobs:
         include:
           - variant: standard
             force_game_mode: 'false'
-            artifact: Moonlight
+            artifact: Moonlight-Debug
           - variant: forcegm
             force_game_mode: 'true'
-            artifact: Moonlight-ForceGM
+            artifact: Moonlight-ForceGM-Debug
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -196,10 +196,10 @@ jobs:
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           if [[ "$FORCE_GAME_MODE" == "true" ]]; then
             source_path="/home/moonlight/Moonlight-ForceGM.wgt"
-            target_path="$RUNNER_TEMP/Moonlight-ForceGM.wgt"
+            target_path="$RUNNER_TEMP/${PACKAGE_NAME}.wgt"
           else
             source_path="/home/moonlight/Moonlight.wgt"
-            target_path="$RUNNER_TEMP/Moonlight.wgt"
+            target_path="$RUNNER_TEMP/${PACKAGE_NAME}.wgt"
           fi
           docker cp "$container_id:$source_path" "$target_path"
           test -s "$target_path"
