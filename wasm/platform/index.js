@@ -20,7 +20,6 @@ var LOG_SHOW_CERTS = false;
     return (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM runtime initialized') !== -1) ||
       (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('main window loaded') !== -1) ||
       (tag.indexOf('[index.js, loadSystemInfo]') !== -1 && message.indexOf('App Version:') !== -1) ||
-      tag.indexOf('[index.js, showStreamMode]') !== -1 ||
       tag.indexOf('[index.js, showHostsMode]') !== -1 ||
       tag === '[stream]' ||
       (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
