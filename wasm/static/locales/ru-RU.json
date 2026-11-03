@@ -347,7 +347,7 @@
   "SPACE": "SPACE",
   "START": "START",
   "Scan the QR code below to access an in-depth setup guide, troubleshooting tips, frequently asked questions, and more.": "Scan the QR code below to access an in-depth setup guide, troubleshooting tips, frequently asked questions, and more.",
-  "Scanning the local network to discover new hosts...": "Проверка устройств в локальной сети и их доступности...",
+  "Scanning the local network to discover new hosts...": "Поиск новых устройств в сети…",
   "Select how the speakers are arranged in your setup. If you use \"Rear speakers\" (the most common setup), the speakers will be assumed to be positioned behind the listener.": "Укажите расположение колонок в вашей системе. Если выбраны «Тыловые колонки» (самый распространённый вариант), предполагается, что они находятся позади слушателя.",
   "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Выберите режим декодера Dolby Digital. По умолчанию используется «Аппаратный», но при необходимости можно выбрать «Автоматический» или «Программный» для оптимального вывода на ваши устройства.",
   "Selected codec does not support the HDR profile.": "Selected codec does not support the HDR profile.",
