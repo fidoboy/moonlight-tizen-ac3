@@ -19,7 +19,7 @@ var LOG_SHOW_PRIVATE_DATA = false;
     }).join(' ');
     return (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM runtime initialized') !== -1) ||
       (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('App Version:') !== -1) ||
-      (tag.indexOf('[index.js, showStreamMode]') !== -1 && message.indexOf('Entering "Show Stream" mode.') !== -1) ||
+      (tag.indexOf('[index.js, showStreamMode]') !== -1 && (message.indexOf('Entering "Show Stream" mode.') !== -1 || message.indexOf('Closing "Show Stream" mode.') !== -1)) ||
       tag === '[stream]' ||
       (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
       (tag.indexOf('[index.js, exitAppDialog]') !== -1 && message.indexOf('exiting application') !== -1);
@@ -5022,7 +5022,7 @@ function handleDirectSmartHubVideoReady() {
 
 // Handle layout elements when displaying the Stream view
 function logStreamModeClosing() {
-  console.log('%c[index.js, showStreamMode]', 'color: green;', 'Closing "Show Stream" mode and returning to the main interface...');
+  console.log('%c[index.js, showStreamMode]', 'color: green;', 'Closing "Show Stream" mode.');
 }
 
 function showStreamMode(streamWidth, streamHeight, startupGeneration) {
