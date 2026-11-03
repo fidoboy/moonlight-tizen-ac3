@@ -1528,6 +1528,7 @@ const Views = {
       'selectAmbientBackground',
       'selectConfigSummaryPosition',
       'navigationSoundBtn',
+      'screensaverBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
     ]),
