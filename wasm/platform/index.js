@@ -8073,6 +8073,7 @@ function loadHTTPCertsCb() {
         });
       });
     });
+  });
 }
 
 // Navigates to a specific host once it has been loaded and becomes available.
