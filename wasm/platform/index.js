@@ -29,7 +29,7 @@ var LOG_SHOW_PRIVATE_DATA = false;
 
   function isAlwaysSensitiveLogKey(key) {
     var normalizedKey = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
-    return /^(?:cert|certificate|privatekey|ppkstr|secret|password|token|pin|externalip|publicip|hostname|mac|macaddress|clientuid|serveruid|uniqueid|uid)$/.test(normalizedKey);
+    return /^(?:cert|certificate|privatekey|ppkstr|secret|password|token|pin|externalip|publicip|mac|macaddress|clientuid|serveruid|uniqueid|uid)$/.test(normalizedKey);
   }
 
   function isAddressLogKey(key) {
@@ -70,8 +70,17 @@ var LOG_SHOW_PRIVATE_DATA = false;
   }
 
   function sanitizeIpAddresses(value) {
+    var versions = [];
+    value = value.replace(/(\\b(?:gfe|app|server)\\s+version\\s*:\\s*)([0-9]+(?:\\.[0-9]+){2,})/gi, function(match, label, version) {
+      var marker = '__LOG_VERSION_' + versions.length + '__';
+      versions.push(version);
+      return label + marker;
+    });
     value = value.replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, function(address) {
       return isPrivateIPv4(address) ? address : HIDDEN_LOG_VALUE;
+    });
+    value = value.replace(/__LOG_VERSION_(\\d+)__/g, function(match, index) {
+      return versions[Number(index)] || match;
     });
     return value.replace(/(^|[^a-z0-9:])(\[?(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\]?)(?=$|[^a-z0-9:])/gi, function(match, prefix, address) {
       return prefix + (isPrivateIPv6(address) ? address : HIDDEN_LOG_VALUE);
