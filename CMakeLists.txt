@@ -58,7 +58,8 @@ add_library(moonlight-common-c STATIC
     moonlight-common-c/src/VideoStream.c
 )
 target_compile_definitions(moonlight-common-c PUBLIC
-    LC_CHROME
+    LC_CHROME)
+target_compile_definitions(moonlight-common-c PRIVATE
     LC_LOG)
 target_include_directories(moonlight-common-c PUBLIC
     moonlight-common-c/src
