@@ -42,6 +42,7 @@ This repository is an **independently maintained project derived from** [Brightc
 - **Remote-accessible Stream Menu:** press the TV remote's Play/Pause button while streaming to open the Stream Menu, which provides host keyboard shortcuts, performance-statistics controls, disconnect, and close-menu actions.
 - **Audio stream and enhanced statistics:** displays the negotiated audio codec, channel layout, channel count, and approximate audio bitrate alongside the existing video statistics. Also adds latency graphs and improves the statistics overlay's readability and layout.
 - **Additional language support:** adds the German (de-DE), French (fr-FR), Italian (it-IT), Russian (ru-RU) and Spanish (es-ES) translations for the interface, including the new settings and audio statistics.
+- **Refined user interface:** improved host list layout, multiple selectable themes available in the settings, an optional summary settings bar, and animated backgrounds for a more polished look.
 - **Quit host app on disconnect:** an optional setting requests that the running host application quit after a normal disconnection; unexpected connection failures do not trigger it.
 - **Animated native launch screen:** adds an animated Tizen splash screen.
   
