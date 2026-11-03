@@ -19,6 +19,7 @@ var LOG_SHOW_CERTS = false;
     }).join(' ');
     return (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM runtime initialized') !== -1) ||
       (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('App Version:') !== -1) ||
+      (tag.indexOf('[index.js, showStreamMode]') !== -1 && message.indexOf('Entering "Show Stream" mode.') !== -1) ||
       tag.indexOf('[index.js, showHostsMode]') !== -1 ||
       tag === '[stream]' ||
       (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
@@ -5027,6 +5028,7 @@ function handleDirectSmartHubVideoReady() {
 
 // Handle layout elements when displaying the Stream view
 function showStreamMode(streamWidth, streamHeight, startupGeneration) {
+  console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   return new Promise(function(resolve) {
     var isDirectLaunch = !!window._directSmartHubLaunch;
