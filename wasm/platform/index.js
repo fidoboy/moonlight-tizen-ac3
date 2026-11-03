@@ -27,33 +27,80 @@ var LOG_SHOW_PRIVATE_DATA = false;
 
   var HIDDEN_LOG_VALUE = '--- HIDDEN ---';
 
-  function isSensitiveLogKey(key) {
+  function isAlwaysSensitiveLogKey(key) {
     var normalizedKey = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
-    return /^(?:cert|certificate|privatekey|ppkstr|secret|password|token|pin|address|ip|ipaddress|localip|externalip|publicip|localaddress|externaladdress|userenteredaddress|hostname|mac|macaddress|clientuid|serveruid|uniqueid|uid)$/.test(normalizedKey);
+    return /^(?:cert|certificate|privatekey|ppkstr|secret|password|token|pin|externalip|publicip|hostname|mac|macaddress|clientuid|serveruid|uniqueid|uid)$/.test(normalizedKey);
+  }
+
+  function isAddressLogKey(key) {
+    var normalizedKey = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return /^(?:address|ip|ipaddress|localip|localaddress|externaladdress|userenteredaddress)$/.test(normalizedKey);
+  }
+
+  function isPrivateIPv4(address) {
+    var parts = address.split('.');
+    if (parts.length !== 4) return false;
+    var octets = parts.map(function(part) { return Number(part); });
+    if (octets.some(function(part) { return !Number.isInteger(part) || part < 0 || part > 255; })) return false;
+    return octets[0] === 0 || octets[0] === 10 || octets[0] === 127 ||
+      (octets[0] === 169 && octets[1] === 254) ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168);
+  }
+
+  function isPrivateIPv6(address) {
+    var value = address.replace(/^\\[|\\]$/g, '').toLowerCase();
+    if (value === '::' || value === '::1') return true;
+    var doubleColon = value.indexOf('::');
+    if (doubleColon !== -1 && value.indexOf('::', doubleColon + 2) !== -1) return false;
+    var halves = value.split('::');
+    var left = halves[0] ? halves[0].split(':') : [];
+    var right = halves.length > 1 && halves[1] ? halves[1].split(':') : [];
+    var groups = left.concat(right);
+    if (groups.some(function(group) { return !/^[0-9a-f]{1,4}$/.test(group); })) return false;
+    if ((halves.length === 1 && groups.length !== 8) || (halves.length === 2 && groups.length >= 8)) return false;
+    var first = parseInt(groups[0] || '0', 16);
+    return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
+  }
+
+  function isPrivateAddressLiteral(address) {
+    if (/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(address)) return isPrivateIPv4(address);
+    if (address.indexOf(':') !== -1) return isPrivateIPv6(address);
+    return false;
+  }
+
+  function sanitizeIpAddresses(value) {
+    value = value.replace(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/g, function(address) {
+      return isPrivateIPv4(address) ? address : HIDDEN_LOG_VALUE;
+    });
+    return value.replace(/(^|[^a-z0-9:])(\\[?(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\\]?)(?=$|[^a-z0-9:])/gi, function(match, prefix, address) {
+      return prefix + (isPrivateIPv6(address) ? address : HIDDEN_LOG_VALUE);
+    });
   }
 
   function sanitizeLogValue(value, key, seen) {
-    if (!LOG_SHOW_PRIVATE_DATA && key && isSensitiveLogKey(key)) return HIDDEN_LOG_VALUE;
+    if (LOG_SHOW_PRIVATE_DATA) return value;
+    if (key && isAlwaysSensitiveLogKey(key)) return HIDDEN_LOG_VALUE;
     if (typeof value === 'string') {
-      if (LOG_SHOW_PRIVATE_DATA) return value;
-      return value
-        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
-        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
-        .replace(/\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, HIDDEN_LOG_VALUE)
-        .replace(/\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\b[0-9a-f]{16}(?:[0-9a-f]{16})?\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/(\bPIN\s*[:=]?\s*)\d{4,8}\b/gi, '$1' + HIDDEN_LOG_VALUE)
-        .replace(/("(?:hostname|address|localAddress|externalIP|macAddress|clientUid|serverUid|ppkstr|certificate|privateKey|secret|password|token)"\s*:\s*)"[^"]*"/gi, '$1"' + HIDDEN_LOG_VALUE + '"');
+      if (key && isAddressLogKey(key) && value && !isPrivateAddressLiteral(value)) return HIDDEN_LOG_VALUE;
+      return sanitizeIpAddresses(value)
+        .replace(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
+        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\\s\\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
+        .replace(/\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\\b[0-9a-f]{16}(?:[0-9a-f]{16})?\\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/(\\bPIN\\s*[:=]?\\s*)\\d{4,8}\\b/gi, '$1' + HIDDEN_LOG_VALUE);
     }
     if (!value || typeof value !== 'object') return value;
-    var isNvHttp = false;
-    try { isNvHttp = !!(value.constructor && value.constructor.name === 'NvHTTP'); }
-    catch (error) {}
-    if (!Array.isArray(value) && !isNvHttp) {
+    var isPlainObject = false;
+    var isHostRecord = false;
+    try {
       var prototype = Object.getPrototypeOf(value);
-      if (prototype !== Object.prototype && prototype !== null) return value;
-    }
+      isPlainObject = prototype === Object.prototype || prototype === null;
+      isHostRecord = value.hostname !== undefined && value.externalIP !== undefined &&
+        value.serverUid !== undefined && value.address !== undefined;
+    } catch (error) {}
+    if (!Array.isArray(value) && !isPlainObject && !isHostRecord) return value;
     seen = seen || [];
     if (seen.indexOf(value) !== -1) return '[Circular]';
     seen.push(value);
