@@ -1257,7 +1257,7 @@ function updateHostStatusIndicator(host) {
   }
 }
 
-function beginBackgroundPollingOfHost(host) {
+function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   // Never start host checks or polling while the stream is active.
   if (isInGame === true) return Promise.resolve();
 
@@ -1270,20 +1270,26 @@ function beginBackgroundPollingOfHost(host) {
   // Ensure the key exists so the hasOwnProperty check in scheduleNextPoll passes
   activePolls[host.serverUid] = null;
 
-  // Refresh server info before attempting to start background polling of the host.
-  // A failed refresh is not sufficient evidence that a previously known host is offline;
-  // the regular pollServer check below remains responsible for confirming connectivity.
-  var refreshServerInfoSucceeded = false;
-  return withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
-    refreshServerInfoSucceeded = true;
-    if (DEBUG_MODE) {
-      console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString());
-    }
+  // Discovery has already completed a successful poll for a newly found host.
+  // Reuse that result instead of immediately requesting /serverinfo a second time.
+  var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  var initialStatusPromise = refreshServerInfoSucceeded
+    ? Promise.resolve().then(function() {
+        host.online = true;
+        host._statusVerified = true;
+      })
+    : withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
+        refreshServerInfoSucceeded = true;
+        if (DEBUG_MODE) {
+          console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\\n' + host.toString());
+        }
 
-    // A successful server-info refresh confirms that the host is online.
-    host.online = true;
-    host._statusVerified = true;
-  }).catch(function(failedRefreshInfo) {
+        // A successful server-info refresh confirms that the host is online.
+        host.online = true;
+        host._statusVerified = true;
+      });
+
+  return initialStatusPromise.catch(function(failedRefreshInfo) {
     console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; retaining the last known host status until pollServer verifies it:', failedRefreshInfo, host.hostname, host.address);
   }).finally(function() {
     // The in-flight request may finish during streaming, but it must not restart
