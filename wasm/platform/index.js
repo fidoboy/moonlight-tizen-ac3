@@ -1417,6 +1417,9 @@ function setSnackbarProgress(isVisible) {
 
 function snackbarLogPersistent(...args) {
   dismissStartupHostsSnackbar();
+  // A previous persistent message (for example, phase 2 host checks) has no
+  // automatic timeout. Close it before queueing the next discovery phase.
+  dismissPersistentSnackbar();
   clearQueuedSnackbarNotifications();
   setSnackbarProgress(true);
   const translatedMessage = t(...args);
