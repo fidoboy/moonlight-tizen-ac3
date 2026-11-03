@@ -7997,7 +7997,7 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
     for (var hostUID in hosts) {
       var address = hosts[hostUID].address;
       if (typeof address === 'string' &&
-          /^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(address)) {
+          /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(address)) {
         knownHostIPs.push(address);
       }
     }
@@ -8109,10 +8109,10 @@ function loadHTTPCertsCb() {
 
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
-        var phase1SnackbarPromise = Promise.resolve();
+        var savedHostsSnackbarPromise = Promise.resolve();
         if (hasConfiguredHosts && isInGame !== true) {
           // Keep phase 1 visible until its entrance transition has completed.
-          phase1SnackbarPromise = showStartupHostsSnackbar();
+          savedHostsSnackbarPromise = showStartupHostsSnackbar();
         }
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
@@ -8139,7 +8139,7 @@ function loadHTTPCertsCb() {
 
         // Restore saved hosts locally before checking them and discovering new hosts.
         // Wait for the loading snackbar to appear before revealing the saved cards.
-        phase1SnackbarPromise.then(function() {
+        savedHostsSnackbarPromise.then(function() {
           isStartupHostsLoaded = true;
           // The loading snackbar has entered; now it is safe to reveal saved cards.
           for (var hostUID in hosts) addHostToGrid(hosts[hostUID]);
