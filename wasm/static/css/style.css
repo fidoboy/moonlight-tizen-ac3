@@ -1173,15 +1173,6 @@ body[data-color-theme="black-orange"] #background-layer {
     transform: scale(1.2);
     box-shadow: 0 0 0 3px var(--theme-accent);
 }
-#host-grid .host-cell-inactive {
-    box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
-}
-#host-grid .host-cell-inactive.hovered, #host-grid .host-cell-inactive:hover,
-#host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
-    z-index: 2;
-    transform: scale(1.2);
-    box-shadow: 0 0 0 3px #F44336;
-}
 #host-grid .mdl-card__title {
     padding: 0;
 }
