@@ -1,0 +1,214 @@
+name: Build WGT (CI) Debug Mode
+
+on:
+  workflow_dispatch:
+    inputs:
+      show_certificates:
+        description: 'Include certificate contents in application debug logs'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate-and-build:
+    name: Build ${{ matrix.variant }} WGT
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            force_game_mode: 'false'
+            artifact: Moonlight
+          - variant: forcegm
+            force_game_mode: 'true'
+            artifact: Moonlight-ForceGM
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Ensure required versioned MP4 assets are available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ASSET_FILE="moonlight-generated-videos-v1.zip"
+          ASSET_URL="https://raw.githubusercontent.com/fidoboy/moonlight-tizen-ac3/build-assets/$ASSET_FILE"
+          ASSET_PATH="$RUNNER_TEMP/video-assets/$ASSET_FILE"
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
+
+          download_asset() {
+            local status
+            status="$(curl --silent --show-error --location --output "$ASSET_PATH" --write-out '%{http_code}' "$ASSET_URL")"
+            printf '%s' "$status"
+          }
+
+          status="$(download_asset)"
+          if [[ "$status" == "404" ]]; then
+            echo "Video asset ZIP not found on build-assets; starting the asset-generation workflow."
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets/dispatch-response.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' \
+              "$API_URL")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              echo "::error::Could not start Generate video assets (HTTP $dispatch_status). The workflow token needs Actions write permission." >&2
+              cat "$RUNNER_TEMP/video-assets/dispatch-response.json" >&2
+              exit 1
+            fi
+
+            # Wait for the ZIP to be published. Do not regenerate if the ZIP already exists.
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(download_asset)"
+              if [[ "$status" == "200" ]]; then
+                break
+              fi
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for the generated video asset ZIP." >&2
+                exit 1
+              fi
+            done
+            if [[ "$status" != "200" ]]; then
+              echo "::error::The video asset ZIP was not published within 20 minutes. Check the Generate video assets workflow run." >&2
+              exit 1
+            fi
+          elif [[ "$status" != "200" ]]; then
+            echo "::error::Could not download the video asset ZIP (HTTP $status)." >&2
+            exit 1
+          fi
+
+          # A present but invalid ZIP is an error; generation is only triggered when the ZIP is missing.
+          if ! unzip -tq "$ASSET_PATH" >/dev/null; then
+            echo "::error::The video asset ZIP exists but is invalid; refusing to regenerate it automatically." >&2
+            exit 1
+          fi
+          unzip -oq "$ASSET_PATH" -d generated-videos
+          for video in launch-screen.mp4 launch-screen-portrait.mp4; do
+            if [[ ! -s "generated-videos/$video" ]]; then
+              echo "::error::Required video generated-videos/$video is missing or empty in the existing ZIP." >&2
+              exit 1
+            fi
+          done
+          echo "Installed all versioned MP4 assets into generated-videos/."
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Validate JavaScript, locales and local documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check wasm/platform/index.js
+          node tests/gamepad_mask_test.js
+          node --check wasm/platform/messages.js
+          node --check wasm/static/js/i18n-sync.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          locale_dir = Path("wasm/static/locales")
+          en = json.loads((locale_dir / "en-US.json").read_text(encoding="utf-8"))
+
+          for locale_path in sorted(locale_dir.glob("*.json")):
+              if locale_path.name == "en-US.json":
+                  continue
+              locale = json.loads(locale_path.read_text(encoding="utf-8"))
+              missing = sorted(set(en) - set(locale))
+              extra = sorted(set(locale) - set(en))
+              if missing or extra:
+                  raise SystemExit(
+                      f"{locale_path.name} keys differ from en-US.json: "
+                      f"Missing={missing!r}; extra={extra!r}"
+                  )
+
+          es = json.loads((locale_dir / "es-ES.json").read_text(encoding="utf-8"))
+          pt = json.loads((locale_dir / "pt-BR.json").read_text(encoding="utf-8"))
+          required = {
+              "Audio stream:",
+              "Dolby audio output",
+              "Enable Dolby Digital",
+              "Quit host app on disconnect",
+              "Automatically quit the running app on the host",
+          }
+          for name, locale in (("en-US", en), ("es-ES", es), ("pt-BR", pt)):
+              missing_required = sorted(required - set(locale))
+              if missing_required:
+                  raise SystemExit(f"{name} is missing required feature strings: {missing_required!r}")
+
+          docs = [
+              "docs/README.md",
+              "docs/Features-Overview.md",
+              "docs/Quick-Start-Guide.md",
+              "docs/Installation-Guide.md",
+              "docs/Updating-Guide.md",
+              "docs/Frequently-Asked-Questions.md",
+              "docs/Known-Issues-and-Limitations.md",
+              "docs/Troubleshooting-Guide.md",
+              "docs/Development-Guide.md",
+          ]
+          missing_docs = [name for name in docs if not Path(name).is_file()]
+          if missing_docs:
+              raise SystemExit(f"Missing documentation pages: {missing_docs!r}")
+          locale_count = len(list(locale_dir.glob("*.json")))
+          print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
+          PY
+
+      - name: Build Tizen widget
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-tizen-ci:${{ matrix.variant }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            DEBUG_MODE=true
+            LOG_SHOW_CERTS=${{ inputs.show_certificates }}
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=${{ matrix.force_game_mode }}
+
+      - name: Extract WGT package
+        env:
+          FORCE_GAME_MODE: ${{ matrix.force_game_mode }}
+          VARIANT: ${{ matrix.variant }}
+          PACKAGE_NAME: ${{ matrix.artifact }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create "moonlight-tizen-ci:$VARIANT")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          if [[ "$FORCE_GAME_MODE" == "true" ]]; then
+            source_path="/home/moonlight/Moonlight-ForceGM.wgt"
+            target_path="$RUNNER_TEMP/Moonlight-ForceGM.wgt"
+          else
+            source_path="/home/moonlight/Moonlight.wgt"
+            target_path="$RUNNER_TEMP/Moonlight.wgt"
+          fi
+          docker cp "$container_id:$source_path" "$target_path"
+          test -s "$target_path"
+          sha256sum "$target_path"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}-${{ github.sha }}
+          path: ${{ runner.temp }}/${{ matrix.artifact }}.wgt
+          if-no-files-found: error
+          retention-days: 14
