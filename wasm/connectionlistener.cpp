@@ -61,6 +61,12 @@ void onConnectionStopped(int errorCode) {
 }
 
 void MoonlightInstance::ClLogMessage(const char* format, ...) {
+  // Limelight's Limelog() callback is intentionally silent in normal builds.
+  // Keep detailed RTSP, EMSS and transport diagnostics available in debug builds.
+  if (!EM_ASM_INT({ return typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true; })) {
+    return;
+  }
+
   va_list va;
   char message[1024];
 
