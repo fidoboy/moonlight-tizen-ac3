@@ -1371,9 +1371,21 @@ function stopPollingHosts() {
 
 var persistentSnackbarVisible = false;
 
+function clearQueuedSnackbarNotifications() {
+  var snackbarElement = document.getElementById('snackbar');
+  var snackbar = snackbarElement && snackbarElement.MaterialSnackbar;
+  // MDL queues notifications while its current snackbar is still in the
+  // 250 ms exit transition. Remove stale queued messages so they cannot
+  // reappear after the operation that owned them has already finished.
+  if (snackbar && Array.isArray(snackbar.queuedNotifications_)) {
+    snackbar.queuedNotifications_.length = 0;
+  }
+}
+
 function snackbarLog(...args) {
   dismissStartupHostsSnackbar();
   dismissPersistentSnackbar();
+  clearQueuedSnackbarNotifications();
   setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
@@ -1387,6 +1399,7 @@ function snackbarLog(...args) {
 function snackbarLogLong(...args) {
   dismissStartupHostsSnackbar();
   dismissPersistentSnackbar();
+  clearQueuedSnackbarNotifications();
   setSnackbarProgress(false);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
@@ -1404,6 +1417,7 @@ function setSnackbarProgress(isVisible) {
 
 function snackbarLogPersistent(...args) {
   dismissStartupHostsSnackbar();
+  clearQueuedSnackbarNotifications();
   setSnackbarProgress(true);
   const translatedMessage = t(...args);
   console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
@@ -1417,6 +1431,7 @@ function snackbarLogPersistent(...args) {
 }
 
 function dismissPersistentSnackbar() {
+  clearQueuedSnackbarNotifications();
   if (!persistentSnackbarVisible) return;
   const snackbarElement = document.querySelector('#snackbar');
   if (snackbarElement) {
