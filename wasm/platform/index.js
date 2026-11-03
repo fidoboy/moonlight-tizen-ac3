@@ -1781,8 +1781,6 @@ function restoreUiAfterWasmLoad() {
   //     }
   //   }
   // });
-
-
 }
 
 // Handles the selection of a host, manages the connection, pairing process, including error handling
