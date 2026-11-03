@@ -365,14 +365,15 @@ NvHTTP.prototype = {
 
   toString: function() {
     var string = '';
-    var privateValue = function(value) {
-      return typeof LOG_SHOW_PRIVATE_DATA !== 'undefined' && LOG_SHOW_PRIVATE_DATA ? value : '--- HIDDEN ---';
+    var privateValue = function(value, key) {
+      if (typeof LOG_SHOW_PRIVATE_DATA !== 'undefined' && LOG_SHOW_PRIVATE_DATA) return value;
+      return /^(?:hostname|externalIP|macAddress)$/i.test(key) ? '--- HIDDEN ---' : value;
     };
-    string += 'host name: ' + privateValue(this.hostname) + '\r\n';
-    string += 'host address: ' + privateValue(this.address) + '\r\n';
-    string += 'local address: ' + privateValue(this.localAddress) + '\r\n';
-    string += 'external IP: ' + privateValue(this.externalIP) + '\r\n';
-    string += 'mac address: ' + privateValue(this.macAddress) + '\r\n';
+    string += 'host name: ' + privateValue(this.hostname, 'hostname') + '\r\n';
+    string += 'host address: ' + privateValue(this.address, 'address') + '\r\n';
+    string += 'local address: ' + privateValue(this.localAddress, 'localAddress') + '\r\n';
+    string += 'external IP: ' + privateValue(this.externalIP, 'externalIP') + '\r\n';
+    string += 'mac address: ' + privateValue(this.macAddress, 'macAddress') + '\r\n';
     string += 'https port: ' + this.httpsPort + '\r\n';
     string += 'http port: ' + this.httpPort + '\r\n';
     string += 'external port: ' + this.externalPort + '\r\n';
