@@ -10,6 +10,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Fixed
 - **Warning dialog focus:** Improved remote-control and gamepad navigation focus restoration when warning dialogs appear, ensuring the Close button receives focus regardless of the error type or whether additional diagnostic details are available.
+- **Update dialog Markdown formatting:** Fixed the rendering of release notes so Markdown markers for **bold** and *italic* text are interpreted as formatting rather than displayed literally.
 
 
 ## v1.1.0
