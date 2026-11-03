@@ -1370,6 +1370,7 @@ function stopPollingHosts() {
 }
 
 var persistentSnackbarVisible = false;
+var snackbarTransitionPromise = Promise.resolve();
 
 function clearQueuedSnackbarNotifications() {
   var snackbarElement = document.getElementById('snackbar');
@@ -1382,32 +1383,66 @@ function clearQueuedSnackbarNotifications() {
   }
 }
 
+function waitForSnackbarTransform(action) {
+  var snackbarElement = document.getElementById('snackbar');
+  if (!snackbarElement) {
+    if (typeof action === 'function') action();
+    snackbarTransitionPromise = Promise.resolve();
+    return snackbarTransitionPromise;
+  }
+  snackbarTransitionPromise = new Promise(function(resolve) {
+    var settled = false;
+    var fallbackTimer = null;
+    function finish(event) {
+      if (event && (event.target !== snackbarElement || event.propertyName !== 'transform')) return;
+      if (settled) return;
+      settled = true;
+      snackbarElement.removeEventListener('transitionend', onTransitionEnd);
+      if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+      resolve();
+    }
+    function onTransitionEnd(event) { finish(event); }
+    snackbarElement.addEventListener('transitionend', onTransitionEnd);
+    fallbackTimer = window.setTimeout(finish, UI_FADE_DURATION_MS + 120);
+    if (typeof action === 'function') action();
+  });
+  return snackbarTransitionPromise;
+}
+
 function snackbarLog(...args) {
-  dismissStartupHostsSnackbar();
-  dismissPersistentSnackbar();
-  clearQueuedSnackbarNotifications();
-  setSnackbarProgress(false);
-  const translatedMessage = t(...args);
-  console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
-  var data = {
-    message: translatedMessage,
-    timeout: 2500
-  };
-  document.querySelector('#snackbar').MaterialSnackbar.showSnackbar(data);
+  return Promise.resolve(snackbarTransitionPromise).then(function() {
+    return dismissStartupHostsSnackbar();
+  }).then(function() {
+    return dismissPersistentSnackbar();
+  }).then(function() {
+    clearQueuedSnackbarNotifications();
+    setSnackbarProgress(false);
+    const translatedMessage = t(...args);
+    console.log('%c[index.js, snackbarLog]', 'color: green;', ...args);
+    return waitForSnackbarTransform(function() {
+      document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+        message: translatedMessage, timeout: 2500
+      });
+    });
+  });
 }
 
 function snackbarLogLong(...args) {
-  dismissStartupHostsSnackbar();
-  dismissPersistentSnackbar();
-  clearQueuedSnackbarNotifications();
-  setSnackbarProgress(false);
-  const translatedMessage = t(...args);
-  console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
-  var data = {
-    message: translatedMessage,
-    timeout: 5000
-  };
-  document.querySelector('#snackbar').MaterialSnackbar.showSnackbar(data);
+  return Promise.resolve(snackbarTransitionPromise).then(function() {
+    return dismissStartupHostsSnackbar();
+  }).then(function() {
+    return dismissPersistentSnackbar();
+  }).then(function() {
+    clearQueuedSnackbarNotifications();
+    setSnackbarProgress(false);
+    const translatedMessage = t(...args);
+    console.log('%c[index.js, snackbarLogLong]', 'color: green;', ...args);
+    return waitForSnackbarTransform(function() {
+      document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+        message: translatedMessage, timeout: 5000
+      });
+    });
+  });
 }
 
 function setSnackbarProgress(isVisible) {
@@ -1416,39 +1451,44 @@ function setSnackbarProgress(isVisible) {
 }
 
 function snackbarLogPersistent(...args) {
-  dismissStartupHostsSnackbar();
-  // A previous persistent message (for example, phase 2 host checks) has no
-  // automatic timeout. Close it before queueing the next discovery phase.
-  dismissPersistentSnackbar();
-  clearQueuedSnackbarNotifications();
-  setSnackbarProgress(true);
-  const translatedMessage = t(...args);
-  console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
-  // MDL treats timeout: 0 as "use the default timeout", so use the largest
-  // supported timer value and let the next snackbar replace this one explicitly.
-  document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
-    message: translatedMessage,
-    timeout: 2147483647
+  return Promise.resolve(snackbarTransitionPromise).then(function() {
+    return dismissStartupHostsSnackbar();
+  }).then(function() {
+    return dismissPersistentSnackbar();
+  }).then(function() {
+    clearQueuedSnackbarNotifications();
+    setSnackbarProgress(true);
+    const translatedMessage = t(...args);
+    console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
+    persistentSnackbarVisible = true;
+    // The caller may start its work only after this slide-in has completed.
+    return waitForSnackbarTransform(function() {
+      document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+        message: translatedMessage,
+        timeout: 2147483647
+      });
+    });
   });
-  persistentSnackbarVisible = true;
 }
 
 function dismissPersistentSnackbar() {
   clearQueuedSnackbarNotifications();
-  if (!persistentSnackbarVisible) return;
-  const snackbarElement = document.querySelector('#snackbar');
-  if (snackbarElement) {
-    if (snackbarElement.MaterialSnackbar &&
-        typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-      snackbarElement.MaterialSnackbar.cleanup_();
-    }
-    // Explicitly clear MDL's active state as a fallback for Tizen WebKit builds
-    // where cleanup_ is unavailable or does not complete the visual dismissal.
-    snackbarElement.classList.remove('mdl-snackbar--active');
-    snackbarElement.setAttribute('aria-hidden', 'true');
-  }
+  if (!persistentSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
   persistentSnackbarVisible = false;
-  setSnackbarProgress(false);
+  return waitForSnackbarTransform(function() {
+    const snackbarElement = document.querySelector('#snackbar');
+    if (snackbarElement) {
+      if (snackbarElement.MaterialSnackbar &&
+          typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+        snackbarElement.MaterialSnackbar.cleanup_();
+      }
+      snackbarElement.classList.remove('mdl-snackbar--active');
+      snackbarElement.setAttribute('aria-hidden', 'true');
+    }
+  }).then(function() {
+    // Keep the spinner visible until the snackbar has completely slid out.
+    setSnackbarProgress(false);
+  });
 }
 
 function showStartupHostsSnackbar() {
@@ -1506,18 +1546,21 @@ function showStartupHostsSnackbar() {
 }
 
 function dismissStartupHostsSnackbar() {
-  if (!startupHostsSnackbarVisible) return;
-  const snackbarElement = document.querySelector('#snackbar');
-  if (snackbarElement) {
-    if (snackbarElement.MaterialSnackbar &&
-        typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-      snackbarElement.MaterialSnackbar.cleanup_();
-    }
-    snackbarElement.classList.remove('mdl-snackbar--active');
-    snackbarElement.setAttribute('aria-hidden', 'true');
-  }
+  if (!startupHostsSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
   startupHostsSnackbarVisible = false;
-  setSnackbarProgress(false);
+  return waitForSnackbarTransform(function() {
+    const snackbarElement = document.querySelector('#snackbar');
+    if (snackbarElement) {
+      if (snackbarElement.MaterialSnackbar &&
+          typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+        snackbarElement.MaterialSnackbar.cleanup_();
+      }
+      snackbarElement.classList.remove('mdl-snackbar--active');
+      snackbarElement.setAttribute('aria-hidden', 'true');
+    }
+  }).then(function() {
+    setSnackbarProgress(false);
+  });
 }
 
 var isManualHostRefreshRunning = false;
@@ -1534,15 +1577,12 @@ function refreshHosts() {
     button.setAttribute('aria-busy', 'true');
   }
 
-  snackbarLogPersistent('Scanning the local network to discover new hosts...');
-
-  // Refresh known-host status first, then pause background polling while scanning the subnet.
-  // This follows startup behavior and helps avoid exhausting Tizen's network stack.
-  stopPollingHosts();
-  Promise.resolve()
-    .then(function() {
-      return startPollingHosts();
-    })
+  // The operation itself starts only after the progress snackbar has slid into view.
+  snackbarLogPersistent('Scanning the local network to discover new hosts...').then(function() {
+    // Refresh known-host status first, then pause background polling while scanning the subnet.
+    stopPollingHosts();
+    return startPollingHosts();
+  })
     .catch(function(error) {
       console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
     })
@@ -7986,7 +8026,7 @@ function loadHTTPCertsCb() {
           // Keep phase 1 visible until its entrance transition has completed.
           phase1SnackbarPromise = showStartupHostsSnackbar();
         }
-        for (var hostUID in hosts) { // Programmatically add each new host
+        for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
           Object.assign(revivedHost, hosts[hostUID]);
           revivedHost._memCachedApplist = null; // Prevent using the app list cache from a previous session
@@ -7999,10 +8039,7 @@ function loadHTTPCertsCb() {
           revivedHost.ppkstr = hosts[hostUID].ppkstr;
           revivedHost.autoWolEnabled = hosts[hostUID].autoWolEnabled || false;
           hosts[hostUID] = revivedHost;
-          addHostToGrid(revivedHost);
         }
-        // Replace the default Add Host selection with the first saved host.
-        selectFirstHostAfterAddHost();
         isHostsLoaded = true;
         // Load stored preview app lists and update Smart Hub Preview tiles.
         // Using the persisted list avoids requiring live host connections at startup.
@@ -8016,20 +8053,24 @@ function loadHTTPCertsCb() {
         // closing it and advancing to the network phases.
         phase1SnackbarPromise.then(function() {
           isStartupHostsLoaded = true;
-          dismissStartupHostsSnackbar();
-          maybeRestoreUiAfterStartup();
+          // The loading snackbar has entered; now it is safe to reveal saved cards.
+          for (var hostUID in hosts) addHostToGrid(hosts[hostUID]);
+          selectFirstHostAfterAddHost();
+          return dismissStartupHostsSnackbar().then(function() {
+            maybeRestoreUiAfterStartup();
 
-          // Phase 2 is skipped entirely when there are no saved hosts.
-          var phase2Promise = hasConfiguredHosts
-            ? (function() {
-                if (isInGame !== true) snackbarLogPersistent('Checking configured hosts...');
-                return startPollingHosts();
-              })()
-            : Promise.resolve();
+            // Phase 2 is skipped entirely when there are no saved hosts.
+            var phase2Promise = hasConfiguredHosts
+              ? (isInGame !== true
+                  ? snackbarLogPersistent('Checking configured hosts...').then(function() {
+                      return startPollingHosts();
+                    })
+                  : startPollingHosts())
+              : Promise.resolve();
 
-          return phase2Promise.catch(function(error) {
-            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
-          }).then(function() {
+            return phase2Promise.catch(function(error) {
+              console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
+            }).then(function() {
             // Existing hosts become interactive after their checks. With no saved
             // hosts, keep the list locked until discovery completes.
             if (hasConfiguredHosts && isInGame !== true) unlockHostListInteraction();
@@ -8043,12 +8084,14 @@ function loadHTTPCertsCb() {
                 phase2QueriedIPs.push(queriedAddress);
               }
             }
-            if (isInGame !== true) {
-              snackbarLogPersistent('Scanning the local network to discover new hosts...');
-            }
-            stopPollingHosts();
-            return ensureSubnetScannerLoaded().then(function() {
-              return startSubnetScanner(phase2QueriedIPs);
+            var phase3SnackbarPromise = isInGame !== true
+              ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
+              : Promise.resolve();
+            return phase3SnackbarPromise.then(function() {
+              stopPollingHosts();
+              return ensureSubnetScannerLoaded().then(function() {
+                return startSubnetScanner(phase2QueriedIPs);
+              });
             });
           }).catch(function(error) {
             console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
