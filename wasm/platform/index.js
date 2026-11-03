@@ -7974,6 +7974,56 @@ function loadUserDataCb() {
   });
 }
 
+function runInitialHostDiscovery(hasConfiguredHosts) {
+  // Check each configured host once, then let its background poll schedule handle
+  // subsequent status updates. Skip this request entirely when there are no saved hosts.
+  var configuredHostCheck = hasConfiguredHosts
+    ? (isInGame !== true
+        ? snackbarLogPersistent('Checking configured hosts...').then(function() {
+            return startPollingHosts();
+          })
+        : startPollingHosts())
+    : Promise.resolve();
+
+  return configuredHostCheck.catch(function(error) {
+    console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
+  }).then(function() {
+    // Configured hosts can be used as soon as their initial checks finish.
+    // Keep the list locked when it is empty until subnet discovery completes.
+    if (hasConfiguredHosts && isInGame !== true) unlockHostListInteraction();
+
+    // Exclude configured IPv4 addresses: they have already been checked above.
+    var knownHostIPs = [];
+    for (var hostUID in hosts) {
+      var address = hosts[hostUID].address;
+      if (typeof address === 'string' &&
+          /^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(address)) {
+        knownHostIPs.push(address);
+      }
+    }
+
+    var discoverySnackbar = isInGame !== true
+      ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
+      : Promise.resolve();
+
+    return discoverySnackbar.then(function() {
+      return ensureSubnetScannerLoaded().then(function() {
+        return startSubnetScanner(knownHostIPs);
+      });
+    });
+  }).catch(function(error) {
+    console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Initial subnet discovery failed:', error);
+  }).finally(function() {
+    // Complete startup discovery and release the host list, even if scanning fails.
+    return dismissPersistentSnackbar().then(function() {
+      return waitForSnackbarPhaseCourtesy();
+    }).then(function() {
+      isSubnetScanFinished = true;
+      finishInitialHostDiscovery();
+    });
+  });
+}
+
 function loadHTTPCerts() {
   console.log('%c[index.js, loadHTTPCerts]', 'color: green;', 'Loading stored HTTP certificates...');
   openIndexDB(loadHTTPCertsCb);
@@ -8087,8 +8137,8 @@ function loadHTTPCertsCb() {
         });
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
-        // Phase 1: wait until its progress snackbar has actually appeared before
-        // closing it and advancing to the network phases.
+        // Restore saved hosts locally before checking them and discovering new hosts.
+        // Wait for the loading snackbar to appear before revealing the saved cards.
         phase1SnackbarPromise.then(function() {
           isStartupHostsLoaded = true;
           // The loading snackbar has entered; now it is safe to reveal saved cards.
@@ -8099,53 +8149,7 @@ function loadHTTPCertsCb() {
           }).then(function() {
             maybeRestoreUiAfterStartup();
 
-            // Phase 2 is skipped entirely when there are no saved hosts.
-            var phase2Promise = hasConfiguredHosts
-              ? (isInGame !== true
-                  ? snackbarLogPersistent('Checking configured hosts...').then(function() {
-                      return startPollingHosts();
-                    })
-                  : startPollingHosts())
-              : Promise.resolve();
-
-            return phase2Promise.catch(function(error) {
-              console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
-            }).then(function() {
-            // Existing hosts become interactive after their checks. With no saved
-            // hosts, keep the list locked until discovery completes.
-            if (hasConfiguredHosts && isInGame !== true) unlockHostListInteraction();
-
-            // Phase 3: discover additional hosts, excluding phase 2 IPv4 addresses.
-            var phase2QueriedIPs = [];
-            for (var hostUID in hosts) {
-              var queriedAddress = hosts[hostUID].address;
-              if (typeof queriedAddress === 'string' &&
-                  /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
-                phase2QueriedIPs.push(queriedAddress);
-              }
-            }
-            var phase3SnackbarPromise = isInGame !== true
-              ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
-              : Promise.resolve();
-            return phase3SnackbarPromise.then(function() {
-              // Keep the configured-host polling started in phase 2 running during discovery.
-              // The subnet scan excludes their known IPv4 addresses, so it does not need to
-              // stop and restart their polling.
-              return ensureSubnetScannerLoaded().then(function() {
-                return startSubnetScanner(phase2QueriedIPs);
-              });
-            });
-          }).catch(function(error) {
-            console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
-          }).finally(function() {
-            // Phase 2 already started polling configured hosts; phase 3 discovery
-            // starts polling only for newly discovered hosts.
-            return dismissPersistentSnackbar().then(function() {
-              return waitForSnackbarPhaseCourtesy();
-            }).then(function() {
-              isSubnetScanFinished = true;
-              finishInitialHostDiscovery();
-            });
+            return runInitialHostDiscovery(hasConfiguredHosts);
           });
         });
       });
