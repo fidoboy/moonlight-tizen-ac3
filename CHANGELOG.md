@@ -5,6 +5,9 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ## v1.2.0
 
+### Added
+- **HEVC HDR metadata fallback:** Supplements HEVC Main10 streams with missing static HDR10 mastering-display (MDCV) and content-light-level (CLL) SEI messages using metadata supplied by the host through the Sunshine protocol, when available. Existing in-band metadata is preserved. The fallback follows the same policy as Moonlight-Qt.
+
 ### Changed
 - **Gamepad connection notifications:** Display the connected gamepad's name instead of its numeric index. Technical metadata appended in parentheses is omitted; the index remains the fallback when no usable name is available.
 
