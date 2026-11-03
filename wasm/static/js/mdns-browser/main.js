@@ -61,9 +61,17 @@ function findNvService(ipString) {
           if (typeof hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4 === 'function') {
             hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4();
           }
-          saveHosts();
         }
       }
+
+      // A successful poll during discovery also verifies an already-known host.
+      // Refresh its live status even when its saved address did not need updating.
+      var existingHost = hosts[returnedDiscoveredHost.serverUid];
+      existingHost.online = true;
+      existingHost._statusVerified = true;
+      existingHost._consecutivePollFailures = 0;
+      updateHostStatusIndicator(existingHost);
+      saveHosts();
     } else {
       // New host — add to grid and begin background polling
       addHostToGrid(returnedDiscoveredHost, true);
