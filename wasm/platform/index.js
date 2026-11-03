@@ -71,7 +71,7 @@ var LOG_SHOW_PRIVATE_DATA = false;
 
   function sanitizeIpAddresses(value) {
     var versions = [];
-    value = value.replace(/(\\b(?:gfe|app|server)\\s+version\\s*:\\s*)([0-9]+(?:\\.[0-9]+){2,})/gi, function(match, label, version) {
+    value = value.replace(/(\b(?:gfe|app|server)\s+version\s*:\s*)([0-9]+(?:\.[0-9]+){2,})/gi, function(match, label, version) {
       var marker = '__LOG_VERSION_' + versions.length + '__';
       versions.push(version);
       return label + marker;
@@ -79,7 +79,7 @@ var LOG_SHOW_PRIVATE_DATA = false;
     value = value.replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, function(address) {
       return isPrivateIPv4(address) ? address : HIDDEN_LOG_VALUE;
     });
-    value = value.replace(/__LOG_VERSION_(\\d+)__/g, function(match, index) {
+    value = value.replace(/__LOG_VERSION_(\d+)__/g, function(match, index) {
       return versions[Number(index)] || match;
     });
     return value.replace(/(^|[^a-z0-9:])(\[?(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\]?)(?=$|[^a-z0-9:])/gi, function(match, prefix, address) {
