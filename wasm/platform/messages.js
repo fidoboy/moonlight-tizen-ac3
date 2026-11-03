@@ -1015,7 +1015,7 @@ function handleMessage(msg) {
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
-    console.info('[stream]', 'Closing "Show Stream" mode and returning to the main interface...');
+    if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
 
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
