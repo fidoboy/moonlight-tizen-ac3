@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <limits>
+#include <vector>
 #include <mutex>
 
 #include <h264_stream.h>
@@ -126,6 +127,339 @@ static const H264LevelLimit* FindH264Level(const std::string& levelName) {
 }
 
 static std::vector<unsigned char> s_DecodeBuffer;
+
+// HDR SEI messages persist within a HEVC coded video sequence. Track them so
+// the fallback is not repeated when the original stream already supplied them.
+static bool s_HevcMdcvAvailable = false;
+static bool s_HevcCllAvailable = false;
+static bool s_HevcHdrSeiInspectionFailed = false;
+static bool s_HdrMetadataFallbackStatusLogged = false;
+static bool s_HdrMetadataFallbackInspectionWarningLogged = false;
+
+struct HevcHdrMetadataFallbackResult {
+  bool inspected;
+  bool mdcvAvailable;
+  bool cllAvailable;
+  bool insertedMdcv;
+  bool insertedCll;
+};
+
+static bool FindAnnexBStartCode(
+  const std::vector<unsigned char>& data,
+  size_t dataLength,
+  size_t searchFrom,
+  size_t& startOffset,
+  size_t& startCodeLength
+) {
+  if (dataLength > data.size()) {
+    return false;
+  }
+
+  for (size_t i = searchFrom; i + 3 <= dataLength; ++i) {
+    if (data[i] != 0 || data[i + 1] != 0) {
+      continue;
+    }
+
+    if (i + 4 <= dataLength && data[i + 2] == 0 && data[i + 3] == 1) {
+      startOffset = i;
+      startCodeLength = 4;
+      return true;
+    }
+
+    if (data[i + 2] == 1) {
+      startOffset = i;
+      startCodeLength = 3;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static bool ParseHevcSeiNal(
+  const unsigned char* nal,
+  size_t nalLength,
+  bool& hasMdcv,
+  bool& hasCll
+) {
+  if (nalLength < 3) {
+    return false;
+  }
+
+  const unsigned int nalUnitType = (nal[0] >> 1) & 0x3F;
+  if (nalUnitType != 39 && nalUnitType != 40) {
+    return false;
+  }
+
+  // Convert the SEI payload from EBSP to RBSP.
+  std::vector<unsigned char> rbsp;
+  rbsp.reserve(nalLength - 2);
+  unsigned int zeroCount = 0;
+
+  for (size_t i = 2; i < nalLength; ++i) {
+    const unsigned char value = nal[i];
+    if (zeroCount >= 2 && value == 0x03 &&
+        i + 1 < nalLength && nal[i + 1] <= 0x03) {
+      zeroCount = 0;
+      continue;
+    }
+
+    rbsp.push_back(value);
+    zeroCount = value == 0 ? zeroCount + 1 : 0;
+  }
+
+  // Annex-B trailing_zero_8bits may follow rbsp_trailing_bits.
+  while (!rbsp.empty() && rbsp.back() == 0) {
+    rbsp.pop_back();
+  }
+
+  if (rbsp.empty() || rbsp.back() != 0x80) {
+    return false;
+  }
+
+  const size_t payloadEnd = rbsp.size() - 1;
+  size_t position = 0;
+
+  const auto readSeiValue = [&rbsp, payloadEnd](
+    size_t& cursor,
+    size_t& value
+  ) -> bool {
+    value = 0;
+    while (cursor < payloadEnd) {
+      const unsigned int byteValue = rbsp[cursor++];
+      if (value > std::numeric_limits<size_t>::max() - byteValue) {
+        return false;
+      }
+      value += byteValue;
+      if (byteValue != 0xFF) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  while (position < payloadEnd) {
+    size_t payloadType = 0;
+    size_t payloadSize = 0;
+    if (!readSeiValue(position, payloadType) ||
+        !readSeiValue(position, payloadSize) ||
+        payloadSize > payloadEnd - position) {
+      return false;
+    }
+
+    // HEVC SEI types corresponding to FFmpeg's mastering-display and
+    // content-light AVFrame side data.
+    if (payloadType == 137 && payloadSize >= 24) {
+      hasMdcv = true;
+    } else if (payloadType == 144 && payloadSize >= 4) {
+      hasCll = true;
+    }
+
+    position += payloadSize;
+  }
+
+  return position == payloadEnd;
+}
+
+static void AppendSeiValue(std::vector<unsigned char>& rbsp, size_t value) {
+  while (value >= 0xFF) {
+    rbsp.push_back(0xFF);
+    value -= 0xFF;
+  }
+  rbsp.push_back(static_cast<unsigned char>(value));
+}
+
+static void AppendBigEndian16(std::vector<unsigned char>& buffer, uint16_t value) {
+  buffer.push_back(static_cast<unsigned char>(value >> 8));
+  buffer.push_back(static_cast<unsigned char>(value));
+}
+
+static void AppendBigEndian32(std::vector<unsigned char>& buffer, uint32_t value) {
+  buffer.push_back(static_cast<unsigned char>(value >> 24));
+  buffer.push_back(static_cast<unsigned char>(value >> 16));
+  buffer.push_back(static_cast<unsigned char>(value >> 8));
+  buffer.push_back(static_cast<unsigned char>(value));
+}
+
+static std::vector<unsigned char> BuildHevcHdrSeiNal(
+  const SS_HDR_METADATA& metadata,
+  bool addMdcv,
+  bool addCll
+) {
+  std::vector<unsigned char> rbsp;
+
+  if (addMdcv) {
+    // mastering_display_colour_volume (payloadType 137), 24-byte payload.
+    AppendSeiValue(rbsp, 137);
+    AppendSeiValue(rbsp, 24);
+
+    // SS_HDR_METADATA stores RGB order; the HEVC MDCV SEI uses G, B, R.
+    static const size_t kHevcPrimaryOrder[] = { 1, 2, 0 };
+    for (const size_t index : kHevcPrimaryOrder) {
+      AppendBigEndian16(rbsp, metadata.displayPrimaries[index].x);
+      AppendBigEndian16(rbsp, metadata.displayPrimaries[index].y);
+    }
+
+    AppendBigEndian16(rbsp, metadata.whitePoint.x);
+    AppendBigEndian16(rbsp, metadata.whitePoint.y);
+    AppendBigEndian32(rbsp, metadata.maxDisplayLuminance);
+    AppendBigEndian32(rbsp, metadata.minDisplayLuminance);
+  }
+
+  if (addCll) {
+    // content_light_level_info (payloadType 144), 4-byte payload.
+    AppendSeiValue(rbsp, 144);
+    AppendSeiValue(rbsp, 4);
+    AppendBigEndian16(rbsp, metadata.maxContentLightLevel);
+    AppendBigEndian16(rbsp, metadata.maxFrameAverageLightLevel);
+  }
+
+  rbsp.push_back(0x80); // rbsp_trailing_bits
+
+  // Annex-B prefix SEI NAL: type 39, layer_id 0, temporal_id_plus1 1.
+  std::vector<unsigned char> nal = { 0x00, 0x00, 0x00, 0x01, 0x4E, 0x01 };
+  unsigned int zeroCount = 0;
+  for (const unsigned char value : rbsp) {
+    if (zeroCount >= 2 && value <= 0x03) {
+      nal.push_back(0x03);
+      zeroCount = 0;
+    }
+    nal.push_back(value);
+    zeroCount = value == 0 ? zeroCount + 1 : 0;
+  }
+
+  return nal;
+}
+
+static HevcHdrMetadataFallbackResult ApplyHevcHdrMetadataFallback(
+  std::vector<unsigned char>& data,
+  size_t& dataLength,
+  const SS_HDR_METADATA& metadata,
+  bool isIdr
+) {
+  HevcHdrMetadataFallbackResult result = { false, false, false, false, false };
+
+  if (isIdr) {
+    s_HevcMdcvAvailable = false;
+    s_HevcCllAvailable = false;
+    s_HevcHdrSeiInspectionFailed = false;
+  }
+
+  if (s_HevcHdrSeiInspectionFailed) {
+    return result;
+  }
+
+  if (dataLength == 0 || dataLength > data.size()) {
+    s_HevcHdrSeiInspectionFailed = true;
+    return result;
+  }
+
+  size_t firstStartCodeOffset = 0;
+  size_t firstStartCodeLength = 0;
+  if (!FindAnnexBStartCode(data, dataLength, 0, firstStartCodeOffset, firstStartCodeLength)) {
+    s_HevcHdrSeiInspectionFailed = true;
+    return result;
+  }
+
+  bool foundMdcvInAccessUnit = false;
+  bool foundCllInAccessUnit = false;
+  size_t firstVclStartCodeOffset = std::numeric_limits<size_t>::max();
+  size_t searchFrom = firstStartCodeOffset;
+
+  while (searchFrom < dataLength) {
+    size_t startCodeOffset = 0;
+    size_t startCodeLength = 0;
+    if (!FindAnnexBStartCode(data, dataLength, searchFrom, startCodeOffset, startCodeLength)) {
+      break;
+    }
+
+    const size_t nalOffset = startCodeOffset + startCodeLength;
+    if (nalOffset + 2 > dataLength) {
+      s_HevcHdrSeiInspectionFailed = true;
+      return result;
+    }
+
+    size_t nextStartCodeOffset = 0;
+    size_t nextStartCodeLength = 0;
+    const bool hasNextNal = FindAnnexBStartCode(
+      data, dataLength, nalOffset + 2,
+      nextStartCodeOffset, nextStartCodeLength);
+    const size_t nalEnd = hasNextNal ? nextStartCodeOffset : dataLength;
+    if (nalEnd < nalOffset + 2) {
+      s_HevcHdrSeiInspectionFailed = true;
+      return result;
+    }
+
+    const unsigned int nalUnitType = (data[nalOffset] >> 1) & 0x3F;
+
+    if (nalUnitType == 39 || nalUnitType == 40) {
+      if (!ParseHevcSeiNal(
+            data.data() + nalOffset,
+            nalEnd - nalOffset,
+            foundMdcvInAccessUnit,
+            foundCllInAccessUnit)) {
+        // Fail closed for this coded video sequence if an existing SEI
+        // cannot be parsed safely; otherwise a later fallback could duplicate it.
+        s_HevcHdrSeiInspectionFailed = true;
+        return result;
+      }
+    } else if (nalUnitType <= 31 &&
+               firstVclStartCodeOffset == std::numeric_limits<size_t>::max()) {
+      firstVclStartCodeOffset = startCodeOffset;
+    }
+
+    if (!hasNextNal) {
+      break;
+    }
+    searchFrom = nextStartCodeOffset;
+  }
+
+  result.inspected = true;
+  result.mdcvAvailable = s_HevcMdcvAvailable || foundMdcvInAccessUnit;
+  result.cllAvailable = s_HevcCllAvailable || foundCllInAccessUnit;
+  s_HevcMdcvAvailable = result.mdcvAvailable;
+  s_HevcCllAvailable = result.cllAvailable;
+
+  // Match Moonlight Qt's policy: supplement only absent metadata. An HEVC
+  // MDCV SEI combines primaries and luminance, so both must be available.
+  const bool metadataHasPrimaries = metadata.displayPrimaries[0].x != 0;
+  const bool metadataHasMasteringLuminance = metadata.maxDisplayLuminance != 0;
+  const bool canAddMdcv = metadataHasPrimaries && metadataHasMasteringLuminance;
+  const bool canAddCll =
+    metadata.maxContentLightLevel != 0 ||
+    metadata.maxFrameAverageLightLevel != 0;
+
+  const bool addMdcv = !s_HevcMdcvAvailable && canAddMdcv;
+  const bool addCll = !s_HevcCllAvailable && canAddCll;
+
+  if ((!addMdcv && !addCll) ||
+      firstVclStartCodeOffset == std::numeric_limits<size_t>::max()) {
+    return result;
+  }
+
+  const std::vector<unsigned char> seiNal =
+    BuildHevcHdrSeiNal(metadata, addMdcv, addCll);
+
+  data.insert(
+    data.begin() + firstVclStartCodeOffset,
+    seiNal.begin(),
+    seiNal.end());
+  dataLength += seiNal.size();
+
+  if (addMdcv) {
+    s_HevcMdcvAvailable = true;
+    result.mdcvAvailable = true;
+    result.insertedMdcv = true;
+  }
+  if (addCll) {
+    s_HevcCllAvailable = true;
+    result.cllAvailable = true;
+    result.insertedCll = true;
+  }
+
+  return result;
+}
+
 
 static TimeStamp s_frameDuration;
 static TimeStamp s_pktPts;
@@ -557,6 +891,13 @@ int MoonlightInstance::VidDecSetup(int videoFormat, int width, int height, int r
   // Flag indicating whether this is the first frame of video to be decoded
   s_hasFirstFrame = false;
 
+  // Reset HDR SEI tracking for the new stream.
+  s_HevcMdcvAvailable = false;
+  s_HevcCllAvailable = false;
+  s_HevcHdrSeiInspectionFailed = false;
+  s_HdrMetadataFallbackStatusLogged = false;
+  s_HdrMetadataFallbackInspectionWarningLogged = false;
+
   // Initialize the last second timestamp to zero
   s_lastSec = 0s;
 
@@ -668,6 +1009,43 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
     offset += entry->length;
     // Move to the next entry in the buffer list
     entry = entry->next;
+  }
+
+  
+  // Supplement HEVC Main10 access units with Sunshine HDR metadata only when
+  // the corresponding SEI is not already available in the original bitstream.
+  if (s_VideoFormat & VIDEO_FORMAT_H265_MAIN10) {
+    SS_HDR_METADATA hdrMetadata = {};
+    if (LiGetHdrMetadata(&hdrMetadata)) {
+      size_t packetLength = offset;
+      const auto fallback = ApplyHevcHdrMetadataFallback(
+        s_DecodeBuffer,
+        packetLength,
+        hdrMetadata,
+        decodeUnit->frameType == FRAME_TYPE_IDR);
+
+      if (packetLength > std::numeric_limits<unsigned int>::max()) {
+        ClLogMessage("HEVC packet size overflow after HDR metadata insertion\n");
+        return DR_NEED_IDR;
+      }
+      offset = static_cast<unsigned int>(packetLength);
+
+      if (!fallback.inspected && !s_HdrMetadataFallbackInspectionWarningLogged) {
+        ClLogMessage(
+          "HEVC HDR metadata fallback: unable to inspect the Annex-B access unit; injection skipped.\n");
+        s_HdrMetadataFallbackInspectionWarningLogged = true;
+      }
+
+      if (fallback.inspected && !s_HdrMetadataFallbackStatusLogged) {
+        ClLogMessage(
+          "HEVC HDR metadata: MDCV=%s%s, CLL=%s%s\n",
+          fallback.mdcvAvailable ? "available" : "missing",
+          fallback.insertedMdcv ? " (fallback inserted)" : "",
+          fallback.cllAvailable ? "available" : "missing",
+          fallback.insertedCll ? " (fallback inserted)" : "");
+        s_HdrMetadataFallbackStatusLogged = true;
+      }
+    }
   }
 
   // Get the current time
