@@ -7921,7 +7921,7 @@ function loadHTTPCertsCb() {
             for (var hostUID in hosts) {
               var queriedAddress = hosts[hostUID].address;
               if (typeof queriedAddress === 'string' &&
-                  /^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
+                  /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
                 phase2QueriedIPs.push(queriedAddress);
               }
             }
