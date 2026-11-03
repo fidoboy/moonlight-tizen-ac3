@@ -49,7 +49,7 @@ var LOG_SHOW_PRIVATE_DATA = false;
   }
 
   function isPrivateIPv6(address) {
-    var value = address.replace(/^\\[|\\]$/g, '').toLowerCase();
+    var value = address.replace(/^\[|\]$/g, '').toLowerCase();
     if (value === '::' || value === '::1') return true;
     var doubleColon = value.indexOf('::');
     if (doubleColon !== -1 && value.indexOf('::', doubleColon + 2) !== -1) return false;
@@ -64,16 +64,16 @@ var LOG_SHOW_PRIVATE_DATA = false;
   }
 
   function isPrivateAddressLiteral(address) {
-    if (/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(address)) return isPrivateIPv4(address);
+    if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(address)) return isPrivateIPv4(address);
     if (address.indexOf(':') !== -1) return isPrivateIPv6(address);
     return false;
   }
 
   function sanitizeIpAddresses(value) {
-    value = value.replace(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/g, function(address) {
+    value = value.replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, function(address) {
       return isPrivateIPv4(address) ? address : HIDDEN_LOG_VALUE;
     });
-    return value.replace(/(^|[^a-z0-9:])(\\[?(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\\]?)(?=$|[^a-z0-9:])/gi, function(match, prefix, address) {
+    return value.replace(/(^|[^a-z0-9:])(\[?(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}\]?)(?=$|[^a-z0-9:])/gi, function(match, prefix, address) {
       return prefix + (isPrivateIPv6(address) ? address : HIDDEN_LOG_VALUE);
     });
   }
@@ -84,12 +84,12 @@ var LOG_SHOW_PRIVATE_DATA = false;
     if (typeof value === 'string') {
       if (key && isAddressLogKey(key) && value && !isPrivateAddressLiteral(value)) return HIDDEN_LOG_VALUE;
       return sanitizeIpAddresses(value)
-        .replace(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
-        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\\s\\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
-        .replace(/\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\\b[0-9a-f]{16}(?:[0-9a-f]{16})?\\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/(\\bPIN\\s*[:=]?\\s*)\\d{4,8}\\b/gi, '$1' + HIDDEN_LOG_VALUE);
+        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
+        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
+        .replace(/\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\b[0-9a-f]{16}(?:[0-9a-f]{16})?\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/(\bPIN\s*[:=]?\s*)\d{4,8}\b/gi, '$1' + HIDDEN_LOG_VALUE);
     }
     if (!value || typeof value !== 'object') return value;
     var isPlainObject = false;
