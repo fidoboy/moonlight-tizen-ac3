@@ -2,7 +2,7 @@
 
 // Build-time logging controls. The release build stays quiet unless DEBUG_MODE is injected by CI.
 var DEBUG_MODE = false;
-var LOG_SHOW_CERTS = false;
+var LOG_SHOW_PRIVATE_DATA = false;
 
 // Keep normal runtime logs limited to the small set of lifecycle events useful to users.
 (function installRuntimeLogPolicy() {
@@ -25,16 +25,30 @@ var LOG_SHOW_CERTS = false;
       (tag.indexOf('[index.js, exitAppDialog]') !== -1 && message.indexOf('exiting application') !== -1);
   }
 
+  var HIDDEN_LOG_VALUE = '--- HIDDEN ---';
+
+  function isSensitiveLogKey(key) {
+    var normalizedKey = String(key || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return /^(?:cert|certificate|privatekey|ppkstr|secret|password|token|pin|address|ip|ipaddress|localip|externalip|publicip|localaddress|externaladdress|userenteredaddress|hostname|mac|macaddress|clientuid|serveruid|uniqueid|uid)$/.test(normalizedKey);
+  }
+
   function sanitizeLogValue(value, key, seen) {
-    if (key && /private.?key/i.test(key)) return '[PRIVATE KEY REDACTED]';
-    if (key && /^(cert|certificate)$/i.test(key) && !LOG_SHOW_CERTS) return '[CERTIFICATE REDACTED]';
+    if (!LOG_SHOW_PRIVATE_DATA && key && isSensitiveLogKey(key)) return HIDDEN_LOG_VALUE;
     if (typeof value === 'string') {
+      if (LOG_SHOW_PRIVATE_DATA) return value;
       return value
-        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, function(certificate) { return LOG_SHOW_CERTS ? certificate : '[CERTIFICATE REDACTED]'; })
-        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, '[PRIVATE KEY REDACTED]');
+        .replace(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
+        .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\\s\\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
+        .replace(/\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/g, HIDDEN_LOG_VALUE)
+        .replace(/\\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\\b[0-9a-f]{16}\\b/gi, HIDDEN_LOG_VALUE);
     }
     if (!value || typeof value !== 'object') return value;
-    if (!Array.isArray(value)) {
+    var isNvHttp = false;
+    try { isNvHttp = !!(value.constructor && value.constructor.name === 'NvHTTP'); }
+    catch (error) {}
+    if (!Array.isArray(value) && !isNvHttp) {
       var prototype = Object.getPrototypeOf(value);
       if (prototype !== Object.prototype && prototype !== null) return value;
     }
@@ -5814,8 +5828,8 @@ function getData(key, callbackFunction) {
       // Retrieve the data that was stored
       readRequest.onsuccess = function(e) {
         if (DEBUG_MODE) {
-          var databaseValue = key === 'cert' && !LOG_SHOW_CERTS
-            ? '[CERTIFICATE REDACTED]'
+          var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA
+            ? '--- HIDDEN ---'
             : readRequest.result;
           console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
         }
@@ -5853,8 +5867,8 @@ function storeData(key, data, callbackFunction) {
 
       transaction.oncomplete = function(e) {
         if (DEBUG_MODE) {
-          var databaseValue = key === 'cert' && !LOG_SHOW_CERTS
-            ? '[CERTIFICATE REDACTED]'
+          var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA
+            ? '--- HIDDEN ---'
             : data;
           console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ', databaseValue);
         }
