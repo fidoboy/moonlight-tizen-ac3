@@ -31,7 +31,7 @@ var LOG_SHOW_CERTS = false;
     if (key && /^(cert|certificate)$/i.test(key) && !LOG_SHOW_CERTS) return '[CERTIFICATE REDACTED]';
     if (typeof value === 'string') {
       return value
-        .replace(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g, function(certificate) { return LOG_SHOW_CERTS ? certificate : '[CERTIFICATE REDACTED]'; })
+        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, function(certificate) { return LOG_SHOW_CERTS ? certificate : '[CERTIFICATE REDACTED]'; })
         .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, '[PRIVATE KEY REDACTED]');
     }
     if (!value || typeof value !== 'object') return value;
