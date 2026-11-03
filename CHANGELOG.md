@@ -6,6 +6,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ## v1.2.0
 
 ### Added
+- **Idle screensaver:** Added an optional screensaver, enabled by default, that appears after 30 seconds of inactivity on the main interface. It displays the Moonlight logo and name on a black background, periodically moves to a random position, and disappears immediately when user input is detected. It is not activated during streaming, transitions, or direct launches from the Smart Hub.
 - **HEVC HDR metadata fallback:** Supplements HEVC Main10 streams with missing static HDR10 mastering-display (MDCV) and content-light-level (CLL) SEI messages using metadata supplied by the host through the Sunshine protocol, when available. Existing in-band metadata is preserved. The fallback follows the same policy as Moonlight-Qt.
 
 ### Changed
