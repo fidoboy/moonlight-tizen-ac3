@@ -407,7 +407,9 @@ NvHTTP.prototype = {
       return false;
     }
 
-    console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
+    }
 
     // Retrieve the hostname and handle name validation
     var serverName = $root.find('hostname').text().trim();
