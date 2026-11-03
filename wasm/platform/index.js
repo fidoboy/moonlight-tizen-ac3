@@ -22,6 +22,7 @@ var LOG_SHOW_CERTS = false;
       (tag.indexOf('[index.js, loadSystemInfo]') !== -1 && message.indexOf('App Version:') !== -1) ||
       tag.indexOf('[index.js, showStreamMode]') !== -1 ||
       tag.indexOf('[index.js, showHostsMode]') !== -1 ||
+      tag === '[stream]' ||
       (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
       (tag.indexOf('[index.js, exitAppDialog]') !== -1 && message.indexOf('exiting application') !== -1);
   }
