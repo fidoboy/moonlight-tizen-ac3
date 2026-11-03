@@ -529,18 +529,9 @@ static bool StripHevcHdrMetadataSeiForDebug(
   return true;
 }
 
-static bool IsDebugModeEnabled() {
-  // DEBUG_MODE is fixed for the lifetime of the app; avoid a JS bridge call
-  // on every video packet once the initial value has been read.
-  static bool checked = false;
-  static bool enabled = false;
-  if (!checked) {
-    enabled = EM_ASM_INT({
-      return typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true;
-    }) != 0;
-    checked = true;
-  }
-  return enabled;
+// Compile-time setting shared with the native logger; safe from every WASM thread.
+static constexpr bool IsDebugModeEnabled() {
+  return MOONLIGHT_DEBUG_MODE != 0;
 }
 
 static void AppendBigEndian16(std::vector<unsigned char>& buffer, uint16_t value) {
