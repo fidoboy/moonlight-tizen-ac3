@@ -1112,9 +1112,8 @@ function startDeferredNormalStartup() {
   };
 
   var startStartupWork = function() {
-    // Phase 1 restores saved hosts locally after WebAssembly initialization.
-    // Keep this phase silent: whether there are hosts to check is not known yet.
-    // The phase-2 message is shown later, only when the restored list is non-empty.
+    // Restore saved hosts locally after WebAssembly initialization.
+    // Keep this step silent until we know whether there are hosts to check.
     if (typeof window.requestAnimationFrame === 'function') {
       window.requestAnimationFrame(runStartupWork);
     } else {
@@ -8111,7 +8110,7 @@ function loadHTTPCertsCb() {
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
         var savedHostsSnackbarPromise = Promise.resolve();
         if (hasConfiguredHosts && isInGame !== true) {
-          // Keep phase 1 visible until its entrance transition has completed.
+          // Keep the saved-host loading snackbar visible until its entrance transition completes.
           savedHostsSnackbarPromise = showStartupHostsSnackbar();
         }
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
