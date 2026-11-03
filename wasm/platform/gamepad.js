@@ -11,6 +11,7 @@ const Controller = (function() {
 
   class Gamepad {
     constructor(gamepad) {
+      this.index = gamepad.index;
       this.buttons = gamepad.buttons.map((button) => new Button(button));
       this.axes = gamepad.axes.slice(); // Store initial axis values
     }
@@ -45,7 +46,7 @@ const Controller = (function() {
 
       if (changes.length > 0) {
         window.dispatchEvent(new CustomEvent('gamepadinputchanged', {
-            detail: { changes },
+            detail: { gamepadIndex: this.index, changes },
           })
         );
       }
@@ -61,6 +62,10 @@ const Controller = (function() {
 
   function gamepadDisconnected(gamepad) {
     delete gamepads[gamepad.index];
+    // Let navigation release any held/repeated input owned by this controller.
+    window.dispatchEvent(new CustomEvent('gamepadinputcleared', {
+      detail: { gamepadIndex: gamepad.index },
+    }));
   }
 
   function analyzeGamepad(gamepad) {
