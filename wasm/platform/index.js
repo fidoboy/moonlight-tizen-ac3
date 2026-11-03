@@ -3628,7 +3628,9 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
   fadeInUiElement(warningDialogOverlay, 'flex');
   showUiDialog(warningDialog);
   isDialogOpen = true;
-  Navigation.push(Views.WarningDialog, undefined, !!streamErrorDetails);
+  // Warning dialogs must always restore remote/gamepad navigation focus,
+  // regardless of whether the error includes additional diagnostic details.
+  Navigation.push(Views.WarningDialog, undefined, true);
 
   // Use an explicit acknowledgement label for connection errors; restore the
   // standard Close label after dismissal so other warning dialogs remain unchanged.
@@ -3639,6 +3641,14 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
   $('#continueWarning').hide();
   // Add single-button class for CSS styling when only Close button is visible
   warningDialog.classList.add('single-button');
+
+  // Reapply actual DOM focus after the dialog and its navigation view have settled.
+  setTimeout(function() {
+    if (warningDialogOverlay && window.getComputedStyle(warningDialogOverlay).display !== 'none' &&
+        warningDialog && window.getComputedStyle(warningDialog).display !== 'none') {
+      focusElement('closeWarning');
+    }
+  }, 200);
 
   // Cancel the operation if the Close button is pressed
   $('#closeWarning').off('click');
