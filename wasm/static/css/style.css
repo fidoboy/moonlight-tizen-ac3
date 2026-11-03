@@ -2364,7 +2364,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 0;
     transform: translate(-50%, -50%);
     opacity: 0;
     transition: opacity 220ms ease;
@@ -2373,12 +2373,13 @@ body[data-color-theme="black-orange"] #background-layer {
 #screensaver-content.is-visible { opacity: 1; }
 #screensaver-logo {
     display: block;
-    width: 48px;
+    width: 88px;
     height: auto;
     user-select: none;
     -webkit-user-drag: none;
 }
 #screensaver-title {
+    margin-top: 12px;
     color: #f5f5f5;
     font-family: "DejaVu Sans", sans-serif;
     font-size: 24px;
