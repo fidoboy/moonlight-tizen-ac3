@@ -1520,11 +1520,6 @@ function dismissPersistentSnackbar() {
   });
 }
 
-// Startup uses the same persistent snackbar queue as every other operation.
-function showStartupHostsSnackbar() {
-  return snackbarLogPersistent('Loading configured hosts...');
-}
-
 var isManualHostRefreshRunning = false;
 
 // Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
@@ -8040,7 +8035,7 @@ function loadHTTPCertsCb() {
         var savedHostsSnackbarPromise = Promise.resolve();
         if (hasConfiguredHosts && isInGame !== true) {
           // Keep the saved-host loading snackbar visible until its entrance transition completes.
-          savedHostsSnackbarPromise = showStartupHostsSnackbar();
+          savedHostsSnackbarPromise = snackbarLogPersistent('Loading configured hosts...');
         }
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
