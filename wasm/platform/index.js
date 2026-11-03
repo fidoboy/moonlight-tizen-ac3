@@ -7859,6 +7859,11 @@ function loadHTTPCertsCb() {
         }
 
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
+        var hasConfiguredHosts = Object.keys(hosts).length > 0;
+        if (hasConfiguredHosts && isInGame !== true) {
+          // Show phase 1 progress only when there is actually a saved host list to restore.
+          showStartupHostsSnackbar();
+        }
         for (var hostUID in hosts) { // Programmatically add each new host
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
           Object.assign(revivedHost, hosts[hostUID]);
@@ -7885,7 +7890,8 @@ function loadHTTPCertsCb() {
         });
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
-        // Phase 1: restore the saved host list locally. This phase is silent.
+        // Phase 1: the saved host list has now been restored locally.
+        // Its snackbar, when needed, is dismissed before phase 2 begins.
         isStartupHostsLoaded = true;
         dismissStartupHostsSnackbar();
         maybeRestoreUiAfterStartup();
@@ -7893,7 +7899,6 @@ function loadHTTPCertsCb() {
         // Phase 2 is needed only when the saved list contains configured hosts.
         // With an empty list, skip both its network work and its snackbar entirely.
         // In that case, keep host interaction locked until phase 3 has completed.
-        var hasConfiguredHosts = Object.keys(hosts).length > 0;
         var phase2Promise = hasConfiguredHosts
           ? (function() {
               if (isInGame !== true) {
