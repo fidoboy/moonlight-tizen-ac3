@@ -347,7 +347,7 @@
   "SPACE": "ESPAÇO",
   "START": "INICIAR",
   "Scan the QR code below to access an in-depth setup guide, troubleshooting tips, frequently asked questions, and more.": "Escaneie o código QR abaixo para acessar um guia de configuração detalhado, dicas de solução de problemas, perguntas frequentes e muito mais.",
-  "Scanning the local network to discover new hosts...": "Verificando os dispositivos na rede local e sua disponibilidade...",
+  "Scanning the local network to discover new hosts...": "Procurando novos dispositivos na rede…",
   "Select how the speakers are arranged in your setup. If you use \"Rear speakers\" (the most common setup), the speakers will be assumed to be positioned behind the listener.": "Selecione como os alto-falantes estão distribuídos na sua configuração. Se você usar \"Alto-falantes traseiros\" (a configuração mais comum), será considerado que eles estão posicionados atrás do ouvinte.",
   "Select the mode for the Dolby Digital decoder. The default is \"Hardware\", but you can change it to \"Automatic\" or \"Software\" if needed for the best output on your devices.": "Selecione o modo do decodificador Dolby Digital. Por padrão, é usado \"Hardware\", mas você pode alterá-lo para \"Automático\" ou \"Software\" se necessário para obter a melhor saída nos seus dispositivos.",
   "Selected codec does not support the HDR profile.": "O codec selecionado não oferece suporte ao perfil HDR.",
