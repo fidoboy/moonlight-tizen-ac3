@@ -5631,6 +5631,9 @@ const dbVersion = 1.0;
 let db = null;
 const dbName = 'GameStreamingDB';
 const storeName = 'GameStreamingStore';
+// IndexedDB values may contain pairing certificates and private keys. Keep their
+// contents out of normal logs; enable only temporarily for local debugging.
+const LOG_DATABASE_VALUES = false;
 
 // Based on example from https://hacks.mozilla.org/2012/02/storing-images-and-files-in-indexeddb/
 function createObjectStore(dataBase) {
@@ -5713,7 +5716,11 @@ function getData(key, callbackFunction) {
 
       // Retrieve the data that was stored
       readRequest.onsuccess = function(e) {
-        console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ' + readRequest.result);
+        if (LOG_DATABASE_VALUES) {
+          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ' + readRequest.result);
+        } else {
+          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key);
+        }
         let value = null;
         if (readRequest.result) {
           value = JSON.parse(readRequest.result);
@@ -5747,7 +5754,11 @@ function storeData(key, data, callbackFunction) {
       const put = transaction.objectStore(storeName).put(JSON.stringify(data), key);
 
       transaction.oncomplete = function(e) {
-        console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ' + JSON.stringify(data));
+        if (LOG_DATABASE_VALUES) {
+          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ' + JSON.stringify(data));
+        } else {
+          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key);
+        }
         if (callbackFunction) {
           callbackFunction();
         }
