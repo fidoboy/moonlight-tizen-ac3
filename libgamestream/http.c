@@ -163,7 +163,7 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
 
   CURLcode res = curl_easy_perform(curl);
 
-  printf("CURL: %s (PPK: '%s') -> %s\n", url, ppkstr ? ppkstr : "<NULL>", curl_easy_strerror(res));
+  // Do not print request URLs or public-key pins to runtime logs.
   
   if (res == CURLE_SSL_PINNEDPUBKEYNOTMATCH) {
     ret = GS_CERT_MISMATCH;
