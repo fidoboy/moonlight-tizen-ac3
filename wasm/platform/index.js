@@ -501,10 +501,13 @@ var isClickPrevented = false; // Flag indicating whether the click event should 
 var resFpsWarning = false; // Flag indicating whether the video resolution and frame rate warning message has shown, initial value is false
 var bitrateWarning = false; // Flag indicating whether the video bitrate warning message has shown, initial value is false
 var codecWarning = false; // Flag indicating whether the video codec warning message has shown, initial value is false
-var repeatAction = null; // Flag indicating whether the repeat action is set, initial value is null
-var lastInvokeTime = 0; // Flag indicating the last invoke time, initial value is 0
-var repeatTimeout = null; // Flag indicating whether the repeat timeout is set, initial value is null
-var navigationTimeout = null; // Flag indicating whether the navigation timeout is set, initial value is null
+var repeatAction = null;
+var repeatGamepadIndex = null;
+var repeatAnimationFrame = null;
+var lastInvokeTime = 0;
+var repeatTimeout = null;
+var navigationTimeout = null;
+var navigationGamepadIndex = null;
 const BUILD_TYPE = '__BUILD_TYPE__'; // Placeholder for build type, which should be replaced during the build process
 const BUILD_COMMIT = '__BUILD_COMMIT__'; // Placeholder for build commit, which should be replaced during the build process
 const OFFICIAL_RELEASE = '__OFFICIAL_RELEASE__' === 'true'; // Only stable GitHub Releases set this flag
@@ -710,8 +713,21 @@ function attachListeners() {
   $(window).resize(fullscreenWasmModule);
 
   Controller.startWatching();
+  window.addEventListener('gamepadinputcleared', (e) => {
+    const gamepadIndex = e.detail.gamepadIndex;
+    stopGamepadRepeat(gamepadIndex);
+
+    // Also cancel a delayed navigation action that was queued by this controller.
+    if (navigationGamepadIndex === gamepadIndex) {
+      clearTimeout(navigationTimeout);
+      navigationTimeout = null;
+      navigationGamepadIndex = null;
+    }
+  });
+
   window.addEventListener('gamepadinputchanged', (e) => {
     isGamepadActive = true;
+    const gamepadIndex = e.detail.gamepadIndex;
     const changes = e.detail.changes;
     // Iterate through each change in the gamepad input
     changes.forEach((change) => {
@@ -735,40 +751,31 @@ function attachListeners() {
           if (buttonMapping[index]) {
             buttonMapping[index]();
             // Clear repeat action and timeout for non-navigation buttons
-            repeatAction = null;
-            clearTimeout(repeatTimeout);
+            stopGamepadRepeat(gamepadIndex);
           } else if (dPadMapping[index]) {
             dPadMapping[index]();
-            // Set repeat action and timeout to the mapped D-Pad button
-            repeatAction = dPadMapping[index];
-            lastInvokeTime = Date.now();
-            repeatTimeout = setTimeout(() => requestAnimationFrame(repeatActionHandler), REPEAT_DELAY);
+            startGamepadRepeat(dPadMapping[index], gamepadIndex);
           }
         } else {
           // Clear repeat action and timeout if button is released
-          repeatAction = null;
-          clearTimeout(repeatTimeout);
+          stopGamepadRepeat(gamepadIndex);
         }
       } else if (type === 'axis') {
         // Handle axis mapping
         const axisMapping = {
-          0: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.left()), () => Navigation.left()) : 
-            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.right()), () => Navigation.right()) : null,
-          1: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.up()), () => Navigation.up()) : 
-            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.down()), () => Navigation.down()) : null,
+          0: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.left(), gamepadIndex), () => Navigation.left()) :
+            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.right(), gamepadIndex), () => Navigation.right()) : null,
+          1: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.up(), gamepadIndex), () => Navigation.up()) :
+            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.down(), gamepadIndex), () => Navigation.down()) : null,
         };
         // Handle axis value
         if (axisMapping[index]) {
           const axisValue = axisMapping[index](value);
           if (axisValue && Math.abs(value) > ACTION_THRESHOLD) {
-            // Set repeat action and timeout to the mapped axis
-            repeatAction = axisValue;
-            lastInvokeTime = Date.now();
-            repeatTimeout = setTimeout(() => requestAnimationFrame(repeatActionHandler), REPEAT_DELAY);
+            startGamepadRepeat(axisValue, gamepadIndex);
           } else {
-            // Clear repeat action and timeout if axis is released
-            repeatAction = null;
-            clearTimeout(repeatTimeout);
+            // Clear this controller's repeat when its axis returns to neutral.
+            stopGamepadRepeat(gamepadIndex);
           }
         }
       }
@@ -1091,26 +1098,58 @@ function getBuildVersion(version) {
   return versionLabel;
 }
 
-// Handles repeated execution of the current action based on a specified interval
-function repeatActionHandler() {
-  // Check if repeat action is set and enough time has passed since the last invocation
-  if (repeatAction && Date.now() - lastInvokeTime > REPEAT_INTERVAL) {
-    repeatAction();
-    // Update the last invocation time
-    lastInvokeTime = Date.now();
+// Stop a repeated navigation action, optionally only when owned by one controller.
+function stopGamepadRepeat(gamepadIndex) {
+  if (gamepadIndex !== undefined && gamepadIndex !== null &&
+      repeatGamepadIndex !== gamepadIndex) {
+    return;
   }
-  // Check if repeat action is still set, then schedule the next execution frame
-  if (repeatAction) {
-    requestAnimationFrame(repeatActionHandler);
+
+  repeatAction = null;
+  repeatGamepadIndex = null;
+  clearTimeout(repeatTimeout);
+  repeatTimeout = null;
+  if (repeatAnimationFrame !== null) {
+    cancelAnimationFrame(repeatAnimationFrame);
+    repeatAnimationFrame = null;
   }
 }
 
-// Delays navigation-related callback execution after a specified delay
-function delayedNavigation(callback) {
-  // Clear any existing navigation timeout
+// Start one repeated navigation action and associate it with its source controller.
+function startGamepadRepeat(action, gamepadIndex) {
+  stopGamepadRepeat();
+  repeatAction = action;
+  repeatGamepadIndex = gamepadIndex;
+  lastInvokeTime = Date.now();
+  repeatTimeout = setTimeout(() => {
+    repeatTimeout = null;
+    if (repeatAction) {
+      repeatAnimationFrame = requestAnimationFrame(repeatActionHandler);
+    }
+  }, REPEAT_DELAY);
+}
+
+// Handles repeated execution of the current action based on a specified interval.
+function repeatActionHandler() {
+  repeatAnimationFrame = null;
+  if (repeatAction && Date.now() - lastInvokeTime > REPEAT_INTERVAL) {
+    repeatAction();
+    lastInvokeTime = Date.now();
+  }
+  if (repeatAction) {
+    repeatAnimationFrame = requestAnimationFrame(repeatActionHandler);
+  }
+}
+
+// Delays navigation-related callback execution after a specified delay.
+function delayedNavigation(callback, gamepadIndex) {
   clearTimeout(navigationTimeout);
-  // Set a new navigation timeout with the provided callback and delay
-  navigationTimeout = setTimeout(callback, NAVIGATION_DELAY);
+  navigationGamepadIndex = gamepadIndex;
+  navigationTimeout = setTimeout(() => {
+    navigationTimeout = null;
+    navigationGamepadIndex = null;
+    callback();
+  }, NAVIGATION_DELAY);
 }
 
 // Updates the host status indicator based on the host's online and paired status
