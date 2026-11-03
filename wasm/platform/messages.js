@@ -1238,9 +1238,9 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
-    console.info('[stream]', 'Stream connection established.');
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+    console.info('[stream]', 'Stream connection established.');
     // Connection negotiation completed; now bound the wait for the first decoded frame.
     if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
     // This marks connection setup, not the availability of the first decoded video frame.
