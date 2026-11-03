@@ -127,12 +127,41 @@ function startSubnetScanner(excludedIPs) {
       }
       window.subnetScanAbortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       
-      // Startup phase 3 passes the IPv4 addresses already checked in phase 2.
-      // Manual refresh and Auto WOL omit this argument and retain a complete /24 scan.
+      // Every scan excludes the TV itself, the configured gateway, and
+      // every already-known host. Startup may additionally pass addresses
+      // checked in phase 2; the same baseline exclusions apply to manual
+      // refresh and Auto WOL scans as well.
       var excludedIPSet = Object.create(null);
+      function addExcludedIPv4(ip) {
+        if (typeof ip !== 'string' ||
+            !/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(ip)) return;
+        var octets = ip.split('.');
+        if (octets.some(function(octet) {
+          return Number(octet) < 0 || Number(octet) > 255;
+        })) return;
+        excludedIPSet[ip] = true;
+      }
+
+      addExcludedIPv4(localIp);
+      try {
+        if (typeof webapis !== 'undefined' && webapis.network &&
+            typeof webapis.network.getGateway === 'function') {
+          addExcludedIPv4(webapis.network.getGateway());
+        }
+      } catch (gatewayError) {
+        console.warn('%c[main.js, startSubnetScanner]', 'color: orange;', 'Could not determine the network gateway; continuing without excluding it:', gatewayError);
+      }
+
       if (Array.isArray(excludedIPs)) {
-        excludedIPs.forEach(function(ip) {
-          if (typeof ip === 'string') excludedIPSet[ip] = true;
+        excludedIPs.forEach(addExcludedIPv4);
+      }
+      if (typeof hosts !== 'undefined' && hosts) {
+        Object.keys(hosts).forEach(function(hostUID) {
+          var host = hosts[hostUID];
+          if (host) {
+            addExcludedIPv4(host.address);
+            addExcludedIPv4(host.externalIP);
+          }
         });
       }
 
@@ -141,7 +170,13 @@ function startSubnetScanner(excludedIPs) {
         var candidateIP = subnet + '.' + i;
         if (!excludedIPSet[candidateIP]) IPs.push(candidateIP);
       }
-      console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Subnet scan will probe', IPs.length, 'of 254 addresses; excluded', 254 - IPs.length, 'already-queried addresses.');
+      console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Subnet scan will probe', IPs.length, 'of 254 addresses; excluded', 254 - IPs.length, 'addresses (TV, gateway, known hosts, and previously checked IPs).');
+
+      if (IPs.length === 0) {
+        window.subnetScanPromise = null;
+        resolve();
+        return;
+      }
 
       var index = 0;
       var activeCount = 0;
