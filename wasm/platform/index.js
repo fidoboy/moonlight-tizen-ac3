@@ -21,6 +21,8 @@ var LOG_SHOW_CERTS = false;
       (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('main window loaded') !== -1) ||
       (tag.indexOf('[index.js, loadSystemInfo]') !== -1 && message.indexOf('App Version:') !== -1) ||
       tag.indexOf('[index.js, showStreamMode]') !== -1 ||
+      tag.indexOf('[index.js, showHostsMode]') !== -1 ||
+      (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
       (tag.indexOf('[index.js, exitAppDialog]') !== -1 && message.indexOf('exiting application') !== -1);
   }
 
@@ -29,12 +31,14 @@ var LOG_SHOW_CERTS = false;
     if (key && /^(cert|certificate)$/i.test(key) && !LOG_SHOW_CERTS) return '[CERTIFICATE REDACTED]';
     if (typeof value === 'string') {
       return value
-        .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, LOG_SHOW_CERTS ? '// Tizen's native splash overlays the normal WebUI until hideNativeLaunchScreen() is called.
-
-' : '[CERTIFICATE REDACTED]')
+        .replace(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g, function(certificate) { return LOG_SHOW_CERTS ? certificate : '[CERTIFICATE REDACTED]'; })
         .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, '[PRIVATE KEY REDACTED]');
     }
     if (!value || typeof value !== 'object') return value;
+    if (!Array.isArray(value)) {
+      var prototype = Object.getPrototypeOf(value);
+      if (prototype !== Object.prototype && prototype !== null) return value;
+    }
     seen = seen || [];
     if (seen.indexOf(value) !== -1) return '[Circular]';
     seen.push(value);
