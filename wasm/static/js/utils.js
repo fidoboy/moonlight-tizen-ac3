@@ -365,16 +365,19 @@ NvHTTP.prototype = {
 
   toString: function() {
     var string = '';
-    string += 'host name: ' + this.hostname + '\r\n';
-    string += 'host address: ' + this.address + '\r\n';
-    string += 'local address: ' + this.localAddress + '\r\n';
-    string += 'external IP: ' + this.externalIP + '\r\n';
-    string += 'mac address: ' + this.macAddress + '\r\n';
+    var privateValue = function(value) {
+      return typeof LOG_SHOW_PRIVATE_DATA !== 'undefined' && LOG_SHOW_PRIVATE_DATA ? value : '--- HIDDEN ---';
+    };
+    string += 'host name: ' + privateValue(this.hostname) + '\r\n';
+    string += 'host address: ' + privateValue(this.address) + '\r\n';
+    string += 'local address: ' + privateValue(this.localAddress) + '\r\n';
+    string += 'external IP: ' + privateValue(this.externalIP) + '\r\n';
+    string += 'mac address: ' + privateValue(this.macAddress) + '\r\n';
     string += 'https port: ' + this.httpsPort + '\r\n';
     string += 'http port: ' + this.httpPort + '\r\n';
     string += 'external port: ' + this.externalPort + '\r\n';
-    string += 'client UID: ' + this.clientUid + '\r\n';
-    string += 'server UID: ' + this.serverUid + '\r\n';
+    string += 'client UID: ' + privateValue(this.clientUid) + '\r\n';
+    string += 'server UID: ' + privateValue(this.serverUid) + '\r\n';
     string += 'is paired: ' + this.paired + '\r\n';
     string += 'is online: ' + this.online + '\r\n';
     string += 'number of apps: ' + this.numofapps + '\r\n';
