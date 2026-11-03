@@ -115,14 +115,14 @@ COPY --chown=moonlight .gi[t]/ ./moonlight-tizen/.git/
 ARG BUILD_TYPE=release
 ARG OFFICIAL_RELEASE=false
 ARG DEBUG_MODE=false
-ARG LOG_SHOW_CERTS=false
+ARG LOG_SHOW_PRIVATE_DATA=false
 ARG REPO_OWNER
 ARG REPO_NAME
 RUN \
     # Always inject the build type, repo owner, and repo name regardless of the build type
 	sed -i "s/__BUILD_TYPE__/$BUILD_TYPE/g" moonlight-tizen/wasm/platform/index.js && \
     sed -i "s/var DEBUG_MODE = false;/var DEBUG_MODE = $DEBUG_MODE;/" moonlight-tizen/wasm/platform/index.js && \
-    sed -i "s/var LOG_SHOW_CERTS = false;/var LOG_SHOW_CERTS = (DEBUG_MODE \\&\\& $LOG_SHOW_CERTS);/" moonlight-tizen/wasm/platform/index.js && \
+    sed -i "s/var LOG_SHOW_PRIVATE_DATA = false;/var LOG_SHOW_PRIVATE_DATA = (DEBUG_MODE \\&\\& $LOG_SHOW_PRIVATE_DATA);/" moonlight-tizen/wasm/platform/index.js && \
     sed -i "s/__OFFICIAL_RELEASE__/$OFFICIAL_RELEASE/g" moonlight-tizen/wasm/platform/index.js && \
     if [ -n "$REPO_OWNER" ]; then \
         sed -i "s/__REPO_OWNER__/$REPO_OWNER/g" moonlight-tizen/wasm/platform/index.js; \
