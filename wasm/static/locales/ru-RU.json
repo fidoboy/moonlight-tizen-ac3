@@ -554,5 +554,16 @@
   "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "Соединение было прервано из-за потери ключевого кадра во время приёма. Видеопакеты поступали, но клиент не смог собрать полный ключевой кадр (кадр IDR).",
   "No video packets were received.": "Видеопакеты не получены.",
   "Keyframes were lost.": "Произошла потеря ключевых кадров.",
-  "The connection was interrupted because no video packets were received from the host during startup.": "Соединение было прервано, поскольку с самого начала от хоста не поступало видеопакетов."
+  "The connection was interrupted because no video packets were received from the host during startup.": "Соединение было прервано, поскольку с самого начала от хоста не поступало видеопакетов.",
+  "Hardware": "Аппаратный",
+  "Software": "Программный",
+  "Error": "Ошибка",
+  "the host": "хост",
+  "Unable to start streaming": "Не удалось запустить потоковую передачу",
+  "Unable to launch the selected app.": "Не удалось запустить выбранное приложение.",
+  "Could not retrieve the currently running application.": "Не удалось получить сведения о текущем запущенном приложении.",
+  "Moonlight could not load its saved streaming settings.": "Moonlight не удалось загрузить сохранённые настройки потоковой передачи.",
+  "Moonlight could not load its saved configuration.": "Moonlight не удалось загрузить сохранённую конфигурацию.",
+  "Moonlight could not initialize its streaming credentials.": "Moonlight не удалось инициализировать учётные данные потоковой передачи.",
+  "Moonlight could not initialize its streaming connection.": "Moonlight не удалось инициализировать подключение для потоковой передачи."
 }

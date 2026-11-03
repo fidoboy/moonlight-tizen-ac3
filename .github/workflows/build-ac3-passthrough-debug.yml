@@ -116,6 +116,7 @@ jobs:
           node tests/gamepad_mask_test.js
           node --check wasm/platform/messages.js
           node --check wasm/static/js/i18n-sync.js
+          node wasm/static/js/i18n-sync.js --check
           python3 - <<'PY'
           import json
           from pathlib import Path

@@ -5139,7 +5139,7 @@ function startGame(host, appID) {
     // request is in progress. This replaces the former standalone Smart Hub status text.
     var directSettings = _directSmartHubStreamSettings;
     if (!directSettings) {
-      directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+      directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming settings.'));
       return;
     }
     var directAppName = _directSmartHubLaunch.appName || String(appID);
@@ -5851,7 +5851,7 @@ function openIndexDB(callback) {
 
   request.onerror = function(e) {
     console.error('%c[index.js, openIndexDB]', 'color: green;', 'Error: Cannot create or access the IndexedDB database: ', e);
-    if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not load its saved configuration.');
+    if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
   };
 
   request.onsuccess = function(e) {
@@ -8084,7 +8084,7 @@ function loadHTTPCertsCb() {
           console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate: ', cert);
         }, function(failedCert) {
           console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed to generate a new certificate! Returned error was: \n', failedCert + '!');
-          if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not initialize its streaming credentials.');
+          if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials.'));
         }).then(function(ret) {
           sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
             isStartupHttpReady = true;
@@ -8092,7 +8092,7 @@ function loadHTTPCertsCb() {
             else maybeRestoreUiAfterStartup();
           }, function(failedInit) {
             console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
-            if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not initialize its streaming connection.');
+            if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming connection.'));
           });
         });
       } else {

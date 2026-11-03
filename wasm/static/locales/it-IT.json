@@ -554,5 +554,16 @@
   "The connection was interrupted because a keyframe was lost during reception. Video packets had arrived, but the client could not assemble a complete keyframe (IDR frame).": "La connessione è stata interrotta a causa della perdita di un fotogramma chiave durante la ricezione. Erano arrivati pacchetti video, ma il client non è riuscito a ricostruire un fotogramma chiave completo (fotogramma IDR).",
   "No video packets were received.": "Non è stato ricevuto alcun pacchetto video.",
   "Keyframes were lost.": "Si è verificata una perdita di fotogrammi chiave.",
-  "The connection was interrupted because no video packets were received from the host during startup.": "La connessione è stata interrotta perché dall’inizio non è stato ricevuto alcun pacchetto video dall’host."
+  "The connection was interrupted because no video packets were received from the host during startup.": "La connessione è stata interrotta perché dall’inizio non è stato ricevuto alcun pacchetto video dall’host.",
+  "Hardware": "Hardware",
+  "Software": "Software",
+  "Error": "Errore",
+  "the host": "l'host",
+  "Unable to start streaming": "Impossibile avviare lo streaming",
+  "Unable to launch the selected app.": "Impossibile avviare l'app selezionata.",
+  "Could not retrieve the currently running application.": "Impossibile recuperare l'applicazione attualmente in esecuzione.",
+  "Moonlight could not load its saved streaming settings.": "Moonlight non è riuscito a caricare le impostazioni di streaming salvate.",
+  "Moonlight could not load its saved configuration.": "Moonlight non è riuscito a caricare la configurazione salvata.",
+  "Moonlight could not initialize its streaming credentials.": "Moonlight non è riuscito a inizializzare le credenziali di streaming.",
+  "Moonlight could not initialize its streaming connection.": "Moonlight non è riuscito a inizializzare la connessione di streaming."
 }
