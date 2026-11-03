@@ -3,6 +3,15 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.2.0
+
+### Changed
+- **Gamepad connection notifications:** Display the connected gamepad's name instead of its numeric index. Technical metadata appended in parentheses is omitted; the index remains the fallback when no usable name is available.
+
+### Fixed
+- **Warning dialog focus:** Improved remote-control and gamepad navigation focus restoration when warning dialogs appear, ensuring the Close button receives focus regardless of the error type or whether additional diagnostic details are available.
+
+
 ## v1.1.0
 
 ### Added
