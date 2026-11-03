@@ -1036,20 +1036,13 @@ function startDeferredNormalStartup() {
   };
 
   var startStartupWork = function() {
-    // The UI has now had a full rendering grace period. Only now may startup
-    // messages and initialization begin.
-    if (!isStartupHostsLoaded) {
-      // Do not start CPU-heavy initialization until the snackbar has completed
-      // its slide-in transition and the browser has had another rendering frame.
-      showStartupHostsSnackbar(function() {
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(runStartupWork);
-        } else {
-          window.setTimeout(runStartupWork, 0);
-        }
-      });
+    // Phase 1 restores saved hosts locally after WebAssembly initialization.
+    // Keep this phase silent: whether there are hosts to check is not known yet.
+    // The phase-2 message is shown later, only when the restored list is non-empty.
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(runStartupWork);
     } else {
-      window.setTimeout(runStartupWork, 50);
+      window.setTimeout(runStartupWork, 0);
     }
   };
 
@@ -7892,24 +7885,31 @@ function loadHTTPCertsCb() {
         });
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
-        // Phase 1: restore the saved host list locally. Do not perform network requests
-        // while the "Loading configured hosts..." startup message is being displayed.
+        // Phase 1: restore the saved host list locally. This phase is silent.
         isStartupHostsLoaded = true;
         dismissStartupHostsSnackbar();
         maybeRestoreUiAfterStartup();
 
-        // Phase 2: verify only the hosts already present in the saved list.
-        // Keep host selection locked until every configured host has a verified initial status.
-        // Complete these checks before subnet discovery so its requests cannot starve them.
-        if (isInGame !== true) {
-          snackbarLogPersistent('Checking configured hosts...');
-        }
-        startPollingHosts().catch(function(error) {
+        // Phase 2 is needed only when the saved list contains configured hosts.
+        // With an empty list, skip both its network work and its snackbar entirely.
+        // In that case, keep host interaction locked until phase 3 has completed.
+        var hasConfiguredHosts = Object.keys(hosts).length > 0;
+        var phase2Promise = hasConfiguredHosts
+          ? (function() {
+              if (isInGame !== true) {
+                snackbarLogPersistent('Checking configured hosts...');
+              }
+              return startPollingHosts();
+            })()
+          : Promise.resolve();
+
+        phase2Promise.catch(function(error) {
           console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
         }).then(function() {
-          // Known hosts now have their initial status. Restore card opacity and
-          // remote-control selection before beginning the independent subnet scan.
-          if (isInGame !== true) {
+          // When configured hosts exist, they are now verified and interaction can
+          // resume before the independent subnet scan. With no saved hosts, keep
+          // the cards dimmed and navigation locked until phase 3 finishes.
+          if (hasConfiguredHosts && isInGame !== true) {
             unlockHostListInteraction();
           }
 
