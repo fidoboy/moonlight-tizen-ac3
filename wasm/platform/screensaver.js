@@ -7,6 +7,7 @@
   var screensaverVisible = false;
   var idleTimeout = null;
   var logoMoveInterval = null;
+  var logoMoveTimeout = null;
   var layerObserver = null;
 
   function elements() {
@@ -23,7 +24,7 @@
     var transition = document.getElementById('stream-transition-layer');
     return !!transition && window.getComputedStyle(transition).display === 'none';
   }
-  function moveLogo() {
+  function chooseLogoPosition() {
     var content = elements().content;
     if (!content || !screensaverVisible) return;
     var bounds = content.getBoundingClientRect();
@@ -38,13 +39,27 @@
     content.style.top = (minY + Math.random() * (maxY - minY)) + 'px';
   }
   function hide() {
-    var overlay = elements().overlay;
+    var e = elements();
     if (logoMoveInterval !== null) { window.clearInterval(logoMoveInterval); logoMoveInterval = null; }
-    if (overlay && screensaverVisible) {
-      overlay.classList.remove('is-visible');
-      overlay.setAttribute('aria-hidden', 'true');
+    if (logoMoveTimeout !== null) { window.clearTimeout(logoMoveTimeout); logoMoveTimeout = null; }
+    if (e.content) e.content.classList.remove('is-visible');
+    if (e.overlay && screensaverVisible) {
+      e.overlay.classList.remove('is-visible');
+      e.overlay.setAttribute('aria-hidden', 'true');
     }
     screensaverVisible = false;
+  }
+
+  function relocateLogo() {
+    var content = elements().content;
+    if (!content || !screensaverVisible) return;
+    content.classList.remove('is-visible');
+    logoMoveTimeout = window.setTimeout(function() {
+      logoMoveTimeout = null;
+      if (!screensaverVisible) return;
+      chooseLogoPosition();
+      content.classList.add('is-visible');
+    }, 220);
   }
   function show() {
     var e = elements();
@@ -52,8 +67,9 @@
     screensaverVisible = true;
     e.overlay.classList.add('is-visible');
     e.overlay.setAttribute('aria-hidden', 'false');
-    moveLogo();
-    logoMoveInterval = window.setInterval(moveLogo, LOGO_MOVE_INTERVAL_MS);
+    chooseLogoPosition();
+    e.content.classList.add('is-visible');
+    logoMoveInterval = window.setInterval(relocateLogo, LOGO_MOVE_INTERVAL_MS);
   }
   function syncScreensaverTimer() {
     if (!screensaverInitialized || !screensaverEnabled || global._directSmartHubLaunch || !eligible()) {
