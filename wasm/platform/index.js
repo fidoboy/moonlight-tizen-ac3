@@ -18,8 +18,7 @@ var LOG_SHOW_CERTS = false;
       return typeof value === 'string' ? value : '';
     }).join(' ');
     return (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM runtime initialized') !== -1) ||
-      (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('main window loaded') !== -1) ||
-      (tag.indexOf('[index.js, loadSystemInfo]') !== -1 && message.indexOf('App Version:') !== -1) ||
+      (tag.indexOf('[index.js, onWindowLoad]') !== -1 && message.indexOf('App Version:') !== -1) ||
       tag.indexOf('[index.js, showHostsMode]') !== -1 ||
       tag === '[stream]' ||
       (tag.indexOf('[common.js, createWASMModule]') !== -1 && message.indexOf('WASM exit called') !== -1) ||
@@ -7409,7 +7408,6 @@ function loadSystemInfo() {
 
   // Get the system information from the TV
   if (systemInfoPlaceholder) {
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'Platform Version: Tizen ' + (platformVer ? platformVer : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Series: ' + (modelSeries ? modelSeries : 'Unknown'));
     console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Name: ' + (modelName ? modelName : 'Unknown'));
@@ -8761,7 +8759,9 @@ function initializeConfigSummaryBar() {
 }
 
 function onWindowLoad() {
-  console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Moonlight\'s main window loaded.');
+  var isForceGMVariant = checkForceGMVariant();
+  var buildVer = getBuildVersion(appInfo.version);
+  console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
   if (!_directSmartHubLaunch) {
     initSamsungKeys();
     initSpecialKeys();
