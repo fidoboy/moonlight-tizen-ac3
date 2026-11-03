@@ -1370,6 +1370,7 @@ function stopPollingHosts() {
 }
 
 var persistentSnackbarVisible = false;
+var persistentSnackbarShownAt = 0;
 var snackbarTransitionPromise = Promise.resolve();
 
 function clearQueuedSnackbarNotifications() {
@@ -1384,6 +1385,15 @@ function clearQueuedSnackbarNotifications() {
 }
 
 var SNACKBAR_PHASE_COURTESY_MS = 100;
+var SNACKBAR_MIN_VISIBLE_MS = 2000;
+
+function waitForSnackbarMinimumVisible() {
+  var elapsed = persistentSnackbarShownAt ? Date.now() - persistentSnackbarShownAt : SNACKBAR_MIN_VISIBLE_MS;
+  var remaining = Math.max(0, SNACKBAR_MIN_VISIBLE_MS - elapsed);
+  return remaining > 0 ? new Promise(function(resolve) {
+    window.setTimeout(resolve, remaining);
+  }) : Promise.resolve();
+}
 
 function waitForSnackbarPhaseCourtesy() {
   return new Promise(function(resolve) {
@@ -1481,6 +1491,8 @@ function snackbarLogPersistent(...args) {
         message: translatedMessage,
         timeout: 2147483647
       });
+    }).then(function() {
+      persistentSnackbarShownAt = Date.now();
     });
   });
 }
@@ -1489,7 +1501,8 @@ function dismissPersistentSnackbar() {
   clearQueuedSnackbarNotifications();
   if (!persistentSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
   persistentSnackbarVisible = false;
-  return waitForSnackbarTransform(function() {
+  return waitForSnackbarMinimumVisible().then(function() {
+    return waitForSnackbarTransform(function() {
     const snackbarElement = document.querySelector('#snackbar');
     if (snackbarElement) {
       if (snackbarElement.MaterialSnackbar &&
@@ -1499,9 +1512,11 @@ function dismissPersistentSnackbar() {
       snackbarElement.classList.remove('mdl-snackbar--active');
       snackbarElement.setAttribute('aria-hidden', 'true');
     }
-  }).then(function() {
-    // Keep the spinner visible until the snackbar has completely slid out.
-    setSnackbarProgress(false);
+    }).then(function() {
+      // Keep the spinner visible until the snackbar has completely slid out.
+      setSnackbarProgress(false);
+      persistentSnackbarShownAt = 0;
+    });
   });
 }
 
@@ -1515,6 +1530,7 @@ function showStartupHostsSnackbar() {
     function finishSnackbarEntrance() {
       if (transitionFinished) return;
       transitionFinished = true;
+      persistentSnackbarShownAt = Date.now();
       if (snackbarElement) {
         snackbarElement.removeEventListener('transitionend', onSnackbarTransitionEnd);
       }
@@ -1562,7 +1578,8 @@ function showStartupHostsSnackbar() {
 function dismissStartupHostsSnackbar() {
   if (!startupHostsSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
   startupHostsSnackbarVisible = false;
-  return waitForSnackbarTransform(function() {
+  return waitForSnackbarMinimumVisible().then(function() {
+    return waitForSnackbarTransform(function() {
     const snackbarElement = document.querySelector('#snackbar');
     if (snackbarElement) {
       if (snackbarElement.MaterialSnackbar &&
@@ -1572,8 +1589,10 @@ function dismissStartupHostsSnackbar() {
       snackbarElement.classList.remove('mdl-snackbar--active');
       snackbarElement.setAttribute('aria-hidden', 'true');
     }
-  }).then(function() {
-    setSnackbarProgress(false);
+    }).then(function() {
+      setSnackbarProgress(false);
+      persistentSnackbarShownAt = 0;
+    });
   });
 }
 
