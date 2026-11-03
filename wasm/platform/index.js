@@ -95,7 +95,6 @@ var isHostOpening = false; // Prevents concurrent hostChosen executions, initial
 var isHostsLoaded = false; // Indicates if IndexedDB has finished loading hosts
 var isStartupHttpReady = false;
 var isStartupHostsLoaded = false;
-var startupHostsSnackbarVisible = false;
 var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
 var isStartupUiRestored = false;
@@ -1436,8 +1435,6 @@ function waitForSnackbarTransform(action) {
 
 function snackbarLog(...args) {
   return Promise.resolve(snackbarTransitionPromise).then(function() {
-    return dismissStartupHostsSnackbar();
-  }).then(function() {
     return dismissPersistentSnackbar();
   }).then(function() {
     return waitForSnackbarPhaseCourtesy();
@@ -1456,8 +1453,6 @@ function snackbarLog(...args) {
 
 function snackbarLogLong(...args) {
   return Promise.resolve(snackbarTransitionPromise).then(function() {
-    return dismissStartupHostsSnackbar();
-  }).then(function() {
     return dismissPersistentSnackbar();
   }).then(function() {
     return waitForSnackbarPhaseCourtesy();
@@ -1481,8 +1476,6 @@ function setSnackbarProgress(isVisible) {
 
 function snackbarLogPersistent(...args) {
   return Promise.resolve(snackbarTransitionPromise).then(function() {
-    return dismissStartupHostsSnackbar();
-  }).then(function() {
     return dismissPersistentSnackbar();
   }).then(function() {
     return waitForSnackbarPhaseCourtesy();
@@ -1527,80 +1520,9 @@ function dismissPersistentSnackbar() {
   });
 }
 
+// Startup uses the same persistent snackbar queue as every other operation.
 function showStartupHostsSnackbar() {
-  return new Promise(function(resolve) {
-    setSnackbarProgress(true);
-    const snackbarElement = document.querySelector('#snackbar');
-    var transitionFinished = false;
-    var transitionFallback = null;
-
-    function finishSnackbarEntrance() {
-      if (transitionFinished) return;
-      transitionFinished = true;
-      persistentSnackbarShownAt = Date.now();
-      if (snackbarElement) {
-        snackbarElement.removeEventListener('transitionend', onSnackbarTransitionEnd);
-      }
-      if (transitionFallback !== null) {
-        window.clearTimeout(transitionFallback);
-        transitionFallback = null;
-      }
-      resolve();
-    }
-
-    function onSnackbarTransitionEnd(event) {
-      if (event.target === snackbarElement && event.propertyName === 'transform') {
-        finishSnackbarEntrance();
-      }
-    }
-
-    if (snackbarElement) {
-      snackbarElement.addEventListener('transitionend', onSnackbarTransitionEnd);
-      transitionFallback = window.setTimeout(finishSnackbarEntrance, UI_FADE_DURATION_MS + 50);
-    }
-
-    if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
-      snackbarLogPersistent('Loading configured hosts...');
-      startupHostsSnackbarVisible = true;
-      if (!snackbarElement) {
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(finishSnackbarEntrance);
-        } else {
-          window.setTimeout(finishSnackbarEntrance, 0);
-        }
-      } else {
-        finishSnackbarEntrance();
-      }
-      return;
-    }
-
-    snackbarElement.MaterialSnackbar.showSnackbar({
-      message: t('Loading configured hosts...'),
-      timeout: 2147483647
-    });
-    startupHostsSnackbarVisible = true;
-  });
-}
-
-function dismissStartupHostsSnackbar() {
-  if (!startupHostsSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
-  startupHostsSnackbarVisible = false;
-  return waitForSnackbarMinimumVisible().then(function() {
-    return waitForSnackbarTransform(function() {
-    const snackbarElement = document.querySelector('#snackbar');
-    if (snackbarElement) {
-      if (snackbarElement.MaterialSnackbar &&
-          typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-        snackbarElement.MaterialSnackbar.cleanup_();
-      }
-      snackbarElement.classList.remove('mdl-snackbar--active');
-      snackbarElement.setAttribute('aria-hidden', 'true');
-    }
-    }).then(function() {
-      setSnackbarProgress(false);
-      persistentSnackbarShownAt = 0;
-    });
-  });
+  return snackbarLogPersistent('Loading configured hosts...');
 }
 
 var isManualHostRefreshRunning = false;
@@ -8150,11 +8072,8 @@ function loadHTTPCertsCb() {
           // The loading snackbar has entered; now it is safe to reveal saved cards.
           for (var hostUID in hosts) addHostToGrid(hosts[hostUID]);
           selectFirstHostAfterAddHost();
-          return dismissStartupHostsSnackbar().then(function() {
-            return waitForSnackbarPhaseCourtesy();
-          }).then(function() {
+          return dismissPersistentSnackbar().then(function() {
             maybeRestoreUiAfterStartup();
-
             return runInitialHostDiscovery(hasConfiguredHosts);
           });
         });
