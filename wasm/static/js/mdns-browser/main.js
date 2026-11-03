@@ -170,35 +170,52 @@ function startSubnetScanner(excludedIPs) {
         activeCount++;
         
         var localAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-        var timeoutId = setTimeout(function() {
-          if (localAbort) localAbort.abort();
-        }, 1000);
-        
+        var requestSettled = false;
+        var timeoutId = null;
+
+        // Some Tizen WebKit builds do not reliably reject fetch() after abort().
+        // Always release the scan slot on timeout so the /24 scan can finish.
+        function finishRequest(res) {
+          if (requestSettled) return;
+          requestSettled = true;
+          if (timeoutId !== null) clearTimeout(timeoutId);
+          if (window.subnetScanAbortCtrl) {
+            window.subnetScanAbortCtrl.signal.removeEventListener('abort', onGlobalAbort);
+          }
+          if (res && res.ok && isInGame !== true) {
+            console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Found host with IP address:', ip);
+            findNvService('ipv4:' + ip);
+          }
+          activeCount--;
+          scanNext();
+        }
+
         var onGlobalAbort = function() {
           if (localAbort) localAbort.abort();
+          // Do not depend on Tizen fetch() honoring AbortController.
+          finishRequest(null);
         };
-        
+
         if (window.subnetScanAbortCtrl) {
           window.subnetScanAbortCtrl.signal.addEventListener('abort', onGlobalAbort);
         }
-        
-        fetch('http://' + ip + ':47989/serverinfo', localAbort ? { signal: localAbort.signal } : {})
-          .then(function(res) {
-            clearTimeout(timeoutId);
-            if (res.ok && isInGame !== true) {
-              console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Found host with IP address:', ip);
-              findNvService('ipv4:' + ip);
-            }
-            if (window.subnetScanAbortCtrl) window.subnetScanAbortCtrl.signal.removeEventListener('abort', onGlobalAbort);
-            activeCount--;
-            scanNext();
-          })
-          .catch(function() {
-            clearTimeout(timeoutId);
-            if (window.subnetScanAbortCtrl) window.subnetScanAbortCtrl.signal.removeEventListener('abort', onGlobalAbort);
-            activeCount--;
-            scanNext();
-          });
+
+        timeoutId = setTimeout(function() {
+          if (localAbort) localAbort.abort();
+          finishRequest(null);
+        }, 1000);
+
+        try {
+          fetch('http://' + ip + ':47989/serverinfo', localAbort ? { signal: localAbort.signal } : {})
+            .then(function(res) {
+              finishRequest(res);
+            })
+            .catch(function() {
+              finishRequest(null);
+            });
+        } catch (error) {
+          finishRequest(null);
+        }
       }
       
       // Kick off the initial batch of 64 concurrent scans
