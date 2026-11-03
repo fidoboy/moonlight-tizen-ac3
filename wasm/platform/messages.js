@@ -888,6 +888,8 @@ function handleMessage(msg) {
       var directStreamHasError = errorCode !== 0 || !!streamMediaPipelineErrorMessage ||
         !!streamDialogMessage || !!streamH264TrackRejectionMessage ||
         !!streamVideoTrackCloseErrorMessage;
+      console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
+        (directStreamHasError ? ' — ' + directClosingMessage : ''));
       if (directStreamHasError) {
         // Smart Hub has no diagnostic dialog: keep every failure status concise.
         directClosingMessage = streamMediaPipelineErrorMessage
@@ -1011,6 +1013,8 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
+    console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
+      (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
 
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
@@ -1234,6 +1238,7 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
+    console.info('[stream]', 'Stream connection established.');
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
     // Connection negotiation completed; now bound the wait for the first decoded frame.
