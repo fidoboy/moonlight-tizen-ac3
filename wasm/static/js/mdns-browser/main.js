@@ -134,7 +134,7 @@ function startSubnetScanner(excludedIPs) {
       var excludedIPSet = Object.create(null);
       function addExcludedIPv4(ip) {
         if (typeof ip !== 'string' ||
-            !/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(ip)) return;
+            !/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(ip)) return;
         var octets = ip.split('.');
         if (octets.some(function(octet) {
           return Number(octet) < 0 || Number(octet) > 255;
