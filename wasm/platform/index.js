@@ -1565,7 +1565,6 @@ function unlockHostListInteraction() {
 
 function finishInitialHostDiscovery() {
   runWhenMainUiActive(function() {
-    snackbarLog('Network scan completed.');
     unlockHostListInteraction();
     // Start the ambient background only after startup host discovery and network scanning finish.
     $('#main-ui-layer').addClass('ambient-trails-ready');
@@ -7927,6 +7926,10 @@ function loadHTTPCertsCb() {
         }).catch(function(error) {
           console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
         }).finally(function() {
+          // The initial scan is complete. Remove its persistent progress message
+          // before starting the normal periodic background monitoring.
+          dismissPersistentSnackbar();
+
           // Phase 4: resume normal periodic monitoring of all known hosts.
           isSubnetScanFinished = true;
           startPollingHosts();
