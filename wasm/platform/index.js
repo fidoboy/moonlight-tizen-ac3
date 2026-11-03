@@ -1281,7 +1281,7 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
     : withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
         refreshServerInfoSucceeded = true;
         if (DEBUG_MODE) {
-          console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\\n' + host.toString());
+          console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString());
         }
 
         // A successful server-info refresh confirms that the host is online.
