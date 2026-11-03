@@ -1348,55 +1348,58 @@ function dismissPersistentSnackbar() {
   setSnackbarProgress(false);
 }
 
-function showStartupHostsSnackbar(onShown) {
-  setSnackbarProgress(true);
-  const snackbarElement = document.querySelector('#snackbar');
-  var transitionFinished = false;
-  var transitionFallback = null;
+function showStartupHostsSnackbar() {
+  return new Promise(function(resolve) {
+    setSnackbarProgress(true);
+    const snackbarElement = document.querySelector('#snackbar');
+    var transitionFinished = false;
+    var transitionFallback = null;
 
-  function finishSnackbarEntrance() {
-    if (transitionFinished) return;
-    transitionFinished = true;
-    if (snackbarElement) {
-      snackbarElement.removeEventListener('transitionend', onSnackbarTransitionEnd);
+    function finishSnackbarEntrance() {
+      if (transitionFinished) return;
+      transitionFinished = true;
+      if (snackbarElement) {
+        snackbarElement.removeEventListener('transitionend', onSnackbarTransitionEnd);
+      }
+      if (transitionFallback !== null) {
+        window.clearTimeout(transitionFallback);
+        transitionFallback = null;
+      }
+      resolve();
     }
-    if (transitionFallback !== null) {
-      window.clearTimeout(transitionFallback);
-      transitionFallback = null;
-    }
-    if (typeof onShown === 'function') onShown();
-  }
 
-  function onSnackbarTransitionEnd(event) {
-    if (event.target === snackbarElement && event.propertyName === 'transform') {
-      finishSnackbarEntrance();
-    }
-  }
-
-  if (snackbarElement) {
-    snackbarElement.addEventListener('transitionend', onSnackbarTransitionEnd);
-    // Safety fallback for runtimes that do not dispatch transitionend reliably.
-    transitionFallback = window.setTimeout(finishSnackbarEntrance, UI_FADE_DURATION_MS + 50);
-  }
-
-  if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
-    snackbarLogPersistent('Loading configured hosts...');
-    startupHostsSnackbarVisible = true;
-    if (!snackbarElement) {
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(finishSnackbarEntrance);
-      } else {
-        window.setTimeout(finishSnackbarEntrance, 0);
+    function onSnackbarTransitionEnd(event) {
+      if (event.target === snackbarElement && event.propertyName === 'transform') {
+        finishSnackbarEntrance();
       }
     }
-    return;
-  }
 
-  snackbarElement.MaterialSnackbar.showSnackbar({
-    message: t('Loading configured hosts...'),
-    timeout: 2147483647
+    if (snackbarElement) {
+      snackbarElement.addEventListener('transitionend', onSnackbarTransitionEnd);
+      transitionFallback = window.setTimeout(finishSnackbarEntrance, UI_FADE_DURATION_MS + 50);
+    }
+
+    if (!snackbarElement || !snackbarElement.MaterialSnackbar) {
+      snackbarLogPersistent('Loading configured hosts...');
+      startupHostsSnackbarVisible = true;
+      if (!snackbarElement) {
+        if (typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(finishSnackbarEntrance);
+        } else {
+          window.setTimeout(finishSnackbarEntrance, 0);
+        }
+      } else {
+        finishSnackbarEntrance();
+      }
+      return;
+    }
+
+    snackbarElement.MaterialSnackbar.showSnackbar({
+      message: t('Loading configured hosts...'),
+      timeout: 2147483647
+    });
+    startupHostsSnackbarVisible = true;
   });
-  startupHostsSnackbarVisible = true;
 }
 
 function dismissStartupHostsSnackbar() {
@@ -7860,9 +7863,10 @@ function loadHTTPCertsCb() {
 
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
+        var phase1SnackbarPromise = Promise.resolve();
         if (hasConfiguredHosts && isInGame !== true) {
-          // Show phase 1 progress only when there is actually a saved host list to restore.
-          showStartupHostsSnackbar();
+          // Keep phase 1 visible until its entrance transition has completed.
+          phase1SnackbarPromise = showStartupHostsSnackbar();
         }
         for (var hostUID in hosts) { // Programmatically add each new host
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
@@ -7890,65 +7894,54 @@ function loadHTTPCertsCb() {
         });
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
-        // Phase 1: the saved host list has now been restored locally.
-        // Its snackbar, when needed, is dismissed before phase 2 begins.
-        isStartupHostsLoaded = true;
-        dismissStartupHostsSnackbar();
-        maybeRestoreUiAfterStartup();
+        // Phase 1: wait until its progress snackbar has actually appeared before
+        // closing it and advancing to the network phases.
+        phase1SnackbarPromise.then(function() {
+          isStartupHostsLoaded = true;
+          dismissStartupHostsSnackbar();
+          maybeRestoreUiAfterStartup();
 
-        // Phase 2 is needed only when the saved list contains configured hosts.
-        // With an empty list, skip both its network work and its snackbar entirely.
-        // In that case, keep host interaction locked until phase 3 has completed.
-        var phase2Promise = hasConfiguredHosts
-          ? (function() {
-              if (isInGame !== true) {
-                snackbarLogPersistent('Checking configured hosts...');
+          // Phase 2 is skipped entirely when there are no saved hosts.
+          var phase2Promise = hasConfiguredHosts
+            ? (function() {
+                if (isInGame !== true) snackbarLogPersistent('Checking configured hosts...');
+                return startPollingHosts();
+              })()
+            : Promise.resolve();
+
+          return phase2Promise.catch(function(error) {
+            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
+          }).then(function() {
+            // Existing hosts become interactive after their checks. With no saved
+            // hosts, keep the list locked until discovery completes.
+            if (hasConfiguredHosts && isInGame !== true) unlockHostListInteraction();
+
+            // Phase 3: discover additional hosts, excluding phase 2 IPv4 addresses.
+            var phase2QueriedIPs = [];
+            for (var hostUID in hosts) {
+              var queriedAddress = hosts[hostUID].address;
+              if (typeof queriedAddress === 'string' &&
+                  /^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
+                phase2QueriedIPs.push(queriedAddress);
               }
-              return startPollingHosts();
-            })()
-          : Promise.resolve();
-
-        phase2Promise.catch(function(error) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
-        }).then(function() {
-          // When configured hosts exist, they are now verified and interaction can
-          // resume before the independent subnet scan. With no saved hosts, keep
-          // the cards dimmed and navigation locked until phase 3 finishes.
-          if (hasConfiguredHosts && isInGame !== true) {
-            unlockHostListInteraction();
-          }
-
-          // Phase 3: discover additional hosts on the local subnet, excluding
-          // the IPv4 addresses already queried during phase 2.
-          var phase2QueriedIPs = [];
-          for (var hostUID in hosts) {
-            var queriedAddress = hosts[hostUID].address;
-            if (typeof queriedAddress === 'string' &&
-                /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
-              phase2QueriedIPs.push(queriedAddress);
             }
-          }
-          if (isInGame !== true) {
-            snackbarLogPersistent('Scanning the local network to discover new hosts...');
-          }
-          // No periodic polling should compete with the subnet sweep.
-          stopPollingHosts();
-          return ensureSubnetScannerLoaded().then(function() {
-            return startSubnetScanner(phase2QueriedIPs);
+            if (isInGame !== true) {
+              snackbarLogPersistent('Scanning the local network to discover new hosts...');
+            }
+            stopPollingHosts();
+            return ensureSubnetScannerLoaded().then(function() {
+              return startSubnetScanner(phase2QueriedIPs);
+            });
+          }).catch(function(error) {
+            console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
+          }).finally(function() {
+            // Close phase 3 before resuming normal phase 4 monitoring.
+            dismissPersistentSnackbar();
+            isSubnetScanFinished = true;
+            startPollingHosts();
+            finishInitialHostDiscovery();
           });
-        }).catch(function(error) {
-          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
-        }).finally(function() {
-          // The initial scan is complete. Remove its persistent progress message
-          // before starting the normal periodic background monitoring.
-          dismissPersistentSnackbar();
-
-          // Phase 4: resume normal periodic monitoring of all known hosts.
-          isSubnetScanFinished = true;
-          startPollingHosts();
-          finishInitialHostDiscovery();
         });
-      });
     });
   });
 }
