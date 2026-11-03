@@ -3010,22 +3010,39 @@ function hostDetailsDialog(host) {
   var activeAddress = escapeHTML(host.address);
   var localAddress = escapeHTML(host.localAddress);
 
+  // Build the details using only app lists already known for this host.
+  var hostDetailsLines = [
+    t('Name: %1$s', escapeHTML(host.hostname)),
+    t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
+    t('Active Address: %1$s', activeAddress ? httpsLockIcon + activeAddress : t('NULL')),
+    t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
+    t('Local Address: %1$s', localAddress ? httpsLockIcon + localAddress : t('NULL')),
+    t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
+    t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED'))
+  ];
+  var currentGameId = Number(host.currentGame);
+  if (Number.isFinite(currentGameId) && currentGameId !== 0) {
+    var knownApps = Array.isArray(host._memCachedApplist) ? host._memCachedApplist.slice() : [];
+    var previewHost = _previewApps && _previewApps[host.serverUid];
+    if (previewHost && Array.isArray(previewHost.apps)) {
+      knownApps = knownApps.concat(previewHost.apps);
+    }
+    var runningApp = knownApps.find(function(app) {
+      return app && Number(app.id) === currentGameId && typeof app.title === 'string' && app.title.length > 0;
+    });
+    var runningAppLabel = runningApp ? runningApp.title : String(host.currentGame);
+    hostDetailsLines.push(t('Running application: %1$s', escapeHTML(runningAppLabel)));
+  }
+  hostDetailsLines.push(
+    t('HTTP Port: %1$s', escapeHTML(host.httpPort) ? escapeHTML(host.httpPort) : t('NULL')),
+    t('HTTPS Port: %1$s', escapeHTML(host.httpsPort) ? escapeHTML(host.httpsPort) : t('NULL'))
+  );
+
   // Add a paragraph with multiple lines of text
   $('<p>', {
     id: 'hostDetailsDialogText-' + host.serverUid,
     class: 'host-details-text',
-    html: [
-      t('Name: %1$s', escapeHTML(host.hostname)),
-      t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
-      t('Active Address: %1$s', activeAddress ? httpsLockIcon + activeAddress : t('NULL')),
-      t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
-      t('Local Address: %1$s', localAddress ? httpsLockIcon + localAddress : t('NULL')),
-      t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
-      t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED')),
-      t('Running Game ID: %1$s', escapeHTML(host.currentGame)),
-      t('HTTP Port: %1$s', escapeHTML(host.httpPort) ? escapeHTML(host.httpPort) : t('NULL')),
-      t('HTTPS Port: %1$s', escapeHTML(host.httpsPort) ? escapeHTML(host.httpsPort) : t('NULL'))
-    ].join('<br>')
+    html: hostDetailsLines.join('<br>')
   }).appendTo(hostDetailsDialogContent);
 
   // Create the actions section inside the dialog
