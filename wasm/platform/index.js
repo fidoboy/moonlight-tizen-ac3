@@ -7913,15 +7913,23 @@ function loadHTTPCertsCb() {
             unlockHostListInteraction();
           }
 
-          // Phase 3: discover additional hosts on the local subnet. The scanner
-          // excludes addresses already represented by configured hosts.
+          // Phase 3: discover additional hosts on the local subnet, excluding
+          // the IPv4 addresses already queried during phase 2.
+          var phase2QueriedIPs = [];
+          for (var hostUID in hosts) {
+            var queriedAddress = hosts[hostUID].address;
+            if (typeof queriedAddress === 'string' &&
+                /^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(queriedAddress)) {
+              phase2QueriedIPs.push(queriedAddress);
+            }
+          }
           if (isInGame !== true) {
             snackbarLogPersistent('Scanning the local network to discover new hosts...');
           }
           // No periodic polling should compete with the subnet sweep.
           stopPollingHosts();
           return ensureSubnetScannerLoaded().then(function() {
-            return startSubnetScanner();
+            return startSubnetScanner(phase2QueriedIPs);
           });
         }).catch(function(error) {
           console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
