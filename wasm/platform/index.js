@@ -1273,21 +1273,21 @@ function beginBackgroundPollingOfHost(host) {
   // Ensure the key exists so the hasOwnProperty check in scheduleNextPoll passes
   activePolls[host.serverUid] = null;
 
-  // Refresh server info before attempting to start background polling of the host
+  // Refresh server info before attempting to start background polling of the host.
+  // A failed refresh is not sufficient evidence that a previously known host is offline;
+  // the regular pollServer check below remains responsible for confirming connectivity.
+  var refreshServerInfoSucceeded = false;
   return withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
+    refreshServerInfoSucceeded = true;
     if (DEBUG_MODE) {
       console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString());
     }
-    
-    // The fast-path ping succeeded! Mark the host online instantly to prevent the UI from
-    // flashing offline in the .finally block, and to skip the redundant 0-delay poll.
-    host.online = true;
-  }).catch(function(failedRefreshInfo) {
-    console.error('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Error: Failed to refresh server info! Returned error was: ' + failedRefreshInfo + '! Failed server was: ' + '\n', host.hostname, host.address);
 
-    // Set host to offline and clear the app list cache
-    host.online = false;
-    host._memCachedApplist = null;
+    // A successful server-info refresh confirms that the host is online.
+    host.online = true;
+    host._statusVerified = true;
+  }).catch(function(failedRefreshInfo) {
+    console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; retaining the last known host status until pollServer verifies it:', failedRefreshInfo, host.hostname, host.address);
   }).finally(function() {
     // The in-flight request may finish during streaming, but it must not restart
     // periodic polling or update the hidden host UI.
@@ -1298,7 +1298,9 @@ function beginBackgroundPollingOfHost(host) {
     }
 
     // The completed network poll is the source of truth for the displayed status.
-    host._statusVerified = true;
+    if (refreshServerInfoSucceeded) {
+      host._statusVerified = true;
+    }
     updateHostStatusIndicator(host);
 
     // Reset poll state so that recovery polls from the interval below start with
@@ -1326,6 +1328,7 @@ function beginBackgroundPollingOfHost(host) {
         host.pollServer(function(returnedHost) {
           // The request may complete after polling was stopped or streaming began.
           if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
+          returnedHost._statusVerified = true;
           updateHostStatusIndicator(returnedHost);
           scheduleNextPoll(5000);
         });
