@@ -91,10 +91,14 @@ COPY --chown=moonlight wasm/*.cpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/*.hpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/dispatcher ./moonlight-tizen/wasm/dispatcher/
 
+# Share the debug switch with the native C/C++ build as well as the frontend.
+ARG DEBUG_MODE=false
+
 RUN cmake \
 	-DCMAKE_TOOLCHAIN_FILE=/home/moonlight/emscripten-release-bundle/emsdk/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
@@ -114,7 +118,6 @@ COPY --chown=moonlight .gi[t]/ ./moonlight-tizen/.git/
 # Only builds published by the stable-release workflow are treated as official; all other builds are marked experimental.
 ARG BUILD_TYPE=release
 ARG OFFICIAL_RELEASE=false
-ARG DEBUG_MODE=false
 ARG LOG_SHOW_PRIVATE_DATA=false
 ARG REPO_OWNER
 ARG REPO_NAME
