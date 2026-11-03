@@ -75,7 +75,7 @@ function findNvService(ipString) {
     } else {
       // New host — add to grid and begin background polling
       addHostToGrid(returnedDiscoveredHost, true);
-      beginBackgroundPollingOfHost(returnedDiscoveredHost);
+      beginBackgroundPollingOfHost(returnedDiscoveredHost, true);
       saveHosts();
     }
   });
