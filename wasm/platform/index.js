@@ -1669,6 +1669,14 @@ function finishInitialHostDiscovery() {
     // Start the ambient background only after startup host discovery and network scanning finish.
     $('#main-ui-layer').addClass('ambient-trails-ready');
     updateAmbientBackgroundActivation(true);
+
+    // Keep update notifications out of the initial host-loading/check/discovery sequence.
+    if (startupUpdateCheckTimeout === null) {
+      startupUpdateCheckTimeout = window.setTimeout(function() {
+        startupUpdateCheckTimeout = null;
+        checkForAppUpdatesAtStartup();
+      }, 10000);
+    }
   });
 }
 
@@ -1775,11 +1783,6 @@ function restoreUiAfterWasmLoad() {
   // });
 
 
-  // Automatically check for updates after startup, but never start the check during a stream.
-  startupUpdateCheckTimeout = window.setTimeout(function() {
-    startupUpdateCheckTimeout = null;
-    checkForAppUpdatesAtStartup();
-  }, 10000);
 }
 
 // Handles the selection of a host, manages the connection, pairing process, including error handling
@@ -7937,10 +7940,8 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
   }).catch(function(error) {
     console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Initial subnet discovery failed:', error);
   }).finally(function() {
-    // Complete startup discovery and release the host list, even if scanning fails.
+    // Complete startup discovery only after the final progress snackbar has exited.
     return dismissPersistentSnackbar().then(function() {
-      return waitForSnackbarPhaseCourtesy();
-    }).then(function() {
       isSubnetScanFinished = true;
       finishInitialHostDiscovery();
     });
