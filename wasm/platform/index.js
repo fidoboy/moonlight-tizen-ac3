@@ -39,10 +39,10 @@ var LOG_SHOW_PRIVATE_DATA = false;
       return value
         .replace(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g, HIDDEN_LOG_VALUE)
         .replace(/-----BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |ENCRYPTED )?PRIVATE KEY-----/g, HIDDEN_LOG_VALUE)
-        .replace(/\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/g, HIDDEN_LOG_VALUE)
-        .replace(/\\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\\b/gi, HIDDEN_LOG_VALUE)
-        .replace(/\\b[0-9a-f]{16}\\b/gi, HIDDEN_LOG_VALUE);
+        .replace(/\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g, HIDDEN_LOG_VALUE)
+        .replace(/\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi, HIDDEN_LOG_VALUE)
+        .replace(/\b[0-9a-f]{16}\b/gi, HIDDEN_LOG_VALUE);
     }
     if (!value || typeof value !== 'object') return value;
     var isNvHttp = false;
