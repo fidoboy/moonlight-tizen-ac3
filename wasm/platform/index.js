@@ -1383,6 +1383,14 @@ function clearQueuedSnackbarNotifications() {
   }
 }
 
+var SNACKBAR_PHASE_COURTESY_MS = 100;
+
+function waitForSnackbarPhaseCourtesy() {
+  return new Promise(function(resolve) {
+    window.setTimeout(resolve, SNACKBAR_PHASE_COURTESY_MS);
+  });
+}
+
 function waitForSnackbarTransform(action) {
   var snackbarElement = document.getElementById('snackbar');
   if (!snackbarElement) {
@@ -1415,6 +1423,8 @@ function snackbarLog(...args) {
   }).then(function() {
     return dismissPersistentSnackbar();
   }).then(function() {
+    return waitForSnackbarPhaseCourtesy();
+  }).then(function() {
     clearQueuedSnackbarNotifications();
     setSnackbarProgress(false);
     const translatedMessage = t(...args);
@@ -1432,6 +1442,8 @@ function snackbarLogLong(...args) {
     return dismissStartupHostsSnackbar();
   }).then(function() {
     return dismissPersistentSnackbar();
+  }).then(function() {
+    return waitForSnackbarPhaseCourtesy();
   }).then(function() {
     clearQueuedSnackbarNotifications();
     setSnackbarProgress(false);
@@ -1455,6 +1467,8 @@ function snackbarLogPersistent(...args) {
     return dismissStartupHostsSnackbar();
   }).then(function() {
     return dismissPersistentSnackbar();
+  }).then(function() {
+    return waitForSnackbarPhaseCourtesy();
   }).then(function() {
     clearQueuedSnackbarNotifications();
     setSnackbarProgress(true);
@@ -8057,6 +8071,8 @@ function loadHTTPCertsCb() {
           for (var hostUID in hosts) addHostToGrid(hosts[hostUID]);
           selectFirstHostAfterAddHost();
           return dismissStartupHostsSnackbar().then(function() {
+            return waitForSnackbarPhaseCourtesy();
+          }).then(function() {
             maybeRestoreUiAfterStartup();
 
             // Phase 2 is skipped entirely when there are no saved hosts.
@@ -8097,10 +8113,13 @@ function loadHTTPCertsCb() {
             console.warn('%c[index.js, loadHTTPCertsCb]', 'color: orange;', 'Initial subnet discovery failed:', error);
           }).finally(function() {
             // Close phase 3 before resuming normal phase 4 monitoring.
-            dismissPersistentSnackbar();
-            isSubnetScanFinished = true;
-            startPollingHosts();
-            finishInitialHostDiscovery();
+            return dismissPersistentSnackbar().then(function() {
+              return waitForSnackbarPhaseCourtesy();
+            }).then(function() {
+              isSubnetScanFinished = true;
+              startPollingHosts();
+              finishInitialHostDiscovery();
+            });
           });
         });
       });
