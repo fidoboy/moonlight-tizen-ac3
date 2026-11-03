@@ -7982,13 +7982,14 @@ function loadUserDataCb() {
 function runInitialHostDiscovery(hasConfiguredHosts) {
   // Check each configured host once, then let its background poll schedule handle
   // subsequent status updates. Skip this request entirely when there are no saved hosts.
-  var configuredHostCheck = hasConfiguredHosts
-    ? (isInGame !== true
-        ? snackbarLogPersistent('Checking configured hosts...').then(function() {
-            return startPollingHosts();
-          })
-        : startPollingHosts())
-    : Promise.resolve();
+  var configuredHostCheck = Promise.resolve();
+  if (hasConfiguredHosts) {
+    configuredHostCheck = isInGame !== true
+      ? snackbarLogPersistent('Checking configured hosts...').then(function() {
+          return startPollingHosts();
+        })
+      : startPollingHosts();
+  }
 
   return configuredHostCheck.catch(function(error) {
     console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
