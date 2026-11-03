@@ -367,7 +367,7 @@ NvHTTP.prototype = {
     var string = '';
     var privateValue = function(value, key) {
       if (typeof LOG_SHOW_PRIVATE_DATA !== 'undefined' && LOG_SHOW_PRIVATE_DATA) return value;
-      return /^(?:hostname|externalIP|macAddress)$/i.test(key) ? '--- HIDDEN ---' : value;
+      return /^(?:externalIP|macAddress)$/i.test(key) ? '--- HIDDEN ---' : value;
     };
     string += 'host name: ' + privateValue(this.hostname, 'hostname') + '\r\n';
     string += 'host address: ' + privateValue(this.address, 'address') + '\r\n';
