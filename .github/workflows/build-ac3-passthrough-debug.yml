@@ -3,8 +3,8 @@ name: Build WGT (CI) Debug Mode
 on:
   workflow_dispatch:
     inputs:
-      show_certificates:
-        description: 'Include certificate contents in application debug logs'
+      show_private_data:
+        description: 'Include private data and secrets in application debug logs'
         required: false
         type: boolean
         default: false
@@ -179,7 +179,7 @@ jobs:
           build-args: |
             BUILD_TYPE=release
             DEBUG_MODE=true
-            LOG_SHOW_CERTS=${{ inputs.show_certificates }}
+            LOG_SHOW_PRIVATE_DATA=${{ inputs.show_private_data }}
             REPO_OWNER=${{ github.repository_owner }}
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=${{ matrix.force_game_mode }}
