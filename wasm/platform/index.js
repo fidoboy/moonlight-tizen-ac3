@@ -8550,9 +8550,11 @@ window.addEventListener('gamepadconnected', function(e) {
   if (_directSmartHubLaunch) return;
   const connectedGamepad = e.gamepad;
   const gamepadIndex = connectedGamepad.index;
+  const gamepadName = typeof connectedGamepad.id === 'string' && connectedGamepad.id.trim()
+    ? connectedGamepad.id.trim() : gamepadIndex;
   const rumbleFeedbackSwitch = document.getElementById('rumbleFeedbackSwitch');
   console.log('%c[index.js, gamepadconnected]', 'color: green;', 'Gamepad connected:\n' + JSON.stringify(connectedGamepad), connectedGamepad);
-  snackbarLog('Gamepad %1$s has been connected.', gamepadIndex);
+  snackbarLog('Gamepad %1$s has been connected.', gamepadName);
   // Check if the rumble feedback switch is checked
   if (rumbleFeedbackSwitch.checked) {
     // Check if the connected gamepad has a vibrationActuator associated with it
@@ -8575,7 +8577,9 @@ window.addEventListener('gamepaddisconnected', function(e) {
   if (_directSmartHubLaunch) return;
   const disconnectedGamepad = e.gamepad;
   const gamepadIndex = disconnectedGamepad.index;
+  const gamepadName = typeof disconnectedGamepad.id === 'string' && disconnectedGamepad.id.trim()
+    ? disconnectedGamepad.id.trim() : gamepadIndex;
   console.log('%c[index.js, gamepaddisconnected]', 'color: green;', 'Gamepad disconnected:\n' + JSON.stringify(disconnectedGamepad), disconnectedGamepad);
-  snackbarLog('Gamepad %1$s has been disconnected.', gamepadIndex);
+  snackbarLog('Gamepad %1$s has been disconnected.', gamepadName);
   console.warn('%c[index.js, gamepaddisconnected]', 'color: green;', 'Warning: Lost connection to gamepad ' + gamepadIndex + '. Please reconnect your gamepad!');
 });
