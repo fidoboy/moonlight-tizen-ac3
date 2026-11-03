@@ -122,7 +122,7 @@ RUN \
     # Always inject the build type, repo owner, and repo name regardless of the build type
 	sed -i "s/__BUILD_TYPE__/$BUILD_TYPE/g" moonlight-tizen/wasm/platform/index.js && \
     sed -i "s/var DEBUG_MODE = false;/var DEBUG_MODE = $DEBUG_MODE;/" moonlight-tizen/wasm/platform/index.js && \
-    sed -i "s/var LOG_SHOW_CERTS = false;/var LOG_SHOW_CERTS = (DEBUG_MODE && $LOG_SHOW_CERTS);/" moonlight-tizen/wasm/platform/index.js && \
+    sed -i "s/var LOG_SHOW_CERTS = false;/var LOG_SHOW_CERTS = (DEBUG_MODE \\&\\& $LOG_SHOW_CERTS);/" moonlight-tizen/wasm/platform/index.js && \
     sed -i "s/__OFFICIAL_RELEASE__/$OFFICIAL_RELEASE/g" moonlight-tizen/wasm/platform/index.js && \
     if [ -n "$REPO_OWNER" ]; then \
         sed -i "s/__REPO_OWNER__/$REPO_OWNER/g" moonlight-tizen/wasm/platform/index.js; \
@@ -144,7 +144,8 @@ RUN \
 		echo "Injected development commit hash ($SHORT_SHA)"; \
     else \
         echo "Build type is release, skipping commit hash injection."; \
-    fi
+    fi && \
+    /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node --check moonlight-tizen/wasm/platform/index.js
 
 RUN cmake --install build --prefix build
 COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/
