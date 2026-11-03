@@ -419,6 +419,7 @@
   "UUID: %1$s": "UUID: %1$s",
   "Unable to check for updates right now. Please try again later!": "Unable to check for updates right now. Please try again later!",
   "Unable to check update release notes at this time. Please try again later!": "Unable to check update release notes at this time. Please try again later!",
+  "Unable to close the application.": "Impossibile chiudere l'applicazione.",
   "Unable to connect to the host.": "Impossibile connettersi all'host.",
   "Unable to determine the running application.": "Impossibile identificare l'applicazione in esecuzione.",
   "Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!": "Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!",
