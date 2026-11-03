@@ -2342,3 +2342,45 @@ body[data-color-theme="black-orange"] #background-layer {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
 }
+
+/* Minimal idle screensaver, contained in the existing popup layer. */
+#screensaver-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 9999;
+    display: none;
+    overflow: hidden;
+    background: #000;
+    pointer-events: none;
+}
+#screensaver-overlay.is-visible { display: block; }
+#screensaver-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transform: translate(-50%, -50%);
+    transition: top 250ms ease, left 250ms ease;
+    white-space: nowrap;
+}
+#screensaver-logo {
+    display: block;
+    width: clamp(56px, 7vw, 96px);
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+#screensaver-title {
+    color: #fff;
+    font-family: Roboto, sans-serif;
+    font-size: clamp(18px, 2vw, 26px);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+#popup-layer > #screensaver-overlay { pointer-events: none; }

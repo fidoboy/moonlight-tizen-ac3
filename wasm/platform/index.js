@@ -448,7 +448,10 @@ function showUiLayer(layerId, callback) {
   var computedOpacity = computedDisplay === 'none' ? 0 : (parseFloat(getComputedStyle(layer).opacity) || 0);
   if (computedDisplay !== 'none' && computedOpacity >= 0.999 && !uiLayerFadeTimers[layerId]) {
     if (typeof callback === 'function') callback();
-    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
+    if (layer.id === 'main-ui-layer') {
+      flushDeferredMainUiActions();
+      if (typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
+    }
     return;
   }
   if (uiLayerFadeTimers[layerId]) window.clearTimeout(uiLayerFadeTimers[layerId]);
@@ -471,7 +474,10 @@ function showUiLayer(layerId, callback) {
     if (layer._uiFadeToken !== token) return;
     delete uiLayerFadeTimers[layerId];
     if (typeof callback === 'function') callback();
-    if (layer.id === 'main-ui-layer') flushDeferredMainUiActions();
+    if (layer.id === 'main-ui-layer') {
+      flushDeferredMainUiActions();
+      if (typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
+    }
   }, UI_FADE_DURATION_MS);
 }
 
@@ -798,6 +804,7 @@ function attachListeners() {
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
+  $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
   initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
@@ -4145,11 +4152,13 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
     stopPollingHosts();
     if (!appListInteractionLocked) Navigation.start();
   }
+  if (!deferPostTransitionActions && typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
 }
 
 // Complete the non-visual Apps-mode work only after the stream transition has disappeared.
 function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
   isInGame = false;
+  if (typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
   if (!skipNavigationAudioRestore && typeof setNavigationSoundEnabled === 'function') {
     setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   }
@@ -6570,6 +6579,15 @@ function saveStreamTransitionBackground() {
   }, 100);
 }
 
+function saveScreensaverPreference() {
+  setTimeout(function() {
+    screensaverPreferenceEnabled = $('#screensaverSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveScreensaverPreference]', 'color: green;', 'Saving screensaver preference: ' + screensaverPreferenceEnabled);
+    storeData('screensaverEnabled', screensaverPreferenceEnabled, null);
+    if (typeof setScreensaverEnabled === 'function') setScreensaverEnabled(screensaverPreferenceEnabled);
+  }, 100);
+}
+
 function saveSortAppsList() {
   setTimeout(() => {
     const chosenSortAppsList = $('#sortAppsListSwitch').parent().hasClass('is-checked');
@@ -7197,6 +7215,12 @@ function restoreDefaultsSettingsValues() {
   document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.on();
   storeData('streamTransitionBackground', defaultStreamTransitionBackground, null);
 
+  const defaultScreensaverEnabled = true;
+  screensaverPreferenceEnabled = defaultScreensaverEnabled;
+  document.querySelector('#screensaverBtn').MaterialSwitch.on();
+  storeData('screensaverEnabled', defaultScreensaverEnabled, null);
+  if (typeof setScreensaverEnabled === 'function') setScreensaverEnabled(defaultScreensaverEnabled);
+
   // Restore the default application color theme.
   applyColorTheme(COLOR_THEME_DEFAULT);
   storeData('colorTheme', COLOR_THEME_DEFAULT, null);
@@ -7692,6 +7716,20 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#streamTransitionBackgroundBtn').MaterialSwitch.off();
     }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load screensaver preference.');
+  getData('screensaverEnabled', function(previousValue) {
+    const storedValue = previousValue && previousValue.screensaverEnabled;
+    screensaverPreferenceEnabled = storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (screensaverPreferenceEnabled) {
+      document.querySelector('#screensaverBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#screensaverBtn').MaterialSwitch.off();
+    }
+    if (typeof setScreensaverEnabled === 'function') setScreensaverEnabled(screensaverPreferenceEnabled);
+    if (!_directSmartHubLaunch && typeof initializeScreensaver === 'function') initializeScreensaver();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored sortAppsList preferences.');
@@ -8560,6 +8598,7 @@ function probeSmartHubSupport() {
 
 // Do not create the summary bar until the persisted preference has been loaded.
 var navigationSoundPreferenceEnabled = true;
+var screensaverPreferenceEnabled = true;
 var configSummaryPreferenceLoaded = false;
 var configSummaryTemporarilyHidden = false;
 
