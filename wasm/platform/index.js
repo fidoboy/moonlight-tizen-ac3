@@ -7900,6 +7900,7 @@ function loadHTTPCertsCb() {
         maybeRestoreUiAfterStartup();
 
         // Phase 2: verify only the hosts already present in the saved list.
+        // Keep host selection locked until every configured host has a verified initial status.
         // Complete these checks before subnet discovery so its requests cannot starve them.
         if (isInGame !== true) {
           snackbarLogPersistent('Checking configured hosts...');
@@ -7907,6 +7908,12 @@ function loadHTTPCertsCb() {
         startPollingHosts().catch(function(error) {
           console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Initial configured-host checks failed:', error);
         }).then(function() {
+          // Known hosts now have their initial status. Restore card opacity and
+          // remote-control selection before beginning the independent subnet scan.
+          if (isInGame !== true) {
+            unlockHostListInteraction();
+          }
+
           // Phase 3: discover additional hosts on the local subnet. The scanner
           // excludes addresses already represented by configured hosts.
           if (isInGame !== true) {
