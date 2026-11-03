@@ -8042,6 +8042,7 @@ function loadHTTPCertsCb() {
             finishInitialHostDiscovery();
           });
         });
+      });
     });
   });
 }
