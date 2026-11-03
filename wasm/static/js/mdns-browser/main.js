@@ -192,8 +192,9 @@ function startSubnetScanner(excludedIPs) {
 
         var onGlobalAbort = function() {
           if (localAbort) localAbort.abort();
-          // Do not depend on Tizen fetch() honoring AbortController.
-          finishRequest(null);
+          // The fetch rejection or the 1-second fallback will release this slot.
+          // Avoid advancing the scan synchronously before abortSubnetScan clears
+          // the global controller reference.
         };
 
         if (window.subnetScanAbortCtrl) {
