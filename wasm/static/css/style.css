@@ -2373,7 +2373,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #screensaver-content.is-visible { opacity: 1; }
 #screensaver-logo {
     display: block;
-    width: 56px;
+    width: 64px;
     height: auto;
     user-select: none;
     -webkit-user-drag: none;
