@@ -1340,9 +1340,15 @@ function snackbarLogPersistent(...args) {
 function dismissPersistentSnackbar() {
   if (!persistentSnackbarVisible) return;
   const snackbarElement = document.querySelector('#snackbar');
-  if (snackbarElement && snackbarElement.MaterialSnackbar &&
-      typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-    snackbarElement.MaterialSnackbar.cleanup_();
+  if (snackbarElement) {
+    if (snackbarElement.MaterialSnackbar &&
+        typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+      snackbarElement.MaterialSnackbar.cleanup_();
+    }
+    // Explicitly clear MDL's active state as a fallback for Tizen WebKit builds
+    // where cleanup_ is unavailable or does not complete the visual dismissal.
+    snackbarElement.classList.remove('mdl-snackbar--active');
+    snackbarElement.setAttribute('aria-hidden', 'true');
   }
   persistentSnackbarVisible = false;
   setSnackbarProgress(false);
@@ -1405,9 +1411,13 @@ function showStartupHostsSnackbar() {
 function dismissStartupHostsSnackbar() {
   if (!startupHostsSnackbarVisible) return;
   const snackbarElement = document.querySelector('#snackbar');
-  if (snackbarElement && snackbarElement.MaterialSnackbar &&
-      typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-    snackbarElement.MaterialSnackbar.cleanup_();
+  if (snackbarElement) {
+    if (snackbarElement.MaterialSnackbar &&
+        typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+      snackbarElement.MaterialSnackbar.cleanup_();
+    }
+    snackbarElement.classList.remove('mdl-snackbar--active');
+    snackbarElement.setAttribute('aria-hidden', 'true');
   }
   startupHostsSnackbarVisible = false;
   setSnackbarProgress(false);
