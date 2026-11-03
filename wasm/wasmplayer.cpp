@@ -530,9 +530,17 @@ static bool StripHevcHdrMetadataSeiForDebug(
 }
 
 static bool IsDebugModeEnabled() {
-  return EM_ASM_INT({
-    return typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true;
-  }) != 0;
+  // DEBUG_MODE is fixed for the lifetime of the app; avoid a JS bridge call
+  // on every video packet once the initial value has been read.
+  static bool checked = false;
+  static bool enabled = false;
+  if (!checked) {
+    enabled = EM_ASM_INT({
+      return typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true;
+    }) != 0;
+    checked = true;
+  }
+  return enabled;
 }
 
 static void AppendBigEndian16(std::vector<unsigned char>& buffer, uint16_t value) {
