@@ -5026,6 +5026,10 @@ function handleDirectSmartHubVideoReady() {
 }
 
 // Handle layout elements when displaying the Stream view
+function logStreamModeClosing() {
+  console.log('%c[index.js, showStreamMode]', 'color: green;', 'Closing "Show Stream" mode and returning to the main interface...');
+}
+
 function showStreamMode(streamWidth, streamHeight, startupGeneration) {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
   return new Promise(function(resolve) {
