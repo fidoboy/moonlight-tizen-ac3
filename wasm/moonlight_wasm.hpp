@@ -182,8 +182,7 @@ class MoonlightInstance {
   MessageResult MakeCert();
 
   MessageResult HttpInit(std::string cert, std::string privateKey, std::string myUniqueId);
-  void OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache);
-  void CloseNetworkTestHttpSession(int callbackId);
+  void OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse);
 
   LoadResult LoadCert(const char* certStr, const char* keyStr);
 
@@ -233,8 +232,7 @@ class MoonlightInstance {
   bool WaitFor(std::condition_variable* variable, std::function<bool()> condition, std::chrono::milliseconds timeout);
   static int MediaSetupWaitFailed(const char* step);
 
-  void OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache);
-  void CloseNetworkTestHttpSession_private(int callbackId);
+  void OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse);
   void STUN_private(int callbackId);
   void Pair_private(int callbackId, std::string serverMajorVersion, std::string address, int httpPort, std::string randomNumber);
   void WakeOnLan_private(int callbackId, std::string macAddress);
@@ -331,8 +329,7 @@ void PostPromiseMessage(int callbackId, const std::string& type, const std::vect
 MessageResult makeCert();
 
 MessageResult httpInit(std::string cert, std::string privateKey, std::string myUniqueId);
-void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache);
-void closeNetworkTestHttpSession(int callbackId);
+void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse);
 
 MessageResult startStream(std::string host, int httpPort, std::string width, std::string height, std::string fps, std::string bitrate,
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
