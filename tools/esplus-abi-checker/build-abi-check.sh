@@ -3,11 +3,18 @@ set -euo pipefail
 HERE=$(cd -- "$(dirname -- "$0")" && pwd)
 OUT=${OUT:-"$HERE/out"}
 CC=${CC:-arm-linux-gnueabi-gcc}
+RUNNER=${RUNNER:-}
 CFLAGS=${CFLAGS:-"-std=c11 -O0 -Wall -Wextra -Werror -marm -march=armv7-a -mabi=aapcs-linux -mfloat-abi=softfp"}
 mkdir -p "$OUT"
 echo "== WMP legacy vs Samsung public CAPI 0.0.3 mirror =="
 # shellcheck disable=SC2086
-"$CC" $CFLAGS -DREQUIRE_ARM32 "$HERE/abi_layout.c" -o "$OUT/abi-layout"
+"$CC" $CFLAGS -DREQUIRE_ARM32 "$HERE/abi_layout.c" -o if [[ -n "$RUNNER" ]]; then
+  # RUNNER may contain an emulator and its arguments, e.g. qemu-arm -L /usr/arm-linux-gnueabi.
+  # shellcheck disable=SC2086
+  $RUNNER "$OUT/abi-layout"
+else
+  "$OUT/abi-layout"
+fi
 "$OUT/abi-layout"
 if [[ -n "${ESPLUS_INCLUDE_DIR:-}" && -n "${ESPLUS_NATIVE_ADAPTER:-}" ]]; then
   echo
