@@ -570,5 +570,11 @@
   "Download errors: %1$s": "Errores de descarga: %1$s",
   "Duration: %1$s seconds": "Duración: %1$s segundos",
   "Network test could not be completed.": "No se pudo completar la prueba de red.",
-  "Testing network connection...": "Comprobando la conexión de red..."
+  "Testing network connection...": "Comprobando la conexión de red...",
+  "Pausing background host checks...": "Pausando las comprobaciones de los equipos en segundo plano...",
+  "Stopping network test...": "Deteniendo la prueba de red...",
+  "Test stopped before measurement could begin.": "La prueba se detuvo antes de comenzar la medición.",
+  "Test stopped.": "Prueba detenida.",
+  "Image set: %1$s MB (%2$s images)": "Conjunto de imágenes: %1$s MB (%2$s imágenes)",
+  "Stop": "Detener"
 }
