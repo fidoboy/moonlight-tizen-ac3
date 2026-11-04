@@ -400,6 +400,107 @@ jobs:
             failed=1
           fi
 
+          # Link the real WMP service as an ARM executable against the IoT 6.0
+          # rootstrap. This validates service_app, dlog and dl dependencies;
+          # --no-undefined prevents a false-positive executable with unresolved APIs.
+          if [ -f "$probe/Release/libwmpservice.a" ] && grep -q '^SERVICE_SOURCE_COMPILE_RESULT=success$' "$service_probe_log"; then
+            link_probe_log="$report/iot-headed-6.0-wmp-service-link.log"
+            echo "=== ACTUAL WMP SERVICE EXECUTABLE LINK ===" | tee "$link_probe_log"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$probe/tizen-manifest.xml"
+            cat > "$probe/project_def.prop" <<'PROP'
+          APPNAME = wmp-service
+
+          type = app
+          profile = iot-headed-6.0
+
+          USER_SRCS = src/main.c src/wmp_esplus_abi.c
+          USER_DEFS =
+          USER_INC_DIRS = src
+          USER_OBJS =
+          USER_LIBS =
+          USER_EDCS =
+          PROP
+            python3 - "$probe/.cproject" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          pattern = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
+              r'(.*?)'
+              r'(</option>)',
+              re.DOTALL,
+          )
+          libraries = [
+              '-Wl,--no-undefined',
+              '-L"\${SBI_SYSROOT}/usr/lib"',
+              '-L"\${SBI_SYSROOT}/usr/lib64"',
+              '-lservice_app',
+              '-ldlog',
+              '-ldl',
+          ]
+          block = "".join(
+              '                                    <listOptionValue builtIn="false" value="' + value.replace("&", "&amp;").replace('"', "&quot;") + '"/>\n'
+              for value in libraries
+          )
+          content, count = pattern.subn(
+              lambda match: match.group(1) + match.group(2) + "\n" + block + "                                " + match.group(3),
+              content,
+          )
+          if count != 2:
+              raise SystemExit(f"Expected 2 C/C++ linker configurations, found {count}")
+          path.write_text(content, encoding="utf-8")
+          print("SERVICE_LINK_LIBRARIES=service_app,dlog,dl")
+          print("SERVICE_LINK_NO_UNDEFINED=enabled")
+          PY
+            rm -rf "$probe/Release"
+            tar -czf "$report/iot-headed-6.0-wmp-service-link-source.tar.gz" -C "$probe_root" WmpServiceProbe
+            if run_profile_command "iot-headed-6.0-wmp-service-link" "$link_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
+              executable="$(find "$probe/Release" -maxdepth 1 -type f -executable ! -name '*.a' -print -quit)"
+              if [ -z "$executable" ]; then
+                echo "SERVICE_LINK_RESULT=failed executable_not_found" | tee -a "$link_probe_log"
+                failed=1
+              else
+                echo "SERVICE_EXECUTABLE=$executable" | tee -a "$link_probe_log"
+                file "$executable" | tee -a "$link_probe_log"
+                machine="$(readelf -h "$executable" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
+                readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
+                readelf -Ws "$executable" > "$report/iot-headed-6.0-wmp-service-symbols.txt" 2>&1 || true
+                if grep -q 'UND' "$report/iot-headed-6.0-wmp-service-symbols.txt"; then
+                  echo "SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=present" | tee -a "$link_probe_log"
+                else
+                  echo "SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=none" | tee -a "$link_probe_log"
+                fi
+                case "$machine" in
+                  ARM*)
+                    if grep -q 'SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=none' "$link_probe_log"; then
+                      echo "SERVICE_LINK_RESULT=success" | tee -a "$link_probe_log"
+                    else
+                      echo "SERVICE_LINK_RESULT=failed unresolved_symbols" | tee -a "$link_probe_log"
+                      failed=1
+                    fi
+                    ;;
+                  *)
+                    echo "SERVICE_LINK_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$link_probe_log"
+                    failed=1
+                    ;;
+                esac
+              fi
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-link-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-link-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "SERVICE_LINK_RESULT=failed exit_code=$status" | tee -a "$link_probe_log"
+              failed=1
+            fi
+          else
+            echo "SERVICE_LINK_RESULT=skipped; source compilation did not succeed" | tee "$report/iot-headed-6.0-wmp-service-link.log"
+            failed=1
+          fi
+
           {
             echo "### Toolchain versions"
             tizen version 2>&1 || true
