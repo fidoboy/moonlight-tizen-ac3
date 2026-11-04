@@ -201,7 +201,7 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     ret = GS_CERT_MISMATCH;
   } else if (res != CURLE_OK) {
     if (persistent_curl != NULL) {
-      fprintf(stderr, "[network-test-http] libcurl error %d (%s): %s\\n",
+      fprintf(stderr, "[network-test-http] libcurl error %d (%s): %s\n",
         (int)res, curl_easy_strerror(res), curl_error_buffer[0] ? curl_error_buffer : "no additional details");
     }
     ret = GS_FAILED;
