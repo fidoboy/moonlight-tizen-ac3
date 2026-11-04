@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Tizen.Applications;
+using Tizen.NUI;
+using Tizen.NUI.BaseComponents;
 
 namespace MoonlightEsplusProbe
 {
@@ -27,7 +29,7 @@ namespace MoonlightEsplusProbe
         internal static extern int Close(int fd);
     }
 
-    internal sealed class ProbeApp : CoreUIApplication
+    internal sealed class ProbeApp : NUIApplication
     {
         private static readonly string[] RequiredSymbols = {
             "esplusplayer_create",
@@ -203,7 +205,21 @@ namespace MoonlightEsplusProbe
             // Do not perform native loading or device enumeration on the
             // application lifecycle thread: either operation may block on TV
             // firmware and prevent the launcher/debugger from completing startup.
-            Log("Moonlight ESPlus probe application created; starting worker");
+            Log("Moonlight ESPlus probe application created");
+
+            // A visible NUI application must create a window surface. Without
+            // one, the TV launcher can remain on its "Loading" screen.
+            TextLabel status = new TextLabel("Moonlight ESPlus probe\\n\\nDiagnostico iniciado.\\nConsulte el log MLPROBE desde Apps2Samsung.");
+            status.HorizontalAlignment = HorizontalAlignment.Center;
+            status.VerticalAlignment = VerticalAlignment.Center;
+            status.TextColor = Color.White;
+            status.PointSize = 24.0f;
+            status.WidthResizePolicy = ResizePolicyType.FillToParent;
+            status.HeightResizePolicy = ResizePolicyType.FillToParent;
+            Window.Instance.GetDefaultLayer().Add(status);
+
+            // Native library loading and device enumeration must not block
+            // the NUI lifecycle/event thread.
             System.Threading.Thread worker = new System.Threading.Thread(RunProbe);
             worker.IsBackground = true;
             worker.Name = "MLPROBE-worker";
