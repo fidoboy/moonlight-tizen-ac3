@@ -35,7 +35,9 @@ jobs:
           echo "=== Extracted package files ==="
           find . -type f -print | sort
           echo "=== ESPlus CAPI headers ==="
-          find . -type f -name esplusplayer_capi.h -print
+          find . -type f -name 'esplusplayer_capi.h' -print
+          find . -type f -name 'stream.h' -print
+          find . -type f -name 'espacket.h' -print
           find . -type f -name esplusplayer_internal.h -print
           test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
 
