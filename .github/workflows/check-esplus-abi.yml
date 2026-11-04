@@ -43,7 +43,8 @@ jobs:
           CC: arm-linux-gnueabi-gcc
           RUNNER: qemu-arm -L /usr/arm-linux-gnueabi
           OUT: ${{ runner.temp }}/esplus-abi-report
-          LOG_FILE: ${{ runner.temp }}/esplus-abi-check.log\n          ESPLUS_INCLUDE_DIR: ${{ runner.temp }}/esplus-source/esplusplayer-1.4.6/include
+          LOG_FILE: ${{ runner.temp }}/esplus-abi-check.log
+          ESPLUS_INCLUDE_DIR: ${{ runner.temp }}/esplus-source/esplusplayer-1.4.6/include
         run: |
           set -o pipefail
           chmod +x tools/esplus-abi-checker/build-abi-check.sh
