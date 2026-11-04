@@ -3068,7 +3068,11 @@ function gamepadTestDialog() {
   var svgDocument = new DOMParser().parseFromString(svg, 'image/svg+xml');
   var svgElement = svgDocument.documentElement;
   if (svgElement && svgElement.localName === 'svg') {
-    content[0].appendChild(document.importNode(svgElement, true));
+    var layout = $('<div>', { class: 'gamepad-test-layout' }).appendTo(content);
+    $('<div>', { class: 'gamepad-test-side-margin' }).appendTo(layout);
+    var center = $('<div>', { class: 'gamepad-test-center' }).appendTo(layout);
+    center[0].appendChild(document.importNode(svgElement, true));
+    $('<div>', { class: 'gamepad-test-side-margin' }).appendTo(layout);
   }
   $('<p>', {
     class: 'gamepad-test-instructions',
