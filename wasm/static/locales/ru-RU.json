@@ -101,7 +101,7 @@
   "Automatically quit the running app on the host": "Automatically quit the running app on the host",
   "Average decoding time:": "Average decoding time:",
   "Average frame queue delay:": "Average frame queue delay:",
-  "Average network latency:": "Average network latency:",
+  "Average network latency:": "Средняя задержка сети:",
   "Average rendering time:": "Average rendering time:",
   "B": "B",
   "Back": "Назад",
