@@ -471,7 +471,7 @@ body[data-color-theme="black-orange"] #background-layer {
     padding: 0;
     color: var(--theme-text-primary);
     text-align: center;
-    font-size: 1.45rem;
+    font-size: 1.2rem;
     line-height: 1.2;
 }
 .gamepad-test-content {
@@ -489,7 +489,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: block;
     flex: 1 1 0;
     width: 100%;
-    height: 0;
+    height: 100%;
     min-height: 0;
     max-width: 100%;
     overflow: visible;
@@ -605,7 +605,7 @@ body[data-color-theme="black-orange"] #background-layer {
         min-height: 0;
         padding: 12px 14px;
     }
-    .gamepad-test-title { font-size: 1.65rem; }
+    .gamepad-test-title { font-size: 1.2rem; }
     .gamepad-test-instructions { font-size: 1.05rem; }
 }
 #wasmSpinner > .progressbar,
@@ -765,6 +765,17 @@ body[data-color-theme="black-orange"] #background-layer {
 .navigation-button-icons {
     margin: 0 8px 0 -4px;
     font-size: 32px !important;
+}
+#gamepadTestBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#gamepadTestBtn .navigation-button-icons {
+    display: block;
+    width: 32px;
+    margin: 0;
+    text-align: center;
 }
 .nav-menu-parent {
     position: relative;
