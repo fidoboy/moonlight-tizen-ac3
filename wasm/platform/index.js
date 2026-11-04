@@ -3067,6 +3067,7 @@ function gamepadTestDialog() {
   gamepadTestDialogState = {
     overlay: overlay[0],
     dialog: dialog[0],
+    returnFocusId: 'gamepadTestBtn',
     gamepadIndex: gamepadIndex,
     axes: selectedGamepad ? selectedGamepad.axes.slice(0, 4) : [0, 0, 0, 0],
     buttonIds: {
@@ -3122,6 +3123,13 @@ function closeGamepadTestDialog() {
   isGamepadTestDialogOpen = false;
   isDialogOpen = false;
   updateGamepadTestButtonVisibility();
+
+  // Restore the navigation selection and focus to the button that opened the test.
+  var returnFocusElement = state.returnFocusId && document.getElementById(state.returnFocusId);
+  if (returnFocusElement && !returnFocusElement.hidden) {
+    mark(returnFocusElement);
+    focusElement(returnFocusElement);
+  }
 }
 
 // Show a lightweight host-to-TV network test and its final report.
