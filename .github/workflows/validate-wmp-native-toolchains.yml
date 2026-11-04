@@ -468,18 +468,21 @@ jobs:
                 machine="$(readelf -h "$executable" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
                 echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
                 readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
-                readelf -Ws "$executable" > "$report/iot-headed-6.0-wmp-service-symbols.txt" 2>&1 || true
-                if grep -q 'UND' "$report/iot-headed-6.0-wmp-service-symbols.txt"; then
-                  echo "SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=present" | tee -a "$link_probe_log"
-                else
-                  echo "SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=none" | tee -a "$link_probe_log"
-                fi
+                missing_dependencies=0
+                for library in libservice_app libdlog; do
+                  if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
+                    echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
+                  else
+                    echo "SERVICE_EXECUTABLE_MISSING_NEEDED=$library" | tee -a "$link_probe_log"
+                    missing_dependencies=1
+                  fi
+                done
                 case "$machine" in
                   ARM*)
-                    if grep -q 'SERVICE_EXECUTABLE_UNDEFINED_SYMBOLS=none' "$link_probe_log"; then
+                    if [ "$missing_dependencies" -eq 0 ]; then
                       echo "SERVICE_LINK_RESULT=success" | tee -a "$link_probe_log"
                     else
-                      echo "SERVICE_LINK_RESULT=failed unresolved_symbols" | tee -a "$link_probe_log"
+                      echo "SERVICE_LINK_RESULT=failed missing_shared_dependencies" | tee -a "$link_probe_log"
                       failed=1
                     fi
                     ;;
