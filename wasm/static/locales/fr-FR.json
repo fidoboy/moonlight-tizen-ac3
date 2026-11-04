@@ -592,5 +592,5 @@
   "Your network connection does not seem stable enough.": "Votre connexion réseau ne semble pas suffisamment stable.",
   "The connection to the host may be limited or unstable.": "La connexion avec l’hôte peut être limitée ou instable.",
   "The connection to the host is too slow or unstable.": "La connexion avec l’hôte est trop lente ou instable.",
-  "Tester la manette": "Tester la manette"
+  "Gamepad Test": "Tester la manette"
 }
