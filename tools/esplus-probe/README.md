@@ -39,8 +39,10 @@ must re-sign the package for the target TV as usual.
    tizen run -p org.fidoboy.moonlight.esplusprobe.app
    ```
 
-   The application is a no-window background host, so it will not display a
-   visible screen. It runs the probe from `OnCreate` and then remains alive.
+   The application opens a simple NUI screen confirming that it started. The
+   diagnostic checks run on a background worker so native library loading or
+   device enumeration cannot block the UI lifecycle. The results are written
+   to the `MLPROBE` log.
 3. Capture the native log:
 
    ```sh
