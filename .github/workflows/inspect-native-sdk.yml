@@ -93,8 +93,6 @@ jobs:
           name: tizen-native-sdk-discovery
           path: |
             ${{ runner.temp }}/tizen-packages.txt
-            ${{ runner.temp }}/native-project-templates.txt
-            ${{ runner.temp }}/native-rootstraps.txt
             ${{ runner.temp }}/native-sdk-discovery-report.tar.gz
           if-no-files-found: error
           retention-days: 3
