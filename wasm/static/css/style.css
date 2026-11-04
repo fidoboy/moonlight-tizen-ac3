@@ -414,10 +414,12 @@ body[data-color-theme="black-orange"] #background-layer {
 .network-test-title {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 0;
 }
 .network-test-title-icon {
-    font-size: 2rem;
+    flex: 0 0 auto;
+    margin-right: 18px;
+    font-size: 2.6rem;
     line-height: 1;
 }
 .network-test-verdict {
