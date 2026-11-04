@@ -135,8 +135,8 @@ RUN \
     fi && \
 	echo "Injected base metadata: build type ($BUILD_TYPE), repo owner ($REPO_OWNER), repo name ($REPO_NAME)"; \
     \
-    # Conditionally inject the short commit SHA only if it's a development build
-    if [ "$BUILD_TYPE" = "development" ]; then \
+    # Inject the short commit SHA into every non-official build for runtime identification
+    if [ "$OFFICIAL_RELEASE" != "true" ]; then \
         SHORT_SHA=""; \
         if [ -d "moonlight-tizen/.git" ]; then \
             SHORT_SHA=$(git -C moonlight-tizen rev-parse --short HEAD); \
@@ -144,9 +144,9 @@ RUN \
         if [ -n "$SHORT_SHA" ]; then \
             sed -i "s/__BUILD_COMMIT__/$SHORT_SHA/g" moonlight-tizen/wasm/platform/index.js; \
         fi; \
-		echo "Injected development commit hash ($SHORT_SHA)"; \
+        echo "Injected experimental commit hash ($SHORT_SHA)"; \
     else \
-        echo "Build type is release, skipping commit hash injection."; \
+        echo "Official release build, skipping commit hash injection."; \
     fi && \
     /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node --check moonlight-tizen/wasm/platform/index.js
 
