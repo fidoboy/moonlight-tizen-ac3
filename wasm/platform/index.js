@@ -220,7 +220,8 @@ function ensureSubnetScannerLoaded() {
 
   return subnetScannerLoadPromise;
 }
-var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
+var activePolls = {}; // Hosts currently being polled.
+var hostPollingPausedForNetworkTest = false; An associated array of polling IDs, keyed by server UID
 var pairingCert; // Loads the generated certificate
 var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
@@ -1336,8 +1337,8 @@ function updateHostStatusIndicator(host) {
 }
 
 function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
-  // Never start host checks or polling while the stream is active.
-  if (isInGame === true) return Promise.resolve();
+  // Never start host checks or polling during streaming or a network test.
+  if (isInGame === true || hostPollingPausedForNetworkTest) return Promise.resolve();
 
   // Clear any existing polling interval for this host before starting a new one.
   // Without this, every call to beginBackgroundPollingOfHost (e.g. on each navigation
@@ -1351,6 +1352,7 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   // Discovery has already completed a successful poll for a newly found host.
   // Reuse that result instead of immediately requesting /serverinfo a second time.
   var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  host._backgroundStatusRefreshInProgress = true;
   var initialStatusPromise = refreshServerInfoSucceeded
     ? Promise.resolve().then(function() {
         host.online = true;
@@ -1400,11 +1402,11 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
 
     var scheduleNextPoll = function(delay) {
       // Stop if polling was canceled or streaming has started.
-      if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
+      if (isInGame === true || hostPollingPausedForNetworkTest || !activePolls.hasOwnProperty(host.serverUid)) return;
 
       activePolls[host.serverUid] = window.setTimeout(function() {
         // In case it was canceled while waiting or streaming has started
-        if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true) return;
+        if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true || hostPollingPausedForNetworkTest) return;
 
         host.pollServer(function(returnedHost) {
           // The request may complete after polling was stopped or streaming began.
@@ -1428,8 +1430,8 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
 }
 
 function startPollingHosts() {
-  // Calls from startup/discovery callbacks must not restart polling during a stream.
-  if (isInGame === true) return Promise.resolve();
+  // Calls from startup/discovery callbacks must not restart polling during a stream or network test.
+  if (isInGame === true || hostPollingPausedForNetworkTest) return Promise.resolve();
 
   var pollPromises = [];
   for (var hostUID in hosts) {
@@ -1452,6 +1454,55 @@ function stopPollingHosts() {
   for (var hostUID in hosts) {
     endBackgroundPollingOfHost(hosts[hostUID]);
   }
+}
+
+function waitForBackgroundHostPollingToFinish(timeoutMs) {
+  var startedAt = Date.now();
+  var timeout = Math.max(1000, Number(timeoutMs) || 15000);
+
+  return new Promise(function(resolve, reject) {
+    var check = function() {
+      var busy = false;
+      for (var hostUID in hosts) {
+        var host = hosts[hostUID];
+        if (host._backgroundStatusRefreshInProgress ||
+            host._pollInProgress ||
+            host._backgroundAppListRefreshInProgress ||
+            (Array.isArray(host._pollCompletionCallbacks) && host._pollCompletionCallbacks.length > 0)) {
+          busy = true;
+          break;
+        }
+      }
+
+      if (!busy) {
+        resolve();
+      } else if (Date.now() - startedAt >= timeout) {
+        reject(new Error('Background host polling did not finish before the network test.'));
+      } else {
+        window.setTimeout(check, 50);
+      }
+    };
+    check();
+  });
+}
+
+function pauseBackgroundHostPollingForNetworkTest() {
+  if (hostPollingPausedForNetworkTest) {
+    return Promise.reject(new Error('A network test is already running.'));
+  }
+  hostPollingPausedForNetworkTest = true;
+  stopPollingHosts();
+  return waitForBackgroundHostPollingToFinish(15000).catch(function(error) {
+    hostPollingPausedForNetworkTest = false;
+    startPollingHosts();
+    throw error;
+  });
+}
+
+function resumeBackgroundHostPollingAfterNetworkTest() {
+  if (!hostPollingPausedForNetworkTest) return;
+  hostPollingPausedForNetworkTest = false;
+  startPollingHosts();
 }
 
 var persistentSnackbarVisible = false;
