@@ -647,28 +647,34 @@ NvHTTP.prototype = {
                     .then(function(cacheOffFirst) {
                       return diagnosticRequest('persistent TLS cache OFF #2', true, false)
                         .then(function(cacheOffSecond) {
-                          var persistentResponse = cacheOffSecond.succeeded
-                            ? cacheOffSecond.response
-                            : (cacheOffFirst.succeeded ? cacheOffFirst.response : null);
+                          return diagnosticRequest('one-shot #2 (TLS cache off)', false, false)
+                            .then(function(oneShotSecond) {
+                              var persistentResponse = cacheOffSecond.succeeded
+                                ? cacheOffSecond.response
+                                : (cacheOffFirst.succeeded ? cacheOffFirst.response : null);
 
-                          if (persistentResponse) {
-                            baselineIds.push(appIds[0]);
-                            baselineBytes += persistentResponse.byteLength;
-                          } else {
-                            // Keep the network test usable if the persistent context is
-                            // rejected by the host; fall back to the ordinary HTTP path.
-                            networkTestUsePersistentConnection = false;
-                            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
-                              'Persistent TLS-cache-OFF requests both failed; continuing with ordinary one-shot HTTP.');
-                            if (!oneShot.succeeded) {
-                              throw new Error('Both persistent and ordinary HTTP requests failed for the first app asset.');
-                            }
-                            baselineIds.push(appIds[0]);
-                            baselineBytes += oneShot.response.byteLength;
-                          }
+                              if (persistentResponse) {
+                                baselineIds.push(appIds[0]);
+                                baselineBytes += persistentResponse.byteLength;
+                              } else {
+                                // Keep the network test usable if the persistent context is
+                                // rejected by the host; fall back to the ordinary HTTP path.
+                                networkTestUsePersistentConnection = false;
+                                console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
+                                  'Persistent TLS-cache-OFF requests both failed; continuing with ordinary one-shot HTTP.');
+                                if (!oneShot.succeeded && !oneShotSecond.succeeded) {
+                                  throw new Error('Both persistent and ordinary HTTP requests failed for the first app asset.');
+                                }
+                                var oneShotResponse = oneShotSecond.succeeded
+                                  ? oneShotSecond.response
+                                  : oneShot.response;
+                                baselineIds.push(appIds[0]);
+                                baselineBytes += oneShotResponse.byteLength;
+                              }
 
-                          baselineIndex = 1;
-                          return downloadBaselineNext();
+                              baselineIndex = 1;
+                              return downloadBaselineNext();
+                            });
                         });
                     });
                 });
