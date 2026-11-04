@@ -3081,7 +3081,6 @@ function hostNetworkTestDialog(host) {
       if (variationPercent !== null) {
         lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', variationPercent + '%'));
       }
-      lines.push(t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)));
       if (stats.failedRequests > 0) {
         lines.push(t('Download errors: %1$s', stats.failedRequests));
       }
