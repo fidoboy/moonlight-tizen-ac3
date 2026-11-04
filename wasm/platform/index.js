@@ -3340,6 +3340,13 @@ function hostNetworkTestDialog(host) {
           verdictSeverity = Math.max(verdictSeverity, 1);
         }
       }
+      if (Number.isFinite(stats.averageLatencyMs)) {
+        if (stats.averageLatencyMs > 1300) {
+          verdictSeverity = 2;
+        } else if (stats.averageLatencyMs > 1000) {
+          verdictSeverity = Math.max(verdictSeverity, 1);
+        }
+      }
       // Keep download failures as an independent warning signal.
       if (stats.failedRequests > 5) {
         verdictSeverity = 2;
