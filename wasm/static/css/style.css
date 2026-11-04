@@ -501,7 +501,7 @@ body[data-color-theme="black-orange"] #background-layer {
     width: 100%;
     height: 0;
     min-height: 0;
-    max-width: 900px;
+    max-width: 100%;
     overflow: visible;
 }
 .gamepad-test-instructions {
