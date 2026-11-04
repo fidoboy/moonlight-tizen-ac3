@@ -556,5 +556,18 @@
   "— Stop the streaming session.": "— Interromper a sessão de transmissão.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Alternar o modo do campo de endereço IP e abrir o menu do PC host.",
   "— Toggle the performance statistics overlay.": "— Alternar a sobreposição de estatísticas de desempenho.",
-  "• No relevant changes found.": "• Nenhuma alteração relevante encontrada."
+  "• No relevant changes found.": "• Nenhuma alteração relevante encontrada.",
+  "Test Network": "Testar rede",
+  "Network Test": "Teste de rede",
+  "Testing the download connection from %1$s to this TV for about 30 seconds.": "Testando a conexão de download de %1$s para esta TV por cerca de 30 segundos.",
+  "Preparing network test...": "Preparando o teste de rede...",
+  "Downloaded %1$s MB · %2$s successful · %3$s errors": "%1$s MB baixados · %2$s concluídos · %3$s erros",
+  "Test completed.": "Teste concluído.",
+  "Average download speed: %1$s Mbps": "Velocidade média de download: %1$s Mbps",
+  "Speed variation: %1$s–%2$s Mbps": "Variação da velocidade: %1$s–%2$s Mbps",
+  "Data received: %1$s MB": "Dados recebidos: %1$s MB",
+  "Successful downloads: %1$s": "Downloads concluídos: %1$s",
+  "Download errors: %1$s": "Erros de download: %1$s",
+  "Duration: %1$s seconds": "Duração: %1$s segundos",
+  "Network test could not be completed.": "Não foi possível concluir o teste de rede."
 }
