@@ -43,15 +43,15 @@ jobs:
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
           "$pm" show-pkgs --tree | tee "$RUNNER_TEMP/tizen-packages.txt"
-          mapfile -t candidates < <(awk '$2 ~ /^TV-.*NativeAppDevelopment-CLI$/ {print $2}' "$RUNNER_TEMP/tizen-packages.txt")
-          if [[ "${#candidates[@]}" -eq 0 ]]; then
-            echo "::error::No TV NativeAppDevelopment-CLI package is advertised by this SDK catalog."
-            exit 1
-          fi
-          printf 'Native CLI candidates: %s\n' "${candidates[*]}"
-          package="${candidates[-1]}"
-          "$pm" install --accept-license --no-java-check "$package"
-          echo "Installed package: $package"
+          required=(NativeCLI NativeToolchain-Gcc-9.2 MOBILE-6.0-NativeAppDevelopment-CLI)
+          for package in "${required[@]}"; do
+            if ! awk -v wanted="$package" '$2 == wanted {found=1} END {exit !found}' "$RUNNER_TEMP/tizen-packages.txt"; then
+              echo "::error::Required SDK package is not advertised: $package"
+              exit 1
+            fi
+          done
+          "$pm" install --accept-license --no-java-check "$(IFS=,; echo "${required[*]}")"
+          printf 'Installed native SDK packages: %s\n' "${required[*]}"
 
       - name: Report native templates, rootstraps and CLI commands
         shell: bash
