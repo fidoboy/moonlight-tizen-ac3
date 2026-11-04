@@ -251,7 +251,10 @@ namespace MoonlightEsplusProbe
             OutputLabel.HorizontalAlignment = HorizontalAlignment.Begin;
             OutputLabel.VerticalAlignment = VerticalAlignment.Top;
             OutputLabel.TextColor = Color.White;
-            OutputLabel.PointSize = 16.0f;
+            OutputLabel.PointSize = 18.0f;
+            OutputLabel.MultiLine = true;
+            OutputLabel.LineWrapMode = LineWrapMode.Word;
+            OutputLabel.Ellipsis = false;
             OutputLabel.WidthResizePolicy = ResizePolicyType.FillToParent;
             OutputLabel.HeightResizePolicy = ResizePolicyType.UseNaturalSize;
             scroll.Add(OutputLabel);
