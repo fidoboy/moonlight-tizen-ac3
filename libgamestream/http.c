@@ -199,6 +199,24 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
 
   CURLcode res = curl_easy_perform(curl);
 
+  // Capture connection reuse and TLS handshake timings for the network test only.
+  // These values distinguish reused connections from new TCP/TLS handshakes.
+  if (persistent_curl != NULL) {
+    long new_connections = -1;
+    double connect_time = 0.0;
+    double appconnect_time = 0.0;
+    CURLcode info_connections = curl_easy_getinfo(curl, CURLINFO_NUM_CONNECTS, &new_connections);
+    CURLcode info_connect = curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect_time);
+    CURLcode info_appconnect = curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appconnect_time);
+
+    fprintf(stderr,
+      "[network-test-http] connection stats: new_connections=%ld, connect_ms=%.1f, tls_handshake_ms=%.1f (info=%d/%d/%d, curl=%d)\\n",
+      info_connections == CURLE_OK ? new_connections : -1L,
+      info_connect == CURLE_OK ? connect_time * 1000.0 : -1.0,
+      info_appconnect == CURLE_OK ? appconnect_time * 1000.0 : -1.0,
+      (int)info_connections, (int)info_connect, (int)info_appconnect, (int)res);
+  }
+
   // Do not print request URLs or public-key pins to runtime logs.
   
   if (res == CURLE_SSL_PINNEDPUBKEYNOTMATCH) {
