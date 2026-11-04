@@ -408,7 +408,7 @@ body[data-color-theme="black-orange"] #background-layer {
    transparent, and the unused auxbar must not paint a second background. */
 .network-test-progress > .bufferbar {
     background-image: none !important;
-    background-color: rgba(255, 255, 255, 0.3) !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
 }
 .network-test-progress > .auxbar {
     display: none !important;
