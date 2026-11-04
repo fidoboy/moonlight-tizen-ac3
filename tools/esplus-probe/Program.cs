@@ -7,9 +7,9 @@ namespace MoonlightEsplusProbe
 {
     internal static class Native
     {
-        private const int RTLD_NOW = 2;
-        private const int O_RDONLY = 0;
-        private const int O_NONBLOCK = 0x800;
+        internal const int RTLD_NOW = 2;
+        internal const int O_RDONLY = 0;
+        internal const int O_NONBLOCK = 0x800;
 
         [DllImport("libdl.so.2", EntryPoint = "dlopen", CharSet = CharSet.Ansi)]
         internal static extern IntPtr Dlopen(string fileName, int flags);
@@ -58,7 +58,7 @@ namespace MoonlightEsplusProbe
         private static IntPtr TryDlopen(string name, out string error)
         {
             Native.Dlerror();
-            IntPtr handle = Native.Dlopen(name, RTLD_NOW);
+            IntPtr handle = Native.Dlopen(name, Native.RTLD_NOW);
             error = handle != IntPtr.Zero ? null : TakeDlError();
             return handle;
         }
@@ -138,7 +138,7 @@ namespace MoonlightEsplusProbe
 
             foreach (string path in paths)
             {
-                int fd = Native.Open(path, O_RDONLY | O_NONBLOCK);
+                int fd = Native.Open(path, Native.O_RDONLY | Native.O_NONBLOCK);
                 if (fd >= 0)
                 {
                     Native.Close(fd);
