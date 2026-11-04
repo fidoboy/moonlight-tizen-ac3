@@ -29,20 +29,18 @@ jobs:
           curl --fail --location --retry 3 --output esplusplayer-1.4.6-0.src.rpm \
             https://download.tizen.org/snapshots/TIZEN/Tizen/Tizen-Unified/latest/repos/standard/source/esplusplayer-1.4.6-0.src.rpm
           rpm2cpio esplusplayer-1.4.6-0.src.rpm | cpio -idm --quiet
+          tar -xzf esplusplayer-1.4.6.tar.gz
           echo "=== Extracted package files ==="
-          find . -type f -printf '%p (%s bytes)\\n' | sort
+          find . -type f -print | sort
           echo "=== ESPlus CAPI headers ==="
-          find . -type f \\( -name 'esplusplayer_capi.h' -o -name 'esplusplayer_internal.h' \\) -print
-          test -n "$(find . -type f -name 'esplusplayer_capi.h' -print -quit)"
+          find . -type f -name esplusplayer_capi.h -print
+          find . -type f -name esplusplayer_internal.h -print
+          test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
 
-      - name: Upload source package and extracted headers
+      - name: Upload source package and extracted source
         uses: actions/upload-artifact@v4
         with:
           name: samsung-esplus-capi-source
-          path: |
-            ${{ runner.temp }}/esplus-source/esplusplayer-1.4.6-0.src.rpm
-            ${{ runner.temp }}/esplus-source/**/esplusplayer_capi.h
-            ${{ runner.temp }}/esplus-source/**/esplusplayer_internal.h
-            ${{ runner.temp }}/esplus-source/**/*.spec
+          path: ${{ runner.temp }}/esplus-source/
           if-no-files-found: error
           retention-days: 14
