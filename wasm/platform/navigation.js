@@ -1261,7 +1261,8 @@ const Views = {
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      // The dialog is removed immediately after Navigation.pop(); blur before detachment.
+      blurElement(this.view.current());
     },
   },
   HostDetailsDialog: {
