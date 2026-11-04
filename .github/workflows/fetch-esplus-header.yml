@@ -36,10 +36,8 @@ jobs:
           find . -type f -print | sort
           echo "=== ESPlus CAPI headers ==="
           find . -type f -name 'esplusplayer_capi.h' -print
-          find . -type f -name 'stream.h' -print
-          find . -type f -name 'espacket.h' -print
-          find . -type f -name 'stream.h' -print
-          find . -type f -name 'espacket.h' -print
+          find . -type f -name 'esplusplayer_internal.h' -print
+          test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
           find . -type f -name esplusplayer_internal.h -print
           test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
 
@@ -59,7 +57,9 @@ jobs:
             tar -xf "$archive"
           done
           echo "=== Tizen 6.5 ESPlus headers ==="
-          find . -type f \\( -name 'esplusplayer_capi.h' -o -name 'stream.h' -o -name 'espacket.h' \\) -print
+          find . -type f -name 'esplusplayer_capi.h' -print
+          find . -type f -name 'stream.h' -print
+          find . -type f -name 'espacket.h' -print
 
       - name: Upload source package and extracted source
         uses: actions/upload-artifact@v4
