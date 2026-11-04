@@ -87,7 +87,7 @@ MessageResult MoonlightInstance::HttpInit(std::string cert, std::string privateK
   return MessageResult::Resolve();
 }
 
-void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache) {
+void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse) {
   // For launch/resume requests, append the additional query parameters
   if (url.find("/launch?") != std::string::npos || url.find("/resume?") != std::string::npos) {
     url += LiGetLaunchUrlQueryParameters();
@@ -101,9 +101,7 @@ void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::st
     return;
   }
 
-  err = reuseNetworkTestCurlHandle
-    ? http_request_network_test(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data, networkTestTlsSessionCache)
-    : http_request(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data);
+  err = http_request(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data);
   if (err) {
     http_free_data(data);
     PostPromiseMessage(callbackId, "reject", std::to_string(err));
@@ -123,17 +121,8 @@ void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::st
   }
 }
 
-void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache) {
-  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse, reuseNetworkTestCurlHandle, networkTestTlsSessionCache), false);
-}
-
-void MoonlightInstance::CloseNetworkTestHttpSession_private(int callbackId) {
-  http_close_network_test_session();
-  PostPromiseMessage(callbackId, "resolve", "");
-}
-
-void MoonlightInstance::CloseNetworkTestHttpSession(int callbackId) {
-  m_Dispatcher.post_job(std::bind(&MoonlightInstance::CloseNetworkTestHttpSession_private, this, callbackId), false);
+void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse) {
+  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse), false);
 }
 
 MessageResult makeCert() {
@@ -144,21 +133,17 @@ MessageResult httpInit(std::string cert, std::string privateKey, std::string myU
   return g_Instance->HttpInit(cert, privateKey, myUniqueId);
 }
 
-void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse, bool reuseNetworkTestCurlHandle, bool networkTestTlsSessionCache) {
+void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse) {
   std::string ppkstr = "";
   if (ppk != emscripten::val::null()) {
     ppkstr = ppk.as<std::string>();
   }
-  g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse, reuseNetworkTestCurlHandle, networkTestTlsSessionCache);
+  g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse);
 }
 
-void closeNetworkTestHttpSession(int callbackId) {
-  g_Instance->CloseNetworkTestHttpSession(callbackId);
-}
 
 EMSCRIPTEN_BINDINGS(http) {
   emscripten::function("makeCert", &makeCert);
   emscripten::function("httpInit", &httpInit);
   emscripten::function("openUrl", &openUrl);
-  emscripten::function("closeNetworkTestHttpSession", &closeNetworkTestHttpSession);
 }
