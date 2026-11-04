@@ -8601,9 +8601,8 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
   return configuredHostCheck.catch(function(error) {
     console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
   }).then(function() {
-    // Configured hosts can be used as soon as their initial checks finish.
-    // Keep the list locked when it is empty until subnet discovery completes.
-    if (hasConfiguredHosts && isInGame !== true) unlockHostListInteraction();
+    // Keep the host list locked until subnet discovery completes, even when
+    // configured hosts have already passed their initial status checks.
 
     // Exclude configured IPv4 addresses: they have already been checked above.
     var knownHostIPs = [];
