@@ -2970,11 +2970,14 @@ function hostNetworkTestDialog(host) {
 
   var finished = false;
   var cancelled = false;
+  var dialogClosed = false;
   var testStartedAt = null;
   var progressTimer = null;
 
   var closeDialog = function() {
-    if (!finished) return;
+    if (dialogClosed) return;
+    dialogClosed = true;
+    finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
     fadeOutUiElement(overlay);
     closeUiDialog(dialog[0]);
@@ -2989,8 +2992,7 @@ function hostNetworkTestDialog(host) {
       return;
     }
     cancelled = true;
-    actionButton.prop('disabled', true);
-    status.text(t('Stopping network test...'));
+    closeDialog();
   });
 
   if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
@@ -3055,6 +3057,7 @@ function hostNetworkTestDialog(host) {
   });
 
   networkTestOperation.then(function(stats) {
+    if (dialogClosed) return;
     if (cancelled && !stats.cancelled) stats.cancelled = true;
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
@@ -3108,6 +3111,7 @@ function hostNetworkTestDialog(host) {
     actionButton.prop('disabled', false);
     Navigation.switch();
   }).catch(function(error) {
+    if (dialogClosed) return;
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
     status.text(t('Network test could not be completed.'));
