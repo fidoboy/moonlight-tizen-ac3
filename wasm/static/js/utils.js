@@ -532,19 +532,19 @@ NvHTTP.prototype = {
   runNetworkTest: function(durationMs, onProgress, shouldCancel) {
     var self = this;
     var duration = Math.max(1000, Number(durationMs) || 30000);
-    var startedAt = performance.now();
-    var deadline = startedAt + duration;
+    var startedAt = 0;
+    var deadline = 0;
     var totalBytes = 0;
     var successfulRequests = 0;
     var failedRequests = 0;
     var passRates = [];
     var sampleRates = [];
-    var sampleStartedAt = startedAt;
+    var sampleStartedAt = 0;
     var sampleBytes = 0;
     var passCount = 0;
 
     var report = function(extra) {
-      var elapsedMs = Math.max(1, performance.now() - startedAt);
+      var elapsedMs = startedAt ? Math.max(1, performance.now() - startedAt) : 0;
       var result = {
         elapsedMs: elapsedMs,
         bytes: totalBytes,
@@ -572,6 +572,12 @@ NvHTTP.prototype = {
       });
 
       if (!appIds.length) throw new Error('The host did not return any applications to test.');
+
+      // Exclude the app-list request from the measured download interval.
+      startedAt = performance.now();
+      deadline = startedAt + duration;
+      sampleStartedAt = startedAt;
+      report({ started: true, totalApps: appIds.length });
 
       var runPass = function() {
         var passStartedAt = performance.now();
