@@ -533,6 +533,8 @@ NvHTTP.prototype = {
     var passStartedAt = 0;
     var passBytes = 0;
     var passCount = 0;
+    var responseTimeTotalMs = 0;
+    var responseTimeSamples = 0;
     var startedAt = 0;
     var deadline = 0;
     var baselineBytes = 0;
@@ -550,6 +552,7 @@ NvHTTP.prototype = {
         successfulRequests: successfulRequests,
         failedRequests: failedRequests,
         averageMbps: elapsedMs > 0 ? totalBytes * 8 / (elapsedMs * 1000) : 0,
+        averageLatencyMs: responseTimeSamples > 0 ? responseTimeTotalMs / responseTimeSamples : null,
         minPassMbps: passRates.length ? Math.min.apply(Math, passRates) : 0,
         maxPassMbps: passRates.length ? Math.max.apply(Math, passRates) : 0,
         passCount: passCount
@@ -562,13 +565,21 @@ NvHTTP.prototype = {
     var requestAsset = function(appId) {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
+      var requestStartedAt = performance.now();
       return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
         var byteLength = buffer && typeof buffer.byteLength === 'number'
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
         if (byteLength <= 0) throw new Error('Empty app asset response');
-        // Only the byte count escapes this callback; the response buffer is not cached.
-        return byteLength;
+        // Only response metadata escapes this callback; the response buffer is not cached.
+        return {
+          byteLength: byteLength,
+          elapsedMs: Math.max(0, performance.now() - requestStartedAt)
+        };
+      }).catch(function(error) {
+        if (!error || typeof error !== 'object') error = new Error(String(error));
+        error.elapsedMs = Math.max(0, performance.now() - requestStartedAt);
+        throw error;
       });
     };
 
@@ -592,9 +603,9 @@ NvHTTP.prototype = {
       var downloadBaselineNext = function() {
         if (isCancelled() || baselineIndex >= appIds.length) return Promise.resolve();
         var appId = appIds[baselineIndex++];
-        return requestAsset(appId).then(function(byteLength) {
+        return requestAsset(appId).then(function(response) {
           baselineIds.push(appId);
-          baselineBytes += byteLength;
+          baselineBytes += response.byteLength;
         }, function(error) {
           baselineErrors++;
           console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Initial app asset download failed for app ID ' + appId + ':', error);
@@ -632,12 +643,18 @@ NvHTTP.prototype = {
           if (isCancelled() || performance.now() >= deadline) return Promise.resolve();
           var appId = baselineIds[assetIndex++];
 
-          return requestAsset(appId).then(function(byteLength) {
-            totalBytes += byteLength;
-            passBytes += byteLength;
+          return requestAsset(appId).then(function(response) {
+            totalBytes += response.byteLength;
+            passBytes += response.byteLength;
             successfulRequests++;
+            responseTimeTotalMs += response.elapsedMs;
+            responseTimeSamples++;
           }, function(error) {
             failedRequests++;
+            if (Number.isFinite(error.elapsedMs)) {
+              responseTimeTotalMs += error.elapsedMs;
+              responseTimeSamples++;
+            }
             console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Measured app asset download failed for app ID ' + appId + ':', error);
           }).then(function() {
             if (assetIndex >= baselineIds.length) {
@@ -680,6 +697,8 @@ NvHTTP.prototype = {
       totalBytes = 0;
       successfulRequests = 0;
       failedRequests = 0;
+      responseTimeTotalMs = 0;
+      responseTimeSamples = 0;
       passBytes = 0;
     });
   },
