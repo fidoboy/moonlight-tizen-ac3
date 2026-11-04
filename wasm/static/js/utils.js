@@ -601,6 +601,7 @@ NvHTTP.prototype = {
             baselineErrors: baselineErrors
           });
         }
+        if (baselineErrors > 0) throw new Error('The complete application image set could not be downloaded.');
         if (!baselineIds.length) throw new Error('None of the host application images could be downloaded.');
 
         // The timed measurement starts only after the complete baseline pass.
