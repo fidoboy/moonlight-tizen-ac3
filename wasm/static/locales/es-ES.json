@@ -592,5 +592,6 @@
   "Your network connection does not seem stable enough.": "Su conexión de red no parece lo suficientemente estable.",
   "The connection to the host may be limited or unstable.": "La conexión con el anfitrión puede ser limitada o inestable.",
   "The connection to the host is too slow or unstable.": "La conexión con el anfitrión es demasiado lenta o inestable.",
-  "Gamepad Test": "Prueba del mando"
+  "Gamepad Test": "Prueba del mando",
+  "The required data could not be retrieved from the host. The test has been aborted.": "No se pudieron obtener los datos necesarios del anfitrión. Se ha abortado la prueba."
 }
