@@ -231,23 +231,23 @@ jobs:
             # that are not shipped in its ARMEL sysroot. This source has no Tizen API
             # dependencies, so bypass that catalogue for this isolated compiler/linker probe.
             python3 - "$probe/Build/platform.mk" <<'PY'
-            import re
-            import sys
-            from pathlib import Path
+          import re
+          import sys
+          from pathlib import Path
 
-            path = Path(sys.argv[1])
-            content = path.read_text(encoding="utf-8")
-            content, count = re.subn(
-                r"^RS_LIBRARIES := .*?$",
-                "# Dependency-free rootstrap probe: no platform libraries are required." + chr(10) + "RS_LIBRARIES :=",
-                content,
-                count=1,
-                flags=re.MULTILINE,
-            )
-            if count != 1:
-                raise SystemExit(f"Expected one RS_LIBRARIES assignment in {path}, found {count}")
-            path.write_text(content, encoding="utf-8")
-            print("ROOTSTRAP_PLATFORM_LIBRARY_CATALOGUE=disabled_for_dependency_free_probe")
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          content, count = re.subn(
+              r"^RS_LIBRARIES := .*?$",
+              "# Dependency-free rootstrap probe: no platform libraries are required." + chr(10) + "RS_LIBRARIES :=",
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit(f"Expected one RS_LIBRARIES assignment in {path}, found {count}")
+          path.write_text(content, encoding="utf-8")
+          print("ROOTSTRAP_PLATFORM_LIBRARY_CATALOGUE=disabled_for_dependency_free_probe")
             PY
 
             # Dependency-free C entry point: test the ARM compiler and linker,
