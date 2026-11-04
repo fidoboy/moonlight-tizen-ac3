@@ -569,5 +569,6 @@
   "Successful downloads: %1$s": "Téléchargements réussis : %1$s",
   "Download errors: %1$s": "Erreurs de téléchargement : %1$s",
   "Duration: %1$s seconds": "Durée : %1$s secondes",
-  "Network test could not be completed.": "Le test réseau n’a pas pu être terminé."
+  "Network test could not be completed.": "Le test réseau n’a pas pu être terminé.",
+  "Testing network connection...": "Test de la connexion réseau..."
 }
