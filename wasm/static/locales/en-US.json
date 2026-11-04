@@ -585,5 +585,7 @@
   "The complete application image set could not be downloaded.": "The complete application image set could not be downloaded.",
   "None of the host application images could be downloaded.": "None of the host application images could be downloaded.",
   "Background host polling did not finish before the network test.": "Background host polling did not finish before the network test.",
-  "A network test is already running.": "A network test is already running."
+  "A network test is already running.": "A network test is already running.",
+  "Obtaining preliminary data...": "Obtaining preliminary data...",
+  "Performing measurement. Please wait...": "Performing measurement. Please wait..."
 }
