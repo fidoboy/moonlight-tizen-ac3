@@ -223,7 +223,7 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     CURLcode info_appconnect = curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appconnect_time);
 
     fprintf(stderr,
-      "[network-test-http] tls_cache=%s request=%lu new_connections=%ld connect_ms=%.1f tls_handshake_ms=%.1f info=%d/%d/%d curl=%d\n",
+      "[network-test-http] curl_handle=shared tls_cache=%s request=%lu new_connections=%ld connect_ms=%.1f tls_handshake_ms=%.1f info=%d/%d/%d curl=%d\n",
       ssl_session_cache ? "on" : "off", request_number,
       info_connections == CURLE_OK ? new_connections : -1L,
       info_connect == CURLE_OK ? connect_time * 1000.0 : -1.0,
