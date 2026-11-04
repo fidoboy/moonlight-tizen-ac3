@@ -1,35 +1,48 @@
 # ESPlus ARM32 ABI checker
 
-This tool reports sizeof, alignment and offsetof for:
-- WMP's legacy Tizen 5.0 add_* structure declarations.
-- OmegaTube's later set_* candidate declarations.
+The checker keeps three sources distinct:
 
-The candidate declarations are references, not proof of the private ABI in a
-Samsung TV firmware. The tool does not load or call libesplusplayer.so.
+1. WMP's reconstructed legacy Tizen 5.0 `add_*` declarations.
+2. A normalized layout mirror transcribed from Samsung's public ESPlusPlayer
+   CAPI 0.0.3 `set_*` header.
+3. OmegaTube's third-party extended packet, printed only for comparison.
 
-## Build the candidate report
+## Public CAPI 0.0.3 layout assertions
 
-Use the ARMv7 compiler downloaded by WMP's fetch-tizen-sources.sh:
+| Structure | Size | Key offsets |
+|---|---:|---|
+| Audio stream info | 24 | data 0, length 4, MIME 8, bitrate 12, channels 16, sample rate 20 |
+| Video stream info | 36 | data 0, length 4, MIME 8, width 12, height 16, max width 20, max height 24, FPS numerator 28, denominator 32 |
+| ES packet | 48 | type 0, buffer 4, size 8, PTS 16, duration 24, Matroska pointer 32, HDR10+ size 36, HDR10+ pointer 40 |
+
+The public audio MIME values represented are UNKNOWN=0, AAC=1, MP2=2, MP3=3,
+AC3=4, EAC3=5, VORBIS=6 and OPUS=7. The CAPI packet has 8-byte alignment on
+the ARM32 AAPCS target.
+
+These declarations are a regression mirror, not a copy of Samsung's header.
+The optional direct-header comparison below is the independent compile-time
+check against the extracted header.
+
+## Build the ARM32 report
 
 ```sh
-CC=/path/to/cross-arm-gcc ./tools/esplus-abi-checker/build-abi-check.sh
+./tools/esplus-abi-checker/build-abi-check.sh
 ```
 
-The default compiler name is arm-linux-gnueabi-gcc. The script enforces
-32-bit pointers and uses ARMv7 AAPCS Linux options.
-
-## Compare with the Tizen 6.5 native header
-
-After WMP's source-fetch script has extracted its Tizen 6.5 source RPM, locate:
+The default compiler is `arm-linux-gnueabi-gcc`. Override it with:
 
 ```sh
-find tizen-deps/src -name esplusplayer_capi.h -print
+CC=/path/to/arm-linux-gnueabi-gcc ./tools/esplus-abi-checker/build-abi-check.sh
 ```
 
-Inspect the actual typedef names. Create an adapter header which includes the
-native header and aliases its real structure types. For example, the following
-is schematic; replace the placeholder type names with declarations actually
-present in the extracted Samsung header:
+The script enforces 32-bit pointers and uses ARMv7-A/AAPCS/softfp flags.
+A host build is not accepted as target ABI evidence.
+
+## Compare directly with the Samsung header
+
+Keep the Samsung source RPM and extracted headers outside this repository.
+Create an adapter that includes the original CAPI header and aliases the
+actual typedef names:
 
 ```c
 #include <esplusplayer_capi/esplusplayer_capi.h>
@@ -41,21 +54,26 @@ typedef ACTUAL_NATIVE_PACKET_TYPE esp_native_packet;
 Then run:
 
 ```sh
-CC=/path/to/cross-arm-gcc \
+CC=/path/to/arm-linux-gnueabi-gcc \
 ESPLUS_INCLUDE_DIR=/path/to/extracted/include \
-ESPLUS_NATIVE_ADAPTER=/absolute/path/to/native_adapter.h \
+ESPLUS_NATIVE_ADAPTER=/absolute/path/to/esplus_native_adapter.h \
   ./tools/esplus-abi-checker/build-abi-check.sh
 ```
 
-The native report prints each common field offset and each structure's total
-size. If the native header uses different field names or a different packet
-shape, adapt native_layout.c to the actual declarations; do not edit the
-Samsung header or silently assume OmegaTube's private layout.
+The direct comparison statically checks native sizes and packet offsets, and
+prints the checked fields. If a native field or typedef name differs, adapt
+the checker to the real declaration. Do not modify the Samsung header.
 
-## Limits
+## ABI distinctions and limits
 
-- Only a 32-bit ARM report is suitable for the AU7172.
-- sizeof/offsetof validate the compiled declarations, not the private binary.
-- Tizen 6.5 is a reference, not proof of identical ABI on Tizen 6.0.
-- Function prototypes, callback signatures, enum values and return semantics
-  need a separate audit; this utility measures structure layout only.
+- Never mix WMP legacy `add_*` declarations with modern `set_*` declarations.
+- The public CAPI audio enum has OPUS=7. WMP's reconstructed legacy enum used
+  a different numbering in which DTS occupied 7 and OPUS 8.
+- Public CAPI packet timestamps are milliseconds; do not apply the legacy
+  nanosecond conversion.
+- OmegaTube's `reserved[64]` additions are not part of the public CAPI 0.0.3
+  layouts represented here.
+- Layout assertions do not validate callback calling conventions, function
+  return semantics, runtime symbol availability or firmware behavior.
+- Tizen 6.5 public source does not prove identical ABI on Tizen 6.0 or on
+  every Tizen 5.5+ television.
