@@ -3040,8 +3040,9 @@ function gamepadTestDialog() {
     return;
   }
   var gamepadIndex = selectedGamepad.index;
+  // TEMPORARY TEST: route the Xbox/default diagram selection to the Switch Pro SVG.
   var controllerType = isNintendoSwitchProGamepadId(selectedGamepad.id) ? 'switch' :
-    (isPlayStationGamepadId(selectedGamepad.id) ? 'ps' : 'xbox');
+    (isPlayStationGamepadId(selectedGamepad.id) ? 'ps' : 'switch');
 
   var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
   var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
