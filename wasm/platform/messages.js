@@ -31,7 +31,7 @@ const SyncFunctions = {
 
 const AsyncFunctions = {
   // url, ppk, binaryResponse
-  'openUrl': (id, url, ppk, binary, timeout, reuseNetworkTestConnection, networkTestTlsSessionCache) => Module.openUrl(id, url, ppk, binary, reuseNetworkTestConnection, networkTestTlsSessionCache),
+  'openUrl': (id, url, ppk, binary, timeout, reuseNetworkTestCurlHandle, networkTestTlsSessionCache) => Module.openUrl(id, url, ppk, binary, reuseNetworkTestCurlHandle, networkTestTlsSessionCache),
   'closeNetworkTestHttpSession': (id) => Module.closeNetworkTestHttpSession(id),
   // no parameters
   'STUN': (...args) => Module.stun(...args),
