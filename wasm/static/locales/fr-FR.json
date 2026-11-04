@@ -589,5 +589,7 @@
   "Performing measurement. Please wait...": "Mesure en cours. Veuillez patienter...",
   "The connection to the host seems stable.": "La connexion avec l’hôte semble stable.",
   "Some errors were detected. Check your connection.": "Quelques erreurs ont été détectées. Vérifiez votre connexion.",
-  "Your network connection does not seem stable enough.": "Votre connexion réseau ne semble pas suffisamment stable."
+  "Your network connection does not seem stable enough.": "Votre connexion réseau ne semble pas suffisamment stable.",
+  "The connection to the host may be limited or unstable.": "La connexion avec l’hôte peut être limitée ou instable.",
+  "The connection to the host is too slow or unstable.": "La connexion avec l’hôte est trop lente ou instable."
 }
