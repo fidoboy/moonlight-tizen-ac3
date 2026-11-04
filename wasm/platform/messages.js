@@ -5,6 +5,7 @@ const SyncFunctions = {
   'makeCert': (...args) => Module.makeCert(...args),
   // cert, privateKey, myUniqueid
   'httpInit': (...args) => Module.httpInit(...args),
+  'closeNetworkTestHttpSession': (...args) => Module.closeNetworkTestHttpSession(...args),
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
@@ -31,7 +32,7 @@ const SyncFunctions = {
 
 const AsyncFunctions = {
   // url, ppk, binaryResponse
-  'openUrl': (id, url, ppk, binary) => Module.openUrl(id, url, ppk, binary),
+  'openUrl': (id, url, ppk, binary, timeout, reuseNetworkTestConnection) => Module.openUrl(id, url, ppk, binary, reuseNetworkTestConnection),
   // no parameters
   'STUN': (...args) => Module.stun(...args),
   // serverMajorVersion, address, httpPort, randomNumber
