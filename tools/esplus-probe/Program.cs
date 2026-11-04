@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using Tizen.Applications;
 using Tizen.NUI;
 using Tizen.NUI.BaseComponents;
@@ -44,11 +46,41 @@ namespace MoonlightEsplusProbe
             "esplusplayer_set_ecore_display"
         };
 
+        private static readonly object OutputLock = new object();
+        private static readonly StringBuilder Output = new StringBuilder();
+        private static SynchronizationContext UiContext;
+        private static TextLabel OutputLabel;
+        private const int MaxOutputCharacters = 30000;
+
         private static void Log(string message)
         {
             string line = "[MLPROBE] " + message;
             try { Tizen.Log.Info("MLPROBE", message); } catch { }
             try { Console.WriteLine(line); } catch { }
+
+            string snapshot;
+            lock (OutputLock)
+            {
+                Output.AppendLine(message);
+                if (Output.Length > MaxOutputCharacters)
+                {
+                    Output.Remove(0, Output.Length - MaxOutputCharacters);
+                    int firstNewline = Output.ToString().IndexOf('\n');
+                    if (firstNewline >= 0) Output.Remove(0, firstNewline + 1);
+                }
+                snapshot = Output.ToString();
+            }
+
+            // NUI views must only be changed on the application thread.
+            SynchronizationContext context = UiContext;
+            if (context != null)
+            {
+                context.Post(delegate
+                {
+                    TextLabel label = OutputLabel;
+                    if (label != null) label.Text = snapshot;
+                }, null);
+            }
         }
 
         private static string TakeDlError()
@@ -98,6 +130,7 @@ namespace MoonlightEsplusProbe
             }
 
             Log("dlopen SUCCESS: " + loadedFrom + " handle=0x" + handle.ToInt64().ToString("x"));
+            Log("Nota: los nombres de simbolos siguientes son candidatos, no una ABI confirmada.");
             int found = 0;
             foreach (string symbol in RequiredSymbols)
             {
@@ -115,7 +148,7 @@ namespace MoonlightEsplusProbe
                 }
             }
 
-            Log("SYMBOL SUMMARY: " + found + "/" + RequiredSymbols.Length + " required exports found");
+            Log("SYMBOL SUMMARY: " + found + "/" + RequiredSymbols.Length + " candidate exports found");
             Log(found == RequiredSymbols.Length
                 ? "RESULT: LIBRARY_LOADED_SYMBOLS_OK"
                 : "RESULT: LIBRARY_LOADED_SYMBOLS_INCOMPLETE");
@@ -192,6 +225,7 @@ namespace MoonlightEsplusProbe
                 CheckLibrary();
                 CheckDevices();
                 Log("=== PROBE COMPLETE ===");
+                Log("Fin del diagnostico. Desplacese por el texto para consultar todos los resultados.");
             }
             catch (Exception ex)
             {
@@ -202,25 +236,31 @@ namespace MoonlightEsplusProbe
         protected override void OnCreate()
         {
             base.OnCreate();
-            // Do not perform native loading or device enumeration on the
-            // application lifecycle thread: either operation may block on TV
-            // firmware and prevent the launcher/debugger from completing startup.
+            // Capture the UI synchronization context before starting any work.
+            UiContext = SynchronizationContext.Current;
+
             Log("Moonlight ESPlus probe application created");
 
-            // A visible NUI application must create a window surface. Without
-            // one, the TV launcher can remain on its "Loading" screen.
-            TextLabel status = new TextLabel("Moonlight ESPlus probe\n\nDiagnostico iniciado.\nConsulte el log MLPROBE desde Apps2Samsung.");
-            status.HorizontalAlignment = HorizontalAlignment.Center;
-            status.VerticalAlignment = VerticalAlignment.Center;
-            status.TextColor = Color.White;
-            status.PointSize = 24.0f;
-            status.WidthResizePolicy = ResizePolicyType.FillToParent;
-            status.HeightResizePolicy = ResizePolicyType.FillToParent;
-            Window.Instance.GetDefaultLayer().Add(status);
+            // Keep the full diagnostic output on the TV. ScrollView lets the
+            // user inspect it with the remote instead of relying on DevTools.
+            ScrollView scroll = new ScrollView();
+            scroll.WidthResizePolicy = ResizePolicyType.FillToParent;
+            scroll.HeightResizePolicy = ResizePolicyType.FillToParent;
+
+            OutputLabel = new TextLabel("Moonlight ESPlus probe\n\nDiagnostico iniciado...") ;
+            OutputLabel.HorizontalAlignment = HorizontalAlignment.Begin;
+            OutputLabel.VerticalAlignment = VerticalAlignment.Top;
+            OutputLabel.TextColor = Color.White;
+            OutputLabel.PointSize = 16.0f;
+            OutputLabel.WidthResizePolicy = ResizePolicyType.FillToParent;
+            OutputLabel.HeightResizePolicy = ResizePolicyType.UseNaturalSize;
+            scroll.Add(OutputLabel);
+
+            Window.Instance.GetDefaultLayer().Add(scroll);
 
             // Native library loading and device enumeration must not block
             // the NUI lifecycle/event thread.
-            System.Threading.Thread worker = new System.Threading.Thread(RunProbe);
+            Thread worker = new Thread(RunProbe);
             worker.IsBackground = true;
             worker.Name = "MLPROBE-worker";
             worker.Start();
