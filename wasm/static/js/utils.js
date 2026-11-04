@@ -524,6 +524,8 @@ NvHTTP.prototype = {
   runNetworkTest: function(durationMs, onProgress, shouldCancel) {
     var self = this;
     var duration = Math.max(1000, Number(durationMs) || 30000);
+    var appIds = [];
+    var baselineIds = [];
     var totalBytes = 0;
     var successfulRequests = 0;
     var failedRequests = 0;
@@ -533,6 +535,8 @@ NvHTTP.prototype = {
     var passCount = 0;
     var startedAt = 0;
     var deadline = 0;
+    var baselineBytes = 0;
+    var baselineErrors = 0;
 
     var isCancelled = function() {
       return typeof shouldCancel === 'function' && shouldCancel();
@@ -563,6 +567,7 @@ NvHTTP.prototype = {
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
         if (byteLength <= 0) throw new Error('Empty app asset response');
+        // Only the byte count escapes this callback; the response buffer is not cached.
         return byteLength;
       });
     };
@@ -571,21 +576,19 @@ NvHTTP.prototype = {
       return Promise.reject(new Error('The host must be online and paired before running the network test.'));
     }
 
-    return self.getAppListWithCacheFlush().then(function(apps) {
-      var appIds = (Array.isArray(apps) ? apps : []).map(function(app) {
+    return self.getAppListWithCacheFlush(true).then(function(apps) {
+      appIds = (Array.isArray(apps) ? apps : []).map(function(app) {
         return Number(app && app.id);
       }).filter(function(id, index, ids) {
         return Number.isInteger(id) && id > 0 && ids.indexOf(id) === index;
       });
+      // The temporary app-list objects are no longer needed. The shared app-list
+      // cache is deliberately not populated by this request.
+      if (Array.isArray(apps)) apps.length = 0;
 
       if (!appIds.length) throw new Error('The host did not return any applications to test.');
 
-      // First pass: fetch the complete asset set to establish its actual size.
-      var baselineIds = [];
-      var baselineBytes = 0;
-      var baselineErrors = 0;
       var baselineIndex = 0;
-
       var downloadBaselineNext = function() {
         if (isCancelled() || baselineIndex >= appIds.length) return Promise.resolve();
         var appId = appIds[baselineIndex++];
@@ -612,13 +615,13 @@ NvHTTP.prototype = {
         if (baselineErrors > 0) throw new Error('The complete application image set could not be downloaded.');
         if (!baselineIds.length) throw new Error('None of the host application images could be downloaded.');
 
-        // The timed measurement starts only after the complete baseline pass.
+        // Start the timed measurement only after every baseline asset is available.
         startedAt = performance.now();
         deadline = startedAt + duration;
         passStartedAt = startedAt;
-        failedRequests = baselineErrors;
         report({
           started: true,
+          measurementStarted: true,
           baselineBytes: baselineBytes,
           baselineAssetCount: baselineIds.length,
           baselineErrors: baselineErrors
@@ -627,7 +630,6 @@ NvHTTP.prototype = {
         var assetIndex = 0;
         var downloadMeasuredNext = function() {
           if (isCancelled() || performance.now() >= deadline) return Promise.resolve();
-
           var appId = baselineIds[assetIndex++];
 
           return requestAsset(appId).then(function(byteLength) {
@@ -669,17 +671,27 @@ NvHTTP.prototype = {
           });
         });
       });
+    }).finally(function() {
+      // Release all test-only collections and counters on success, cancellation,
+      // or failure. No app-list or image data is persisted by this test.
+      appIds.length = 0;
+      baselineIds.length = 0;
+      passRates.length = 0;
+      totalBytes = 0;
+      successfulRequests = 0;
+      failedRequests = 0;
+      passBytes = 0;
     });
   },
 
-  getAppListWithCacheFlush: function() {
+  getAppListWithCacheFlush: function(skipMemoryCache) {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/applist?' + this._buildUidStr(), this.ppkstr, false, 10000
     ]).catch(error => {
       throw error;
     }).then(function(ret) {
-      $xml = this._parseXML(ret);
-      $root = $xml.find('root');
+      var $xml = this._parseXML(ret);
+      var $root = $xml.find('root');
 
       if ($root.attr('status_code') != 200) {
         // TODO: Bubble up an error here
@@ -698,7 +710,7 @@ NvHTTP.prototype = {
         });
       }
 
-      this._memCachedApplist = appList;
+      if (skipMemoryCache !== true) this._memCachedApplist = appList;
       console.log('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'App list requested successfully.');
 
       return appList;
