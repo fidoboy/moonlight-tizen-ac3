@@ -52,7 +52,7 @@ jobs:
             echo "### Rootstraps"
             tizen list rootstrap 2>&1 || true
             echo "### SDK log files"
-            find "$HOME" "$sdk" -type f \\( -iname '*.log' -o -iname '*.log.*' \\) -print 2>/dev/null | sort || true
+            find "$HOME" "$sdk" -type f \( -iname '*.log' -o -iname '*.log.*' \) -print 2>/dev/null | sort || true
           } > "$RUNNER_TEMP/sdk-install-environment.txt"
 
       - name: Generate and compile reference ServiceApp projects
@@ -75,7 +75,7 @@ jobs:
               mkdir -p "$(dirname "$destination")"
               cp -p "$source" "$destination"
             done < <(
-              find "$HOME" "$sdk" "$RUNNER_TEMP" -type f \\( -iname '*.log' -o -iname '*.log.*' \\) \\
+              find "$HOME" "$sdk" "$RUNNER_TEMP" -type f \( -iname '*.log' -o -iname '*.log.*' \) \
                 ! -path "$report/*" -print 2>/dev/null | sort -u
             )
             find "$report/cli-logs" -type f -printf '%P\n' | sort > "$report/cli-log-index.txt"
@@ -115,7 +115,7 @@ jobs:
             if run_profile_command "$profile-build" "$log" tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project"; then
               echo "BUILD_RESULT=success" | tee -a "$log"
               find "$project/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
-              find "$project/Release" -type f -exec file {} \\; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
+              find "$project/Release" -type f -exec file {} \; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
             else
               status=$?
               echo "BUILD_RESULT=failed exit_code=$status" | tee -a "$log"
@@ -134,7 +134,7 @@ jobs:
             tizen list rootstrap 2>&1 || true
             echo
             echo "### Relevant SDK directories"
-            find "$HOME" "$sdk" -maxdepth 5 -type d \\( -iname '*log*' -o -iname '*cli*' \\) -print 2>/dev/null | sort || true
+            find "$HOME" "$sdk" -maxdepth 5 -type d \( -iname '*log*' -o -iname '*cli*' \) -print 2>/dev/null | sort || true
           } > "$report/environment.txt"
           cp "$RUNNER_TEMP/sdk-install-environment.txt" "$report/" 2>/dev/null || true
           capture_cli_logs final
