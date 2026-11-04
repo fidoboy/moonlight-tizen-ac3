@@ -93,14 +93,23 @@ jobs:
             return "$status"
           }
 
+          {
+            echo "### build-native command manual"
+            tizen manual build-native 2>&1 || true
+            echo
+            echo "### CLI configuration"
+            tizen cli-config -l 2>&1 || true
+          } > "$report/build-native-cli-reference.txt"
+
           build_profile() {
             profile="$1"
             rootstrap="$2"
-            project="$RUNNER_TEMP/ServiceApp-$profile"
+            project_root="$RUNNER_TEMP/ServiceApp-$profile"
+            project="$project_root/WmpServiceProbe"
             log="$report/$profile-build.log"
             echo "=== PROFILE=$profile ROOTSTRAP=$rootstrap ===" | tee "$log"
 
-            if run_profile_command "$profile-create" "$log" tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project"; then
+            if run_profile_command "$profile-create" "$log" tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project_root"; then
               echo "CREATE_RESULT=success" | tee -a "$log"
             else
               status=$?
@@ -109,8 +118,16 @@ jobs:
               return
             fi
 
+            if [ ! -f "$project/project_def.prop" ]; then
+              echo "PROJECT_VALIDATION=failed missing=$project/project_def.prop" | tee -a "$log"
+              failed=1
+              return
+            fi
+            echo "PROJECT_DIR=$project" | tee -a "$log"
+            echo "PROJECT_VALIDATION=success project_def.prop found" | tee -a "$log"
+
             find "$project" -maxdepth 5 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
-            tar -czf "$report/$profile-template.tar.gz" -C "$(dirname "$project")" "$(basename "$project")"
+            tar -czf "$report/$profile-template.tar.gz" -C "$project_root" WmpServiceProbe
 
             if run_profile_command "$profile-build" "$log" tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project"; then
               echo "BUILD_RESULT=success" | tee -a "$log"
