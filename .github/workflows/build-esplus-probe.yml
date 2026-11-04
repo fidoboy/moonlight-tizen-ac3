@@ -14,37 +14,88 @@ permissions:
 
 jobs:
   build:
+    name: Build diagnostic TPK
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout probe source
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source_ref }}
-      - uses: actions/setup-dotnet@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - uses: actions/setup-java@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Tizen Studio CLI
+
+      - name: Install Tizen Studio Web CLI
+        shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect
           installer="$RUNNER_TEMP/tizen-web-cli.bin"
-          curl --fail --location --retry 3 --output "$installer" https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
           chmod +x "$installer"
           "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
           echo "$RUNNER_TEMP/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$RUNNER_TEMP/tizen-studio/tools" >> "$GITHUB_PATH"
-      - name: Prepare project
+          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+
+      - name: Create CI signing profile
+        shell: bash
+        env:
+          CERT_PASSWORD: moonlight-probe-ci
         run: |
           set -euo pipefail
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+          tizen certificate -a MoonlightProbe -f MoonlightProbe -p "$CERT_PASSWORD"
+          tizen security-profiles add \
+            -n MoonlightProbe \
+            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightProbe.p12" \
+            -p "$CERT_PASSWORD"
+          # Work around the headless CI runner not providing a desktop keyring.
+          sed -i 's|/root/tizen-studio-data/keystore/author/MoonlightProbe.pwd||' \
+            "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml" || true
+          test -s "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightProbe.p12"
+
+      - name: Build Tizen .NET package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f tools/esplus-probe/MoonlightEsplusProbe.csproj
           cp res/icon.png tools/esplus-probe/icon.png
-          dotnet build tools/esplus-probe/MoonlightEsplusProbe.csproj --configuration Release -p:TizenManifestFile="$PWD/tools/esplus-probe/tizen-manifest.xml" --verbosity minimal
-          find tools/esplus-probe -type f -name '*.tpk' -size +0c -print -quit | grep -q .
-      - uses: actions/upload-artifact@v6
+          dotnet --info
+          dotnet build tools/esplus-probe/MoonlightEsplusProbe.csproj \
+            --configuration Release \
+            -p:TizenManifestFile="$PWD/tools/esplus-probe/tizen-manifest.xml" \
+            --verbosity minimal
+
+      - name: Collect and validate TPK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find tools/esplus-probe -type f -name '*.tpk' -size +0c)
+          if [[ "${#packages[@]}" -eq 0 ]]; then
+            echo "::error::The build did not produce a non-empty TPK package."
+            find tools/esplus-probe -maxdepth 7 -type f | sort
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/esplus-probe"
+          cp "${packages[0]}" "$RUNNER_TEMP/esplus-probe/Moonlight-Esplus-Probe.tpk"
+          sha256sum "$RUNNER_TEMP/esplus-probe/Moonlight-Esplus-Probe.tpk"
+
+      - name: Upload TPK artifact
+        uses: actions/upload-artifact@v6
         with:
           name: Moonlight-Esplus-Probe
-          path: tools/esplus-probe/bin/Release/**/*.tpk
+          path: ${{ runner.temp }}/esplus-probe/Moonlight-Esplus-Probe.tpk
           if-no-files-found: error
           retention-days: 14
