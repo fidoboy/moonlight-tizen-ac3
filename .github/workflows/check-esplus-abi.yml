@@ -1,0 +1,47 @@
+name: Check ESPlus ARM32 ABI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 1.2.0-pre-wpm_test
+    paths:
+      - "tools/esplus-abi-checker/**"
+      - ".github/workflows/check-esplus-abi.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  arm32-layout:
+    name: Compile and verify ARM32 ABI layouts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install ARM32 cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gcc-arm-linux-gnueabi
+
+      - name: Compile and run ABI checker
+        shell: bash
+        run: |
+          set -o pipefail
+          chmod +x tools/esplus-abi-checker/build-abi-check.sh
+          CC=arm-linux-gnueabi-gcc \
+            OUT="$RUNNER_TEMP/esplus-abi-report" \
+            tools/esplus-abi-checker/build-abi-check.sh \
+            | tee "$RUNNER_TEMP/esplus-abi-check.log"
+
+      - name: Upload ABI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esplus-arm32-abi-report
+          path: |
+            ${{ runner.temp }}/esplus-abi-check.log
+            ${{ runner.temp }}/esplus-abi-report/
+          if-no-files-found: warn
+          retention-days: 14
