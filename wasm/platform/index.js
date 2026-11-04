@@ -2998,7 +2998,7 @@ function gamepadTestDialog() {
   }).appendTo(dialog);
   var content = $('<div>', { class: 'mdl-dialog__content gamepad-test-content' }).appendTo(dialog);
   var svg = `
-    <svg id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 441 383" role="img" aria-label="Game controller diagram">
+    <svg xmlns="http://www.w3.org/2000/svg" id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 441 383" role="img" aria-label="Game controller diagram">
       <g id="gamepadTestController">
         <path d="M220.5 294.5C220.5 294.5 195 294.5 150 294.5C105 294.5 81.5 378.5 49.5 378.5C17.5 378.5 4 363.9 4 317.5C4 271.1 43.5 165.5 55 137.5C66.5 109.5 95.5 92.0001 128 92.0001C154 92.0001 200.5 92.0001 220.5 92.0001" class="gamepad-test-shell"/>
         <path d="M220 294.5C220 294.5 245.5 294.5 290.5 294.5C335.5 294.5 359 378.5 391 378.5C423 378.5 436.5 363.9 436.5 317.5C436.5 271.1 397 165.5 385.5 137.5C374 109.5 345 92.0001 312.5 92.0001C286.5 92.0001 240 92.0001 220 92.0001" class="gamepad-test-shell"/>
@@ -3042,7 +3042,13 @@ function gamepadTestDialog() {
         <g id="gamepadTestR3" class="gamepad-test-control"><circle cx="278" cy="238" r="10" class="gamepad-test-stick-click"/></g>
       </g>
     </svg>`;
-  content.append(svg);
+  // Parse the controller graphic as SVG XML so older Tizen WebKit builds
+  // preserve the SVG namespace instead of treating the markup as HTML.
+  var svgDocument = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  var svgElement = svgDocument.documentElement;
+  if (svgElement && svgElement.localName === 'svg') {
+    content[0].appendChild(document.importNode(svgElement, true));
+  }
   $('<p>', {
     class: 'gamepad-test-instructions',
     text: t('Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.')
