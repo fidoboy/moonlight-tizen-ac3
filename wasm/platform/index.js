@@ -3214,11 +3214,12 @@ function hostNetworkTestDialog(host) {
     dialogClosed = true;
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
+    // Pop navigation while the dialog button still exists so leave() can blur it.
+    Navigation.pop();
     fadeOutUiElement(overlay);
     closeUiDialog(dialog[0]);
     overlay.remove();
     isDialogOpen = false;
-    Navigation.pop();
   };
 
   actionButton.on('click', function() {
