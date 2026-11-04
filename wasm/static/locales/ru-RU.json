@@ -579,5 +579,11 @@
   "Stop": "Остановить",
   "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Колебания скорости между полными загрузками набора изображений: %1$s–%2$s Мбит/с",
   "Not enough complete image-set passes to compare speed variation.": "Недостаточно полных проходов по набору изображений для сравнения колебаний скорости.",
-  "Completed image-set passes: %1$s": "Полных проходов по набору изображений: %1$s"
+  "Completed image-set passes: %1$s": "Полных проходов по набору изображений: %1$s",
+  "The host must be online and paired before running the network test.": "Для запуска теста сети хост должен быть в сети и сопряжён с клиентом.",
+  "The host did not return any applications to test.": "Хост не вернул список приложений для тестирования.",
+  "The complete application image set could not be downloaded.": "Не удалось загрузить полный набор изображений приложений.",
+  "None of the host application images could be downloaded.": "Не удалось загрузить ни одного изображения приложений хоста.",
+  "Background host polling did not finish before the network test.": "Фоновая проверка хостов не завершилась до начала теста сети.",
+  "A network test is already running.": "Тест сети уже выполняется."
 }
