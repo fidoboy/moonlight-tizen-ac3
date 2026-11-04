@@ -2933,15 +2933,15 @@ function hostNetworkTestDialog(host) {
     text: t('Testing the download connection from %1$s to this TV for about 30 seconds.', host.hostname)
   }).appendTo(content);
 
+  var status = $('<p>', {
+    id: 'hostNetworkTestStatus-' + host.serverUid,
+    text: t('Obtaining preliminary data...')
+  }).appendTo(content);
   var progress = $('<progress>', {
     id: 'hostNetworkTestProgress-' + host.serverUid,
     max: 30000,
     value: 0
   }).css({ width: '100%', height: '18px' }).appendTo(content);
-  var status = $('<p>', {
-    id: 'hostNetworkTestStatus-' + host.serverUid,
-    text: t('Preparing network test...')
-  }).appendTo(content);
   var result = $('<div>', {
     id: 'hostNetworkTestResult-' + host.serverUid
   }).css({ 'white-space': 'pre-line', 'margin-top': '12px' }).appendTo(content);
@@ -2997,8 +2997,9 @@ function hostNetworkTestDialog(host) {
         bytes: 0,
         elapsedMs: 0,
         averageMbps: 0,
-        minSampleMbps: 0,
-        maxSampleMbps: 0,
+        minPassMbps: 0,
+        maxPassMbps: 0,
+        passCount: 0,
         successfulRequests: 0,
         failedRequests: 0,
         baselineBytes: 0,
@@ -3015,18 +3016,28 @@ function hostNetworkTestDialog(host) {
           if (finished) return;
           progress.val(Math.min(30000, Date.now() - testStartedAt));
         }, 150);
-        status.text(t('Testing network connection...'));
+        status.text(t('Performing measurement. Please wait...'));
         return;
       }
 
       if (stats.measurementStarted) {
         progress.val(Math.min(30000, stats.elapsedMs));
-        status.text(t('Downloaded %1$s MB · %2$s successful · %3$s errors',
-          (stats.bytes / (1024 * 1024)).toFixed(2),
-          stats.successfulRequests,
-          stats.failedRequests));
       }
     }, function() { return cancelled; });
+  });
+
+  networkTestOperation = networkTestOperation.then(function(stats) {
+    if (pollingPauseAcquired) {
+      resumeBackgroundHostPollingAfterNetworkTest();
+      pollingPauseAcquired = false;
+    }
+    return stats;
+  }, function(error) {
+    if (pollingPauseAcquired) {
+      resumeBackgroundHostPollingAfterNetworkTest();
+      pollingPauseAcquired = false;
+    }
+    throw error;
   });
 
   networkTestOperation.then(function(stats) {
@@ -3067,8 +3078,6 @@ function hostNetworkTestDialog(host) {
     actionButton.text(t('Close'));
     actionButton.prop('disabled', false);
     Navigation.switch();
-  }).finally(function() {
-    if (pollingPauseAcquired) resumeBackgroundHostPollingAfterNetworkTest();
   });
 }
 
