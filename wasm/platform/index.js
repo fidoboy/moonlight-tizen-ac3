@@ -1732,6 +1732,7 @@ function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   $('#settingsBtn').show();
   $('#refreshHostsBtn').show();
   $('#supportBtn').show();
+  updateGamepadTestButtonVisibility();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#hosts-carousel-viewport').show();
   $('#settings-list').hide();
@@ -2926,8 +2927,14 @@ function hostMenuDialog(host) {
 // Keep the gamepad test entry visible only while a real controller is connected.
 function updateGamepadTestButtonVisibility() {
   var connected = typeof getConnectedGamepadMask === 'function' && getConnectedGamepadMask() !== 0;
+  var hostGrid = document.getElementById('host-grid');
+  var settingsList = document.getElementById('settings-list');
+  var gameGrid = document.getElementById('game-grid');
+  var onHostsView = !!hostGrid && window.getComputedStyle(hostGrid).display !== 'none' &&
+    (!settingsList || window.getComputedStyle(settingsList).display === 'none') &&
+    (!gameGrid || window.getComputedStyle(gameGrid).display === 'none');
   var button = document.getElementById('gamepadTestBtn');
-  if (button) button.hidden = !connected;
+  if (button) button.hidden = !(connected && onHostsView);
 }
 
 // Consume gamepad input exclusively while the controller test modal is open.
@@ -3643,6 +3650,7 @@ function showSettingsMode() {
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
+  updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -3683,6 +3691,7 @@ function showSettings() {
   $('#main-header').children().hide();
   $('#main-header').css({'backgroundColor': 'transparent', 'boxShadow': 'none'});
   $('#host-grid, #game-grid').hide();
+  updateGamepadTestButtonVisibility();
 
   // Show a spinner while the setting list loads
   $('#wasmSpinner').css('display', 'inline-block');
@@ -4657,6 +4666,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
+  updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
   $('body').css({ background: '', backgroundColor: '' });
