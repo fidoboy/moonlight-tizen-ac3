@@ -3105,6 +3105,7 @@ function gamepadTestDialog() {
     var layout = $('<div>', { class: 'gamepad-test-layout' }).appendTo(content);
     $('<div>', { class: 'gamepad-test-side-margin' }).appendTo(layout);
     var center = $('<div>', { class: 'gamepad-test-center' }).appendTo(layout);
+    if (controllerType === 'switch') svgElement.style.transform = 'translateY(25px)';
     center[0].appendChild(document.importNode(svgElement, true));
     $('<div>', { class: 'gamepad-test-side-margin' }).appendTo(layout);
   }
