@@ -586,5 +586,8 @@
   "Background host polling did not finish before the network test.": "Die Hintergrundprüfung der Hosts wurde vor dem Netzwerktest nicht abgeschlossen.",
   "A network test is already running.": "Ein Netzwerktest läuft bereits.",
   "Obtaining preliminary data...": "Vorläufige Daten werden abgerufen...",
-  "Performing measurement. Please wait...": "Messung läuft. Bitte warten..."
+  "Performing measurement. Please wait...": "Messung läuft. Bitte warten...",
+  "The connection to the host seems stable.": "Die Verbindung zum Host scheint stabil zu sein.",
+  "Some errors were detected. Check your connection.": "Einige Fehler wurden erkannt. Überprüfen Sie Ihre Verbindung.",
+  "Your network connection does not seem stable enough.": "Ihre Netzwerkverbindung scheint nicht stabil genug zu sein."
 }
