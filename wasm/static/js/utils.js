@@ -527,6 +527,105 @@ NvHTTP.prototype = {
     });
   },
 
+  // Runs a lightweight host-to-client download test using the host's existing app assets.
+  // Requests are deliberately sequential to avoid creating extra load on the TV or host.
+  runNetworkTest: function(durationMs, onProgress) {
+    var self = this;
+    var duration = Math.max(1000, Number(durationMs) || 30000);
+    var startedAt = performance.now();
+    var deadline = startedAt + duration;
+    var totalBytes = 0;
+    var successfulRequests = 0;
+    var failedRequests = 0;
+    var passRates = [];
+    var passCount = 0;
+
+    var report = function(extra) {
+      var elapsedMs = Math.max(1, performance.now() - startedAt);
+      var result = {
+        elapsedMs: elapsedMs,
+        bytes: totalBytes,
+        successfulRequests: successfulRequests,
+        failedRequests: failedRequests,
+        passCount: passCount,
+        averageMbps: totalBytes * 8 / (elapsedMs * 1000),
+        minPassMbps: passRates.length ? Math.min.apply(Math, passRates) : 0,
+        maxPassMbps: passRates.length ? Math.max.apply(Math, passRates) : 0
+      };
+      if (extra) Object.keys(extra).forEach(function(key) { result[key] = extra[key]; });
+      if (typeof onProgress === 'function') onProgress(result);
+      return result;
+    };
+
+    if (!self._baseUrlHttps || !self.ppkstr) {
+      return Promise.reject(new Error('The host must be online and paired before running the network test.'));
+    }
+
+    return self.getAppListWithCacheFlush().then(function(apps) {
+      var appIds = (Array.isArray(apps) ? apps : []).map(function(app) {
+        return Number(app && app.id);
+      }).filter(function(id, index, ids) {
+        return Number.isInteger(id) && id > 0 && ids.indexOf(id) === index;
+      });
+
+      if (!appIds.length) throw new Error('The host did not return any applications to test.');
+
+      var runPass = function() {
+        var passStartedAt = performance.now();
+        var passBytes = 0;
+        var index = 0;
+
+        var downloadNext = function() {
+          if (index >= appIds.length || performance.now() >= deadline) {
+            if (passBytes > 0) {
+              var passElapsedMs = Math.max(1, performance.now() - passStartedAt);
+              passRates.push(passBytes * 8 / (passElapsedMs * 1000));
+              passCount++;
+            }
+            report({ currentPass: passCount, totalApps: appIds.length });
+            return Promise.resolve();
+          }
+
+          var appId = appIds[index++];
+          var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
+            '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
+
+          return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
+            var byteLength = buffer && typeof buffer.byteLength === 'number'
+              ? buffer.byteLength
+              : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
+            if (byteLength > 0) {
+              passBytes += byteLength;
+              totalBytes += byteLength;
+              successfulRequests++;
+            } else {
+              failedRequests++;
+            }
+          }, function(error) {
+            failedRequests++;
+            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'App asset download failed for app ID ' + appId + ':', error);
+          }).then(function() {
+            report({ currentPass: passCount + 1, totalApps: appIds.length });
+            return downloadNext();
+          });
+        };
+
+        return downloadNext();
+      };
+
+      var repeat = function() {
+        if (performance.now() >= deadline) return Promise.resolve();
+        return runPass().then(function() {
+          if (performance.now() < deadline) return repeat();
+        });
+      };
+
+      return repeat().then(function() {
+        return report({ completed: true, totalApps: appIds.length });
+      });
+    });
+  },
+
   getAppListWithCacheFlush: function() {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/applist?' + this._buildUidStr(), this.ppkstr, false, 10000
