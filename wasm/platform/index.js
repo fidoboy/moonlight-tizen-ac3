@@ -3022,10 +3022,10 @@ function gamepadTestDialog() {
         </g>
         <circle cx="166" cy="238" r="37.5" class="gamepad-test-dpad-base"/>
         <g id="gamepadTestDpad">
-          <rect id="gamepadTestDpadUp" class="gamepad-test-control" x="159" y="211" width="14" height="20"/>
-          <rect id="gamepadTestDpadDown" class="gamepad-test-control" x="159" y="244" width="14" height="20"/>
-          <rect id="gamepadTestDpadLeft" class="gamepad-test-control" x="142" y="231" width="20" height="14"/>
-          <rect id="gamepadTestDpadRight" class="gamepad-test-control" x="176" y="231" width="14" height="14"/>
+          <rect id="gamepadTestDpadUp" class="gamepad-test-control gamepad-test-dpad-control" x="159" y="211" width="14" height="20"/>
+          <rect id="gamepadTestDpadDown" class="gamepad-test-control gamepad-test-dpad-control" x="159" y="244" width="14" height="20"/>
+          <rect id="gamepadTestDpadLeft" class="gamepad-test-control gamepad-test-dpad-control" x="142" y="231" width="20" height="14"/>
+          <rect id="gamepadTestDpadRight" class="gamepad-test-control gamepad-test-dpad-control" x="176" y="231" width="14" height="14"/>
           <rect x="159" y="228" width="14" height="19" class="gamepad-test-dpad-center"/>
         </g>
         <circle cx="329" cy="160" r="37.5" class="gamepad-test-face-base"/>
