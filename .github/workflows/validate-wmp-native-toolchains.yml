@@ -193,7 +193,9 @@ jobs:
               raise SystemExit("Unexpected explicit -l library remains in .cproject")
           path.write_text(content, encoding="utf-8")
           print(f"LINKER_CONFIGURATIONS_CLEANED={count}")
-          PYe native ServiceApp toolchains for WMP
+          PY
+
+      - name: Generate and compile reference ServiceApp projects
 
 on:
   push:
