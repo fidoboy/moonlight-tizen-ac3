@@ -525,6 +525,11 @@ body[data-color-theme="black-orange"] #background-layer {
 .gamepad-test-control.gamepad-test-active text {
     fill: #102013;
 }
+.gamepad-test-control.gamepad-test-active > circle.gamepad-test-stick-click {
+    fill: #65d66e !important;
+    stroke: #d5ffd8 !important;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
 .gamepad-test-dpad-center {
     fill: #252b33 !important;
     stroke: #59616c !important;
