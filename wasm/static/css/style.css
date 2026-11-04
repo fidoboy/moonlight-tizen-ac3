@@ -450,119 +450,164 @@ body[data-color-theme="black-orange"] #background-layer {
     color: #f44336;
 }
 
-/* Dedicated controller test modal: only gamepad input is accepted while open. */
-#gamepadTestBtn[hidden] {
-    display: none !important;
+/* Dedicated controller test modal. The TV remote Back key dismisses it. */
+#gamepadTestBtn[hidden] { display: none !important; }
+#gamepadTestBtn .gamepad-test-button-icon {
+    font-size: 20px !important;
+    line-height: 1;
 }
 .gamepad-test-dialog {
-    width: 42vw;
-    max-width: 620px;
-    min-width: 340px;
-    height: 34vh;
-    min-height: 250px;
-    max-height: 410px;
+    width: 54vw;
+    max-width: 760px;
+    min-width: 500px;
+    height: 76vh;
+    max-height: 700px;
+    min-height: 480px;
     box-sizing: border-box;
-    padding: 12px 18px 8px;
+    padding: 14px 22px 16px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
 }
-.gamepad-test-dialog[open] {
-    display: flex;
+.gamepad-test-dialog[open] { display: flex; }
+.gamepad-test-title {
+    flex: 0 0 auto;
+    margin: 0 0 8px;
+    padding: 0;
+    color: var(--theme-text-primary);
+    text-align: center;
+    font-size: 2rem;
 }
 .gamepad-test-content {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     padding: 0;
     overflow: hidden;
 }
 .gamepad-test-svg {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
+    width: auto;
     height: 100%;
-    max-height: 100%;
+    min-height: 0;
+    max-width: 100%;
     overflow: visible;
 }
-.gamepad-test-body {
-    fill: url(#gamepadBodyGradient);
-    stroke: #818b98;
+.gamepad-test-instructions {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 4px 0 0;
+    color: var(--theme-text-secondary);
+    font-size: 1.25rem;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+}
+.gamepad-test-shell {
+    fill: #343a45;
+    stroke: #8993a1;
     stroke-width: 3;
 }
-.gamepad-test-grip {
+.gamepad-test-trigger {
+    fill: #555e6b;
+    stroke: #aab3bf;
+    stroke-width: 2;
+}
+.gamepad-test-detail-line {
     fill: none;
     stroke: #69727e;
-    stroke-width: 3;
-    stroke-linecap: round;
-    opacity: 0.7;
+    stroke-width: 2;
+}
+.gamepad-test-stick-base,
+.gamepad-test-dpad-base,
+.gamepad-test-face-base {
+    fill: #242a33;
+    stroke: #59616c;
+    stroke-width: 2;
 }
 .gamepad-test-control > circle,
 .gamepad-test-control > rect,
-.gamepad-test-control > path,
-.gamepad-test-control path {
-    fill: #343b45;
-    stroke: #aab3bf;
+.gamepad-test-control > path {
+    fill: #596372;
+    stroke: #c1c8d1;
     stroke-width: 2;
     transition: fill 70ms ease, stroke 70ms ease, filter 70ms ease;
 }
 .gamepad-test-control text {
-    fill: #e5e9ef;
+    fill: #fff;
     stroke: none;
-    font: 600 10px sans-serif;
+    font: 700 12px sans-serif;
     text-anchor: middle;
     pointer-events: none;
 }
 .gamepad-test-control.gamepad-test-active > circle,
 .gamepad-test-control.gamepad-test-active > rect,
-.gamepad-test-control.gamepad-test-active > path,
-.gamepad-test-control path.gamepad-test-active {
+.gamepad-test-control.gamepad-test-active > path {
     fill: #65d66e;
     stroke: #d5ffd8;
     filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
 }
-.gamepad-test-control.gamepad-test-active text {
-    fill: #102013;
-}
-.gamepad-test-control.gamepad-test-active > circle.gamepad-test-stick-click {
-    fill: #65d66e !important;
-    stroke: #d5ffd8 !important;
-    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
-}
-.gamepad-test-dpad-center {
-    fill: #252b33 !important;
-    stroke: #59616c !important;
-}
+.gamepad-test-control.gamepad-test-active text { fill: #102013; }
 .gamepad-test-stick-cap {
-    fill: #252b33 !important;
-    stroke: #929ba7 !important;
+    fill: #aab3bf !important;
+    stroke: #dce1e7 !important;
+}
+.gamepad-test-stick-inner {
+    fill: none !important;
+    stroke: rgba(0, 0, 0, 0.16) !important;
+    stroke-width: 2 !important;
 }
 .gamepad-test-stick-click {
     fill: #4a535f !important;
     stroke: #aab3bf !important;
 }
+.gamepad-test-control.gamepad-test-active .gamepad-test-stick-click {
+    fill: #65d66e !important;
+    stroke: #d5ffd8 !important;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
+.gamepad-test-dpad-center {
+    fill: #343b45;
+    stroke: #aab3bf;
+    stroke-width: 1;
+    pointer-events: none;
+}
+.gamepad-test-small-detail,
+.gamepad-test-home-icon {
+    fill: none !important;
+    stroke: #aab3bf !important;
+    stroke-width: 1.5 !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.gamepad-test-home-base {
+    fill: #343a45;
+    stroke: #8993a1;
+    stroke-width: 2;
+}
 .gamepad-test-stick-arrow {
     fill: none !important;
     stroke: #ffd45c !important;
-    stroke-width: 4 !important;
+    stroke-width: 3 !important;
     stroke-linecap: round;
     stroke-linejoin: round;
     filter: drop-shadow(0 0 5px rgba(255, 212, 92, 0.9));
     pointer-events: none;
 }
-.gamepad-test-actions {
-    flex: 0 0 auto;
-    justify-content: center;
-    padding: 8px 0 0;
-}
-.gamepad-test-actions button {
-    pointer-events: none !important;
-    min-width: 110px;
-}
-.gamepad-test-actions .gamepad-test-close-focused {
-    outline: 3px solid var(--theme-accent);
-    outline-offset: 4px;
+@media (max-width: 900px) {
+    .gamepad-test-dialog {
+        width: 88vw;
+        min-width: 0;
+        height: 82vh;
+        min-height: 0;
+        padding: 12px 14px;
+    }
+    .gamepad-test-title { font-size: 1.65rem; }
+    .gamepad-test-instructions { font-size: 1.05rem; }
 }
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
@@ -679,7 +724,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn {
+#settingsBtn, #refreshHostsBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
     background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -2081,7 +2126,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #closeUpdateApp:hover, #closeUpdateApp:focus, #continueRestoreDefaults:hover, #continueRestoreDefaults:focus, #cancelRestoreDefaults:hover,
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
-#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #supportBtn:hover, #supportBtn:focus,
+#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
