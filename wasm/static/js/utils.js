@@ -520,9 +520,10 @@ NvHTTP.prototype = {
     var totalBytes = 0;
     var successfulRequests = 0;
     var failedRequests = 0;
-    var sampleRates = [];
-    var sampleStartedAt = 0;
-    var sampleBytes = 0;
+    var passRates = [];
+    var passStartedAt = 0;
+    var passBytes = 0;
+    var passCount = 0;
     var startedAt = 0;
     var deadline = 0;
 
@@ -538,9 +539,9 @@ NvHTTP.prototype = {
         successfulRequests: successfulRequests,
         failedRequests: failedRequests,
         averageMbps: elapsedMs > 0 ? totalBytes * 8 / (elapsedMs * 1000) : 0,
-        minSampleMbps: sampleRates.length ? Math.min.apply(Math, sampleRates) : 0,
-        maxSampleMbps: sampleRates.length ? Math.max.apply(Math, sampleRates) : 0,
-        sampleCount: sampleRates.length
+        minPassMbps: passRates.length ? Math.min.apply(Math, passRates) : 0,
+        maxPassMbps: passRates.length ? Math.max.apply(Math, passRates) : 0,
+        passCount: passCount
       };
       if (extra) Object.keys(extra).forEach(function(key) { result[key] = extra[key]; });
       if (typeof onProgress === 'function') onProgress(result);
@@ -607,7 +608,7 @@ NvHTTP.prototype = {
         // The timed measurement starts only after the complete baseline pass.
         startedAt = performance.now();
         deadline = startedAt + duration;
-        sampleStartedAt = startedAt;
+        passStartedAt = startedAt;
         failedRequests = baselineErrors;
         report({
           started: true,
@@ -620,23 +621,24 @@ NvHTTP.prototype = {
         var downloadMeasuredNext = function() {
           if (isCancelled() || performance.now() >= deadline) return Promise.resolve();
 
-          var appId = baselineIds[assetIndex];
-          assetIndex = (assetIndex + 1) % baselineIds.length;
+          var appId = baselineIds[assetIndex++];
 
           return requestAsset(appId).then(function(byteLength) {
             totalBytes += byteLength;
-            sampleBytes += byteLength;
+            passBytes += byteLength;
             successfulRequests++;
           }, function(error) {
             failedRequests++;
             console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Measured app asset download failed for app ID ' + appId + ':', error);
           }).then(function() {
-            var sampleNow = performance.now();
-            while (sampleNow - sampleStartedAt >= 5000) {
-              var sampleElapsed = sampleNow - sampleStartedAt;
-              sampleRates.push(sampleBytes * 8 / (sampleElapsed * 1000));
-              sampleBytes = 0;
-              sampleStartedAt = sampleNow;
+            if (assetIndex >= baselineIds.length) {
+              var passNow = performance.now();
+              var passElapsed = Math.max(1, passNow - passStartedAt);
+              passRates.push(passBytes * 8 / (passElapsed * 1000));
+              passCount++;
+              passBytes = 0;
+              passStartedAt = passNow;
+              assetIndex = 0;
             }
             report({
               currentAsset: assetIndex,
@@ -650,10 +652,6 @@ NvHTTP.prototype = {
         };
 
         return downloadMeasuredNext().then(function() {
-          var sampleNow = performance.now();
-          if (sampleNow > sampleStartedAt) {
-            sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
-          }
           return report({
             completed: true,
             cancelled: isCancelled(),
