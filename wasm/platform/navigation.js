@@ -914,11 +914,13 @@ const Views = {
   },
   HostsNav: {
     view: new ListView(() => {
-      if (document.getElementById('updateAppBtn')) {
-        return ['updateAppBtn', 'settingsBtn', 'refreshHostsBtn', 'supportBtn'];
-      } else {
-        return ['settingsBtn', 'refreshHostsBtn', 'supportBtn'];
-      }
+      const items = [];
+      if (document.getElementById('updateAppBtn')) items.push('updateAppBtn');
+      items.push('settingsBtn', 'refreshHostsBtn');
+      const gamepadTestButton = document.getElementById('gamepadTestBtn');
+      if (gamepadTestButton && !gamepadTestButton.hidden) items.push('gamepadTestBtn');
+      items.push('supportBtn');
+      return items;
     }),
     up: function() {},
     down: function() {
