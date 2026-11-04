@@ -385,6 +385,14 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-progress > .auxbar {
     border-radius: 8px;
 }
+/* Host network test uses the native MDL progress component. */
+.network-test-progress {
+    width: 100%;
+    margin-top: 8px;
+}
+.network-test-progress > .progressbar {
+    background-color: var(--theme-accent);
+}
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
 #wasmSpinner > .auxbar {
