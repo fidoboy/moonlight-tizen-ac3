@@ -397,6 +397,7 @@ body[data-color-theme="black-orange"] #background-layer {
     width: 100%;
     height: 12px;
     margin-top: 8px;
+    background-color: rgba(255, 255, 255, 0.3);
 }
 .network-test-progress > .progressbar,
 .network-test-progress > .bufferbar,
@@ -436,7 +437,7 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .network-test-verdict-icon {
     flex: 0 0 auto;
-    margin-right: 24px;
+    margin-right: 12px;
     font-size: 2.2rem;
     font-weight: 700;
 }
