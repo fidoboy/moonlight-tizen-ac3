@@ -449,6 +449,116 @@ body[data-color-theme="black-orange"] #background-layer {
 .network-test-verdict--error {
     color: #f44336;
 }
+
+/* Dedicated controller test modal: only gamepad input is accepted while open. */
+#gamepadTestBtn[hidden] {
+    display: none !important;
+}
+.gamepad-test-dialog {
+    width: 42vw;
+    max-width: 620px;
+    min-width: 340px;
+    height: 34vh;
+    min-height: 250px;
+    max-height: 410px;
+    box-sizing: border-box;
+    padding: 12px 18px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.gamepad-test-dialog[open] {
+    display: flex;
+}
+.gamepad-test-content {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+}
+.gamepad-test-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: visible;
+}
+.gamepad-test-body {
+    fill: url(#gamepadBodyGradient);
+    stroke: #818b98;
+    stroke-width: 3;
+}
+.gamepad-test-grip {
+    fill: none;
+    stroke: #69727e;
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0.7;
+}
+.gamepad-test-control > circle,
+.gamepad-test-control > rect,
+.gamepad-test-control > path,
+.gamepad-test-control path {
+    fill: #343b45;
+    stroke: #aab3bf;
+    stroke-width: 2;
+    transition: fill 70ms ease, stroke 70ms ease, filter 70ms ease;
+}
+.gamepad-test-control text {
+    fill: #e5e9ef;
+    stroke: none;
+    font: 600 10px sans-serif;
+    text-anchor: middle;
+    pointer-events: none;
+}
+.gamepad-test-control.gamepad-test-active > circle,
+.gamepad-test-control.gamepad-test-active > rect,
+.gamepad-test-control.gamepad-test-active > path,
+.gamepad-test-control path.gamepad-test-active {
+    fill: #65d66e;
+    stroke: #d5ffd8;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
+.gamepad-test-control.gamepad-test-active text {
+    fill: #102013;
+}
+.gamepad-test-dpad-center {
+    fill: #252b33 !important;
+    stroke: #59616c !important;
+}
+.gamepad-test-stick-cap {
+    fill: #252b33 !important;
+    stroke: #929ba7 !important;
+}
+.gamepad-test-stick-click {
+    fill: #4a535f !important;
+    stroke: #aab3bf !important;
+}
+.gamepad-test-stick-arrow {
+    fill: none !important;
+    stroke: #ffd45c !important;
+    stroke-width: 4 !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 5px rgba(255, 212, 92, 0.9));
+    pointer-events: none;
+}
+.gamepad-test-actions {
+    flex: 0 0 auto;
+    justify-content: center;
+    padding: 8px 0 0;
+}
+.gamepad-test-actions button {
+    pointer-events: none !important;
+    min-width: 110px;
+}
+.gamepad-test-actions .gamepad-test-close-focused {
+    outline: 3px solid var(--theme-accent);
+    outline-offset: 4px;
+}
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
 #wasmSpinner > .auxbar {
