@@ -589,5 +589,7 @@
   "Performing measurement. Please wait...": "Выполняется измерение. Подождите...",
   "The connection to the host seems stable.": "Соединение с хостом выглядит стабильным.",
   "Some errors were detected. Check your connection.": "Обнаружены ошибки. Проверьте подключение.",
-  "Your network connection does not seem stable enough.": "Сетевое соединение недостаточно стабильно."
+  "Your network connection does not seem stable enough.": "Сетевое соединение недостаточно стабильно.",
+  "The connection to the host may be limited or unstable.": "Соединение с хостом может быть ограниченным или нестабильным.",
+  "The connection to the host is too slow or unstable.": "Соединение с хостом слишком медленное или нестабильное."
 }
