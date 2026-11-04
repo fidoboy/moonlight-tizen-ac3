@@ -3106,9 +3106,9 @@ function hostNetworkTestDialog(host) {
         }
       }
       // Keep download failures as an independent warning signal.
-      if (stats.failedRequests > 1) {
+      if (stats.failedRequests > 5) {
         verdictSeverity = 2;
-      } else if (stats.failedRequests > 0) {
+      } else if (stats.failedRequests > 1) {
         verdictSeverity = Math.max(verdictSeverity, 1);
       }
 
