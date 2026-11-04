@@ -1492,7 +1492,7 @@ function pauseBackgroundHostPollingForNetworkTest() {
   }
   hostPollingPausedForNetworkTest = true;
   stopPollingHosts();
-  return waitForBackgroundHostPollingToFinish(15000).catch(function(error) {
+  return waitForBackgroundHostPollingToFinish(30000).catch(function(error) {
     hostPollingPausedForNetworkTest = false;
     startPollingHosts();
     throw error;
@@ -3042,7 +3042,10 @@ function hostNetworkTestDialog(host) {
       var lines = [
         t('Image set: %1$s MB (%2$s images)', (stats.baselineBytes / (1024 * 1024)).toFixed(2), stats.baselineAssetCount),
         t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
-        t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)),
+        stats.passCount >= 2
+          ? t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2))
+          : t('Not enough complete image-set passes to compare speed variation.'),
+        t('Completed image-set passes: %1$s', stats.passCount),
         t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
         t('Successful downloads: %1$s', stats.successfulRequests),
         t('Download errors: %1$s', stats.failedRequests),
