@@ -570,5 +570,11 @@
   "Download errors: %1$s": "Ошибок загрузки: %1$s",
   "Duration: %1$s seconds": "Длительность: %1$s с",
   "Network test could not be completed.": "Не удалось завершить тест сети.",
-  "Testing network connection...": "Проверка сетевого соединения..."
+  "Testing network connection...": "Проверка сетевого соединения...",
+  "Pausing background host checks...": "Приостановка фоновой проверки хостов...",
+  "Stopping network test...": "Остановка теста сети...",
+  "Test stopped before measurement could begin.": "Тест остановлен до начала измерения.",
+  "Test stopped.": "Тест остановлен.",
+  "Image set: %1$s MB (%2$s images)": "Набор изображений: %1$s МБ (%2$s изображений)",
+  "Stop": "Остановить"
 }
