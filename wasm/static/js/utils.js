@@ -527,21 +527,23 @@ NvHTTP.prototype = {
     });
   },
 
-  // Runs a lightweight host-to-client download test using the host's existing app assets.
-  // Requests are deliberately sequential to avoid creating extra load on the TV or host.
+  // Runs an indicative host-to-client download test using the host's existing app assets.
+  // The first complete pass establishes the asset set; only subsequent downloads are measured.
   runNetworkTest: function(durationMs, onProgress, shouldCancel) {
     var self = this;
     var duration = Math.max(1000, Number(durationMs) || 30000);
-    var startedAt = 0;
-    var deadline = 0;
     var totalBytes = 0;
     var successfulRequests = 0;
     var failedRequests = 0;
-    var passRates = [];
     var sampleRates = [];
     var sampleStartedAt = 0;
     var sampleBytes = 0;
-    var passCount = 0;
+    var startedAt = 0;
+    var deadline = 0;
+
+    var isCancelled = function() {
+      return typeof shouldCancel === 'function' && shouldCancel();
+    };
 
     var report = function(extra) {
       var elapsedMs = startedAt ? Math.max(1, performance.now() - startedAt) : 0;
@@ -550,14 +552,26 @@ NvHTTP.prototype = {
         bytes: totalBytes,
         successfulRequests: successfulRequests,
         failedRequests: failedRequests,
-        passCount: passCount,
-        averageMbps: totalBytes * 8 / (elapsedMs * 1000),
-        minPassMbps: sampleRates.length ? Math.min.apply(Math, sampleRates) : (passRates.length ? Math.min.apply(Math, passRates) : 0),
-        maxPassMbps: sampleRates.length ? Math.max.apply(Math, sampleRates) : (passRates.length ? Math.max.apply(Math, passRates) : 0)
+        averageMbps: elapsedMs > 0 ? totalBytes * 8 / (elapsedMs * 1000) : 0,
+        minSampleMbps: sampleRates.length ? Math.min.apply(Math, sampleRates) : 0,
+        maxSampleMbps: sampleRates.length ? Math.max.apply(Math, sampleRates) : 0,
+        sampleCount: sampleRates.length
       };
       if (extra) Object.keys(extra).forEach(function(key) { result[key] = extra[key]; });
       if (typeof onProgress === 'function') onProgress(result);
       return result;
+    };
+
+    var requestAsset = function(appId) {
+      var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
+        '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
+        var byteLength = buffer && typeof buffer.byteLength === 'number'
+          ? buffer.byteLength
+          : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
+        if (byteLength <= 0) throw new Error('Empty app asset response');
+        return byteLength;
+      });
     };
 
     if (!self._baseUrlHttps || !self.ppkstr) {
@@ -573,76 +587,96 @@ NvHTTP.prototype = {
 
       if (!appIds.length) throw new Error('The host did not return any applications to test.');
 
-      // Exclude the app-list request from the measured download interval.
-      startedAt = performance.now();
-      deadline = startedAt + duration;
-      sampleStartedAt = startedAt;
-      report({ started: true, totalApps: appIds.length });
+      // First pass: fetch the complete asset set to establish its actual size.
+      var baselineIds = [];
+      var baselineBytes = 0;
+      var baselineErrors = 0;
+      var baselineIndex = 0;
 
-      var runPass = function() {
-        var passStartedAt = performance.now();
-        var passBytes = 0;
-        var index = 0;
+      var downloadBaselineNext = function() {
+        if (isCancelled() || baselineIndex >= appIds.length) return Promise.resolve();
+        var appId = appIds[baselineIndex++];
+        return requestAsset(appId).then(function(byteLength) {
+          baselineIds.push(appId);
+          baselineBytes += byteLength;
+        }, function(error) {
+          baselineErrors++;
+          console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Initial app asset download failed for app ID ' + appId + ':', error);
+        }).then(downloadBaselineNext);
+      };
 
-        var downloadNext = function() {
-          if ((typeof shouldCancel === 'function' && shouldCancel()) || index >= appIds.length || performance.now() >= deadline) {
-            if (passBytes > 0) {
-              var passElapsedMs = Math.max(1, performance.now() - passStartedAt);
-              passRates.push(passBytes * 8 / (passElapsedMs * 1000));
-              passCount++;
-            }
-            report({ currentPass: passCount, totalApps: appIds.length });
-            return Promise.resolve();
-          }
+      return downloadBaselineNext().then(function() {
+        if (isCancelled()) {
+          return report({
+            completed: true,
+            cancelled: true,
+            measurementStarted: false,
+            baselineBytes: baselineBytes,
+            baselineAssetCount: baselineIds.length,
+            baselineErrors: baselineErrors
+          });
+        }
+        if (!baselineIds.length) throw new Error('None of the host application images could be downloaded.');
 
-          var appId = appIds[index++];
-          var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
-            '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
+        // The timed measurement starts only after the complete baseline pass.
+        startedAt = performance.now();
+        deadline = startedAt + duration;
+        sampleStartedAt = startedAt;
+        failedRequests = baselineErrors;
+        report({
+          started: true,
+          baselineBytes: baselineBytes,
+          baselineAssetCount: baselineIds.length,
+          baselineErrors: baselineErrors
+        });
 
-          return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
-            var byteLength = buffer && typeof buffer.byteLength === 'number'
-              ? buffer.byteLength
-              : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
-            if (byteLength > 0) {
-              passBytes += byteLength;
-              totalBytes += byteLength;
-              sampleBytes += byteLength;
-              successfulRequests++;
-            } else {
-              failedRequests++;
-            }
+        var assetIndex = 0;
+        var downloadMeasuredNext = function() {
+          if (isCancelled() || performance.now() >= deadline) return Promise.resolve();
+
+          var appId = baselineIds[assetIndex];
+          assetIndex = (assetIndex + 1) % baselineIds.length;
+
+          return requestAsset(appId).then(function(byteLength) {
+            totalBytes += byteLength;
+            sampleBytes += byteLength;
+            successfulRequests++;
           }, function(error) {
             failedRequests++;
-            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'App asset download failed for app ID ' + appId + ':', error);
+            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Measured app asset download failed for app ID ' + appId + ':', error);
           }).then(function() {
             var sampleNow = performance.now();
-            if (sampleBytes > 0 && sampleNow - sampleStartedAt >= 5000) {
-              sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
+            while (sampleNow - sampleStartedAt >= 5000) {
+              var sampleElapsed = sampleNow - sampleStartedAt;
+              sampleRates.push(sampleBytes * 8 / (sampleElapsed * 1000));
               sampleBytes = 0;
               sampleStartedAt = sampleNow;
             }
-            report({ currentPass: passCount + 1, totalApps: appIds.length });
-            return downloadNext();
+            report({
+              currentAsset: assetIndex,
+              totalAssets: baselineIds.length,
+              baselineBytes: baselineBytes,
+              baselineAssetCount: baselineIds.length,
+              baselineErrors: baselineErrors
+            });
+            return downloadMeasuredNext();
           });
         };
 
-        return downloadNext();
-      };
-
-      var repeat = function() {
-        if ((typeof shouldCancel === 'function' && shouldCancel()) || performance.now() >= deadline) return Promise.resolve();
-        return runPass().then(function() {
-          if (performance.now() < deadline) return repeat();
+        return downloadMeasuredNext().then(function() {
+          var sampleNow = performance.now();
+          if (sampleNow > sampleStartedAt) {
+            sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
+          }
+          return report({
+            completed: true,
+            cancelled: isCancelled(),
+            measurementStarted: true,
+            baselineBytes: baselineBytes,
+            baselineAssetCount: baselineIds.length,
+            baselineErrors: baselineErrors
+          });
         });
-      };
-
-      return repeat().then(function() {
-        var sampleNow = performance.now();
-        if (sampleBytes > 0) {
-          sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
-          sampleBytes = 0;
-        }
-        return report({ completed: true, totalApps: appIds.length });
       });
     });
   },
