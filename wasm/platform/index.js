@@ -2830,8 +2830,8 @@ function hostMenuDialog(host) {
     {
       id: 'testNetwork-' + host.hostname,
       class: 'host-menu-button',
-      'data-i18n': 'Test Network',
-      text: t('Test Network'),
+      'data-i18n': 'Network Test',
+      text: t('Network Test'),
       disabled: !host.online || !host.paired,
       action: function() {
         // Open the network test after the host menu has been dismissed.
