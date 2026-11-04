@@ -14,7 +14,7 @@
   "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Wählen Sie die Animation aus, die im Anwendungshintergrund angezeigt werden soll, oder wählen Sie „Keine“, wenn kein Hintergrund angezeigt werden soll.",
   "- Choose the screen corner where the performance overlay is displayed.": "- Wählen Sie die Bildschirmecke, in der das eingeblendete Feld mit den Diagrammen und Leistungsstatistiken der Übertragung angezeigt wird.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Legen Sie fest, ob die aktuelle Streaming-Konfiguration oben, unten oder gar nicht auf den Host- und App-Bildschirmen angezeigt wird.",
-  "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Zeigt nach 30 Sekunden Inaktivität einen schwarzen Bildschirm mit dem Moonlight-Logo an.",
+  "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Zeigt bei ausbleibender Benutzereingabe einen schwarzen Bildschirm mit dem Moonlight-Logo an.",
   "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.": "- Aktivieren Sie diese Option für extrem niedrige Latenz im Spielmodus oder deaktivieren Sie sie für niedrige Latenz mit Video-Nachbearbeitung.",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Aktiviert oder deaktiviert Navigationsgeräusche in der Moonlight-Oberfläche.",
   "- Find out if a new application update is available.": "- Prüfen, ob ein neues App-Update verfügbar ist.",
