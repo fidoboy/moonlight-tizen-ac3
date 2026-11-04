@@ -31,8 +31,7 @@ const SyncFunctions = {
 
 const AsyncFunctions = {
   // url, ppk, binaryResponse
-  'openUrl': (id, url, ppk, binary, timeout, reuseNetworkTestCurlHandle, networkTestTlsSessionCache) => Module.openUrl(id, url, ppk, binary, reuseNetworkTestCurlHandle, networkTestTlsSessionCache),
-  'closeNetworkTestHttpSession': (id) => Module.closeNetworkTestHttpSession(id),
+  'openUrl': (id, url, ppk, binary) => Module.openUrl(id, url, ppk, binary),
   // no parameters
   'STUN': (...args) => Module.stun(...args),
   // serverMajorVersion, address, httpPort, randomNumber
@@ -687,25 +686,6 @@ var sendMessage = function(method, params) {
         reject(ret.ret);
       }
     });
-  } else if (method === 'closeNetworkTestHttpSession') {
-    return new Promise(function(resolve, reject) {
-      _httpLock = _httpLock.catch(function() {}).then(function() {
-        return new Promise(function(innerResolve, innerReject) {
-          const id = callbacks_ids++;
-          callbacks[id] = {
-            'resolve': function(msg) {
-              resolve(msg);
-              innerResolve();
-            },
-            'reject': function(err) {
-              reject(err);
-              innerResolve();
-            }
-          };
-          AsyncFunctions['closeNetworkTestHttpSession'](id);
-        });
-      });
-    });
   } else if (method === 'openUrl') {
     // We MUST enforce the timeout in JavaScript because Emscripten's libcurl wrapper
     // completely ignores native timeouts (e.g., CURLOPT_CONNECTTIMEOUT) and relies on
@@ -718,7 +698,6 @@ var sendMessage = function(method, params) {
           var isFinished = false;
           var timeoutId = null;
           var url = params[0];
-          var keepLockUntilNativeCompletion = params[4] === true;
 
           if (timeout_ms > 0) {
             timeoutId = setTimeout(function() {
@@ -727,9 +706,7 @@ var sendMessage = function(method, params) {
                 console.warn('%c[messages.js, sendMessage]', 'color: gray;', 'Warning: HTTPS request timed out, canceling C++ HTTP request for URL:', url);
                 SyncFunctions['cancelRequest']();
                 reject(-1); // GS_FAILED
-                // A persistent CURL handle must not be reused until its native
-                // curl_easy_perform() has actually returned after cancellation.
-                if (!keepLockUntilNativeCompletion) innerResolve();
+                innerResolve();
               }
             }, timeout_ms);
           }
@@ -737,22 +714,20 @@ var sendMessage = function(method, params) {
           const id = callbacks_ids++;
           callbacks[id] = {
             'resolve': function(msg) {
-              var shouldUnlock = keepLockUntilNativeCompletion || !isFinished;
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 resolve(msg);
               }
-              if (shouldUnlock) innerResolve();
+              innerResolve();
             },
             'reject': function(err) {
-              var shouldUnlock = keepLockUntilNativeCompletion || !isFinished;
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 reject(err);
               }
-              if (shouldUnlock) innerResolve();
+              innerResolve();
             }
           };
 
