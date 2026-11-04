@@ -585,5 +585,7 @@
   "The complete application image set could not be downloaded.": "Não foi possível baixar o conjunto completo de imagens dos aplicativos.",
   "None of the host application images could be downloaded.": "Não foi possível baixar nenhuma imagem dos aplicativos do host.",
   "Background host polling did not finish before the network test.": "A verificação dos hosts em segundo plano não terminou antes do teste de rede.",
-  "A network test is already running.": "Já existe um teste de rede em andamento."
+  "A network test is already running.": "Já existe um teste de rede em andamento.",
+  "Obtaining preliminary data...": "Obtendo dados preliminares...",
+  "Performing measurement. Please wait...": "Realizando a medição. Aguarde..."
 }
