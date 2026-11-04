@@ -527,13 +527,16 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: visible;
 }
 .gamepad-test-svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
     display: block;
-    flex: 0 1 auto;
     width: auto;
     height: 95%;
     min-height: 0;
     max-width: 100%;
-    margin-top: -20px;
+    margin: 0;
+    transform: translate(-50%, -50%);
     overflow: visible;
 }
 .gamepad-test-instructions {
