@@ -1,6 +1,6 @@
 (function(global) {
   'use strict';
-  var IDLE_TIMEOUT_MS = 30000;
+  var IDLE_TIMEOUT_MS = 60000;
   var LOGO_MOVE_INTERVAL_MS = 4000;
   var screensaverEnabled = true;
   var screensaverInitialized = false;
