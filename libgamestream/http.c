@@ -210,7 +210,7 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     CURLcode info_appconnect = curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appconnect_time);
 
     fprintf(stderr,
-      "[network-test-http] connection stats: new_connections=%ld, connect_ms=%.1f, tls_handshake_ms=%.1f (info=%d/%d/%d, curl=%d)\\n",
+      "[network-test-http] connection stats: new_connections=%ld, connect_ms=%.1f, tls_handshake_ms=%.1f (info=%d/%d/%d, curl=%d)\n",
       info_connections == CURLE_OK ? new_connections : -1L,
       info_connect == CURLE_OK ? connect_time * 1000.0 : -1.0,
       info_appconnect == CURLE_OK ? appconnect_time * 1000.0 : -1.0,
