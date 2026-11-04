@@ -23,7 +23,7 @@ jobs:
       - name: Install ARM32 cross-compiler
         run: |
           sudo apt-get update
-          sudo apt-get install --yes gcc-arm-linux-gnueabi
+          sudo apt-get install --yes gcc-arm-linux-gnueabi qemu-user
 
       - name: Compile and run ABI checker
         shell: bash
