@@ -2976,14 +2976,14 @@ function updateGamepadTestStick(stickIndex, x, y) {
     arrow.setAttribute('opacity', '0');
     return;
   }
-  var length = Math.min(1, magnitude) * 30;
-  var centerX = stickIndex === 0 ? 176 : 324;
-  var centerY = 145;
+  var length = Math.min(1, magnitude) * 23;
+  var centerX = stickIndex === 0 ? 113 : 278;
+  var centerY = stickIndex === 0 ? 160 : 238;
   var endX = x / magnitude * length;
   var endY = y / magnitude * length;
   arrow.setAttribute('d', 'M ' + centerX + ' ' + centerY + ' L ' + (centerX + endX) + ' ' + (centerY + endY) +
-    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 8 - endY / length * 5) + ' ' + (-endY / length * 8 + endX / length * 5) +
-    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 8 + endY / length * 5) + ' ' + (-endY / length * 8 - endX / length * 5));
+    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 6 - endY / length * 4) + ' ' + (-endY / length * 6 + endX / length * 4) +
+    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 6 + endY / length * 4) + ' ' + (-endY / length * 6 - endX / length * 4));
   arrow.setAttribute('opacity', '1');
 }
 
@@ -3003,48 +3003,61 @@ function gamepadTestDialog() {
 
   var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
   var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
+  $('<h3>', {
+    class: 'mdl-dialog__title gamepad-test-title',
+    text: t('Game Controller Test')
+  }).appendTo(dialog);
   var content = $('<div>', { class: 'mdl-dialog__content gamepad-test-content' }).appendTo(dialog);
   var svg = `
-    <svg id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 500 270" role="img" aria-label="Top view of a game controller">
-      <defs>
-        <linearGradient id="gamepadBodyGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#454b55"/><stop offset="1" stop-color="#20242b"/>
-        </linearGradient>
-      </defs>
-      <path class="gamepad-test-body" d="M118 55 Q92 52 79 83 L43 184 Q31 224 62 232 Q84 238 103 213 L137 177 Q150 164 174 164 L326 164 Q350 164 363 177 L397 213 Q416 238 438 232 Q469 224 457 184 L421 83 Q408 52 382 55 L337 67 Q250 87 163 67 Z"/>
-      <path class="gamepad-test-grip" d="M91 111 Q72 166 58 202 M409 111 Q428 166 442 202"/>
-      <g id="gamepadTestLT" class="gamepad-test-control"><path d="M105 51 Q111 27 140 30 L185 42 L178 66 L132 60 Q112 59 105 51Z"/><text x="143" y="48">LT</text></g>
-      <g id="gamepadTestRT" class="gamepad-test-control"><path d="M395 51 Q389 27 360 30 L315 42 L322 66 L368 60 Q388 59 395 51Z"/><text x="357" y="48">RT</text></g>
-      <g id="gamepadTestLB" class="gamepad-test-control"><path d="M117 68 Q132 57 157 65 L174 76 L162 91 L126 84Z"/><text x="145" y="79">LB</text></g>
-      <g id="gamepadTestRB" class="gamepad-test-control"><path d="M383 68 Q368 57 343 65 L326 76 L338 91 L374 84Z"/><text x="355" y="79">RB</text></g>
-      <g id="gamepadTestSelect" class="gamepad-test-control"><rect x="211" y="89" width="30" height="12" rx="6"/><text x="226" y="84">BACK</text></g>
-      <g id="gamepadTestStart" class="gamepad-test-control"><rect x="259" y="89" width="30" height="12" rx="6"/><text x="274" y="84">START</text></g>
-      <g id="gamepadTestDpad" class="gamepad-test-control">
-        <path id="gamepadTestDpadUp" class="gamepad-test-control" d="M111 105 h24 v26 h-24Z"/><path id="gamepadTestDpadDown" class="gamepad-test-control" d="M111 153 h24 v26 h-24Z"/>
-        <path id="gamepadTestDpadLeft" class="gamepad-test-control" d="M87 129 h26 v24 h-26Z"/><path id="gamepadTestDpadRight" class="gamepad-test-control" d="M135 129 h26 v24 h-26Z"/>
-        <circle cx="123" cy="141" r="11" class="gamepad-test-dpad-center"/>
+    <svg id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 441 383" role="img" aria-label="Game controller diagram">
+      <g id="gamepadTestController">
+        <path d="M220.5 294.5C220.5 294.5 195 294.5 150 294.5C105 294.5 81.5 378.5 49.5 378.5C17.5 378.5 4 363.9 4 317.5C4 271.1 43.5 165.5 55 137.5C66.5 109.5 95.5 92.0001 128 92.0001C154 92.0001 200.5 92.0001 220.5 92.0001" class="gamepad-test-shell"/>
+        <path d="M220 294.5C220 294.5 245.5 294.5 290.5 294.5C335.5 294.5 359 378.5 391 378.5C423 378.5 436.5 363.9 436.5 317.5C436.5 271.1 397 165.5 385.5 137.5C374 109.5 345 92.0001 312.5 92.0001C286.5 92.0001 240 92.0001 220 92.0001" class="gamepad-test-shell"/>
+        <path d="m152.5,52.9702c0,4.61877 -3.358,8.36308 -7.5,8.36308l-13,0c-4.142,0 -7.5,-3.74432 -7.5,-8.36308l0,-22.8591c0,-8.62177 6.268,-15.6111 14,-15.6111c7.732,0 14,6.98932 14,15.6111l0,22.8591z" class="gamepad-test-trigger"/>
+        <path d="m316.83334,53.44044c0,4.6352 -3.43795,8.39285 -7.67857,8.39285l-13.30953,0c-4.24062,0 -7.67857,-3.75765 -7.67857,-8.39285l0,-22.94046c0,-8.65246 6.41724,-15.66665 14.33334,-15.66665c7.9161,0 14.33334,7.0142 14.33334,15.66665l0,22.94046l-0.00001,0z" class="gamepad-test-trigger"/>
+        <g id="gamepadTestLB" class="gamepad-test-control"><rect x="116.83332" y="66.83335" width="43.33334" height="17.00004" rx="6.5"/><text x="138.5" y="79">LB</text></g>
+        <g id="gamepadTestRB" class="gamepad-test-control"><rect x="281.33334" y="67" width="42.66666" height="17.00003" rx="6.5"/><text x="302.5" y="79">RB</text></g>
+        <line y2="302.5" x2="126.00001" y1="214.49998" x1="27.50001" class="gamepad-test-detail-line"/>
+        <line y2="295.73418" x2="410.73581" y1="200.43247" x1="306.59558" class="gamepad-test-detail-line" transform="rotate(89 358.666 248.083)"/>
+        <circle cx="113" cy="160" r="37.5" class="gamepad-test-stick-base"/>
+        <circle cx="278" cy="238" r="37.5" class="gamepad-test-stick-base"/>
+        <g id="gamepadTestLeftStick" class="gamepad-test-control">
+          <circle cx="113" cy="160" r="28" class="gamepad-test-stick-cap"/>
+          <circle cx="113" cy="160" r="22" class="gamepad-test-stick-inner"/>
+          <path id="gamepadTestLeftStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/>
+        </g>
+        <g id="gamepadTestRightStick" class="gamepad-test-control">
+          <circle cx="278" cy="238" r="28" class="gamepad-test-stick-cap"/>
+          <circle cx="278" cy="238" r="22" class="gamepad-test-stick-inner"/>
+          <path id="gamepadTestRightStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/>
+        </g>
+        <circle cx="166" cy="238" r="37.5" class="gamepad-test-dpad-base"/>
+        <g id="gamepadTestDpad">
+          <rect id="gamepadTestDpadUp" class="gamepad-test-control" x="159" y="211" width="14" height="20"/>
+          <rect id="gamepadTestDpadDown" class="gamepad-test-control" x="159" y="244" width="14" height="20"/>
+          <rect id="gamepadTestDpadLeft" class="gamepad-test-control" x="142" y="231" width="20" height="14"/>
+          <rect id="gamepadTestDpadRight" class="gamepad-test-control" x="176" y="231" width="14" height="14"/>
+          <rect x="159" y="228" width="14" height="19" class="gamepad-test-dpad-center"/>
+        </g>
+        <circle cx="329" cy="160" r="37.5" class="gamepad-test-face-base"/>
+        <g id="gamepadTestY" class="gamepad-test-control"><circle cx="329" cy="140" r="13"/><text x="329" y="144">Y</text></g>
+        <g id="gamepadTestX" class="gamepad-test-control"><circle cx="310" cy="162" r="13"/><text x="310" y="166">X</text></g>
+        <g id="gamepadTestB" class="gamepad-test-control"><circle cx="348" cy="161" r="13"/><text x="348" y="165">B</text></g>
+        <g id="gamepadTestA" class="gamepad-test-control"><circle cx="330" cy="181" r="13"/><text x="330" y="185">A</text></g>
+        <g id="gamepadTestSelect" class="gamepad-test-control"><circle cx="188" cy="162" r="10"/><rect x="184" y="159" width="8" height="6" class="gamepad-test-small-detail"/><text x="188" y="166">−</text></g>
+        <g id="gamepadTestStart" class="gamepad-test-control"><circle cx="253" cy="162" r="10"/><path d="M248 158h10 M248 162h10 M248 166h10" class="gamepad-test-small-detail"/></g>
+        <g id="gamepadTestHome" class="gamepad-test-control"><rect x="211.5" y="153" width="18" height="18" rx="9"/><path d="M220.5 158 V164 M218 160.5 L220.5 158 L223 160.5 M218 166 H223" class="gamepad-test-small-detail"/></g>
+        <circle cx="220.5" cy="125" r="14" class="gamepad-test-home-base"/>
+        <path d="M215.5 125 L220.5 120 L225.5 125 V130 H215.5 Z" class="gamepad-test-home-icon"/>
+        <g id="gamepadTestL3" class="gamepad-test-control"><circle cx="113" cy="160" r="10" class="gamepad-test-stick-click"/></g>
+        <g id="gamepadTestR3" class="gamepad-test-control"><circle cx="278" cy="238" r="10" class="gamepad-test-stick-click"/></g>
       </g>
-      <g id="gamepadTestFaceButtons">
-        <g id="gamepadTestY" class="gamepad-test-control"><circle cx="376" cy="111" r="15"/><text x="376" y="116">Y</text></g>
-        <g id="gamepadTestB" class="gamepad-test-control"><circle cx="400" cy="141" r="15"/><text x="400" y="146">B</text></g>
-        <g id="gamepadTestA" class="gamepad-test-control"><circle cx="376" cy="171" r="15"/><text x="376" y="176">A</text></g>
-        <g id="gamepadTestX" class="gamepad-test-control"><circle cx="352" cy="141" r="15"/><text x="352" y="146">X</text></g>
-      </g>
-      <g id="gamepadTestLeftStick" class="gamepad-test-control"><circle cx="176" cy="145" r="34"/><circle cx="176" cy="145" r="22" class="gamepad-test-stick-cap"/><path id="gamepadTestLeftStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/></g>
-      <g id="gamepadTestRightStick" class="gamepad-test-control"><circle cx="324" cy="145" r="34"/><circle cx="324" cy="145" r="22" class="gamepad-test-stick-cap"/><path id="gamepadTestRightStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/></g>
-      <g id="gamepadTestL3" class="gamepad-test-control"><circle cx="176" cy="145" r="8" class="gamepad-test-stick-click"/><text x="176" y="149">L3</text></g>
-      <g id="gamepadTestR3" class="gamepad-test-control"><circle cx="324" cy="145" r="8" class="gamepad-test-stick-click"/><text x="324" y="149">R3</text></g>
     </svg>`;
-  content.html(svg);
-
-  var actions = $('<div>', { class: 'mdl-dialog__actions gamepad-test-actions' }).appendTo(dialog);
-  var closeButton = $('<button>', {
-    type: 'button',
-    id: 'gamepadTestClose',
-    class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored',
-    tabindex: -1,
-    text: t('Close')
-  }).appendTo(actions);
+  content.append(svg);
+  $('<p>', {
+    class: 'gamepad-test-instructions',
+    text: t('Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.')
+  }).appendTo(content);
 
   if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
   isGamepadTestDialogOpen = true;
@@ -3052,9 +3065,7 @@ function gamepadTestDialog() {
   gamepadTestDialogState = {
     overlay: overlay[0],
     dialog: dialog[0],
-    closeButton: closeButton[0],
     gamepadIndex: gamepadIndex,
-    closeFocused: false,
     axes: selectedGamepad ? selectedGamepad.axes.slice(0, 4) : [0, 0, 0, 0],
     buttonIds: {
       0: 'gamepadTestA', 1: 'gamepadTestB', 2: 'gamepadTestX', 3: 'gamepadTestY',
@@ -3064,14 +3075,25 @@ function gamepadTestDialog() {
     }
   };
 
-  // Keyboard and remote-key events are intentionally ignored inside this test screen.
+  // The TV remote's Back/Return key is the only way to dismiss this dialog.
   gamepadTestDialogState.blockKeyboard = function(event) {
+    var keyName = String(event.key || event.code || '').toLowerCase();
+    var keyCode = event.keyCode || event.which;
+    var isBackKey = keyName === 'xf86back' || keyName === 'browserback' ||
+      (typeof tvKey !== 'undefined' &&
+        (keyCode === tvKey.KEY_RETURN || keyCode === tvKey.KEY_BACK));
+    if (isBackKey) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.type === 'keydown' && !event.repeat) closeGamepadTestDialog();
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
   };
   document.addEventListener('keydown', gamepadTestDialogState.blockKeyboard, true);
   document.addEventListener('keyup', gamepadTestDialogState.blockKeyboard, true);
-  closeButton.css('pointer-events', 'none');
+
   if (selectedGamepad) {
     selectedGamepad.buttons.forEach(function(button, index) {
       var buttonId = gamepadTestDialogState.buttonIds[index];
