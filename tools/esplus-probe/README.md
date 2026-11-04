@@ -1,8 +1,9 @@
 # Moonlight ESPlus preliminary probe
 
-Standalone Tizen TV **.NET TPK** for checking whether the TV firmware exposes
-`libesplusplayer.so`, whether its expected exports are present, and whether the
-sandbox can open candidate video/audio/input device nodes.
+Standalone Tizen TV **.NET TPK** for inventorying the exports of the firmware's
+`libesplusplayer.so`, comparing the legacy `add_*_stream_info` names with the
+later `set_*_stream_info` names, and checking read-only access to candidate
+audio/video/input device nodes.
 
 This package is diagnostic only. It does not contain Samsung libraries, does not
 initialize the player, does not start a stream, and does not change the Moonlight
@@ -56,15 +57,25 @@ must re-sign the package for the target TV as usual.
 - `LIBRARY_LOAD_FAILED`: the library is absent, inaccessible, or one of its
   required dynamic dependencies cannot be resolved. The accompanying
   `dlerror` text distinguishes many of these cases.
-- `LIBRARY_LOADED_SYMBOLS_OK`: the library loads and all ten expected entry
-  points are exported. This confirms symbol-level compatibility only; it does
-  not yet prove that the function signatures or player lifecycle work.
-- `LIBRARY_LOADED_SYMBOLS_INCOMPLETE`: the library loads, but one or more
-  expected exports are missing.
+- `SYMBOL SUMMARY`: total candidate exports found; the inventory includes
+  common lifecycle functions, both stream-configuration naming families,
+  display functions, callbacks and optional controls.
+- `CORE SYMBOLS`: whether the baseline lifecycle/packet/display names were
+  found. This is not proof that their signatures or behavior match.
+- `LEGACY add_* STREAM API` / `LATER set_* STREAM API`: whether both, one,
+  or neither stream-configuration symbol was exported for that naming family.
+- `ABI HINT`: a preliminary classification based only on exported names.
+  It is deliberately not an ABI certification. Structures, alignment, calling
+  conventions, callback signatures, return values and timestamp units remain
+  unverified until compared with the matching headers/binary or exercised in
+  a separate controlled test.
 - `DEVICE OPEN OK` / `DEVICE OPEN FAILED`: reports read-only, non-blocking
   access to the device nodes found by the probe. It does not change permissions
   or attempt to initialize a device.
 
 The probe deliberately does **not** call `esplusplayer_create()`,
-`esplusplayer_open()`, or any playback function. If this stage succeeds, the
-next test will exercise create/open/close in a separate controlled build.
+`esplusplayer_open()`, callbacks, or any playback function. It only loads the
+library and resolves symbol addresses. A missing `add_*` name does not mean the
+library is unusable: the `set_*` family is inventoried as an alternative, and
+vice versa. The next stage must validate the matching ABI declarations before
+any function pointer is invoked.
