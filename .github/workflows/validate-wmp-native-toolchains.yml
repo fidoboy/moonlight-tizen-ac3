@@ -418,6 +418,7 @@ jobs:
           USER_INC_DIRS = src
           USER_OBJS =
           USER_LIBS = service_app dlog dl
+          USER_LINK_OPTS = -Wl,--no-undefined service_app dlog dl
           USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
