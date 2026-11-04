@@ -566,7 +566,7 @@ NvHTTP.prototype = {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
       var requestStartedAt = performance.now();
-      return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, true]).then(function(buffer) {
         var byteLength = buffer && typeof buffer.byteLength === 'number'
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
@@ -689,17 +689,22 @@ NvHTTP.prototype = {
         });
       });
     }).finally(function() {
-      // Release all test-only collections and counters on success, cancellation,
-      // or failure. No app-list or image data is persisted by this test.
-      appIds.length = 0;
-      baselineIds.length = 0;
-      passRates.length = 0;
-      totalBytes = 0;
-      successfulRequests = 0;
-      failedRequests = 0;
-      responseTimeTotalMs = 0;
-      responseTimeSamples = 0;
-      passBytes = 0;
+      // Close the dedicated keep-alive/TLS session after the final request has settled.
+      return sendMessage('closeNetworkTestHttpSession', []).catch(function(error) {
+        console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Could not close the network test HTTP session:', error);
+      }).then(function() {
+        // Release all test-only collections and counters on success, cancellation,
+        // or failure. No app-list or image data is persisted by this test.
+        appIds.length = 0;
+        baselineIds.length = 0;
+        passRates.length = 0;
+        totalBytes = 0;
+        successfulRequests = 0;
+        failedRequests = 0;
+        responseTimeTotalMs = 0;
+        responseTimeSamples = 0;
+        passBytes = 0;
+      });
     });
   },
 
