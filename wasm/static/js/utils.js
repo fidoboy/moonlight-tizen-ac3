@@ -529,7 +529,7 @@ NvHTTP.prototype = {
 
   // Runs a lightweight host-to-client download test using the host's existing app assets.
   // Requests are deliberately sequential to avoid creating extra load on the TV or host.
-  runNetworkTest: function(durationMs, onProgress) {
+  runNetworkTest: function(durationMs, onProgress, shouldCancel) {
     var self = this;
     var duration = Math.max(1000, Number(durationMs) || 30000);
     var startedAt = performance.now();
@@ -576,7 +576,7 @@ NvHTTP.prototype = {
         var index = 0;
 
         var downloadNext = function() {
-          if (index >= appIds.length || performance.now() >= deadline) {
+          if ((typeof shouldCancel === 'function' && shouldCancel()) || index >= appIds.length || performance.now() >= deadline) {
             if (passBytes > 0) {
               var passElapsedMs = Math.max(1, performance.now() - passStartedAt);
               passRates.push(passBytes * 8 / (passElapsedMs * 1000));
@@ -614,7 +614,7 @@ NvHTTP.prototype = {
       };
 
       var repeat = function() {
-        if (performance.now() >= deadline) return Promise.resolve();
+        if ((typeof shouldCancel === 'function' && shouldCancel()) || performance.now() >= deadline) return Promise.resolve();
         return runPass().then(function() {
           if (performance.now() < deadline) return repeat();
         });
