@@ -2933,7 +2933,8 @@ function updateGamepadTestButtonVisibility() {
 // Consume gamepad input exclusively while the controller test modal is open.
 function handleGamepadTestInput(event) {
   if (!isGamepadTestDialogOpen || !gamepadTestDialogState || !event || !event.detail) {
-    updateGamepadTestButtonVisibility();
+    var gamepadTestButton = document.getElementById('gamepadTestBtn');
+    if (gamepadTestButton && gamepadTestButton.hidden) updateGamepadTestButtonVisibility();
     return;
   }
   if (event.detail.gamepadIndex !== gamepadTestDialogState.gamepadIndex) return;
