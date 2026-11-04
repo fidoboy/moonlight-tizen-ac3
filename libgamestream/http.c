@@ -21,6 +21,7 @@
 #include "errors.h"
 
 #include <string.h>
+#include <stdio.h>
 #include <curl/curl.h>
 
 #include <openssl/ssl.h>
@@ -61,6 +62,7 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 
 volatile int g_CancelHttpRequest = 0;
 static CURL *g_NetworkTestCurl = NULL;
+static struct curl_slist *g_NetworkTestResolveList = NULL;
 
 void http_cancel_request() {
   g_CancelHttpRequest = 1;
@@ -84,6 +86,7 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
   char* rewritten_url = NULL;
   char* resolve_string = NULL;
   struct curl_slist *resolve_list = NULL;
+  char curl_error_buffer[CURL_ERROR_SIZE] = {0};
 
   http_reset_cancel();
 
@@ -94,6 +97,7 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     if (persistent_curl) *persistent_curl = curl;
   }
 
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error_buffer);
   curl_easy_setopt(curl, CURLOPT_CAINFO, "/curl/ca-bundle.crt");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _write_curl);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
@@ -144,12 +148,31 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     sprintf(resolve_string, "%s:%d:%s", dummy_host, port, ipv6_raw);
 
     resolve_list = curl_slist_append(NULL, resolve_string);
-    curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
-    
+    if (resolve_list == NULL) {
+      ret = GS_OUT_OF_MEMORY;
+      goto cleanup;
+    }
     real_url = rewritten_url;
   }
 
-  curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+  if (persistent_curl != NULL) {
+    // CURLOPT_RESOLVE retains the supplied list. Keep it alive for as long as
+    // the persistent easy handle can reference it, replacing the previous list
+    // only after libcurl has accepted the new one.
+    struct curl_slist *previous_resolve_list = g_NetworkTestResolveList;
+    CURLcode resolve_result = curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+    if (resolve_result != CURLE_OK) {
+      ret = GS_FAILED;
+      goto cleanup;
+    }
+    g_NetworkTestResolveList = resolve_list;
+    resolve_list = NULL;
+    if (previous_resolve_list != NULL) {
+      curl_slist_free_all(previous_resolve_list);
+    }
+  } else {
+    curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
+  }
   curl_easy_setopt(curl, CURLOPT_URL, real_url);
 
   // Use the pinned certificate for HTTPS
@@ -177,6 +200,10 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
   if (res == CURLE_SSL_PINNEDPUBKEYNOTMATCH) {
     ret = GS_CERT_MISMATCH;
   } else if (res != CURLE_OK) {
+    if (persistent_curl != NULL) {
+      fprintf(stderr, "[network-test-http] libcurl error %d (%s): %s\\n",
+        (int)res, curl_easy_strerror(res), curl_error_buffer[0] ? curl_error_buffer : "no additional details");
+    }
     ret = GS_FAILED;
   } else if (data->memory == NULL) {
     ret = GS_OUT_OF_MEMORY;
@@ -202,8 +229,13 @@ int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA da
 
 void http_close_network_test_session(void) {
   if (g_NetworkTestCurl != NULL) {
+    curl_easy_setopt(g_NetworkTestCurl, CURLOPT_RESOLVE, NULL);
     curl_easy_cleanup(g_NetworkTestCurl);
     g_NetworkTestCurl = NULL;
+  }
+  if (g_NetworkTestResolveList != NULL) {
+    curl_slist_free_all(g_NetworkTestResolveList);
+    g_NetworkTestResolveList = NULL;
   }
 }
 
