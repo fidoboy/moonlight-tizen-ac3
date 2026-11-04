@@ -209,7 +209,7 @@ namespace MoonlightEsplusProbe
 
             // A visible NUI application must create a window surface. Without
             // one, the TV launcher can remain on its "Loading" screen.
-            TextLabel status = new TextLabel("Moonlight ESPlus probe\\n\\nDiagnostico iniciado.\\nConsulte el log MLPROBE desde Apps2Samsung.");
+            TextLabel status = new TextLabel("Moonlight ESPlus probe\n\nDiagnostico iniciado.\nConsulte el log MLPROBE desde Apps2Samsung.");
             status.HorizontalAlignment = HorizontalAlignment.Center;
             status.VerticalAlignment = VerticalAlignment.Center;
             status.TextColor = Color.White;
