@@ -2940,7 +2940,7 @@ function hostNetworkTestDialog(host) {
   }).css({ width: '100%', height: '18px' }).appendTo(content);
   var status = $('<p>', {
     id: 'hostNetworkTestStatus-' + host.serverUid,
-    text: t('Pausing background host checks...')
+    text: t('Preparing network test...')
   }).appendTo(content);
   var result = $('<div>', {
     id: 'hostNetworkTestResult-' + host.serverUid
