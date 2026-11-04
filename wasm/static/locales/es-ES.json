@@ -576,7 +576,7 @@
   "Test stopped.": "Prueba detenida.",
   "Image set: %1$s MB (%2$s images)": "Conjunto de imágenes: %1$s MB (%2$s imágenes)",
   "Stop": "Detener",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variación de velocidad entre descargas completas del conjunto de imágenes: %1$s–%2$s Mbps",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variación: %1$s",
   "Not enough complete image-set passes to compare speed variation.": "No hay suficientes descargas completas del conjunto para comparar las variaciones de velocidad.",
   "Completed image-set passes: %1$s": "Vueltas completas del conjunto de imágenes: %1$s",
   "The host must be online and paired before running the network test.": "El equipo debe estar conectado y emparejado para realizar la prueba de red.",
