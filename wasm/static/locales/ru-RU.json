@@ -592,5 +592,5 @@
   "Your network connection does not seem stable enough.": "Сетевое соединение недостаточно стабильно.",
   "The connection to the host may be limited or unstable.": "Соединение с хостом может быть ограниченным или нестабильным.",
   "The connection to the host is too slow or unstable.": "Соединение с хостом слишком медленное или нестабильное.",
-  "Проверка геймпада": "Проверка геймпада"
+  "Gamepad Test": "Проверка геймпада"
 }
