@@ -576,5 +576,6 @@
   "Test stopped before measurement could begin.": "Тест остановлен до начала измерения.",
   "Test stopped.": "Тест остановлен.",
   "Image set: %1$s MB (%2$s images)": "Набор изображений: %1$s МБ (%2$s изображений)",
-  "Stop": "Остановить"
+  "Stop": "Остановить",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Колебания скорости между полными загрузками набора изображений: %1$s–%2$s Мбит/с"
 }
