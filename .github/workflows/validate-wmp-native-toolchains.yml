@@ -239,7 +239,7 @@ jobs:
             content = path.read_text(encoding="utf-8")
             content, count = re.subn(
                 r"^RS_LIBRARIES := .*?$",
-                "# Dependency-free rootstrap probe: no platform libraries are required.\\nRS_LIBRARIES :=",
+                "# Dependency-free rootstrap probe: no platform libraries are required." + chr(10) + "RS_LIBRARIES :=",
                 content,
                 count=1,
                 flags=re.MULTILINE,
