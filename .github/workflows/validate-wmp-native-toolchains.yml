@@ -248,7 +248,7 @@ jobs:
               raise SystemExit(f"Expected one RS_LIBRARIES assignment in {path}, found {count}")
           path.write_text(content, encoding="utf-8")
           print("ROOTSTRAP_PLATFORM_LIBRARY_CATALOGUE=disabled_for_dependency_free_probe")
-            PY
+          PY
 
             # Dependency-free C entry point: test the ARM compiler and linker,
             # not the availability of ServiceApp or other Tizen framework APIs.
