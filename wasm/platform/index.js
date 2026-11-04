@@ -2930,6 +2930,7 @@ function hostNetworkTestDialog(host) {
   var content = $('<div>', { class: 'mdl-dialog__content' }).appendTo(dialog);
   var status = $('<p>', {
     id: 'hostNetworkTestStatus-' + host.serverUid,
+    class: 'network-test-status',
     text: t('Obtaining preliminary data...')
   }).appendTo(content);
   var progress = $('<div>', {
@@ -2945,8 +2946,14 @@ function hostNetworkTestDialog(host) {
     }
   };
   var result = $('<div>', {
-    id: 'hostNetworkTestResult-' + host.serverUid
-  }).css({ 'white-space': 'pre-line', 'margin-top': '12px' }).appendTo(content);
+    id: 'hostNetworkTestResult-' + host.serverUid,
+    class: 'network-test-result'
+  }).css({ 'white-space': 'pre-line' }).appendTo(content);
+  var verdict = $('<div>', {
+    id: 'hostNetworkTestVerdict-' + host.serverUid,
+    class: 'network-test-verdict',
+    'aria-live': 'polite'
+  }).appendTo(content);
 
   var actions = $('<div>', { class: 'mdl-dialog__actions' }).appendTo(dialog);
   var actionButton = $('<button>', {
@@ -3054,11 +3061,13 @@ function hostNetworkTestDialog(host) {
     } else {
       setProgress(stats.elapsedMs);
       status.text(stats.cancelled ? t('Test stopped.') : t('Test completed.'));
+      var variationPercent = stats.passCount >= 2
+        ? Math.round(((stats.maxPassMbps - stats.minPassMbps) / ((stats.maxPassMbps + stats.minPassMbps) / 2)) * 100)
+        : null;
       var lines = [
         t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2))
       ];
-      if (stats.passCount >= 2) {
-        var variationPercent = Math.round(((stats.maxPassMbps - stats.minPassMbps) / ((stats.maxPassMbps + stats.minPassMbps) / 2)) * 100);
+      if (variationPercent !== null) {
         lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', variationPercent + '%'));
       }
       lines.push(t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)));
@@ -3066,6 +3075,28 @@ function hostNetworkTestDialog(host) {
         lines.push(t('Download errors: %1$s', stats.failedRequests));
       }
       result.text(lines.join('\n'));
+
+      var verdictType = null;
+      var verdictIcon = '';
+      var verdictMessage = '';
+      if (stats.failedRequests > 1 || (variationPercent !== null && variationPercent > 15)) {
+        verdictType = 'error';
+        verdictIcon = '✕';
+        verdictMessage = t('Your network connection does not seem stable enough.');
+      } else if (stats.failedRequests > 0 || (variationPercent !== null && variationPercent >= 10)) {
+        verdictType = 'warning';
+        verdictIcon = '⚠';
+        verdictMessage = t('Some errors were detected. Check your connection.');
+      } else if (stats.failedRequests === 0 && variationPercent !== null && variationPercent < 10) {
+        verdictType = 'stable';
+        verdictIcon = '✓';
+        verdictMessage = t('The connection to the host seems stable.');
+      }
+      if (verdictType) {
+        verdict.addClass('network-test-verdict--' + verdictType);
+        $('<span>', { class: 'network-test-verdict-icon', text: verdictIcon }).appendTo(verdict);
+        $('<span>', { class: 'network-test-verdict-text', text: verdictMessage }).appendTo(verdict);
+      }
     }
 
     actionButton.text(t('Close'));
