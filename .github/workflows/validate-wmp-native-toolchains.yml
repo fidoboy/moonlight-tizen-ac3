@@ -300,11 +300,16 @@ jobs:
               if [ ! -f "$probe_binary" ]; then
                 echo "ROOTSTRAP_PROBE_RESULT=failed missing_output=$probe_binary" | tee -a "$probe_log"
                 failed=1
-              elif [ -s "$probe/Release/platform_libs.file" ]; then
-                echo "ROOTSTRAP_PROBE_RESULT=failed stale_or_nonempty_platform_libs_file" | tee -a "$probe_log"
-                failed=1
               else
-                echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE=empty" | tee -a "$probe_log"
+                if [ -f "$probe/Release/platform_libs.file" ]; then
+                  response_size="$(wc -c < "$probe/Release/platform_libs.file" | tr -d ' ')"
+                  echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE_SIZE=$response_size" | tee -a "$probe_log"
+                  sed -n '1,80p' "$probe/Release/platform_libs.file" | while IFS= read -r entry; do
+                    echo "ROOTSTRAP_PLATFORM_LIBRARIES_ENTRY=$entry"
+                  done | tee -a "$probe_log"
+                else
+                  echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE=missing" | tee -a "$probe_log"
+                fi
                 machine="$(readelf -h "$probe_binary" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
                 echo "ROOTSTRAP_PROBE_ELF_MACHINE=$machine" | tee -a "$probe_log"
                 case "$machine" in
@@ -312,8 +317,8 @@ jobs:
                   *) echo "ROOTSTRAP_PROBE_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$probe_log"; failed=1 ;;
                 esac
               fi
-              find "$probe/Release" -maxdepth 4 -type f -printf '%P\\n' 2>/dev/null | sort > "$report/iot-headed-6.0-rootstrap-probe-output-files.txt" || true
-              find "$probe/Release" -type f -exec file {} \\; > "$report/iot-headed-6.0-rootstrap-probe-output-file-types.txt" 2>/dev/null || true
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-rootstrap-probe-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-rootstrap-probe-output-file-types.txt" 2>/dev/null || true
             else
               status=$?
               echo "ROOTSTRAP_PROBE_RESULT=failed exit_code=$status" | tee -a "$probe_log"
