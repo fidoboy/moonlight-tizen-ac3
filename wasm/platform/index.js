@@ -3023,7 +3023,8 @@ function gamepadTestDialog() {
     return;
   }
   var gamepadIndex = selectedGamepad.index;
-  var controllerType = isPlayStationGamepadId(selectedGamepad.id) ? 'ps' : 'xbox';
+  // TEMPORARY TEST: invert the displayed diagram to verify controller detection.
+  var controllerType = isPlayStationGamepadId(selectedGamepad.id) ? 'xbox' : 'ps';
 
   var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
   var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
