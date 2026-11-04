@@ -417,44 +417,10 @@ jobs:
           USER_DEFS =
           USER_INC_DIRS = src
           USER_OBJS =
-          USER_LIBS =
+          USER_LIBS = service_app dlog dl
+          USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
-            python3 - "$probe/.cproject" <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          path = Path(sys.argv[1])
-          content = path.read_text(encoding="utf-8")
-          pattern = re.compile(
-              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
-              r'(.*?)'
-              r'(</option>)',
-              re.DOTALL,
-          )
-          libraries = [
-              '-Wl,--no-undefined',
-              '-L"\${SBI_SYSROOT}/usr/lib"',
-              '-L"\${SBI_SYSROOT}/usr/lib64"',
-              '-lservice_app',
-              '-ldlog',
-              '-ldl',
-          ]
-          block = "".join(
-              '                                    <listOptionValue builtIn="false" value="' + value.replace("&", "&amp;").replace('"', "&quot;") + '"/>\n'
-              for value in libraries
-          )
-          content, count = pattern.subn(
-              lambda match: match.group(1) + match.group(2) + "\n" + block + "                                " + match.group(3),
-              content,
-          )
-          if count != 2:
-              raise SystemExit(f"Expected 2 C/C++ linker configurations, found {count}")
-          path.write_text(content, encoding="utf-8")
-          print("SERVICE_LINK_LIBRARIES=service_app,dlog,dl")
-          print("SERVICE_LINK_NO_UNDEFINED=enabled")
-          PY
             rm -rf "$probe/Release"
             tar -czf "$report/iot-headed-6.0-wmp-service-link-source.tar.gz" -C "$probe_root" WmpServiceProbe
             if run_profile_command "iot-headed-6.0-wmp-service-link" "$link_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
