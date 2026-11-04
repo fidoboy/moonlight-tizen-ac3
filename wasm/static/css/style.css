@@ -492,8 +492,28 @@ body[data-color-theme="black-orange"] #background-layer {
     height: auto;
     min-height: 0;
     box-sizing: border-box;
-    padding: 0 12%;
+    padding: 0;
     overflow: hidden;
+}
+.gamepad-test-layout {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: stretch;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.gamepad-test-side-margin {
+    min-width: 0;
+}
+.gamepad-test-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
 }
 .gamepad-test-svg {
     display: block;
