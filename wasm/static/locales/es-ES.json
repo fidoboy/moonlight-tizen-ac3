@@ -576,5 +576,6 @@
   "Test stopped before measurement could begin.": "La prueba se detuvo antes de comenzar la medición.",
   "Test stopped.": "Prueba detenida.",
   "Image set: %1$s MB (%2$s images)": "Conjunto de imágenes: %1$s MB (%2$s imágenes)",
-  "Stop": "Detener"
+  "Stop": "Detener",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variación de velocidad entre descargas completas del conjunto de imágenes: %1$s–%2$s Mbps"
 }
