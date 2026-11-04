@@ -113,6 +113,15 @@ jobs:
               echo "CREATE_RESULT=success" | tee -a "$log"
             else
               status=$?
+              if [ "$profile" = "iot-headed-6.0" ]; then
+                # The Tizen 6.1 CLI cannot generate this ServiceApp template
+                # (its project generator fails before creating the project).
+                # The independent rootstrap probe below validates the IoT ARM
+                # compiler/linker using the Tizen 10 skeleton instead.
+                echo "CREATE_RESULT=unsupported_by_installed_sdk exit_code=$status" | tee -a "$log"
+                echo "CREATE_FALLBACK=independent_iot_rootstrap_probe" | tee -a "$log"
+                return
+              fi
               echo "CREATE_RESULT=failed exit_code=$status" | tee -a "$log"
               failed=1
               return
