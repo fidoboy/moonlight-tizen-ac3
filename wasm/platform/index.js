@@ -1864,6 +1864,7 @@ function showHosts(onShown) {
     showHostsMode();
 
     $('#host-grid').stop(true, true).hide().fadeIn(UI_FADE_DURATION_MS, function() {
+      updateGamepadTestButtonVisibility();
       clearViewLoadingSnackbarTimer();
       dismissPersistentSnackbar();
       Navigation.switch();
@@ -2924,9 +2925,27 @@ function hostMenuDialog(host) {
   setTimeout(() => Navigation.switch(), 5);
 }
 
-// Keep the gamepad test entry visible only while a real controller is connected.
+// Return a browser-reported connected controller for the test UI, independently
+// of the activity timestamp used by Moonlight's protocol controller mask.
+function getConnectedGamepadForTest() {
+  var gamepads = navigator.getGamepads
+    ? navigator.getGamepads()
+    : navigator.webkitGetGamepads
+    ? navigator.webkitGetGamepads()
+    : [];
+  for (var i = 0; i < gamepads.length; i++) {
+    var gamepad = gamepads[i];
+    if (gamepad && gamepad.connected && gamepad.buttons && gamepad.buttons.length &&
+        typeof gamepad.id === 'string' && gamepad.id.trim()) {
+      return gamepad;
+    }
+  }
+  return null;
+}
+
+// Keep the gamepad test entry visible only while a controller is connected.
 function updateGamepadTestButtonVisibility() {
-  var connected = typeof getConnectedGamepadMask === 'function' && getConnectedGamepadMask() !== 0;
+  var connected = !!getConnectedGamepadForTest();
   var hostGrid = document.getElementById('host-grid');
   var settingsList = document.getElementById('settings-list');
   var gameGrid = document.getElementById('game-grid');
@@ -2985,17 +3004,12 @@ function updateGamepadTestStick(stickIndex, x, y) {
 
 function gamepadTestDialog() {
   if (isGamepadTestDialogOpen) return;
-  var mask = typeof getConnectedGamepadMask === 'function' ? getConnectedGamepadMask() : 0;
-  var gamepadIndex = -1;
-  for (var i = 0; i < 16; i++) {
-    if (mask & (1 << i)) { gamepadIndex = i; break; }
-  }
-  if (gamepadIndex < 0) {
+  var selectedGamepad = getConnectedGamepadForTest();
+  if (!selectedGamepad) {
     updateGamepadTestButtonVisibility();
     return;
   }
-  var connectedGamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-  var selectedGamepad = connectedGamepads[gamepadIndex];
+  var gamepadIndex = selectedGamepad.index;
 
   var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
   var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
