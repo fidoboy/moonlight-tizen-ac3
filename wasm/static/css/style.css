@@ -453,12 +453,12 @@ body[data-color-theme="black-orange"] #background-layer {
 /* Dedicated controller test modal. The TV remote Back key dismisses it. */
 #gamepadTestBtn[hidden] { display: none !important; }
 .gamepad-test-dialog {
-    width: 70vw;
+    width: 80vw;
     max-width: none;
     min-width: 0;
-    height: 42vh;
+    height: 75vh;
     max-height: none;
-    min-height: 300px;
+    min-height: 0;
     box-sizing: border-box;
     padding: 10px 22px 12px;
     display: block;
@@ -478,7 +478,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: block;
     width: 100%;
     height: calc(100% - 24px);
-    min-height: 220px;
+    min-height: 0;
     box-sizing: border-box;
     padding: 0;
     overflow: hidden;
@@ -486,8 +486,8 @@ body[data-color-theme="black-orange"] #background-layer {
 .gamepad-test-svg {
     display: block;
     width: 100%;
-    height: calc(100% - 45px);
-    min-height: 180px;
+    height: calc(100% - 82px);
+    min-height: 0;
     max-width: 100%;
     overflow: visible;
 }
