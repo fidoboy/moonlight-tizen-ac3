@@ -538,6 +538,9 @@ NvHTTP.prototype = {
     var successfulRequests = 0;
     var failedRequests = 0;
     var passRates = [];
+    var sampleRates = [];
+    var sampleStartedAt = startedAt;
+    var sampleBytes = 0;
     var passCount = 0;
 
     var report = function(extra) {
@@ -549,8 +552,8 @@ NvHTTP.prototype = {
         failedRequests: failedRequests,
         passCount: passCount,
         averageMbps: totalBytes * 8 / (elapsedMs * 1000),
-        minPassMbps: passRates.length ? Math.min.apply(Math, passRates) : 0,
-        maxPassMbps: passRates.length ? Math.max.apply(Math, passRates) : 0
+        minPassMbps: sampleRates.length ? Math.min.apply(Math, sampleRates) : (passRates.length ? Math.min.apply(Math, passRates) : 0),
+        maxPassMbps: sampleRates.length ? Math.max.apply(Math, sampleRates) : (passRates.length ? Math.max.apply(Math, passRates) : 0)
       };
       if (extra) Object.keys(extra).forEach(function(key) { result[key] = extra[key]; });
       if (typeof onProgress === 'function') onProgress(result);
@@ -597,6 +600,7 @@ NvHTTP.prototype = {
             if (byteLength > 0) {
               passBytes += byteLength;
               totalBytes += byteLength;
+              sampleBytes += byteLength;
               successfulRequests++;
             } else {
               failedRequests++;
@@ -605,6 +609,12 @@ NvHTTP.prototype = {
             failedRequests++;
             console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'App asset download failed for app ID ' + appId + ':', error);
           }).then(function() {
+            var sampleNow = performance.now();
+            if (sampleBytes > 0 && sampleNow - sampleStartedAt >= 5000) {
+              sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
+              sampleBytes = 0;
+              sampleStartedAt = sampleNow;
+            }
             report({ currentPass: passCount + 1, totalApps: appIds.length });
             return downloadNext();
           });
@@ -621,6 +631,11 @@ NvHTTP.prototype = {
       };
 
       return repeat().then(function() {
+        var sampleNow = performance.now();
+        if (sampleBytes > 0) {
+          sampleRates.push(sampleBytes * 8 / ((sampleNow - sampleStartedAt) * 1000));
+          sampleBytes = 0;
+        }
         return report({ completed: true, totalApps: appIds.length });
       });
     });
