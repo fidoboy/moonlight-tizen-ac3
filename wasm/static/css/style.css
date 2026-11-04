@@ -457,7 +457,7 @@ body[data-color-theme="black-orange"] #background-layer {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: calc(86.3vh - 85px);
+    width: calc((86.3vh - 129px) / 0.76 + 44px);
     max-width: calc(100vw - 32px);
     min-width: 0;
     height: 75vh;
@@ -631,7 +631,7 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 @media (max-width: 900px) {
     .mdl-dialog.gamepad-test-dialog {
-        width: calc(94.4vh - 156px);
+        width: calc((94.4vh - 184px) / 0.76 + 28px);
         max-width: calc(100vw - 24px);
         min-width: 0;
         height: 82vh;
