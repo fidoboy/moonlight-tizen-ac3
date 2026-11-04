@@ -2928,20 +2928,22 @@ function hostNetworkTestDialog(host) {
   }).appendTo(dialog);
 
   var content = $('<div>', { class: 'mdl-dialog__content' }).appendTo(dialog);
-  $('<p>', {
-    class: 'network-test-description',
-    text: t('Testing the download connection from %1$s to this TV for about 30 seconds.', host.hostname)
-  }).appendTo(content);
-
   var status = $('<p>', {
     id: 'hostNetworkTestStatus-' + host.serverUid,
     text: t('Obtaining preliminary data...')
   }).appendTo(content);
-  var progress = $('<progress>', {
+  var progress = $('<div>', {
     id: 'hostNetworkTestProgress-' + host.serverUid,
-    max: 30000,
-    value: 0
-  }).css({ width: '100%', height: '18px' }).appendTo(content);
+    class: 'mdl-progress mdl-js-progress network-test-progress'
+  }).appendTo(content);
+  componentHandler.upgradeElement(progress[0]);
+
+  var setProgress = function(elapsedMs) {
+    var progressComponent = progress[0].MaterialProgress;
+    if (progressComponent && typeof progressComponent.setProgress === 'function') {
+      progressComponent.setProgress(Math.max(0, Math.min(100, elapsedMs / 300)));
+    }
+  };
   var result = $('<div>', {
     id: 'hostNetworkTestResult-' + host.serverUid
   }).css({ 'white-space': 'pre-line', 'margin-top': '12px' }).appendTo(content);
@@ -3014,14 +3016,14 @@ function hostNetworkTestDialog(host) {
         testStartedAt = Date.now();
         progressTimer = window.setInterval(function() {
           if (finished) return;
-          progress.val(Math.min(30000, Date.now() - testStartedAt));
+          setProgress(Date.now() - testStartedAt);
         }, 150);
         status.text(t('Performing measurement. Please wait...'));
         return;
       }
 
       if (stats.measurementStarted) {
-        progress.val(Math.min(30000, stats.elapsedMs));
+        setProgress(stats.elapsedMs);
       }
     }, function() { return cancelled; });
   });
@@ -3046,25 +3048,23 @@ function hostNetworkTestDialog(host) {
     if (progressTimer !== null) window.clearInterval(progressTimer);
 
     if (!stats.measurementStarted) {
-      progress.val(0);
+      setProgress(0);
       status.text(t('Test stopped before measurement could begin.'));
       result.text('');
     } else {
-      progress.val(Math.min(30000, stats.elapsedMs));
+      setProgress(stats.elapsedMs);
       status.text(stats.cancelled ? t('Test stopped.') : t('Test completed.'));
       var lines = [
-        t('Image set: %1$s MB (%2$s images)', (stats.baselineBytes / (1024 * 1024)).toFixed(2), stats.baselineAssetCount),
-        t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
-        stats.passCount >= 2
-          ? t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2))
-          : t('Not enough complete image-set passes to compare speed variation.'),
-        t('Completed image-set passes: %1$s', stats.passCount),
-        t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
-        t('Successful downloads: %1$s', stats.successfulRequests),
-        t('Download errors: %1$s', stats.failedRequests),
-        t('Duration: %1$s seconds', (stats.elapsedMs / 1000).toFixed(1))
+        t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2))
       ];
-      result.text(lines.join('\n'));
+      if (stats.passCount >= 2) {
+        lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)));
+      }
+      lines.push(t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)));
+      if (stats.failedRequests > 0) {
+        lines.push(t('Download errors: %1$s', stats.failedRequests));
+      }
+      result.text(lines.join('\\n'));
     }
 
     actionButton.text(t('Close'));
