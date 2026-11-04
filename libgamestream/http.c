@@ -63,6 +63,7 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 volatile int g_CancelHttpRequest = 0;
 static CURL *g_NetworkTestCurl = NULL;
 static struct curl_slist *g_NetworkTestResolveList = NULL;
+static char g_NetworkTestCurlErrorBuffer[CURL_ERROR_SIZE];
 
 void http_cancel_request() {
   g_CancelHttpRequest = 1;
@@ -86,7 +87,10 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
   char* rewritten_url = NULL;
   char* resolve_string = NULL;
   struct curl_slist *resolve_list = NULL;
-  char curl_error_buffer[CURL_ERROR_SIZE] = {0};
+  char local_curl_error_buffer[CURL_ERROR_SIZE] = {0};
+  char *curl_error_buffer = persistent_curl != NULL
+    ? g_NetworkTestCurlErrorBuffer : local_curl_error_buffer;
+  memset(curl_error_buffer, 0, CURL_ERROR_SIZE);
 
   http_reset_cancel();
 
@@ -215,7 +219,13 @@ cleanup:
   if (rewritten_url) free(rewritten_url);
   if (resolve_string) free(resolve_string);
   if (resolve_list) curl_slist_free_all(resolve_list);
-  if (persistent_curl == NULL) curl_easy_cleanup(curl);
+  if (persistent_curl != NULL) {
+    // Do not leave the persistent handle pointing at request-scoped memory.
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, NULL);
+  } else {
+    curl_easy_cleanup(curl);
+  }
   return ret;
 }
 
