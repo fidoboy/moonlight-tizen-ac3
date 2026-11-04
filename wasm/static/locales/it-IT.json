@@ -579,5 +579,11 @@
   "Stop": "Interrompi",
   "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variazione della velocità tra i download completi del set di immagini: %1$s–%2$s Mbps",
   "Not enough complete image-set passes to compare speed variation.": "Passaggi completi del set di immagini insufficienti per confrontare le variazioni di velocità.",
-  "Completed image-set passes: %1$s": "Passaggi completi del set di immagini: %1$s"
+  "Completed image-set passes: %1$s": "Passaggi completi del set di immagini: %1$s",
+  "The host must be online and paired before running the network test.": "L'host deve essere online e associato per eseguire il test di rete.",
+  "The host did not return any applications to test.": "L'host non ha restituito applicazioni da testare.",
+  "The complete application image set could not be downloaded.": "Non è stato possibile scaricare il set completo di immagini delle applicazioni.",
+  "None of the host application images could be downloaded.": "Non è stato possibile scaricare nessuna immagine delle applicazioni dell'host.",
+  "Background host polling did not finish before the network test.": "Il controllo degli host in background non è terminato prima del test di rete.",
+  "A network test is already running.": "È già in corso un test di rete."
 }
