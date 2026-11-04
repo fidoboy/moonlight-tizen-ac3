@@ -562,11 +562,11 @@ NvHTTP.prototype = {
       return result;
     };
 
-    var requestAsset = function(appId) {
+    var requestAsset = function(appId, usePersistentConnection) {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
       var requestStartedAt = performance.now();
-      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, true]).then(function(buffer) {
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, usePersistentConnection !== false]).then(function(buffer) {
         var byteLength = buffer && typeof buffer.byteLength === 'number'
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
@@ -612,7 +612,21 @@ NvHTTP.prototype = {
         }).then(downloadBaselineNext);
       };
 
-      return downloadBaselineNext().then(function() {
+      // A/B diagnostic: compare the ordinary one-shot HTTP path with the
+      // dedicated persistent handle using the exact same paired appasset request.
+      // The first response is discarded; only the persistent response is counted.
+      return requestAsset(appIds[0], false).then(function() {
+        console.info('%c[utils.js, runNetworkTest]', 'color: gray;', 'One-shot control request succeeded for the first app asset.');
+        return requestAsset(appIds[0], true);
+      }).then(function(response) {
+        baselineIds.push(appIds[0]);
+        baselineBytes += response.byteLength;
+        baselineIndex = 1;
+        return downloadBaselineNext();
+      }, function(error) {
+        console.error('%c[utils.js, runNetworkTest]', 'color: gray;', 'Initial one-shot/persistent A/B request failed:', error);
+        throw error;
+      }).then(function() {
         if (isCancelled()) {
           return report({
             completed: true,
