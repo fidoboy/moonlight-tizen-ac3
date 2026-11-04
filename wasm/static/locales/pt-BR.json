@@ -591,5 +591,6 @@
   "Some errors were detected. Check your connection.": "Foram detectados alguns erros. Verifique sua conexão.",
   "Your network connection does not seem stable enough.": "Sua conexão de rede não parece estável o suficiente.",
   "The connection to the host may be limited or unstable.": "A conexão com o host pode estar limitada ou instável.",
-  "The connection to the host is too slow or unstable.": "A conexão com o host está muito lenta ou instável."
+  "The connection to the host is too slow or unstable.": "A conexão com o host está muito lenta ou instável.",
+  "Testar controle": "Testar controle"
 }
