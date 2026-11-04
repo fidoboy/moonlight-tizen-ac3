@@ -2901,7 +2901,7 @@ function hostNetworkTestDialog(host) {
     id: 'closeHostNetworkTest',
     class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
     text: t('Close')
-  }).prop('disabled', true).appendTo(actions);
+  }).appendTo(actions);
 
   var finished = false;
   var cancelled = false;
@@ -2937,7 +2937,7 @@ function hostNetworkTestDialog(host) {
       (stats.bytes / (1024 * 1024)).toFixed(2),
       stats.successfulRequests,
       stats.failedRequests));
-  }).then(function(stats) {
+  }, function() { return cancelled; }).then(function(stats) {
     if (cancelled) return;
     finished = true;
     window.clearInterval(progressTimer);
