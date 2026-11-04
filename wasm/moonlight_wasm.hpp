@@ -183,6 +183,7 @@ class MoonlightInstance {
 
   MessageResult HttpInit(std::string cert, std::string privateKey, std::string myUniqueId);
   void OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection);
+  void CloseNetworkTestHttpSession(int callbackId);
 
   LoadResult LoadCert(const char* certStr, const char* keyStr);
 
@@ -233,6 +234,7 @@ class MoonlightInstance {
   static int MediaSetupWaitFailed(const char* step);
 
   void OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection);
+  void CloseNetworkTestHttpSession_private(int callbackId);
   void STUN_private(int callbackId);
   void Pair_private(int callbackId, std::string serverMajorVersion, std::string address, int httpPort, std::string randomNumber);
   void WakeOnLan_private(int callbackId, std::string macAddress);
@@ -330,7 +332,7 @@ MessageResult makeCert();
 
 MessageResult httpInit(std::string cert, std::string privateKey, std::string myUniqueId);
 void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse, bool reuseNetworkTestConnection);
-MessageResult closeNetworkTestHttpSession();
+void closeNetworkTestHttpSession(int callbackId);
 
 MessageResult startStream(std::string host, int httpPort, std::string width, std::string height, std::string fps, std::string bitrate,
   std::string rikey, std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, int serverCodecModeSupport,
