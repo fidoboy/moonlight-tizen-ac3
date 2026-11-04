@@ -556,5 +556,18 @@
   "— Stop the streaming session.": "— Stop the streaming session.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Switch the mode of the IP address field, and open the host PC menu.",
   "— Toggle the performance statistics overlay.": "— Toggle the performance statistics overlay.",
-  "• No relevant changes found.": "• No relevant changes found."
+  "• No relevant changes found.": "• No relevant changes found.",
+  "Test Network": "Проверить сеть",
+  "Network Test": "Тест сети",
+  "Testing the download connection from %1$s to this TV for about 30 seconds.": "Проверка скорости загрузки от %1$s на этот телевизор в течение примерно 30 секунд.",
+  "Preparing network test...": "Подготовка теста сети...",
+  "Downloaded %1$s MB · %2$s successful · %3$s errors": "Загружено %1$s МБ · успешно: %2$s · ошибок: %3$s",
+  "Test completed.": "Тест завершён.",
+  "Average download speed: %1$s Mbps": "Средняя скорость загрузки: %1$s Мбит/с",
+  "Speed variation: %1$s–%2$s Mbps": "Колебания скорости: %1$s–%2$s Мбит/с",
+  "Data received: %1$s MB": "Получено данных: %1$s МБ",
+  "Successful downloads: %1$s": "Успешных загрузок: %1$s",
+  "Download errors: %1$s": "Ошибок загрузки: %1$s",
+  "Duration: %1$s seconds": "Длительность: %1$s с",
+  "Network test could not be completed.": "Не удалось завершить тест сети."
 }
