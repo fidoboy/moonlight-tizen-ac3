@@ -415,8 +415,8 @@ jobs:
                   echo "SERVICE_SOURCE_COMPILE_RESULT=failed" | tee -a "$service_probe_log"
                 fi
               fi
-              find "$probe/Release" -maxdepth 4 -type f -printf '%P\\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-source-output-files.txt" || true
-              find "$probe/Release" -type f -exec file {} \\; > "$report/iot-headed-6.0-wmp-service-source-output-file-types.txt" 2>/dev/null || true
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-source-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-source-output-file-types.txt" 2>/dev/null || true
             else
               status=$?
               echo "SERVICE_SOURCE_COMPILE_RESULT=failed exit_code=$status" | tee -a "$service_probe_log"
