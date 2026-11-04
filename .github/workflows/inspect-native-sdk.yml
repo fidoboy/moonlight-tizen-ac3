@@ -59,11 +59,33 @@ jobs:
       - name: Report native templates, rootstraps and CLI commands
         shell: bash
         run: |
-          set -euo pipefail
-          tizen list native-project | tee "$RUNNER_TEMP/native-project-templates.txt"
-          tizen list rootstrap | tee "$RUNNER_TEMP/native-rootstraps.txt"
-          tizen manual build-app | tee "$RUNNER_TEMP/build-app-manual.txt"
-          tizen manual build-native | tee "$RUNNER_TEMP/build-native-manual.txt"
+          set -uo pipefail
+          report="$RUNNER_TEMP/native-sdk-report"
+          mkdir -p "$report"
+
+          probe() {
+            name="$1"
+            shift
+            output="$report/$name.txt"
+            printf '### %s\n' "$*" | tee "$output"
+            if "$@" >>"$output" 2>&1; then
+              printf 'RESULT=success\n' | tee -a "$output"
+            else
+              status=$?
+              printf 'RESULT=unavailable exit_code=%s\n' "$status" | tee -a "$output"
+            fi
+          }
+
+          probe native-project-templates tizen list native-project
+          probe native-rootstraps tizen list rootstrap
+          probe native-profiles tizen list profile
+          probe build-app-help tizen manual build-app
+          probe build-native-help tizen manual build-native
+          probe build-app-command-help tizen help build-app
+          probe build-native-command-help tizen help build-native
+          probe cli-version tizen version
+
+          tar -czf "$RUNNER_TEMP/native-sdk-discovery-report.tar.gz" -C "$report" .
 
       - name: Upload SDK discovery report
         uses: actions/upload-artifact@v6
@@ -73,7 +95,6 @@ jobs:
             ${{ runner.temp }}/tizen-packages.txt
             ${{ runner.temp }}/native-project-templates.txt
             ${{ runner.temp }}/native-rootstraps.txt
-            ${{ runner.temp }}/build-app-manual.txt
-            ${{ runner.temp }}/build-native-manual.txt
+            ${{ runner.temp }}/native-sdk-discovery-report.tar.gz
           if-no-files-found: error
           retention-days: 3
