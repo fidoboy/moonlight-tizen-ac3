@@ -127,6 +127,15 @@ void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk
   m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse, reuseNetworkTestConnection), false);
 }
 
+void MoonlightInstance::CloseNetworkTestHttpSession_private(int callbackId) {
+  http_close_network_test_session();
+  PostPromiseMessage(callbackId, "resolve", "");
+}
+
+void MoonlightInstance::CloseNetworkTestHttpSession(int callbackId) {
+  m_Dispatcher.post_job(std::bind(&MoonlightInstance::CloseNetworkTestHttpSession_private, this, callbackId), false);
+}
+
 MessageResult makeCert() {
   return g_Instance->MakeCert();
 }
@@ -143,9 +152,8 @@ void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryRe
   g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse, reuseNetworkTestConnection);
 }
 
-MessageResult closeNetworkTestHttpSession() {
-  http_close_network_test_session();
-  return MessageResult::Resolve();
+void closeNetworkTestHttpSession(int callbackId) {
+  g_Instance->CloseNetworkTestHttpSession(callbackId);
 }
 
 EMSCRIPTEN_BINDINGS(http) {
