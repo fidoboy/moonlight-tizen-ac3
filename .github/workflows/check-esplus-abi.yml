@@ -10,6 +10,8 @@ on:
       - ".github/workflows/check-esplus-abi.yml"
       - "native/wmp-service/src/wmp_esplus_abi.*"
       - "tests/wmp_esplus_abi_test.*"
+      - "tests/wmp_service_syntax_test.sh"
+      - "native/wmp-service/src/main.c"
 
 permissions:
   contents: read
@@ -28,6 +30,13 @@ jobs:
           set -euo pipefail
           chmod +x tests/wmp_esplus_abi_test.sh
           tests/wmp_esplus_abi_test.sh
+
+      - name: Syntax-check the native WMP service with Tizen API stubs
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x tests/wmp_service_syntax_test.sh
+          tests/wmp_service_syntax_test.sh
 
       - name: Install ARM32 cross-compiler and emulator
         run: |
