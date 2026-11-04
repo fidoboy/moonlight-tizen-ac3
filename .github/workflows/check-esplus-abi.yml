@@ -77,6 +77,22 @@ jobs:
           "$CC" $CFLAGS -I"$OLD_ESPLUS_INCLUDE_DIR" -DESPLUS_NATIVE_ADAPTER='"esplus_native_adapter.h"' tools/esplus-abi-checker/native_layout.c -o "$OUT/native-layout-065"
           $RUNNER "$OUT/native-layout-065" | tee "$OUT/report.txt"
 
+      - name: Diff historical and current Samsung CAPI headers
+        shell: bash
+        env:
+          OLD_DIR: ${{ runner.temp }}/esplus-065/esplusplayer-0.0.3/include/esplusplayer_capi
+          NEW_DIR: ${{ runner.temp }}/esplus-source/esplusplayer-1.4.6/include/esplusplayer_capi
+          REPORT_DIR: ${{ runner.temp }}/esplus-header-diff
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          for header in esplusplayer_capi.h stream.h espacket.h; do
+            echo "===== $header =====" | tee -a "$REPORT_DIR/header-diff.txt"
+            diff -u "$OLD_DIR/$header" "$NEW_DIR/$header" >> "$REPORT_DIR/header-diff.txt" || true
+            echo >> "$REPORT_DIR/header-diff.txt"
+          done
+          cat "$REPORT_DIR/header-diff.txt"
+
       - name: Upload ABI report
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,5 +101,7 @@ jobs:
           path: |
             ${{ runner.temp }}/esplus-abi-check.log
             ${{ runner.temp }}/esplus-abi-report/
+            ${{ runner.temp }}/esplus-old-abi/
+            ${{ runner.temp }}/esplus-header-diff/
           if-no-files-found: warn
           retention-days: 14
