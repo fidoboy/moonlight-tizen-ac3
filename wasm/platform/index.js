@@ -3091,8 +3091,9 @@ function closeGamepadTestDialog() {
   document.removeEventListener('keydown', state.blockKeyboard, true);
   document.removeEventListener('keyup', state.blockKeyboard, true);
   closeUiDialog(state.dialog);
-  fadeOutUiElement($(state.overlay));
-  $(state.overlay).remove();
+  fadeOutUiElement($(state.overlay), function() {
+    $(state.overlay).remove();
+  });
   gamepadTestDialogState = null;
   isGamepadTestDialogOpen = false;
   isDialogOpen = false;
