@@ -514,9 +514,9 @@ jobs:
                 grep -n -E 'RS_LIBRARIES|RS_LIB_PATHS|PLATFORM_LIB_PATHS' "$link_probe/Build/platform.mk" "$link_probe/Build/makefile.mk" || true
                 echo "### Rootstrap service_app and dlog files"
                 if [ -d "$sysroot" ]; then
-                  find "$sysroot" \\( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \\) -print | sort
+                  find "$sysroot" \( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
                   echo "### Rootstrap library directories"
-                  find "$sysroot" -maxdepth 3 -type d \\( -name lib -o -name lib64 \\) -print | sort
+                  find "$sysroot" -maxdepth 3 -type d \( -name lib -o -name lib64 \) -print | sort
                 else
                   echo "ROOTSTRAP_DIRECTORY_NOT_FOUND"
                   failed=1
