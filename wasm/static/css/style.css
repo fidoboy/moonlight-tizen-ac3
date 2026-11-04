@@ -1000,6 +1000,15 @@ body[data-color-theme="black-orange"] #background-layer {
     margin-right: 10px;
     vertical-align: middle;
 }
+.host-details-value {
+    font-weight: 600;
+}
+.host-details-value--positive {
+    color: #39e75f;
+}
+.host-details-value--negative {
+    color: #ff4b4b;
+}
 #pairingDialogText, #deleteHostDialogText, .host-details-text, #appSupportDialogText,
 #autoWolDialogText, #navGuideDialogText, #updateAppDialogText, #restoreDefaultsDialogText, #quitAppDialogText,
 #warningDialogText, #restartAppDialogText, #exitAppDialogText {
