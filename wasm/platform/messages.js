@@ -718,6 +718,7 @@ var sendMessage = function(method, params) {
           var isFinished = false;
           var timeoutId = null;
           var url = params[0];
+          var keepLockUntilNativeCompletion = params[4] === true;
 
           if (timeout_ms > 0) {
             timeoutId = setTimeout(function() {
@@ -726,7 +727,9 @@ var sendMessage = function(method, params) {
                 console.warn('%c[messages.js, sendMessage]', 'color: gray;', 'Warning: HTTPS request timed out, canceling C++ HTTP request for URL:', url);
                 SyncFunctions['cancelRequest']();
                 reject(-1); // GS_FAILED
-                innerResolve(); // Unlock the JS queue!
+                // A persistent CURL handle must not be reused until its native
+                // curl_easy_perform() has actually returned after cancellation.
+                if (!keepLockUntilNativeCompletion) innerResolve();
               }
             }, timeout_ms);
           }
@@ -738,16 +741,16 @@ var sendMessage = function(method, params) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 resolve(msg);
-                innerResolve(); // Unlock the JS queue
               }
+              if (keepLockUntilNativeCompletion || !isFinished) innerResolve();
             },
             'reject': function(err) {
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 reject(err);
-                innerResolve(); // Unlock the JS queue
               }
+              if (keepLockUntilNativeCompletion || !isFinished) innerResolve();
             }
           };
 
