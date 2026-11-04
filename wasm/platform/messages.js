@@ -737,20 +737,22 @@ var sendMessage = function(method, params) {
           const id = callbacks_ids++;
           callbacks[id] = {
             'resolve': function(msg) {
+              var shouldUnlock = keepLockUntilNativeCompletion || !isFinished;
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 resolve(msg);
               }
-              if (keepLockUntilNativeCompletion || !isFinished) innerResolve();
+              if (shouldUnlock) innerResolve();
             },
             'reject': function(err) {
+              var shouldUnlock = keepLockUntilNativeCompletion || !isFinished;
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 reject(err);
               }
-              if (keepLockUntilNativeCompletion || !isFinished) innerResolve();
+              if (shouldUnlock) innerResolve();
             }
           };
 
