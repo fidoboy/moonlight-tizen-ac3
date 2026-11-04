@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>tizen40</TargetFramework>
+    <AssemblyName>MoonlightEsplusProbe</AssemblyName>
+    <RootNamespace>MoonlightEsplusProbe</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Tizen.NET" Version="4.0.1.14164">
+      <ExcludeAssets>Runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Tizen.NET.Sdk" Version="1.1.9" />
+    <PackageReference Include="Tizen.NET.TV" Version="4.4.0.1341">
+      <ExcludeAssets>Runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
