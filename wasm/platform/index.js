@@ -653,7 +653,6 @@ var wasPairingCanceled = false; // Flag indicating whether the current pairing p
 var isGamepadActive = false; // Flag indicating whether the gamepad input is active, initial value is false
 var isGamepadTestDialogOpen = false;
 var gamepadTestDialogState = null;
-var gamepadTestVisibilityInterval = null;
 var isClickPrevented = false; // Flag indicating whether the click event should be prevented, initial value is false
 var resFpsWarning = false; // Flag indicating whether the video resolution and frame rate warning message has shown, initial value is false
 var bitrateWarning = false; // Flag indicating whether the video bitrate warning message has shown, initial value is false
@@ -873,9 +872,6 @@ function attachListeners() {
 
   Controller.startWatching();
   updateGamepadTestButtonVisibility();
-  if (gamepadTestVisibilityInterval === null) {
-    gamepadTestVisibilityInterval = window.setInterval(updateGamepadTestButtonVisibility, 1000);
-  }
   window.addEventListener('gamepadconnected', updateGamepadTestButtonVisibility);
   window.addEventListener('gamepaddisconnected', updateGamepadTestButtonVisibility);
   window.addEventListener('gamepadinputchanged', handleGamepadTestInput);
@@ -2936,7 +2932,10 @@ function updateGamepadTestButtonVisibility() {
 
 // Consume gamepad input exclusively while the controller test modal is open.
 function handleGamepadTestInput(event) {
-  if (!isGamepadTestDialogOpen || !gamepadTestDialogState || !event || !event.detail) return;
+  if (!isGamepadTestDialogOpen || !gamepadTestDialogState || !event || !event.detail) {
+    updateGamepadTestButtonVisibility();
+    return;
+  }
   if (event.detail.gamepadIndex !== gamepadTestDialogState.gamepadIndex) return;
 
   event.detail.changes.forEach(function(change) {
@@ -3018,8 +3017,8 @@ function gamepadTestDialog() {
       <g id="gamepadTestSelect" class="gamepad-test-control"><rect x="211" y="89" width="30" height="12" rx="6"/><text x="226" y="84">BACK</text></g>
       <g id="gamepadTestStart" class="gamepad-test-control"><rect x="259" y="89" width="30" height="12" rx="6"/><text x="274" y="84">START</text></g>
       <g id="gamepadTestDpad" class="gamepad-test-control">
-        <path id="gamepadTestDpadUp" d="M111 105 h24 v26 h-24Z"/><path id="gamepadTestDpadDown" d="M111 153 h24 v26 h-24Z"/>
-        <path id="gamepadTestDpadLeft" d="M87 129 h26 v24 h-26Z"/><path id="gamepadTestDpadRight" d="M135 129 h26 v24 h-26Z"/>
+        <path id="gamepadTestDpadUp" class="gamepad-test-control" d="M111 105 h24 v26 h-24Z"/><path id="gamepadTestDpadDown" class="gamepad-test-control" d="M111 153 h24 v26 h-24Z"/>
+        <path id="gamepadTestDpadLeft" class="gamepad-test-control" d="M87 129 h26 v24 h-26Z"/><path id="gamepadTestDpadRight" class="gamepad-test-control" d="M135 129 h26 v24 h-26Z"/>
         <circle cx="123" cy="141" r="11" class="gamepad-test-dpad-center"/>
       </g>
       <g id="gamepadTestFaceButtons">
