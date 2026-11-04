@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/fetch-esplus-header.yml"
       - "tools/esplus-header-fetch/**"
+      - "tools/esplus-header-fetch/**"
 
 permissions:
   contents: read
