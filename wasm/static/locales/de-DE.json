@@ -593,5 +593,7 @@
   "The connection to the host may be limited or unstable.": "Die Verbindung zum Host könnte eingeschränkt oder instabil sein.",
   "The connection to the host is too slow or unstable.": "Die Verbindung zum Host ist zu langsam oder instabil.",
   "Gamepad Test": "Gamepad testen",
-  "The required data could not be retrieved from the host. The test has been aborted.": "Die erforderlichen Daten konnten nicht vom Host abgerufen werden. Der Test wurde abgebrochen."
+  "The required data could not be retrieved from the host. The test has been aborted.": "Die erforderlichen Daten konnten nicht vom Host abgerufen werden. Der Test wurde abgebrochen.",
+  "Game Controller Test": "Gamecontroller testen",
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Drücken Sie die Tasten und bewegen Sie die Sticks Ihres Controllers, um alle Tasten zu testen. Die entsprechenden Bedienelemente sollten auf dem Bildschirm aufleuchten. Wenn Sie fertig sind, drücken Sie die Zurück-Taste auf Ihrer TV-Fernbedienung, um diesen Dialog zu schließen."
 }
