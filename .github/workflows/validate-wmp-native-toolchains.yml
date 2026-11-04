@@ -447,12 +447,12 @@ jobs:
               re.DOTALL,
           )
           sysroot = "${" + "SBI_SYSROOT}"
-          minimal_flags = "\\n".join([
+          minimal_flags = "\n".join([
               '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
               '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
           ])
           content, linker_count = linker_options.subn(
-              lambda match: match.group(1) + "\\n" + minimal_flags + "\\n                                " + match.group(2),
+              lambda match: match.group(1) + "\n" + minimal_flags + "\n                                " + match.group(2),
               content,
           )
           if linker_count != 2:
