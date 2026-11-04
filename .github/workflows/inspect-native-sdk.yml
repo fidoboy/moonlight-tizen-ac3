@@ -26,7 +26,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends expect
+          sudo apt-get install -y --no-install-recommends expect software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
           installer="$RUNNER_TEMP/tizen-web-cli.bin"
           curl --fail --location --retry 3 --output "$installer" \
             https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
@@ -35,7 +38,7 @@ jobs:
           echo "$RUNNER_TEMP/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$RUNNER_TEMP/tizen-studio/tools" >> "$GITHUB_PATH"
 
-      - name: Discover and install the TV native CLI package
+      - name: Install the native CLI and Tizen 6.0 ARM toolchain
         shell: bash
         run: |
           set -euo pipefail
