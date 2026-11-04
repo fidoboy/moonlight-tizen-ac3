@@ -579,5 +579,11 @@
   "Stop": "Stopp",
   "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Geschwindigkeitsschwankung zwischen vollständigen Bildersatz-Downloads: %1$s–%2$s Mbps",
   "Not enough complete image-set passes to compare speed variation.": "Nicht genügend vollständige Bildersatz-Durchläufe, um Geschwindigkeitsschwankungen zu vergleichen.",
-  "Completed image-set passes: %1$s": "Vollständige Bildersatz-Durchläufe: %1$s"
+  "Completed image-set passes: %1$s": "Vollständige Bildersatz-Durchläufe: %1$s",
+  "The host must be online and paired before running the network test.": "Der Host muss online und gekoppelt sein, um den Netzwerktest auszuführen.",
+  "The host did not return any applications to test.": "Der Host hat keine Anwendungen für den Test zurückgegeben.",
+  "The complete application image set could not be downloaded.": "Der vollständige Satz der Anwendungsbilder konnte nicht heruntergeladen werden.",
+  "None of the host application images could be downloaded.": "Keines der Anwendungsbilder des Hosts konnte heruntergeladen werden.",
+  "Background host polling did not finish before the network test.": "Die Hintergrundprüfung der Hosts wurde vor dem Netzwerktest nicht abgeschlossen.",
+  "A network test is already running.": "Ein Netzwerktest läuft bereits."
 }
