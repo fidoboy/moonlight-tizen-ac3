@@ -579,5 +579,11 @@
   "Stop": "Stop",
   "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Speed variation across complete image-set passes: %1$s–%2$s Mbps",
   "Not enough complete image-set passes to compare speed variation.": "Not enough complete image-set passes to compare speed variation.",
-  "Completed image-set passes: %1$s": "Completed image-set passes: %1$s"
+  "Completed image-set passes: %1$s": "Completed image-set passes: %1$s",
+  "The host must be online and paired before running the network test.": "The host must be online and paired before running the network test.",
+  "The host did not return any applications to test.": "The host did not return any applications to test.",
+  "The complete application image set could not be downloaded.": "The complete application image set could not be downloaded.",
+  "None of the host application images could be downloaded.": "None of the host application images could be downloaded.",
+  "Background host polling did not finish before the network test.": "Background host polling did not finish before the network test.",
+  "A network test is already running.": "A network test is already running."
 }
