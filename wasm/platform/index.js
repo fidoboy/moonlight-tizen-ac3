@@ -4252,6 +4252,7 @@ function showApps(host, options) {
         if (appList.length == 0) {
           // Persist even an empty successful result so stale application names are discarded.
           cacheHostAppList(host, appList);
+          updatePreviewData();
           console.warn('%c[index.js, showApps]', 'Warning: Your app list is empty. Please add some apps to your list!');
           var emptyAppListImg = new Image();
           emptyAppListImg.src = 'static/res/applist_empty.svg';
