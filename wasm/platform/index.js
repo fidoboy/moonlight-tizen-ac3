@@ -3283,15 +3283,21 @@ function hostDetailsDialog(host) {
   var activeAddress = escapeHTML(host.address);
   var localAddress = escapeHTML(host.localAddress);
 
+  // Color the two connection-state values without changing their translated labels.
+  var stateValue = host.online ? t('ONLINE') : t('OFFLINE');
+  var pairStateValue = host.paired ? t('PAIRED') : t('UNPAIRED');
+  var stateClass = host.online ? 'host-details-value--positive' : 'host-details-value--negative';
+  var pairStateClass = host.paired ? 'host-details-value--positive' : 'host-details-value--negative';
+
   // Build the details using only app lists already known for this host.
   var hostDetailsLines = [
     t('Name: %1$s', escapeHTML(host.hostname)),
-    t('State: %1$s', host.online ? t('ONLINE') : t('OFFLINE')),
+    t('State: %1$s', '<span class="host-details-value ' + stateClass + '">' + escapeHTML(stateValue) + '</span>'),
     t('Active Address: %1$s', activeAddress ? httpsLockIcon + activeAddress : t('NULL')),
     t('UUID: %1$s', escapeHTML(host.serverUid) ? escapeHTML(host.serverUid) : t('NULL')),
     t('Local Address: %1$s', localAddress ? httpsLockIcon + localAddress : t('NULL')),
     t('MAC Address: %1$s', escapeHTML(host.macAddress) ? escapeHTML(host.macAddress) : t('NULL')),
-    t('Pair State: %1$s', host.paired ? t('PAIRED') : t('UNPAIRED'))
+    t('Pair State: %1$s', '<span class="host-details-value ' + pairStateClass + '">' + escapeHTML(pairStateValue) + '</span>')
   ];
   var currentGameId = Number(host.currentGame);
   if (Number.isFinite(currentGameId) && currentGameId !== 0) {
