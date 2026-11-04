@@ -700,7 +700,6 @@ NvHTTP.prototype = {
         responseTimeSamples = 0;
         passBytes = 0;
       });
-    });
   },
 
   getAppListWithCacheFlush: function(skipMemoryCache) {
