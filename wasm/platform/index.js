@@ -2905,15 +2905,12 @@ function hostNetworkTestDialog(host) {
 
   var finished = false;
   var cancelled = false;
-  var startedAt = Date.now();
-  var progressTimer = window.setInterval(function() {
-    if (finished) return;
-    progress.val(Math.min(30000, Date.now() - startedAt));
-  }, 150);
+  var testStartedAt = null;
+  var progressTimer = null;
 
   var closeDialog = function() {
     if (!finished) cancelled = true;
-    window.clearInterval(progressTimer);
+    if (progressTimer !== null) window.clearInterval(progressTimer);
     fadeOutUiElement(overlay);
     closeUiDialog(dialog[0]);
     overlay.remove();
@@ -2931,6 +2928,15 @@ function hostNetworkTestDialog(host) {
 
   host.runNetworkTest(30000, function(stats) {
     if (cancelled || finished) return;
+    if (stats.started && testStartedAt === null) {
+      testStartedAt = Date.now();
+      progressTimer = window.setInterval(function() {
+        if (finished) return;
+        progress.val(Math.min(30000, Date.now() - testStartedAt));
+      }, 150);
+      status.text(t('Testing network connection...'));
+      return;
+    }
     var elapsed = Math.min(30000, stats.elapsedMs);
     progress.val(elapsed);
     status.text(t('Downloaded %1$s MB · %2$s successful · %3$s errors',
@@ -2940,7 +2946,7 @@ function hostNetworkTestDialog(host) {
   }, function() { return cancelled; }).then(function(stats) {
     if (cancelled) return;
     finished = true;
-    window.clearInterval(progressTimer);
+    if (progressTimer !== null) window.clearInterval(progressTimer);
     progress.val(30000);
     status.text(t('Test completed.'));
     var lines = [
@@ -2957,7 +2963,7 @@ function hostNetworkTestDialog(host) {
   }).catch(function(error) {
     if (cancelled) return;
     finished = true;
-    window.clearInterval(progressTimer);
+    if (progressTimer !== null) window.clearInterval(progressTimer);
     status.text(t('Network test could not be completed.'));
     result.text(error && error.message ? error.message : String(error));
     closeButton.prop('disabled', false);
