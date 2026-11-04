@@ -181,10 +181,9 @@ namespace MoonlightEsplusProbe
             }
         }
 
-        protected override void OnCreate()
+        private static void RunProbe()
         {
-            base.OnCreate();
-            Log("Moonlight ESPlus preliminary probe started");
+            Log("Moonlight ESPlus preliminary probe worker started");
             try
             {
                 LogPlatform();
@@ -196,6 +195,20 @@ namespace MoonlightEsplusProbe
             {
                 Log("FATAL: " + ex);
             }
+        }
+
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            // Do not perform native loading or device enumeration on the
+            // application lifecycle thread: either operation may block on TV
+            // firmware and prevent the launcher/debugger from completing startup.
+            Log("Moonlight ESPlus probe application created; starting worker");
+            System.Threading.Thread worker = new System.Threading.Thread(RunProbe);
+            worker.IsBackground = true;
+            worker.Name = "MLPROBE-worker";
+            worker.Start();
+            Log("Moonlight ESPlus probe startup complete");
         }
 
         private static void Main(string[] args)
