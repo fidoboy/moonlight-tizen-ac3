@@ -92,6 +92,15 @@ const Controller = (function() {
 
   function startWatching() {
     if (!pollingInterval) {
+      // Register controllers that were already connected when the app started.
+      const connectedGamepads = navigator.getGamepads
+        ? navigator.getGamepads()
+        : navigator.webkitGetGamepads
+        ? navigator.webkitGetGamepads()
+        : [];
+      for (const gamepad of connectedGamepads) {
+        if (gamepad && gamepad.connected) gamepadConnected(gamepad);
+      }
       window.addEventListener('gamepadconnected', function(e) {
         gamepadConnected(e.gamepad);
       });
