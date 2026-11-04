@@ -592,5 +592,6 @@
   "Your network connection does not seem stable enough.": "Your network connection does not seem stable enough.",
   "The connection to the host may be limited or unstable.": "The connection to the host may be limited or unstable.",
   "The connection to the host is too slow or unstable.": "The connection to the host is too slow or unstable.",
-  "Gamepad Test": "Gamepad Test"
+  "Gamepad Test": "Gamepad Test",
+  "The required data could not be retrieved from the host. The test has been aborted.": "The required data could not be retrieved from the host. The test has been aborted."
 }
