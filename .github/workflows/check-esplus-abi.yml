@@ -27,14 +27,15 @@ jobs:
 
       - name: Compile and run ABI checker
         shell: bash
+        env:
+          CC: arm-linux-gnueabi-gcc
+          RUNNER: qemu-arm -L /usr/arm-linux-gnueabi
+          OUT: ${{ runner.temp }}/esplus-abi-report
+          LOG_FILE: ${{ runner.temp }}/esplus-abi-check.log
         run: |
           set -o pipefail
           chmod +x tools/esplus-abi-checker/build-abi-check.sh
-          CC=arm-linux-gnueabi-gcc \
-            RUNNER="qemu-arm -L /usr/arm-linux-gnueabi" \
-            OUT="$RUNNER_TEMP/esplus-abi-report" \
-            tools/esplus-abi-checker/build-abi-check.sh \
-            | tee "$RUNNER_TEMP/esplus-abi-check.log"
+          tools/esplus-abi-checker/build-abi-check.sh 2>&1 | tee "$LOG_FILE"
 
       - name: Upload ABI report
         if: always()
