@@ -420,13 +420,72 @@ jobs:
               cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$link_probe/src/wmp_esplus_abi.h"
               cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$link_probe/tizen-manifest.xml"
 
-              # Retarget only the profile metadata. Keep the generated SBI
-              # Native_API selectors, platform.mk and makefile library logic intact.
+              # Retarget the project metadata to IoT Headed 6.0.
               sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$link_probe/project_def.prop"
               sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$link_probe/tizen-manifest.xml"
               if [ -f "$link_probe/.tproject" ]; then
                 sed -i 's/tizen-10.0/iot-headed-6.0/g' "$link_probe/.tproject"
               fi
+
+              # The reference template is generated for Tizen 10. Its SBI
+              # platform selector and explicit Native_API linker list belong
+              # to that profile and must not leak into an IoT Headed 6.0 link.
+              # Keep Build/platform.mk and Build/makefile.mk intact: they load
+              # RS_LIBRARIES and PLATFORM_LIB_PATHS from the selected IoT rootstrap.
+              python3 - "$link_probe/.cproject" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+
+          linker_options = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
+              r'.*?'
+              r'(</option>)',
+              re.DOTALL,
+          )
+          sysroot = "${" + "SBI_SYSROOT}"
+          minimal_flags = "\\n".join([
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
+          ])
+          content, linker_count = linker_options.subn(
+              lambda match: match.group(1) + "\\n" + minimal_flags + "\\n                                " + match.group(2),
+              content,
+          )
+          if linker_count != 2:
+              raise SystemExit(f"Expected 2 linker configurations, found {linker_count}")
+
+          stale_selectors = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, selector_count = stale_selectors.subn("", content)
+          if selector_count != 4:
+              raise SystemExit(f"Expected 4 Tizen 10 SBI selectors, found {selector_count}")
+
+          native_api_catalogues = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, catalogue_count = native_api_catalogues.subn("", content)
+          if catalogue_count != 4:
+              raise SystemExit(f"Expected 4 Tizen 10 Native_API catalogues, found {catalogue_count}")
+
+          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content:
+              raise SystemExit("Tizen 10 SBI platform selector remains")
+          if re.search(r'value="-l', content):
+              raise SystemExit("Explicit Tizen 10 linker library remains")
+          path.write_text(content, encoding="utf-8")
+          print(f"IOT_LINKER_CONFIGURATIONS_CLEANED={linker_count}")
+          print(f"TIZEN10_SBI_SELECTORS_REMOVED={selector_count}")
+          print(f"TIZEN10_NATIVE_API_CATALOGUES_REMOVED={catalogue_count}")
+          PY
+
               cat > "$link_probe/project_def.prop" <<'PROP'
           APPNAME = wmp-service
 
@@ -445,21 +504,22 @@ jobs:
 
               # Record the actual IoT rootstrap contents and the library/catalogue
               # configuration used by the clean ServiceApp project.
-              sysroot="$(find "$HOME/tizen-studio" -type d -name 'iot-headed-6.0-device.core' -print -quit)"
+              sysroot="$sdk/platforms/tizen-6.0/iot-headed/rootstraps/iot-headed-6.0-device.core"
               {
                 echo "REFERENCE_PROJECT=$source_project"
                 echo "LINK_PROJECT=$link_probe"
                 echo "ROOTSTRAP=iot-headed-6.0-device.core"
                 echo "SYSROOT=$sysroot"
-                echo "### ServiceApp Native API selectors and linker options"
-                grep -n -E 'Native_API|frameworks_lflags|sbi[.]gnu' "$link_probe/.cproject" || true
-                echo "### Platform library configuration"
+                echo "### IoT rootstrap library configuration"
                 grep -n -E 'RS_LIBRARIES|RS_LIB_PATHS|PLATFORM_LIB_PATHS' "$link_probe/Build/platform.mk" "$link_probe/Build/makefile.mk" || true
                 echo "### Rootstrap service_app and dlog files"
-                if [ -n "$sysroot" ]; then
-                  find "$sysroot" \( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
+                if [ -d "$sysroot" ]; then
+                  find "$sysroot" \\( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \\) -print | sort
+                  echo "### Rootstrap library directories"
+                  find "$sysroot" -maxdepth 3 -type d \\( -name lib -o -name lib64 \\) -print | sort
                 else
                   echo "ROOTSTRAP_DIRECTORY_NOT_FOUND"
+                  failed=1
                 fi
               } | tee -a "$link_probe_log"
 
