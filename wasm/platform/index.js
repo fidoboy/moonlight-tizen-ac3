@@ -3064,7 +3064,7 @@ function hostNetworkTestDialog(host) {
       if (stats.failedRequests > 0) {
         lines.push(t('Download errors: %1$s', stats.failedRequests));
       }
-      result.text(lines.join('\\n'));
+      result.text(lines.join('\n'));
     }
 
     actionButton.text(t('Close'));
