@@ -651,6 +651,9 @@ var isDialogOpen = false; // Flag indicating whether the dialog is open, initial
 var isPairingInProgress = false; // Flag indicating whether a pairing process is in progress, initial value is false
 var wasPairingCanceled = false; // Flag indicating whether the current pairing process was canceled by the user, initial value is false
 var isGamepadActive = false; // Flag indicating whether the gamepad input is active, initial value is false
+var isGamepadTestDialogOpen = false;
+var gamepadTestDialogState = null;
+var gamepadTestVisibilityInterval = null;
 var isClickPrevented = false; // Flag indicating whether the click event should be prevented, initial value is false
 var resFpsWarning = false; // Flag indicating whether the video resolution and frame rate warning message has shown, initial value is false
 var bitrateWarning = false; // Flag indicating whether the video bitrate warning message has shown, initial value is false
@@ -790,6 +793,7 @@ function attachListeners() {
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
   $('#refreshHostsBtn').on('click', refreshHosts);
+  $('#gamepadTestBtn').on('click', gamepadTestDialog);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
   installNavigationTooltipActionHiding();
@@ -868,8 +872,19 @@ function attachListeners() {
   $(window).resize(fullscreenWasmModule);
 
   Controller.startWatching();
+  updateGamepadTestButtonVisibility();
+  if (gamepadTestVisibilityInterval === null) {
+    gamepadTestVisibilityInterval = window.setInterval(updateGamepadTestButtonVisibility, 1000);
+  }
+  window.addEventListener('gamepadconnected', updateGamepadTestButtonVisibility);
+  window.addEventListener('gamepaddisconnected', updateGamepadTestButtonVisibility);
+  window.addEventListener('gamepadinputchanged', handleGamepadTestInput);
   window.addEventListener('gamepadinputcleared', (e) => {
     const gamepadIndex = e.detail.gamepadIndex;
+    if (gamepadTestDialogState && gamepadTestDialogState.gamepadIndex === gamepadIndex) {
+      closeGamepadTestDialog();
+    }
+    updateGamepadTestButtonVisibility();
     stopGamepadRepeat(gamepadIndex);
 
     // Also cancel a delayed navigation action that was queued by this controller.
@@ -881,6 +896,7 @@ function attachListeners() {
   });
 
   window.addEventListener('gamepadinputchanged', (e) => {
+    if (isGamepadTestDialogOpen) return;
     isGamepadActive = true;
     const gamepadIndex = e.detail.gamepadIndex;
     const changes = e.detail.changes;
@@ -2909,6 +2925,168 @@ function hostMenuDialog(host) {
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
   setTimeout(() => Navigation.switch(), 5);
+}
+
+// Keep the gamepad test entry visible only while a real controller is connected.
+function updateGamepadTestButtonVisibility() {
+  var connected = typeof getConnectedGamepadMask === 'function' && getConnectedGamepadMask() !== 0;
+  var button = document.getElementById('gamepadTestBtn');
+  if (button) button.hidden = !connected;
+}
+
+// Consume gamepad input exclusively while the controller test modal is open.
+function handleGamepadTestInput(event) {
+  if (!isGamepadTestDialogOpen || !gamepadTestDialogState || !event || !event.detail) return;
+  if (event.detail.gamepadIndex !== gamepadTestDialogState.gamepadIndex) return;
+
+  event.detail.changes.forEach(function(change) {
+    if (change.type === 'button') {
+      var buttonId = gamepadTestDialogState.buttonIds[change.index];
+      if (buttonId) {
+        var element = document.getElementById(buttonId);
+        if (element) element.classList.toggle('gamepad-test-active', change.pressed);
+      }
+
+      // The Close action is deliberately gamepad-only: press Down to focus it,
+      // then press A. Otherwise A is shown as an ordinary controller button.
+      if (change.index === 13 && change.pressed) {
+        gamepadTestDialogState.closeFocused = true;
+        gamepadTestDialogState.closeButton.classList.add('gamepad-test-close-focused');
+      } else if (change.index === 12 && change.pressed) {
+        gamepadTestDialogState.closeFocused = false;
+        gamepadTestDialogState.closeButton.classList.remove('gamepad-test-close-focused');
+      } else if (change.index === 0 && change.pressed && gamepadTestDialogState.closeFocused) {
+        closeGamepadTestDialog();
+      }
+    } else if (change.type === 'axis') {
+      gamepadTestDialogState.axes[change.index] = change.value;
+      updateGamepadTestStick(0, gamepadTestDialogState.axes[0], gamepadTestDialogState.axes[1]);
+      updateGamepadTestStick(1, gamepadTestDialogState.axes[2], gamepadTestDialogState.axes[3]);
+    }
+  });
+}
+
+function updateGamepadTestStick(stickIndex, x, y) {
+  var arrow = document.getElementById(stickIndex === 0 ? 'gamepadTestLeftStickArrow' : 'gamepadTestRightStickArrow');
+  if (!arrow) return;
+  x = Number.isFinite(x) ? x : 0;
+  y = Number.isFinite(y) ? y : 0;
+  var magnitude = Math.sqrt(x * x + y * y);
+  if (magnitude < 0.16) {
+    arrow.setAttribute('opacity', '0');
+    return;
+  }
+  var length = Math.min(1, magnitude) * 30;
+  var centerX = stickIndex === 0 ? 176 : 324;
+  var centerY = 145;
+  var endX = x / magnitude * length;
+  var endY = y / magnitude * length;
+  arrow.setAttribute('d', 'M ' + centerX + ' ' + centerY + ' L ' + (centerX + endX) + ' ' + (centerY + endY) +
+    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 8 - endY / length * 5) + ' ' + (-endY / length * 8 + endX / length * 5) +
+    ' M ' + (centerX + endX) + ' ' + (centerY + endY) + ' l ' + (-endX / length * 8 + endY / length * 5) + ' ' + (-endY / length * 8 - endX / length * 5));
+  arrow.setAttribute('opacity', '1');
+}
+
+function gamepadTestDialog() {
+  if (isGamepadTestDialogOpen) return;
+  var mask = typeof getConnectedGamepadMask === 'function' ? getConnectedGamepadMask() : 0;
+  var gamepadIndex = -1;
+  for (var i = 0; i < 16; i++) {
+    if (mask & (1 << i)) { gamepadIndex = i; break; }
+  }
+  if (gamepadIndex < 0) {
+    updateGamepadTestButtonVisibility();
+    return;
+  }
+
+  var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
+  var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
+  var content = $('<div>', { class: 'mdl-dialog__content gamepad-test-content' }).appendTo(dialog);
+  var svg = `
+    <svg id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 500 270" role="img" aria-label="Top view of a game controller">
+      <defs>
+        <linearGradient id="gamepadBodyGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#454b55"/><stop offset="1" stop-color="#20242b"/>
+        </linearGradient>
+      </defs>
+      <path class="gamepad-test-body" d="M118 55 Q92 52 79 83 L43 184 Q31 224 62 232 Q84 238 103 213 L137 177 Q150 164 174 164 L326 164 Q350 164 363 177 L397 213 Q416 238 438 232 Q469 224 457 184 L421 83 Q408 52 382 55 L337 67 Q250 87 163 67 Z"/>
+      <path class="gamepad-test-grip" d="M91 111 Q72 166 58 202 M409 111 Q428 166 442 202"/>
+      <g id="gamepadTestLT" class="gamepad-test-control"><path d="M105 51 Q111 27 140 30 L185 42 L178 66 L132 60 Q112 59 105 51Z"/><text x="143" y="48">LT</text></g>
+      <g id="gamepadTestRT" class="gamepad-test-control"><path d="M395 51 Q389 27 360 30 L315 42 L322 66 L368 60 Q388 59 395 51Z"/><text x="357" y="48">RT</text></g>
+      <g id="gamepadTestLB" class="gamepad-test-control"><path d="M117 68 Q132 57 157 65 L174 76 L162 91 L126 84Z"/><text x="145" y="79">LB</text></g>
+      <g id="gamepadTestRB" class="gamepad-test-control"><path d="M383 68 Q368 57 343 65 L326 76 L338 91 L374 84Z"/><text x="355" y="79">RB</text></g>
+      <g id="gamepadTestSelect" class="gamepad-test-control"><rect x="211" y="89" width="30" height="12" rx="6"/><text x="226" y="84">BACK</text></g>
+      <g id="gamepadTestStart" class="gamepad-test-control"><rect x="259" y="89" width="30" height="12" rx="6"/><text x="274" y="84">START</text></g>
+      <g id="gamepadTestDpad" class="gamepad-test-control">
+        <path id="gamepadTestDpadUp" d="M111 105 h24 v26 h-24Z"/><path id="gamepadTestDpadDown" d="M111 153 h24 v26 h-24Z"/>
+        <path id="gamepadTestDpadLeft" d="M87 129 h26 v24 h-26Z"/><path id="gamepadTestDpadRight" d="M135 129 h26 v24 h-26Z"/>
+        <circle cx="123" cy="141" r="11" class="gamepad-test-dpad-center"/>
+      </g>
+      <g id="gamepadTestFaceButtons">
+        <g id="gamepadTestY" class="gamepad-test-control"><circle cx="376" cy="111" r="15"/><text x="376" y="116">Y</text></g>
+        <g id="gamepadTestB" class="gamepad-test-control"><circle cx="400" cy="141" r="15"/><text x="400" y="146">B</text></g>
+        <g id="gamepadTestA" class="gamepad-test-control"><circle cx="376" cy="171" r="15"/><text x="376" y="176">A</text></g>
+        <g id="gamepadTestX" class="gamepad-test-control"><circle cx="352" cy="141" r="15"/><text x="352" y="146">X</text></g>
+      </g>
+      <g id="gamepadTestLeftStick" class="gamepad-test-control"><circle cx="176" cy="145" r="34"/><circle cx="176" cy="145" r="22" class="gamepad-test-stick-cap"/><path id="gamepadTestLeftStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/></g>
+      <g id="gamepadTestRightStick" class="gamepad-test-control"><circle cx="324" cy="145" r="34"/><circle cx="324" cy="145" r="22" class="gamepad-test-stick-cap"/><path id="gamepadTestRightStickArrow" class="gamepad-test-stick-arrow" opacity="0" d=""/></g>
+      <g id="gamepadTestL3" class="gamepad-test-control"><circle cx="176" cy="145" r="8" class="gamepad-test-stick-click"/><text x="176" y="149">L3</text></g>
+      <g id="gamepadTestR3" class="gamepad-test-control"><circle cx="324" cy="145" r="8" class="gamepad-test-stick-click"/><text x="324" y="149">R3</text></g>
+    </svg>`;
+  content.html(svg);
+
+  var actions = $('<div>', { class: 'mdl-dialog__actions gamepad-test-actions' }).appendTo(dialog);
+  var closeButton = $('<button>', {
+    type: 'button',
+    id: 'gamepadTestClose',
+    class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored',
+    tabindex: -1,
+    text: t('Close')
+  }).appendTo(actions);
+  closeButton.on('click', closeGamepadTestDialog);
+
+  if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
+  isGamepadTestDialogOpen = true;
+  isDialogOpen = true;
+  gamepadTestDialogState = {
+    overlay: overlay[0],
+    dialog: dialog[0],
+    closeButton: closeButton[0],
+    gamepadIndex: gamepadIndex,
+    closeFocused: false,
+    axes: [0, 0, 0, 0],
+    buttonIds: {
+      0: 'gamepadTestA', 1: 'gamepadTestB', 2: 'gamepadTestX', 3: 'gamepadTestY',
+      4: 'gamepadTestLB', 5: 'gamepadTestRB', 6: 'gamepadTestLT', 7: 'gamepadTestRT',
+      8: 'gamepadTestSelect', 9: 'gamepadTestStart', 10: 'gamepadTestL3', 11: 'gamepadTestR3',
+      12: 'gamepadTestDpadUp', 13: 'gamepadTestDpadDown', 14: 'gamepadTestDpadLeft', 15: 'gamepadTestDpadRight'
+    }
+  };
+
+  // Keyboard and remote-key events are intentionally ignored inside this test screen.
+  gamepadTestDialogState.blockKeyboard = function(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  document.addEventListener('keydown', gamepadTestDialogState.blockKeyboard, true);
+  document.addEventListener('keyup', gamepadTestDialogState.blockKeyboard, true);
+  closeButton.css('pointer-events', 'none');
+  fadeInUiElement(overlay, 'flex');
+  showUiDialog(dialog[0]);
+}
+
+function closeGamepadTestDialog() {
+  if (!gamepadTestDialogState) return;
+  var state = gamepadTestDialogState;
+  document.removeEventListener('keydown', state.blockKeyboard, true);
+  document.removeEventListener('keyup', state.blockKeyboard, true);
+  closeUiDialog(state.dialog);
+  fadeOutUiElement($(state.overlay));
+  $(state.overlay).remove();
+  gamepadTestDialogState = null;
+  isGamepadTestDialogOpen = false;
+  isDialogOpen = false;
+  updateGamepadTestButtonVisibility();
 }
 
 // Show a lightweight host-to-TV network test and its final report.
