@@ -595,5 +595,5 @@
   "Gamepad Test": "Проверка геймпада",
   "The required data could not be retrieved from the host. The test has been aborted.": "Не удалось получить необходимые данные с хоста. Проверка прервана.",
   "Game Controller Test": "Проверка игрового контроллера",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы проверить их работу. Соответствующие элементы должны подсвечиваться на экране. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы убедиться в их правильной работе. Соответствующие нажатиям элементы должны подсвечиваться на экране, что позволит визуально проверить их работу. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно."
 }
