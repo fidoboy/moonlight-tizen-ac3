@@ -486,8 +486,8 @@ body[data-color-theme="black-orange"] #background-layer {
 .gamepad-test-svg {
     display: block;
     width: 100%;
-    height: calc(100% - 82px);
-    min-height: 130px;
+    height: calc(100% - 45px);
+    min-height: 180px;
     max-width: 100%;
     overflow: visible;
 }
