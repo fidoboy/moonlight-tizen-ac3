@@ -579,5 +579,11 @@
   "Stop": "Arrêter",
   "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variation du débit entre les téléchargements complets de l’ensemble d’images : %1$s–%2$s Mbps",
   "Not enough complete image-set passes to compare speed variation.": "Pas assez de téléchargements complets de l’ensemble d’images pour comparer les variations de débit.",
-  "Completed image-set passes: %1$s": "Téléchargements complets de l’ensemble d’images : %1$s"
+  "Completed image-set passes: %1$s": "Téléchargements complets de l’ensemble d’images : %1$s",
+  "The host must be online and paired before running the network test.": "L’hôte doit être en ligne et associé pour lancer le test réseau.",
+  "The host did not return any applications to test.": "L’hôte n’a renvoyé aucune application à tester.",
+  "The complete application image set could not be downloaded.": "L’ensemble complet des images des applications n’a pas pu être téléchargé.",
+  "None of the host application images could be downloaded.": "Aucune image d’application de l’hôte n’a pu être téléchargée.",
+  "Background host polling did not finish before the network test.": "La vérification des hôtes en arrière-plan ne s’est pas terminée avant le test réseau.",
+  "A network test is already running.": "Un test réseau est déjà en cours."
 }
