@@ -1229,6 +1229,37 @@ const Views = {
       setTimeout(() => blurElement(this.view.current()), 100);
     },
   },
+  NetworkTestDialog: {
+    view: new ListView(() => [
+      'closeHostNetworkTest'
+    ]),
+    up: function() {
+      blurElement('closeHostNetworkTest');
+    },
+    down: function() {
+      focusElement('closeHostNetworkTest');
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+    },
+    back: function() {
+      resolveElement('closeHostNetworkTest').click();
+    },
+    press: function() {},
+    switch: function() {
+      focusElement(this.view.current());
+    },
+    enter: function() {
+      mark(this.view.current());
+      setTimeout(() => focusElement(this.view.current()), 100);
+    },
+    leave: function() {
+      unmark(this.view.current());
+      setTimeout(() => blurElement(this.view.current()), 100);
+    },
+  },
   HostDetailsDialog: {
     view: new ListView(() => [
       'closeHostDetails'
