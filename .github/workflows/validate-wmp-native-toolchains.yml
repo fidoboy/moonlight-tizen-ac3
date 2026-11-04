@@ -1,0 +1,106 @@
+name: Validate native ServiceApp toolchains for WMP
+
+on:
+  push:
+    branches:
+      - 1.2.0-pre-wpm_test
+    paths:
+      - '.github/workflows/validate-wmp-native-toolchains.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout the WMP test branch only
+        uses: actions/checkout@v5
+        with:
+          ref: 1.2.0-pre-wpm_test
+
+      - name: Install Tizen Native SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          required=(NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 IOT-Headed-6.0-NativeAppDevelopment-CLI TIZEN-10.0-NativeAppDevelopment-CLI)
+          "$pm" install --accept-license --no-java-check "$(IFS=,; echo "${required[*]}")"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+
+      - name: Generate and compile reference ServiceApp projects
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/native-build-report"
+          mkdir -p "$report"
+          failed=0
+
+          build_profile() {
+            profile="$1"
+            rootstrap="$2"
+            project="$RUNNER_TEMP/ServiceApp-$profile"
+            log="$report/$profile-build.log"
+            echo "=== PROFILE=$profile ROOTSTRAP=$rootstrap ===" | tee "$log"
+
+            if ! tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project" >>"$log" 2>&1; then
+              echo "CREATE_RESULT=failed" | tee -a "$log"
+              failed=1
+              return
+            fi
+            echo "CREATE_RESULT=success" | tee -a "$log"
+
+            find "$project" -maxdepth 4 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
+            tar -czf "$report/$profile-template.tar.gz" -C "$(dirname "$project")" "$(basename "$project")"
+
+            if tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project" >>"$log" 2>&1; then
+              echo "BUILD_RESULT=success" | tee -a "$log"
+              find "$project/Release" -maxdepth 3 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
+              find "$project/Release" -type f -exec file {} \; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "BUILD_RESULT=failed exit_code=$status" | tee -a "$log"
+              failed=1
+            fi
+          }
+
+          build_profile iot-headed-6.0 iot-headed-6.0-device.core
+          build_profile tizen-10.0 tizen-10.0-device.core
+
+          {
+            echo "### Toolchain versions"
+            tizen version 2>&1 || true
+            echo
+            echo "### Available rootstraps"
+            tizen list rootstrap 2>&1 || true
+          } > "$report/environment.txt"
+
+          tar -czf "$RUNNER_TEMP/wmp-native-build-report.tar.gz" -C "$report" .
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more ServiceApp reference builds failed."
+            exit 1
+          fi
+
+      - name: Upload native build report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: wmp-native-toolchain-validation
+          path: ${{ runner.temp }}/wmp-native-build-report.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
