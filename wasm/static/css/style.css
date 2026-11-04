@@ -452,16 +452,6 @@ body[data-color-theme="black-orange"] #background-layer {
 
 /* Dedicated controller test modal. The TV remote Back key dismisses it. */
 #gamepadTestBtn[hidden] { display: none !important; }
-#gamepadTestBtn .gamepad-test-button-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    margin: 0;
-    font-size: 32px !important;
-    line-height: 1;
-}
 .gamepad-test-dialog {
     width: 70vw;
     max-width: none;
