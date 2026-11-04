@@ -338,6 +338,95 @@ jobs:
             failed=1
           fi
 
+          # Compile the actual WMP service sources against the IoT Headed 6.0
+          # rootstrap headers. Build a static archive first so this stage isolates
+          # source/header compatibility from the separate executable link step.
+          if [ -f "$probe/project_def.prop" ] && grep -q '^ROOTSTRAP_PROBE_RESULT=success
+            tizen version 2>&1 || true
+            echo
+            echo "### Available rootstraps"
+            tizen list rootstrap 2>&1 || true
+            echo
+            echo "### Relevant SDK directories"
+            find "$HOME" "$sdk" -maxdepth 5 -type d \( -iname '*log*' -o -iname '*cli*' \) -print 2>/dev/null | sort || true
+          } > "$report/environment.txt"
+          cp "$RUNNER_TEMP/sdk-install-environment.txt" "$report/" 2>/dev/null || true
+          capture_cli_logs final
+          tar -czf "$RUNNER_TEMP/wmp-native-build-report.tar.gz" -C "$report" .
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more ServiceApp reference builds failed."
+            exit 1
+          fi
+
+      - name: Upload native build report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: wmp-native-toolchain-validation
+          path: |
+            ${{ runner.temp }}/wmp-native-build-report.tar.gz
+            ${{ runner.temp }}/sdk-install-environment.txt
+          if-no-files-found: warn
+          retention-days: 7
+ "$probe_log"; then
+            service_probe_log="$report/iot-headed-6.0-wmp-service-source-build.log"
+            echo "=== ACTUAL WMP SERVICE SOURCE BUILD (COMPILE-ONLY ARCHIVE) ===" | tee "$service_probe_log"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$probe/src/main.c"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$probe/src/wmp_esplus_abi.c"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$probe/src/wmp_esplus_abi.h"
+            cat > "$probe/project_def.prop" <<'PROP'
+          APPNAME = wmpservice
+
+          type = staticLib
+          profile = iot-headed-6.0
+
+          USER_SRCS = src/main.c src/wmp_esplus_abi.c
+          USER_DEFS =
+          USER_INC_DIRS = src
+          USER_OBJS =
+          USER_LIBS =
+          USER_EDCS =
+          PROP
+            rm -rf "$probe/Release"
+            tar -czf "$report/iot-headed-6.0-wmp-service-source.tar.gz" -C "$probe_root" WmpServiceProbe
+            if run_profile_command "iot-headed-6.0-wmp-service-source" "$service_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
+              archive="$probe/Release/libwmpservice.a"
+              if [ ! -f "$archive" ]; then
+                echo "SERVICE_SOURCE_COMPILE_RESULT=failed missing_archive=$archive" | tee -a "$service_probe_log"
+                failed=1
+              else
+                echo "SERVICE_SOURCE_ARCHIVE=$archive" | tee -a "$service_probe_log"
+                for object in "$probe/Release/src/main.o" "$probe/Release/src/wmp_esplus_abi.o"; do
+                  if [ ! -f "$object" ]; then
+                    echo "SERVICE_SOURCE_OBJECT=missing path=$object" | tee -a "$service_probe_log"
+                    failed=1
+                    continue
+                  fi
+                  machine="$(readelf -h "$object" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                  echo "SERVICE_SOURCE_OBJECT=$(basename "$object") ELF_MACHINE=$machine" | tee -a "$service_probe_log"
+                  case "$machine" in
+                    ARM*) ;;
+                    *) echo "SERVICE_SOURCE_OBJECT_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$service_probe_log"; failed=1 ;;
+                  esac
+                done
+                if [ "$failed" -eq 0 ]; then
+                  echo "SERVICE_SOURCE_COMPILE_RESULT=success" | tee -a "$service_probe_log"
+                else
+                  echo "SERVICE_SOURCE_COMPILE_RESULT=failed" | tee -a "$service_probe_log"
+                fi
+              fi
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-source-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \\; > "$report/iot-headed-6.0-wmp-service-source-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "SERVICE_SOURCE_COMPILE_RESULT=failed exit_code=$status" | tee -a "$service_probe_log"
+              failed=1
+            fi
+          else
+            echo "SERVICE_SOURCE_COMPILE_RESULT=skipped; IoT rootstrap probe did not succeed" | tee "$report/iot-headed-6.0-wmp-service-source-build.log"
+            failed=1
+          fi
+
           {
             echo "### Toolchain versions"
             tizen version 2>&1 || true
