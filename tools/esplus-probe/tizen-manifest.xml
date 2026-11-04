@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Standalone diagnostic host. No streaming engine or Samsung proprietary
+     libraries are bundled; libesplusplayer is loaded from the TV firmware. -->
+<manifest xmlns="http://tizen.org/ns/packages" api-version="4"
+          package="org.fidoboy.moonlight.esplusprobe" version="0.1.0">
+  <profile name="tv"/>
+  <ui-application appid="org.fidoboy.moonlight.esplusprobe.app"
+                  exec="MoonlightEsplusProbe.dll" type="dotnet"
+                  multiple="false" nodisplay="true" taskmanage="false"
+                  launch_mode="single">
+    <label>Moonlight ESPlus probe</label>
+    <icon>icon.png</icon>
+    <metadata key="http://samsung.com/tv/metadata/background.execution.support" value="true"/>
+    <background-category value="background-network"/>
+  </ui-application>
+  <privileges/>
+</manifest>
