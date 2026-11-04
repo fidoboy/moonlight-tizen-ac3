@@ -1,0 +1,50 @@
+name: Build ESPlus probe TPK
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Branch or tag containing tools/esplus-probe'
+        required: true
+        default: '1.2.0-pre-wpm_test'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_ref }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Tizen Studio CLI
+        run: |
+          set -euo pipefail
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          echo "$RUNNER_TEMP/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tizen-studio/tools" >> "$GITHUB_PATH"
+      - name: Prepare project
+        run: |
+          set -euo pipefail
+          cp res/icon.png tools/esplus-probe/icon.png
+          dotnet build tools/esplus-probe/MoonlightEsplusProbe.csproj --configuration Release -p:TizenManifestFile="$PWD/tools/esplus-probe/tizen-manifest.xml" --verbosity minimal
+          find tools/esplus-probe -type f -name '*.tpk' -size +0c -print -quit | grep -q .
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-Esplus-Probe
+          path: tools/esplus-probe/bin/Release/**/*.tpk
+          if-no-files-found: error
+          retention-days: 14
