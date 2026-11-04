@@ -1251,7 +1251,7 @@ function checkForceGMVariant() {
 // Formats the build version and marks all builds outside official stable releases as experimental
 function getBuildVersion(version) {
   var versionLabel = OFFICIAL_RELEASE ? version : `${version} EXPERIMENTAL`;
-  if (BUILD_TYPE === 'development' && BUILD_COMMIT) {
+  if (!OFFICIAL_RELEASE && BUILD_COMMIT && BUILD_COMMIT !== '__BUILD_COMMIT__') {
     return `${versionLabel} (pre-${BUILD_COMMIT})`;
   }
   return versionLabel;
