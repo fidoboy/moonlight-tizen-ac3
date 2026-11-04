@@ -556,5 +556,18 @@
   "— Stop the streaming session.": "— Stop the streaming session.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Switch the mode of the IP address field, and open the host PC menu.",
   "— Toggle the performance statistics overlay.": "— Toggle the performance statistics overlay.",
-  "• No relevant changes found.": "• No relevant changes found."
+  "• No relevant changes found.": "• No relevant changes found.",
+  "Test Network": "Test Network",
+  "Network Test": "Network Test",
+  "Testing the download connection from %1$s to this TV for about 30 seconds.": "Testing the download connection from %1$s to this TV for about 30 seconds.",
+  "Preparing network test...": "Preparing network test...",
+  "Downloaded %1$s MB · %2$s successful · %3$s errors": "Downloaded %1$s MB · %2$s successful · %3$s errors",
+  "Test completed.": "Test completed.",
+  "Average download speed: %1$s Mbps": "Average download speed: %1$s Mbps",
+  "Speed variation: %1$s–%2$s Mbps": "Speed variation: %1$s–%2$s Mbps",
+  "Data received: %1$s MB": "Data received: %1$s MB",
+  "Successful downloads: %1$s": "Successful downloads: %1$s",
+  "Download errors: %1$s": "Download errors: %1$s",
+  "Duration: %1$s seconds": "Duration: %1$s seconds",
+  "Network test could not be completed.": "Network test could not be completed."
 }
