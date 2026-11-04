@@ -623,8 +623,9 @@ NvHTTP.prototype = {
             baselineErrors: baselineErrors
           });
         }
-        if (baselineErrors > 0) throw new Error('The required data could not be retrieved from the host. The test has been aborted.');
-        if (!baselineIds.length) throw new Error('None of the host application images could be downloaded.');
+        if (baselineErrors > 0 || !baselineIds.length) {
+          throw new Error('The required data could not be retrieved from the host. The test has been aborted.');
+        }
 
         // Start the timed measurement only after every baseline asset is available.
         startedAt = performance.now();
