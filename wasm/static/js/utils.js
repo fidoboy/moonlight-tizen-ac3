@@ -562,37 +562,21 @@ NvHTTP.prototype = {
       return result;
     };
 
-    // The diagnostic compares ordinary one-shot requests with two isolated
-    // persistent CURL handles: TLS session cache enabled and disabled.
-    // The measured test defaults to the persistent handle with TLS cache disabled.
-    var networkTestReuseCurlHandle = true;
-    var requestAsset = function(appId, reuseCurlHandle, useTlsSessionCache, diagnosticLabel) {
+    // Use the same one-shot HTTP request path as the rest of the application.
+    var requestAsset = function(appId) {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
       var requestStartedAt = performance.now();
-      var persistent = reuseCurlHandle == null
-        ? networkTestReuseCurlHandle
-        : reuseCurlHandle !== false;
-      var tlsSessionCache = useTlsSessionCache === true;
-      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, persistent, tlsSessionCache]).then(function(buffer) {
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
         var elapsedMs = Math.max(0, performance.now() - requestStartedAt);
         var byteLength = buffer && typeof buffer.byteLength === 'number'
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
         if (byteLength <= 0) throw new Error('Empty app asset response');
-        if (diagnosticLabel) {
-          console.info('%c[utils.js, runNetworkTest]', 'color: gray;',
-            'A/B ' + diagnosticLabel + ' succeeded in ' + elapsedMs.toFixed(1) + ' ms (' + byteLength + ' bytes).');
-        }
-        // Only response metadata escapes this callback; the response buffer is not cached.
         return { byteLength: byteLength, elapsedMs: elapsedMs };
       }).catch(function(error) {
         if (!error || typeof error !== 'object') error = new Error(String(error));
         error.elapsedMs = Math.max(0, performance.now() - requestStartedAt);
-        if (diagnosticLabel) {
-          console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
-            'A/B ' + diagnosticLabel + ' failed after ' + error.elapsedMs.toFixed(1) + ' ms:', error);
-        }
         throw error;
       });
     };
@@ -626,60 +610,7 @@ NvHTTP.prototype = {
         }).then(downloadBaselineNext);
       };
 
-      // Run each mode twice against the same /appasset resource. Sunshine closes
-      // each response connection, so the second request tests TLS session resumption
-      // rather than TCP keep-alive. Each persistent mode owns a separate CURL handle.
-      var diagnosticRequest = function(label, persistent, tlsCache) {
-        return requestAsset(appIds[0], persistent, tlsCache, label).then(function(response) {
-          return { response: response, succeeded: true };
-        }, function(error) {
-          return { error: error, succeeded: false };
-        });
-      };
-
-      return diagnosticRequest('one-shot #1 (TLS cache off)', false, false)
-        .then(function(oneShot) {
-          return diagnosticRequest('shared CURL handle, TLS cache ON #1', true, true)
-            .then(function(cacheOnFirst) {
-              return diagnosticRequest('shared CURL handle, TLS cache ON #2', true, true)
-                .then(function(cacheOnSecond) {
-                  return diagnosticRequest('shared CURL handle, TLS cache OFF #1', true, false)
-                    .then(function(cacheOffFirst) {
-                      return diagnosticRequest('shared CURL handle, TLS cache OFF #2', true, false)
-                        .then(function(cacheOffSecond) {
-                          return diagnosticRequest('one-shot #2 (TLS cache off)', false, false)
-                            .then(function(oneShotSecond) {
-                              var persistentResponse = cacheOffSecond.succeeded
-                                ? cacheOffSecond.response
-                                : (cacheOffFirst.succeeded ? cacheOffFirst.response : null);
-
-                              if (persistentResponse) {
-                                baselineIds.push(appIds[0]);
-                                baselineBytes += persistentResponse.byteLength;
-                              } else {
-                                // Keep the network test usable if the persistent context is
-                                // rejected by the host; fall back to the ordinary HTTP path.
-                                networkTestReuseCurlHandle = false;
-                                console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
-                                  'Shared CURL handle with TLS cache OFF failed twice; continuing with ordinary one-shot HTTP.');
-                                if (!oneShot.succeeded && !oneShotSecond.succeeded) {
-                                  throw new Error('Both persistent and ordinary HTTP requests failed for the first app asset.');
-                                }
-                                var oneShotResponse = oneShotSecond.succeeded
-                                  ? oneShotSecond.response
-                                  : oneShot.response;
-                                baselineIds.push(appIds[0]);
-                                baselineBytes += oneShotResponse.byteLength;
-                              }
-
-                              baselineIndex = 1;
-                              return downloadBaselineNext();
-                            });
-                        });
-                    });
-                });
-            });
-        }).then(function() {
+      return downloadBaselineNext().then(function() {
         if (isCancelled()) {
           return report({
             completed: true,
@@ -757,10 +688,6 @@ NvHTTP.prototype = {
         });
       });
     }).finally(function() {
-      // Close the dedicated keep-alive/TLS session after the final request has settled.
-      return sendMessage('closeNetworkTestHttpSession', []).catch(function(error) {
-        console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Could not close the network test HTTP session:', error);
-      }).then(function() {
         // Release all test-only collections and counters on success, cancellation,
         // or failure. No app-list or image data is persisted by this test.
         appIds.length = 0;
