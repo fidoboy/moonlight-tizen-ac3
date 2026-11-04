@@ -577,5 +577,7 @@
   "Test stopped.": "Teste interrompido.",
   "Image set: %1$s MB (%2$s images)": "Conjunto de imagens: %1$s MB (%2$s imagens)",
   "Stop": "Parar",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variação da velocidade entre downloads completos do conjunto de imagens: %1$s–%2$s Mbps"
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variação da velocidade entre downloads completos do conjunto de imagens: %1$s–%2$s Mbps",
+  "Not enough complete image-set passes to compare speed variation.": "Não há ciclos completos suficientes do conjunto de imagens para comparar a variação da velocidade.",
+  "Completed image-set passes: %1$s": "Ciclos completos do conjunto de imagens: %1$s"
 }
