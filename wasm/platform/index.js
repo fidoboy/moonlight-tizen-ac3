@@ -3045,7 +3045,6 @@ function gamepadTestDialog() {
     tabindex: -1,
     text: t('Close')
   }).appendTo(actions);
-  closeButton.on('click', closeGamepadTestDialog);
 
   if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
   isGamepadTestDialogOpen = true;
