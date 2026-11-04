@@ -465,7 +465,7 @@ body[data-color-theme="black-orange"] #background-layer {
     min-height: 0;
     margin: 0;
     box-sizing: border-box;
-    padding: 10px 22px 12px;
+    padding: 6px 22px 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -615,7 +615,7 @@ body[data-color-theme="black-orange"] #background-layer {
         min-width: 0;
         height: 82vh;
         min-height: 0;
-        padding: 12px 14px;
+        padding: 8px 14px 12px;
     }
     .gamepad-test-title { font-size: 0.85rem; }
     .gamepad-test-instructions { font-size: 1.3rem; }
