@@ -263,6 +263,13 @@ NvHTTP.prototype = {
     this._pollCompletionCallbacks.push(onComplete);
     if (this._pollCompletionCallbacks.length > 1) return;
 
+    if (typeof hostPollingPausedForNetworkTest !== 'undefined' && hostPollingPausedForNetworkTest === true) {
+      this._pollInProgress = false;
+      var pausedCompletion;
+      while ((pausedCompletion = this._pollCompletionCallbacks.pop())) pausedCompletion(this);
+      return;
+    }
+
     if (isInGame === true) {
       this._pollInProgress = false;
       var completion;
