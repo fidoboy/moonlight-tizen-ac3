@@ -2777,6 +2777,17 @@ function hostMenuDialog(host) {
       }
     },
     {
+      id: 'testNetwork-' + host.hostname,
+      class: 'host-menu-button',
+      'data-i18n': 'Test Network',
+      text: t('Test Network'),
+      disabled: !host.online || !host.paired,
+      action: function() {
+        // Open the network test after the host menu has been dismissed.
+        setTimeout(() => hostNetworkTestDialog(host), 100);
+      }
+    },
+    {
       id: 'viewDetails-' + host.hostname,
       class: 'host-menu-button',
       'data-i18n': 'View Details',
@@ -2847,6 +2858,111 @@ function hostMenuDialog(host) {
   isDialogOpen = true;
   Navigation.push(Views.HostMenuDialog, host.hostname);
   setTimeout(() => Navigation.switch(), 5);
+}
+
+// Show a lightweight host-to-TV network test and its final report.
+function hostNetworkTestDialog(host) {
+  var overlay = $('<div>', {
+    id: 'hostNetworkTestOverlay-' + host.serverUid,
+    class: 'dialog-overlay'
+  }).appendTo('#popup-layer');
+  var dialog = $('<dialog>', {
+    id: 'hostNetworkTestDialog-' + host.serverUid,
+    class: 'mdl-dialog'
+  }).appendTo(overlay);
+
+  $('<h3>', {
+    class: 'mdl-dialog__title',
+    text: t('Network Test')
+  }).appendTo(dialog);
+
+  var content = $('<div>', { class: 'mdl-dialog__content' }).appendTo(dialog);
+  $('<p>', {
+    class: 'network-test-description',
+    text: t('Testing the download connection from %1$s to this TV for about 30 seconds.', host.hostname)
+  }).appendTo(content);
+
+  var progress = $('<progress>', {
+    id: 'hostNetworkTestProgress-' + host.serverUid,
+    max: 30000,
+    value: 0
+  }).css({ width: '100%', height: '18px' }).appendTo(content);
+  var status = $('<p>', {
+    id: 'hostNetworkTestStatus-' + host.serverUid,
+    text: t('Preparing network test...')
+  }).appendTo(content);
+  var result = $('<div>', {
+    id: 'hostNetworkTestResult-' + host.serverUid
+  }).css({ 'white-space': 'pre-line', 'margin-top': '12px' }).appendTo(content);
+
+  var actions = $('<div>', { class: 'mdl-dialog__actions' }).appendTo(dialog);
+  var closeButton = $('<button>', {
+    type: 'button',
+    id: 'closeHostNetworkTest',
+    class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
+    text: t('Close')
+  }).prop('disabled', true).appendTo(actions);
+
+  var finished = false;
+  var cancelled = false;
+  var startedAt = Date.now();
+  var progressTimer = window.setInterval(function() {
+    if (finished) return;
+    progress.val(Math.min(30000, Date.now() - startedAt));
+  }, 150);
+
+  var closeDialog = function() {
+    if (!finished) cancelled = true;
+    window.clearInterval(progressTimer);
+    fadeOutUiElement(overlay);
+    closeUiDialog(dialog[0]);
+    overlay.remove();
+    isDialogOpen = false;
+    Navigation.pop();
+  };
+
+  closeButton.on('click', closeDialog);
+  if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
+  fadeInUiElement(overlay, 'flex');
+  showUiDialog(dialog[0]);
+  isDialogOpen = true;
+  Navigation.push(Views.NetworkTestDialog);
+  setTimeout(function() { Navigation.switch(); }, 5);
+
+  host.runNetworkTest(30000, function(stats) {
+    if (cancelled || finished) return;
+    var elapsed = Math.min(30000, stats.elapsedMs);
+    progress.val(elapsed);
+    status.text(t('Downloaded %1$s MB · %2$s successful · %3$s errors',
+      (stats.bytes / (1024 * 1024)).toFixed(2),
+      stats.successfulRequests,
+      stats.failedRequests));
+  }).then(function(stats) {
+    if (cancelled) return;
+    finished = true;
+    window.clearInterval(progressTimer);
+    progress.val(30000);
+    status.text(t('Test completed.'));
+    var lines = [
+      t('Average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
+      t('Speed variation: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)),
+      t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
+      t('Successful downloads: %1$s', stats.successfulRequests),
+      t('Download errors: %1$s', stats.failedRequests),
+      t('Duration: %1$s seconds', (stats.elapsedMs / 1000).toFixed(1))
+    ];
+    result.text(lines.join('\n'));
+    closeButton.prop('disabled', false);
+    Navigation.switch();
+  }).catch(function(error) {
+    if (cancelled) return;
+    finished = true;
+    window.clearInterval(progressTimer);
+    status.text(t('Network test could not be completed.'));
+    result.text(error && error.message ? error.message : String(error));
+    closeButton.prop('disabled', false);
+    Navigation.switch();
+  });
 }
 
 // Show a confirmation with the Delete Host dialog before removing the host object
