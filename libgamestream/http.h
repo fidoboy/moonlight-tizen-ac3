@@ -32,7 +32,7 @@ typedef struct _HTTP_DATA {
 
 PHTTP_DATA http_create_data();
 int http_request(const char* url, const char* ppkstr, PHTTP_DATA data);
-int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA data);
+int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA data, int ssl_session_cache);
 void http_close_network_test_session(void);
 void http_free_data(PHTTP_DATA data);
 
