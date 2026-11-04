@@ -570,5 +570,11 @@
   "Download errors: %1$s": "Downloadfehler: %1$s",
   "Duration: %1$s seconds": "Dauer: %1$s Sekunden",
   "Network test could not be completed.": "Der Netzwerktest konnte nicht abgeschlossen werden.",
-  "Testing network connection...": "Netzwerkverbindung wird getestet..."
+  "Testing network connection...": "Netzwerkverbindung wird getestet...",
+  "Pausing background host checks...": "Hintergrundprüfungen der Hosts werden angehalten...",
+  "Stopping network test...": "Netzwerktest wird angehalten...",
+  "Test stopped before measurement could begin.": "Der Test wurde vor Beginn der Messung angehalten.",
+  "Test stopped.": "Test angehalten.",
+  "Image set: %1$s MB (%2$s images)": "Bildersatz: %1$s MB (%2$s Bilder)",
+  "Stop": "Stopp"
 }
