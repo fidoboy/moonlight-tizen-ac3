@@ -87,7 +87,7 @@ MessageResult MoonlightInstance::HttpInit(std::string cert, std::string privateK
   return MessageResult::Resolve();
 }
 
-void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection) {
+void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection, bool networkTestTlsSessionCache) {
   // For launch/resume requests, append the additional query parameters
   if (url.find("/launch?") != std::string::npos || url.find("/resume?") != std::string::npos) {
     url += LiGetLaunchUrlQueryParameters();
@@ -102,7 +102,7 @@ void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::st
   }
 
   err = reuseNetworkTestConnection
-    ? http_request_network_test(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data)
+    ? http_request_network_test(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data, networkTestTlsSessionCache)
     : http_request(url.c_str(), ppk.empty() ? NULL : ppk.c_str(), data);
   if (err) {
     http_free_data(data);
@@ -123,8 +123,8 @@ void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::st
   }
 }
 
-void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection) {
-  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse, reuseNetworkTestConnection), false);
+void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse, bool reuseNetworkTestConnection, bool networkTestTlsSessionCache) {
+  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse, reuseNetworkTestConnection, networkTestTlsSessionCache), false);
 }
 
 void MoonlightInstance::CloseNetworkTestHttpSession_private(int callbackId) {
@@ -144,12 +144,12 @@ MessageResult httpInit(std::string cert, std::string privateKey, std::string myU
   return g_Instance->HttpInit(cert, privateKey, myUniqueId);
 }
 
-void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse, bool reuseNetworkTestConnection) {
+void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse, bool reuseNetworkTestConnection, bool networkTestTlsSessionCache) {
   std::string ppkstr = "";
   if (ppk != emscripten::val::null()) {
     ppkstr = ppk.as<std::string>();
   }
-  g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse, reuseNetworkTestConnection);
+  g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse, reuseNetworkTestConnection, networkTestTlsSessionCache);
 }
 
 void closeNetworkTestHttpSession(int callbackId) {
