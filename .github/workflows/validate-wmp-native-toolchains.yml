@@ -204,42 +204,6 @@ jobs:
           }
           C
 
-            # Remove the Tizen 10 library catalogue from both linker configurations.
-            # This probe has no Tizen API dependencies: it tests only ARM compile/link
-            # against the IoT Headed 6.0 rootstrap.
-            python3 - "$probe/.cproject" <<'PY'
-          import re
-          import sys
-          from pathlib import Path
-
-          path = Path(sys.argv[1])
-          content = path.read_text(encoding="utf-8")
-          pattern = re.compile(
-              r'(<option\\b[^>]*superClass="sbi\\.gnu\\.cpp\\.linker\\.option\\.frameworks_lflags\\.core"[^>]*>)'
-              r'.*?'
-              r'(</option>)',
-              re.DOTALL,
-          )
-          minimal = (
-              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>\n'
-              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;\${SBI_SYSROOT}&quot;"/>\n'
-              '                                    <listOptionValue builtIn="false" value="-L&quot;\${SBI_SYSROOT}/usr/lib64&quot;"/>'
-          )
-          content, count = pattern.subn(lambda match: match.group(1) + "\n" + minimal + "\n                                " + match.group(2), content)
-          if count != 2:
-              raise SystemExit(f"Expected 2 linker library lists, found {count}")
-          if re.search(r'<listOptionValue[^>]+value="-l', content):
-              raise SystemExit("Unexpected explicit -l library remains in .cproject")
-          path.write_text(content, encoding="utf-8")
-          print(f"LINKER_CONFIGURATIONS_CLEANED={count}")
-          PY
-
-            cat > "$probe/src/wmpserviceprobe.c" <<'C'
-          int main(void)
-          {
-              return 0;
-          }
-          C
             {
               echo "SOURCE_PROJECT=$source_project"
               echo "PROBE_PROJECT=$probe"
