@@ -562,23 +562,37 @@ NvHTTP.prototype = {
       return result;
     };
 
-    var requestAsset = function(appId, usePersistentConnection) {
+    // The diagnostic compares ordinary one-shot requests with two isolated
+    // persistent CURL handles: TLS session cache enabled and disabled.
+    // The measured test defaults to the persistent handle with TLS cache disabled.
+    var networkTestUsePersistentConnection = true;
+    var requestAsset = function(appId, usePersistentConnection, useTlsSessionCache, diagnosticLabel) {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
       var requestStartedAt = performance.now();
-      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, usePersistentConnection !== false]).then(function(buffer) {
+      var persistent = usePersistentConnection == null
+        ? networkTestUsePersistentConnection
+        : usePersistentConnection !== false;
+      var tlsSessionCache = useTlsSessionCache === true;
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000, persistent, tlsSessionCache]).then(function(buffer) {
+        var elapsedMs = Math.max(0, performance.now() - requestStartedAt);
         var byteLength = buffer && typeof buffer.byteLength === 'number'
           ? buffer.byteLength
           : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
         if (byteLength <= 0) throw new Error('Empty app asset response');
+        if (diagnosticLabel) {
+          console.info('%c[utils.js, runNetworkTest]', 'color: gray;',
+            'A/B ' + diagnosticLabel + ' succeeded in ' + elapsedMs.toFixed(1) + ' ms (' + byteLength + ' bytes).');
+        }
         // Only response metadata escapes this callback; the response buffer is not cached.
-        return {
-          byteLength: byteLength,
-          elapsedMs: Math.max(0, performance.now() - requestStartedAt)
-        };
+        return { byteLength: byteLength, elapsedMs: elapsedMs };
       }).catch(function(error) {
         if (!error || typeof error !== 'object') error = new Error(String(error));
         error.elapsedMs = Math.max(0, performance.now() - requestStartedAt);
+        if (diagnosticLabel) {
+          console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
+            'A/B ' + diagnosticLabel + ' failed after ' + error.elapsedMs.toFixed(1) + ' ms:', error);
+        }
         throw error;
       });
     };
@@ -612,21 +626,54 @@ NvHTTP.prototype = {
         }).then(downloadBaselineNext);
       };
 
-      // A/B diagnostic: compare the ordinary one-shot HTTP path with the
-      // dedicated persistent handle using the exact same paired appasset request.
-      // The first response is discarded; only the persistent response is counted.
-      return requestAsset(appIds[0], false).then(function() {
-        console.info('%c[utils.js, runNetworkTest]', 'color: gray;', 'One-shot control request succeeded for the first app asset.');
-        return requestAsset(appIds[0], true);
-      }).then(function(response) {
-        baselineIds.push(appIds[0]);
-        baselineBytes += response.byteLength;
-        baselineIndex = 1;
-        return downloadBaselineNext();
-      }, function(error) {
-        console.error('%c[utils.js, runNetworkTest]', 'color: gray;', 'Initial one-shot/persistent A/B request failed:', error);
-        throw error;
-      }).then(function() {
+      // Run each mode twice against the same /appasset resource. Sunshine closes
+      // each response connection, so the second request tests TLS session resumption
+      // rather than TCP keep-alive. Each persistent mode owns a separate CURL handle.
+      var diagnosticRequest = function(label, persistent, tlsCache) {
+        return requestAsset(appIds[0], persistent, tlsCache, label).then(function(response) {
+          return { response: response, succeeded: true };
+        }, function(error) {
+          return { error: error, succeeded: false };
+        });
+      };
+
+      return diagnosticRequest('one-shot #1 (TLS cache off)', false, false)
+        .then(function(oneShot) {
+          return diagnosticRequest('persistent TLS cache ON #1', true, true)
+            .then(function(cacheOnFirst) {
+              return diagnosticRequest('persistent TLS cache ON #2', true, true)
+                .then(function(cacheOnSecond) {
+                  return diagnosticRequest('persistent TLS cache OFF #1', true, false)
+                    .then(function(cacheOffFirst) {
+                      return diagnosticRequest('persistent TLS cache OFF #2', true, false)
+                        .then(function(cacheOffSecond) {
+                          var persistentResponse = cacheOffSecond.succeeded
+                            ? cacheOffSecond.response
+                            : (cacheOffFirst.succeeded ? cacheOffFirst.response : null);
+
+                          if (persistentResponse) {
+                            baselineIds.push(appIds[0]);
+                            baselineBytes += persistentResponse.byteLength;
+                          } else {
+                            // Keep the network test usable if the persistent context is
+                            // rejected by the host; fall back to the ordinary HTTP path.
+                            networkTestUsePersistentConnection = false;
+                            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
+                              'Persistent TLS-cache-OFF requests both failed; continuing with ordinary one-shot HTTP.');
+                            if (!oneShot.succeeded) {
+                              throw new Error('Both persistent and ordinary HTTP requests failed for the first app asset.');
+                            }
+                            baselineIds.push(appIds[0]);
+                            baselineBytes += oneShot.response.byteLength;
+                          }
+
+                          baselineIndex = 1;
+                          return downloadBaselineNext();
+                        });
+                    });
+                });
+            });
+        }).then(function() {
         if (isCancelled()) {
           return report({
             completed: true,
