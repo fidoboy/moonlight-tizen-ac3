@@ -2997,6 +2997,8 @@ function gamepadTestDialog() {
     updateGamepadTestButtonVisibility();
     return;
   }
+  var connectedGamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  var selectedGamepad = connectedGamepads[gamepadIndex];
 
   var overlay = $('<div>', { id: 'gamepadTestOverlay', class: 'dialog-overlay gamepad-test-overlay' }).appendTo('#popup-layer');
   var dialog = $('<dialog>', { id: 'gamepadTestDialog', class: 'mdl-dialog gamepad-test-dialog' }).appendTo(overlay);
@@ -3053,7 +3055,7 @@ function gamepadTestDialog() {
     closeButton: closeButton[0],
     gamepadIndex: gamepadIndex,
     closeFocused: false,
-    axes: [0, 0, 0, 0],
+    axes: selectedGamepad ? selectedGamepad.axes.slice(0, 4) : [0, 0, 0, 0],
     buttonIds: {
       0: 'gamepadTestA', 1: 'gamepadTestB', 2: 'gamepadTestX', 3: 'gamepadTestY',
       4: 'gamepadTestLB', 5: 'gamepadTestRB', 6: 'gamepadTestLT', 7: 'gamepadTestRT',
@@ -3070,6 +3072,15 @@ function gamepadTestDialog() {
   document.addEventListener('keydown', gamepadTestDialogState.blockKeyboard, true);
   document.addEventListener('keyup', gamepadTestDialogState.blockKeyboard, true);
   closeButton.css('pointer-events', 'none');
+  if (selectedGamepad) {
+    selectedGamepad.buttons.forEach(function(button, index) {
+      var buttonId = gamepadTestDialogState.buttonIds[index];
+      var element = buttonId ? document.getElementById(buttonId) : null;
+      if (element && button.pressed) element.classList.add('gamepad-test-active');
+    });
+  }
+  updateGamepadTestStick(0, gamepadTestDialogState.axes[0], gamepadTestDialogState.axes[1]);
+  updateGamepadTestStick(1, gamepadTestDialogState.axes[2], gamepadTestDialogState.axes[3]);
   fadeInUiElement(overlay, 'flex');
   showUiDialog(dialog[0]);
 }
