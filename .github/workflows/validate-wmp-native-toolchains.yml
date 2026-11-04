@@ -191,8 +191,40 @@ jobs:
               raise SystemExit(f"Expected 2 linker library lists, found {count}")
           if re.search(r'<listOptionValue[^>]+value="-l', content):
               raise SystemExit("Unexpected explicit -l library remains in .cproject")
+
+          # The Tizen 10 template also carries SBI platform-catalogue selectors.
+          # They generate Release/platform_libs.file and reintroduce Tizen 10
+          # libraries even after frameworks_lflags has been cleaned.
+          stale_selectors = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, selector_count = stale_selectors.subn("", content)
+          if selector_count != 4:
+              raise SystemExit(
+                  f"Expected 4 stale SBI platform selectors, found {selector_count}"
+              )
+
+          native_api_catalogues = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, catalogue_count = native_api_catalogues.subn("", content)
+          if catalogue_count != 4:
+              raise SystemExit(
+                  f"Expected 4 Native_API catalogues, found {catalogue_count}"
+              )
+
+          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content:
+              raise SystemExit("Tizen 10 SBI platform selector remains")
+          if re.search(r'value="Native_API"', content):
+              raise SystemExit("Native_API platform catalogue remains")
           path.write_text(content, encoding="utf-8")
           print(f"LINKER_CONFIGURATIONS_CLEANED={count}")
+          print(f"SBI_PLATFORM_SELECTORS_REMOVED={selector_count}")
+          print(f"NATIVE_API_CATALOGUES_REMOVED={catalogue_count}")
           PY
 
             # Dependency-free C entry point: test the ARM compiler and linker,
