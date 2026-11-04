@@ -2950,8 +2950,8 @@ function hostNetworkTestDialog(host) {
     progress.val(30000);
     status.text(t('Test completed.'));
     var lines = [
-      t('Average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
-      t('Speed variation: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)),
+      t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
+      t('Speed variation across 5-second intervals: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)),
       t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
       t('Successful downloads: %1$s', stats.successfulRequests),
       t('Download errors: %1$s', stats.failedRequests),
