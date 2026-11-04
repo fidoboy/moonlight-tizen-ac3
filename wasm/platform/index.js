@@ -3075,6 +3075,9 @@ function hostNetworkTestDialog(host) {
       var lines = [
         t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2))
       ];
+      if (Number.isFinite(stats.averageLatencyMs)) {
+        lines.push(t('Average network latency:') + ' ' + Math.round(stats.averageLatencyMs) + ' ms');
+      }
       if (variationPercent !== null) {
         lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', variationPercent + '%'));
       }
@@ -3084,18 +3087,40 @@ function hostNetworkTestDialog(host) {
       }
       result.text(lines.join('\n'));
 
+      var verdictSeverity = 0;
       var verdictType = null;
       var verdictIcon = '';
       var verdictMessage = '';
-      if (stats.failedRequests > 1 || (variationPercent !== null && variationPercent > 15)) {
+
+      // Severity: 0 = green, 1 = amber, 2 = red. The worst indicator wins.
+      if (stats.averageMbps < 0.5) {
+        verdictSeverity = 2;
+      } else if (stats.averageMbps < 1) {
+        verdictSeverity = Math.max(verdictSeverity, 1);
+      }
+      if (variationPercent !== null) {
+        if (variationPercent > 30) {
+          verdictSeverity = 2;
+        } else if (variationPercent >= 23) {
+          verdictSeverity = Math.max(verdictSeverity, 1);
+        }
+      }
+      // Keep download failures as an independent warning signal.
+      if (stats.failedRequests > 1) {
+        verdictSeverity = 2;
+      } else if (stats.failedRequests > 0) {
+        verdictSeverity = Math.max(verdictSeverity, 1);
+      }
+
+      if (verdictSeverity === 2) {
         verdictType = 'error';
         verdictIcon = '✕';
-        verdictMessage = t('Your network connection does not seem stable enough.');
-      } else if (stats.failedRequests > 0 || (variationPercent !== null && variationPercent >= 10)) {
+        verdictMessage = t('The connection to the host is too slow or unstable.');
+      } else if (verdictSeverity === 1) {
         verdictType = 'warning';
         verdictIcon = '⚠';
-        verdictMessage = t('Some errors were detected. Check your connection.');
-      } else if (stats.failedRequests === 0 && variationPercent !== null && variationPercent < 10) {
+        verdictMessage = t('The connection to the host may be limited or unstable.');
+      } else {
         verdictType = 'stable';
         verdictIcon = '✓';
         verdictMessage = t('The connection to the host seems stable.');
