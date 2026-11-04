@@ -405,6 +405,13 @@ body[data-color-theme="black-orange"] #background-layer {
     height: 12px;
     border-radius: 8px;
 }
+/* MDL paints the buffer track with a white gradient image, which overrides
+   the container background. Replace that image with the intended translucent track. */
+.network-test-progress > .bufferbar,
+.network-test-progress > .auxbar {
+    background-image: none !important;
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
 .network-test-progress > .progressbar {
     background-color: var(--theme-accent);
 }
@@ -437,7 +444,7 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .network-test-verdict-icon {
     flex: 0 0 auto;
-    margin-right: 12px;
+    margin-right: 0;
     font-size: 2.2rem;
     font-weight: 700;
 }
