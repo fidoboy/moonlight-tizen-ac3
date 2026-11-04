@@ -1192,7 +1192,9 @@ const Views = {
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      // The host menu is removed immediately after Navigation.pop().
+      // Blur its focused item before the DOM element is detached.
+      blurElement(this.view.current());
     },
   },
   DeleteHostDialog: {
