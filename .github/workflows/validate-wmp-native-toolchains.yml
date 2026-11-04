@@ -178,13 +178,13 @@ jobs:
               re.DOTALL,
           )
           sysroot = "${" + "SBI_SYSROOT}"
-          minimal = "\\n".join([
+          minimal = "\n".join([
               '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
               '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
               '                                    <listOptionValue builtIn="false" value="-L&quot;' + sysroot + '/usr/lib64&quot;"/>',
           ])
           content, count = pattern.subn(
-              lambda match: match.group(1) + "\\n" + minimal + "\\n                                " + match.group(2),
+              lambda match: match.group(1) + "\n" + minimal + "\n                                " + match.group(2),
               content,
           )
           if count != 2:
@@ -373,11 +373,11 @@ jobs:
               re.DOTALL,
           )
           minimal = (
-              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>\\n'
-              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;\${SBI_SYSROOT}&quot;"/>\\n'
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>\n'
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;\${SBI_SYSROOT}&quot;"/>\n'
               '                                    <listOptionValue builtIn="false" value="-L&quot;\${SBI_SYSROOT}/usr/lib64&quot;"/>'
           )
-          content, count = pattern.subn(lambda match: match.group(1) + "\\n" + minimal + "\\n                                " + match.group(2), content)
+          content, count = pattern.subn(lambda match: match.group(1) + "\n" + minimal + "\n                                " + match.group(2), content)
           if count != 2:
               raise SystemExit(f"Expected 2 linker library lists, found {count}")
           if re.search(r'<listOptionValue[^>]+value="-l', content):
