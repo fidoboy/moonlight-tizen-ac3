@@ -585,5 +585,7 @@
   "The complete application image set could not be downloaded.": "Не удалось загрузить полный набор изображений приложений.",
   "None of the host application images could be downloaded.": "Не удалось загрузить ни одного изображения приложений хоста.",
   "Background host polling did not finish before the network test.": "Фоновая проверка хостов не завершилась до начала теста сети.",
-  "A network test is already running.": "Тест сети уже выполняется."
+  "A network test is already running.": "Тест сети уже выполняется.",
+  "Obtaining preliminary data...": "Получение предварительных данных...",
+  "Performing measurement. Please wait...": "Выполняется измерение. Подождите..."
 }
