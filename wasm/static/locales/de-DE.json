@@ -576,7 +576,7 @@
   "Test stopped.": "Test angehalten.",
   "Image set: %1$s MB (%2$s images)": "Bildersatz: %1$s MB (%2$s Bilder)",
   "Stop": "Stopp",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Geschwindigkeitsschwankung zwischen vollständigen Bildersatz-Downloads: %1$s–%2$s Mbps",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Abweichung: %1$s",
   "Not enough complete image-set passes to compare speed variation.": "Nicht genügend vollständige Bildersatz-Durchläufe, um Geschwindigkeitsschwankungen zu vergleichen.",
   "Completed image-set passes: %1$s": "Vollständige Bildersatz-Durchläufe: %1$s",
   "The host must be online and paired before running the network test.": "Der Host muss online und gekoppelt sein, um den Netzwerktest auszuführen.",
