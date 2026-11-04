@@ -220,8 +220,8 @@ function ensureSubnetScannerLoaded() {
 
   return subnetScannerLoadPromise;
 }
-var activePolls = {}; // Hosts currently being polled.
-var hostPollingPausedForNetworkTest = false; An associated array of polling IDs, keyed by server UID
+var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
+var hostPollingPausedForNetworkTest = false;
 var pairingCert; // Loads the generated certificate
 var myUniqueid;
 var api; // The `api` should only be set if we're in a host-specific screen, on the initial screen it should always be null
@@ -1372,9 +1372,9 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   return initialStatusPromise.catch(function(failedRefreshInfo) {
     console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; retaining the last known host status until pollServer verifies it:', failedRefreshInfo, host.hostname, host.address);
   }).finally(function() {
-    // The in-flight request may finish during streaming, but it must not restart
-    // periodic polling or update the hidden host UI.
-    if (isInGame === true) {
+    host._backgroundStatusRefreshInProgress = false;
+    // The in-flight request may finish during streaming or a network test, but it must not restart periodic polling.
+    if (isInGame === true || hostPollingPausedForNetworkTest) {
       host._consecutivePollFailures = 0;
       host._pollCompletionCallbacks = [];
       return;
@@ -2940,18 +2940,18 @@ function hostNetworkTestDialog(host) {
   }).css({ width: '100%', height: '18px' }).appendTo(content);
   var status = $('<p>', {
     id: 'hostNetworkTestStatus-' + host.serverUid,
-    text: t('Preparing network test...')
+    text: t('Pausing background host checks...')
   }).appendTo(content);
   var result = $('<div>', {
     id: 'hostNetworkTestResult-' + host.serverUid
   }).css({ 'white-space': 'pre-line', 'margin-top': '12px' }).appendTo(content);
 
   var actions = $('<div>', { class: 'mdl-dialog__actions' }).appendTo(dialog);
-  var closeButton = $('<button>', {
+  var actionButton = $('<button>', {
     type: 'button',
     id: 'closeHostNetworkTest',
     class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-    text: t('Close')
+    text: t('Stop')
   }).appendTo(actions);
 
   var finished = false;
@@ -2960,7 +2960,7 @@ function hostNetworkTestDialog(host) {
   var progressTimer = null;
 
   var closeDialog = function() {
-    if (!finished) cancelled = true;
+    if (!finished) return;
     if (progressTimer !== null) window.clearInterval(progressTimer);
     fadeOutUiElement(overlay);
     closeUiDialog(dialog[0]);
@@ -2969,7 +2969,16 @@ function hostNetworkTestDialog(host) {
     Navigation.pop();
   };
 
-  closeButton.on('click', closeDialog);
+  actionButton.on('click', function() {
+    if (finished) {
+      closeDialog();
+      return;
+    }
+    cancelled = true;
+    actionButton.prop('disabled', true);
+    status.text(t('Stopping network test...'));
+  });
+
   if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
   fadeInUiElement(overlay, 'flex');
   showUiDialog(dialog[0]);
@@ -2977,48 +2986,84 @@ function hostNetworkTestDialog(host) {
   Navigation.push(Views.NetworkTestDialog);
   setTimeout(function() { Navigation.switch(); }, 5);
 
-  host.runNetworkTest(30000, function(stats) {
-    if (cancelled || finished) return;
-    if (stats.started && testStartedAt === null) {
-      testStartedAt = Date.now();
-      progressTimer = window.setInterval(function() {
-        if (finished) return;
-        progress.val(Math.min(30000, Date.now() - testStartedAt));
-      }, 150);
-      status.text(t('Testing network connection...'));
-      return;
+  var networkTestOperation = pauseBackgroundHostPollingForNetworkTest().then(function() {
+    if (cancelled) {
+      return {
+        completed: true,
+        cancelled: true,
+        measurementStarted: false,
+        bytes: 0,
+        elapsedMs: 0,
+        averageMbps: 0,
+        minSampleMbps: 0,
+        maxSampleMbps: 0,
+        successfulRequests: 0,
+        failedRequests: 0,
+        baselineBytes: 0,
+        baselineAssetCount: 0,
+        baselineErrors: 0
+      };
     }
-    var elapsed = Math.min(30000, stats.elapsedMs);
-    progress.val(elapsed);
-    status.text(t('Downloaded %1$s MB · %2$s successful · %3$s errors',
-      (stats.bytes / (1024 * 1024)).toFixed(2),
-      stats.successfulRequests,
-      stats.failedRequests));
-  }, function() { return cancelled; }).then(function(stats) {
-    if (cancelled) return;
+
+    return host.runNetworkTest(30000, function(stats) {
+      if (cancelled || finished) return;
+      if (stats.started && testStartedAt === null) {
+        testStartedAt = Date.now();
+        progressTimer = window.setInterval(function() {
+          if (finished) return;
+          progress.val(Math.min(30000, Date.now() - testStartedAt));
+        }, 150);
+        status.text(t('Testing network connection...'));
+        return;
+      }
+
+      if (stats.measurementStarted) {
+        progress.val(Math.min(30000, stats.elapsedMs));
+        status.text(t('Downloaded %1$s MB · %2$s successful · %3$s errors',
+          (stats.bytes / (1024 * 1024)).toFixed(2),
+          stats.successfulRequests,
+          stats.failedRequests));
+      }
+    }, function() { return cancelled; });
+  });
+
+  networkTestOperation.then(function(stats) {
+    if (cancelled && !stats.cancelled) stats.cancelled = true;
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
-    progress.val(30000);
-    status.text(t('Test completed.'));
-    var lines = [
-      t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
-      t('Speed variation across 5-second intervals: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)),
-      t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
-      t('Successful downloads: %1$s', stats.successfulRequests),
-      t('Download errors: %1$s', stats.failedRequests),
-      t('Duration: %1$s seconds', (stats.elapsedMs / 1000).toFixed(1))
-    ];
-    result.text(lines.join('\n'));
-    closeButton.prop('disabled', false);
+
+    if (!stats.measurementStarted) {
+      progress.val(0);
+      status.text(t('Test stopped before measurement could begin.'));
+      result.text('');
+    } else {
+      progress.val(Math.min(30000, stats.elapsedMs));
+      status.text(stats.cancelled ? t('Test stopped.') : t('Test completed.'));
+      var lines = [
+        t('Image set: %1$s MB (%2$s images)', (stats.baselineBytes / (1024 * 1024)).toFixed(2), stats.baselineAssetCount),
+        t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2)),
+        t('Speed variation across 5-second intervals: %1$s–%2$s Mbps', stats.minSampleMbps.toFixed(2), stats.maxSampleMbps.toFixed(2)),
+        t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)),
+        t('Successful downloads: %1$s', stats.successfulRequests),
+        t('Download errors: %1$s', stats.failedRequests),
+        t('Duration: %1$s seconds', (stats.elapsedMs / 1000).toFixed(1))
+      ];
+      result.text(lines.join('\n'));
+    }
+
+    actionButton.text(t('Close'));
+    actionButton.prop('disabled', false);
     Navigation.switch();
   }).catch(function(error) {
-    if (cancelled) return;
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
     status.text(t('Network test could not be completed.'));
     result.text(error && error.message ? error.message : String(error));
-    closeButton.prop('disabled', false);
+    actionButton.text(t('Close'));
+    actionButton.prop('disabled', false);
     Navigation.switch();
+  }).finally(function() {
+    resumeBackgroundHostPollingAfterNetworkTest();
   });
 }
 
