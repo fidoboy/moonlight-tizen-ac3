@@ -576,5 +576,6 @@
   "Test stopped before measurement could begin.": "Test stopped before measurement could begin.",
   "Test stopped.": "Test stopped.",
   "Image set: %1$s MB (%2$s images)": "Image set: %1$s MB (%2$s images)",
-  "Stop": "Stop"
+  "Stop": "Stop",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Speed variation across complete image-set passes: %1$s–%2$s Mbps"
 }
