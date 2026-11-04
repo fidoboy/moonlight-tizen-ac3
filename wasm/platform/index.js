@@ -1072,8 +1072,8 @@ function loadConfigSummarySettings(callback) {
 // until both pointer hover and keyboard focus have left the activated button.
 function installNavigationTooltipActionHiding() {
   const navigationButtonSelector =
-    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #supportBtn, ' +
-    '#restoreDefaultsBtn, #updateAppBtn';
+    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #gamepadTestBtn, ' +
+    '#supportBtn, #restoreDefaultsBtn, #updateAppBtn';
 
   document.addEventListener('click', function(event) {
     const button = event.target && event.target.closest
