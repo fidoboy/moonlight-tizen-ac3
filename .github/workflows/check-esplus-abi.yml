@@ -37,6 +37,19 @@ jobs:
           tar -xzf esplusplayer-1.4.6.tar.gz
           test -f esplusplayer-1.4.6/include/esplusplayer_capi/esplusplayer_capi.h
 
+      - name: Download historical Tizen 6.5 ESPlus 0.0.3 headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/esplus-065"
+          cd "$RUNNER_TEMP/esplus-065"
+          curl --fail --location --retry 3 --output esplusplayer-0.0.3-0.src.rpm \
+            https://download.tizen.org/snapshots/TIZEN/Tizen-6.5/Tizen-6.5-Unified/latest/repos/standard/source/esplusplayer-0.0.3-0.src.rpm
+          rpm2cpio esplusplayer-0.0.3-0.src.rpm | cpio -idm --quiet
+          tar -xzf esplusplayer-0.0.3.tar.gz
+          test -f esplusplayer-0.0.3/include/esplusplayer_capi/stream.h
+          test -f esplusplayer-0.0.3/include/esplusplayer_capi/espacket.h
+
       - name: Compile and run ABI checker
         shell: bash
         env:
@@ -49,6 +62,20 @@ jobs:
           set -o pipefail
           chmod +x tools/esplus-abi-checker/build-abi-check.sh
           tools/esplus-abi-checker/build-abi-check.sh 2>&1 | tee "$LOG_FILE"
+
+      - name: Compare historical Tizen 6.5 CAPI header
+        shell: bash
+        env:
+          CC: arm-linux-gnueabi-gcc
+          RUNNER: qemu-arm -L /usr/arm-linux-gnueabi
+          CFLAGS: -std=c11 -O0 -Wall -Wextra -Werror -marm -march=armv7-a -mabi=aapcs-linux -mfloat-abi=softfp
+          OLD_ESPLUS_INCLUDE_DIR: ${{ runner.temp }}/esplus-065/esplusplayer-0.0.3/include
+          OUT: ${{ runner.temp }}/esplus-old-abi
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          "$CC" $CFLAGS -I"$OLD_ESPLUS_INCLUDE_DIR" -DESPLUS_NATIVE_ADAPTER='"esplus_native_adapter.h"' tools/esplus-abi-checker/native_layout.c -o "$OUT/native-layout-065"
+          $RUNNER "$OUT/native-layout-065" | tee "$OUT/report.txt"
 
       - name: Upload ABI report
         if: always()
