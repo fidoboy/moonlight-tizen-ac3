@@ -591,5 +591,6 @@
   "Some errors were detected. Check your connection.": "Einige Fehler wurden erkannt. Überprüfen Sie Ihre Verbindung.",
   "Your network connection does not seem stable enough.": "Ihre Netzwerkverbindung scheint nicht stabil genug zu sein.",
   "The connection to the host may be limited or unstable.": "Die Verbindung zum Host könnte eingeschränkt oder instabil sein.",
-  "The connection to the host is too slow or unstable.": "Die Verbindung zum Host ist zu langsam oder instabil."
+  "The connection to the host is too slow or unstable.": "Die Verbindung zum Host ist zu langsam oder instabil.",
+  "Gamepad testen": "Gamepad testen"
 }
