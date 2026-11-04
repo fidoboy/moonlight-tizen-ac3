@@ -172,6 +172,201 @@ jobs:
           path = Path(sys.argv[1])
           content = path.read_text(encoding="utf-8")
           pattern = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
+              r'.*?'
+              r'(</option>)',
+              re.DOTALL,
+          )
+          sysroot = "${" + "SBI_SYSROOT}"
+          minimal = "\\n".join([
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
+              '                                    <listOptionValue builtIn="false" value="-L&quot;' + sysroot + '/usr/lib64&quot;"/>',
+          ])
+          content, count = pattern.subn(
+              lambda match: match.group(1) + "\\n" + minimal + "\\n                                " + match.group(2),
+              content,
+          )
+          if count != 2:
+              raise SystemExit(f"Expected 2 linker library lists, found {count}")
+          if re.search(r'<listOptionValue[^>]+value="-l', content):
+              raise SystemExit("Unexpected explicit -l library remains in .cproject")
+          path.write_text(content, encoding="utf-8")
+          print(f"LINKER_CONFIGURATIONS_CLEANED={count}")
+          PYe native ServiceApp toolchains for WMP
+
+on:
+  push:
+    branches:
+      - 1.2.0-pre-wpm_test
+    paths:
+      - '.github/workflows/validate-wmp-native-toolchains.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout the WMP test branch only
+        uses: actions/checkout@v5
+        with:
+          ref: 1.2.0-pre-wpm_test
+
+      - name: Install Tizen Native SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          required=(NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 IOT-Headed-6.0-NativeAppDevelopment-CLI TIZEN-10.0-NativeAppDevelopment-CLI)
+          "$pm" install --accept-license --no-java-check "$(IFS=,; echo "${required[*]}")"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+          {
+            echo "HOME=$HOME"
+            echo "RUNNER_TEMP=$RUNNER_TEMP"
+            echo "SDK=$sdk"
+            echo "PACKAGE_MANAGER=$pm"
+            echo "### Tizen version"
+            tizen version 2>&1 || true
+            echo "### Rootstraps"
+            tizen list rootstrap 2>&1 || true
+            echo "### SDK log files"
+            find "$HOME" "$sdk" -type f \( -iname '*.log' -o -iname '*.log.*' \) -print 2>/dev/null | sort || true
+          } > "$RUNNER_TEMP/sdk-install-environment.txt"
+
+      - name: Generate and compile reference ServiceApp projects
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/native-build-report"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          mkdir -p "$report/cli-logs"
+          failed=0
+
+          capture_cli_logs() {
+            label="$1"
+            index=0
+            while IFS= read -r source; do
+              [ -f "$source" ] || continue
+              index=$((index + 1))
+              safe="$(printf '%s' "$source" | sed 's#^/##; s#[^A-Za-z0-9._-]#_#g')"
+              destination="$report/cli-logs/$label-$index-$safe"
+              mkdir -p "$(dirname "$destination")"
+              cp -p "$source" "$destination"
+            done < <(
+              find "$HOME" "$sdk" "$RUNNER_TEMP" -type f \( -iname '*.log' -o -iname '*.log.*' \) \
+                ! -path "$report/*" -print 2>/dev/null | sort -u
+            )
+            find "$report/cli-logs" -type f -printf '%P\n' | sort > "$report/cli-log-index.txt"
+          }
+
+          run_profile_command() {
+            label="$1"
+            log="$2"
+            shift 2
+            echo "COMMAND ($label): $*" | tee -a "$log"
+            "$@" >>"$log" 2>&1
+            status=$?
+            echo "EXIT_CODE ($label): $status" | tee -a "$log"
+            capture_cli_logs "$label"
+            return "$status"
+          }
+
+          {
+            echo "### build-native command manual"
+            tizen manual build-native 2>&1 || true
+            echo
+            echo "### CLI configuration"
+            tizen cli-config -l 2>&1 || true
+          } > "$report/build-native-cli-reference.txt"
+
+          build_profile() {
+            profile="$1"
+            rootstrap="$2"
+            project_root="$RUNNER_TEMP/ServiceApp-$profile"
+            project="$project_root/WmpServiceProbe"
+            log="$report/$profile-build.log"
+            echo "=== PROFILE=$profile ROOTSTRAP=$rootstrap ===" | tee "$log"
+
+            if run_profile_command "$profile-create" "$log" tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project_root"; then
+              echo "CREATE_RESULT=success" | tee -a "$log"
+            else
+              status=$?
+              echo "CREATE_RESULT=failed exit_code=$status" | tee -a "$log"
+              failed=1
+              return
+            fi
+
+            if [ ! -f "$project/project_def.prop" ]; then
+              echo "PROJECT_VALIDATION=failed missing=$project/project_def.prop" | tee -a "$log"
+              failed=1
+              return
+            fi
+            echo "PROJECT_DIR=$project" | tee -a "$log"
+            echo "PROJECT_VALIDATION=success project_def.prop found" | tee -a "$log"
+
+            find "$project" -maxdepth 5 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
+            tar -czf "$report/$profile-template.tar.gz" -C "$project_root" WmpServiceProbe
+
+            if run_profile_command "$profile-build" "$log" tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project"; then
+              echo "BUILD_RESULT=success" | tee -a "$log"
+              find "$project/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
+              find "$project/Release" -type f -exec file {} \; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "BUILD_RESULT=failed exit_code=$status" | tee -a "$log"
+              failed=1
+            fi
+          }
+
+          build_profile iot-headed-6.0 iot-headed-6.0-device.core
+          build_profile tizen-10.0 tizen-10.0-device.core
+
+          # Independent rootstrap probe: reuse the successfully generated Tizen 10
+          # ServiceApp skeleton, retarget its project metadata to IoT Headed 6.0,
+          # then compile it against the actual IoT Headed ARMEL rootstrap.
+          # This deliberately does NOT claim that the IoT Headed template generator works.
+          source_project="$RUNNER_TEMP/ServiceApp-tizen-10.0/WmpServiceProbe"
+          probe_root="$RUNNER_TEMP/ServiceApp-iot-headed-6.0-rootstrap-probe"
+          probe="$probe_root/WmpServiceProbe"
+          probe_log="$report/iot-headed-6.0-rootstrap-probe.log"
+          echo "=== INDEPENDENT IOT-HEADED 6.0 ROOTSTRAP PROBE ===" | tee "$probe_log"
+          if [ -f "$source_project/project_def.prop" ]; then
+            mkdir -p "$probe_root"
+            cp -a "$source_project" "$probe"
+            sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$probe/project_def.prop"
+            sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$probe/tizen-manifest.xml"
+            if [ -f "$probe/.tproject" ]; then
+              sed -i 's/tizen-10.0/iot-headed-6.0/g' "$probe/.tproject"
+            fi
+
+            # Remove the Tizen 10 library catalogue from both linker configurations.
+            # This probe has no Tizen API dependencies: it tests only ARM compile/link
+            # against the IoT Headed 6.0 rootstrap.
+            python3 - "$probe/.cproject" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          pattern = re.compile(
               r'(<option\\b[^>]*superClass="sbi\\.gnu\\.cpp\\.linker\\.option\\.frameworks_lflags\\.core"[^>]*>)'
               r'.*?'
               r'(</option>)',
