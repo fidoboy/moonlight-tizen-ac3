@@ -143,6 +143,49 @@ jobs:
           build_profile iot-headed-6.0 iot-headed-6.0-device.core
           build_profile tizen-10.0 tizen-10.0-device.core
 
+          # Independent rootstrap probe: reuse the successfully generated Tizen 10
+          # ServiceApp skeleton, retarget its project metadata to IoT Headed 6.0,
+          # then compile it against the actual IoT Headed ARMEL rootstrap.
+          # This deliberately does NOT claim that the IoT Headed template generator works.
+          source_project="$RUNNER_TEMP/ServiceApp-tizen-10.0/WmpServiceProbe"
+          probe_root="$RUNNER_TEMP/ServiceApp-iot-headed-6.0-rootstrap-probe"
+          probe="$probe_root/WmpServiceProbe"
+          probe_log="$report/iot-headed-6.0-rootstrap-probe.log"
+          echo "=== INDEPENDENT IOT-HEADED 6.0 ROOTSTRAP PROBE ===" | tee "$probe_log"
+          if [ -f "$source_project/project_def.prop" ]; then
+            mkdir -p "$probe_root"
+            cp -a "$source_project" "$probe"
+            sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$probe/project_def.prop"
+            sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$probe/tizen-manifest.xml"
+            if [ -f "$probe/.tproject" ]; then
+              sed -i 's/tizen-10.0/iot-headed-6.0/g' "$probe/.tproject"
+            fi
+            {
+              echo "SOURCE_PROJECT=$source_project"
+              echo "PROBE_PROJECT=$probe"
+              echo "ROOTSTRAP=iot-headed-6.0-device.core"
+              echo "### project_def.prop"
+              cat "$probe/project_def.prop"
+              echo "### tizen-manifest.xml"
+              cat "$probe/tizen-manifest.xml"
+              echo "### .tproject"
+              cat "$probe/.tproject" 2>/dev/null || true
+            } | tee -a "$probe_log"
+            tar -czf "$report/iot-headed-6.0-rootstrap-probe-source.tar.gz" -C "$probe_root" WmpServiceProbe
+            if run_profile_command "iot-headed-6.0-rootstrap-probe" "$probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
+              echo "ROOTSTRAP_PROBE_RESULT=success" | tee -a "$probe_log"
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-rootstrap-probe-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-rootstrap-probe-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "ROOTSTRAP_PROBE_RESULT=failed exit_code=$status" | tee -a "$probe_log"
+              failed=1
+            fi
+          else
+            echo "ROOTSTRAP_PROBE_RESULT=skipped; Tizen 10.0 reference template was not generated" | tee -a "$probe_log"
+            failed=1
+          fi
+
           {
             echo "### Toolchain versions"
             tizen version 2>&1 || true
