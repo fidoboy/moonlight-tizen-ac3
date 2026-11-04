@@ -38,6 +38,8 @@ jobs:
           find . -type f -name 'esplusplayer_capi.h' -print
           find . -type f -name 'stream.h' -print
           find . -type f -name 'espacket.h' -print
+          find . -type f -name 'stream.h' -print
+          find . -type f -name 'espacket.h' -print
           find . -type f -name esplusplayer_internal.h -print
           test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
 
