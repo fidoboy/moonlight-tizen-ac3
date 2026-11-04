@@ -250,6 +250,24 @@ jobs:
           print("ROOTSTRAP_PLATFORM_LIBRARY_CATALOGUE=disabled_for_dependency_free_probe")
           PY
 
+            # The generated makefile references @$(RS_LIBRARIES_FILE) unconditionally.
+            # Keep an empty response file so the linker receives @path, not a bare @.
+            python3 - "$probe/Build/makefile.mk" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          old = """ifneq ($(strip $(RS_LIBRARIES)),)
+          RS_LIBRARIES_FILE := $(OBJ_OUTPUT)/platform_libs.file
+          endif"""
+          new = """RS_LIBRARIES_FILE := $(OBJ_OUTPUT)/platform_libs.file"""
+          if content.count(old) != 1:
+              raise SystemExit("Expected exactly one conditional RS_LIBRARIES_FILE assignment")
+          path.write_text(content.replace(old, new), encoding="utf-8")
+          print("ROOTSTRAP_EMPTY_LIBRARY_RESPONSE_FILE=enabled")
+          PY
+
             # Dependency-free C entry point: test the ARM compiler and linker,
             # not the availability of ServiceApp or other Tizen framework APIs.
             cat > "$probe/src/wmpserviceprobe.c" <<'C'
