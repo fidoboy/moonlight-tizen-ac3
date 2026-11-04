@@ -498,7 +498,7 @@ body[data-color-theme="black-orange"] #background-layer {
 .gamepad-test-layout {
     display: grid;
     flex: 1 1 auto;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: 12% minmax(0, 1fr) 12%;
     align-items: stretch;
     width: 100%;
     min-height: 0;
