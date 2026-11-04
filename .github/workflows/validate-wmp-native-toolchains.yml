@@ -42,14 +42,56 @@ jobs:
           "$pm" install --accept-license --no-java-check "$(IFS=,; echo "${required[*]}")"
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
+          {
+            echo "HOME=$HOME"
+            echo "RUNNER_TEMP=$RUNNER_TEMP"
+            echo "SDK=$sdk"
+            echo "PACKAGE_MANAGER=$pm"
+            echo "### Tizen version"
+            tizen version 2>&1 || true
+            echo "### Rootstraps"
+            tizen list rootstrap 2>&1 || true
+            echo "### SDK log files"
+            find "$HOME" "$sdk" -type f \\( -iname '*.log' -o -iname '*.log.*' \\) -print 2>/dev/null | sort || true
+          } > "$RUNNER_TEMP/sdk-install-environment.txt"
 
       - name: Generate and compile reference ServiceApp projects
         shell: bash
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/native-build-report"
-          mkdir -p "$report"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          mkdir -p "$report/cli-logs"
           failed=0
+
+          capture_cli_logs() {
+            label="$1"
+            index=0
+            while IFS= read -r source; do
+              [ -f "$source" ] || continue
+              index=$((index + 1))
+              safe="$(printf '%s' "$source" | sed 's#^/##; s#[^A-Za-z0-9._-]#_#g')"
+              destination="$report/cli-logs/$label-$index-$safe"
+              mkdir -p "$(dirname "$destination")"
+              cp -p "$source" "$destination"
+            done < <(
+              find "$HOME" "$sdk" "$RUNNER_TEMP" -type f \\( -iname '*.log' -o -iname '*.log.*' \\) \\
+                ! -path "$report/*" -print 2>/dev/null | sort -u
+            )
+            find "$report/cli-logs" -type f -printf '%P\n' | sort > "$report/cli-log-index.txt"
+          }
+
+          run_profile_command() {
+            label="$1"
+            log="$2"
+            shift 2
+            echo "COMMAND ($label): $*" | tee -a "$log"
+            "$@" >>"$log" 2>&1
+            status=$?
+            echo "EXIT_CODE ($label): $status" | tee -a "$log"
+            capture_cli_logs "$label"
+            return "$status"
+          }
 
           build_profile() {
             profile="$1"
@@ -58,20 +100,22 @@ jobs:
             log="$report/$profile-build.log"
             echo "=== PROFILE=$profile ROOTSTRAP=$rootstrap ===" | tee "$log"
 
-            if ! tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project" >>"$log" 2>&1; then
-              echo "CREATE_RESULT=failed" | tee -a "$log"
+            if run_profile_command "$profile-create" "$log" tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project"; then
+              echo "CREATE_RESULT=success" | tee -a "$log"
+            else
+              status=$?
+              echo "CREATE_RESULT=failed exit_code=$status" | tee -a "$log"
               failed=1
               return
             fi
-            echo "CREATE_RESULT=success" | tee -a "$log"
 
-            find "$project" -maxdepth 4 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
+            find "$project" -maxdepth 5 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
             tar -czf "$report/$profile-template.tar.gz" -C "$(dirname "$project")" "$(basename "$project")"
 
-            if tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project" >>"$log" 2>&1; then
+            if run_profile_command "$profile-build" "$log" tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project"; then
               echo "BUILD_RESULT=success" | tee -a "$log"
-              find "$project/Release" -maxdepth 3 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
-              find "$project/Release" -type f -exec file {} \; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
+              find "$project/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
+              find "$project/Release" -type f -exec file {} \\; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
             else
               status=$?
               echo "BUILD_RESULT=failed exit_code=$status" | tee -a "$log"
@@ -88,8 +132,12 @@ jobs:
             echo
             echo "### Available rootstraps"
             tizen list rootstrap 2>&1 || true
+            echo
+            echo "### Relevant SDK directories"
+            find "$HOME" "$sdk" -maxdepth 5 -type d \\( -iname '*log*' -o -iname '*cli*' \\) -print 2>/dev/null | sort || true
           } > "$report/environment.txt"
-
+          cp "$RUNNER_TEMP/sdk-install-environment.txt" "$report/" 2>/dev/null || true
+          capture_cli_logs final
           tar -czf "$RUNNER_TEMP/wmp-native-build-report.tar.gz" -C "$report" .
           if [ "$failed" -ne 0 ]; then
             echo "::error::One or more ServiceApp reference builds failed."
@@ -101,6 +149,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: wmp-native-toolchain-validation
-          path: ${{ runner.temp }}/wmp-native-build-report.tar.gz
+          path: |
+            ${{ runner.temp }}/wmp-native-build-report.tar.gz
+            ${{ runner.temp }}/sdk-install-environment.txt
           if-no-files-found: warn
-          retention-days: 3
+          retention-days: 7
