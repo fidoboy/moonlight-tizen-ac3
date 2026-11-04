@@ -61,9 +61,14 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 }
 
 volatile int g_CancelHttpRequest = 0;
-static CURL *g_NetworkTestCurl = NULL;
-static struct curl_slist *g_NetworkTestResolveList = NULL;
-static char g_NetworkTestCurlErrorBuffer[CURL_ERROR_SIZE];
+static CURL *g_NetworkTestCurlWithTlsCache = NULL;
+static CURL *g_NetworkTestCurlWithoutTlsCache = NULL;
+static struct curl_slist *g_NetworkTestResolveListWithTlsCache = NULL;
+static struct curl_slist *g_NetworkTestResolveListWithoutTlsCache = NULL;
+static char g_NetworkTestCurlErrorBufferWithTlsCache[CURL_ERROR_SIZE];
+static char g_NetworkTestCurlErrorBufferWithoutTlsCache[CURL_ERROR_SIZE];
+static unsigned long g_NetworkTestRequestCountWithTlsCache = 0;
+static unsigned long g_NetworkTestRequestCountWithoutTlsCache = 0;
 
 void http_cancel_request() {
   g_CancelHttpRequest = 1;
@@ -80,7 +85,7 @@ static int _progress_callback(void *clientp, double dltotal, double dlnow, doubl
   return 0;
 }
 
-static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA data, CURL **persistent_curl) {
+static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA data, CURL **persistent_curl, int ssl_session_cache) {
   int ret;
   CURL *curl;
   const char* real_url = url;
@@ -88,8 +93,14 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
   char* resolve_string = NULL;
   struct curl_slist *resolve_list = NULL;
   char local_curl_error_buffer[CURL_ERROR_SIZE] = {0};
-  char *curl_error_buffer = persistent_curl != NULL
-    ? g_NetworkTestCurlErrorBuffer : local_curl_error_buffer;
+  char *curl_error_buffer = persistent_curl == &g_NetworkTestCurlWithTlsCache
+    ? g_NetworkTestCurlErrorBufferWithTlsCache
+    : (persistent_curl == &g_NetworkTestCurlWithoutTlsCache
+      ? g_NetworkTestCurlErrorBufferWithoutTlsCache : local_curl_error_buffer);
+  struct curl_slist **persistent_resolve_list = persistent_curl == &g_NetworkTestCurlWithTlsCache
+    ? &g_NetworkTestResolveListWithTlsCache
+    : (persistent_curl == &g_NetworkTestCurlWithoutTlsCache
+      ? &g_NetworkTestResolveListWithoutTlsCache : NULL);
   memset(curl_error_buffer, 0, CURL_ERROR_SIZE);
 
   http_reset_cancel();
@@ -108,8 +119,8 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
   curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
   curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, _progress_callback);
   curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, *sslctx_function);
+  curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, persistent_curl != NULL && ssl_session_cache ? 1L : 0L);
   if (persistent_curl == NULL) {
-    curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L);
     curl_easy_setopt(curl, CURLOPT_MAXCONNECTS, 0L);
     curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1L);
     curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
@@ -163,13 +174,13 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
     // CURLOPT_RESOLVE retains the supplied list. Keep it alive for as long as
     // the persistent easy handle can reference it, replacing the previous list
     // only after libcurl has accepted the new one.
-    struct curl_slist *previous_resolve_list = g_NetworkTestResolveList;
+    struct curl_slist *previous_resolve_list = persistent_resolve_list != NULL ? *persistent_resolve_list : NULL;
     CURLcode resolve_result = curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
     if (resolve_result != CURLE_OK) {
       ret = GS_FAILED;
       goto cleanup;
     }
-    g_NetworkTestResolveList = resolve_list;
+    if (persistent_resolve_list != NULL) *persistent_resolve_list = resolve_list;
     resolve_list = NULL;
     if (previous_resolve_list != NULL) {
       curl_slist_free_all(previous_resolve_list);
@@ -199,18 +210,21 @@ static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA
 
   CURLcode res = curl_easy_perform(curl);
 
-  // Capture connection reuse and TLS handshake timings for the network test only.
-  // These values distinguish reused connections from new TCP/TLS handshakes.
+  // Record connection and TLS timing separately for each persistent test context.
   if (persistent_curl != NULL) {
     long new_connections = -1;
     double connect_time = 0.0;
     double appconnect_time = 0.0;
+    unsigned long request_number = ssl_session_cache
+      ? ++g_NetworkTestRequestCountWithTlsCache
+      : ++g_NetworkTestRequestCountWithoutTlsCache;
     CURLcode info_connections = curl_easy_getinfo(curl, CURLINFO_NUM_CONNECTS, &new_connections);
     CURLcode info_connect = curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect_time);
     CURLcode info_appconnect = curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appconnect_time);
 
     fprintf(stderr,
-      "[network-test-http] connection stats: new_connections=%ld, connect_ms=%.1f, tls_handshake_ms=%.1f (info=%d/%d/%d, curl=%d)\n",
+      "[network-test-http] tls_cache=%s request=%lu new_connections=%ld connect_ms=%.1f tls_handshake_ms=%.1f info=%d/%d/%d curl=%d\\n",
+      ssl_session_cache ? "on" : "off", request_number,
       info_connections == CURLE_OK ? new_connections : -1L,
       info_connect == CURLE_OK ? connect_time * 1000.0 : -1.0,
       info_appconnect == CURLE_OK ? appconnect_time * 1000.0 : -1.0,
@@ -248,23 +262,35 @@ cleanup:
 }
 
 int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
-  return http_request_internal(url, ppkstr, data, NULL);
+  return http_request_internal(url, ppkstr, data, NULL, 0);
 }
 
-int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA data) {
-  return http_request_internal(url, ppkstr, data, &g_NetworkTestCurl);
+int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA data, int ssl_session_cache) {
+  CURL **curl = ssl_session_cache ? &g_NetworkTestCurlWithTlsCache : &g_NetworkTestCurlWithoutTlsCache;
+  return http_request_internal(url, ppkstr, data, curl, ssl_session_cache);
 }
 
 void http_close_network_test_session(void) {
-  if (g_NetworkTestCurl != NULL) {
-    curl_easy_setopt(g_NetworkTestCurl, CURLOPT_RESOLVE, NULL);
-    curl_easy_cleanup(g_NetworkTestCurl);
-    g_NetworkTestCurl = NULL;
+  if (g_NetworkTestCurlWithTlsCache != NULL) {
+    curl_easy_setopt(g_NetworkTestCurlWithTlsCache, CURLOPT_RESOLVE, NULL);
+    curl_easy_cleanup(g_NetworkTestCurlWithTlsCache);
+    g_NetworkTestCurlWithTlsCache = NULL;
   }
-  if (g_NetworkTestResolveList != NULL) {
-    curl_slist_free_all(g_NetworkTestResolveList);
-    g_NetworkTestResolveList = NULL;
+  if (g_NetworkTestCurlWithoutTlsCache != NULL) {
+    curl_easy_setopt(g_NetworkTestCurlWithoutTlsCache, CURLOPT_RESOLVE, NULL);
+    curl_easy_cleanup(g_NetworkTestCurlWithoutTlsCache);
+    g_NetworkTestCurlWithoutTlsCache = NULL;
   }
+  if (g_NetworkTestResolveListWithTlsCache != NULL) {
+    curl_slist_free_all(g_NetworkTestResolveListWithTlsCache);
+    g_NetworkTestResolveListWithTlsCache = NULL;
+  }
+  if (g_NetworkTestResolveListWithoutTlsCache != NULL) {
+    curl_slist_free_all(g_NetworkTestResolveListWithoutTlsCache);
+    g_NetworkTestResolveListWithoutTlsCache = NULL;
+  }
+  g_NetworkTestRequestCountWithTlsCache = 0;
+  g_NetworkTestRequestCountWithoutTlsCache = 0;
 }
 
 PHTTP_DATA http_create_data() {
