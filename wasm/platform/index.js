@@ -3061,7 +3061,7 @@ function hostNetworkTestDialog(host) {
     finished = true;
     if (progressTimer !== null) window.clearInterval(progressTimer);
     status.text(t('Network test could not be completed.'));
-    result.text(error && error.message ? error.message : String(error));
+    result.text(t(error && error.message ? error.message : String(error)));
     actionButton.text(t('Close'));
     actionButton.prop('disabled', false);
     Navigation.switch();
