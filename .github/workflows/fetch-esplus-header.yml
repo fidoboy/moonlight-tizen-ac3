@@ -38,6 +38,24 @@ jobs:
           find . -type f -name esplusplayer_internal.h -print
           test -n "$(find . -type f -name esplusplayer_capi.h -print -quit)"
 
+      - name: Download historical Tizen 6.5 ESPlus source package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/esplus-065"
+          cd "$RUNNER_TEMP/esplus-065"
+          curl --fail --location --retry 3 --output esplusplayer-0.0.3-0.src.rpm \
+            https://download.tizen.org/snapshots/TIZEN/Tizen-6.5/Tizen-6.5-Unified/latest/repos/standard/source/esplusplayer-0.0.3-0.src.rpm
+          rpm2cpio esplusplayer-0.0.3-0.src.rpm | cpio -idm --quiet
+          echo "=== Tizen 6.5 source package payload ==="
+          find . -maxdepth 2 -type f -printf '%p (%s bytes)\\n' | sort
+          for archive in *.tar.gz *.tgz; do
+            [ -f "$archive" ] || continue
+            tar -xf "$archive"
+          done
+          echo "=== Tizen 6.5 ESPlus headers ==="
+          find . -type f \\( -name 'esplusplayer_capi.h' -o -name 'stream.h' -o -name 'espacket.h' \\) -print
+
       - name: Upload source package and extracted source
         uses: actions/upload-artifact@v4
         with:
