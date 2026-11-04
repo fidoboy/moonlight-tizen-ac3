@@ -6,7 +6,7 @@
   <profile name="tv"/>
   <ui-application appid="org.fidoboy.moonlight.esplusprobe.app"
                   exec="MoonlightEsplusProbe.dll" type="dotnet"
-                  multiple="false" nodisplay="true" taskmanage="false"
+                  multiple="false" nodisplay="false" taskmanage="false"
                   launch_mode="single">
     <label>Moonlight ESPlus probe</label>
     <icon>icon.png</icon>
