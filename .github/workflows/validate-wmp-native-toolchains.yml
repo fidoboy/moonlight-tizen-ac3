@@ -400,14 +400,34 @@ jobs:
             failed=1
           fi
 
-          # Link the real WMP service as an ARM executable against the IoT 6.0
-          # rootstrap. This validates service_app, dlog and dl dependencies;
-          # --no-undefined prevents a false-positive executable with unresolved APIs.
+          # Link in a fresh copy of the untouched reference ServiceApp template.
+          # The rootstrap probe above intentionally strips Native_API catalogues;
+          # never reuse that project for a framework-dependent ServiceApp link.
           if [ -f "$probe/Release/libwmpservice.a" ] && grep -q '^SERVICE_SOURCE_COMPILE_RESULT=success$' "$service_probe_log"; then
+            link_probe_root="$RUNNER_TEMP/ServiceApp-iot-headed-6.0-wmp-link"
+            link_probe="$link_probe_root/WmpServiceProbe"
             link_probe_log="$report/iot-headed-6.0-wmp-service-link.log"
-            echo "=== ACTUAL WMP SERVICE EXECUTABLE LINK ===" | tee "$link_probe_log"
-            cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$probe/tizen-manifest.xml"
-            cat > "$probe/project_def.prop" <<'PROP'
+            echo "=== ACTUAL WMP SERVICE EXECUTABLE LINK (FRESH SERVICEAPP TEMPLATE) ===" | tee "$link_probe_log"
+
+            if [ ! -f "$source_project/.cproject" ] || [ ! -f "$source_project/Build/platform.mk" ]; then
+              echo "SERVICE_LINK_RESULT=failed missing_reference_native_build_configuration" | tee -a "$link_probe_log"
+              failed=1
+            else
+              mkdir -p "$link_probe_root"
+              cp -a "$source_project" "$link_probe"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$link_probe/src/main.c"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$link_probe/src/wmp_esplus_abi.c"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$link_probe/src/wmp_esplus_abi.h"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$link_probe/tizen-manifest.xml"
+
+              # Retarget only the profile metadata. Keep the generated SBI
+              # Native_API selectors, platform.mk and makefile library logic intact.
+              sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$link_probe/project_def.prop"
+              sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$link_probe/tizen-manifest.xml"
+              if [ -f "$link_probe/.tproject" ]; then
+                sed -i 's/tizen-10.0/iot-headed-6.0/g' "$link_probe/.tproject"
+              fi
+              cat > "$link_probe/project_def.prop" <<'PROP'
           APPNAME = wmp-service
 
           type = app
@@ -421,49 +441,71 @@ jobs:
           USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
-            rm -rf "$probe/Release"
-            tar -czf "$report/iot-headed-6.0-wmp-service-link-source.tar.gz" -C "$probe_root" WmpServiceProbe
-            if run_profile_command "iot-headed-6.0-wmp-service-link" "$link_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
-              executable="$(find "$probe/Release" -maxdepth 1 -type f -executable ! -name '*.a' -print -quit)"
-              if [ -z "$executable" ]; then
-                echo "SERVICE_LINK_RESULT=failed executable_not_found" | tee -a "$link_probe_log"
-                failed=1
-              else
-                echo "SERVICE_EXECUTABLE=$executable" | tee -a "$link_probe_log"
-                file "$executable" | tee -a "$link_probe_log"
-                machine="$(readelf -h "$executable" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
-                echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
-                readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
-                missing_dependencies=0
-                for library in libservice_app libdlog; do
-                  if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
-                    echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
-                  else
-                    echo "SERVICE_EXECUTABLE_MISSING_NEEDED=$library" | tee -a "$link_probe_log"
-                    missing_dependencies=1
-                  fi
-                done
-                case "$machine" in
-                  ARM*)
-                    if [ "$missing_dependencies" -eq 0 ]; then
-                      echo "SERVICE_LINK_RESULT=success" | tee -a "$link_probe_log"
+              rm -rf "$link_probe/Release"
+
+              # Record the actual IoT rootstrap contents and the library/catalogue
+              # configuration used by the clean ServiceApp project.
+              sysroot="$(find "$HOME/tizen-studio" -type d -name 'iot-headed-6.0-device.core' -print -quit)"
+              {
+                echo "REFERENCE_PROJECT=$source_project"
+                echo "LINK_PROJECT=$link_probe"
+                echo "ROOTSTRAP=iot-headed-6.0-device.core"
+                echo "SYSROOT=$sysroot"
+                echo "### ServiceApp Native API selectors and linker options"
+                grep -n -E 'Native_API|frameworks_lflags|sbi[.]gnu' "$link_probe/.cproject" || true
+                echo "### Platform library configuration"
+                grep -n -E 'RS_LIBRARIES|RS_LIB_PATHS|PLATFORM_LIB_PATHS' "$link_probe/Build/platform.mk" "$link_probe/Build/makefile.mk" || true
+                echo "### Rootstrap service_app and dlog files"
+                if [ -n "$sysroot" ]; then
+                  find "$sysroot" \( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
+                else
+                  echo "ROOTSTRAP_DIRECTORY_NOT_FOUND"
+                fi
+              } | tee -a "$link_probe_log"
+
+              tar -czf "$report/iot-headed-6.0-wmp-service-link-source.tar.gz" -C "$link_probe_root" WmpServiceProbe
+              if run_profile_command "iot-headed-6.0-wmp-service-link" "$link_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$link_probe"; then
+                executable="$(find "$link_probe/Release" -maxdepth 1 -type f -executable ! -name '*.a' -print -quit)"
+                if [ -z "$executable" ]; then
+                  echo "SERVICE_LINK_RESULT=failed executable_not_found" | tee -a "$link_probe_log"
+                  failed=1
+                else
+                  echo "SERVICE_EXECUTABLE=$executable" | tee -a "$link_probe_log"
+                  file "$executable" | tee -a "$link_probe_log"
+                  machine="$(readelf -h "$executable" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                  echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
+                  readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
+                  missing_dependencies=0
+                  for library in libservice_app libdlog; do
+                    if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
+                      echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
                     else
-                      echo "SERVICE_LINK_RESULT=failed missing_shared_dependencies" | tee -a "$link_probe_log"
-                      failed=1
+                      echo "SERVICE_EXECUTABLE_MISSING_NEEDED=$library" | tee -a "$link_probe_log"
+                      missing_dependencies=1
                     fi
-                    ;;
-                  *)
-                    echo "SERVICE_LINK_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$link_probe_log"
-                    failed=1
-                    ;;
-                esac
+                  done
+                  case "$machine" in
+                    ARM*)
+                      if [ "$missing_dependencies" -eq 0 ]; then
+                        echo "SERVICE_LINK_RESULT=success" | tee -a "$link_probe_log"
+                      else
+                        echo "SERVICE_LINK_RESULT=failed missing_shared_dependencies" | tee -a "$link_probe_log"
+                        failed=1
+                      fi
+                      ;;
+                    *)
+                      echo "SERVICE_LINK_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$link_probe_log"
+                      failed=1
+                      ;;
+                  esac
+                fi
+                find "$link_probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-link-output-files.txt" || true
+                find "$link_probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-link-output-file-types.txt" 2>/dev/null || true
+              else
+                status=$?
+                echo "SERVICE_LINK_RESULT=failed exit_code=$status" | tee -a "$link_probe_log"
+                failed=1
               fi
-              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-link-output-files.txt" || true
-              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-link-output-file-types.txt" 2>/dev/null || true
-            else
-              status=$?
-              echo "SERVICE_LINK_RESULT=failed exit_code=$status" | tee -a "$link_probe_log"
-              failed=1
             fi
           else
             echo "SERVICE_LINK_RESULT=skipped; source compilation did not succeed" | tee "$report/iot-headed-6.0-wmp-service-link.log"
