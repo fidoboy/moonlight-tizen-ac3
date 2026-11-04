@@ -1,0 +1,76 @@
+name: Inspect Tizen native SDK for WMP hybrid build
+
+on:
+  push:
+    branches:
+      - 1.2.0-pre-wpm_test
+    paths:
+      - '.github/workflows/inspect-native-sdk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout the WMP test branch only
+        uses: actions/checkout@v5
+        with:
+          ref: 1.2.0-pre-wpm_test
+
+      - name: Install Tizen Web CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          echo "$RUNNER_TEMP/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/tizen-studio/tools" >> "$GITHUB_PATH"
+
+      - name: Discover and install the TV native CLI package
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          "$pm" show-pkgs --tree | tee "$RUNNER_TEMP/tizen-packages.txt"
+          mapfile -t candidates < <(awk '$2 ~ /^TV-.*NativeAppDevelopment-CLI$/ {print $2}' "$RUNNER_TEMP/tizen-packages.txt")
+          if [[ "${#candidates[@]}" -eq 0 ]]; then
+            echo "::error::No TV NativeAppDevelopment-CLI package is advertised by this SDK catalog."
+            exit 1
+          fi
+          printf 'Native CLI candidates: %s\n' "${candidates[*]}"
+          package="${candidates[-1]}"
+          "$pm" install --accept-license --no-java-check "$package"
+          echo "Installed package: $package"
+
+      - name: Report native templates, rootstraps and CLI commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          tizen list native-project | tee "$RUNNER_TEMP/native-project-templates.txt"
+          tizen list rootstrap | tee "$RUNNER_TEMP/native-rootstraps.txt"
+          tizen manual build-app | tee "$RUNNER_TEMP/build-app-manual.txt"
+          tizen manual build-native | tee "$RUNNER_TEMP/build-native-manual.txt"
+
+      - name: Upload SDK discovery report
+        uses: actions/upload-artifact@v6
+        with:
+          name: tizen-native-sdk-discovery
+          path: |
+            ${{ runner.temp }}/tizen-packages.txt
+            ${{ runner.temp }}/native-project-templates.txt
+            ${{ runner.temp }}/native-rootstraps.txt
+            ${{ runner.temp }}/build-app-manual.txt
+            ${{ runner.temp }}/build-native-manual.txt
+          if-no-files-found: error
+          retention-days: 3
