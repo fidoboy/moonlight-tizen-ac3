@@ -260,64 +260,49 @@ NvHTTP.prototype = {
 
   // Called every few seconds to poll the server for updated info
   pollServer: function(onComplete) {
-    // Pend this callback on completion
     this._pollCompletionCallbacks.push(onComplete);
+    if (this._pollCompletionCallbacks.length > 1) return;
 
-    // Check if a poll was already in progress
-    if (this._pollCompletionCallbacks.length > 1) {
-      // Don't start another, because the one in progress will alert our caller too
-      return;
-    }
-
-    // Check if a stream session is already in progress
     if (isInGame === true) {
-      // Drain callbacks to avoid permanently blocking the deduplication guard
+      this._pollInProgress = false;
       var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this); // Executes the callback so the caller isn't left hanging
-      }
-      // Do not initiate any server polls while a streaming session is already in progress
+      while ((completion = this._pollCompletionCallbacks.pop())) completion(this);
       return;
     }
+
+    this._pollInProgress = true;
+    var finishPoll = function() {
+      this._pollInProgress = false;
+      var completion;
+      while ((completion = this._pollCompletionCallbacks.pop())) completion(this);
+    }.bind(this);
 
     this.selectServerAddress(function(successfulAddress) {
-      // Successfully determined server address. Update base URL
       var urlAddr = formatAddressForUrl(successfulAddress);
       this.address = successfulAddress;
       this._baseUrlHttps = 'https://' + urlAddr + ':' + this.httpsPort;
       this._baseUrlHttp = 'http://' + urlAddr + ':' + this.httpPort;
 
-      // Poll for updated mac address only on first successful server info poll
-      if (this.paired && this._pollCount === 0) {
-        updateMacAddress(this);
-      }
+      if (this.paired && this._pollCount === 0) updateMacAddress(this);
 
-      // Poll for the app list every 10 successful server info polls
-      // Not including the first one to avoid PCs taking a while to show as online initially
       if (this.paired && this._pollCount++ % 10 === 1) {
-        this.getAppListWithCacheFlush();
+        this._backgroundAppListRefreshInProgress = true;
+        this.getAppListWithCacheFlush().catch(function(error) {
+          console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
+        }).finally(function() {
+          this._backgroundAppListRefreshInProgress = false;
+        }.bind(this));
       }
 
       this._consecutivePollFailures = 0;
       this.online = true;
-
-      // Call all pending completion callbacks
-      var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this);
-      }
+      finishPoll();
     }.bind(this), function() {
-      // Set host to offline and clear the app list cache
       if (++this._consecutivePollFailures >= 2) {
         this.online = false;
         this._memCachedApplist = null;
       }
-
-      // Call all pending completion callbacks
-      var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this);
-      }
+      finishPoll();
     }.bind(this));
   },
 
