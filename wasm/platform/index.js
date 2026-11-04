@@ -2947,17 +2947,6 @@ function handleGamepadTestInput(event) {
         if (element) element.classList.toggle('gamepad-test-active', change.pressed);
       }
 
-      // The Close action is deliberately gamepad-only: press Down to focus it,
-      // then press A. Otherwise A is shown as an ordinary controller button.
-      if (change.index === 13 && change.pressed) {
-        gamepadTestDialogState.closeFocused = true;
-        gamepadTestDialogState.closeButton.classList.add('gamepad-test-close-focused');
-      } else if (change.index === 12 && change.pressed) {
-        gamepadTestDialogState.closeFocused = false;
-        gamepadTestDialogState.closeButton.classList.remove('gamepad-test-close-focused');
-      } else if (change.index === 0 && change.pressed && gamepadTestDialogState.closeFocused) {
-        closeGamepadTestDialog();
-      }
     } else if (change.type === 'axis') {
       gamepadTestDialogState.axes[change.index] = change.value;
       updateGamepadTestStick(0, gamepadTestDialogState.axes[0], gamepadTestDialogState.axes[1]);
@@ -3013,8 +3002,8 @@ function gamepadTestDialog() {
       <g id="gamepadTestController">
         <path d="M220.5 294.5C220.5 294.5 195 294.5 150 294.5C105 294.5 81.5 378.5 49.5 378.5C17.5 378.5 4 363.9 4 317.5C4 271.1 43.5 165.5 55 137.5C66.5 109.5 95.5 92.0001 128 92.0001C154 92.0001 200.5 92.0001 220.5 92.0001" class="gamepad-test-shell"/>
         <path d="M220 294.5C220 294.5 245.5 294.5 290.5 294.5C335.5 294.5 359 378.5 391 378.5C423 378.5 436.5 363.9 436.5 317.5C436.5 271.1 397 165.5 385.5 137.5C374 109.5 345 92.0001 312.5 92.0001C286.5 92.0001 240 92.0001 220 92.0001" class="gamepad-test-shell"/>
-        <path d="m152.5,52.9702c0,4.61877 -3.358,8.36308 -7.5,8.36308l-13,0c-4.142,0 -7.5,-3.74432 -7.5,-8.36308l0,-22.8591c0,-8.62177 6.268,-15.6111 14,-15.6111c7.732,0 14,6.98932 14,15.6111l0,22.8591z" class="gamepad-test-trigger"/>
-        <path d="m316.83334,53.44044c0,4.6352 -3.43795,8.39285 -7.67857,8.39285l-13.30953,0c-4.24062,0 -7.67857,-3.75765 -7.67857,-8.39285l0,-22.94046c0,-8.65246 6.41724,-15.66665 14.33334,-15.66665c7.9161,0 14.33334,7.0142 14.33334,15.66665l0,22.94046l-0.00001,0z" class="gamepad-test-trigger"/>
+        <g id="gamepadTestLT" class="gamepad-test-control"><path d="m152.5,52.9702c0,4.61877 -3.358,8.36308 -7.5,8.36308l-13,0c-4.142,0 -7.5,-3.74432 -7.5,-8.36308l0,-22.8591c0,-8.62177 6.268,-15.6111 14,-15.6111c7.732,0 14,6.98932 14,15.6111l0,22.8591z" class="gamepad-test-trigger"/></g>
+        <g id="gamepadTestRT" class="gamepad-test-control"><path d="m316.83334,53.44044c0,4.6352 -3.43795,8.39285 -7.67857,8.39285l-13.30953,0c-4.24062,0 -7.67857,-3.75765 -7.67857,-8.39285l0,-22.94046c0,-8.65246 6.41724,-15.66665 14.33334,-15.66665c7.9161,0 14.33334,7.0142 14.33334,15.66665l0,22.94046l-0.00001,0z" class="gamepad-test-trigger"/></g>
         <g id="gamepadTestLB" class="gamepad-test-control"><rect x="116.83332" y="66.83335" width="43.33334" height="17.00004" rx="6.5"/><text x="138.5" y="79">LB</text></g>
         <g id="gamepadTestRB" class="gamepad-test-control"><rect x="281.33334" y="67" width="42.66666" height="17.00003" rx="6.5"/><text x="302.5" y="79">RB</text></g>
         <line y2="302.5" x2="126.00001" y1="214.49998" x1="27.50001" class="gamepad-test-detail-line"/>
