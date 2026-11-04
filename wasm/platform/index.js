@@ -2922,10 +2922,15 @@ function hostNetworkTestDialog(host) {
     class: 'mdl-dialog'
   }).appendTo(overlay);
 
-  $('<h3>', {
-    class: 'mdl-dialog__title',
-    text: t('Network Test')
+  var title = $('<h3>', {
+    class: 'mdl-dialog__title network-test-title'
   }).appendTo(dialog);
+  $('<i>', {
+    class: 'material-icons network-test-title-icon',
+    text: 'schedule',
+    'aria-hidden': 'true'
+  }).appendTo(title);
+  $('<span>', { text: t('Network Test') }).appendTo(title);
 
   var content = $('<div>', { class: 'mdl-dialog__content' }).appendTo(dialog);
   var status = $('<p>', {
@@ -2942,7 +2947,7 @@ function hostNetworkTestDialog(host) {
   var setProgress = function(elapsedMs) {
     var progressComponent = progress[0].MaterialProgress;
     if (progressComponent && typeof progressComponent.setProgress === 'function') {
-      progressComponent.setProgress(Math.max(0, Math.min(100, elapsedMs / 300)));
+      progressComponent.setProgress(Math.max(0, Math.min(100, elapsedMs / 400)));
     }
   };
   var result = $('<div>', {
@@ -3017,7 +3022,7 @@ function hostNetworkTestDialog(host) {
       };
     }
 
-    return host.runNetworkTest(30000, function(stats) {
+    return host.runNetworkTest(40000, function(stats) {
       if (cancelled || finished) return;
       if (stats.started && testStartedAt === null) {
         testStartedAt = Date.now();
