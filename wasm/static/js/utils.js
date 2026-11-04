@@ -565,14 +565,14 @@ NvHTTP.prototype = {
     // The diagnostic compares ordinary one-shot requests with two isolated
     // persistent CURL handles: TLS session cache enabled and disabled.
     // The measured test defaults to the persistent handle with TLS cache disabled.
-    var networkTestUsePersistentConnection = true;
-    var requestAsset = function(appId, usePersistentConnection, useTlsSessionCache, diagnosticLabel) {
+    var networkTestReuseCurlHandle = true;
+    var requestAsset = function(appId, reuseCurlHandle, useTlsSessionCache, diagnosticLabel) {
       var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
         '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
       var requestStartedAt = performance.now();
-      var persistent = usePersistentConnection == null
-        ? networkTestUsePersistentConnection
-        : usePersistentConnection !== false;
+      var persistent = reuseCurlHandle == null
+        ? networkTestReuseCurlHandle
+        : reuseCurlHandle !== false;
       var tlsSessionCache = useTlsSessionCache === true;
       return sendMessage('openUrl', [url, self.ppkstr, true, 5000, persistent, tlsSessionCache]).then(function(buffer) {
         var elapsedMs = Math.max(0, performance.now() - requestStartedAt);
@@ -639,13 +639,13 @@ NvHTTP.prototype = {
 
       return diagnosticRequest('one-shot #1 (TLS cache off)', false, false)
         .then(function(oneShot) {
-          return diagnosticRequest('persistent TLS cache ON #1', true, true)
+          return diagnosticRequest('shared CURL handle, TLS cache ON #1', true, true)
             .then(function(cacheOnFirst) {
-              return diagnosticRequest('persistent TLS cache ON #2', true, true)
+              return diagnosticRequest('shared CURL handle, TLS cache ON #2', true, true)
                 .then(function(cacheOnSecond) {
-                  return diagnosticRequest('persistent TLS cache OFF #1', true, false)
+                  return diagnosticRequest('shared CURL handle, TLS cache OFF #1', true, false)
                     .then(function(cacheOffFirst) {
-                      return diagnosticRequest('persistent TLS cache OFF #2', true, false)
+                      return diagnosticRequest('shared CURL handle, TLS cache OFF #2', true, false)
                         .then(function(cacheOffSecond) {
                           return diagnosticRequest('one-shot #2 (TLS cache off)', false, false)
                             .then(function(oneShotSecond) {
@@ -659,9 +659,9 @@ NvHTTP.prototype = {
                               } else {
                                 // Keep the network test usable if the persistent context is
                                 // rejected by the host; fall back to the ordinary HTTP path.
-                                networkTestUsePersistentConnection = false;
+                                networkTestReuseCurlHandle = false;
                                 console.warn('%c[utils.js, runNetworkTest]', 'color: gray;',
-                                  'Persistent TLS-cache-OFF requests both failed; continuing with ordinary one-shot HTTP.');
+                                  'Shared CURL handle with TLS cache OFF failed twice; continuing with ordinary one-shot HTTP.');
                                 if (!oneShot.succeeded && !oneShotSecond.succeeded) {
                                   throw new Error('Both persistent and ordinary HTTP requests failed for the first app asset.');
                                 }
