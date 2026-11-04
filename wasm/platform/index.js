@@ -4250,6 +4250,8 @@ function showApps(host, options) {
         $('#game-grid').show();
 
         if (appList.length == 0) {
+          // Persist even an empty successful result so stale application names are discarded.
+          cacheHostAppList(host, appList);
           console.warn('%c[index.js, showApps]', 'Warning: Your app list is empty. Please add some apps to your list!');
           var emptyAppListImg = new Image();
           emptyAppListImg.src = 'static/res/applist_empty.svg';
@@ -4291,31 +4293,8 @@ function showApps(host, options) {
           });
         }
 
-        if (_isSmartHubSupported) {
-          var oldApps = (_previewApps[host.serverUid] && _previewApps[host.serverUid].apps) || [];
-
-          _previewApps[host.serverUid] = {
-            hostname: host.hostname,
-            address: host.address,
-            apps: sortedAppList.map(function(app) {
-              var oldApp = oldApps.find(function(a) {
-                return a.id === app.id;
-              });
-              var newApp = {
-                id: app.id, title: app.title
-              };
-              if (oldApp) {
-                if (oldApp.imageUri) {
-                  newApp.imageUri = oldApp.imageUri;
-                }
-                if (oldApp.txtPath) {
-                  newApp.txtPath = oldApp.txtPath;
-                }
-              }
-              return newApp;
-            })
-          };
-        }
+        // Keep the host's app ID/title mapping available independently of Smart Hub support.
+        cacheHostAppList(host, sortedAppList);
 
         // Pause background polling during box art downloads to prevent
         // the polling /serverinfo request from being queued behind 40+
@@ -5984,11 +5963,40 @@ function saveHosts() {
 }
 
 function savePreviewApps() {
-  if (!_isSmartHubSupported) {
+  // This cache is shared by Smart Hub Preview and the main UI, so persist it
+  // even when Smart Hub Preview is unavailable on the current device.
+  console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
+  storeData('previewApps', _previewApps, null);
+}
+
+// Update the persistent per-host app list while preserving Smart Hub Preview
+// image metadata for applications that remain in the host's current app list.
+function cacheHostAppList(host, appList) {
+  if (!host || !host.serverUid || !Array.isArray(appList)) {
     return;
   }
-  console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving preview apps data: ' + JSON.stringify(_previewApps));
-  storeData('previewApps', _previewApps, null);
+
+  var oldApps = (_previewApps[host.serverUid] && _previewApps[host.serverUid].apps) || [];
+  _previewApps[host.serverUid] = {
+    hostname: host.hostname,
+    address: host.address,
+    apps: appList.map(function(app) {
+      var oldApp = oldApps.find(function(cachedApp) {
+        return Number(cachedApp.id) === Number(app.id);
+      });
+      var newApp = {
+        id: app.id,
+        title: app.title
+      };
+      if (oldApp) {
+        if (oldApp.imageUri) newApp.imageUri = oldApp.imageUri;
+        if (oldApp.txtPath) newApp.txtPath = oldApp.txtPath;
+      }
+      return newApp;
+    })
+  };
+
+  savePreviewApps();
 }
 
 function saveResolution() {
@@ -8261,35 +8269,9 @@ function waitForHostAndNavigateToApp(serverUid, appId) {
         // If game grid is populated, sort the app list
         const sortedAppList = sortTitles(appList, sortOrder);
 
-        if (_isSmartHubSupported) {
-          // Preserve existing image paths from the previous preview cache
-          var oldApps = (_previewApps[serverUid] && _previewApps[serverUid].apps) || [];
-
-          // Update the preview with the latest app list from this successful connection
-          _previewApps[serverUid] = {
-            hostname: host.hostname,
-            address: host.address,
-            apps: sortedAppList.map(function(app) {
-              var oldApp = oldApps.find(function(a) {
-                return a.id === app.id; 
-              });
-              var newApp = {
-                id: app.id, title: app.title
-              };
-              if (oldApp) {
-                if (oldApp.imageUri) {
-                  newApp.imageUri = oldApp.imageUri;
-                }
-                if (oldApp.txtPath) {
-                  newApp.txtPath = oldApp.txtPath;
-                }
-              }
-              return newApp;
-            })
-          };
-          savePreviewApps();
-          updatePreviewData();
-        }
+        // Keep the host's app ID/title mapping available independently of Smart Hub support.
+        cacheHostAppList(host, sortedAppList);
+        updatePreviewData();
 
         var appExists = appList.some(function(app) {
           return app.id === appId;
