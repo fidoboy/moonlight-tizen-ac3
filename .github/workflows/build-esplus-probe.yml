@@ -62,8 +62,10 @@ jobs:
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightProbe.p12" \
             -p "$CERT_PASSWORD"
           # Work around the headless CI runner not providing a desktop keyring.
-          sed -i 's|/root/tizen-studio-data/keystore/author/MoonlightProbe.pwd||' \
-            "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml" || true
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightProbe.pwd||" \
+            "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          sed -i "s|$RUNNER_TEMP/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd|tizenpkcs12passfordsigner|" \
+            "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightProbe.p12"
 
       - name: Build Tizen .NET package
