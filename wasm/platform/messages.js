@@ -5,7 +5,6 @@ const SyncFunctions = {
   'makeCert': (...args) => Module.makeCert(...args),
   // cert, privateKey, myUniqueid
   'httpInit': (...args) => Module.httpInit(...args),
-  'closeNetworkTestHttpSession': (...args) => Module.closeNetworkTestHttpSession(...args),
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
@@ -33,6 +32,7 @@ const SyncFunctions = {
 const AsyncFunctions = {
   // url, ppk, binaryResponse
   'openUrl': (id, url, ppk, binary, timeout, reuseNetworkTestConnection) => Module.openUrl(id, url, ppk, binary, reuseNetworkTestConnection),
+  'closeNetworkTestHttpSession': (id) => Module.closeNetworkTestHttpSession(id),
   // no parameters
   'STUN': (...args) => Module.stun(...args),
   // serverMajorVersion, address, httpPort, randomNumber
@@ -686,6 +686,25 @@ var sendMessage = function(method, params) {
       } else {
         reject(ret.ret);
       }
+    });
+  } else if (method === 'closeNetworkTestHttpSession') {
+    return new Promise(function(resolve, reject) {
+      _httpLock = _httpLock.catch(function() {}).then(function() {
+        return new Promise(function(innerResolve, innerReject) {
+          const id = callbacks_ids++;
+          callbacks[id] = {
+            'resolve': function(msg) {
+              resolve(msg);
+              innerResolve();
+            },
+            'reject': function(err) {
+              reject(err);
+              innerResolve();
+            }
+          };
+          AsyncFunctions['closeNetworkTestHttpSession'](id);
+        });
+      });
     });
   } else if (method === 'openUrl') {
     // We MUST enforce the timeout in JavaScript because Emscripten's libcurl wrapper
