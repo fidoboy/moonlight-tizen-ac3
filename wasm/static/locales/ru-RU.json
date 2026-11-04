@@ -576,7 +576,7 @@
   "Test stopped.": "Тест остановлен.",
   "Image set: %1$s MB (%2$s images)": "Набор изображений: %1$s МБ (%2$s изображений)",
   "Stop": "Остановить",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Колебания скорости между полными загрузками набора изображений: %1$s–%2$s Мбит/с",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variation: %1$s",
   "Not enough complete image-set passes to compare speed variation.": "Недостаточно полных проходов по набору изображений для сравнения колебаний скорости.",
   "Completed image-set passes: %1$s": "Полных проходов по набору изображений: %1$s",
   "The host must be online and paired before running the network test.": "Для запуска теста сети хост должен быть в сети и сопряжён с клиентом.",
