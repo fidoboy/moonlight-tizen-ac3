@@ -33,17 +33,54 @@ namespace MoonlightEsplusProbe
 
     internal sealed class ProbeApp : NUIApplication
     {
-        private static readonly string[] RequiredSymbols = {
+        // Probe both known API naming families. Finding a symbol is only
+        // an export-level observation; it does not validate its ABI/signature.
+        private static readonly string[] CandidateSymbols = {
+            // Common lifecycle / packet path
             "esplusplayer_create",
             "esplusplayer_open",
             "esplusplayer_close",
+            "esplusplayer_destroy",
             "esplusplayer_prepare_async",
             "esplusplayer_start",
             "esplusplayer_stop",
+            "esplusplayer_pause",
+            "esplusplayer_resume",
+            "esplusplayer_submit_packet",
+            "esplusplayer_submit_eos_packet",
+            "esplusplayer_set_ecore_display",
+            "esplusplayer_get_state",
+            "esplusplayer_get_playing_time",
+
+            // Legacy stream configuration (WMP Tizen 5.0 header)
             "esplusplayer_add_video_stream_info",
             "esplusplayer_add_audio_stream_info",
-            "esplusplayer_submit_packet",
-            "esplusplayer_set_ecore_display"
+
+            // Later public API naming
+            "esplusplayer_set_video_stream_info",
+            "esplusplayer_set_audio_stream_info",
+
+            // Display / application configuration
+            "esplusplayer_set_display",
+            "esplusplayer_set_display_mode",
+            "esplusplayer_set_display_visible",
+            "esplusplayer_set_app_info",
+
+            // Callbacks
+            "esplusplayer_set_error_cb",
+            "esplusplayer_set_buffer_status_cb",
+            "esplusplayer_set_resource_conflicted_cb",
+            "esplusplayer_set_eos_cb",
+            "esplusplayer_set_ready_to_prepare_cb",
+            "esplusplayer_set_prepare_async_done_cb",
+            "esplusplayer_set_ready_to_seek_cb",
+            "esplusplayer_set_seek_done_cb",
+
+            // Optional controls / diagnostics
+            "esplusplayer_seek",
+            "esplusplayer_set_playback_rate",
+            "esplusplayer_set_audio_mute",
+            "esplusplayer_get_error_string"
         };
 
         private static readonly object OutputLock = new object();
@@ -130,9 +167,22 @@ namespace MoonlightEsplusProbe
             }
 
             Log("dlopen SUCCESS: " + loadedFrom + " handle=0x" + handle.ToInt64().ToString("x"));
-            Log("Nota: los nombres de simbolos siguientes son candidatos, no una ABI confirmada.");
+            Log("Los exports son candidatos: dlsym no valida firmas ni estructuras.");
             int found = 0;
-            foreach (string symbol in RequiredSymbols)
+            bool addVideo = false;
+            bool addAudio = false;
+            bool setVideo = false;
+            bool setAudio = false;
+            bool create = false;
+            bool open = false;
+            bool close = false;
+            bool prepare = false;
+            bool startPlayer = false;
+            bool stop = false;
+            bool submit = false;
+            bool display = false;
+
+            foreach (string symbol in CandidateSymbols)
             {
                 Native.Dlerror();
                 IntPtr address = Native.Dlsym(handle, symbol);
@@ -144,14 +194,47 @@ namespace MoonlightEsplusProbe
                 }
                 else
                 {
-                    Log("SYMBOL MISSING " + symbol + ": " + error);
+                    Log("SYMBOL MISSING " + symbol);
+                }
+
+                switch (symbol)
+                {
+                    case "esplusplayer_create": create = address != IntPtr.Zero; break;
+                    case "esplusplayer_open": open = address != IntPtr.Zero; break;
+                    case "esplusplayer_close": close = address != IntPtr.Zero; break;
+                    case "esplusplayer_prepare_async": prepare = address != IntPtr.Zero; break;
+                    case "esplusplayer_start": startPlayer = address != IntPtr.Zero; break;
+                    case "esplusplayer_stop": stop = address != IntPtr.Zero; break;
+                    case "esplusplayer_submit_packet": submit = address != IntPtr.Zero; break;
+                    case "esplusplayer_set_ecore_display": display = address != IntPtr.Zero; break;
+                    case "esplusplayer_add_video_stream_info": addVideo = address != IntPtr.Zero; break;
+                    case "esplusplayer_add_audio_stream_info": addAudio = address != IntPtr.Zero; break;
+                    case "esplusplayer_set_video_stream_info": setVideo = address != IntPtr.Zero; break;
+                    case "esplusplayer_set_audio_stream_info": setAudio = address != IntPtr.Zero; break;
                 }
             }
 
-            Log("SYMBOL SUMMARY: " + found + "/" + RequiredSymbols.Length + " candidate exports found");
-            Log(found == RequiredSymbols.Length
-                ? "RESULT: LIBRARY_LOADED_SYMBOLS_OK"
-                : "RESULT: LIBRARY_LOADED_SYMBOLS_INCOMPLETE");
+            Log("SYMBOL SUMMARY: " + found + "/" + CandidateSymbols.Length + " candidate exports found");
+            Log("CORE SYMBOLS: " +
+                ((create && open && close && prepare && startPlayer && stop && submit && display)
+                    ? "COMPLETE" : "INCOMPLETE"));
+            Log("LEGACY add_* STREAM API: " +
+                ((addVideo && addAudio) ? "BOTH EXPORTS FOUND" :
+                 (addVideo || addAudio) ? "PARTIAL" : "NOT FOUND"));
+            Log("LATER set_* STREAM API: " +
+                ((setVideo && setAudio) ? "BOTH EXPORTS FOUND" :
+                 (setVideo || setAudio) ? "PARTIAL" : "NOT FOUND"));
+
+            if (addVideo && addAudio && !(setVideo || setAudio))
+                Log("ABI HINT: LEGACY_ADD family (export names only; ABI still unverified)");
+            else if (setVideo && setAudio && !(addVideo || addAudio))
+                Log("ABI HINT: SET_STREAM family (export names only; ABI still unverified)");
+            else if (addVideo && addAudio && setVideo && setAudio)
+                Log("ABI HINT: BOTH naming families exported; do not choose without ABI validation");
+            else
+                Log("ABI HINT: INCOMPLETE/UNKNOWN stream configuration exports");
+
+            Log("RESULT: SYMBOL INVENTORY COMPLETE; NO PLAYER FUNCTIONS WERE CALLED");
             // This first probe deliberately does not initialize the player.
         }
 
