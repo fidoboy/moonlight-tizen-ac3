@@ -3058,7 +3058,8 @@ function hostNetworkTestDialog(host) {
         t('Approximate average download speed: %1$s Mbps', stats.averageMbps.toFixed(2))
       ];
       if (stats.passCount >= 2) {
-        lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', stats.minPassMbps.toFixed(2), stats.maxPassMbps.toFixed(2)));
+        var variationPercent = Math.round(((stats.maxPassMbps - stats.minPassMbps) / ((stats.maxPassMbps + stats.minPassMbps) / 2)) * 100);
+        lines.push(t('Speed variation across complete image-set passes: %1$s–%2$s Mbps', variationPercent + '%'));
       }
       lines.push(t('Data received: %1$s MB', (stats.bytes / (1024 * 1024)).toFixed(2)));
       if (stats.failedRequests > 0) {
