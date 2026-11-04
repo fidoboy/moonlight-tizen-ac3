@@ -2986,7 +2986,9 @@ function hostNetworkTestDialog(host) {
   Navigation.push(Views.NetworkTestDialog);
   setTimeout(function() { Navigation.switch(); }, 5);
 
+  var pollingPauseAcquired = false;
   var networkTestOperation = pauseBackgroundHostPollingForNetworkTest().then(function() {
+    pollingPauseAcquired = true;
     if (cancelled) {
       return {
         completed: true,
@@ -3066,7 +3068,7 @@ function hostNetworkTestDialog(host) {
     actionButton.prop('disabled', false);
     Navigation.switch();
   }).finally(function() {
-    resumeBackgroundHostPollingAfterNetworkTest();
+    if (pollingPauseAcquired) resumeBackgroundHostPollingAfterNetworkTest();
   });
 }
 
