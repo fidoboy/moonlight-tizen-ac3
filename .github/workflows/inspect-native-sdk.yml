@@ -38,7 +38,7 @@ jobs:
           echo "$RUNNER_TEMP/tizen-studio/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$RUNNER_TEMP/tizen-studio/tools" >> "$GITHUB_PATH"
 
-      - name: Install the native CLI and Tizen 6.0 ARM toolchain
+      - name: Install native CLIs for Tizen 10.0 and IoT Headed 6.0
         shell: bash
         run: |
           set -euo pipefail
@@ -46,7 +46,7 @@ jobs:
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
           "$pm" show-pkgs --tree | tee "$RUNNER_TEMP/tizen-packages.txt"
-          required=(NativeCLI NativeToolchain-Gcc-9.2 MOBILE-6.0-NativeAppDevelopment-CLI)
+          required=(NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 TIZEN-10.0-NativeAppDevelopment-CLI IOT-Headed-6.0-NativeAppDevelopment-CLI)
           for package in "${required[@]}"; do
             if ! awk -v wanted="$package" '$2 == wanted {found=1} END {exit !found}' "$RUNNER_TEMP/tizen-packages.txt"; then
               echo "::error::Required SDK package is not advertised: $package"
@@ -78,7 +78,7 @@ jobs:
 
           probe native-project-templates tizen list native-project
           probe native-rootstraps tizen list rootstrap
-          probe native-profiles tizen list profile
+          probe native-project-templates-after-install tizen list native-project
           probe build-app-help tizen manual build-app
           probe build-native-help tizen manual build-native
           probe build-app-command-help tizen help build-app
