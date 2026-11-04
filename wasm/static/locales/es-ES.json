@@ -595,5 +595,5 @@
   "Gamepad Test": "Prueba del mando",
   "The required data could not be retrieved from the host. The test has been aborted.": "No se pudieron obtener los datos necesarios del anfitrión. Se ha abortado la prueba.",
   "Game Controller Test": "Prueba del controlador de juegos",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Pulse los botones y mueva las palancas de su controlador para probar el funcionamiento de todos los botones. En la pantalla se deberían de iluminar los que correspondan. Cuando haya terminado, pulse el botón \"Volver\" del mando a distancia de su TV para cerrar este diálogo."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Pulse los botones y mueva las palancas de su controlador para verificar su correcto funcionamiento. En la pantalla se deberán iluminar los que correspondan a las pulsaciones, permitiendo la comprobación visual de su funcionamiento. Cuando haya terminado, pulse el botón \"Volver\" del mando a distancia de su TV para cerrar este diálogo."
 }
