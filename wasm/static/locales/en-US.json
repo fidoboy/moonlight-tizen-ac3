@@ -570,5 +570,11 @@
   "Download errors: %1$s": "Download errors: %1$s",
   "Duration: %1$s seconds": "Duration: %1$s seconds",
   "Network test could not be completed.": "Network test could not be completed.",
-  "Testing network connection...": "Testing network connection..."
+  "Testing network connection...": "Testing network connection...",
+  "Pausing background host checks...": "Pausing background host checks...",
+  "Stopping network test...": "Stopping network test...",
+  "Test stopped before measurement could begin.": "Test stopped before measurement could begin.",
+  "Test stopped.": "Test stopped.",
+  "Image set: %1$s MB (%2$s images)": "Image set: %1$s MB (%2$s images)",
+  "Stop": "Stop"
 }
