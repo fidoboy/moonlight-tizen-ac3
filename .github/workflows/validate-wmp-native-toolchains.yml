@@ -268,6 +268,12 @@ jobs:
           print("ROOTSTRAP_EMPTY_LIBRARY_RESPONSE_FILE=enabled")
           PY
 
+            # The copied Tizen 10 template contains generated Release outputs.
+            # In particular, platform_libs.file is a stale Tizen 10 linker catalogue;
+            # remove it so make regenerates an empty response file from platform.mk.
+            rm -f "$probe/Release/platform_libs.file"
+            echo "ROOTSTRAP_STALE_LIBRARY_RESPONSE_FILE=removed" | tee -a "$probe_log"
+
             # Dependency-free C entry point: test the ARM compiler and linker,
             # not the availability of ServiceApp or other Tizen framework APIs.
             cat > "$probe/src/wmpserviceprobe.c" <<'C'
@@ -294,7 +300,11 @@ jobs:
               if [ ! -f "$probe_binary" ]; then
                 echo "ROOTSTRAP_PROBE_RESULT=failed missing_output=$probe_binary" | tee -a "$probe_log"
                 failed=1
+              elif [ -s "$probe/Release/platform_libs.file" ]; then
+                echo "ROOTSTRAP_PROBE_RESULT=failed stale_or_nonempty_platform_libs_file" | tee -a "$probe_log"
+                failed=1
               else
+                echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE=empty" | tee -a "$probe_log"
                 machine="$(readelf -h "$probe_binary" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
                 echo "ROOTSTRAP_PROBE_ELF_MACHINE=$machine" | tee -a "$probe_log"
                 case "$machine" in
