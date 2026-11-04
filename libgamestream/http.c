@@ -60,6 +60,7 @@ static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
 }
 
 volatile int g_CancelHttpRequest = 0;
+static CURL *g_NetworkTestCurl = NULL;
 
 void http_cancel_request() {
   g_CancelHttpRequest = 1;
@@ -76,7 +77,7 @@ static int _progress_callback(void *clientp, double dltotal, double dlnow, doubl
   return 0;
 }
 
-int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
+static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA data, CURL **persistent_curl) {
   int ret;
   CURL *curl;
   const char* real_url = url;
@@ -86,7 +87,12 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
 
   http_reset_cancel();
 
-  curl = curl_easy_init();
+  curl = persistent_curl ? *persistent_curl : NULL;
+  if (curl == NULL) {
+    curl = curl_easy_init();
+    if (curl == NULL) return GS_FAILED;
+    if (persistent_curl) *persistent_curl = curl;
+  }
 
   curl_easy_setopt(curl, CURLOPT_CAINFO, "/curl/ca-bundle.crt");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _write_curl);
@@ -94,10 +100,12 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
   curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
   curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, _progress_callback);
   curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, *sslctx_function);
-  curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L);
-  curl_easy_setopt(curl, CURLOPT_MAXCONNECTS, 0L);
-  curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1L);
-  curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+  if (persistent_curl == NULL) {
+    curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L);
+    curl_easy_setopt(curl, CURLOPT_MAXCONNECTS, 0L);
+    curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1L);
+    curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+  }
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(curl, CURLOPT_SSL_ENABLE_ALPN, 0L);
@@ -141,6 +149,7 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
     real_url = rewritten_url;
   }
 
+  curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
   curl_easy_setopt(curl, CURLOPT_URL, real_url);
 
   // Use the pinned certificate for HTTPS
@@ -179,8 +188,23 @@ cleanup:
   if (rewritten_url) free(rewritten_url);
   if (resolve_string) free(resolve_string);
   if (resolve_list) curl_slist_free_all(resolve_list);
-  curl_easy_cleanup(curl);
+  if (persistent_curl == NULL) curl_easy_cleanup(curl);
   return ret;
+}
+
+int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
+  return http_request_internal(url, ppkstr, data, NULL);
+}
+
+int http_request_network_test(const char* url, const char* ppkstr, PHTTP_DATA data) {
+  return http_request_internal(url, ppkstr, data, &g_NetworkTestCurl);
+}
+
+void http_close_network_test_session(void) {
+  if (g_NetworkTestCurl != NULL) {
+    curl_easy_cleanup(g_NetworkTestCurl);
+    g_NetworkTestCurl = NULL;
+  }
 }
 
 PHTTP_DATA http_create_data() {
