@@ -622,6 +622,10 @@ jobs:
               cp -a "$link_probe" "$service_project"
               sed -i 's/WmpServiceProbe/WmpService/g' "$service_project/.project" "$service_project/.cproject"
               cp "$GITHUB_WORKSPACE/res/config.xml" "$web_project/config.xml"
+              mkdir -p "$web_project/service"
+              cp "$GITHUB_WORKSPACE/res/service/service.js" "$web_project/service/service.js"
+              test -s "$web_project/service/service.js"
+              echo "HYBRID_WEB_SERVICE_JS=present path=service/service.js" | tee -a "$hybrid_log"
               cat > "$web_project/index.html" <<'HTML'
           <!doctype html>
           <html><head><meta charset="utf-8"><title>Moonlight Hybrid Package Probe</title></head>
@@ -745,6 +749,7 @@ jobs:
               )
               native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
               web_config = [name for name in names if name.endswith("/wgt/config.xml") or name == "res/wgt/config.xml"]
+              web_service_js = [name for name in names if name.endswith("/wgt/service/service.js") or name == "res/wgt/service/service.js"]
               info_files = [name for name in names if name.startswith("info/") and not name.endswith("/")]
               details = []
               for name in info_files:
@@ -765,6 +770,9 @@ jobs:
                   failures.append("native executable missing from bin/")
               if not web_config:
                   failures.append("Web config.xml missing from res/wgt/")
+              print("HYBRID_PACKAGE_WEB_SERVICE_JS=" + (web_service_js[0] if web_service_js else "(missing)"))
+              if not web_service_js:
+                  failures.append("Smart Hub service.js missing from res/wgt/service/")
               if not info_files:
                   failures.append("no native/application metadata files found under info/")
               if failures:
