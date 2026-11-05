@@ -649,8 +649,8 @@ jobs:
                 'set timeout -1' \
                 'spawn {*}$argv' \
                 'expect {' \
-                '  -re {Author password:} { send -- "123456\\r"; exp_continue }' \
-                '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\\r"; exp_continue }' \
+                '  -re {Author password:} { send -- "123456\r"; exp_continue }' \
+                '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
                 '  eof' \
                 '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
               chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
