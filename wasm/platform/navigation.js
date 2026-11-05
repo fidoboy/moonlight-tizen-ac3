@@ -1704,6 +1704,7 @@ const Views = {
   },
   HostSettings: {
     view: new ListView(() => [
+      'discoverNewHostsAtStartupBtn',
       'sortAppsListBtn',
       'optimizeGamesBtn',
       'quitAppAfterDisconnectBtn',
