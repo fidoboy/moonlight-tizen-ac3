@@ -595,5 +595,10 @@
   "Gamepad Test": "Gamepad testen",
   "The required data could not be retrieved from the host. The test has been aborted.": "Die erforderlichen Daten konnten nicht vom Host abgerufen werden. Der Test wurde abgebrochen.",
   "Game Controller Test": "Gamecontroller testen",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Drücken Sie die Tasten und bewegen Sie die Sticks Ihres Controllers, um alle Tasten zu testen. Die entsprechenden Bedienelemente sollten auf dem Bildschirm aufleuchten. Wenn Sie fertig sind, drücken Sie die Zurück-Taste auf Ihrer TV-Fernbedienung, um diesen Dialog zu schließen."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Drücken Sie die Tasten und bewegen Sie die Sticks Ihres Controllers, um alle Tasten zu testen. Die entsprechenden Bedienelemente sollten auf dem Bildschirm aufleuchten. Wenn Sie fertig sind, drücken Sie die Zurück-Taste auf Ihrer TV-Fernbedienung, um diesen Dialog zu schließen.",
+  "Stream processing engine": "Stream-Verarbeitungs-Engine",
+  "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.": "Wählen Sie die Engine für den gesamten Audio- und Videostream. EMSS verwendet den bewährten Pfad. WMP nativ ist experimentell; die Medienpipeline ist noch nicht implementiert.",
+  "EMSS (conventional)": "EMSS (konventionell)",
+  "WMP native (experimental)": "WMP nativ (experimentell)",
+  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "WMP nativ ist ausgewählt, aber die Audio-/Videomedienpipeline ist noch nicht implementiert. Es wurde kein Stream gestartet und EMSS wurde nicht automatisch ausgewählt."
 }
