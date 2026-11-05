@@ -3,7 +3,7 @@ name: Validate native ServiceApp toolchains for WMP
 on:
   push:
     branches:
-      - 1.2.0-pre-wpm_test
+      - wpm_experimental
     paths:
       - '.github/workflows/validate-wmp-native-toolchains.yml'
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout the WMP test branch only
         uses: actions/checkout@v5
         with:
-          ref: 1.2.0-pre-wpm_test
+          ref: wpm_experimental
 
       - name: Install Tizen Native SDK
         shell: bash
