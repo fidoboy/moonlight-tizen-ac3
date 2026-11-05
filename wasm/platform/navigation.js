@@ -1430,6 +1430,7 @@ const Views = {
   },
   BasicSettings: {
     view: new ListView(() => [
+      'selectStreamingEngine',
       'selectResolution',
       'selectFramerate',
       'selectBitrate',

@@ -801,6 +801,7 @@ function attachListeners() {
     if (!this.hidden && !this.disabled) saveResolution.call(this);
   });
   $('.videoFramerateMenu li').on('click', saveFramerate);
+  $('.streamingEngineMenu li').on('click', saveStreamingEngine);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
   $('#framePacingSwitch').on('click', saveFramePacing);
@@ -857,6 +858,7 @@ function attachListeners() {
 
   registerMenu('selectResolution', Views.SelectResolutionMenu);
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
+  registerMenu('selectStreamingEngine', Views.SelectStreamingEngineMenu);
   registerMenu('selectBitrate', Views.SelectBitrateMenu);
   registerMenu('selectLanguage', Views.SelectLanguageMenu);
   registerMenu('selectAmbientBackground', Views.AmbientBackgroundMenu);
@@ -6714,6 +6716,14 @@ function saveFramerate() {
   warnResolutionFramerate();
 }
 
+function saveStreamingEngine() {
+  var chosenEngine = $(this).data('value');
+  if (chosenEngine !== 'EMSS' && chosenEngine !== 'WMP') return;
+  $('#selectStreamingEngine').text($(this).text())
+    .attr('data-value', chosenEngine).data('value', chosenEngine);
+  storeData('streamingEngine', chosenEngine, null);
+}
+
 function warnResolutionFramerate() {
   var chosenResolutionWidth = $('#selectResolution').data('value').split(':')[0];
   var chosenResolutionHeight = $('#selectResolution').data('value').split(':')[1];
@@ -7922,6 +7932,10 @@ function restoreDefaultsSettingsValues() {
   $('#selectFramerate').text('60 FPS').attr('data-value', defaultFramerate).data('value', defaultFramerate);
   storeData('frameRate', defaultFramerate, null);
 
+  const defaultStreamingEngine = 'EMSS';
+  $('#selectStreamingEngine').text('EMSS').attr('data-value', defaultStreamingEngine).data('value', defaultStreamingEngine);
+  storeData('streamingEngine', defaultStreamingEngine, null);
+
   const defaultBitrate = '10';
   $('#selectBitrate').text(defaultBitrate + ' Mbps');
   $('#bitrateSlider')[0].MaterialSlider.change(defaultBitrate);
@@ -8403,6 +8417,19 @@ function loadUserDataCb() {
           $('#selectFramerate').text($(this).text()).attr('data-value', previousValue.frameRate).data('value', previousValue.frameRate);
         }
       });
+    }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored streaming engine preference.');
+  getData('streamingEngine', function(previousValue) {
+    var engine = previousValue && previousValue.streamingEngine;
+    if (engine !== 'EMSS' && engine !== 'WMP') engine = 'EMSS';
+    var option = $('.streamingEngineMenu li').filter(function() {
+      return $(this).data('value') === engine;
+    }).first();
+    if (option.length) {
+      $('#selectStreamingEngine').text(option.text())
+        .attr('data-value', engine).data('value', engine);
     }
   });
 
