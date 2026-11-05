@@ -519,7 +519,16 @@ jobs:
                   find "$sysroot" -type f \( -name '*.so' -o -name '*.so.*' -o -name '*.a' \) -print | sort
                   echo "### Libraries exporting ServiceApp entry points"
                   while IFS= read -r library_file; do
-                    if nm -D --defined-only "$library_file" 2>/dev/null | grep -Eq '[[:space:]](service_app_main|service_app_exit|service_app_add_event_handler)
+                    if nm -D --defined-only "$library_file" 2>/dev/null | grep -Eq 'service_app_main|service_app_exit|service_app_add_event_handler'; then
+                      echo "SERVICE_APP_SYMBOL_LIBRARY=$library_file"
+                      nm -D --defined-only "$library_file" 2>/dev/null | grep -E 'service_app_main|service_app_exit|service_app_add_event_handler'
+                    fi
+                  done < <(find "$sysroot" -type f \( -name '*.so' -o -name '*.so.*' \) -print | sort)
+                  echo "### service_app.h API declarations"
+                  grep -n -E 'service_app_(main|exit|add_event_handler)' "$sysroot/usr/include/appcore-agent/service_app.h" 2>/dev/null || true
+                  echo "### Rootstrap library directories"
+                  find "$sysroot" -maxdepth 3 -type d \( -name lib -o -name lib64 \) -print | sort
+                else
                   echo "ROOTSTRAP_DIRECTORY_NOT_FOUND"
                   failed=1
                 fi
