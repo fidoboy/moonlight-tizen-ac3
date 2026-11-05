@@ -4713,8 +4713,16 @@ function stylizeBoxArts(freshApi, appsList) {
 // Sort the app titles
 function sortTitles(list, sortOrder) {
   return list.sort((a, b) => {
-    if (sortOrder === 'ASC') return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
-    if (sortOrder === 'DESC') return b.title.localeCompare(a.title, undefined, { numeric: true, sensitivity: 'base' });
+    // Ascending order (A - Z)
+    if (sortOrder === 'ASC') {
+      return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    // Descending order (Z - A)
+    if (sortOrder === 'DESC') {
+      return b.title.localeCompare(a.title, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
     return 0;
   });
 }
