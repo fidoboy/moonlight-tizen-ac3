@@ -1,0 +1,34 @@
+name: Validate GitHub Actions workflows
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint workflow configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Lint workflow validator
+        uses: raven-actions/actionlint@v2
+        with:
+          version: 1.7.7
+          files: .github/workflows/validate-workflows.yml
+          shellcheck: false
+          pyflakes: false
