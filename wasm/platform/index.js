@@ -1694,13 +1694,16 @@ function refreshHosts() {
     .then(function() {
       stopPollingHosts();
       return ensureSubnetScannerLoaded().then(function() {
-        return startSubnetScanner();
+        return startSubnetScanner(null, true);
       });
     })
-    .then(function() {
+    .then(function(newHostCount) {
       isSubnetScanFinished = true;
       if (isInGame !== true) startPollingHosts();
-      runWhenMainUiActive(function() { snackbarLog('Network scan completed.'); });
+      var completionMessage = newHostCount > 0
+        ? 'Network scan completed.'
+        : 'Network scan completed. No new hosts found.';
+      runWhenMainUiActive(function() { snackbarLog(completionMessage); });
     })
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
