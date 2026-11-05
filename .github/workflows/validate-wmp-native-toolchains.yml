@@ -583,6 +583,135 @@ jobs:
             failed=1
           fi
 
+          # Build a real hybrid WGT around the compiled native ServiceApp.
+          # The Web UI here is a minimal packaging fixture; the native project is
+          # the actual WMP service compiled above against the IoT Headed 6.0 rootstrap.
+          hybrid_root="$RUNNER_TEMP/WmpHybridPackage"
+          web_project="$hybrid_root/MoonlightWeb"
+          service_project="$hybrid_root/WmpService"
+          hybrid_log="$report/iot-headed-6.0-wmp-hybrid-package.log"
+          echo "=== HYBRID WGT PACKAGE (WEB UI + ACTUAL WMP SERVICE) ===" | tee "$hybrid_log"
+
+          if [ -n "${link_probe:-}" ] && [ -f "$link_probe/Release/wmp-service" ]; then
+            mkdir -p "$hybrid_root"
+            if run_profile_command "hybrid-web-project-create" "$hybrid_log" tizen create web-project -p tizen-10.0 -t BasicUI -n MoonlightWeb -- "$hybrid_root"; then
+              echo "HYBRID_WEB_PROJECT_CREATE=success" | tee -a "$hybrid_log"
+            else
+              status=$?
+              echo "HYBRID_WEB_PROJECT_CREATE=failed exit_code=$status" | tee -a "$hybrid_log"
+              failed=1
+            fi
+
+            if [ -d "$web_project" ]; then
+              cp -a "$link_probe" "$service_project"
+              sed -i 's/WmpServiceProbe/WmpService/g' "$service_project/.project" "$service_project/.cproject"
+              cp "$GITHUB_WORKSPACE/res/config.xml" "$web_project/config.xml"
+              cat > "$web_project/index.html" <<'HTML'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><title>Moonlight Hybrid Package Probe</title></head>
+          <body><main>Moonlight hybrid package validation</main></body></html>
+          HTML
+              python3 - "$web_project/.project" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          tree = ET.parse(path)
+          root = tree.getroot()
+          projects = root.find("projects")
+          if projects is None:
+              projects = ET.SubElement(root, "projects")
+          if not any((item.text or "").strip() == "WmpService" for item in projects.findall("project")):
+              ET.SubElement(projects, "project").text = "WmpService"
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print("HYBRID_PROJECT_REFERENCE=MoonlightWeb->WmpService")
+          PY
+
+              # A disposable signing profile is used only to validate package creation.
+              tizen certificate -a MoonlightHybrid -p 123456 -f MoonlightHybrid >>"$hybrid_log" 2>&1
+              tizen security-profiles add -n MoonlightHybrid \
+                -a "$HOME/tizen-studio-data/keystore/author/MoonlightHybrid.p12" \
+                -p 123456 >>"$hybrid_log" 2>&1
+
+              build_app_log="$report/iot-headed-6.0-wmp-hybrid-build-app.log"
+              build_app_cmd=(
+                tizen build-app
+                -m "name:m1,compiler:gcc,rootstraps:[{\"name\":\"iot-headed-6.0-device.core\",\"platform\":\"iot-headed-6.0\",\"arch\":\"arm\"}],configs:[Release]"
+                -b "name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]"
+                -p "name:p1,type:wgt,targets:[b1]"
+                -s MoonlightHybrid
+                --
+                "$hybrid_root"
+              )
+              printf 'COMMAND: '; printf '%q ' "${build_app_cmd[@]}"; printf '\n' | tee "$build_app_log"
+              printf '%s\n' \
+                'set timeout -1' \
+                'spawn {*}$argv' \
+                'expect {' \
+                '  -re {Author password:} { send -- "123456\\r"; exp_continue }' \
+                '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\\r"; exp_continue }' \
+                '  eof' \
+                '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
+              chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
+              if expect "$RUNNER_TEMP/run-hybrid-build.exp" "${build_app_cmd[@]}" >>"$build_app_log" 2>&1; then
+                echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
+              else
+                status=$?
+                echo "HYBRID_BUILD_APP_RESULT=failed exit_code=$status" | tee -a "$hybrid_log"
+                cat "$build_app_log" >> "$hybrid_log"
+                failed=1
+              fi
+
+              hybrid_wgt="$(find "$hybrid_root" -type f -name '*.wgt' -print -quit)"
+              if [ -n "$hybrid_wgt" ]; then
+                echo "HYBRID_WGT=$hybrid_wgt" | tee -a "$hybrid_log"
+                python3 - "$hybrid_wgt" <<'PY'
+          import sys
+          import zipfile
+
+          package = sys.argv[1]
+          with zipfile.ZipFile(package) as archive:
+              names = archive.namelist()
+              native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
+              web_config = [name for name in names if name.endswith("/wgt/config.xml") or name == "res/wgt/config.xml"]
+              if not native:
+                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed native executable missing from bin/")
+              if not web_config:
+                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed Web config.xml missing from res/wgt/")
+              metadata = []
+              for name in names:
+                  if name.startswith("info/") and not name.endswith("/"):
+                      try:
+                          data = archive.read(name)
+                      except Exception:
+                          continue
+                      if b"MoonLightS.WmpService" in data or b"MoonLightS" in data:
+                          metadata.append(name)
+              if not metadata:
+                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed native application metadata not found under info/")
+              print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + native[0])
+              print("HYBRID_PACKAGE_WEB_CONFIG=" + web_config[0])
+              print("HYBRID_PACKAGE_NATIVE_METADATA=" + ",".join(metadata))
+              print("HYBRID_PACKAGE_VALIDATION=success")
+          PY
+                if [ "$?" -ne 0 ]; then
+                  failed=1
+                fi
+                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Probe.wgt"
+              else
+                echo "HYBRID_PACKAGE_VALIDATION=failed no_wgt_created" | tee -a "$hybrid_log"
+                failed=1
+              fi
+            else
+              echo "HYBRID_PACKAGE_RESULT=failed web_project_directory_missing" | tee -a "$hybrid_log"
+              failed=1
+            fi
+          else
+            echo "HYBRID_PACKAGE_RESULT=skipped; native ServiceApp executable was not produced" | tee "$hybrid_log"
+            failed=1
+          fi
+
           {
             echo "### Toolchain versions"
             tizen version 2>&1 || true
