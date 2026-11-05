@@ -566,6 +566,19 @@
               </div>
             </div>
             <div class="setting-option">
+              <label data-i18n="Stream processing engine">Stream processing engine</label>
+              <span class="mdl-list__item-text-body" data-i18n="Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.">
+                Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.
+              </span>
+              <div id="streamEngineMenu">
+                <button type="button" id="selectStreamEngine" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="EMSS" data-i18n="EMSS (conventional)">EMSS (conventional)</button>
+              </div>
+              <ul class="streamEngineMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectStreamEngine">
+                <li class="mdl-menu__item" data-value="EMSS" data-i18n="EMSS (conventional)">EMSS (conventional)</li>
+                <li class="mdl-menu__item" data-value="WMP" data-i18n="WMP native (experimental)">WMP native (experimental)</li>
+              </ul>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Audio backend">Audio backend</label>
               <span class="mdl-list__item-text-body" data-i18n="- Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.">
                 - Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.
