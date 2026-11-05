@@ -609,5 +609,6 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Sends vibration effects to a compatible gamepad when the streamed game requests them.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.",
+  "The selected WMP engine is not ready to start a stream.": "The selected WMP engine is not ready to start a stream."
 }

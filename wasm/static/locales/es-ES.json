@@ -609,5 +609,6 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Envía efectos de vibración a un mando compatible cuando el juego retransmitido los solicita.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Mantenga pulsado START para alternar entre el control normal del mando y la emulación del ratón. Use el mando para manejar el puntero y los botones del ratón en el host.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Invierte las asignaciones de los botones A y B que se envían al host. Úselo si el juego espera la distribución contraria.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Invierte las asignaciones de los botones X e Y que se envían al host. Úselo si el juego espera la distribución contraria."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Invierte las asignaciones de los botones X e Y que se envían al host. Úselo si el juego espera la distribución contraria.",
+  "The selected WMP engine is not ready to start a stream.": "El motor WMP seleccionado todavía no está preparado para iniciar una transmisión."
 }

@@ -5798,6 +5798,39 @@ function startGame(host, appID) {
     );
   }
 
+  // WMP is a separate native engine. Verify its control service here and never
+  // continue into the EMSS startRequest path while WMP playback is not implemented.
+  var wmpEngineSelected = _directSmartHubLaunch
+    ? !!(_directSmartHubStreamSettings && _directSmartHubStreamSettings.streamingEngine === 'WMP')
+    : isWmpEngineSelected();
+  if (wmpEngineSelected) {
+    var wmpStatusRequest = window.WmpTransport && typeof window.WmpTransport.getStatus === 'function'
+      ? window.WmpTransport.getStatus()
+      : Promise.reject(new Error('WMP JavaScript transport is unavailable.'));
+    Promise.resolve(wmpStatusRequest).then(function(status) {
+      if (!isStreamStartupCurrent(startupGeneration)) return;
+      var payload = status && status.payload ? status.payload : {};
+      var detail = payload.esplus === 'available'
+        ? 'Native control channel is ready; ESPlus player lifecycle and media packet transport are not implemented.'
+        : 'Native control channel responded, but ESPlus is unavailable (stream API: ' + (payload.streamApi || 'none') + ').';
+      streamStartupApiFailure(
+        host,
+        t('The selected WMP engine is not ready to start a stream.'),
+        null,
+        detail
+      );
+    }).catch(function(error) {
+      if (!isStreamStartupCurrent(startupGeneration)) return;
+      streamStartupApiFailure(
+        host,
+        t('The selected WMP engine is not ready to start a stream.'),
+        null,
+        error && error.message ? error.message : String(error)
+      );
+    });
+    return;
+  }
+
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
   // handler of the key press that started the stream, because the audio context of a device
   // with an autoplay policy can only be created from a user gesture
@@ -8307,7 +8340,7 @@ function loadDirectSmartHubStreamSettings() {
     'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
     'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
     'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect'
+    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect', 'streamingEngine'
   ];
 
   return withOperationTimeout(new Promise(function(resolve) {
@@ -8357,6 +8390,7 @@ function loadDirectSmartHubStreamSettings() {
       performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
       performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
       quitAppAfterDisconnect: boolValue(stored.quitAppAfterDisconnect, false),
+      streamingEngine: stored.streamingEngine === 'WMP' ? 'WMP' : 'EMSS',
       dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
       dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
     };
