@@ -402,7 +402,17 @@ function focusElement(target) {
         const paneRect = settingsPane.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
         const visibleTop = paneRect.top + settingsPane.clientTop + 8;
-        const bottomSafetyMargin = Math.max(48, Math.round(settingsPane.clientHeight * 0.06));
+        // The performance-position menu opens below its trigger and contains
+        // four entries. Keep enough room for the complete dropdown when this
+        // control is reached with the TV remote's directional navigation.
+        const dropdownSafetyMargin = element.id === 'selectPerformanceStatsPosition'
+          ? (4 * 48) + 16
+          : 0;
+        const bottomSafetyMargin = Math.max(
+          48,
+          Math.round(settingsPane.clientHeight * 0.06),
+          dropdownSafetyMargin
+        );
         const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
 
         if (elementRect.top < visibleTop) {

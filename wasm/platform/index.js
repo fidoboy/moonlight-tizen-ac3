@@ -233,7 +233,7 @@ var dolbyDecodingModeSupportChecked = false;
 // leaving either launch path indefinitely on its loading screen.
 const STREAM_OPERATION_TIMEOUTS = {
   hostRefresh: 15000, appLookup: 10000, audioShutdown: 8000,
-  hostLaunch: 15000, streamConnection: 15000, firstVideoFrame: 10000
+  hostLaunch: 15000, streamConnection: 15000
 };
 const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 4500;
 var streamStartupWatchdogTimeout = null;

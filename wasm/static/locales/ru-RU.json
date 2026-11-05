@@ -603,5 +603,9 @@
   "Your app is already up to date! You're on the latest version.": "Your app is already up to date! You're on the latest version.",
   "Your list is currently empty. Please add your favorite apps to the list.": "Your list is currently empty. Please add your favorite apps to the list.",
   "Your network connection does not seem stable enough.": "Сетевое соединение недостаточно стабильно.",
-  "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.": "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection."
+  "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.": "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.",
+  "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Передаёт вибрацию на совместимый контроллер, когда запущенная игра отправляет соответствующие сигналы.",
+  "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Удерживайте Start, чтобы переключаться между обычным управлением и эмуляцией мыши. Используйте контроллер для управления указателем и кнопками мыши на хосте.",
+  "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок A и B, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок X и Y, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку."
 }
