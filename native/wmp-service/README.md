@@ -65,9 +65,15 @@ engine selection.
 - Real-device hybrid installation, service launch and MessagePort round-trip
   verification.
 
-The control transport being compiled does not enable WMP playback. Do not expose
-WMP as a selectable playback engine until the remaining ABI, lifecycle and
-media-data path have been implemented and validated on the TV.
+The JavaScript control bridge is included in the Moonlight web application and
+is covered by a mocked MessagePort protocol test. This verifies the client-side
+request/reply implementation, not a real TV installation or service round-trip.
+
+WMP is selectable in the current experimental settings UI, but it is not yet a
+working playback engine. The native service currently supports only `ping`,
+`get_status` and `probe_esplus`; it does not create an ESPlus player or receive
+Moonlight media packets. Do not treat a successful control-channel connection
+as a successful streaming session.
 
 ## SDK requirements
 

@@ -1,24 +1,6 @@
 name: Validate native ServiceApp toolchains for WMP
 
 on:
-  push:
-    branches:
-      - wmp_mode
-    paths:
-      - '.github/workflows/validate-wmp-native-toolchains.yml'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'CMakeLists.txt'
-      - '.gitmodules'
-      - 'h264bitstream/**'
-      - 'libgamestream/**'
-      - 'moonlight-common-c/**'
-      - 'opus/**'
-      - 'ports/**'
-      - 'res/**'
-      - 'wasm/**'
-      - 'native/wmp-service/**'
-      - 'scripts/generate-build-videos.sh'
   workflow_dispatch:
 
 permissions:
