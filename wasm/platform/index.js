@@ -814,6 +814,7 @@ function attachListeners() {
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
   $('#discoverNewHostsAtStartupSwitch').on('click', saveDiscoverNewHostsAtStartup);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
+  $('#sortAppsByUsageSwitch').on('click', saveSortAppsByUsage);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
   $('#quitAppAfterDisconnectSwitch').on('click', saveQuitAppAfterDisconnect);
   $('#removeAllHostsBtn').on('click', deleteAllHostsDialog);
@@ -4712,18 +4713,33 @@ function stylizeBoxArts(freshApi, appsList) {
 // Sort the app titles
 function sortTitles(list, sortOrder) {
   return list.sort((a, b) => {
-    // Ascending order (A - Z)
-    if (sortOrder === 'ASC') {
-      return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
-    }
-
-    // Descending order (Z - A)
-    if (sortOrder === 'DESC') {
-      return b.title.localeCompare(a.title, undefined, { numeric: true, sensitivity: 'base' });
-    }
-
+    if (sortOrder === 'ASC') return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+    if (sortOrder === 'DESC') return b.title.localeCompare(a.title, undefined, { numeric: true, sensitivity: 'base' });
     return 0;
   });
+}
+
+function sortAppsForHost(host, appList) {
+  var list = Array.isArray(appList) ? appList.slice() : [];
+  var usageSwitch = document.getElementById('sortAppsByUsageSwitch');
+  if (usageSwitch && usageSwitch.checked) {
+    var cachedHost = host && host.serverUid && _previewApps[host.serverUid];
+    var counts = Object.create(null);
+    if (cachedHost && Array.isArray(cachedHost.apps)) {
+      cachedHost.apps.forEach(function(app) {
+        if (!app) return;
+        var count = Number(app.runCount);
+        counts[String(app.id)] = Number.isFinite(count) && count > 0 ? count : 0;
+      });
+    }
+    return list.sort(function(a, b) {
+      var difference = (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0);
+      if (difference) return difference;
+      return String(a.title || '').localeCompare(String(b.title || ''), undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }
+  var titleSwitch = document.getElementById('sortAppsListSwitch');
+  return sortTitles(list, titleSwitch && titleSwitch.checked ? 'DESC' : 'ASC');
 }
 
 // Handle layout elements when displaying the Apps view
@@ -4887,12 +4903,8 @@ function showApps(host, options) {
           return;
         }
 
-        // Find the existing switch element
-        const sortAppsListSwitch = document.getElementById('sortAppsListSwitch');
-        // Defines the sort order based on the state of the switch
-        const sortOrder = sortAppsListSwitch.checked ? 'DESC' : 'ASC';
-        // If game grid is populated, sort the app list
-        const sortedAppList = sortTitles(appList, sortOrder);
+        // Apply the selected app ordering before caching and rendering the list.
+        const sortedAppList = sortAppsForHost(host, appList);
 
         if (appListInteractionLocked) {
           // Reconcile by app ID instead of tearing down the entire visible list.
@@ -6625,7 +6637,10 @@ function incrementAppRunCount(host, appId, appTitle) {
 
   var currentCount = Number(cachedApp.runCount);
   cachedApp.runCount = (Number.isFinite(currentCount) && currentCount > 0 ? currentCount : 0) + 1;
+  var usageSwitch = document.getElementById('sortAppsByUsageSwitch');
+  if (usageSwitch && usageSwitch.checked) hostCache.apps = sortAppsForHost(host, hostCache.apps);
   savePreviewApps();
+  if (usageSwitch && usageSwitch.checked) updatePreviewData();
 }
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
@@ -7288,11 +7303,28 @@ function saveSortAppsList() {
     storeData('sortAppsList', chosenSortAppsList, null);
     
     // Instantly update the Smart Hub Preview to reflect the new sort order
-    const sortOrder = chosenSortAppsList ? 'DESC' : 'ASC';
     let updated = false;
     Object.keys(_previewApps).forEach(function(serverUid) {
       if (_previewApps[serverUid] && _previewApps[serverUid].apps) {
-        _previewApps[serverUid].apps = sortTitles(_previewApps[serverUid].apps, sortOrder);
+        _previewApps[serverUid].apps = sortAppsForHost({ serverUid: serverUid }, _previewApps[serverUid].apps);
+        updated = true;
+      }
+    });
+    if (updated) {
+      savePreviewApps();
+      updatePreviewData();
+    }
+  }, 100);
+}
+
+function saveSortAppsByUsage() {
+  setTimeout(() => {
+    const enabled = $('#sortAppsByUsageSwitch').parent().hasClass('is-checked');
+    storeData('sortAppsByUsage', enabled, null);
+    let updated = false;
+    Object.keys(_previewApps).forEach(function(serverUid) {
+      if (_previewApps[serverUid] && Array.isArray(_previewApps[serverUid].apps)) {
+        _previewApps[serverUid].apps = sortAppsForHost({ serverUid: serverUid }, _previewApps[serverUid].apps);
         updated = true;
       }
     });
@@ -7926,6 +7958,10 @@ function restoreDefaultsSettingsValues() {
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
   storeData('sortAppsList', defaultSortAppsList, null);
 
+  const defaultSortAppsByUsage = false;
+  document.querySelector('#sortAppsByUsageBtn').MaterialSwitch.off();
+  storeData('sortAppsByUsage', defaultSortAppsByUsage, null);
+
   const defaultOptimizeGames = false;
   document.querySelector('#optimizeGamesBtn').MaterialSwitch.off();
   storeData('optimizeGames', defaultOptimizeGames, null);
@@ -8450,6 +8486,12 @@ function loadUserDataCb() {
     }
   });
 
+  getData('sortAppsByUsage', function(previousValue) {
+    const enabled = previousValue.sortAppsByUsage === true || previousValue.sortAppsByUsage === 'true' || previousValue.sortAppsByUsage === 1;
+    if (enabled) document.querySelector('#sortAppsByUsageBtn').MaterialSwitch.on();
+    else document.querySelector('#sortAppsByUsageBtn').MaterialSwitch.off();
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored optimizeGames preferences.');
   getData('optimizeGames', function(previousValue) {
     if (previousValue.optimizeGames == null) {
@@ -8958,12 +9000,8 @@ function waitForHostAndNavigateToApp(serverUid, appId) {
 
       // Host is online: check whether the requested app still exists
       host.getAppListWithCacheFlush().then(function(appList) {
-        // Find the existing switch element
-        const sortAppsListSwitch = document.getElementById('sortAppsListSwitch');
-        // Defines the sort order based on the state of the switch
-        const sortOrder = sortAppsListSwitch.checked ? 'DESC' : 'ASC';
-        // If game grid is populated, sort the app list
-        const sortedAppList = sortTitles(appList, sortOrder);
+        // Apply the selected app ordering before caching and rendering the list.
+        const sortedAppList = sortAppsForHost(host, appList);
 
         // Keep the host's app ID/title mapping available independently of Smart Hub support.
         cacheHostAppList(host, sortedAppList);
