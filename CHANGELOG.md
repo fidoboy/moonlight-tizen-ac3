@@ -13,7 +13,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **HEVC HDR metadata fallback:** Supplements HEVC Main10 streams with missing static HDR10 mastering-display (MDCV) and content-light-level (CLL) SEI messages using metadata supplied by the host through the Sunshine protocol, when available. Existing in-band metadata is preserved. The fallback follows the same policy as Moonlight-Qt.
 
 ### Changed
-- **Debug log privacy:** Sensitive information is redacted from debug logs, including network addresses, host names, pairing PINs, tokens, certificates, private keys and other sensitive identifiers. Debug logging can also be controlled through build-time configuration.
+- **Debug log privacy and verbosity:** Sensitive information is redacted from debug logs, including network addresses, host names, pairing PINs, tokens, certificates, private keys and other sensitive identifiers. Standard stable-release packages produce less verbose logs to reduce unnecessary output; detailed logging is enabled only in builds compiled with **debug mode**. Debug logging can be controlled through build-time configuration.
 - **Gamepad connection notifications:** Display the connected gamepad's name instead of its numeric index. Technical metadata appended in parentheses is omitted; the index remains the fallback when no usable name is available.
 - **UI and navigation refinements:** Polished interface spacing, alignment and dialog layouts, improved remote-control and gamepad navigation, and refined localized instructions for a more consistent experience across Tizen devices.
 
