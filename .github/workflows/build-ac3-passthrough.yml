@@ -118,7 +118,7 @@ jobs:
           from pathlib import Path
 
           workflow = Path(".github/workflows/build-ac3-passthrough.yml").read_text(encoding="utf-8")
-          build_start = workflow.find("\\n  build:\\n")
+          build_start = workflow.find("\n  build:\n")
           if build_start < 0:
               raise SystemExit("The build job is missing.")
 
