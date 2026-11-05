@@ -737,44 +737,94 @@ jobs:
                 if python3 - "$hybrid_wgt" "$report" >"$validation_log" 2>&1 <<'PY'
           import sys
           import zipfile
+          import xml.etree.ElementTree as ET
           from pathlib import Path
 
           package = Path(sys.argv[1])
           report = Path(sys.argv[2])
           failures = []
+
+          def local_name(tag):
+              return tag.rsplit("}", 1)[-1]
+
           with zipfile.ZipFile(package) as archive:
               names = archive.namelist()
               (report / "hybrid-wgt-file-list.txt").write_text(
                   "\n".join(names) + "\n", encoding="utf-8"
               )
               native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
-              web_config = [name for name in names if name.endswith("/wgt/config.xml") or name == "res/wgt/config.xml"]
-              web_service_js = [name for name in names if name.endswith("/wgt/service/service.js") or name == "res/wgt/service/service.js"]
+              web_config = [name for name in names if name == "res/wgt/config.xml"]
+              web_service_js = [name for name in names if name == "res/wgt/service/service.js"]
+              root_config = [name for name in names if name == "config.xml"]
+              native_manifest = [name for name in names if name == "tizen-manifest.xml"]
               info_files = [name for name in names if name.startswith("info/") and not name.endswith("/")]
-              details = []
-              for name in info_files:
-                  data = archive.read(name)
-                  details.append(f"===== {name} ({len(data)} bytes) =====")
-                  details.append(data.decode("utf-8", errors="replace"))
-                  details.append("")
               (report / "hybrid-wgt-info-metadata.txt").write_text(
-                  "\n".join(details) if details else "No files found under info/\n",
+                  "info/ is not the descriptor location for this WGT format.\n"
+                  + ("\n".join(info_files) if info_files else "No files found under info/\n"),
                   encoding="utf-8",
               )
+
               print(f"HYBRID_WGT_ENTRY_COUNT={len(names)}")
-              print(f"HYBRID_WGT_INFO_FILE_COUNT={len(info_files)}")
-              print("HYBRID_WGT_INFO_FILES=" + (",".join(info_files) if info_files else "(none)"))
+              print(f"HYBRID_WGT_INFO_FILE_COUNT={len(info_files)} (informational only)")
               print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + (native[0] if native else "(missing)"))
               print("HYBRID_PACKAGE_WEB_CONFIG=" + (web_config[0] if web_config else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_SERVICE_JS=" + (web_service_js[0] if web_service_js else "(missing)"))
+              print("HYBRID_PACKAGE_ROOT_CONFIG=" + (root_config[0] if root_config else "(missing)"))
+              print("HYBRID_PACKAGE_NATIVE_MANIFEST=" + (native_manifest[0] if native_manifest else "(missing)"))
+
               if not native:
                   failures.append("native executable missing from bin/")
               if not web_config:
                   failures.append("Web config.xml missing from res/wgt/")
-              print("HYBRID_PACKAGE_WEB_SERVICE_JS=" + (web_service_js[0] if web_service_js else "(missing)"))
               if not web_service_js:
                   failures.append("Smart Hub service.js missing from res/wgt/service/")
-              if not info_files:
-                  failures.append("no native/application metadata files found under info/")
+              if not root_config:
+                  failures.append("root config.xml descriptor missing")
+              if not native_manifest:
+                  failures.append("root tizen-manifest.xml descriptor missing")
+
+              if root_config:
+                  config_data = archive.read(root_config[0])
+                  (report / "hybrid-wgt-root-config.xml").write_bytes(config_data)
+                  try:
+                      config_root = ET.fromstring(config_data)
+                      service_node = next(
+                          (node for node in config_root.iter() if local_name(node.tag) == "service"),
+                          None,
+                      )
+                      service_content = next(
+                          (node for node in service_node if local_name(node.tag) == "content"),
+                          None,
+                      ) if service_node is not None else None
+                      service_src = service_content.attrib.get("src", "") if service_content is not None else ""
+                      print("HYBRID_CONFIG_SERVICE_CONTENT=" + (service_src or "(missing)"))
+                      if service_src != "service/service.js":
+                          failures.append("root config.xml does not register service/service.js")
+                  except ET.ParseError as error:
+                      failures.append(f"root config.xml is invalid XML: {error}")
+
+              if native_manifest:
+                  manifest_data = archive.read(native_manifest[0])
+                  (report / "hybrid-wgt-tizen-manifest.xml").write_bytes(manifest_data)
+                  try:
+                      manifest_root = ET.fromstring(manifest_data)
+                      service_app = next(
+                          (node for node in manifest_root.iter() if local_name(node.tag) == "service-application"),
+                          None,
+                      )
+                      exec_name = service_app.attrib.get("exec", "") if service_app is not None else ""
+                      app_id = service_app.attrib.get("appid", "") if service_app is not None else ""
+                      print("HYBRID_MANIFEST_SERVICE_EXEC=" + (exec_name or "(missing)"))
+                      print("HYBRID_MANIFEST_SERVICE_APPID=" + (app_id or "(missing)"))
+                      if exec_name != "wmp-service":
+                          failures.append("tizen-manifest.xml does not declare exec=wmp-service")
+                      if not app_id:
+                          failures.append("tizen-manifest.xml service-application appid is missing")
+                      if exec_name and not any(name == "bin/" + exec_name for name in native):
+                          failures.append("manifest service exec does not match packaged bin executable")
+                  except ET.ParseError as error:
+                      failures.append(f"tizen-manifest.xml is invalid XML: {error}")
+
               if failures:
                   for failure in failures:
                       print("HYBRID_PACKAGE_VALIDATION_ERROR=" + failure)
