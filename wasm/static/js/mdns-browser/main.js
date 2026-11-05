@@ -24,59 +24,73 @@ function findNvService(ipString) {
   // .local hostnames, and the HTTP subnet scanner only produces IPv4 addresses.
   var ip = ipString.replace('ipv4:', '');
 
-  // Create a new NvHTTP object for the discovered host
-  var discoveredHost = new NvHTTP(ip, myUniqueid);
-  discoveredHost.httpPort = 47989;
-  discoveredHost.httpsPort = 47984;
-
-  // Poll the discovered host and verify host status before adding it
-  discoveredHost.pollServer(function(returnedDiscoveredHost) {
-    // Discard results from handshakes that began before streaming but finish while
-    // the main UI is inactive; a later scan can discover the host again.
-    if (isInGame === true) return;
-
-    // If the host is offline, do not add it to the grid or update its stored IP
-    if (!returnedDiscoveredHost.online) {
-      return;
+  // Resolve with true only when this handshake adds a previously unknown host.
+  return new Promise(function(resolve) {
+    var completed = false;
+    function finish(isNewHost) {
+      if (completed) return;
+      completed = true;
+      resolve(isNewHost === true);
     }
-    // Check if the host is already known by its server UID
-    if (hosts[returnedDiscoveredHost.serverUid] != null) {
-      // Host already known — update its stored IP if it has changed
-      var existingAddress = hosts[returnedDiscoveredHost.serverUid].address;
-      // Also check if the base URL is out of sync or stale compared to the discovered host
-      var existingBaseUrl = hosts[returnedDiscoveredHost.serverUid]._baseUrlHttps;
-      if (existingAddress !== returnedDiscoveredHost.address || existingBaseUrl !== returnedDiscoveredHost._baseUrlHttps) {
-        var isIpv4 = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(existingAddress);
-        // Do not overwrite IPv6 or DNS addresses if they are currently online
-        if (!isIpv4 && hosts[returnedDiscoveredHost.serverUid].online && existingBaseUrl === returnedDiscoveredHost._baseUrlHttps) {
-          console.log('%c[main.js, findNvService]', 'color: gray;', 'Keeping existing non-IPv4 address since it is online:', existingAddress);
-        } else {
-          // Update the stored address to the newly discovered IPv4 address
-          console.log('%c[main.js, findNvService]', 'color: gray;', 'Updating address for server UID:', returnedDiscoveredHost.serverUid, 'from', existingAddress, 'to', returnedDiscoveredHost.address);
-          hosts[returnedDiscoveredHost.serverUid].address = returnedDiscoveredHost.address;
-          hosts[returnedDiscoveredHost.serverUid].localAddress = returnedDiscoveredHost.localAddress;
-          hosts[returnedDiscoveredHost.serverUid]._baseUrlHttp = returnedDiscoveredHost._baseUrlHttp;
-          hosts[returnedDiscoveredHost.serverUid]._baseUrlHttps = returnedDiscoveredHost._baseUrlHttps;
-          updateMacAddress(returnedDiscoveredHost);
-          if (typeof hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4 === 'function') {
-            hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4();
-          }
-        }
-      }
 
-      // A successful poll during discovery also verifies an already-known host.
-      // Refresh its live status even when its saved address did not need updating.
-      var existingHost = hosts[returnedDiscoveredHost.serverUid];
-      existingHost.online = true;
-      existingHost._statusVerified = true;
-      existingHost._consecutivePollFailures = 0;
-      updateHostStatusIndicator(existingHost);
-      saveHosts();
-    } else {
-      // New host — add to grid and begin background polling
-      addHostToGrid(returnedDiscoveredHost, true);
-      beginBackgroundPollingOfHost(returnedDiscoveredHost, true);
-      saveHosts();
+    try {
+      var discoveredHost = new NvHTTP(ip, myUniqueid);
+      discoveredHost.httpPort = 47989;
+      discoveredHost.httpsPort = 47984;
+
+      discoveredHost.pollServer(function(returnedDiscoveredHost) {
+        try {
+          // Discard results from handshakes that finish while streaming.
+          if (isInGame === true || !returnedDiscoveredHost.online) {
+            finish(false);
+            return;
+          }
+
+          if (hosts[returnedDiscoveredHost.serverUid] != null) {
+            // Host already known — update its stored IP if it has changed.
+            var existingAddress = hosts[returnedDiscoveredHost.serverUid].address;
+            var existingBaseUrl = hosts[returnedDiscoveredHost.serverUid]._baseUrlHttps;
+            if (existingAddress !== returnedDiscoveredHost.address || existingBaseUrl !== returnedDiscoveredHost._baseUrlHttps) {
+              var isIpv4 = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(existingAddress);
+              // Do not overwrite IPv6 or DNS addresses if they are currently online.
+              if (!isIpv4 && hosts[returnedDiscoveredHost.serverUid].online && existingBaseUrl === returnedDiscoveredHost._baseUrlHttps) {
+                console.log('%c[main.js, findNvService]', 'color: gray;', 'Keeping existing non-IPv4 address since it is online:', existingAddress);
+              } else {
+                console.log('%c[main.js, findNvService]', 'color: gray;', 'Updating address for server UID:', returnedDiscoveredHost.serverUid, 'from', existingAddress, 'to', returnedDiscoveredHost.address);
+                hosts[returnedDiscoveredHost.serverUid].address = returnedDiscoveredHost.address;
+                hosts[returnedDiscoveredHost.serverUid].localAddress = returnedDiscoveredHost.localAddress;
+                hosts[returnedDiscoveredHost.serverUid]._baseUrlHttp = returnedDiscoveredHost._baseUrlHttp;
+                hosts[returnedDiscoveredHost.serverUid]._baseUrlHttps = returnedDiscoveredHost._baseUrlHttps;
+                updateMacAddress(returnedDiscoveredHost);
+                if (typeof hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4 === 'function') {
+                  hosts[returnedDiscoveredHost.serverUid].updateExternalAddressIP4();
+                }
+              }
+            }
+
+            // Refresh the live status of an already-known host.
+            var existingHost = hosts[returnedDiscoveredHost.serverUid];
+            existingHost.online = true;
+            existingHost._statusVerified = true;
+            existingHost._consecutivePollFailures = 0;
+            updateHostStatusIndicator(existingHost);
+            saveHosts();
+            finish(false);
+          } else {
+            // New host — add to grid and begin background polling.
+            addHostToGrid(returnedDiscoveredHost, true);
+            beginBackgroundPollingOfHost(returnedDiscoveredHost, true);
+            saveHosts();
+            finish(true);
+          }
+        } catch (error) {
+          console.error('%c[main.js, findNvService]', 'color: red;', 'Could not register discovered host:', error);
+          finish(false);
+        }
+      });
+    } catch (error) {
+      console.error('%c[main.js, findNvService]', 'color: red;', 'Could not check discovered host:', error);
+      finish(false);
     }
   });
 }
@@ -98,7 +112,7 @@ window.abortSubnetScan = function() {
   }
 };
 
-function startSubnetScanner(excludedIPs) {
+function startSubnetScanner(excludedIPs, trackDiscoveryResults) {
   // Do not begin a new subnet scan while the stream is active.
   if (isInGame === true) {
     console.log('%c[main.js, startSubnetScanner]', 'color: orange;', 'Skipping subnet scan while streaming.');
@@ -111,6 +125,27 @@ function startSubnetScanner(excludedIPs) {
   }
 
   window.subnetScanPromise = new Promise(function(resolve) {
+    var pendingDiscoveryChecks = [];
+    var scanResolved = false;
+
+    function finishScan() {
+      if (scanResolved) return;
+      scanResolved = true;
+      function complete(result) {
+        window.subnetScanPromise = null;
+        resolve(result);
+      }
+      if (trackDiscoveryResults && pendingDiscoveryChecks.length > 0) {
+        Promise.all(pendingDiscoveryChecks).then(function(results) {
+          complete(results.filter(function(isNewHost) { return isNewHost; }).length);
+        }, function() {
+          complete(0);
+        });
+      } else {
+        complete(0);
+      }
+    }
+
     try {
       var localIp = (typeof webapis !== 'undefined' && webapis.network) ? webapis.network.getIp() : null;
       // If the local IP cannot be determined, skip the subnet scan to avoid unnecessary network traffic
@@ -181,8 +216,7 @@ function startSubnetScanner(excludedIPs) {
       console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Subnet scan will probe', IPs.length, 'of 254 addresses; excluded', 254 - IPs.length, 'addresses (TV, gateway, known hosts, and previously checked IPs).');
 
       if (IPs.length === 0) {
-        window.subnetScanPromise = null;
-        resolve();
+        finishScan();
         return;
       }
 
@@ -195,8 +229,7 @@ function startSubnetScanner(excludedIPs) {
         // after streaming starts. Resolve the scan once those requests have drained.
         if (isInGame === true) {
           if (activeCount === 0) {
-            window.subnetScanPromise = null;
-            resolve();
+            finishScan();
           }
           return;
         }
@@ -227,7 +260,8 @@ function startSubnetScanner(excludedIPs) {
           }
           if (res && res.ok && isInGame !== true) {
             console.log('%c[main.js, startSubnetScanner]', 'color: green;', 'Found host with IP address:', ip);
-            findNvService('ipv4:' + ip);
+            var discoveryCheck = findNvService('ipv4:' + ip);
+            if (trackDiscoveryResults) pendingDiscoveryChecks.push(discoveryCheck);
           }
           activeCount--;
           scanNext();
@@ -268,8 +302,7 @@ function startSubnetScanner(excludedIPs) {
       }
     } catch (e) {
       console.error('%c[main.js, startSubnetScanner]', 'color: red;', 'Subnet scanner failed:', e);
-      window.subnetScanPromise = null;
-      resolve();
+      finishScan();
     }
   });
   return window.subnetScanPromise;
