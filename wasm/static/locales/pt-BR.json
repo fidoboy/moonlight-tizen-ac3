@@ -595,5 +595,10 @@
   "Gamepad Test": "Testar controle",
   "The required data could not be retrieved from the host. The test has been aborted.": "Não foi possível obter os dados necessários do host. O teste foi abortado.",
   "Game Controller Test": "Teste do controle de jogos",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Pressione os botões e mova os direcionais analógicos do controle para testar o funcionamento de todos os botões. Os controles correspondentes deverão acender na tela. Quando terminar, pressione o botão Voltar do controle remoto da TV para fechar esta janela."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Pressione os botões e mova os direcionais analógicos do controle para testar o funcionamento de todos os botões. Os controles correspondentes deverão acender na tela. Quando terminar, pressione o botão Voltar do controle remoto da TV para fechar esta janela.",
+  "Stream processing engine": "Mecanismo de processamento do streaming",
+  "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.": "Escolha o mecanismo que processa todo o fluxo de áudio e vídeo. EMSS usa a rota convencional. WMP nativo é experimental e seu pipeline de mídia ainda não foi implementado.",
+  "EMSS (conventional)": "EMSS (convencional)",
+  "WMP native (experimental)": "WMP nativo (experimental)",
+  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "WMP nativo está selecionado, mas seu pipeline de mídia de áudio/vídeo ainda não foi implementado. Nenhum streaming foi iniciado e EMSS não foi selecionado automaticamente."
 }
