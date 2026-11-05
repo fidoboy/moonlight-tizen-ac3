@@ -1005,6 +1005,7 @@ function loadConfigSummarySettings(callback) {
       if ($(this).data('value') === value) {
         var target = $(selector === '.videoResolutionMenu' ? '#selectResolution' :
           selector === '.videoFramerateMenu' ? '#selectFramerate' :
+          selector === '.streamEngineMenu' ? '#selectStreamEngine' :
           selector === '.audioBackendMenu' ? '#selectAudioBackend' :
           selector === '.audioConfigMenu' ? '#selectAudio' : '#selectCodec');
         target.text($(this).text()).attr('data-value', value).data('value', value);
