@@ -672,17 +672,23 @@ jobs:
               fi
 
               profile_log="$report/iot-headed-6.0-wmp-hybrid-security-profile.log"
+              author_certificate="$RUNNER_TEMP/tizen-studio-data/keystore/author/MoonlightHybrid.p12"
               if grep -q "HYBRID_CERTIFICATE_CREATE=success" "$hybrid_log"; then
-                echo "COMMAND (hybrid-security-profile-add): tizen security-profiles add -n MoonlightHybrid -a [keystore] -p [redacted]" | tee -a "$hybrid_log"
-                if tizen security-profiles add -n MoonlightHybrid \
-                  -a "$HOME/tizen-studio-data/keystore/author/MoonlightHybrid.p12" \
-                  -p 123456 >"$profile_log" 2>&1; then
-                  echo "HYBRID_SECURITY_PROFILE_ADD=success" | tee -a "$hybrid_log"
-                else
-                  status=$?
-                  echo "HYBRID_SECURITY_PROFILE_ADD=failed exit_code=$status" | tee -a "$hybrid_log"
-                  cat "$profile_log" | tee -a "$hybrid_log"
+                if [ ! -f "$author_certificate" ]; then
+                  echo "HYBRID_SECURITY_PROFILE_ADD=failed author_certificate_missing path=$author_certificate" | tee -a "$hybrid_log"
                   failed=1
+                else
+                  echo "COMMAND (hybrid-security-profile-add): tizen security-profiles add -n MoonlightHybrid -a [keystore] -p [redacted]" | tee -a "$hybrid_log"
+                  if tizen security-profiles add -n MoonlightHybrid \
+                    -a "$author_certificate" \
+                    -p 123456 >"$profile_log" 2>&1; then
+                    echo "HYBRID_SECURITY_PROFILE_ADD=success" | tee -a "$hybrid_log"
+                  else
+                    status=$?
+                    echo "HYBRID_SECURITY_PROFILE_ADD=failed exit_code=$status" | tee -a "$hybrid_log"
+                    cat "$profile_log" | tee -a "$hybrid_log"
+                    failed=1
+                  fi
                 fi
               else
                 echo "HYBRID_SECURITY_PROFILE_ADD=skipped certificate_creation_failed" | tee -a "$hybrid_log"
