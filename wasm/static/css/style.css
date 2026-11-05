@@ -2021,7 +2021,7 @@ body[data-color-theme="black-orange"] #background-layer {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
