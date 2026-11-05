@@ -1182,23 +1182,25 @@ function startDeferredNormalStartup() {
     restoreUiAfterWasmLoad();
   }
 
-  // Keep this message visible while WebAssembly initializes and saved hosts are restored.
-  window.startupEngineSnackbarPromise = snackbarLogPersistent('Starting background services...');
-
   var runStartupWork = function() {
     if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
       window.componentHandler.upgradeDom();
     }
-    // Restore the cached update badge only after the normal UI is visible and the
-    // native splash is gone. Keep it aligned with the start of host recovery.
-    restoreUpdateBadgeFromCache();
-    loadUserData();
 
-    if (typeof window.startNormalStartupWasm === 'function') {
-      window.startNormalStartupWasm();
-    } else {
-      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-    }
+    // Show startup feedback before beginning the background initialization.
+    window.startupEngineSnackbarPromise = snackbarLogPersistent('Starting background services...');
+    window.startupEngineSnackbarPromise.then(function() {
+      // Restore the cached update badge only after the normal UI is visible and the
+      // native splash is gone. Keep it aligned with the start of host recovery.
+      restoreUpdateBadgeFromCache();
+      loadUserData();
+
+      if (typeof window.startNormalStartupWasm === 'function') {
+        window.startNormalStartupWasm();
+      } else {
+        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+      }
+    });
 
     probeSmartHubSupport().then(function() {
       handleDeepLink();
