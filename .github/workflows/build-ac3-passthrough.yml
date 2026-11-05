@@ -42,7 +42,78 @@ permissions:
   actions: write
 
 jobs:
-  validate-and-build:
+  validate:
+    name: Validate code and resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Validate JavaScript, locales and local documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check wasm/platform/index.js
+          node tests/gamepad_mask_test.js
+          node --check wasm/platform/messages.js
+          node --check wasm/static/js/i18n-sync.js
+          node wasm/static/js/i18n-sync.js --check
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          locale_dir = Path("wasm/static/locales")
+          en = json.loads((locale_dir / "en-US.json").read_text(encoding="utf-8"))
+
+          for locale_path in sorted(locale_dir.glob("*.json")):
+              if locale_path.name == "en-US.json":
+                  continue
+              locale = json.loads(locale_path.read_text(encoding="utf-8"))
+              missing = sorted(set(en) - set(locale))
+              extra = sorted(set(locale) - set(en))
+              if missing or extra:
+                  raise SystemExit(
+                      f"{locale_path.name} keys differ from en-US.json: "
+                      f"Missing={missing!r}; extra={extra!r}"
+                  )
+
+          es = json.loads((locale_dir / "es-ES.json").read_text(encoding="utf-8"))
+          pt = json.loads((locale_dir / "pt-BR.json").read_text(encoding="utf-8"))
+          required = {
+              "Audio stream:",
+              "Dolby audio output",
+              "Enable Dolby Digital",
+              "Quit host app on disconnect",
+              "Automatically quit the running app on the host",
+          }
+          for name, locale in (("en-US", en), ("es-ES", es), ("pt-BR", pt)):
+              missing_required = sorted(required - set(locale))
+              if missing_required:
+                  raise SystemExit(f"{name} is missing required feature strings: {missing_required!r}")
+
+          docs = [
+              "docs/README.md",
+              "docs/Features-Overview.md",
+              "docs/Quick-Start-Guide.md",
+              "docs/Installation-Guide.md",
+              "docs/Updating-Guide.md",
+              "docs/Frequently-Asked-Questions.md",
+              "docs/Known-Issues-and-Limitations.md",
+              "docs/Troubleshooting-Guide.md",
+              "docs/Development-Guide.md",
+          ]
+          missing_docs = [name for name in docs if not Path(name).is_file()]
+          if missing_docs:
+              raise SystemExit(f"Missing documentation pages: {missing_docs!r}")
+          locale_count = len(list(locale_dir.glob("*.json")))
+          print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
+          PY
+
+
+  build:
+    if: github.event_name != 'pull_request'
+    needs: validate
     name: Build ${{ matrix.variant }} WGT
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -57,11 +128,6 @@ jobs:
             force_game_mode: 'true'
             artifact: Moonlight-ForceGM
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
       - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
@@ -135,65 +201,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
-      - name: Validate JavaScript, locales and local documentation
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check wasm/platform/index.js
-          node tests/gamepad_mask_test.js
-          node --check wasm/platform/messages.js
-          node --check wasm/static/js/i18n-sync.js
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          locale_dir = Path("wasm/static/locales")
-          en = json.loads((locale_dir / "en-US.json").read_text(encoding="utf-8"))
-
-          for locale_path in sorted(locale_dir.glob("*.json")):
-              if locale_path.name == "en-US.json":
-                  continue
-              locale = json.loads(locale_path.read_text(encoding="utf-8"))
-              missing = sorted(set(en) - set(locale))
-              extra = sorted(set(locale) - set(en))
-              if missing or extra:
-                  raise SystemExit(
-                      f"{locale_path.name} keys differ from en-US.json: "
-                      f"Missing={missing!r}; extra={extra!r}"
-                  )
-
-          es = json.loads((locale_dir / "es-ES.json").read_text(encoding="utf-8"))
-          pt = json.loads((locale_dir / "pt-BR.json").read_text(encoding="utf-8"))
-          required = {
-              "Audio stream:",
-              "Dolby audio output",
-              "Enable Dolby Digital",
-              "Quit host app on disconnect",
-              "Automatically quit the running app on the host",
-          }
-          for name, locale in (("en-US", en), ("es-ES", es), ("pt-BR", pt)):
-              missing_required = sorted(required - set(locale))
-              if missing_required:
-                  raise SystemExit(f"{name} is missing required feature strings: {missing_required!r}")
-
-          docs = [
-              "docs/README.md",
-              "docs/Features-Overview.md",
-              "docs/Quick-Start-Guide.md",
-              "docs/Installation-Guide.md",
-              "docs/Updating-Guide.md",
-              "docs/Frequently-Asked-Questions.md",
-              "docs/Known-Issues-and-Limitations.md",
-              "docs/Troubleshooting-Guide.md",
-              "docs/Development-Guide.md",
-          ]
-          missing_docs = [name for name in docs if not Path(name).is_file()]
-          if missing_docs:
-              raise SystemExit(f"Missing documentation pages: {missing_docs!r}")
-          locale_count = len(list(locale_dir.glob("*.json")))
-          print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
-          PY
 
       - name: Build Tizen widget
         uses: docker/build-push-action@v7

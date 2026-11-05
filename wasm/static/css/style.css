@@ -385,6 +385,285 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-progress > .auxbar {
     border-radius: 8px;
 }
+/* Host network test status is emphasized above the MDL progress bar. */
+#popup-layer .network-test-status {
+    font-size: 1.5rem;
+    line-height: 1.4;
+    margin: 0 0 12px;
+}
+
+/* Host network test uses a thicker native MDL progress component. */
+.network-test-progress {
+    width: 100%;
+    height: 12px;
+    margin-top: 8px;
+    background: transparent;
+}
+.network-test-progress > .progressbar,
+.network-test-progress > .bufferbar {
+    height: 12px;
+    border-radius: 8px;
+}
+/* Use MDL's bufferbar as the single rounded track. The container must stay
+   transparent, and the unused auxbar must not paint a second background. */
+.network-test-progress > .bufferbar {
+    background-image: none !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+.network-test-progress > .auxbar {
+    display: none !important;
+}
+.network-test-progress > .progressbar {
+    background-color: var(--theme-accent);
+}
+.network-test-result {
+    margin-top: 24px;
+    white-space: pre-line;
+}
+.network-test-title {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.network-test-title-icon {
+    flex: 0 0 auto;
+    margin-right: 18px;
+    font-size: 2.6rem;
+    line-height: 1;
+}
+.network-test-verdict {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 28px;
+    margin-bottom: 24px;
+    padding: 8px 12px 4px;
+    font-size: 1.65rem;
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: left;
+}
+.network-test-verdict-icon {
+    flex: 0 0 auto;
+    margin-right: 15px;
+    font-size: 2.2rem;
+    font-weight: 700;
+}
+.network-test-verdict--stable {
+    color: #4caf50;
+}
+.network-test-verdict--warning {
+    color: #ffb300;
+}
+.network-test-verdict--error {
+    color: #f44336;
+}
+
+/* Dedicated controller test modal. The TV remote Back key dismisses it. */
+#gamepadTestBtn[hidden] { display: none !important; }
+.mdl-dialog.gamepad-test-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc((86.3vh - 129px) / 0.76 + 44px);
+    max-width: calc(100vw - 32px);
+    min-width: 0;
+    height: 75vh;
+    max-height: none;
+    min-height: 0;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 6px 22px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.mdl-dialog.gamepad-test-dialog[open] { display: flex; }
+.mdl-dialog.gamepad-test-dialog > .mdl-dialog__title.gamepad-test-title {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 18px 0 1px;
+    padding: 0;
+    color: var(--theme-text-primary);
+    text-align: center;
+    font-size: 2.1rem;
+    line-height: 1.2;
+}
+.gamepad-test-content {
+    position: static;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: 0;
+    overflow: hidden;
+}
+.gamepad-test-layout {
+    position: relative;
+    display: block;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.gamepad-test-side-margin {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 12%;
+}
+.gamepad-test-side-margin:first-child {
+    left: 0;
+}
+.gamepad-test-side-margin:last-child {
+    right: 0;
+}
+.gamepad-test-center {
+    position: absolute;
+    top: 0;
+    right: 12%;
+    bottom: 0;
+    left: 12%;
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
+}
+.gamepad-test-svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: block;
+    width: auto;
+    height: 95%;
+    min-height: 0;
+    max-width: 100%;
+    margin: 0;
+    transform: translate(-50%, -50%);
+    overflow: visible;
+}
+.gamepad-test-instructions {
+    position: static;
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 28px 0 0;
+    color: var(--theme-text-secondary);
+    font-size: 1.5rem;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+}
+.gamepad-test-shell {
+    fill: #292f39;
+    stroke: #8993a1;
+    stroke-width: 3;
+}
+.gamepad-test-trigger {
+    fill: #555e6b;
+    stroke: #aab3bf;
+    stroke-width: 2;
+}
+.gamepad-test-detail-line {
+    fill: none;
+    stroke: #69727e;
+    stroke-width: 2;
+}
+.gamepad-test-stick-base,
+.gamepad-test-dpad-base,
+.gamepad-test-face-base {
+    fill: #242a33;
+    stroke: #59616c;
+    stroke-width: 2;
+}
+.gamepad-test-control > circle,
+.gamepad-test-control > rect,
+.gamepad-test-control > path,
+.gamepad-test-dpad-control {
+    fill: #596372;
+    stroke: #c1c8d1;
+    stroke-width: 2;
+    transition: fill 70ms ease, stroke 70ms ease, filter 70ms ease;
+}
+.gamepad-test-control text {
+    fill: #fff;
+    stroke: none;
+    font: 700 12px sans-serif;
+    text-anchor: middle;
+    pointer-events: none;
+}
+.gamepad-test-control.gamepad-test-active > circle,
+.gamepad-test-control.gamepad-test-active > rect,
+.gamepad-test-control.gamepad-test-active > path,
+.gamepad-test-dpad-control.gamepad-test-active {
+    fill: #65d66e;
+    stroke: #d5ffd8;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
+.gamepad-test-control.gamepad-test-active text { fill: #102013; }
+.gamepad-test-stick-cap {
+    fill: #aab3bf !important;
+    stroke: #dce1e7 !important;
+}
+.gamepad-test-stick-inner {
+    fill: none !important;
+    stroke: rgba(0, 0, 0, 0.16) !important;
+    stroke-width: 2 !important;
+}
+.gamepad-test-stick-click {
+    fill: #4a535f !important;
+    stroke: #aab3bf !important;
+}
+.gamepad-test-control.gamepad-test-active .gamepad-test-stick-click {
+    fill: #65d66e !important;
+    stroke: #d5ffd8 !important;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
+.gamepad-test-dpad-center {
+    fill: #343b45;
+    stroke: #aab3bf;
+    stroke-width: 1;
+    pointer-events: none;
+}
+.gamepad-test-small-detail,
+.gamepad-test-home-icon {
+    fill: none !important;
+    stroke: #aab3bf !important;
+    stroke-width: 1.5 !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.gamepad-test-home-base {
+    fill: #343a45;
+    stroke: #8993a1;
+    stroke-width: 2;
+}
+.gamepad-test-stick-arrow {
+    fill: none !important;
+    stroke: #ffd45c !important;
+    stroke-width: 3 !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 5px rgba(255, 212, 92, 0.9));
+    pointer-events: none;
+}
+@media (max-width: 900px) {
+    .mdl-dialog.gamepad-test-dialog {
+        width: calc((94.4vh - 184px) / 0.76 + 28px);
+        max-width: calc(100vw - 24px);
+        min-width: 0;
+        height: 82vh;
+        min-height: 0;
+        padding: 8px 14px 12px;
+    }
+    .mdl-dialog.gamepad-test-dialog > .mdl-dialog__title.gamepad-test-title { font-size: 2.1rem; }
+    .gamepad-test-instructions { font-size: 1.3rem; }
+}
 #wasmSpinner > .progressbar,
 #wasmSpinner > .bufferbar,
 #wasmSpinner > .auxbar {
@@ -500,7 +779,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #supportBtn, #restoreDefaultsBtn {
+#settingsBtn, #refreshHostsBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
     background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -542,6 +821,17 @@ body[data-color-theme="black-orange"] #background-layer {
 .navigation-button-icons {
     margin: 0 8px 0 -4px;
     font-size: 32px !important;
+}
+#gamepadTestBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#gamepadTestBtn .navigation-button-icons {
+    display: block;
+    width: 32px;
+    margin: 0;
+    text-align: center;
 }
 .nav-menu-parent {
     position: relative;
@@ -936,12 +1226,41 @@ body[data-color-theme="black-orange"] #background-layer {
     margin-right: 10px;
     vertical-align: middle;
 }
+.host-details-value {
+    font-weight: 600;
+}
+.host-details-value--positive {
+    color: #39e75f;
+}
+.host-details-value--negative {
+    color: #ff4b4b;
+}
 #pairingDialogText, #deleteHostDialogText, .host-details-text, #appSupportDialogText,
 #autoWolDialogText, #navGuideDialogText, #updateAppDialogText, #restoreDefaultsDialogText, #quitAppDialogText,
 #warningDialogText, #restartAppDialogText, #exitAppDialogText {
     font-size: 1.45rem;
     line-height: normal;
     letter-spacing: 0.5px;
+}
+#updateAppDialogText .update-release-notes-intro {
+    margin: 0 0 1.1rem;
+}
+#updateAppDialogText .update-release-notes-heading {
+    margin: 0 0 0.35rem;
+}
+#updateAppDialogText .update-release-notes-paragraph {
+    margin: 0 0 0.65rem;
+}
+#updateAppDialogText .update-release-notes-list {
+    margin: 0.25rem 0 1rem;
+    padding-left: 1.5em;
+}
+#updateAppDialogText .update-release-notes-list li {
+    margin-bottom: 0.45rem;
+}
+#updateAppDialogText a {
+    color: var(--theme-accent);
+    text-decoration: underline;
 }
 #autoWolCheckboxContainer {
     margin-top: 36px;
@@ -1152,15 +1471,6 @@ body[data-color-theme="black-orange"] #background-layer {
     z-index: 2;
     transform: scale(1.2);
     box-shadow: 0 0 0 3px var(--theme-accent);
-}
-#host-grid .host-cell-inactive {
-    box-shadow: 0 0 0 2px rgba(244, 67, 54, 1);
-}
-#host-grid .host-cell-inactive.hovered, #host-grid .host-cell-inactive:hover,
-#host-grid .host-cell-inactive:focus, #host-grid .host-cell-inactive:active {
-    z-index: 2;
-    transform: scale(1.2);
-    box-shadow: 0 0 0 3px #F44336;
 }
 #host-grid .mdl-card__title {
     padding: 0;
@@ -1711,15 +2021,15 @@ body[data-color-theme="black-orange"] #background-layer {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #streamTransitionBackgroundBtn, #removeAllHostsBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn,
-#sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
+#discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
 #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
@@ -1882,13 +2192,13 @@ body[data-color-theme="black-orange"] #background-layer {
 #closeUpdateApp:hover, #closeUpdateApp:focus, #continueRestoreDefaults:hover, #continueRestoreDefaults:focus, #cancelRestoreDefaults:hover,
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
-#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #supportBtn:hover, #supportBtn:focus,
+#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
-#navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #sortAppsListBtn:hover,
-#sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
+#navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
+#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
 #selectAudio:focus, #selectDolbyChannelLayout:hover, #selectDolbyChannelLayout:focus,
@@ -2331,3 +2641,48 @@ body[data-color-theme="black-orange"] #background-layer {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
 }
+
+/* Minimal idle screensaver, contained in the existing popup layer. */
+#screensaver-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 9999;
+    display: none;
+    overflow: hidden;
+    background: #000;
+    pointer-events: none;
+}
+#screensaver-overlay.is-visible { display: block; }
+#screensaver-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 220ms ease;
+    white-space: nowrap;
+}
+#screensaver-content.is-visible { opacity: 1; }
+#screensaver-logo {
+    display: block;
+    width: 96px;
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+#screensaver-title {
+    margin-top: 24px;
+    color: #f5f5f5;
+    font-family: "DejaVu Sans", sans-serif;
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+#popup-layer > #screensaver-overlay { pointer-events: none; }

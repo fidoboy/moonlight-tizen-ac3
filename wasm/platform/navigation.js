@@ -914,11 +914,13 @@ const Views = {
   },
   HostsNav: {
     view: new ListView(() => {
-      if (document.getElementById('updateAppBtn')) {
-        return ['updateAppBtn', 'settingsBtn', 'refreshHostsBtn', 'supportBtn'];
-      } else {
-        return ['settingsBtn', 'refreshHostsBtn', 'supportBtn'];
-      }
+      const items = [];
+      if (document.getElementById('updateAppBtn')) items.push('updateAppBtn');
+      items.push('settingsBtn', 'refreshHostsBtn');
+      const gamepadTestButton = document.getElementById('gamepadTestBtn');
+      if (gamepadTestButton && !gamepadTestButton.hidden) items.push('gamepadTestBtn');
+      items.push('supportBtn');
+      return items;
     }),
     up: function() {},
     down: function() {
@@ -1164,7 +1166,7 @@ const Views = {
   },
   HostMenuDialog: {
     view: new ListView(() => {
-      const actions = ['refreshApps', 'wakeHost', 'deleteHost', 'viewDetails', 'closeHostMenu'];
+      const actions = ['refreshApps', 'wakeHost', 'deleteHost', 'testNetwork', 'viewDetails', 'closeHostMenu'];
       return actions.map(action => action === 'closeHostMenu' ? action : action + '-' + Views.HostMenuDialog.hostname);
     }),
     up: function() {
@@ -1192,7 +1194,9 @@ const Views = {
     },
     leave: function() {
       unmark(this.view.current());
-      setTimeout(() => blurElement(this.view.current()), 100);
+      // The host menu is removed immediately after Navigation.pop().
+      // Blur its focused item before the DOM element is detached.
+      blurElement(this.view.current());
     },
   },
   DeleteHostDialog: {
@@ -1227,6 +1231,38 @@ const Views = {
     leave: function() {
       unmark(this.view.current());
       setTimeout(() => blurElement(this.view.current()), 100);
+    },
+  },
+  NetworkTestDialog: {
+    view: new ListView(() => [
+      'closeHostNetworkTest'
+    ]),
+    up: function() {
+      blurElement('closeHostNetworkTest');
+    },
+    down: function() {
+      focusElement('closeHostNetworkTest');
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+    },
+    back: function() {
+      resolveElement('closeHostNetworkTest').click();
+    },
+    press: function() {},
+    switch: function() {
+      focusElement(this.view.current());
+    },
+    enter: function() {
+      mark(this.view.current());
+      setTimeout(() => focusElement(this.view.current()), 100);
+    },
+    leave: function() {
+      unmark(this.view.current());
+      // The dialog is removed immediately after Navigation.pop(); blur before detachment.
+      blurElement(this.view.current());
     },
   },
   HostDetailsDialog: {
@@ -1528,6 +1564,7 @@ const Views = {
       'selectAmbientBackground',
       'selectConfigSummaryPosition',
       'navigationSoundBtn',
+      'screensaverBtn',
       'streamTransitionBackgroundBtn',
       'ipAddressFieldModeBtn'
     ]),
@@ -1667,7 +1704,9 @@ const Views = {
   },
   HostSettings: {
     view: new ListView(() => [
+      'discoverNewHostsAtStartupBtn',
       'sortAppsListBtn',
+      'sortAppsByUsageBtn',
       'optimizeGamesBtn',
       'quitAppAfterDisconnectBtn',
       'removeAllHostsBtn'

@@ -61,6 +61,7 @@ void onConnectionStopped(int errorCode) {
 }
 
 void MoonlightInstance::ClLogMessage(const char* format, ...) {
+#if MOONLIGHT_DEBUG_MODE
   va_list va;
   char message[1024];
 
@@ -71,6 +72,9 @@ void MoonlightInstance::ClLogMessage(const char* format, ...) {
   // fprintf(stderr, ...) processes message in parts, so logs from different
   // threads may interleave. Send whole message at once to minimize this.
   emscripten_log(EM_LOG_CONSOLE, "%s", message);
+#else
+  (void)format;
+#endif
 }
 
 void MoonlightInstance::ClConnectionStatusUpdate(int connectionStatus) {

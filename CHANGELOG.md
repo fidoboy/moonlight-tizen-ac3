@@ -3,6 +3,27 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.2.0
+
+### Added
+- **Idle screensaver:** Added an optional screensaver, enabled by default, that appears after 60 seconds of inactivity on the main interface. It displays the Moonlight logo and name on a black background, periodically moves to a random position, and disappears immediately when user input is detected. It is not activated during streaming, transitions, or direct launches from the Smart Hub.
+- **Gamepad testing tool:** Added an interactive controller test dialog, available while a gamepad is connected. It provides controller-specific diagrams for Xbox, PlayStation and Nintendo Switch Pro controllers, highlighting button and D-pad input, trigger activation, and analog stick movement in real time.
+- **Network diagnostics:** Added a diagnostic test of the connection between the TV and the host, measuring data-transfer throughput and response latency across test passes and evaluating connection stability.
+- **Optional startup host discovery:** Added a setting to skip automatic network discovery of new hosts at startup when hosts are already configured. Saved hosts are still checked in the background, and new hosts can always be found manually. Automatic discovery is always enabled when no hosts are saved.
+- **HEVC HDR metadata fallback:** Supplements HEVC Main10 streams with missing static HDR10 mastering-display (MDCV) and content-light-level (CLL) SEI messages using metadata supplied by the host through the Sunshine protocol, when available. Existing in-band metadata is preserved.
+- **Most-used app prioritization:** Added an optional per-host setting that sorts applications by launch count, placing the most frequently launched apps first. Apps with equal counts retain the configured alphabetical order, and the setting is disabled by default.
+
+### Changed
+- **Debug log privacy and verbosity:** Sensitive information is redacted from debug logs, including network addresses, host names, pairing PINs, tokens, certificates, private keys and other sensitive identifiers. Standard stable-release packages produce less verbose logs to reduce unnecessary output; detailed logging is enabled only in builds compiled with **debug mode**. Debug logging can be controlled through build-time configuration.
+- **Gamepad connection notifications:** Display the connected gamepad's name instead of its numeric index. Technical metadata appended in parentheses is omitted; the index remains the fallback when no usable name is available.
+- **UI and navigation refinements:** Polished interface spacing, alignment and dialog layouts, improved remote-control and gamepad navigation, and refined localized instructions for a more consistent experience across Tizen devices.
+
+### Fixed
+- **Streaming error handling:** Unified connection and playback errors in a single dialog displayed after the stream-closing transition. Added capture of asynchronous Tizen media-player errors and presentation of the error code and diagnostic details when available. Added specific handling for rejected H.264 configurations, and ensured the interface recovers and the application list refreshes after the dialog is closed.
+- **Warning dialog focus:** Improved remote-control and gamepad navigation focus restoration when warning dialogs appear, ensuring the Close button receives focus regardless of the error type or whether additional diagnostic details are available.
+- **Update dialog Markdown formatting:** Fixed the rendering of release notes so Markdown markers for **bold** and *italic* text are interpreted as formatting rather than displayed literally.
+
+
 ## v1.1.0
 
 ### Added

@@ -260,64 +260,56 @@ NvHTTP.prototype = {
 
   // Called every few seconds to poll the server for updated info
   pollServer: function(onComplete) {
-    // Pend this callback on completion
     this._pollCompletionCallbacks.push(onComplete);
+    if (this._pollCompletionCallbacks.length > 1) return;
 
-    // Check if a poll was already in progress
-    if (this._pollCompletionCallbacks.length > 1) {
-      // Don't start another, because the one in progress will alert our caller too
+    if (typeof hostPollingPausedForNetworkTest !== 'undefined' && hostPollingPausedForNetworkTest === true) {
+      this._pollInProgress = false;
+      var pausedCompletion;
+      while ((pausedCompletion = this._pollCompletionCallbacks.pop())) pausedCompletion(this);
       return;
     }
 
-    // Check if a stream session is already in progress
     if (isInGame === true) {
-      // Drain callbacks to avoid permanently blocking the deduplication guard
+      this._pollInProgress = false;
       var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this); // Executes the callback so the caller isn't left hanging
-      }
-      // Do not initiate any server polls while a streaming session is already in progress
+      while ((completion = this._pollCompletionCallbacks.pop())) completion(this);
       return;
     }
+
+    this._pollInProgress = true;
+    var finishPoll = function() {
+      this._pollInProgress = false;
+      var completion;
+      while ((completion = this._pollCompletionCallbacks.pop())) completion(this);
+    }.bind(this);
 
     this.selectServerAddress(function(successfulAddress) {
-      // Successfully determined server address. Update base URL
       var urlAddr = formatAddressForUrl(successfulAddress);
       this.address = successfulAddress;
       this._baseUrlHttps = 'https://' + urlAddr + ':' + this.httpsPort;
       this._baseUrlHttp = 'http://' + urlAddr + ':' + this.httpPort;
 
-      // Poll for updated mac address only on first successful server info poll
-      if (this.paired && this._pollCount === 0) {
-        updateMacAddress(this);
-      }
+      if (this.paired && this._pollCount === 0) updateMacAddress(this);
 
-      // Poll for the app list every 10 successful server info polls
-      // Not including the first one to avoid PCs taking a while to show as online initially
       if (this.paired && this._pollCount++ % 10 === 1) {
-        this.getAppListWithCacheFlush();
+        this._backgroundAppListRefreshInProgress = true;
+        this.getAppListWithCacheFlush().catch(function(error) {
+          console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
+        }).finally(function() {
+          this._backgroundAppListRefreshInProgress = false;
+        }.bind(this));
       }
 
       this._consecutivePollFailures = 0;
       this.online = true;
-
-      // Call all pending completion callbacks
-      var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this);
-      }
+      finishPoll();
     }.bind(this), function() {
-      // Set host to offline and clear the app list cache
       if (++this._consecutivePollFailures >= 2) {
         this.online = false;
         this._memCachedApplist = null;
       }
-
-      // Call all pending completion callbacks
-      var completion;
-      while ((completion = this._pollCompletionCallbacks.pop())) {
-        completion(this);
-      }
+      finishPoll();
     }.bind(this));
   },
 
@@ -365,16 +357,20 @@ NvHTTP.prototype = {
 
   toString: function() {
     var string = '';
-    string += 'host name: ' + this.hostname + '\r\n';
-    string += 'host address: ' + this.address + '\r\n';
-    string += 'local address: ' + this.localAddress + '\r\n';
-    string += 'external IP: ' + this.externalIP + '\r\n';
-    string += 'mac address: ' + this.macAddress + '\r\n';
+    var privateValue = function(value, key) {
+      if (typeof LOG_SHOW_PRIVATE_DATA !== 'undefined' && LOG_SHOW_PRIVATE_DATA) return value;
+      return /^(?:externalIP|macAddress)$/i.test(key) ? '--- HIDDEN ---' : value;
+    };
+    string += 'host name: ' + privateValue(this.hostname, 'hostname') + '\r\n';
+    string += 'host address: ' + privateValue(this.address, 'address') + '\r\n';
+    string += 'local address: ' + privateValue(this.localAddress, 'localAddress') + '\r\n';
+    string += 'external IP: ' + privateValue(this.externalIP, 'externalIP') + '\r\n';
+    string += 'mac address: ' + privateValue(this.macAddress, 'macAddress') + '\r\n';
     string += 'https port: ' + this.httpsPort + '\r\n';
     string += 'http port: ' + this.httpPort + '\r\n';
     string += 'external port: ' + this.externalPort + '\r\n';
-    string += 'client UID: ' + this.clientUid + '\r\n';
-    string += 'server UID: ' + this.serverUid + '\r\n';
+    string += 'client UID: ' + privateValue(this.clientUid) + '\r\n';
+    string += 'server UID: ' + privateValue(this.serverUid) + '\r\n';
     string += 'is paired: ' + this.paired + '\r\n';
     string += 'is online: ' + this.online + '\r\n';
     string += 'number of apps: ' + this.numofapps + '\r\n';
@@ -407,7 +403,9 @@ NvHTTP.prototype = {
       return false;
     }
 
-    console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
+    }
 
     // Retrieve the hostname and handle name validation
     var serverName = $root.find('hostname').text().trim();
@@ -521,14 +519,197 @@ NvHTTP.prototype = {
     });
   },
 
-  getAppListWithCacheFlush: function() {
+  // Runs an indicative host-to-client download test using the host's existing app assets.
+  // The first complete pass establishes the asset set; only subsequent downloads are measured.
+  runNetworkTest: function(durationMs, onProgress, shouldCancel) {
+    var self = this;
+    var duration = Math.max(1000, Number(durationMs) || 30000);
+    var appIds = [];
+    var baselineIds = [];
+    var totalBytes = 0;
+    var successfulRequests = 0;
+    var failedRequests = 0;
+    var passRates = [];
+    var passStartedAt = 0;
+    var passBytes = 0;
+    var passCount = 0;
+    var responseTimeTotalMs = 0;
+    var responseTimeSamples = 0;
+    var startedAt = 0;
+    var deadline = 0;
+    var baselineBytes = 0;
+    var baselineErrors = 0;
+
+    var isCancelled = function() {
+      return typeof shouldCancel === 'function' && shouldCancel();
+    };
+
+    var report = function(extra) {
+      var elapsedMs = startedAt ? Math.max(1, performance.now() - startedAt) : 0;
+      var result = {
+        elapsedMs: elapsedMs,
+        bytes: totalBytes,
+        successfulRequests: successfulRequests,
+        failedRequests: failedRequests,
+        averageMbps: elapsedMs > 0 ? totalBytes * 8 / (elapsedMs * 1000) : 0,
+        averageLatencyMs: responseTimeSamples > 0 ? responseTimeTotalMs / responseTimeSamples : null,
+        minPassMbps: passRates.length ? Math.min.apply(Math, passRates) : 0,
+        maxPassMbps: passRates.length ? Math.max.apply(Math, passRates) : 0,
+        passCount: passCount
+      };
+      if (extra) Object.keys(extra).forEach(function(key) { result[key] = extra[key]; });
+      if (typeof onProgress === 'function') onProgress(result);
+      return result;
+    };
+
+    // Use the same one-shot HTTP request path as the rest of the application.
+    var requestAsset = function(appId) {
+      var url = self._baseUrlHttps + '/appasset?' + self._buildUidStr() +
+        '&appid=' + encodeURIComponent(appId) + '&AssetType=2&AssetIdx=0';
+      var requestStartedAt = performance.now();
+      return sendMessage('openUrl', [url, self.ppkstr, true, 5000]).then(function(buffer) {
+        var elapsedMs = Math.max(0, performance.now() - requestStartedAt);
+        var byteLength = buffer && typeof buffer.byteLength === 'number'
+          ? buffer.byteLength
+          : (buffer && typeof buffer.length === 'number' ? buffer.length : 0);
+        if (byteLength <= 0) throw new Error('Empty app asset response');
+        return { byteLength: byteLength, elapsedMs: elapsedMs };
+      }).catch(function(error) {
+        if (!error || typeof error !== 'object') error = new Error(String(error));
+        error.elapsedMs = Math.max(0, performance.now() - requestStartedAt);
+        throw error;
+      });
+    };
+
+    if (!self._baseUrlHttps || !self.ppkstr) {
+      return Promise.reject(new Error('The host must be online and paired before running the network test.'));
+    }
+
+    return self.getAppListWithCacheFlush(true).then(function(apps) {
+      appIds = (Array.isArray(apps) ? apps : []).map(function(app) {
+        return Number(app && app.id);
+      }).filter(function(id, index, ids) {
+        return Number.isInteger(id) && id > 0 && ids.indexOf(id) === index;
+      });
+      // The temporary app-list objects are no longer needed. The shared app-list
+      // cache is deliberately not populated by this request.
+      if (Array.isArray(apps)) apps.length = 0;
+
+      if (!appIds.length) throw new Error('The host did not return any applications to test.');
+
+      var baselineIndex = 0;
+      var downloadBaselineNext = function() {
+        if (isCancelled() || baselineIndex >= appIds.length) return Promise.resolve();
+        var appId = appIds[baselineIndex++];
+        return requestAsset(appId).then(function(response) {
+          baselineIds.push(appId);
+          baselineBytes += response.byteLength;
+        }, function(error) {
+          baselineErrors++;
+          console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Initial app asset download failed for app ID ' + appId + ':', error);
+        }).then(downloadBaselineNext);
+      };
+
+      return downloadBaselineNext().then(function() {
+        if (isCancelled()) {
+          return report({
+            completed: true,
+            cancelled: true,
+            measurementStarted: false,
+            baselineBytes: baselineBytes,
+            baselineAssetCount: baselineIds.length,
+            baselineErrors: baselineErrors
+          });
+        }
+        if (baselineErrors > 0 || !baselineIds.length) {
+          throw new Error('The required data could not be retrieved from the host. The test has been aborted.');
+        }
+
+        // Start the timed measurement only after every baseline asset is available.
+        startedAt = performance.now();
+        deadline = startedAt + duration;
+        passStartedAt = startedAt;
+        report({
+          started: true,
+          measurementStarted: true,
+          baselineBytes: baselineBytes,
+          baselineAssetCount: baselineIds.length,
+          baselineErrors: baselineErrors
+        });
+
+        var assetIndex = 0;
+        var downloadMeasuredNext = function() {
+          if (isCancelled() || performance.now() >= deadline) return Promise.resolve();
+          var appId = baselineIds[assetIndex++];
+
+          return requestAsset(appId).then(function(response) {
+            totalBytes += response.byteLength;
+            passBytes += response.byteLength;
+            successfulRequests++;
+            responseTimeTotalMs += response.elapsedMs;
+            responseTimeSamples++;
+          }, function(error) {
+            failedRequests++;
+            if (Number.isFinite(error.elapsedMs)) {
+              responseTimeTotalMs += error.elapsedMs;
+              responseTimeSamples++;
+            }
+            console.warn('%c[utils.js, runNetworkTest]', 'color: gray;', 'Measured app asset download failed for app ID ' + appId + ':', error);
+          }).then(function() {
+            if (assetIndex >= baselineIds.length) {
+              var passNow = performance.now();
+              var passElapsed = Math.max(1, passNow - passStartedAt);
+              passRates.push(passBytes * 8 / (passElapsed * 1000));
+              passCount++;
+              passBytes = 0;
+              passStartedAt = passNow;
+              assetIndex = 0;
+            }
+            report({
+              currentAsset: assetIndex,
+              totalAssets: baselineIds.length,
+              baselineBytes: baselineBytes,
+              baselineAssetCount: baselineIds.length,
+              baselineErrors: baselineErrors
+            });
+            return downloadMeasuredNext();
+          });
+        };
+
+        return downloadMeasuredNext().then(function() {
+          return report({
+            completed: true,
+            cancelled: isCancelled(),
+            measurementStarted: true,
+            baselineBytes: baselineBytes,
+            baselineAssetCount: baselineIds.length,
+            baselineErrors: baselineErrors
+          });
+        });
+      });
+    }).finally(function() {
+        // Release all test-only collections and counters on success, cancellation,
+        // or failure. No app-list or image data is persisted by this test.
+        appIds.length = 0;
+        baselineIds.length = 0;
+        passRates.length = 0;
+        totalBytes = 0;
+        successfulRequests = 0;
+        failedRequests = 0;
+        responseTimeTotalMs = 0;
+        responseTimeSamples = 0;
+        passBytes = 0;
+      });
+  },
+
+  getAppListWithCacheFlush: function(skipMemoryCache) {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/applist?' + this._buildUidStr(), this.ppkstr, false, 10000
     ]).catch(error => {
       throw error;
     }).then(function(ret) {
-      $xml = this._parseXML(ret);
-      $root = $xml.find('root');
+      var $xml = this._parseXML(ret);
+      var $root = $xml.find('root');
 
       if ($root.attr('status_code') != 200) {
         // TODO: Bubble up an error here
@@ -547,7 +728,7 @@ NvHTTP.prototype = {
         });
       }
 
-      this._memCachedApplist = appList;
+      if (skipMemoryCache !== true) this._memCachedApplist = appList;
       console.log('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'App list requested successfully.');
 
       return appList;

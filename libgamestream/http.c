@@ -21,6 +21,7 @@
 #include "errors.h"
 
 #include <string.h>
+#include <stdio.h>
 #include <curl/curl.h>
 
 #include <openssl/ssl.h>
@@ -76,18 +77,21 @@ static int _progress_callback(void *clientp, double dltotal, double dlnow, doubl
   return 0;
 }
 
-int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
+static int http_request_internal(const char* url, const char* ppkstr, PHTTP_DATA data) {
   int ret;
   CURL *curl;
   const char* real_url = url;
   char* rewritten_url = NULL;
   char* resolve_string = NULL;
   struct curl_slist *resolve_list = NULL;
+  char curl_error_buffer[CURL_ERROR_SIZE] = {0};
 
   http_reset_cancel();
 
   curl = curl_easy_init();
+  if (curl == NULL) return GS_FAILED;
 
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error_buffer);
   curl_easy_setopt(curl, CURLOPT_CAINFO, "/curl/ca-bundle.crt");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _write_curl);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
@@ -112,9 +116,8 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
     if (ipv6_len < sizeof(ipv6_raw)) {
       strncpy(ipv6_raw, bracket_start + 1, ipv6_len);
     }
-    
+
     const char* port_and_path = bracket_end + 1;
-    
     int scheme_len = bracket_start - url;
     char scheme[32] = {0};
     if (scheme_len < sizeof(scheme)) {
@@ -130,17 +133,28 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
 
     const char* dummy_host = "moonlight-ipv6-host";
     rewritten_url = malloc(strlen(url) + strlen(dummy_host) + 1);
+    if (rewritten_url == NULL) {
+      ret = GS_OUT_OF_MEMORY;
+      goto cleanup;
+    }
     sprintf(rewritten_url, "%s%s%s", scheme, dummy_host, port_and_path);
 
     resolve_string = malloc(strlen(dummy_host) + strlen(ipv6_raw) + 32);
+    if (resolve_string == NULL) {
+      ret = GS_OUT_OF_MEMORY;
+      goto cleanup;
+    }
     sprintf(resolve_string, "%s:%d:%s", dummy_host, port, ipv6_raw);
 
     resolve_list = curl_slist_append(NULL, resolve_string);
-    curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
-    
+    if (resolve_list == NULL) {
+      ret = GS_OUT_OF_MEMORY;
+      goto cleanup;
+    }
     real_url = rewritten_url;
   }
 
+  curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve_list);
   curl_easy_setopt(curl, CURLOPT_URL, real_url);
 
   // Use the pinned certificate for HTTPS
@@ -153,18 +167,15 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
   if (data->size > 0) {
     free(data->memory);
     data->memory = malloc(1);
-    if(data->memory == NULL) {
+    if (data->memory == NULL) {
       ret = GS_OUT_OF_MEMORY;
       goto cleanup;
     }
-
     data->size = 0;
   }
 
   CURLcode res = curl_easy_perform(curl);
 
-  printf("CURL: %s (PPK: '%s') -> %s\n", url, ppkstr ? ppkstr : "<NULL>", curl_easy_strerror(res));
-  
   if (res == CURLE_SSL_PINNEDPUBKEYNOTMATCH) {
     ret = GS_CERT_MISMATCH;
   } else if (res != CURLE_OK) {
@@ -174,13 +185,17 @@ int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
   } else {
     ret = GS_OK;
   }
-  
+
 cleanup:
   if (rewritten_url) free(rewritten_url);
   if (resolve_string) free(resolve_string);
   if (resolve_list) curl_slist_free_all(resolve_list);
   curl_easy_cleanup(curl);
   return ret;
+}
+
+int http_request(const char* url, const char* ppkstr, PHTTP_DATA data) {
+  return http_request_internal(url, ppkstr, data);
 }
 
 PHTTP_DATA http_create_data() {

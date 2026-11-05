@@ -706,7 +706,7 @@ var sendMessage = function(method, params) {
                 console.warn('%c[messages.js, sendMessage]', 'color: gray;', 'Warning: HTTPS request timed out, canceling C++ HTTP request for URL:', url);
                 SyncFunctions['cancelRequest']();
                 reject(-1); // GS_FAILED
-                innerResolve(); // Unlock the JS queue!
+                innerResolve();
               }
             }, timeout_ms);
           }
@@ -718,16 +718,16 @@ var sendMessage = function(method, params) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 resolve(msg);
-                innerResolve(); // Unlock the JS queue
               }
+              innerResolve();
             },
             'reject': function(err) {
               if (!isFinished) {
                 isFinished = true;
                 if (timeoutId) clearTimeout(timeoutId);
                 reject(err);
-                innerResolve(); // Unlock the JS queue
               }
+              innerResolve();
             }
           };
 
@@ -888,6 +888,8 @@ function handleMessage(msg) {
       var directStreamHasError = errorCode !== 0 || !!streamMediaPipelineErrorMessage ||
         !!streamDialogMessage || !!streamH264TrackRejectionMessage ||
         !!streamVideoTrackCloseErrorMessage;
+      console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
+        (directStreamHasError ? ' — ' + directClosingMessage : ''));
       if (directStreamHasError) {
         // Smart Hub has no diagnostic dialog: keep every failure status concise.
         directClosingMessage = streamMediaPipelineErrorMessage
@@ -1011,6 +1013,9 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
+    console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
+      (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
+    if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
 
     // Set the message first, then show the complete transition layer. The local UI
     // audio engine is rebuilt only after this layer is fully visible.
@@ -1236,6 +1241,7 @@ function handleMessage(msg) {
   } else if (msg === 'Connection Established') {
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+    console.info('[stream]', 'Stream connection established.');
     // Connection negotiation completed; now bound the wait for the first decoded frame.
     if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
     // This marks connection setup, not the availability of the first decoded video frame.

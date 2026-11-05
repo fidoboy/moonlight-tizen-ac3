@@ -91,10 +91,14 @@ COPY --chown=moonlight wasm/*.cpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/*.hpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/dispatcher ./moonlight-tizen/wasm/dispatcher/
 
+# Share the debug switch with the native C/C++ build as well as the frontend.
+ARG DEBUG_MODE=false
+
 RUN cmake \
 	-DCMAKE_TOOLCHAIN_FILE=/home/moonlight/emscripten-release-bundle/emsdk/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
@@ -114,11 +118,14 @@ COPY --chown=moonlight .gi[t]/ ./moonlight-tizen/.git/
 # Only builds published by the stable-release workflow are treated as official; all other builds are marked experimental.
 ARG BUILD_TYPE=release
 ARG OFFICIAL_RELEASE=false
+ARG LOG_SHOW_PRIVATE_DATA=false
 ARG REPO_OWNER
 ARG REPO_NAME
 RUN \
     # Always inject the build type, repo owner, and repo name regardless of the build type
 	sed -i "s/__BUILD_TYPE__/$BUILD_TYPE/g" moonlight-tizen/wasm/platform/index.js && \
+    sed -i "s/var DEBUG_MODE = false;/var DEBUG_MODE = $DEBUG_MODE;/" moonlight-tizen/wasm/platform/index.js && \
+    sed -i "s/var LOG_SHOW_PRIVATE_DATA = false;/var LOG_SHOW_PRIVATE_DATA = (DEBUG_MODE \\&\\& $LOG_SHOW_PRIVATE_DATA);/" moonlight-tizen/wasm/platform/index.js && \
     sed -i "s/__OFFICIAL_RELEASE__/$OFFICIAL_RELEASE/g" moonlight-tizen/wasm/platform/index.js && \
     if [ -n "$REPO_OWNER" ]; then \
         sed -i "s/__REPO_OWNER__/$REPO_OWNER/g" moonlight-tizen/wasm/platform/index.js; \
@@ -128,8 +135,8 @@ RUN \
     fi && \
 	echo "Injected base metadata: build type ($BUILD_TYPE), repo owner ($REPO_OWNER), repo name ($REPO_NAME)"; \
     \
-    # Conditionally inject the short commit SHA only if it's a development build
-    if [ "$BUILD_TYPE" = "development" ]; then \
+    # Inject the short commit SHA into every non-official build for runtime identification
+    if [ "$OFFICIAL_RELEASE" != "true" ]; then \
         SHORT_SHA=""; \
         if [ -d "moonlight-tizen/.git" ]; then \
             SHORT_SHA=$(git -C moonlight-tizen rev-parse --short HEAD); \
@@ -137,10 +144,11 @@ RUN \
         if [ -n "$SHORT_SHA" ]; then \
             sed -i "s/__BUILD_COMMIT__/$SHORT_SHA/g" moonlight-tizen/wasm/platform/index.js; \
         fi; \
-		echo "Injected development commit hash ($SHORT_SHA)"; \
+        echo "Injected experimental commit hash ($SHORT_SHA)"; \
     else \
-        echo "Build type is release, skipping commit hash injection."; \
-    fi
+        echo "Official release build, skipping commit hash injection."; \
+    fi && \
+    /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node --check moonlight-tizen/wasm/platform/index.js
 
 RUN cmake --install build --prefix build
 COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/

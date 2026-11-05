@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.10)
 
 project(MoonlightWasm VERSION 1.0)
 
+option(MOONLIGHT_DEBUG_MODE "Enable native debug logging and temporary debug hooks" OFF)
+if(MOONLIGHT_DEBUG_MODE)
+    set(MOONLIGHT_DEBUG_VALUE 1)
+else()
+    set(MOONLIGHT_DEBUG_VALUE 0)
+endif()
+
 add_compile_options(-w -s WASM=1 -fno-ident -Os -flto -DSAMSUNG_WRT -DOS_WASM -DNDEBUG)
 
 add_library(moonlight-rs STATIC
@@ -59,6 +66,9 @@ add_library(moonlight-common-c STATIC
 )
 target_compile_definitions(moonlight-common-c PUBLIC
     LC_CHROME)
+# Keep Limelog() on the callback path in every build. ClLogMessage applies the debug filter.
+target_compile_definitions(moonlight-common-c PRIVATE
+    LC_LOG)
 target_include_directories(moonlight-common-c PUBLIC
     moonlight-common-c/src
     moonlight-common-c/enet/include
@@ -249,6 +259,9 @@ add_executable(moonlight-wasm
     wasm/main.cpp
     wasm/profiling.cpp
     wasm/wasmplayer.cpp
+)
+target_compile_definitions(moonlight-wasm PRIVATE
+    MOONLIGHT_DEBUG_MODE=${MOONLIGHT_DEBUG_VALUE}
 )
 target_include_directories(moonlight-wasm PUBLIC
     wasm

@@ -95,6 +95,10 @@
             <i class="navigation-button-icons material-icons">refresh</i>
           </button>
 
+          <button type="button" id="gamepadTestBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Gamepad Test" hidden>
+            <i class="navigation-button-icons material-symbols-outlined">stadia_controller</i>
+          </button>
+
           <button type="button" id="supportBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Support">
             <i class="navigation-button-icons material-icons">help</i>
           </button>
@@ -400,6 +404,18 @@
               </div>
             </div>
             <div class="setting-option">
+              <label data-i18n="Screensaver">Screensaver</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Displays a black screen with the Moonlight logo after 30 seconds without user input.">
+                - Displays a black screen with the Moonlight logo after 30 seconds without user input.
+              </span>
+              <div id="screensaverMenu">
+                <label id="screensaverBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="screensaverSwitch">
+                  <input type="checkbox" id="screensaverSwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Enable the screensaver">Enable the screensaver</span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Streaming transition background">Streaming transition background</label>
               <span class="mdl-list__item-text-body" data-i18n="- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.">
                 - Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.
@@ -430,6 +446,20 @@
           </div>
           <div id="hostSettings" class="settings-options">
             <div class="setting-option">
+              <label data-i18n="New host discovery">New host discovery</label>
+              <span class="mdl-list__item-text-body" data-i18n="- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.">
+                - When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.
+              </span>
+              <div id="discoverNewHostsAtStartupMenu">
+                <label id="discoverNewHostsAtStartupBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="discoverNewHostsAtStartupSwitch">
+                  <input type="checkbox" id="discoverNewHostsAtStartupSwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Search for new hosts automatically at startup">
+                    Search for new hosts automatically at startup
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Sort the list of apps">Sort the list of apps</label>
               <span class="mdl-list__item-text-body" data-i18n="- Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.">
                 - Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.
@@ -439,6 +469,20 @@
                   <input type="checkbox" id="sortAppsListSwitch" class="mdl-switch__input">
                   <span class="mdl-switch__label" data-i18n="Allow sorting the list of apps and games in descending order">
                     Allow sorting the list of apps and games in descending order
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Prioritize most-used apps">Prioritize most-used apps</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Places apps with the highest number of launches first. Apps with the same number of launches are sorted by title.">
+                - Places apps with the highest number of launches first. Apps with the same number of launches are sorted by title.
+              </span>
+              <div id="sortAppsByUsageMenu">
+                <label id="sortAppsByUsageBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="sortAppsByUsageSwitch">
+                  <input type="checkbox" id="sortAppsByUsageSwitch" class="mdl-switch__input">
+                  <span class="mdl-switch__label" data-i18n="Sort apps by usage frequency">
+                    Sort apps by usage frequency
                   </span>
                 </label>
               </div>
@@ -904,14 +948,22 @@
   <script type="text/javascript" src="platform/gamepad.js"></script>
   <script type="text/javascript" src="platform/audio.js"></script>
   <script type="text/javascript" src="platform/index.js"></script>
+  <script type="text/javascript" src="platform/screensaver.js"></script>
   <script type="text/javascript" src="platform/navigation.js"></script>
   <script type="text/javascript" src="platform/remote_controller.js"></script>
   <script type="text/javascript" src="static/js/utils.js"></script>
   <!-- Network discovery scripts are loaded on demand after known hosts are checked. -->
   <div id="popup-layer">
+    <div id="screensaver-overlay" aria-hidden="true">
+      <div id="screensaver-content">
+        <img id="screensaver-logo" src="static/res/ic_moonlight_logo.svg" alt="">
+        <span id="screensaver-title" data-i18n="Moonlight">Moonlight</span>
+      </div>
+    </div>
     <div id="goBackTooltip" class="mdl-tooltip" for="goBackBtn" data-i18n="Back">Back</div>
     <div id="settingsTooltip" class="mdl-tooltip" for="settingsBtn" data-i18n="Settings">Settings</div>
     <div id="refreshHostsTooltip" class="mdl-tooltip" for="refreshHostsBtn" data-i18n="Rescan Network">Rescan Network</div>
+    <div id="gamepadTestTooltip" class="mdl-tooltip" for="gamepadTestBtn" data-i18n="Gamepad Test">Gamepad Test</div>
     <div id="supportTooltip" class="mdl-tooltip" for="supportBtn" data-i18n="Support">Support</div>
     <div id="restoreDefaultsTooltip" class="mdl-tooltip" for="restoreDefaultsBtn" data-i18n="Restore Defaults">Restore Defaults</div>
   <div id="addHostDialogOverlay" class="dialog-overlay">
@@ -1157,7 +1209,7 @@
     <dialog id="updateAppDialog" class="mdl-dialog">
       <h3 id="updateAppDialogTitle" class="mdl-dialog__title" data-i18n="Update Moonlight">Update Moonlight</h3>
       <div id="updateAppDialogContent" class="mdl-dialog__content" tabindex="-1">
-        <p id="updateAppDialogText"></p>
+        <div id="updateAppDialogText"></div>
       </div>
       <div class="mdl-dialog__actions">
         <button type="button" id="closeUpdateApp" autofocus class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" data-i18n="Close">Close</button>

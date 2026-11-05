@@ -141,6 +141,7 @@ void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryRe
   g_Instance->OpenUrl(callbackId, url, ppkstr, binaryResponse);
 }
 
+
 EMSCRIPTEN_BINDINGS(http) {
   emscripten::function("makeCert", &makeCert);
   emscripten::function("httpInit", &httpInit);

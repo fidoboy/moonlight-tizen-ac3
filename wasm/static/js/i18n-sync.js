@@ -41,7 +41,15 @@ function decodeString(value) {
     .replace(/\\`/g, '`')
     .replace(/\\n/g, '\n')
     .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t');
+    .replace(/\\t/g, '\t')
+}
+
+function decodeHtmlString(value) {
+  return decodeString(value)
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
 function extractFromContent(content, keys) {
@@ -50,6 +58,7 @@ function extractFromContent(content, keys) {
   const snackbarPattern = /\bsnackbarLog(?:Long|Persistent)?\(\s*(['"`])((?:\\.|(?!\1).)*)\1\s*(?:,|\))/g;
   const warningTitlePattern = /\bwarningDialog\(\s*(['"`])((?:\\.|(?!\1).)*)\1\s*,/g;
   const warningDialogPattern = /\bwarningDialog\(\s*(['"`])((?:\\.|(?!\1).)*)\1\s*,\s*(['"`])((?:\\.|(?!\3).)*)\3\s*(?:,|\))/g;
+  const forwardedMessagePattern = /\b(?:finishQuitOperation|scheduleViewLoadingSnackbar)\(\s*(['"`])((?:\\.|(?!\1).)*)\1/g;
   const htmlPattern = /data-i18n\s*=\s*(['"])(.*?)\1/g;
   const placeholderPattern = /data-i18n-placeholder\s*=\s*(['"])(.*?)\1/g;
 
@@ -86,6 +95,11 @@ function extractFromContent(content, keys) {
     }
   }
 
+  while ((match = forwardedMessagePattern.exec(content)) !== null) {
+    const key = decodeString(match[2]);
+    if (key) keys.add(key);
+  }
+
   while ((match = warningDialogPattern.exec(content)) !== null) {
     const titleKey = decodeString(match[2]);
     const messageKey = decodeString(match[4]);
@@ -98,14 +112,14 @@ function extractFromContent(content, keys) {
   }
 
   while ((match = htmlPattern.exec(content)) !== null) {
-    const key = decodeString(match[2]);
+    const key = decodeHtmlString(match[2]);
     if (key) {
       keys.add(key);
     }
   }
 
   while ((match = placeholderPattern.exec(content)) !== null) {
-    const key = decodeString(match[2]);
+    const key = decodeHtmlString(match[2]);
     if (key) {
       keys.add(key);
     }
@@ -165,6 +179,20 @@ function main() {
   }
 
   const sourcePath = path.join(LOCALES_DIR, `${SOURCE_LOCALE}.json`);
+
+  if (process.argv.includes('--check')) {
+    const existingSource = safeReadJson(sourcePath);
+    const missing = sortedKeys.filter((key) => !Object.prototype.hasOwnProperty.call(existingSource, key));
+    if (missing.length > 0) {
+      console.error('[i18n-sync] Source locale is missing application strings.');
+      console.error('Missing keys:', missing.map((key) => JSON.stringify(key)).join(', '));
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`[i18n-sync] Source locale contains all ${sortedKeys.length} extracted application keys.`);
+    return;
+  }
+
   writeJson(sourcePath, sourceDict);
 
   // Directly grab all JSON files in the locales directory (excluding the source locale)
