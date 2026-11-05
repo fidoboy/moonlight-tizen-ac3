@@ -194,7 +194,7 @@ jobs:
           jq -e --arg tag "$RELEASE_TAG" '.tag_name == $tag and (.body | startswith("## Highlights"))' /tmp/release-updated.json >/dev/null
           echo "Updated release notes for $RELEASE_TAG without rebuilding or replacing the WGT assets."
 
-      - name: Refuse to overwrite an existing public release
+      - name: Move release tag to the current source commit
         if: steps.version.outputs.mode == 'publish'
         shell: bash
         env:
@@ -202,20 +202,21 @@ jobs:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
-          status="$(curl --silent --show-error --output /tmp/release.json --write-out '%{http_code}' \
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG"
+          status="$(curl --silent --show-error --output /tmp/tag-update.json --write-out '%{http_code}' \
+            --request PATCH \
             -H 'Accept: application/vnd.github+json' \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
-          if [[ "$status" == "200" ]]; then
-            echo "Release $RELEASE_TAG already exists. Refusing to overwrite a published version." >&2
+            -H 'Content-Type: application/json' \
+            --data "$(jq -n --arg sha "$GITHUB_SHA" '{sha: $sha, force: true}')" \
+            "$API_URL")"
+          if [[ "$status" != "200" ]]; then
+            echo "Failed to move release tag $RELEASE_TAG to $GITHUB_SHA (HTTP $status)." >&2
+            cat /tmp/tag-update.json >&2
             exit 1
           fi
-          if [[ "$status" != "404" ]]; then
-            echo "Unexpected GitHub API status $status while checking $RELEASE_TAG." >&2
-            cat /tmp/release.json >&2
-            exit 1
-          fi
+          echo "Moved $RELEASE_TAG to $GITHUB_SHA."
 
       - name: Set up Docker Buildx
         if: steps.version.outputs.mode == 'publish'
@@ -290,7 +291,7 @@ jobs:
           prerelease: false
           draft: false
           make_latest: true
-          overwrite_files: false
+          overwrite_files: true
           fail_on_unmatched_files: true
           files: |
             dist/Moonlight.wgt
