@@ -236,8 +236,7 @@ function startSubnetScanner(excludedIPs, trackDiscoveryResults) {
 
         if (!window.subnetScanAbortCtrl || index >= IPs.length) {
           if (activeCount === 0) {
-            window.subnetScanPromise = null;
-            resolve();
+            finishScan();
           }
           return;
         }
