@@ -1241,6 +1241,7 @@ function handleMessage(msg) {
   } else if (msg === 'Connection Established') {
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
     // Stop the connection watchdog; do not impose a separate first-frame deadline.
     // This marks connection setup, not the availability of the first decoded video frame.
