@@ -595,7 +595,7 @@ jobs:
           if [ -n "${link_probe:-}" ] && [ -f "$link_probe/Release/wmp-service" ]; then
             mkdir -p "$hybrid_root"
             if run_profile_command "hybrid-web-template-list" "$hybrid_log" tizen list web-project; then
-              web_profile="$(awk '$1 ~ /^(tizen|tv-samsung)-/ && $2 == "Basic" { print $1; exit }' "$hybrid_log")"
+              web_profile="$(awk '$1 ~ /^tizen-[0-9]+\\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' "$hybrid_log" | sort -Vr | head -n 1)"
             else
               web_profile=""
               echo "HYBRID_WEB_TEMPLATE_LIST=failed" | tee -a "$hybrid_log"
@@ -604,7 +604,9 @@ jobs:
 
             if [ -n "$web_profile" ]; then
               echo "HYBRID_WEB_PROFILE=$web_profile" | tee -a "$hybrid_log"
-              if run_profile_command "hybrid-web-project-create" "$hybrid_log" tizen create web-project -p "$web_profile" -t Basic -n MoonlightWeb -- "$hybrid_root"; then
+              web_template="WebBasicApplication"
+              echo "HYBRID_WEB_TEMPLATE=$web_template" | tee -a "$hybrid_log"
+              if run_profile_command "hybrid-web-project-create" "$hybrid_log" tizen create web-project -p "$web_profile" -t "$web_template" -n MoonlightWeb -- "$hybrid_root"; then
                 echo "HYBRID_WEB_PROJECT_CREATE=success" | tee -a "$hybrid_log"
               else
                 status=$?
@@ -612,7 +614,7 @@ jobs:
                 failed=1
               fi
             else
-              echo "HYBRID_WEB_PROJECT_CREATE=failed; no installed profile exposes the Basic Web template" | tee -a "$hybrid_log"
+              echo "HYBRID_WEB_PROJECT_CREATE=failed; no installed Tizen profile exposes WebBasicApplication" | tee -a "$hybrid_log"
               failed=1
             fi
 
