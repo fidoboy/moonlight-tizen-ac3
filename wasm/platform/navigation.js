@@ -1800,7 +1800,7 @@ const Views = {
   AudioSettings: {
     view: new ListView(() => [
       'ac3AudioModeBtn',
-      'selectAudioBackend',
+      isWmpEngineSelected() ? 'wmpAudioBtn' : 'selectAudioBackend',
       isAudioOutputDisabled() ? null : 'selectAudio',
       // Dolby controls are navigable only when their corresponding setting is available.
       ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&

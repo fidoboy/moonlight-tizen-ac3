@@ -611,7 +611,7 @@
                 </label>
               </div>
             </div>
-            <div class="setting-option">
+            <div id="audioBackendOption" class="setting-option">
               <label data-i18n="Audio backend">Audio backend</label>
               <span class="mdl-list__item-text-body" data-i18n="- Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.">
                 - Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.
@@ -624,6 +624,20 @@
                 <li class="mdl-menu__item" data-value="WebAudio" data-i18n="Web Audio">Web Audio</li>
                 <li class="mdl-menu__item" data-value="Disabled" data-i18n="Disabled">Disabled</li>
               </ul>
+            </div>
+            <div id="wmpAudioOption" class="setting-option" style="display: none;">
+              <label data-i18n="Audio">Audio</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Controls whether WMP processes the session audio. This preference is saved separately from the EMSS audio backend.">
+                - Controls whether WMP processes the session audio. This preference is saved separately from the EMSS audio backend.
+              </span>
+              <div id="wmpAudioMenu">
+                <label id="wmpAudioBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="wmpAudioSwitch">
+                  <input type="checkbox" id="wmpAudioSwitch" class="mdl-switch__input" checked>
+                  <span class="mdl-switch__label" data-i18n="Enable audio processing in WMP">
+                    Enable audio processing in WMP
+                  </span>
+                </label>
+              </div>
             </div>
             <div id="audioConfigOption" class="setting-option">
               <label><span data-i18n="Audio configuration">Audio configuration</span>

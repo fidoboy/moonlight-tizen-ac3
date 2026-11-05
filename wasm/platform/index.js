@@ -826,6 +826,7 @@ function attachListeners() {
   $('.audioBackendMenu li').on('click', saveAudioBackend);
   $('.audioConfigMenu li').on('click', saveAudioConfiguration);
   $('#ac3AudioModeSwitch').on('click', saveAc3AudioMode);
+  $('#wmpAudioSwitch').on('click', saveWmpAudioPreference);
   $('.dolbyChannelLayoutMenu li').on('click', saveDolbyChannelLayout);
   $('.dolbyDecodingModeMenu li').on('click', saveDolbyDecodingMode);
   $('#audioSyncSwitch').on('click', saveAudioSync);
@@ -6722,6 +6723,27 @@ function saveStreamingEngine() {
   $('#selectStreamingEngine').text($(this).text())
     .attr('data-value', chosenEngine).data('value', chosenEngine);
   storeData('streamingEngine', chosenEngine, null);
+  updateStreamingEngineSettings();
+}
+
+function isWmpEngineSelected() {
+  return $('#selectStreamingEngine').data('value') === 'WMP';
+}
+
+// The audio control shown in Settings depends on the selected streaming engine.
+// Keep the EMSS backend selector and WMP audio-processing preference independent.
+function updateStreamingEngineSettings() {
+  var wmpSelected = isWmpEngineSelected();
+  $('#audioBackendOption').toggle(!wmpSelected);
+  $('#wmpAudioOption').toggle(wmpSelected);
+}
+
+function saveWmpAudioPreference() {
+  setTimeout(() => {
+    const enabled = $('#wmpAudioSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveWmpAudioPreference]', 'color: green;', 'Saving WMP audio processing state: ' + enabled);
+    storeData('wmpAudioEnabled', enabled, null);
+  }, 100);
 }
 
 function warnResolutionFramerate() {
@@ -7935,6 +7957,7 @@ function restoreDefaultsSettingsValues() {
   const defaultStreamingEngine = 'EMSS';
   $('#selectStreamingEngine').text('EMSS').attr('data-value', defaultStreamingEngine).data('value', defaultStreamingEngine);
   storeData('streamingEngine', defaultStreamingEngine, null);
+  updateStreamingEngineSettings();
 
   const defaultBitrate = '10';
   $('#selectBitrate').text(defaultBitrate + ' Mbps');
@@ -8024,6 +8047,8 @@ function restoreDefaultsSettingsValues() {
   const defaultAudioBackend = 'EMSS';
   $('#selectAudioBackend').text('EMSS').attr('data-value', defaultAudioBackend).data('value', defaultAudioBackend);
   storeData('audioBackend', defaultAudioBackend, null);
+  document.querySelector('#wmpAudioBtn').MaterialSwitch.on();
+  storeData('wmpAudioEnabled', true, null);
   // Show the settings of the restored audio backend
   updateAudioBackendSettings();
 
@@ -8431,6 +8456,7 @@ function loadUserDataCb() {
       $('#selectStreamingEngine').text(option.text())
         .attr('data-value', engine).data('value', engine);
     }
+    updateStreamingEngineSettings();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored bitrate preferences.');
@@ -8598,6 +8624,16 @@ function loadUserDataCb() {
       document.querySelector('#flipXYfaceButtonsBtn').MaterialSwitch.off();
     } else {
       document.querySelector('#flipXYfaceButtonsBtn').MaterialSwitch.on();
+    }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored WMP audio processing preference.');
+  getData('wmpAudioEnabled', function(previousValue) {
+    const enabled = previousValue.wmpAudioEnabled == null ? true : previousValue.wmpAudioEnabled === true;
+    if (enabled) {
+      document.querySelector('#wmpAudioBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#wmpAudioBtn').MaterialSwitch.off();
     }
   });
 
