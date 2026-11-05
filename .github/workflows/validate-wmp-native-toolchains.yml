@@ -659,10 +659,34 @@ jobs:
               echo "HYBRID_WEB_PROJECT_FILES_END" | tee -a "$hybrid_log"
 
               # A disposable signing profile is used only to validate package creation.
-              tizen certificate -a MoonlightHybrid -p 123456 -f MoonlightHybrid >>"$hybrid_log" 2>&1
-              tizen security-profiles add -n MoonlightHybrid \
-                -a "$HOME/tizen-studio-data/keystore/author/MoonlightHybrid.p12" \
-                -p 123456 >>"$hybrid_log" 2>&1
+              # Capture diagnostics and continue to the report even if signing setup fails.
+              certificate_log="$report/iot-headed-6.0-wmp-hybrid-certificate.log"
+              echo "COMMAND (hybrid-certificate-create): tizen certificate -a MoonlightHybrid -p [redacted] -f MoonlightHybrid" | tee -a "$hybrid_log"
+              if tizen certificate -a MoonlightHybrid -p 123456 -f MoonlightHybrid >"$certificate_log" 2>&1; then
+                echo "HYBRID_CERTIFICATE_CREATE=success" | tee -a "$hybrid_log"
+              else
+                status=$?
+                echo "HYBRID_CERTIFICATE_CREATE=failed exit_code=$status" | tee -a "$hybrid_log"
+                cat "$certificate_log" | tee -a "$hybrid_log"
+                failed=1
+              fi
+
+              profile_log="$report/iot-headed-6.0-wmp-hybrid-security-profile.log"
+              if grep -q "HYBRID_CERTIFICATE_CREATE=success" "$hybrid_log"; then
+                echo "COMMAND (hybrid-security-profile-add): tizen security-profiles add -n MoonlightHybrid -a [keystore] -p [redacted]" | tee -a "$hybrid_log"
+                if tizen security-profiles add -n MoonlightHybrid \
+                  -a "$HOME/tizen-studio-data/keystore/author/MoonlightHybrid.p12" \
+                  -p 123456 >"$profile_log" 2>&1; then
+                  echo "HYBRID_SECURITY_PROFILE_ADD=success" | tee -a "$hybrid_log"
+                else
+                  status=$?
+                  echo "HYBRID_SECURITY_PROFILE_ADD=failed exit_code=$status" | tee -a "$hybrid_log"
+                  cat "$profile_log" | tee -a "$hybrid_log"
+                  failed=1
+                fi
+              else
+                echo "HYBRID_SECURITY_PROFILE_ADD=skipped certificate_creation_failed" | tee -a "$hybrid_log"
+              fi
 
               build_app_log="$report/iot-headed-6.0-wmp-hybrid-build-app.log"
               build_app_cmd=(
@@ -674,7 +698,7 @@ jobs:
                 --
                 "$hybrid_root"
               )
-              printf 'COMMAND: '; printf '%q ' "${build_app_cmd[@]}"; printf '\n' | tee "$build_app_log"
+              printf 'COMMAND: '; printf '%q ' "\${build_app_cmd[@]}"; printf '\n' | tee "$build_app_log"
               printf '%s\n' \
                 'set timeout -1' \
                 'spawn {*}$argv' \
@@ -683,14 +707,18 @@ jobs:
                 '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
                 '  eof' \
                 '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
-              chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
-              if expect "$RUNNER_TEMP/run-hybrid-build.exp" "${build_app_cmd[@]}" >>"$build_app_log" 2>&1; then
-                echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
+              if grep -q "HYBRID_SECURITY_PROFILE_ADD=success" "$hybrid_log"; then
+                chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
+                if expect "$RUNNER_TEMP/run-hybrid-build.exp" "\${build_app_cmd[@]}" >>"$build_app_log" 2>&1; then
+                  echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
+                else
+                  status=$?
+                  echo "HYBRID_BUILD_APP_RESULT=failed exit_code=$status" | tee -a "$hybrid_log"
+                  cat "$build_app_log" | tee -a "$hybrid_log"
+                  failed=1
+                fi
               else
-                status=$?
-                echo "HYBRID_BUILD_APP_RESULT=failed exit_code=$status" | tee -a "$hybrid_log"
-                cat "$build_app_log" >> "$hybrid_log"
-                failed=1
+                echo "HYBRID_BUILD_APP_RESULT=skipped signing_setup_failed" | tee -a "$hybrid_log"
               fi
 
               hybrid_wgt="$(find "$hybrid_root" -type f -name '*.wgt' -print -quit)"
