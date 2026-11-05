@@ -600,5 +600,7 @@
   "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.": "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.",
   "EMSS (conventional)": "EMSS (conventional)",
   "WMP native (experimental)": "WMP native (experimental)",
-  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically."
+  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.",
+  "EMSS audio backend": "EMSS audio backend",
+  "This setting applies only when EMSS is selected as the stream processing engine. Choose EMSS for the original audio implementation or Web Audio if you hear crackling or stuttering.": "This setting applies only when EMSS is selected as the stream processing engine. Choose EMSS for the original audio implementation or Web Audio if you hear crackling or stuttering."
 }
