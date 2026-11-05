@@ -1166,7 +1166,8 @@ function scheduleDeferredNormalStartup() {
   if (_directSmartHubLaunch || isDeferredStartupScheduled || isDeferredStartupStarted) return;
 
   isDeferredStartupScheduled = true;
-  deferredStartupTimeout = window.setTimeout(startDeferredNormalStartup, 500);
+  // Replace the fixed post-splash delay with visible feedback while startup proceeds.
+  deferredStartupTimeout = window.setTimeout(startDeferredNormalStartup, 0);
 }
 
 function startDeferredNormalStartup() {
@@ -1175,12 +1176,14 @@ function startDeferredNormalStartup() {
   isDeferredStartupStarted = true;
   deferredStartupTimeout = null;
 
-  // Reveal only the Hosts UI, with interaction locked. Do not show snackbars,
-  // initialize components, or start recovery/scanning during the splash transition.
+  // Reveal the Hosts UI before showing startup feedback.
   if (!isStartupUiRestored) {
     isStartupUiRestored = true;
     restoreUiAfterWasmLoad();
   }
+
+  // Keep this message visible while WebAssembly initializes and saved hosts are restored.
+  window.startupEngineSnackbarPromise = snackbarLogPersistent('Starting background services...');
 
   var runStartupWork = function() {
     if (window.componentHandler && typeof window.componentHandler.upgradeDom === 'function') {
@@ -8806,10 +8809,16 @@ function loadHTTPCertsCb() {
 
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
-        var savedHostsSnackbarPromise = Promise.resolve();
+        // Finish the startup message only after the saved-host list has been read and revived.
+        var savedHostsSnackbarPromise = Promise.resolve(window.startupEngineSnackbarPromise)
+          .then(function() {
+            return dismissPersistentSnackbar();
+          });
         if (hasConfiguredHosts && isInGame !== true) {
-          // Keep the saved-host loading snackbar visible until its entrance transition completes.
-          savedHostsSnackbarPromise = snackbarLogPersistent('Loading configured hosts...');
+          // Show the configured-host message after the background startup message has left.
+          savedHostsSnackbarPromise = savedHostsSnackbarPromise.then(function() {
+            return snackbarLogPersistent('Loading configured hosts...');
+          });
         }
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
