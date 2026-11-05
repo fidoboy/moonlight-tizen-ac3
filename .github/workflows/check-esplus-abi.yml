@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 1.2.0-pre-wpm_test
+      - wpm_experimental
     paths:
       - "tools/esplus-abi-checker/**"
       - ".github/workflows/check-esplus-abi.yml"
