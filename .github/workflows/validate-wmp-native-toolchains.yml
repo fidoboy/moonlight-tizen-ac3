@@ -496,7 +496,7 @@ jobs:
           USER_DEFS =
           USER_INC_DIRS = src
           USER_OBJS =
-          USER_LIBS = service_app dlog dl
+          USER_LIBS = appcore-agent dlog dl
           USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
@@ -514,7 +514,7 @@ jobs:
                 grep -n -E 'RS_LIBRARIES|RS_LIB_PATHS|PLATFORM_LIB_PATHS' "$link_probe/Build/platform.mk" "$link_probe/Build/makefile.mk" || true
                 echo "### Rootstrap service_app and dlog files"
                 if [ -d "$sysroot" ]; then
-                  find "$sysroot" \( -name 'libservice_app*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
+                  find "$sysroot" \( -name 'libappcore-agent*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
                   echo "### All rootstrap shared/static libraries"
                   find "$sysroot" -type f \( -name '*.so' -o -name '*.so.*' -o -name '*.a' \) -print | sort
                   echo "### Libraries exporting ServiceApp entry points"
@@ -547,7 +547,7 @@ jobs:
                   echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
                   readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
                   missing_dependencies=0
-                  for library in libservice_app libdlog; do
+                  for library in libappcore-agent libdlog; do
                     if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
                       echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
                     else
