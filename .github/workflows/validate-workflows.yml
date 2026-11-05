@@ -25,10 +25,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v5
 
-      - name: Lint workflow validator
+      # The two release workflows are excluded because they contain pre-existing actionlint findings.
+      - name: Lint GitHub Actions workflows
         uses: raven-actions/actionlint@v2
         with:
           version: 1.7.7
-          files: .github/workflows/validate-workflows.yml
+          files: .github/workflows/*.yml,!.github/workflows/release-development.yml,!.github/workflows/release-stable.yml
           shellcheck: false
           pyflakes: false
