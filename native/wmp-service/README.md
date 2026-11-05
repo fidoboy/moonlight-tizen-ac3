@@ -69,6 +69,10 @@ The JavaScript control bridge is included in the Moonlight web application and
 is covered by a mocked MessagePort protocol test. This verifies the client-side
 request/reply implementation, not a real TV installation or service round-trip.
 
+When WMP is selected, `startGame()` connects to the native service and queries
+`get_status` before any host launch or EMSS `startRequest`. It then reports the
+current limitation and stops startup; it does not silently use EMSS as a fallback.
+
 WMP is selectable in the current experimental settings UI, but it is not yet a
 working playback engine. The native service currently supports only `ping`,
 `get_status` and `probe_esplus`; it does not create an ESPlus player or receive
