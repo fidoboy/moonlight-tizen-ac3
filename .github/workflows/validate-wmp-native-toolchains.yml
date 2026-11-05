@@ -594,7 +594,7 @@ jobs:
           USER_DEFS =
           USER_INC_DIRS = src
           USER_OBJS =
-          USER_LIBS = appcore-agent dlog dl
+          USER_LIBS = appcore-agent dlog dl message-port bundle
           USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
@@ -645,7 +645,7 @@ jobs:
                   echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
                   readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
                   missing_dependencies=0
-                  for library in libappcore-agent libdlog; do
+                  for library in libappcore-agent libdlog libmessage-port libbundle; do
                     if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
                       echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
                     else
