@@ -727,39 +727,61 @@ jobs:
               hybrid_wgt="$(find "$hybrid_root" -type f -name '*.wgt' -print -quit)"
               if [ -n "$hybrid_wgt" ]; then
                 echo "HYBRID_WGT=$hybrid_wgt" | tee -a "$hybrid_log"
-                python3 - "$hybrid_wgt" <<'PY'
+                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Probe.wgt"
+                echo "HYBRID_WGT_COPY=success path=$report/Moonlight-WMP-Hybrid-Probe.wgt" | tee -a "$hybrid_log"
+                validation_log="$report/iot-headed-6.0-wmp-hybrid-inspection.txt"
+                if python3 - "$hybrid_wgt" "$report" >"$validation_log" 2>&1 <<'PY'
           import sys
           import zipfile
+          from pathlib import Path
 
-          package = sys.argv[1]
+          package = Path(sys.argv[1])
+          report = Path(sys.argv[2])
+          failures = []
           with zipfile.ZipFile(package) as archive:
               names = archive.namelist()
+              (report / "hybrid-wgt-file-list.txt").write_text(
+                  "\n".join(names) + "\n", encoding="utf-8"
+              )
               native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
               web_config = [name for name in names if name.endswith("/wgt/config.xml") or name == "res/wgt/config.xml"]
+              info_files = [name for name in names if name.startswith("info/") and not name.endswith("/")]
+              details = []
+              for name in info_files:
+                  data = archive.read(name)
+                  details.append(f"===== {name} ({len(data)} bytes) =====")
+                  details.append(data.decode("utf-8", errors="replace"))
+                  details.append("")
+              (report / "hybrid-wgt-info-metadata.txt").write_text(
+                  "\n".join(details) if details else "No files found under info/\n",
+                  encoding="utf-8",
+              )
+              print(f"HYBRID_WGT_ENTRY_COUNT={len(names)}")
+              print(f"HYBRID_WGT_INFO_FILE_COUNT={len(info_files)}")
+              print("HYBRID_WGT_INFO_FILES=" + (",".join(info_files) if info_files else "(none)"))
+              print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + (native[0] if native else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_CONFIG=" + (web_config[0] if web_config else "(missing)"))
               if not native:
-                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed native executable missing from bin/")
+                  failures.append("native executable missing from bin/")
               if not web_config:
-                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed Web config.xml missing from res/wgt/")
-              metadata = []
-              for name in names:
-                  if name.startswith("info/") and not name.endswith("/"):
-                      try:
-                          data = archive.read(name)
-                      except Exception:
-                          continue
-                      if b"MoonLightS.WmpService" in data or b"MoonLightS" in data:
-                          metadata.append(name)
-              if not metadata:
-                  raise SystemExit("HYBRID_PACKAGE_VALIDATION=failed native application metadata not found under info/")
-              print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + native[0])
-              print("HYBRID_PACKAGE_WEB_CONFIG=" + web_config[0])
-              print("HYBRID_PACKAGE_NATIVE_METADATA=" + ",".join(metadata))
+                  failures.append("Web config.xml missing from res/wgt/")
+              if not info_files:
+                  failures.append("no native/application metadata files found under info/")
+              if failures:
+                  for failure in failures:
+                      print("HYBRID_PACKAGE_VALIDATION_ERROR=" + failure)
+                  print("HYBRID_PACKAGE_VALIDATION=failed")
+                  raise SystemExit(1)
               print("HYBRID_PACKAGE_VALIDATION=success")
           PY
-                if [ "$?" -ne 0 ]; then
+                then
+                  cat "$validation_log" | tee -a "$hybrid_log"
+                else
+                  status=$?
+                  cat "$validation_log" | tee -a "$hybrid_log"
+                  echo "HYBRID_PACKAGE_VALIDATION=failed inspection_exit_code=$status" | tee -a "$hybrid_log"
                   failed=1
                 fi
-                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Probe.wgt"
               else
                 echo "HYBRID_PACKAGE_VALIDATION=failed no_wgt_created" | tee -a "$hybrid_log"
                 failed=1
