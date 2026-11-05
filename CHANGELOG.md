@@ -14,6 +14,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Changed
 - **Debug log privacy:** Sensitive information is redacted from debug logs, including network addresses, host names, pairing PINs, tokens, certificates, private keys and other sensitive identifiers. Debug logging can also be controlled through build-time configuration.
 - **Gamepad connection notifications:** Display the connected gamepad's name instead of its numeric index. Technical metadata appended in parentheses is omitted; the index remains the fallback when no usable name is available.
+- **UI and navigation refinements:** Polished interface spacing, alignment and dialog layouts, improved remote-control and gamepad navigation, and refined localized instructions for a more consistent experience across Tizen devices.
 
 ### Fixed
 - **Streaming error handling:** Improved capture and presentation of connection and playback errors, including available error codes and diagnostic details. Error reporting is coordinated with stream shutdown so the interface can recover and refresh the application list reliably.
