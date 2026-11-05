@@ -595,5 +595,8 @@
   "Gamepad Test": "Проверка геймпада",
   "The required data could not be retrieved from the host. The test has been aborted.": "Не удалось получить необходимые данные с хоста. Проверка прервана.",
   "Game Controller Test": "Проверка игрового контроллера",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы убедиться в их правильной работе. Соответствующие нажатиям элементы должны подсвечиваться на экране, что позволит визуально проверить их работу. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы убедиться в их правильной работе. Соответствующие нажатиям элементы должны подсвечиваться на экране, что позволит визуально проверить их работу. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно.",
+  "New host discovery": "Поиск новых хостов",
+  "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.": "- Если отключено, Moonlight пропустит первоначальный поиск в сети. Вы по-прежнему сможете в любой момент искать новые хосты вручную.",
+  "Search for new hosts automatically at startup": "Автоматически искать новые хосты при запуске"
 }
