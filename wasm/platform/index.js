@@ -4729,6 +4729,8 @@ function sortTitles(list, sortOrder) {
 
 function sortAppsForHost(host, appList) {
   var list = Array.isArray(appList) ? appList.slice() : [];
+  var titleSwitch = document.getElementById('sortAppsListSwitch');
+  var titleSortOrder = titleSwitch && titleSwitch.checked ? 'DESC' : 'ASC';
   var usageSwitch = document.getElementById('sortAppsByUsageSwitch');
   if (usageSwitch && usageSwitch.checked) {
     var cachedHost = host && host.serverUid && _previewApps[host.serverUid];
@@ -4743,11 +4745,17 @@ function sortAppsForHost(host, appList) {
     return list.sort(function(a, b) {
       var difference = (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0);
       if (difference) return difference;
-      return String(a.title || '').localeCompare(String(b.title || ''), undefined, { numeric: true, sensitivity: 'base' });
+
+      // When usage counts match, retain the user's selected title sort direction.
+      var titleA = String(a.title || '');
+      var titleB = String(b.title || '');
+      if (titleSortOrder === 'DESC') {
+        return titleB.localeCompare(titleA, undefined, { numeric: true, sensitivity: 'base' });
+      }
+      return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' });
     });
   }
-  var titleSwitch = document.getElementById('sortAppsListSwitch');
-  return sortTitles(list, titleSwitch && titleSwitch.checked ? 'DESC' : 'ASC');
+  return sortTitles(list, titleSortOrder);
 }
 
 // Handle layout elements when displaying the Apps view
