@@ -1242,8 +1242,7 @@ function handleMessage(msg) {
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
     console.info('[stream]', 'Stream connection established.');
-    // Connection negotiation completed; now bound the wait for the first decoded frame.
-    if (typeof armStreamStartupWatchdog === 'function') armStreamStartupWatchdog('video', 20000);
+    // Stop the connection watchdog; do not impose a separate first-frame deadline.
     // This marks connection setup, not the availability of the first decoded video frame.
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
