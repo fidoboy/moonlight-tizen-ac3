@@ -347,6 +347,7 @@
   "Navigation sounds": "Suoni di navigazione",
   "Network latency (RTT, ms)": "Latenza di rete (RTT, ms)",
   "Network scan completed.": "Scansione della rete completata.",
+  "Network scan completed. No new hosts found.": "Scansione della rete completata. Non è stato trovato alcun nuovo host.",
   "Network scan failed.": "Scansione della rete non riuscita.",
   "Network Test": "Test di rete",
   "Network test could not be completed.": "Impossibile completare il test di rete.",
