@@ -5997,6 +5997,9 @@ function startGame(host, appID) {
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
+      // Count every new stream request, including requests that later fail.
+      incrementAppRunCount(host, appID, appToStart.title);
+
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
         // If the app is already running, we can just resume it
@@ -6592,6 +6595,40 @@ function savePreviewApps() {
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
 // image metadata for applications that remain in the host's current app list.
+function incrementAppRunCount(host, appId, appTitle) {
+  if (!host || !host.serverUid || appId == null) {
+    return;
+  }
+
+  var hostCache = _previewApps[host.serverUid];
+  if (!hostCache || !Array.isArray(hostCache.apps)) {
+    hostCache = {
+      hostname: host.hostname,
+      address: host.address,
+      apps: []
+    };
+    _previewApps[host.serverUid] = hostCache;
+  }
+
+  var cachedApp = hostCache.apps.find(function(app) {
+    return app && Number(app.id) === Number(appId);
+  });
+  if (!cachedApp) {
+    cachedApp = {
+      id: appId,
+      title: appTitle || String(appId),
+      runCount: 0
+    };
+    hostCache.apps.push(cachedApp);
+  }
+
+  var currentCount = Number(cachedApp.runCount);
+  cachedApp.runCount = (Number.isFinite(currentCount) && currentCount > 0 ? currentCount : 0) + 1;
+  savePreviewApps();
+}
+
+// Update the persistent per-host app list while preserving Smart Hub Preview
+// image metadata and usage statistics for applications that remain in the host's current app list.
 function cacheHostAppList(host, appList) {
   if (!host || !host.serverUid || !Array.isArray(appList)) {
     return;
@@ -6607,7 +6644,8 @@ function cacheHostAppList(host, appList) {
       });
       var newApp = {
         id: app.id,
-        title: app.title
+        title: app.title,
+        runCount: oldApp && Number.isFinite(Number(oldApp.runCount)) ? Math.max(0, Number(oldApp.runCount)) : 0
       };
       if (oldApp) {
         if (oldApp.imageUri) newApp.imageUri = oldApp.imageUri;
