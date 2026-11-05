@@ -595,5 +595,8 @@
   "Gamepad Test": "Tester la manette",
   "The required data could not be retrieved from the host. The test has been aborted.": "Impossible de récupérer les données nécessaires depuis l’hôte. Le test a été interrompu.",
   "Game Controller Test": "Test de la manette",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Appuyez sur les boutons et déplacez les sticks de votre manette afin de vérifier leur bon fonctionnement. Les commandes correspondant aux actions effectuées doivent s’allumer à l’écran, permettant ainsi de vérifier visuellement leur fonctionnement. Lorsque vous avez terminé, appuyez sur le bouton Retour de la télécommande de votre téléviseur pour fermer cette boîte de dialogue."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Appuyez sur les boutons et déplacez les sticks de votre manette afin de vérifier leur bon fonctionnement. Les commandes correspondant aux actions effectuées doivent s’allumer à l’écran, permettant ainsi de vérifier visuellement leur fonctionnement. Lorsque vous avez terminé, appuyez sur le bouton Retour de la télécommande de votre téléviseur pour fermer cette boîte de dialogue.",
+  "New host discovery": "Recherche de nouveaux hôtes",
+  "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.": "- Si cette option est désactivée, Moonlight ignore la recherche initiale sur le réseau. Vous pouvez toujours rechercher de nouveaux hôtes manuellement.",
+  "Search for new hosts automatically at startup": "Rechercher automatiquement de nouveaux hôtes au démarrage"
 }
