@@ -595,5 +595,8 @@
   "Gamepad Test": "Gamepad Test",
   "The required data could not be retrieved from the host. The test has been aborted.": "The required data could not be retrieved from the host. The test has been aborted.",
   "Game Controller Test": "Game Controller Test",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Press the buttons and move the sticks on your controller to verify that they are working correctly. The controls corresponding to your inputs should light up on the screen, allowing you to visually check that they are working correctly. When you are finished, press the Back button on your TV remote to close this dialog."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Press the buttons and move the sticks on your controller to verify that they are working correctly. The controls corresponding to your inputs should light up on the screen, allowing you to visually check that they are working correctly. When you are finished, press the Back button on your TV remote to close this dialog.",
+  "New host discovery": "New host discovery",
+  "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.": "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.",
+  "Search for new hosts automatically at startup": "Search for new hosts automatically at startup"
 }
