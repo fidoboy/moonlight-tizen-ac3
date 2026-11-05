@@ -6,20 +6,118 @@ on:
       - wpm_experimental
     paths:
       - '.github/workflows/validate-wmp-native-toolchains.yml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'CMakeLists.txt'
+      - '.gitmodules'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'res/**'
+      - 'wasm/**'
+      - 'native/wmp-service/**'
+      - 'scripts/generate-build-videos.sh'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   validate:
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 90
     steps:
       - name: Checkout the WMP test branch only
         uses: actions/checkout@v5
         with:
           ref: wpm_experimental
+          submodules: recursive
+
+      - name: Ensure required versioned MP4 assets are available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          asset_file="moonlight-generated-videos-v1.zip"
+          asset_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/build-assets/${asset_file}"
+          asset_path="$RUNNER_TEMP/${asset_file}"
+          api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos
+          download_asset() {
+            curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url"
+          }
+          status="$(download_asset)"
+          if [[ "$status" == "404" ]]; then
+            echo "Video asset ZIP is missing; dispatching its generator."
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' \
+              "$api_url")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              cat "$RUNNER_TEMP/video-assets-dispatch.json" >&2 || true
+              echo "::error::Could not dispatch the video-asset generator (HTTP $dispatch_status)."
+              exit 1
+            fi
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(download_asset)"
+              [[ "$status" == "200" ]] && break
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for video assets."
+                exit 1
+              fi
+            done
+          fi
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Could not retrieve generated video assets (HTTP $status)."
+            exit 1
+          fi
+          unzip -tq "$asset_path"
+          unzip -oq "$asset_path" -d generated-videos
+          for video in launch-screen.mp4 launch-screen-portrait.mp4; do
+            test -s "generated-videos/$video" || {
+              echo "::error::Missing generated-videos/$video"
+              exit 1
+            }
+          done
+          echo "MOONLIGHT_VIDEO_ASSETS=ready"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the real Moonlight web WGT
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-wmp-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=false
+
+      - name: Extract the real Moonlight web WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create "moonlight-wmp-web:${GITHUB_SHA}")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          sha256sum "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
       - name: Install Tizen Native SDK
         shell: bash
@@ -621,16 +719,49 @@ jobs:
             if [ -d "$web_project" ]; then
               cp -a "$link_probe" "$service_project"
               sed -i 's/WmpServiceProbe/WmpService/g' "$service_project/.project" "$service_project/.cproject"
-              cp "$GITHUB_WORKSPACE/res/config.xml" "$web_project/config.xml"
-              mkdir -p "$web_project/service"
-              cp "$GITHUB_WORKSPACE/res/service/service.js" "$web_project/service/service.js"
-              test -s "$web_project/service/service.js"
-              echo "HYBRID_WEB_SERVICE_JS=present path=service/service.js" | tee -a "$hybrid_log"
-              cat > "$web_project/index.html" <<'HTML'
-          <!doctype html>
-          <html><head><meta charset="utf-8"><title>Moonlight Hybrid Package Probe</title></head>
-          <body><main>Moonlight hybrid package validation</main></body></html>
-          HTML
+              if [ ! -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt" ]; then
+                echo "HYBRID_WEB_BASE_WGT=missing" | tee -a "$hybrid_log"
+                failed=1
+              else
+                # Reuse the exact web application generated by the repository Dockerfile.
+                # Strip the source WGT signatures; the hybrid package is signed as one WGT below.
+                python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$web_project" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          package = Path(sys.argv[1])
+          destination = Path(sys.argv[2]).resolve()
+          skipped_signatures = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+          with zipfile.ZipFile(package) as archive:
+              for member in archive.infolist():
+                  name = PurePosixPath(member.filename)
+                  if name.is_absolute() or ".." in name.parts:
+                      raise SystemExit(f"Unsafe path in source WGT: {member.filename}")
+                  if not name.parts or name.name in skipped_signatures:
+                      continue
+                  target = (destination / Path(*name.parts)).resolve()
+                  if destination not in target.parents and target != destination:
+                      raise SystemExit(f"Source WGT path escapes project: {member.filename}")
+                  if member.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(archive.read(member))
+          print("HYBRID_WEB_SOURCE=Moonlight-Web-Base.wgt")
+          PY
+                test -s "$web_project/config.xml"
+                test -s "$web_project/index.html"
+                test -s "$web_project/moonlight-wasm.js"
+                if [ ! -s "$web_project/service/service.js" ]; then
+                  mkdir -p "$web_project/service"
+                  cp "$GITHUB_WORKSPACE/res/service/service.js" "$web_project/service/service.js"
+                fi
+                test -s "$web_project/service/service.js"
+                echo "HYBRID_WEB_APP=real_moonlight_wgt" | tee -a "$hybrid_log"
+                echo "HYBRID_WEB_WASM=present path=moonlight-wasm.js" | tee -a "$hybrid_log"
+                echo "HYBRID_WEB_SERVICE_JS=present path=service/service.js" | tee -a "$hybrid_log"
+              fi
               python3 - "$web_project/.project" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
@@ -731,8 +862,11 @@ jobs:
               hybrid_wgt="$(find "$hybrid_root" -type f -name '*.wgt' -print -quit)"
               if [ -n "$hybrid_wgt" ]; then
                 echo "HYBRID_WGT=$hybrid_wgt" | tee -a "$hybrid_log"
-                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Probe.wgt"
-                echo "HYBRID_WGT_COPY=success path=$report/Moonlight-WMP-Hybrid-Probe.wgt" | tee -a "$hybrid_log"
+                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Experimental.wgt"
+                cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt"
+                test -s "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt"
+                sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt" | tee -a "$hybrid_log"
+                echo "HYBRID_WGT_COPY=success path=$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt" | tee -a "$hybrid_log"
                 validation_log="$report/iot-headed-6.0-wmp-hybrid-inspection.txt"
                 if python3 - "$hybrid_wgt" "$report" >"$validation_log" 2>&1 <<'PY'
           import sys
@@ -755,6 +889,10 @@ jobs:
               native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
               web_config = [name for name in names if name == "res/wgt/config.xml"]
               web_service_js = [name for name in names if name == "res/wgt/service/service.js"]
+              web_index = [name for name in names if name == "res/wgt/index.html"]
+              web_wasm = [name for name in names if name == "res/wgt/moonlight-wasm.js"]
+              web_style = [name for name in names if name == "res/wgt/static/css/style.css"]
+              web_locale = [name for name in names if name == "res/wgt/static/locales/en-US.json"]
               root_config = [name for name in names if name == "config.xml"]
               native_manifest = [name for name in names if name == "tizen-manifest.xml"]
               info_files = [name for name in names if name.startswith("info/") and not name.endswith("/")]
@@ -769,6 +907,10 @@ jobs:
               print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + (native[0] if native else "(missing)"))
               print("HYBRID_PACKAGE_WEB_CONFIG=" + (web_config[0] if web_config else "(missing)"))
               print("HYBRID_PACKAGE_WEB_SERVICE_JS=" + (web_service_js[0] if web_service_js else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_INDEX=" + (web_index[0] if web_index else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_WASM=" + (web_wasm[0] if web_wasm else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_STYLE=" + (web_style[0] if web_style else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_LOCALE=" + (web_locale[0] if web_locale else "(missing)"))
               print("HYBRID_PACKAGE_ROOT_CONFIG=" + (root_config[0] if root_config else "(missing)"))
               print("HYBRID_PACKAGE_NATIVE_MANIFEST=" + (native_manifest[0] if native_manifest else "(missing)"))
 
@@ -778,6 +920,14 @@ jobs:
                   failures.append("Web config.xml missing from res/wgt/")
               if not web_service_js:
                   failures.append("Smart Hub service.js missing from res/wgt/service/")
+              if not web_index:
+                  failures.append("Moonlight web index.html missing from res/wgt/")
+              if not web_wasm:
+                  failures.append("compiled Moonlight WASM JavaScript missing from res/wgt/")
+              if not web_style:
+                  failures.append("Moonlight application stylesheet missing from res/wgt/static/css/")
+              if not web_locale:
+                  failures.append("Moonlight English locale missing from res/wgt/static/locales/")
               if not root_config:
                   failures.append("root config.xml descriptor missing")
               if not native_manifest:
@@ -870,6 +1020,15 @@ jobs:
             echo "::error::One or more ServiceApp reference builds failed."
             exit 1
           fi
+
+      - name: Upload experimental hybrid WGT
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-WMP-Hybrid-Experimental-${{ github.sha }}
+          path: ${{ runner.temp }}/Moonlight-WMP-Hybrid-Experimental.wgt
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload native build report
         if: always()
