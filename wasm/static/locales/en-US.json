@@ -595,5 +595,10 @@
   "Gamepad Test": "Gamepad Test",
   "The required data could not be retrieved from the host. The test has been aborted.": "The required data could not be retrieved from the host. The test has been aborted.",
   "Game Controller Test": "Game Controller Test",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.",
+  "Stream processing engine": "Stream processing engine",
+  "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.": "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.",
+  "EMSS (conventional)": "EMSS (conventional)",
+  "WMP native (experimental)": "WMP native (experimental)",
+  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically."
 }
