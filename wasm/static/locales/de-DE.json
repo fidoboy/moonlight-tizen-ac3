@@ -603,5 +603,9 @@
   "Your app is already up to date! You're on the latest version.": "Ihre App ist auf dem neuesten Stand! Sie verwenden die aktuellste Version.",
   "Your list is currently empty. Please add your favorite apps to the list.": "Ihre Liste ist leer. Fügen Sie Ihre bevorzugten Apps hinzu.",
   "Your network connection does not seem stable enough.": "Ihre Netzwerkverbindung scheint nicht stabil genug zu sein.",
-  "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.": "Ihre Netzwerkverbindung ist nicht leistungsfähig genug. Reduzieren Sie die Video-Bitrate oder verwenden Sie eine schnellere Verbindung."
+  "Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.": "Ihre Netzwerkverbindung ist nicht leistungsfähig genug. Reduzieren Sie die Video-Bitrate oder verwenden Sie eine schnellere Verbindung.",
+  "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Sendet Vibrationssignale an einen kompatiblen Controller, wenn das gestreamte Spiel sie anfordert.",
+  "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Halten Sie Start gedrückt, um zwischen der normalen Controller-Eingabe und der Mausemulation zu wechseln. Steuern Sie damit den Mauszeiger und die Maustasten auf dem Host.",
+  "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten A und B. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet.",
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten X und Y. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet."
 }
