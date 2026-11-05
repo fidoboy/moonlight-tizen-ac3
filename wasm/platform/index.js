@@ -8411,6 +8411,17 @@ function loadUserDataCb() {
     }
   });
 
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored stream processing engine preference.');
+  getData('streamEngine', function(previousValue) {
+    var value = previousValue.streamEngine === 'WMP' ? 'WMP' : 'EMSS';
+    var item = $('.streamEngineMenu li').filter(function() {
+      return String($(this).data('value')) === value;
+    }).first();
+    if (item.length) {
+      $('#selectStreamEngine').text(item.text()).attr('data-value', value).data('value', value);
+    }
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored audioBackend preferences.');
   getData('audioBackend', function(previousValue) {
     if (previousValue.audioBackend != null) {
