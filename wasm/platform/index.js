@@ -1700,10 +1700,13 @@ function refreshHosts() {
     .then(function(newHostCount) {
       isSubnetScanFinished = true;
       if (isInGame !== true) startPollingHosts();
-      var completionMessage = newHostCount > 0
-        ? 'Network scan completed.'
-        : 'Network scan completed. No new hosts found.';
-      runWhenMainUiActive(function() { snackbarLog(completionMessage); });
+      runWhenMainUiActive(function() {
+        if (newHostCount > 0) {
+          snackbarLog('Network scan completed.');
+        } else {
+          snackbarLog('Network scan completed. No new hosts found.');
+        }
+      });
     })
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
