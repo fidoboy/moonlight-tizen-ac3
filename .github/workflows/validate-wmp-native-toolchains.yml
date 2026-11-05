@@ -710,7 +710,7 @@ jobs:
                   tizen build-app \
                   -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
                   -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
-                  -p 'name:p1,type:wgt,targets:[b1]' \
+                  -p 'name:p1,targets:[b1]' \
                   -s MoonlightHybrid \
                   -- "$hybrid_root" >>"$build_app_log" 2>&1; then
                   echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
