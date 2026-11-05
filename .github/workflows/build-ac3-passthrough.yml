@@ -15,9 +15,6 @@ on:
       - 'opus/**'
       - 'ports/**'
       - 'wasm/**'
-      - '.github/release-notes.md'
-      - '.github/workflows/build-ac3-passthrough.yml'
-      - '.github/workflows/release-stable.yml'
   pull_request:
     branches:
       - master
