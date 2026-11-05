@@ -812,6 +812,7 @@ function attachListeners() {
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
   initializeColorThemeSelector();
   $('#ipAddressTextInput').on('input', updateIpAddressInputValidationState);
+  $('#discoverNewHostsAtStartupSwitch').on('click', saveDiscoverNewHostsAtStartup);
   $('#sortAppsListSwitch').on('click', saveSortAppsList);
   $('#optimizeGamesSwitch').on('click', saveOptimizeGames);
   $('#quitAppAfterDisconnectSwitch').on('click', saveQuitAppAfterDisconnect);
@@ -3552,6 +3553,9 @@ function deleteAllHostsDialog() {
           saveHosts();
         }
       }
+      // An empty host list must always trigger discovery on the next startup.
+      document.querySelector('#discoverNewHostsAtStartupBtn').MaterialSwitch.on();
+      storeData('discoverNewHostsAtStartup', true, null);
       // If all hosts removed, show snackbar message
       snackbarLog('All hosts have been deleted successfully.');
       // Clear the preview app cache and update Smart Hub Preview
@@ -7219,6 +7223,14 @@ function saveScreensaverPreference() {
   }, 100);
 }
 
+function saveDiscoverNewHostsAtStartup() {
+  setTimeout(() => {
+    const enabled = $('#discoverNewHostsAtStartupSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveDiscoverNewHostsAtStartup]', 'color: green;', 'Saving startup host discovery state: ' + enabled);
+    storeData('discoverNewHostsAtStartup', enabled, null);
+  }, 100);
+}
+
 function saveSortAppsList() {
   setTimeout(() => {
     const chosenSortAppsList = $('#sortAppsListSwitch').parent().hasClass('is-checked');
@@ -7856,6 +7868,10 @@ function restoreDefaultsSettingsValues() {
   applyColorTheme(COLOR_THEME_DEFAULT);
   storeData('colorTheme', COLOR_THEME_DEFAULT, null);
 
+  const defaultDiscoverNewHostsAtStartup = true;
+  document.querySelector('#discoverNewHostsAtStartupBtn').MaterialSwitch.on();
+  storeData('discoverNewHostsAtStartup', defaultDiscoverNewHostsAtStartup, null);
+
   const defaultSortAppsList = false;
   document.querySelector('#sortAppsListBtn').MaterialSwitch.off();
   storeData('sortAppsList', defaultSortAppsList, null);
@@ -8228,6 +8244,16 @@ function loadUserData() {
 
 function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored automatic update check preference.');
+  getData('discoverNewHostsAtStartup', function(previousValue) {
+    const storedValue = previousValue.discoverNewHostsAtStartup;
+    const noConfiguredHosts = isHostsLoaded && Object.keys(hosts).length === 0;
+    const enabled = noConfiguredHosts || storedValue == null || storedValue === true ||
+      storedValue === 'true' || storedValue === 1;
+    if (noConfiguredHosts) storeData('discoverNewHostsAtStartup', true, null);
+    if (enabled) document.querySelector('#discoverNewHostsAtStartupBtn').MaterialSwitch.on();
+    else document.querySelector('#discoverNewHostsAtStartupBtn').MaterialSwitch.off();
+  });
+
   getData('automaticUpdateChecks', function(previousValue) {
     const storedValue = previousValue.automaticUpdateChecks;
     const enabled = storedValue == null || storedValue === true ||
@@ -8639,49 +8665,65 @@ function loadUserDataCb() {
 }
 
 function runInitialHostDiscovery(hasConfiguredHosts) {
-  // Check each configured host once, then let its background poll schedule handle
-  // subsequent status updates. Skip this request entirely when there are no saved hosts.
-  var configuredHostCheck = Promise.resolve();
-  if (hasConfiguredHosts) {
-    configuredHostCheck = isInGame !== true
-      ? snackbarLogPersistent('Checking configured hosts...').then(function() {
-          return startPollingHosts();
-        })
-      : startPollingHosts();
-  }
-
-  return configuredHostCheck.catch(function(error) {
-    console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
-  }).then(function() {
-    // Keep the host list locked until subnet discovery completes, even when
-    // configured hosts have already passed their initial status checks.
-
-    // Exclude configured IPv4 addresses: they have already been checked above.
-    var knownHostIPs = [];
-    for (var hostUID in hosts) {
-      var address = hosts[hostUID].address;
-      if (typeof address === 'string' &&
-          /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(address)) {
-        knownHostIPs.push(address);
+  // An empty saved-host list must always trigger discovery, regardless of the preference.
+  return new Promise(function(resolve) {
+    getData('discoverNewHostsAtStartup', function(settings) {
+      var storedValue = settings.discoverNewHostsAtStartup;
+      var discoveryEnabled = storedValue == null || storedValue === true ||
+        storedValue === 'true' || storedValue === 1;
+      if (!hasConfiguredHosts) {
+        discoveryEnabled = true;
+        storeData('discoverNewHostsAtStartup', true, null);
+        var discoverySwitch = document.getElementById('discoverNewHostsAtStartupBtn');
+        if (discoverySwitch && discoverySwitch.MaterialSwitch) discoverySwitch.MaterialSwitch.on();
       }
-    }
-
-    var discoverySnackbar = isInGame !== true
-      ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
-      : Promise.resolve();
-
-    return discoverySnackbar.then(function() {
-      return ensureSubnetScannerLoaded().then(function() {
-        return startSubnetScanner(knownHostIPs);
-      });
+      resolve(discoveryEnabled);
     });
-  }).catch(function(error) {
-    console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Initial subnet discovery failed:', error);
-  }).finally(function() {
-    // Complete startup discovery only after the final progress snackbar has exited.
-    return dismissPersistentSnackbar().then(function() {
+  }).then(function(discoveryEnabled) {
+    if (!discoveryEnabled && hasConfiguredHosts) {
+      // Keep saved-host status checks running, but do not wait for them or a subnet
+      // scan before returning control to the user.
+      startPollingHosts().catch(function(error) {
+        console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Background configured-host checks failed:', error);
+      });
       isSubnetScanFinished = true;
       finishInitialHostDiscovery();
+      return;
+    }
+    var configuredHostCheck = Promise.resolve();
+    if (hasConfiguredHosts) {
+      configuredHostCheck = isInGame !== true
+        ? snackbarLogPersistent('Checking configured hosts...').then(function() {
+            return startPollingHosts();
+          })
+        : startPollingHosts();
+    }
+    return configuredHostCheck.catch(function(error) {
+      console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
+    }).then(function() {
+      var knownHostIPs = [];
+      for (var hostUID in hosts) {
+        var address = hosts[hostUID].address;
+        if (typeof address === 'string' &&
+            /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(address)) {
+          knownHostIPs.push(address);
+        }
+      }
+      var discoverySnackbar = isInGame !== true
+        ? snackbarLogPersistent('Scanning the local network to discover new hosts...')
+        : Promise.resolve();
+      return discoverySnackbar.then(function() {
+        return ensureSubnetScannerLoaded().then(function() {
+          return startSubnetScanner(knownHostIPs);
+        });
+      });
+    }).catch(function(error) {
+      console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Initial subnet discovery failed:', error);
+    }).finally(function() {
+      return dismissPersistentSnackbar().then(function() {
+        isSubnetScanFinished = true;
+        finishInitialHostDiscovery();
+      });
     });
   });
 }
