@@ -1,0 +1,1045 @@
+name: Validate native ServiceApp toolchains for WMP
+
+on:
+  push:
+    branches:
+      - wmp_mode
+    paths:
+      - '.github/workflows/validate-wmp-native-toolchains.yml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'CMakeLists.txt'
+      - '.gitmodules'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'res/**'
+      - 'wasm/**'
+      - 'native/wmp-service/**'
+      - 'scripts/generate-build-videos.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout the WMP test branch only
+        uses: actions/checkout@v5
+        with:
+          ref: wmp_mode
+          submodules: recursive
+
+      - name: Test WMP trusted MessagePort bridge
+        run: node tests/wmp_transport_test.js
+
+      - name: Ensure required versioned MP4 assets are available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          asset_file="moonlight-generated-videos-v1.zip"
+          asset_url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/build-assets/${asset_file}"
+          asset_path="$RUNNER_TEMP/${asset_file}"
+          api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos
+          download_asset() {
+            curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url"
+          }
+          status="$(download_asset)"
+          if [[ "$status" == "404" ]]; then
+            echo "Video asset ZIP is missing; dispatching its generator."
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' \
+              "$api_url")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              cat "$RUNNER_TEMP/video-assets-dispatch.json" >&2 || true
+              echo "::error::Could not dispatch the video-asset generator (HTTP $dispatch_status)."
+              exit 1
+            fi
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(download_asset)"
+              [[ "$status" == "200" ]] && break
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for video assets."
+                exit 1
+              fi
+            done
+          fi
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Could not retrieve generated video assets (HTTP $status)."
+            exit 1
+          fi
+          unzip -tq "$asset_path"
+          unzip -oq "$asset_path" -d generated-videos
+          for video in launch-screen.mp4 launch-screen-portrait.mp4; do
+            test -s "generated-videos/$video" || {
+              echo "::error::Missing generated-videos/$video"
+              exit 1
+            }
+          done
+          echo "MOONLIGHT_VIDEO_ASSETS=ready"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the real Moonlight web WGT
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-wmp-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=false
+
+      - name: Extract the real Moonlight web WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create "moonlight-wmp-web:${GITHUB_SHA}")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          sha256sum "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+
+      - name: Install Tizen Native SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          required=(NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 IOT-Headed-6.0-NativeAppDevelopment-CLI TIZEN-10.0-NativeAppDevelopment-CLI)
+          "$pm" install --accept-license --no-java-check "$(IFS=,; echo "${required[*]}")"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+          {
+            echo "HOME=$HOME"
+            echo "RUNNER_TEMP=$RUNNER_TEMP"
+            echo "SDK=$sdk"
+            echo "PACKAGE_MANAGER=$pm"
+            echo "### Tizen version"
+            tizen version 2>&1 || true
+            echo "### Rootstraps"
+            tizen list rootstrap 2>&1 || true
+            echo "### SDK log files"
+            find "$HOME" "$sdk" -type f \( -iname '*.log' -o -iname '*.log.*' \) -print 2>/dev/null | sort || true
+          } > "$RUNNER_TEMP/sdk-install-environment.txt"
+
+      - name: Generate and compile reference ServiceApp projects
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/native-build-report"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          mkdir -p "$report/cli-logs"
+          failed=0
+
+          capture_cli_logs() {
+            label="$1"
+            index=0
+            while IFS= read -r source; do
+              [ -f "$source" ] || continue
+              index=$((index + 1))
+              safe="$(printf '%s' "$source" | sed 's#^/##; s#[^A-Za-z0-9._-]#_#g')"
+              destination="$report/cli-logs/$label-$index-$safe"
+              mkdir -p "$(dirname "$destination")"
+              cp -p "$source" "$destination"
+            done < <(
+              find "$HOME" "$sdk" "$RUNNER_TEMP" -type f \( -iname '*.log' -o -iname '*.log.*' \) \
+                ! -path "$report/*" -print 2>/dev/null | sort -u
+            )
+            find "$report/cli-logs" -type f -printf '%P\n' | sort > "$report/cli-log-index.txt"
+          }
+
+          run_profile_command() {
+            label="$1"
+            log="$2"
+            shift 2
+            echo "COMMAND ($label): $*" | tee -a "$log"
+            "$@" >>"$log" 2>&1
+            status=$?
+            echo "EXIT_CODE ($label): $status" | tee -a "$log"
+            capture_cli_logs "$label"
+            return "$status"
+          }
+
+          {
+            echo "### build-native command manual"
+            tizen manual build-native 2>&1 || true
+            echo
+            echo "### CLI configuration"
+            tizen cli-config -l 2>&1 || true
+          } > "$report/build-native-cli-reference.txt"
+
+          build_profile() {
+            profile="$1"
+            rootstrap="$2"
+            project_root="$RUNNER_TEMP/ServiceApp-$profile"
+            project="$project_root/WmpServiceProbe"
+            log="$report/$profile-build.log"
+            echo "=== PROFILE=$profile ROOTSTRAP=$rootstrap ===" | tee "$log"
+
+            if run_profile_command "$profile-create" "$log" tizen create native-project -p "$profile" -t ServiceApp -n WmpServiceProbe -- "$project_root"; then
+              echo "CREATE_RESULT=success" | tee -a "$log"
+            else
+              status=$?
+              if [ "$profile" = "iot-headed-6.0" ]; then
+                # The Tizen 6.1 CLI cannot generate this ServiceApp template
+                # (its project generator fails before creating the project).
+                # The independent rootstrap probe below validates the IoT ARM
+                # compiler/linker using the Tizen 10 skeleton instead.
+                echo "CREATE_RESULT=unsupported_by_installed_sdk exit_code=$status" | tee -a "$log"
+                echo "CREATE_FALLBACK=independent_iot_rootstrap_probe" | tee -a "$log"
+                return
+              fi
+              echo "CREATE_RESULT=failed exit_code=$status" | tee -a "$log"
+              failed=1
+              return
+            fi
+
+            if [ ! -f "$project/project_def.prop" ]; then
+              echo "PROJECT_VALIDATION=failed missing=$project/project_def.prop" | tee -a "$log"
+              failed=1
+              return
+            fi
+            echo "PROJECT_DIR=$project" | tee -a "$log"
+            echo "PROJECT_VALIDATION=success project_def.prop found" | tee -a "$log"
+
+            find "$project" -maxdepth 5 -type f -printf '%P\n' | sort > "$report/$profile-files.txt"
+            tar -czf "$report/$profile-template.tar.gz" -C "$project_root" WmpServiceProbe
+
+            if run_profile_command "$profile-build" "$log" tizen build-native -a arm -c gcc -C Release -r "$rootstrap" -- "$project"; then
+              echo "BUILD_RESULT=success" | tee -a "$log"
+              find "$project/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/$profile-output-files.txt" || true
+              find "$project/Release" -type f -exec file {} \; > "$report/$profile-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "BUILD_RESULT=failed exit_code=$status" | tee -a "$log"
+              failed=1
+            fi
+          }
+
+          build_profile iot-headed-6.0 iot-headed-6.0-device.core
+          build_profile tizen-10.0 tizen-10.0-device.core
+
+          # Independent rootstrap probe: reuse the successfully generated Tizen 10
+          # ServiceApp skeleton, retarget its project metadata to IoT Headed 6.0,
+          # then compile it against the actual IoT Headed ARMEL rootstrap.
+          # This deliberately does NOT claim that the IoT Headed template generator works.
+          source_project="$RUNNER_TEMP/ServiceApp-tizen-10.0/WmpServiceProbe"
+          probe_root="$RUNNER_TEMP/ServiceApp-iot-headed-6.0-rootstrap-probe"
+          probe="$probe_root/WmpServiceProbe"
+          probe_log="$report/iot-headed-6.0-rootstrap-probe.log"
+          echo "=== INDEPENDENT IOT-HEADED 6.0 ROOTSTRAP PROBE ===" | tee "$probe_log"
+          if [ -f "$source_project/project_def.prop" ]; then
+            mkdir -p "$probe_root"
+            cp -a "$source_project" "$probe"
+            sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$probe/project_def.prop"
+            sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$probe/tizen-manifest.xml"
+            if [ -f "$probe/.tproject" ]; then
+              sed -i 's/tizen-10.0/iot-headed-6.0/g' "$probe/.tproject"
+            fi
+
+            # Remove the Tizen 10 library catalogue from both linker configurations.
+            # This probe has no Tizen API dependencies: it tests only ARM compile/link
+            # against the IoT Headed 6.0 rootstrap.
+            python3 - "$probe/.cproject" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          pattern = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
+              r'.*?'
+              r'(</option>)',
+              re.DOTALL,
+          )
+          sysroot = "${" + "SBI_SYSROOT}"
+          minimal = "\n".join([
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
+              '                                    <listOptionValue builtIn="false" value="-L&quot;' + sysroot + '/usr/lib64&quot;"/>',
+          ])
+          content, count = pattern.subn(
+              lambda match: match.group(1) + "\n" + minimal + "\n                                " + match.group(2),
+              content,
+          )
+          if count != 2:
+              raise SystemExit(f"Expected 2 linker library lists, found {count}")
+          if re.search(r'<listOptionValue[^>]+value="-l', content):
+              raise SystemExit("Unexpected explicit -l library remains in .cproject")
+
+          # The Tizen 10 template also carries SBI platform-catalogue selectors.
+          # They generate Release/platform_libs.file and reintroduce Tizen 10
+          # libraries even after frameworks_lflags has been cleaned.
+          stale_selectors = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, selector_count = stale_selectors.subn("", content)
+          if selector_count != 4:
+              raise SystemExit(
+                  f"Expected 4 stale SBI platform selectors, found {selector_count}"
+              )
+
+          native_api_catalogues = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, catalogue_count = native_api_catalogues.subn("", content)
+          if catalogue_count != 4:
+              raise SystemExit(
+                  f"Expected 4 Native_API catalogues, found {catalogue_count}"
+              )
+
+          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content:
+              raise SystemExit("Tizen 10 SBI platform selector remains")
+          if re.search(r'value="Native_API"', content):
+              raise SystemExit("Native_API platform catalogue remains")
+          path.write_text(content, encoding="utf-8")
+          print(f"LINKER_CONFIGURATIONS_CLEANED={count}")
+          print(f"SBI_PLATFORM_SELECTORS_REMOVED={selector_count}")
+          print(f"NATIVE_API_CATALOGUES_REMOVED={catalogue_count}")
+          PY
+
+            # The IoT rootstrap's generated library catalogue contains linker names
+            # that are not shipped in its ARMEL sysroot. This source has no Tizen API
+            # dependencies, so bypass that catalogue for this isolated compiler/linker probe.
+            python3 - "$probe/Build/platform.mk" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          content, count = re.subn(
+              r"^RS_LIBRARIES := .*?$",
+              "# Dependency-free rootstrap probe: no platform libraries are required." + chr(10) + "RS_LIBRARIES :=",
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if count != 1:
+              raise SystemExit(f"Expected one RS_LIBRARIES assignment in {path}, found {count}")
+          path.write_text(content, encoding="utf-8")
+          print("ROOTSTRAP_PLATFORM_LIBRARY_CATALOGUE=disabled_for_dependency_free_probe")
+          PY
+
+            # The generated makefile references @$(RS_LIBRARIES_FILE) unconditionally.
+            # Keep an empty response file so the linker receives @path, not a bare @.
+            python3 - "$probe/Build/makefile.mk" <<'PY'
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+          old = """ifneq ($(strip $(RS_LIBRARIES)),)
+          RS_LIBRARIES_FILE := $(OBJ_OUTPUT)/platform_libs.file
+          endif"""
+          new = """RS_LIBRARIES_FILE := $(OBJ_OUTPUT)/platform_libs.file"""
+          if content.count(old) != 1:
+              raise SystemExit("Expected exactly one conditional RS_LIBRARIES_FILE assignment")
+          path.write_text(content.replace(old, new), encoding="utf-8")
+          print("ROOTSTRAP_EMPTY_LIBRARY_RESPONSE_FILE=enabled")
+          PY
+
+            # The copied Tizen 10 template contains generated Release outputs.
+            # In particular, platform_libs.file is a stale Tizen 10 linker catalogue;
+            # remove it so make regenerates an empty response file from platform.mk.
+            rm -f "$probe/Release/platform_libs.file"
+            echo "ROOTSTRAP_STALE_LIBRARY_RESPONSE_FILE=removed" | tee -a "$probe_log"
+
+            # Dependency-free C entry point: test the ARM compiler and linker,
+            # not the availability of ServiceApp or other Tizen framework APIs.
+            cat > "$probe/src/wmpserviceprobe.c" <<'C'
+          int main(void)
+          {
+              return 0;
+          }
+          C
+
+            {
+              echo "SOURCE_PROJECT=$source_project"
+              echo "PROBE_PROJECT=$probe"
+              echo "ROOTSTRAP=iot-headed-6.0-device.core"
+              echo "### project_def.prop"
+              cat "$probe/project_def.prop"
+              echo "### tizen-manifest.xml"
+              cat "$probe/tizen-manifest.xml"
+              echo "### .tproject"
+              cat "$probe/.tproject" 2>/dev/null || true
+            } | tee -a "$probe_log"
+            tar -czf "$report/iot-headed-6.0-rootstrap-probe-source.tar.gz" -C "$probe_root" WmpServiceProbe
+            if run_profile_command "iot-headed-6.0-rootstrap-probe" "$probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
+              probe_binary="$probe/Release/wmpserviceprobe"
+              if [ ! -f "$probe_binary" ]; then
+                echo "ROOTSTRAP_PROBE_RESULT=failed missing_output=$probe_binary" | tee -a "$probe_log"
+                failed=1
+              else
+                if [ -f "$probe/Release/platform_libs.file" ]; then
+                  response_size="$(wc -c < "$probe/Release/platform_libs.file" | tr -d ' ')"
+                  echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE_SIZE=$response_size" | tee -a "$probe_log"
+                  sed -n '1,80p' "$probe/Release/platform_libs.file" | while IFS= read -r entry; do
+                    echo "ROOTSTRAP_PLATFORM_LIBRARIES_ENTRY=$entry"
+                  done | tee -a "$probe_log"
+                else
+                  echo "ROOTSTRAP_PLATFORM_LIBRARIES_FILE=missing" | tee -a "$probe_log"
+                fi
+                machine="$(readelf -h "$probe_binary" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                echo "ROOTSTRAP_PROBE_ELF_MACHINE=$machine" | tee -a "$probe_log"
+                case "$machine" in
+                  ARM*) echo "ROOTSTRAP_PROBE_RESULT=success" | tee -a "$probe_log" ;;
+                  *) echo "ROOTSTRAP_PROBE_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$probe_log"; failed=1 ;;
+                esac
+              fi
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-rootstrap-probe-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-rootstrap-probe-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "ROOTSTRAP_PROBE_RESULT=failed exit_code=$status" | tee -a "$probe_log"
+              failed=1
+            fi
+          else
+            echo "ROOTSTRAP_PROBE_RESULT=skipped; Tizen 10.0 reference template was not generated" | tee -a "$probe_log"
+            failed=1
+          fi
+
+          # Compile the actual WMP service sources against the IoT Headed 6.0
+          # rootstrap headers. Build a static archive first so this stage isolates
+          # source/header compatibility from the separate executable link step.
+          if [ -f "$probe/project_def.prop" ] && grep -q '^ROOTSTRAP_PROBE_RESULT=success$' "$probe_log"; then
+            service_probe_log="$report/iot-headed-6.0-wmp-service-source-build.log"
+            echo "=== ACTUAL WMP SERVICE SOURCE BUILD (COMPILE-ONLY ARCHIVE) ===" | tee "$service_probe_log"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$probe/src/main.c"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$probe/src/wmp_esplus_abi.c"
+            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$probe/src/wmp_esplus_abi.h"
+            cat > "$probe/project_def.prop" <<'PROP'
+          APPNAME = wmpservice
+
+          type = staticLib
+          profile = iot-headed-6.0
+
+          USER_SRCS = src/main.c src/wmp_esplus_abi.c
+          USER_DEFS =
+          USER_INC_DIRS = src
+          USER_OBJS =
+          USER_LIBS =
+          USER_EDCS =
+          PROP
+            rm -rf "$probe/Release"
+            tar -czf "$report/iot-headed-6.0-wmp-service-source.tar.gz" -C "$probe_root" WmpServiceProbe
+            if run_profile_command "iot-headed-6.0-wmp-service-source" "$service_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$probe"; then
+              archive="$probe/Release/libwmpservice.a"
+              if [ ! -f "$archive" ]; then
+                echo "SERVICE_SOURCE_COMPILE_RESULT=failed missing_archive=$archive" | tee -a "$service_probe_log"
+                failed=1
+              else
+                echo "SERVICE_SOURCE_ARCHIVE=$archive" | tee -a "$service_probe_log"
+                for object in "$probe/Release/src/main.o" "$probe/Release/src/wmp_esplus_abi.o"; do
+                  if [ ! -f "$object" ]; then
+                    echo "SERVICE_SOURCE_OBJECT=missing path=$object" | tee -a "$service_probe_log"
+                    failed=1
+                    continue
+                  fi
+                  machine="$(readelf -h "$object" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                  echo "SERVICE_SOURCE_OBJECT=$(basename "$object") ELF_MACHINE=$machine" | tee -a "$service_probe_log"
+                  case "$machine" in
+                    ARM*) ;;
+                    *) echo "SERVICE_SOURCE_OBJECT_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$service_probe_log"; failed=1 ;;
+                  esac
+                done
+                if [ "$failed" -eq 0 ]; then
+                  echo "SERVICE_SOURCE_COMPILE_RESULT=success" | tee -a "$service_probe_log"
+                else
+                  echo "SERVICE_SOURCE_COMPILE_RESULT=failed" | tee -a "$service_probe_log"
+                fi
+              fi
+              find "$probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-source-output-files.txt" || true
+              find "$probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-source-output-file-types.txt" 2>/dev/null || true
+            else
+              status=$?
+              echo "SERVICE_SOURCE_COMPILE_RESULT=failed exit_code=$status" | tee -a "$service_probe_log"
+              failed=1
+            fi
+          else
+            echo "SERVICE_SOURCE_COMPILE_RESULT=skipped; IoT rootstrap probe did not succeed" | tee "$report/iot-headed-6.0-wmp-service-source-build.log"
+            failed=1
+          fi
+
+          # Link in a fresh copy of the untouched reference ServiceApp template.
+          # The rootstrap probe above intentionally strips Native_API catalogues;
+          # never reuse that project for a framework-dependent ServiceApp link.
+          if [ -f "$probe/Release/libwmpservice.a" ] && grep -q '^SERVICE_SOURCE_COMPILE_RESULT=success$' "$service_probe_log"; then
+            link_probe_root="$RUNNER_TEMP/ServiceApp-iot-headed-6.0-wmp-link"
+            link_probe="$link_probe_root/WmpServiceProbe"
+            link_probe_log="$report/iot-headed-6.0-wmp-service-link.log"
+            echo "=== ACTUAL WMP SERVICE EXECUTABLE LINK (FRESH SERVICEAPP TEMPLATE) ===" | tee "$link_probe_log"
+
+            if [ ! -f "$source_project/.cproject" ] || [ ! -f "$source_project/Build/platform.mk" ]; then
+              echo "SERVICE_LINK_RESULT=failed missing_reference_native_build_configuration" | tee -a "$link_probe_log"
+              failed=1
+            else
+              mkdir -p "$link_probe_root"
+              cp -a "$source_project" "$link_probe"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$link_probe/src/main.c"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$link_probe/src/wmp_esplus_abi.c"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$link_probe/src/wmp_esplus_abi.h"
+              cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$link_probe/tizen-manifest.xml"
+
+              # Retarget the project metadata to IoT Headed 6.0.
+              sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$link_probe/project_def.prop"
+              sed -i 's/api-version="10.0"/api-version="6.0"/; s/<profile name="tizen" \/>/<profile name="iot-headed" \/>/' "$link_probe/tizen-manifest.xml"
+              if [ -f "$link_probe/.tproject" ]; then
+                sed -i 's/tizen-10.0/iot-headed-6.0/g' "$link_probe/.tproject"
+              fi
+
+              # The reference template is generated for Tizen 10. Its SBI
+              # platform selector and explicit Native_API linker list belong
+              # to that profile and must not leak into an IoT Headed 6.0 link.
+              # Keep Build/platform.mk and Build/makefile.mk intact: they load
+              # RS_LIBRARIES and PLATFORM_LIB_PATHS from the selected IoT rootstrap.
+              python3 - "$link_probe/.cproject" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          content = path.read_text(encoding="utf-8")
+
+          linker_options = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>)'
+              r'.*?'
+              r'(</option>)',
+              re.DOTALL,
+          )
+          sysroot = "${" + "SBI_SYSROOT}"
+          minimal_flags = "\n".join([
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>',
+          ])
+          content, linker_count = linker_options.subn(
+              lambda match: match.group(1) + "\n" + minimal_flags + "\n                                " + match.group(2),
+              content,
+          )
+          if linker_count != 2:
+              raise SystemExit(f"Expected 2 linker configurations, found {linker_count}")
+
+          stale_selectors = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, selector_count = stale_selectors.subn("", content)
+          if selector_count != 4:
+              raise SystemExit(f"Expected 4 Tizen 10 SBI selectors, found {selector_count}")
+
+          native_api_catalogues = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>'
+              r'.*?</option>',
+              re.DOTALL,
+          )
+          content, catalogue_count = native_api_catalogues.subn("", content)
+          if catalogue_count != 4:
+              raise SystemExit(f"Expected 4 Tizen 10 Native_API catalogues, found {catalogue_count}")
+
+          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content:
+              raise SystemExit("Tizen 10 SBI platform selector remains")
+          if re.search(r'value="-l', content):
+              raise SystemExit("Explicit Tizen 10 linker library remains")
+          path.write_text(content, encoding="utf-8")
+          print(f"IOT_LINKER_CONFIGURATIONS_CLEANED={linker_count}")
+          print(f"TIZEN10_SBI_SELECTORS_REMOVED={selector_count}")
+          print(f"TIZEN10_NATIVE_API_CATALOGUES_REMOVED={catalogue_count}")
+          PY
+
+              cat > "$link_probe/project_def.prop" <<'PROP'
+          APPNAME = wmp-service
+
+          type = app
+          profile = iot-headed-6.0
+
+          USER_SRCS = src/main.c src/wmp_esplus_abi.c
+          USER_DEFS =
+          USER_INC_DIRS = src
+          USER_OBJS =
+          USER_LIBS = appcore-agent dlog dl message-port bundle
+          USER_LFLAGS = -Wl,--no-undefined
+          USER_EDCS =
+          PROP
+              rm -rf "$link_probe/Release"
+
+              # Record the actual IoT rootstrap contents and the library/catalogue
+              # configuration used by the clean ServiceApp project.
+              sysroot="$sdk/platforms/tizen-6.0/iot-headed/rootstraps/iot-headed-6.0-device.core"
+              {
+                echo "REFERENCE_PROJECT=$source_project"
+                echo "LINK_PROJECT=$link_probe"
+                echo "ROOTSTRAP=iot-headed-6.0-device.core"
+                echo "SYSROOT=$sysroot"
+                echo "### IoT rootstrap library configuration"
+                grep -n -E 'RS_LIBRARIES|RS_LIB_PATHS|PLATFORM_LIB_PATHS' "$link_probe/Build/platform.mk" "$link_probe/Build/makefile.mk" || true
+                echo "### Rootstrap service_app and dlog files"
+                if [ -d "$sysroot" ]; then
+                  find "$sysroot" \( -name 'libappcore-agent*' -o -name 'libdlog*' -o -name 'service_app.h' -o -name 'dlog.h' \) -print | sort
+                  echo "### All rootstrap shared/static libraries"
+                  find "$sysroot" -type f \( -name '*.so' -o -name '*.so.*' -o -name '*.a' \) -print | sort
+                  echo "### Libraries exporting ServiceApp entry points"
+                  while IFS= read -r library_file; do
+                    if nm -D --defined-only "$library_file" 2>/dev/null | grep -Eq 'service_app_main|service_app_exit|service_app_add_event_handler'; then
+                      echo "SERVICE_APP_SYMBOL_LIBRARY=$library_file"
+                      nm -D --defined-only "$library_file" 2>/dev/null | grep -E 'service_app_main|service_app_exit|service_app_add_event_handler'
+                    fi
+                  done < <(find "$sysroot" -type f \( -name '*.so' -o -name '*.so.*' \) -print | sort)
+                  echo "### service_app.h API declarations"
+                  grep -n -E 'service_app_(main|exit|add_event_handler)' "$sysroot/usr/include/appcore-agent/service_app.h" 2>/dev/null || true
+                  echo "### Rootstrap library directories"
+                  find "$sysroot" -maxdepth 3 -type d \( -name lib -o -name lib64 \) -print | sort
+                else
+                  echo "ROOTSTRAP_DIRECTORY_NOT_FOUND"
+                  failed=1
+                fi
+              } | tee -a "$link_probe_log"
+
+              tar -czf "$report/iot-headed-6.0-wmp-service-link-source.tar.gz" -C "$link_probe_root" WmpServiceProbe
+              if run_profile_command "iot-headed-6.0-wmp-service-link" "$link_probe_log" tizen build-native -a arm -c gcc -C Release -r iot-headed-6.0-device.core -- "$link_probe"; then
+                executable="$(find "$link_probe/Release" -maxdepth 1 -type f -executable ! -name '*.a' -print -quit)"
+                if [ -z "$executable" ]; then
+                  echo "SERVICE_LINK_RESULT=failed executable_not_found" | tee -a "$link_probe_log"
+                  failed=1
+                else
+                  echo "SERVICE_EXECUTABLE=$executable" | tee -a "$link_probe_log"
+                  file "$executable" | tee -a "$link_probe_log"
+                  machine="$(readelf -h "$executable" | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+                  echo "SERVICE_EXECUTABLE_ELF_MACHINE=$machine" | tee -a "$link_probe_log"
+                  readelf -d "$executable" > "$report/iot-headed-6.0-wmp-service-dynamic-section.txt" 2>&1 || true
+                  missing_dependencies=0
+                  for library in libappcore-agent libdlog libmessage-port libbundle; do
+                    if grep -q "Shared library: \[$library" "$report/iot-headed-6.0-wmp-service-dynamic-section.txt"; then
+                      echo "SERVICE_EXECUTABLE_NEEDED=$library" | tee -a "$link_probe_log"
+                    else
+                      echo "SERVICE_EXECUTABLE_MISSING_NEEDED=$library" | tee -a "$link_probe_log"
+                      missing_dependencies=1
+                    fi
+                  done
+                  case "$machine" in
+                    ARM*)
+                      if [ "$missing_dependencies" -eq 0 ]; then
+                        echo "SERVICE_LINK_RESULT=success" | tee -a "$link_probe_log"
+                      else
+                        echo "SERVICE_LINK_RESULT=failed missing_shared_dependencies" | tee -a "$link_probe_log"
+                        failed=1
+                      fi
+                      ;;
+                    *)
+                      echo "SERVICE_LINK_RESULT=failed unexpected_elf_machine=$machine" | tee -a "$link_probe_log"
+                      failed=1
+                      ;;
+                  esac
+                fi
+                find "$link_probe/Release" -maxdepth 4 -type f -printf '%P\n' 2>/dev/null | sort > "$report/iot-headed-6.0-wmp-service-link-output-files.txt" || true
+                find "$link_probe/Release" -type f -exec file {} \; > "$report/iot-headed-6.0-wmp-service-link-output-file-types.txt" 2>/dev/null || true
+              else
+                status=$?
+                echo "SERVICE_LINK_RESULT=failed exit_code=$status" | tee -a "$link_probe_log"
+                failed=1
+              fi
+            fi
+          else
+            echo "SERVICE_LINK_RESULT=skipped; source compilation did not succeed" | tee "$report/iot-headed-6.0-wmp-service-link.log"
+            failed=1
+          fi
+
+          # Build a real hybrid WGT around the compiled native ServiceApp.
+          # The Web UI here is a minimal packaging fixture; the native project is
+          # the actual WMP service compiled above against the IoT Headed 6.0 rootstrap.
+          hybrid_root="$RUNNER_TEMP/WmpHybridPackage"
+          web_project="$hybrid_root/MoonlightWeb"
+          service_project="$hybrid_root/WmpService"
+          hybrid_log="$report/iot-headed-6.0-wmp-hybrid-package.log"
+          echo "=== HYBRID WGT PACKAGE (WEB UI + ACTUAL WMP SERVICE) ===" | tee "$hybrid_log"
+
+          if [ -n "${link_probe:-}" ] && [ -f "$link_probe/Release/wmp-service" ]; then
+            mkdir -p "$hybrid_root"
+            if run_profile_command "hybrid-web-template-list" "$hybrid_log" tizen list web-project; then
+              web_profile="$(awk '$1 ~ /^tizen-[0-9]+\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' "$hybrid_log" | sort -Vr | head -n 1)"
+            else
+              web_profile=""
+              echo "HYBRID_WEB_TEMPLATE_LIST=failed" | tee -a "$hybrid_log"
+              failed=1
+            fi
+
+            if [ -n "$web_profile" ]; then
+              echo "HYBRID_WEB_PROFILE=$web_profile" | tee -a "$hybrid_log"
+              web_template="WebBasicApplication"
+              echo "HYBRID_WEB_TEMPLATE=$web_template" | tee -a "$hybrid_log"
+              if run_profile_command "hybrid-web-project-create" "$hybrid_log" tizen create web-project -p "$web_profile" -t "$web_template" -n MoonlightWeb -- "$hybrid_root"; then
+                echo "HYBRID_WEB_PROJECT_CREATE=success" | tee -a "$hybrid_log"
+              else
+                status=$?
+                echo "HYBRID_WEB_PROJECT_CREATE=failed exit_code=$status" | tee -a "$hybrid_log"
+                failed=1
+              fi
+            else
+              echo "HYBRID_WEB_PROJECT_CREATE=failed; no installed Tizen profile exposes WebBasicApplication" | tee -a "$hybrid_log"
+              failed=1
+            fi
+
+            if [ -d "$web_project" ]; then
+              cp -a "$link_probe" "$service_project"
+              sed -i 's/WmpServiceProbe/WmpService/g' "$service_project/.project" "$service_project/.cproject"
+              if [ ! -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt" ]; then
+                echo "HYBRID_WEB_BASE_WGT=missing" | tee -a "$hybrid_log"
+                failed=1
+              else
+                # Reuse the exact web application generated by the repository Dockerfile.
+                # Strip the source WGT signatures; the hybrid package is signed as one WGT below.
+                python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$web_project" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          package = Path(sys.argv[1])
+          destination = Path(sys.argv[2]).resolve()
+          skipped_signatures = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+          with zipfile.ZipFile(package) as archive:
+              for member in archive.infolist():
+                  name = PurePosixPath(member.filename)
+                  if name.is_absolute() or ".." in name.parts:
+                      raise SystemExit(f"Unsafe path in source WGT: {member.filename}")
+                  if not name.parts or name.name in skipped_signatures:
+                      continue
+                  target = (destination / Path(*name.parts)).resolve()
+                  if destination not in target.parents and target != destination:
+                      raise SystemExit(f"Source WGT path escapes project: {member.filename}")
+                  if member.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(archive.read(member))
+          print("HYBRID_WEB_SOURCE=Moonlight-Web-Base.wgt")
+          PY
+                test -s "$web_project/config.xml"
+                test -s "$web_project/index.html"
+                test -s "$web_project/moonlight-wasm.js"
+                if [ ! -s "$web_project/service/service.js" ]; then
+                  mkdir -p "$web_project/service"
+                  cp "$GITHUB_WORKSPACE/res/service/service.js" "$web_project/service/service.js"
+                fi
+                test -s "$web_project/service/service.js"
+                echo "HYBRID_WEB_APP=real_moonlight_wgt" | tee -a "$hybrid_log"
+                echo "HYBRID_WEB_WASM=present path=moonlight-wasm.js" | tee -a "$hybrid_log"
+                echo "HYBRID_WEB_SERVICE_JS=present path=service/service.js" | tee -a "$hybrid_log"
+              fi
+              python3 - "$web_project/.project" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          if path.exists():
+              tree = ET.parse(path)
+              root = tree.getroot()
+          else:
+              root = ET.Element("projectDescription")
+              ET.SubElement(root, "name").text = "MoonlightWeb"
+              ET.SubElement(root, "comment")
+              ET.SubElement(root, "projects")
+              ET.SubElement(root, "buildSpec")
+              ET.SubElement(root, "natures")
+              tree = ET.ElementTree(root)
+
+          projects = root.find("projects")
+          if projects is None:
+              projects = ET.SubElement(root, "projects")
+          if not any((item.text or "").strip() == "WmpService" for item in projects.findall("project")):
+              ET.SubElement(projects, "project").text = "WmpService"
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print("HYBRID_PROJECT_METADATA=" + ("existing" if path.exists() else "generated"))
+          print("HYBRID_PROJECT_REFERENCE=MoonlightWeb->WmpService")
+          PY
+              echo "HYBRID_WEB_PROJECT_FILES_BEGIN" | tee -a "$hybrid_log"
+              find "$web_project" -maxdepth 2 -type f -printf '%P\\n' | sort | tee -a "$hybrid_log"
+              echo "HYBRID_WEB_PROJECT_FILES_END" | tee -a "$hybrid_log"
+
+              # A disposable signing profile is used only to validate package creation.
+              # Capture diagnostics and continue to the report even if signing setup fails.
+              certificate_log="$report/iot-headed-6.0-wmp-hybrid-certificate.log"
+              echo "COMMAND (hybrid-certificate-create): tizen certificate -a MoonlightHybrid -p [redacted] -f MoonlightHybrid" | tee -a "$hybrid_log"
+              if tizen certificate -a MoonlightHybrid -p 123456 -f MoonlightHybrid >"$certificate_log" 2>&1; then
+                echo "HYBRID_CERTIFICATE_CREATE=success" | tee -a "$hybrid_log"
+              else
+                status=$?
+                echo "HYBRID_CERTIFICATE_CREATE=failed exit_code=$status" | tee -a "$hybrid_log"
+                cat "$certificate_log" | tee -a "$hybrid_log"
+                failed=1
+              fi
+
+              profile_log="$report/iot-headed-6.0-wmp-hybrid-security-profile.log"
+              author_certificate="$RUNNER_TEMP/tizen-studio-data/keystore/author/MoonlightHybrid.p12"
+              if grep -q "HYBRID_CERTIFICATE_CREATE=success" "$hybrid_log"; then
+                if [ ! -f "$author_certificate" ]; then
+                  echo "HYBRID_SECURITY_PROFILE_ADD=failed author_certificate_missing path=$author_certificate" | tee -a "$hybrid_log"
+                  failed=1
+                else
+                  echo "COMMAND (hybrid-security-profile-add): tizen security-profiles add -n MoonlightHybrid -a [keystore] -p [redacted]" | tee -a "$hybrid_log"
+                  if tizen security-profiles add -n MoonlightHybrid \
+                    -a "$author_certificate" \
+                    -p 123456 >"$profile_log" 2>&1; then
+                    echo "HYBRID_SECURITY_PROFILE_ADD=success" | tee -a "$hybrid_log"
+                  else
+                    status=$?
+                    echo "HYBRID_SECURITY_PROFILE_ADD=failed exit_code=$status" | tee -a "$hybrid_log"
+                    cat "$profile_log" | tee -a "$hybrid_log"
+                    failed=1
+                  fi
+                fi
+              else
+                echo "HYBRID_SECURITY_PROFILE_ADD=skipped certificate_creation_failed" | tee -a "$hybrid_log"
+              fi
+
+              build_app_log="$report/iot-headed-6.0-wmp-hybrid-build-app.log"
+              printf '%s\n' \
+                'set timeout -1' \
+                'spawn {*}$argv' \
+                'expect {' \
+                '  -re {Author password:} { send -- "123456\r"; exp_continue }' \
+                '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
+                '  eof' \
+                '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
+              if grep -q "HYBRID_SECURITY_PROFILE_ADD=success" "$hybrid_log"; then
+                chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
+                echo 'COMMAND (hybrid-build-app): tizen build-app -m [IoT Headed 6.0 ARM] -b [MoonlightWeb,WmpService] -p [WGT] -s MoonlightHybrid' | tee "$build_app_log"
+                if expect "$RUNNER_TEMP/run-hybrid-build.exp" \
+                  tizen build-app \
+                  -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+                  -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
+                  -p 'name:p1,targets:[b1]' \
+                  -s MoonlightHybrid \
+                  -- "$hybrid_root" >>"$build_app_log" 2>&1; then
+                  echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
+                else
+                  status=$?
+                  echo "HYBRID_BUILD_APP_RESULT=failed exit_code=$status" | tee -a "$hybrid_log"
+                  cat "$build_app_log" | tee -a "$hybrid_log"
+                  failed=1
+                fi
+              else
+                echo "HYBRID_BUILD_APP_RESULT=skipped signing_setup_failed" | tee -a "$hybrid_log"
+              fi
+
+              hybrid_wgt="$(find "$hybrid_root" -type f -name '*.wgt' -print -quit)"
+              if [ -n "$hybrid_wgt" ]; then
+                echo "HYBRID_WGT=$hybrid_wgt" | tee -a "$hybrid_log"
+                cp "$hybrid_wgt" "$report/Moonlight-WMP-Hybrid-Experimental.wgt"
+                cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt"
+                test -s "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt"
+                sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt" | tee -a "$hybrid_log"
+                echo "HYBRID_WGT_COPY=success path=$RUNNER_TEMP/Moonlight-WMP-Hybrid-Experimental.wgt" | tee -a "$hybrid_log"
+                validation_log="$report/iot-headed-6.0-wmp-hybrid-inspection.txt"
+                if python3 - "$hybrid_wgt" "$report" >"$validation_log" 2>&1 <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          package = Path(sys.argv[1])
+          report = Path(sys.argv[2])
+          failures = []
+
+          def local_name(tag):
+              return tag.rsplit("}", 1)[-1]
+
+          with zipfile.ZipFile(package) as archive:
+              names = archive.namelist()
+              (report / "hybrid-wgt-file-list.txt").write_text(
+                  "\n".join(names) + "\n", encoding="utf-8"
+              )
+              native = [name for name in names if name.startswith("bin/") and name.rsplit("/", 1)[-1] == "wmp-service"]
+              web_config = [name for name in names if name == "res/wgt/config.xml"]
+              web_service_js = [name for name in names if name == "res/wgt/service/service.js"]
+              web_index = [name for name in names if name == "res/wgt/index.html"]
+              web_wasm = [name for name in names if name == "res/wgt/moonlight-wasm.js"]
+              web_style = [name for name in names if name == "res/wgt/static/css/style.css"]
+              web_locale = [name for name in names if name == "res/wgt/static/locales/en-US.json"]
+              root_config = [name for name in names if name == "config.xml"]
+              native_manifest = [name for name in names if name == "tizen-manifest.xml"]
+              info_files = [name for name in names if name.startswith("info/") and not name.endswith("/")]
+              (report / "hybrid-wgt-info-metadata.txt").write_text(
+                  "info/ is not the descriptor location for this WGT format.\n"
+                  + ("\n".join(info_files) if info_files else "No files found under info/\n"),
+                  encoding="utf-8",
+              )
+
+              print(f"HYBRID_WGT_ENTRY_COUNT={len(names)}")
+              print(f"HYBRID_WGT_INFO_FILE_COUNT={len(info_files)} (informational only)")
+              print("HYBRID_PACKAGE_NATIVE_EXECUTABLE=" + (native[0] if native else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_CONFIG=" + (web_config[0] if web_config else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_SERVICE_JS=" + (web_service_js[0] if web_service_js else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_INDEX=" + (web_index[0] if web_index else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_WASM=" + (web_wasm[0] if web_wasm else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_STYLE=" + (web_style[0] if web_style else "(missing)"))
+              print("HYBRID_PACKAGE_WEB_LOCALE=" + (web_locale[0] if web_locale else "(missing)"))
+              print("HYBRID_PACKAGE_ROOT_CONFIG=" + (root_config[0] if root_config else "(missing)"))
+              print("HYBRID_PACKAGE_NATIVE_MANIFEST=" + (native_manifest[0] if native_manifest else "(missing)"))
+
+              if not native:
+                  failures.append("native executable missing from bin/")
+              if not web_config:
+                  failures.append("Web config.xml missing from res/wgt/")
+              if not web_service_js:
+                  failures.append("Smart Hub service.js missing from res/wgt/service/")
+              if not web_index:
+                  failures.append("Moonlight web index.html missing from res/wgt/")
+              if not web_wasm:
+                  failures.append("compiled Moonlight WASM JavaScript missing from res/wgt/")
+              if not web_style:
+                  failures.append("Moonlight application stylesheet missing from res/wgt/static/css/")
+              if not web_locale:
+                  failures.append("Moonlight English locale missing from res/wgt/static/locales/")
+              if not root_config:
+                  failures.append("root config.xml descriptor missing")
+              if not native_manifest:
+                  failures.append("root tizen-manifest.xml descriptor missing")
+
+              if root_config:
+                  config_data = archive.read(root_config[0])
+                  (report / "hybrid-wgt-root-config.xml").write_bytes(config_data)
+                  try:
+                      config_root = ET.fromstring(config_data)
+                      service_node = next(
+                          (node for node in config_root.iter() if local_name(node.tag) == "service"),
+                          None,
+                      )
+                      service_content = next(
+                          (node for node in service_node if local_name(node.tag) == "content"),
+                          None,
+                      ) if service_node is not None else None
+                      service_src = service_content.attrib.get("src", "") if service_content is not None else ""
+                      print("HYBRID_CONFIG_SERVICE_CONTENT=" + (service_src or "(missing)"))
+                      if service_src != "service/service.js":
+                          failures.append("root config.xml does not register service/service.js")
+                  except ET.ParseError as error:
+                      failures.append(f"root config.xml is invalid XML: {error}")
+
+              if native_manifest:
+                  manifest_data = archive.read(native_manifest[0])
+                  (report / "hybrid-wgt-tizen-manifest.xml").write_bytes(manifest_data)
+                  try:
+                      manifest_root = ET.fromstring(manifest_data)
+                      service_app = next(
+                          (node for node in manifest_root.iter() if local_name(node.tag) == "service-application"),
+                          None,
+                      )
+                      exec_name = service_app.attrib.get("exec", "") if service_app is not None else ""
+                      app_id = service_app.attrib.get("appid", "") if service_app is not None else ""
+                      print("HYBRID_MANIFEST_SERVICE_EXEC=" + (exec_name or "(missing)"))
+                      print("HYBRID_MANIFEST_SERVICE_APPID=" + (app_id or "(missing)"))
+                      if exec_name != "wmp-service":
+                          failures.append("tizen-manifest.xml does not declare exec=wmp-service")
+                      if not app_id:
+                          failures.append("tizen-manifest.xml service-application appid is missing")
+                      if exec_name and not any(name == "bin/" + exec_name for name in native):
+                          failures.append("manifest service exec does not match packaged bin executable")
+                  except ET.ParseError as error:
+                      failures.append(f"tizen-manifest.xml is invalid XML: {error}")
+
+              if failures:
+                  for failure in failures:
+                      print("HYBRID_PACKAGE_VALIDATION_ERROR=" + failure)
+                  print("HYBRID_PACKAGE_VALIDATION=failed")
+                  raise SystemExit(1)
+              print("HYBRID_PACKAGE_VALIDATION=success")
+          PY
+                then
+                  cat "$validation_log" | tee -a "$hybrid_log"
+                else
+                  status=$?
+                  cat "$validation_log" | tee -a "$hybrid_log"
+                  echo "HYBRID_PACKAGE_VALIDATION=failed inspection_exit_code=$status" | tee -a "$hybrid_log"
+                  failed=1
+                fi
+              else
+                echo "HYBRID_PACKAGE_VALIDATION=failed no_wgt_created" | tee -a "$hybrid_log"
+                failed=1
+              fi
+            else
+              echo "HYBRID_PACKAGE_RESULT=failed web_project_directory_missing" | tee -a "$hybrid_log"
+              failed=1
+            fi
+          else
+            echo "HYBRID_PACKAGE_RESULT=skipped; native ServiceApp executable was not produced" | tee "$hybrid_log"
+            failed=1
+          fi
+
+          {
+            echo "### Toolchain versions"
+            tizen version 2>&1 || true
+            echo
+            echo "### Available rootstraps"
+            tizen list rootstrap 2>&1 || true
+            echo
+            echo "### Relevant SDK directories"
+            find "$HOME" "$sdk" -maxdepth 5 -type d \( -iname '*log*' -o -iname '*cli*' \) -print 2>/dev/null | sort || true
+          } > "$report/environment.txt"
+          cp "$RUNNER_TEMP/sdk-install-environment.txt" "$report/" 2>/dev/null || true
+          capture_cli_logs final
+          tar -czf "$RUNNER_TEMP/wmp-native-build-report.tar.gz" -C "$report" .
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more ServiceApp reference builds failed."
+            exit 1
+          fi
+
+      - name: Upload experimental hybrid WGT
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-WMP-Hybrid-Experimental-${{ github.sha }}
+          path: ${{ runner.temp }}/Moonlight-WMP-Hybrid-Experimental.wgt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload native build report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: wmp-native-toolchain-validation
+          path: |
+            ${{ runner.temp }}/wmp-native-build-report.tar.gz
+            ${{ runner.temp }}/sdk-install-environment.txt
+          if-no-files-found: warn
+          retention-days: 7
