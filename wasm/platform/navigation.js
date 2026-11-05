@@ -1706,6 +1706,7 @@ const Views = {
     view: new ListView(() => [
       'discoverNewHostsAtStartupBtn',
       'sortAppsListBtn',
+      'sortAppsByUsageBtn',
       'optimizeGamesBtn',
       'quitAppAfterDisconnectBtn',
       'removeAllHostsBtn'
