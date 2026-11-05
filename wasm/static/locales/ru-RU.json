@@ -595,5 +595,10 @@
   "Gamepad Test": "Проверка геймпада",
   "The required data could not be retrieved from the host. The test has been aborted.": "Не удалось получить необходимые данные с хоста. Проверка прервана.",
   "Game Controller Test": "Проверка игрового контроллера",
-  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы проверить их работу. Соответствующие элементы должны подсвечиваться на экране. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно."
+  "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Нажимайте кнопки и перемещайте стики контроллера, чтобы проверить их работу. Соответствующие элементы должны подсвечиваться на экране. По завершении нажмите кнопку «Назад» на пульте телевизора, чтобы закрыть это окно.",
+  "Stream processing engine": "Механизм обработки потока",
+  "Choose which engine handles the complete audio and video stream. EMSS is the established route. WMP native is experimental and its media pipeline is not ready yet.": "Выберите механизм обработки всего аудио- и видеопотока. EMSS использует проверенный путь. Нативный WMP экспериментален, его медиатракт ещё не реализован.",
+  "EMSS (conventional)": "EMSS (обычный)",
+  "WMP native (experimental)": "Нативный WMP (экспериментальный)",
+  "WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.": "Выбран нативный WMP, но его тракт обработки аудио и видео ещё не реализован. Поток не запущен, автоматического переключения на EMSS не было."
 }
