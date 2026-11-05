@@ -2029,7 +2029,7 @@ body[data-color-theme="black-orange"] #background-layer {
     text-indent: 36px;
 }
 #selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
-#sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
+#discoverNewHostsAtStartupBtn, #sortAppsListBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
 #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
@@ -2198,7 +2198,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
-#sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
+#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #sortAppsListBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
 #selectAudio:focus, #selectDolbyChannelLayout:hover, #selectDolbyChannelLayout:focus,
