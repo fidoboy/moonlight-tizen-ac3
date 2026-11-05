@@ -820,6 +820,7 @@ function attachListeners() {
   $('#mouseEmulationSwitch').on('click', saveMouseEmulation);
   $('#flipABfaceButtonsSwitch').on('click', saveFlipABfaceButtons);
   $('#flipXYfaceButtonsSwitch').on('click', saveFlipXYfaceButtons);
+  $('.streamEngineMenu li').on('click', saveStreamEngine);
   $('.audioBackendMenu li').on('click', saveAudioBackend);
   $('.audioConfigMenu li').on('click', saveAudioConfiguration);
   $('#ac3AudioModeSwitch').on('click', saveAc3AudioMode);
@@ -1047,6 +1048,10 @@ function loadConfigSummarySettings(callback) {
     if (slider) slider.value = value;
     var label = document.getElementById('selectBitrate');
     if (label) label.textContent = value + ' Mbps';
+    completeOne();
+  });
+  getData('streamEngine', function(result) {
+    applyMenuValue('streamEngine', '.streamEngineMenu', result && result.streamEngine);
     completeOne();
   });
   getData('audioBackend', function(result) {
@@ -5672,6 +5677,20 @@ function startGame(host, appID) {
   }
   localStorage.setItem('lastOpenedApp_' + host.serverUid, appID);
 
+  var requestedStreamEngine = _directSmartHubLaunch
+    ? (_directSmartHubStreamSettings && _directSmartHubStreamSettings.streamEngine) || 'EMSS'
+    : String($('#selectStreamEngine').data('value') || 'EMSS');
+  if (requestedStreamEngine === 'WMP') {
+    var message = t('WMP native streaming is selected, but its audio/video media pipeline is not implemented yet. No stream was started and EMSS was not selected automatically.');
+    if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(message);
+    } else {
+      snackbarLogLong(message);
+    }
+    console.warn('[index.js, startGame] WMP was selected manually; refusing to start an EMSS stream as a substitute.');
+    return;
+  }
+
   if (_directSmartHubLaunch) {
     // Reveal the shared transition immediately, while the one required server-info
     // request is in progress. This replaces the former standalone Smart Hub status text.
@@ -5767,7 +5786,7 @@ function startGame(host, appID) {
       var flipABfaceButtons, flipXYfaceButtons, opticalOutputEnabled;
       var audioBackend, audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio;
       var videoCodec, h264Level, hdrMode, fullRange, gameMode, disableWarnings, performanceStats;
-      var dolbyChannelLayout, dolbyDecodingMode;
+      var dolbyChannelLayout, dolbyDecodingMode, streamEngine;
 
       if (_directSmartHubLaunch) {
         var directSettings = _directSmartHubStreamSettings;
@@ -5785,6 +5804,7 @@ function startGame(host, appID) {
         mouseEmulation = directSettings.mouseEmulation;
         flipABfaceButtons = directSettings.flipABfaceButtons;
         flipXYfaceButtons = directSettings.flipXYfaceButtons;
+        streamEngine = directSettings.streamEngine || 'EMSS';
         opticalOutputEnabled = directSettings.opticalOutputEnabled;
         audioBackend = directSettings.audioBackend;
         audioConfig = directSettings.audioConfig;
@@ -5812,6 +5832,7 @@ function startGame(host, appID) {
         mouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked') ? 1 : 0;
         flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        streamEngine = String($('#selectStreamEngine').data('value') || 'EMSS');
         opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
         audioBackend = opticalOutputEnabled ? 'EMSS' : $('#selectAudioBackend').data('value').toString();
         audioConfig = $('#selectAudio').data('value').toString();
@@ -5837,6 +5858,7 @@ function startGame(host, appID) {
       rikeyid = generateRemoteInputKeyId();
       gamepadMask = getConnectedGamepadMask();
 
+      console.log('%c[index.js, startGame]', 'color: green;', 'Selected stream processing engine: ' + streamEngine);
       console.log('%c[index.js, startGame]', 'color: green;', 'startRequest:' + 
       '\n Host address: ' + host.address + ':' + host.httpPort + 
       '\n Video resolution: ' + streamWidth + 'x' + streamHeight + 
@@ -7225,6 +7247,18 @@ function saveFlipXYfaceButtons() {
   }, 100);
 }
 
+function saveStreamEngine() {
+  var chosenStreamEngine = String($(this).data('value') || 'EMSS');
+  if (chosenStreamEngine !== 'EMSS' && chosenStreamEngine !== 'WMP') chosenStreamEngine = 'EMSS';
+  var item = $('.streamEngineMenu li').filter(function() {
+    return String($(this).data('value')) === chosenStreamEngine;
+  }).first();
+  if (!item.length) return;
+  $('#selectStreamEngine').text(item.text()).attr('data-value', chosenStreamEngine).data('value', chosenStreamEngine);
+  storeData('streamEngine', chosenStreamEngine, null);
+  console.log('%c[index.js, saveStreamEngine]', 'color: green;', 'Saved stream processing engine: ' + chosenStreamEngine);
+}
+
 function saveAudioBackend() {
   var chosenAudioBackend = $(this).data('value');
   $('#selectAudioBackend').text($(this).text()).attr('data-value', chosenAudioBackend).data('value', chosenAudioBackend);
@@ -8083,7 +8117,7 @@ function loadDirectSmartHubStreamSettings() {
   var keys = [
     'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
     'rumbleFeedback', 'mouseEmulation', 'flipABfaceButtons', 'flipXYfaceButtons',
-    'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
+    'streamEngine', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
     'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
     'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
     'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect'
@@ -8120,6 +8154,7 @@ function loadDirectSmartHubStreamSettings() {
       mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
       flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
       flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
+      streamEngine: stored.streamEngine === 'WMP' ? 'WMP' : 'EMSS',
       opticalOutputEnabled: ac3Enabled,
       audioBackend: ac3Enabled ? 'EMSS' : (stored.audioBackend || 'EMSS'),
       audioConfig: audioConfig,
