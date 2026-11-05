@@ -633,16 +633,30 @@ jobs:
           from pathlib import Path
 
           path = Path(sys.argv[1])
-          tree = ET.parse(path)
-          root = tree.getroot()
+          if path.exists():
+              tree = ET.parse(path)
+              root = tree.getroot()
+          else:
+              root = ET.Element("projectDescription")
+              ET.SubElement(root, "name").text = "MoonlightWeb"
+              ET.SubElement(root, "comment")
+              ET.SubElement(root, "projects")
+              ET.SubElement(root, "buildSpec")
+              ET.SubElement(root, "natures")
+              tree = ET.ElementTree(root)
+
           projects = root.find("projects")
           if projects is None:
               projects = ET.SubElement(root, "projects")
           if not any((item.text or "").strip() == "WmpService" for item in projects.findall("project")):
               ET.SubElement(projects, "project").text = "WmpService"
           tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print("HYBRID_PROJECT_METADATA=" + ("existing" if path.exists() else "generated"))
           print("HYBRID_PROJECT_REFERENCE=MoonlightWeb->WmpService")
           PY
+              echo "HYBRID_WEB_PROJECT_FILES_BEGIN" | tee -a "$hybrid_log"
+              find "$web_project" -maxdepth 2 -type f -printf '%P\\n' | sort | tee -a "$hybrid_log"
+              echo "HYBRID_WEB_PROJECT_FILES_END" | tee -a "$hybrid_log"
 
               # A disposable signing profile is used only to validate package creation.
               tizen certificate -a MoonlightHybrid -p 123456 -f MoonlightHybrid >>"$hybrid_log" 2>&1
