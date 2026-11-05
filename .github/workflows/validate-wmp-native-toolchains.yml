@@ -689,16 +689,6 @@ jobs:
               fi
 
               build_app_log="$report/iot-headed-6.0-wmp-hybrid-build-app.log"
-              build_app_cmd=(
-                tizen build-app
-                -m "name:m1,compiler:gcc,rootstraps:[{\"name\":\"iot-headed-6.0-device.core\",\"platform\":\"iot-headed-6.0\",\"arch\":\"arm\"}],configs:[Release]"
-                -b "name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]"
-                -p "name:p1,type:wgt,targets:[b1]"
-                -s MoonlightHybrid
-                --
-                "$hybrid_root"
-              )
-              printf 'COMMAND: '; printf '%q ' "\${build_app_cmd[@]}"; printf '\n' | tee "$build_app_log"
               printf '%s\n' \
                 'set timeout -1' \
                 'spawn {*}$argv' \
@@ -709,7 +699,14 @@ jobs:
                 '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
               if grep -q "HYBRID_SECURITY_PROFILE_ADD=success" "$hybrid_log"; then
                 chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
-                if expect "$RUNNER_TEMP/run-hybrid-build.exp" "\${build_app_cmd[@]}" >>"$build_app_log" 2>&1; then
+                echo 'COMMAND (hybrid-build-app): tizen build-app -m [IoT Headed 6.0 ARM] -b [MoonlightWeb,WmpService] -p [WGT] -s MoonlightHybrid' | tee "$build_app_log"
+                if expect "$RUNNER_TEMP/run-hybrid-build.exp" \
+                  tizen build-app \
+                  -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+                  -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
+                  -p 'name:p1,type:wgt,targets:[b1]' \
+                  -s MoonlightHybrid \
+                  -- "$hybrid_root" >>"$build_app_log" 2>&1; then
                   echo "HYBRID_BUILD_APP_RESULT=success" | tee -a "$hybrid_log"
                 else
                   status=$?
