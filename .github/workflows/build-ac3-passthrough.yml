@@ -110,6 +110,43 @@ jobs:
           print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
           PY
 
+      - name: Validate workflow structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/build-ac3-passthrough.yml").read_text(encoding="utf-8")
+          build_start = workflow.find("\\n  build:\\n")
+          if build_start < 0:
+              raise SystemExit("The build job is missing.")
+
+          build = workflow[build_start:]
+          checkout_start = build.find("      - name: Checkout source")
+          assets_start = build.find("      - name: Ensure required versioned MP4 assets are available")
+          docker_start = build.find("      - name: Build Tizen widget")
+
+          if checkout_start < 0 or assets_start < 0 or docker_start < 0:
+              raise SystemExit("The build job must contain checkout, asset preparation and Docker build steps.")
+          if not checkout_start < assets_start < docker_start:
+              raise SystemExit("The build job checkout must precede asset preparation and Docker build.")
+
+          checkout = build[checkout_start:assets_start]
+          if "uses: actions/checkout@v5" not in checkout or "submodules: recursive" not in checkout:
+              raise SystemExit("The build job must checkout source with recursive submodules.")
+
+          if "    needs: validate" not in build:
+              raise SystemExit("The build job must depend on the validate job.")
+          if "    if: github.event_name != 'pull_request'" not in build:
+              raise SystemExit("The build job must remain disabled for pull_request events.")
+
+          print("Workflow structure checks passed.")
+          PY
+
+      - name: Lint GitHub Actions workflows
+        uses: raven-actions/actionlint@v2
+
 
   build:
     if: github.event_name != 'pull_request'
@@ -128,6 +165,11 @@ jobs:
             force_game_mode: 'true'
             artifact: Moonlight-ForceGM
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
       - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
