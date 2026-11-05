@@ -5997,9 +5997,6 @@ function startGame(host, appID) {
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
-      // Count every new stream request, including requests that later fail.
-      incrementAppRunCount(host, appID, appToStart.title);
-
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
         // If the app is already running, we can just resume it
@@ -6063,6 +6060,10 @@ function startGame(host, appID) {
           return;
         });
       }
+
+      // Count new launches, including requests that later fail. Resuming an
+      // already-running app does not count as a new application launch.
+      incrementAppRunCount(host, appID, appToStart.title);
 
       // If the user wants to launch the app, then we start launching it
       $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
