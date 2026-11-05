@@ -597,6 +597,6 @@
   "Game Controller Test": "Teste do controle de jogos",
   "Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.": "Pressione os botões e mova os direcionais analógicos do controle para verificar seu funcionamento correto. Os comandos correspondentes às ações realizadas deverão acender na tela, permitindo a verificação visual de seu funcionamento. Quando terminar, pressione o botão Voltar do controle remoto da TV para fechar esta janela.",
   "New host discovery": "Busca de novos hosts",
-  "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.": "- Quando desativada, o Moonlight ignora a busca inicial na rede. Você ainda pode procurar novos hosts manualmente a qualquer momento.",
+  "- When disabled, Moonlight skips the initial network scan. You can still search for new hosts manually at any time.": "- Se você já configurou todos os hosts necessários, desative esta opção para ignorar a busca por novos hosts ao iniciar e acelerar a inicialização. Você ainda poderá fazer uma busca manual pelo botão na parte superior.",
   "Search for new hosts automatically at startup": "Buscar novos hosts automaticamente ao iniciar"
 }
