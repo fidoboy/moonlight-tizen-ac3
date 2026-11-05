@@ -6,7 +6,7 @@ on:
       source_ref:
         description: 'Branch or tag containing tools/esplus-probe'
         required: true
-        default: '1.2.0-pre-wpm_test'
+        default: 'wpm_experimental'
         type: string
 
 permissions:
