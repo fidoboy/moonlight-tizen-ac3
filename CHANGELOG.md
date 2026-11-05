@@ -18,7 +18,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **UI and navigation refinements:** Polished interface spacing, alignment and dialog layouts, improved remote-control and gamepad navigation, and refined localized instructions for a more consistent experience across Tizen devices.
 
 ### Fixed
-- **Streaming error handling:** Improved capture and presentation of connection and playback errors, including available error codes and diagnostic details. Error reporting is coordinated with stream shutdown so the interface can recover and refresh the application list reliably.
+- **Streaming error handling:** Unified connection and playback errors in a single dialog displayed after the stream-closing transition. Added capture of asynchronous Tizen media-player errors and presentation of the error code and diagnostic details when available. Added specific handling for rejected H.264 configurations, and ensured the interface recovers and the application list refreshes after the dialog is closed.
 - **Warning dialog focus:** Improved remote-control and gamepad navigation focus restoration when warning dialogs appear, ensuring the Close button receives focus regardless of the error type or whether additional diagnostic details are available.
 - **Update dialog Markdown formatting:** Fixed the rendering of release notes so Markdown markers for **bold** and *italic* text are interpreted as formatting rather than displayed literally.
 
