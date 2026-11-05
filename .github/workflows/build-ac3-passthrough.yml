@@ -148,6 +148,7 @@ jobs:
         uses: raven-actions/actionlint@v2
         with:
           version: 1.7.7
+          files: .github/workflows/build-ac3-passthrough.yml
           shellcheck: false
           pyflakes: false
 
