@@ -8680,16 +8680,7 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
       resolve(discoveryEnabled);
     });
   }).then(function(discoveryEnabled) {
-    if (!discoveryEnabled && hasConfiguredHosts) {
-      // Keep saved-host status checks running, but do not wait for them or a subnet
-      // scan before returning control to the user.
-      startPollingHosts().catch(function(error) {
-        console.warn('%c[index.js, runInitialHostDiscovery]', 'color: orange;', 'Background configured-host checks failed:', error);
-      });
-      isSubnetScanFinished = true;
-      finishInitialHostDiscovery();
-      return;
-    }
+    // Always check configured hosts first, independently of new-host discovery.
     var configuredHostCheck = Promise.resolve();
     if (hasConfiguredHosts) {
       configuredHostCheck = isInGame !== true
@@ -8701,6 +8692,9 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
     return configuredHostCheck.catch(function(error) {
       console.error('%c[index.js, runInitialHostDiscovery]', 'color: green;', 'Initial configured-host checks failed:', error);
     }).then(function() {
+      // The preference controls only the additional subnet scan.
+      if (!discoveryEnabled) return;
+
       var knownHostIPs = [];
       for (var hostUID in hosts) {
         var address = hosts[hostUID].address;
@@ -8727,7 +8721,6 @@ function runInitialHostDiscovery(hasConfiguredHosts) {
     });
   });
 }
-
 function loadHTTPCerts() {
   console.log('%c[index.js, loadHTTPCerts]', 'color: green;', 'Loading stored HTTP certificates...');
   openIndexDB(loadHTTPCertsCb);
