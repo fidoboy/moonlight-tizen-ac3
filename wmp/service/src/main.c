@@ -589,11 +589,12 @@ static void message_port_received(
         pthread_mutex_unlock(&g_session_mutex);
         snprintf(response_payload, sizeof(response_payload),
                  "{\"service\":\"%s\",\"engine\":\"%s\","
-                 "\"running\":%s,\"esplus\":\"%s\","
-                 "\"streamApi\":\"%s\"}",
+                 "\"running\":%s,\"libraryLoaded\":%s,"
+                 "\"esplus\":\"%s\",\"streamApi\":\"%s\"}",
                  service_ready ? "ready" : "stopping",
                  service_ready ? "libmlengine" : "unavailable",
                  engine_running ? "true" : "false",
+                 g_esplus.library != NULL ? "true" : "false",
                  wmp_esplus_probe_result_name(g_esplus_probe_result),
                  wmp_esplus_family_name(g_esplus.selected_family));
     } else if (strcmp(command, "start_session") == 0) {
