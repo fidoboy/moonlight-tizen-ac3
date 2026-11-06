@@ -1,4 +1,6 @@
 #include <atomic>
+
+extern std::atomic<bool> streamMenuInputBlocked;
 #include <chrono>
 #include <memory>
 #include <queue>
