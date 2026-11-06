@@ -57,6 +57,8 @@ static pthread_mutex_t g_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t g_session_condition = PTHREAD_COND_INITIALIZER;
 static bool g_session_worker_active;
 static bool g_session_starting;
+static bool g_session_start_acknowledged;
+static bool g_session_stop_requested;
 static bool g_session_stop_in_progress;
 
 static bool service_is_ready(void)
@@ -107,7 +109,8 @@ static void send_response(
 static void send_event(
     const char *remote_app_id,
     const char *remote_port,
-    const char *event)
+    const char *event,
+    const char *detail)
 {
     bundle *message;
     int result;
@@ -123,6 +126,8 @@ static void send_event(
     bundle_add_str(message, "protocol", WMP_PROTOCOL);
     bundle_add_str(message, "type", "event");
     bundle_add_str(message, "event", event);
+    if (detail != NULL && detail[0] != '\0')
+        bundle_add_str(message, "detail", detail);
     result = message_port_send_trusted_message(remote_app_id, remote_port, message);
     bundle_free(message);
 
@@ -283,8 +288,14 @@ static void *session_worker(void *context)
     char diagnostic[2048];
     int result;
     int termination_code;
+    bool stop_requested;
     bool video_ready = false;
     struct timespec delay = { 0, 200000000L };
+
+    pthread_mutex_lock(&g_session_mutex);
+    while (!g_session_start_acknowledged)
+        pthread_cond_wait(&g_session_condition, &g_session_mutex);
+    pthread_mutex_unlock(&g_session_mutex);
 
     result = ml_engine_start_session_v2(
         request->host,
@@ -305,22 +316,39 @@ static void *session_worker(void *context)
 
     pthread_mutex_lock(&g_session_mutex);
     g_session_starting = false;
+    stop_requested = g_session_stop_requested;
+    g_session_stop_requested = false;
+    if (result != 0 || stop_requested)
+        g_session_stop_in_progress = true;
     pthread_cond_broadcast(&g_session_condition);
     pthread_mutex_unlock(&g_session_mutex);
 
-    if (result != 0) {
-        snprintf(response, sizeof(response),
-                 "{\"error\":\"engine_start_failed\",\"code\":%d}", result);
-        send_response(request->remote_app_id, request->remote_port,
-                      request->request_id, "error", response);
+    if (result != 0 || stop_requested) {
+        if (result == 0) {
+            ml_engine_stop();
+        } else {
+            ml_engine_stop();
+        }
+        pthread_mutex_lock(&g_session_mutex);
+        g_session_stop_in_progress = false;
+        pthread_cond_broadcast(&g_session_condition);
+        pthread_mutex_unlock(&g_session_mutex);
+
+        if (result != 0) {
+            snprintf(response, sizeof(response),
+                     "WMP engine start failed (code %d)", result);
+            snprintf(event, sizeof(event), "streamTerminated: -1");
+            send_event(request->remote_app_id, request->remote_port,
+                       event, response);
+        } else {
+            send_event(request->remote_app_id, request->remote_port,
+                       "streamTerminated: 0", NULL);
+        }
         goto finished;
     }
 
-    send_response(request->remote_app_id, request->remote_port,
-                  request->request_id, "ok",
-                  "{\"started\":true,\"running\":true}");
     send_event(request->remote_app_id, request->remote_port,
-               "Connection Established");
+               "Connection Established", NULL);
 
     /*
      * This monitor only forwards Common C's authoritative running state and
@@ -335,7 +363,7 @@ static void *session_worker(void *context)
             stats.submitted > 0) {
             video_ready = true;
             send_event(request->remote_app_id, request->remote_port,
-                       "displayVideo");
+                       "displayVideo", NULL);
         }
         nanosleep(&delay, NULL);
     }
@@ -358,11 +386,13 @@ static void *session_worker(void *context)
     pthread_mutex_unlock(&g_session_mutex);
 
     snprintf(event, sizeof(event), "streamTerminated: %d", termination_code);
-    send_event(request->remote_app_id, request->remote_port, event);
+    send_event(request->remote_app_id, request->remote_port, event, diagnostic);
 
 finished:
     pthread_mutex_lock(&g_session_mutex);
     g_session_starting = false;
+    g_session_start_acknowledged = false;
+    g_session_stop_requested = false;
     g_session_worker_active = false;
     pthread_cond_broadcast(&g_session_condition);
     pthread_mutex_unlock(&g_session_mutex);
@@ -419,6 +449,8 @@ static void handle_start_session(
 
     g_session_worker_active = true;
     g_session_starting = true;
+    g_session_start_acknowledged = false;
+    g_session_stop_requested = false;
     pthread_mutex_unlock(&g_session_mutex);
 
     if (pthread_create(&worker, NULL, session_worker, request) != 0) {
@@ -434,6 +466,12 @@ static void handle_start_session(
     }
 
     pthread_detach(worker);
+    send_response(remote_app_id, remote_port, request_id, "ok",
+                  "{\"accepted\":true}");
+    pthread_mutex_lock(&g_session_mutex);
+    g_session_start_acknowledged = true;
+    pthread_cond_broadcast(&g_session_condition);
+    pthread_mutex_unlock(&g_session_mutex);
 }
 
 static void handle_stop_session(
@@ -442,7 +480,14 @@ static void handle_stop_session(
     const char *request_id)
 {
     pthread_mutex_lock(&g_session_mutex);
-    if (g_session_starting || g_session_stop_in_progress) {
+    if (g_session_starting) {
+        g_session_stop_requested = true;
+        pthread_mutex_unlock(&g_session_mutex);
+        send_response(remote_app_id, remote_port, request_id, "ok",
+                      "{\"stopQueued\":true}");
+        return;
+    }
+    if (g_session_stop_in_progress) {
         pthread_mutex_unlock(&g_session_mutex);
         send_response(remote_app_id, remote_port, request_id,
                       "error", "{\"error\":\"engine_busy\"}");
