@@ -58,6 +58,37 @@ static void test_timestamp_conversion(void)
     assert(wmp_esplus_ns_to_ms(1000000000ull) == 1000);
 }
 
+static void test_stream_registration_results(void)
+{
+    wmp_esplus_call_result_t result;
+
+    /* SET uses the Tizen-style error convention: zero means success. */
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, 0);
+    assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+    assert(result.raw_status == 0);
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, -22);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE);
+    assert(result.raw_status == -22);
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, 5);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE);
+    assert(result.raw_status == 5);
+
+    /* Legacy ADD returns a C++ bool encoded as int: 1 true, 0 false. */
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_ADD, 1);
+    assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+    assert(result.raw_status == 1);
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_ADD, 0);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE);
+    assert(result.raw_status == 0);
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_ADD, 2);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED);
+    assert(result.raw_status == 2);
+
+    result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_NONE, 0);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED);
+    assert(result.raw_status == 0);
+}
+
 static void test_submit_results(void)
 {
     const wmp_esplus_family_e families[] = {
