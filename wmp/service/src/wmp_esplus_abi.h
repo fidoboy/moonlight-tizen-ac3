@@ -42,9 +42,10 @@ typedef struct {
     void *submit_packet;
     void *submit_eos_packet; /* optional */
 
-    /* ABI-generation discriminators and stream registration pairs. */
+    /* Display entry points: capabilities, not ABI-generation discriminators. */
     void *set_display_ecore_subsurface;
     void *set_ecore_display;
+    /* The complete SET or ADD pair selects the stream-registration ABI. */
     void *set_video_stream_info;
     void *set_audio_stream_info;
     void *add_video_stream_info;
