@@ -1044,6 +1044,19 @@ body[data-color-theme="black-orange"] #background-layer {
     padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
+#streamMenuDialog .stream-menu-group--keys {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 8px;
+}
+#streamMenuDialog .stream-menu-group__title {
+    margin: 0 0 10px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.35rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: left;
+}
 #streamMenuDialog .stream-menu-group button:last-child {
     margin-bottom: 0;
 }
@@ -1059,13 +1072,14 @@ body[data-color-theme="black-orange"] #background-layer {
     transition: background-color 120ms ease, box-shadow 120ms ease;
 }
 #streamMenuDialog .stream-menu-option--keys {
-    background-color: rgba(36, 95, 134, 0.558) !important;
+    background-color: rgba(36, 95, 134, 0.530) !important;
+    gap: 0;
 }
 #streamMenuDialog .stream-menu-option--stats {
-    background-color: rgba(98, 80, 143, 0.558) !important;
+    background-color: rgba(98, 80, 143, 0.530) !important;
 }
 #streamMenuDialog .stream-menu-option--disconnect {
-    background-color: rgba(179, 38, 30, 0.594) !important;
+    background-color: rgba(179, 38, 30, 0.564) !important;
 }
 #streamMenuDialog .stream-menu-option__icon {
     display: inline-block;
@@ -1085,18 +1099,18 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 #streamMenuDialog .stream-menu-option--keys.hovered,
 #streamMenuDialog .stream-menu-option--keys:focus {
-    background-color: rgba(49, 123, 169, 0.684) !important;
-    box-shadow: 0 0 0 3px rgba(74, 173, 230, 0.81);
+    background-color: rgba(49, 123, 169, 0.650) !important;
+    box-shadow: 0 0 0 3px rgba(74, 173, 230, 0.770);
 }
 #streamMenuDialog .stream-menu-option--stats.hovered,
 #streamMenuDialog .stream-menu-option--stats:focus {
-    background-color: rgba(121, 101, 173, 0.684) !important;
-    box-shadow: 0 0 0 3px rgba(177, 153, 235, 0.81);
+    background-color: rgba(121, 101, 173, 0.650) !important;
+    box-shadow: 0 0 0 3px rgba(177, 153, 235, 0.770);
 }
 #streamMenuDialog .stream-menu-option--disconnect.hovered,
 #streamMenuDialog .stream-menu-option--disconnect:focus {
-    background-color: rgba(211, 59, 50, 0.72) !important;
-    box-shadow: 0 0 0 3px rgba(255, 111, 102, 0.855);
+    background-color: rgba(211, 59, 50, 0.684) !important;
+    box-shadow: 0 0 0 3px rgba(255, 111, 102, 0.812);
 }
 .mdl-dialog__title {
     margin: 0;
