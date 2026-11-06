@@ -22,8 +22,8 @@ typedef struct {
     uint32_t mime_type;
     uint32_t width;
     uint32_t height;
-    uint32_t display_width;
-    uint32_t display_height;
+    uint32_t stride;
+    uint32_t slice_height;
     uint32_t frame_rate;
     uint32_t interlaced;
 } wmp_esplus_video_info_t;
