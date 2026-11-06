@@ -318,18 +318,18 @@ static wmp_esplus_call_result_t stream_local_error(wmp_esplus_call_status_e stat
     return result;
 }
 
-int wmp_esplus_adapter_set_video_info(
+wmp_esplus_call_result_t wmp_esplus_adapter_set_video_info(
     wmp_esplus_adapter_t *adapter, const wmp_esplus_video_info_t *info)
 {
     uint32_t mime;
     if (!adapter || !adapter->api || !adapter->player || !info ||
         wmp_esplus_map_video_mime(adapter->api->selected_family, info->mime_type, &mime) != 0)
-        return -1;
+        return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
 
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET) {
         set_video_info_t native_info;
         set_stream_fn fn = (set_stream_fn)adapter->api->set_video_stream_info;
-        if (!fn) return -1;
+        if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
         native_info.codec_data = info->codec_data;
         native_info.codec_data_length = info->codec_data_size;
         native_info.mime_type = mime;
@@ -339,12 +339,13 @@ int wmp_esplus_adapter_set_video_info(
         native_info.slice_height = info->slice_height;
         native_info.frame_rate = info->frame_rate;
         native_info.interlaced = info->interlaced;
-        return fn(adapter->player, &native_info);
+        return wmp_esplus_normalize_stream_result(
+            WMP_ESPLUS_FAMILY_SET, fn(adapter->player, &native_info));
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
         add_video_info_t native_info;
         add_stream_fn fn = (add_stream_fn)adapter->api->add_video_stream_info;
-        if (!fn) return -1;
+        if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
         native_info.codec_data = info->codec_data;
         native_info.codec_data_length = info->codec_data_size;
         native_info.mime_type = mime;
@@ -354,19 +355,20 @@ int wmp_esplus_adapter_set_video_info(
         native_info.max_height = info->max_height;
         native_info.framerate_num = info->frame_rate_num;
         native_info.framerate_den = info->frame_rate_den;
-        return fn(adapter->player, &native_info);
+        return wmp_esplus_normalize_stream_result(
+            WMP_ESPLUS_FAMILY_ADD, fn(adapter->player, &native_info));
     }
-    return -1;
+    return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
 }
 
-int wmp_esplus_adapter_set_audio_info(
+wmp_esplus_call_result_t wmp_esplus_adapter_set_audio_info(
     wmp_esplus_adapter_t *adapter, const wmp_esplus_audio_info_t *info)
 {
     uint32_t mime;
     native_audio_info_t native_info;
     if (!adapter || !adapter->api || !adapter->player || !info ||
         wmp_esplus_map_audio_mime(adapter->api->selected_family, info->mime_type, &mime) != 0)
-        return -1;
+        return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
 
     native_info.codec_data = info->codec_data;
     native_info.codec_data_length = info->codec_data_size;
@@ -377,13 +379,17 @@ int wmp_esplus_adapter_set_audio_info(
 
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET) {
         set_stream_fn fn = (set_stream_fn)adapter->api->set_audio_stream_info;
-        return fn ? fn(adapter->player, &native_info) : -1;
+        if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+        return wmp_esplus_normalize_stream_result(
+            WMP_ESPLUS_FAMILY_SET, fn(adapter->player, &native_info));
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
         add_stream_fn fn = (add_stream_fn)adapter->api->add_audio_stream_info;
-        return fn ? fn(adapter->player, &native_info) : -1;
+        if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+        return wmp_esplus_normalize_stream_result(
+            WMP_ESPLUS_FAMILY_ADD, fn(adapter->player, &native_info));
     }
-    return -1;
+    return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
 }
 
 uint64_t wmp_esplus_ns_to_ms(uint64_t ns) { return ns / 1000000ull; }
