@@ -68,18 +68,16 @@ stream/packet contract and keeps the native layouts separate:
   `SubmitStatus` enumeration.
 
 - Stream-registration return values are normalized separately from packet-submit
-  statuses. SET returns an integer Tizen-style status: `0` is success and
-  every nonzero value is a native failure, retained verbatim. Legacy ADD
-  returns a C++ `bool` encoded as `int`: `1` is success and `0` is failure.
-  Other ADD values remain unclassified rather than being accepted as success.
-  The neutral result also distinguishes local invalid arguments and missing
-  function pointers from native failures.
-
-The SET convention is corroborated by the Tizen 6 SET consumer in OmegaTube:
-its typed declarations use `int` for both stream registration calls, and its
-video registration path treats any nonzero return as failure. The ADD upstream
-TV50 header explicitly documents the older `int` returns as C++ bool
-(`1 = OK, 0 = fail`).
+  statuses. Legacy ADD returns a C++ `bool` encoded as `int`: `1` is success
+  and `0` is failure; other values remain unclassified. The ADD upstream TV50
+  header explicitly documents this convention.
+- SET declares an `int` return, but its success convention has not yet been
+  proven against the target library. The adapter therefore preserves the raw
+  value as `UNCLASSIFIED` instead of assuming that zero or nonzero means
+  success. The Tizen 6 OmegaTube consumer checks the video call as
+  `rc != 0`, but that consumer-side assumption is not sufficient ABI proof.
+- The neutral result distinguishes local invalid arguments and missing
+  function pointers from native results.
 
 The adapter objects are included by the native engine build script. The
 upstream renderer/audio call sites still need to be switched from their direct
