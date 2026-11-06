@@ -6396,7 +6396,7 @@ function streamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
-  Module._setGamepadInputBlocked(1);
+  Module._setStreamMenuInputBlocked(1);
   fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
@@ -6431,7 +6431,7 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
     if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
     closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
-    Module._setGamepadInputBlocked(0);
+    Module._setStreamMenuInputBlocked(0);
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
       videoElement.focus();
