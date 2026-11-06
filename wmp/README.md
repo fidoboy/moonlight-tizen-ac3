@@ -63,11 +63,26 @@ the executable's `DT_NEEDED` entries, including `libmlengine.so` and the
 Tizen ServiceApp/MessagePort libraries.
 
 This is a cross-link recipe, not a claim that the current checkout has been
-built against the user's extracted target libraries. The generated executable
-and library still need to be staged into the native ServiceApp project before
-the hybrid WGT is assembled and signed.
+built against the target TV libraries. The generated executable and library
+still need to be staged into the native ServiceApp project before the hybrid
+WGT is assembled and signed.
 
-## ESPlus ABI discovery and typed adapters
+## ESPlus runtime loading and typed ABI adapters
+
+The proprietary `libesplusplayer.so` is not a public SDK dependency and is
+not shipped in the WGT. The TV firmware provides it in its native library
+search path. `service/src/wmp_esplus_abi.c` opens it with
+`dlopen("libesplusplayer.so", RTLD_NOW | RTLD_LOCAL)` and resolves the
+required exports with `dlsym()`, following the same runtime-loading model
+used by [OmegaTube](https://github.com/IIyn/omegatube). The engine link must
+therefore never contain `-l:libesplusplayer.so`, and the resulting
+`libmlengine.so` must not have a `DT_NEEDED` entry for that library.
+
+The build still uses target TV link dependencies for Ecore/Wayland and the
+OpenSSL/cURL ABI expected by the imported engine. The manual build archive
+therefore contains those libraries under `usr/lib/`, but does not need
+`libesplusplayer.so`. At runtime, the TV's own firmware copy is loaded.
+The workflow verifies that the engine has no link-time ESPlus dependency.
 
 The ABI probe selects a generation only from a complete stream-registration pair:
 
@@ -79,7 +94,7 @@ Display exports are capabilities, not ABI discriminators. In particular,
 so it must not be used to identify the generation. If both complete stream
 pairs are exported, the probe rejects the library as ambiguous.
 
-`service/src/wmp_esplus_adapter.[ch]` now defines a semantic, ABI-neutral
+`service/src/wmp_esplus_adapter.[ch]` defines a semantic, ABI-neutral
 stream/packet contract and keeps the native layouts separate:
 
 - SET callbacks carry `userdata`; ADD callbacks use the legacy process-global
@@ -104,46 +119,22 @@ stream/packet contract and keeps the native layouts separate:
   `3 FULL/BACKPRESSURE`, `4 SUCCESS`. The ADD values are also explicit in
   the upstream TV50 header; the SET order is documented by Samsung's
   `SubmitStatus` enumeration.
-
 - Stream-registration return values are normalized separately from packet-submit
   statuses. Legacy ADD returns a C++ `bool` encoded as `int`: `1` is success
-  and `0` is failure; other values remain unclassified. The ADD upstream TV50
-  header explicitly documents this convention.
-- The SET implementation returns `0` when the underlying `SetStream`
-  operation succeeds, `-38` when it reports failure or is unavailable, and
-  `-22` for null arguments. This contract has been confirmed independently
-  in the extracted ELF64 x86-64 library and the ARM32 `libesplusplayer.so`
-  pulled from the Samsung AU7172 running Tizen 6. The adapter classifies
-  `0` as success, `-22`/`-38` as native failures, and preserves other values
-  as `UNCLASSIFIED`.
-- The neutral result distinguishes local invalid arguments and missing
-  function pointers from native results.
-- Lifecycle and display operations (create/open/prepare/start/stop/close,
-  Ecore display attachment and display mode) now use typed adapter entry
-  points. SET's observed zero-success / negative-error convention and ADD's
-  legacy bool convention are normalized independently. The SET lifecycle and
-  display return convention is confirmed by disassembly of the target TV's
-  ARM32 library; it is not extrapolated from stream-registration tests.
+  and `0` is failure; other values remain unclassified. The SET implementation
+  returns `0` on success, `-38` on native failure and `-22` for null
+  arguments, confirmed in the extracted x86-64 and target ARM32 libraries.
+- Lifecycle and display operations use typed adapter entry points. SET's
+  zero-success/negative-error convention and ADD's legacy bool convention are
+  normalized independently. The SET lifecycle/display convention is confirmed
+  by disassembly of the target TV's ARM32 library.
 - `get_playing_time` remains an optional ADD-only query because its SET
-  contract has not been established. The observational depth sampler and
-  nudge mode therefore run only when the selected ADD library exports it.
-- `esplus_player.c`, `video_esplus.c` and `audio_opus.c` now consume the
-  neutral contract. Their direct dependency on the excluded proprietary
-  `esplusplayer_tv50.h` has been removed.
+  contract has not been established.
+- `esplus_player.c`, `video_esplus.c` and `audio_opus.c` consume the neutral
+  contract; they do not include Samsung's proprietary player header.
 - The player-side stall watchdog and autonomous seek/IDR recovery have been
-  removed. Player errors and resource conflicts are recorded as observations;
-  Moonlight Common C remains the authority for session state and termination.
-  Frozen public statistics fields for recoveries remain present for ABI
-  compatibility but are no longer incremented by this player.
-- `tests/wmp_esplus_abi_test.sh` now also covers lifecycle result
-  normalization and mock calls through create/open/prepare/start/stop/close
-  and display attachment/mode for both families. The ADD playing-time query
-  is covered separately.
-
-The engine build no longer attempts to copy the excluded proprietary
-`esplusplayer_tv50.h`; the adapter sources are compiled from
-`wmp/service/src`. These source changes have not yet been compiled or run
-against the real Samsung library, and no TV validation is claimed.
+  removed. Moonlight Common C remains authoritative for session validity and
+  termination.
 
 ## Upstream engine source
 
@@ -153,22 +144,19 @@ The upstream .NET host, CLI entry point, UI package, Samsung proprietary ESPlus 
 
 ## Remaining integration work
 
-The native control path now reaches the public engine start/stop API, and a
-dedicated script defines the ServiceApp-to-`libmlengine.so` link. The following
-items remain unverified or incomplete:
+The native control path reaches the public engine start/stop API, and a
+dedicated script defines the ServiceApp-to-`libmlengine.so` link. Remaining
+items are unverified or incomplete:
 
 - Execute the engine and ServiceApp cross-builds against the actual Tizen
-  dependency/sysroot and TV libraries, then inspect the resulting ELF and
-  runtime dependencies.
+  dependency/sysroot and target TV link dependencies, then inspect the ELF.
 - Stage `bin/wmp-service` and `lib/libmlengine.so` in the native ServiceApp
   project and assemble/sign the hybrid WGT.
-- Validate service launch, Wayland/Ecore display access, SET/ADD playback and
-  session teardown on the TV.
-- Map the remaining WMP controls (manual H.264 level, audio encryption/
-  passthrough options, latency/audio processing preferences and gamepad input)
-  where the native engine exposes a supported API. The current start handoff
-  carries the negotiated session credentials, resolution/rate/bitrate,
-  codec/HDR/range and channel layout only.
+- Validate service launch, Wayland/Ecore display access, runtime loading of the
+  firmware's ESPlus library, SET/ADD playback and teardown on the TV.
+- Map remaining WMP controls (manual H.264 level, audio encryption/passthrough,
+  latency/audio processing preferences and gamepad input) where the engine
+  exposes a supported API.
 - Implement the separate AC-3/E-AC-3 passthrough path; the current imported
   WMP audio sink is Opus.
 
