@@ -13,7 +13,7 @@ typedef struct {
     int error_count, buffer_count, conflict_count, eos_count;
     int seek_count, ready_count, prepared_count;
     uint32_t error_value;
-    wmp_esplus_stream_e stream;
+    wmp_esplus_stream_e buffer_stream, ready_stream;
     wmp_esplus_buffer_status_e buffer_status;
     bool prepared;
     void *expected_context;
@@ -32,7 +32,7 @@ static void on_buffer(wmp_esplus_stream_e stream,
     callback_state_t *s = context;
     assert(s == s->expected_context);
     ++s->buffer_count;
-    s->stream = stream;
+    s->buffer_stream = stream;
     s->buffer_status = status;
 }
 static void on_conflict(void *context)
@@ -58,7 +58,7 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     callback_state_t *s = context;
     assert(s == s->expected_context);
     ++s->ready_count;
-    s->stream = stream;
+    s->ready_stream = stream;
 }
 static void on_prepared(bool success, void *context)
 {
@@ -91,7 +91,10 @@ int main(int argc, char **argv)
     assert(argc == 3);
     if (strcmp(argv[1], "set") == 0) family = WMP_ESPLUS_FAMILY_SET;
     else if (strcmp(argv[1], "add") == 0) family = WMP_ESPLUS_FAMILY_ADD;
-    else assert(!"expected set or add");
+    else {
+        fprintf(stderr, "expected set or add\n");
+        return 2;
+    }
 
     library = dlopen(argv[2], RTLD_NOW | RTLD_LOCAL);
     assert(library != NULL);
@@ -130,20 +133,21 @@ int main(int argc, char **argv)
     fire();
     assert(state.error_count == 1 && state.error_value == 0x12345678u);
     assert(state.buffer_count == 1);
-    assert(state.stream == WMP_ESPLUS_STREAM_VIDEO);
+    assert(state.buffer_stream == WMP_ESPLUS_STREAM_AUDIO);
     assert(state.buffer_status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN);
     assert(state.conflict_count == 1);
     assert(state.eos_count == 1);
     assert(state.seek_count == 1);
     assert(state.ready_count == 1);
+    assert(state.ready_stream == WMP_ESPLUS_STREAM_VIDEO);
     assert(state.prepared_count == 1 && state.prepared);
 
     fire_unknown();
     assert(state.buffer_count == 2);
-    assert(state.stream == WMP_ESPLUS_STREAM_UNKNOWN);
+    assert(state.buffer_stream == WMP_ESPLUS_STREAM_UNKNOWN);
     assert(state.buffer_status == WMP_ESPLUS_BUFFER_STATUS_UNKNOWN);
     assert(state.ready_count == 2);
-    assert(state.stream == WMP_ESPLUS_STREAM_UNKNOWN);
+    assert(state.ready_stream == WMP_ESPLUS_STREAM_UNKNOWN);
     assert(state.prepared_count == 2 && !state.prepared);
 
     wmp_esplus_adapter_unbind(&adapter);
