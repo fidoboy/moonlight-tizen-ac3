@@ -22,9 +22,9 @@ typedef struct {
     uint32_t mime_type;
     uint32_t width;
     uint32_t height;
-    uint32_t stride;
-    uint32_t frame_rate_num;
-    uint32_t frame_rate_den;
+    uint32_t display_width;
+    uint32_t display_height;
+    uint32_t frame_rate;
     uint32_t interlaced;
 } wmp_esplus_video_info_t;
 
@@ -32,9 +32,9 @@ typedef struct {
     const void *codec_data;
     uint32_t codec_data_size;
     uint32_t mime_type;
+    uint32_t bitrate;
     uint32_t channels;
     uint32_t sample_rate;
-    uint32_t reserved;
 } wmp_esplus_audio_info_t;
 
 /* Neutral packet timebase is nanoseconds. Each ABI gets its own native layout. */
