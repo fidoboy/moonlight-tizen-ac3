@@ -32,8 +32,9 @@ EOF
 
 cc -std=c99 -Wall -Wextra -Werror -fsyntax-only \
   -I"$TMP/include" \
-  -I"$ROOT/native/wmp-service/src" \
-  "$ROOT/native/wmp-service/src/main.c" \
-  "$ROOT/native/wmp-service/src/wmp_esplus_abi.c"
+  -I"$ROOT/service/src" \
+  "$ROOT/service/src/main.c" \
+  "$ROOT/service/src/wmp_esplus_abi.c" \
+  "$ROOT/service/src/wmp_esplus_adapter.c"
 
 echo "WMP native service C syntax check passed."
