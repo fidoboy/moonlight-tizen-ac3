@@ -68,6 +68,34 @@ jobs:
           file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
           file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
 
+      - name: Download TV libraries for the hybrid ServiceApp link
+        shell: bash
+        env:
+          TV_LIBS_ARCHIVE_URL: ${{ inputs.tv_libs_archive_url }}
+          TV_LIBS_ARCHIVE_SHA256: ${{ inputs.tv_libs_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          case "$TV_LIBS_ARCHIVE_URL" in
+            https://*) ;;
+            *) echo "::error::tv_libs_archive_url must use HTTPS."; exit 1 ;;
+          esac
+          archive="$RUNNER_TEMP/tizen-tv-libs.tar"
+          curl --fail --show-error --location --retry 3 --proto '=https' --tlsv1.2 "$TV_LIBS_ARCHIVE_URL" -o "$archive"
+          if [[ -n "$TV_LIBS_ARCHIVE_SHA256" ]]; then
+            echo "$TV_LIBS_ARCHIVE_SHA256  $archive" | sha256sum --check -
+          fi
+          mkdir -p "$RUNNER_TEMP/tv-libs"
+          tar -tf "$archive" >/dev/null
+          tar -xf "$archive" -C "$RUNNER_TEMP/tv-libs"
+          TV_LIBS_DIR="$RUNNER_TEMP/tv-libs/usr/lib"
+          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
+            test -e "$TV_LIBS_DIR/$lib" || {
+              echo "::error::Missing target TV link dependency: usr/lib/$lib" >&2
+              exit 1
+            }
+          done
+          echo "TV_LIBS_DIR=$TV_LIBS_DIR" >> "$GITHUB_ENV"
+
       - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
@@ -271,7 +299,7 @@ jobs:
           tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
           PY
 
-          cat > "$service_project/project_def.prop" <<'PROP'
+          cat > "$service_project/project_def.prop" <<PROP
           APPNAME = wmp-service
 
           type = app
@@ -282,7 +310,7 @@ jobs:
           USER_INC_DIRS = src
           USER_OBJS =
           USER_LIBS = appcore-agent dlog message-port bundle dl pthread mlengine
-          USER_LFLAGS = -Wl,--no-undefined
+          USER_LFLAGS = -Wl,--no-undefined -Wl,-rpath-link,$TV_LIBS_DIR -L$TV_LIBS_DIR
           USER_EDCS =
           PROP
 
