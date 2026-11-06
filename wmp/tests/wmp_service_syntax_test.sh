@@ -25,8 +25,28 @@ EOF
 cat > "$TMP/include/mlengine.h" <<'EOF'
 #ifndef TEST_MLENGINE_H
 #define TEST_MLENGINE_H
+#include <stdint.h>
+typedef struct ml_engine_stats {
+    int32_t struct_size;
+    int32_t running;
+    int32_t depth_ms;
+    int32_t audio_depth_ms;
+    uint32_t playing_ms;
+    uint32_t submitted, dropped_late, dropped_full;
+    uint32_t fps_submitted;
+    uint32_t underruns, overruns;
+    uint32_t errors, last_error;
+    uint32_t recoveries;
+    int32_t recovery_state;
+} ml_engine_stats;
 int ml_engine_running(void);
+void ml_engine_wait(void);
 void ml_engine_stop(void);
+int ml_engine_start_session_v2(const char *, int, int, int, int, const char *,
+                                int, const char *, const char *, const char *,
+                                int, const char *, int, const char *, int);
+int ml_engine_get_stats(ml_engine_stats *);
+int ml_engine_last_error(char *, int);
 #endif
 EOF
 
