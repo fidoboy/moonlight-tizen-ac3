@@ -1,3 +1,4 @@
 ## Highlights
 
-- **Premature stream disconnection:** Removed the first-frame startup watchdog that could terminate an established streaming session when the HTML video element's `playing` event was not received within the fixed time limit, even if video was already being displayed. The connection watchdog remains in place to detect failures before the host establishes the streaming connection.
+- **Additional streaming keyboard shortcuts:** Added `CTRL + SHIFT + ESC` and `WIN + D` shortcuts to send these key combinations to the host from the streaming menu.
+- **Streaming menu improvements:** Organized menu actions into distinct visual groups and arranged the keyboard shortcuts in a compact two-column layout, with spatial navigation across all four directions.
