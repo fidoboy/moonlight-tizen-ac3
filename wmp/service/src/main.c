@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "mlengine.h"
 #include "wmp_esplus_abi.h"
 
 #define LOG_TAG "MoonlightWmp"
@@ -16,6 +17,7 @@
 static wmp_esplus_api_t g_esplus;
 static wmp_esplus_probe_result_e g_esplus_probe_result = WMP_ESPLUS_PROBE_LIBRARY_MISSING;
 static int g_control_port_id = -1;
+static bool g_service_ready;
 
 static void send_response(
     const char *remote_app_id,
@@ -65,7 +67,8 @@ static void message_port_received(
     char *request_id = NULL;
     char *command = NULL;
     char *payload = NULL;
-    char response_payload[256];
+    char response_payload[384];
+    int engine_running;
 
     (void)local_port_id;
     (void)user_data;
@@ -90,36 +93,56 @@ static void message_port_received(
 
     if (protocol == NULL || strcmp(protocol, WMP_PROTOCOL) != 0) {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\"error\":\"unsupported_protocol\"}");
+                      "error", "{\\"error\\":\\"unsupported_protocol\\"}");
         return;
     }
 
     if (request_id == NULL || request_id[0] == '\0' ||
         command == NULL || command[0] == '\0') {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\"error\":\"invalid_request\"}");
+                      "error", "{\\"error\\":\\"invalid_request\\"}");
         return;
     }
 
     /* MessagePort is a control channel, not a media-packet transport. */
     if (payload != NULL && strlen(payload) > 2048) {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\"error\":\"payload_too_large\"}");
+                      "error", "{\\"error\\":\\"payload_too_large\\"}");
         return;
     }
 
     if (strcmp(command, "ping") == 0) {
         snprintf(response_payload, sizeof(response_payload),
-                 "{\"pong\":true,\"service\":\"ready\"}");
+                 "{\\"pong\\":true,\\"service\\":\\"ready\\"}");
     } else if (strcmp(command, "get_status") == 0 ||
                strcmp(command, "probe_esplus") == 0) {
+        engine_running = g_service_ready ? ml_engine_running() : 0;
         snprintf(response_payload, sizeof(response_payload),
-                 "{\"service\":\"ready\",\"esplus\":\"%s\",\"streamApi\":\"%s\"}",
+                 "{\\"service\\":\\"%s\\",\\"engine\\":\\"%s\\","
+                 "\\"running\\":%s,\\"esplus\\":\\"%s\\","
+                 "\\"streamApi\\":\\"%s\\"}",
+                 g_service_ready ? "ready" : "stopping",
+                 g_service_ready ? "libmlengine" : "unavailable",
+                 engine_running ? "true" : "false",
                  wmp_esplus_probe_result_name(g_esplus_probe_result),
                  wmp_esplus_family_name(g_esplus.selected_family));
+    } else if (strcmp(command, "stop_session") == 0) {
+        if (!g_service_ready) {
+            send_response(remote_app_id, remote_port, request_id,
+                          "error", "{\\"error\\":\\"service_not_ready\\"}");
+            return;
+        }
+        /*
+         * Session state and teardown remain owned by Moonlight Common C
+         * through libmlengine. The ServiceApp only forwards the stop request.
+         */
+        ml_engine_stop();
+        snprintf(response_payload, sizeof(response_payload),
+                 "{\\"stopped\\":true,\\"running\\":%s}",
+                 ml_engine_running() ? "true" : "false");
     } else {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\"error\":\"unsupported_command\"}");
+                      "error", "{\\"error\\":\\"unsupported_command\\"}");
         dlog_print(DLOG_WARN, LOG_TAG, "Unsupported WMP command: %s", command);
         return;
     }
@@ -148,18 +171,25 @@ static bool service_create(void *data)
     g_esplus_probe_result = wmp_esplus_probe(
         &g_esplus, report, sizeof(report));
 
+    /*
+     * libmlengine is linked into the native ServiceApp executable. It has no
+     * separate global initializer: its session state is initialized by the
+     * engine's start entry point and is quiescent until a session is started.
+     */
+    g_service_ready = true;
+
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service started");
     dlog_print(DLOG_INFO, LOG_TAG, "WMP control port registered: %s",
                WMP_CONTROL_PORT);
+    dlog_print(DLOG_INFO, LOG_TAG, "WMP engine linked: libmlengine");
     dlog_print(DLOG_INFO, LOG_TAG, "ESPlus probe state=%s family=%s",
                wmp_esplus_probe_result_name(g_esplus_probe_result),
                wmp_esplus_family_name(g_esplus.selected_family));
     dlog_print(DLOG_INFO, LOG_TAG, "%s", report);
 
     /*
-     * The control service remains available even if ESPlus is absent or its
-     * exports are incomplete. The UI receives that state without changing
-     * the independently selected EMSS/WMP engine.
+     * Keep the control service available when ESPlus is absent/incomplete.
+     * Engine selection remains independent; no EMSS fallback is performed.
      */
     return true;
 }
@@ -174,12 +204,18 @@ static void service_control(app_control_h app_control, void *data)
 static void service_terminate(void *data)
 {
     (void)data;
+    g_service_ready = false;
 
     if (g_control_port_id >= 0) {
         message_port_unregister_trusted_local_port(g_control_port_id);
         g_control_port_id = -1;
     }
 
+    /*
+     * Stop before releasing the service's ESPlus probe handle. LiStopConnection
+     * tears down the engine-owned player, renderers and display overlay.
+     */
+    ml_engine_stop();
     wmp_esplus_close(&g_esplus);
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service terminated");
 }
