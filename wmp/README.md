@@ -47,10 +47,10 @@ ServiceApp executable against it and the Tizen ServiceApp/MessagePort libraries:
 # backport-dependency and native dependency build scripts.
 MLT="$PWD" DEPS=/path/to/tizen-deps \
   BPD=/path/to/backport-deps DEPSBUILD=/path/to/deps-build \
-  OUT="$PWD/engine-build" wmp/upstream/mlclient/build-engine-so.sh
+  OUT="$PWD/engine-build" bash wmp/upstream/mlclient/build-engine-so.sh
 
 DEPS=/path/to/tizen-deps \
-  wmp/service/build-wmp-service.sh
+  bash wmp/service/build-wmp-service.sh
 ```
 
 The service build expects `engine-build/libmlengine.so` by default. Override
