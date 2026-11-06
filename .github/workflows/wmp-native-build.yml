@@ -41,7 +41,139 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
           python3.8 --version
-          ldconfig -p | grep -F 'libpython3.8.so'
+          python_lib="$(dpkg -L libpython3.8 | grep -E '/libpython3\\.8\\.so(\\.[0-9]+)*
+      - name: Install Tizen IoT Headed 6.0 native libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          "$pm" install --accept-license --no-java-check "NativeCLI,IOT-Headed-6.0-NativeAppDevelopment-CLI"
+
+          rootstrap="$(find "$sdk/platforms" -type d -name 'iot-headed-6.0-device.core' -print -quit)"
+          test -n "$rootstrap"
+          source_libs="$rootstrap/usr/lib"
+          test -d "$source_libs"
+          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
+            if [[ ! -e "$source_libs/$lib" ]]; then
+              echo "::error::IoT Headed 6.0 rootstrap is missing usr/lib/$lib" >&2
+              exit 1
+            fi
+          done
+
+          mkdir -p "$GITHUB_WORKSPACE/wmp-tv-libs/usr"
+          cp -a "$source_libs" "$GITHUB_WORKSPACE/wmp-tv-libs/usr/"
+          echo "Tizen IoT Headed 6.0 target libraries staged from: $source_libs"
+          du -sh "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib"
+
+      - name: Prepare workspace paths
+        shell: bash
+        run: |
+          echo "MLT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          echo "DEPS=$GITHUB_WORKSPACE/tizen-deps" >> "$GITHUB_ENV"
+          echo "BPD=$GITHUB_WORKSPACE/backport-deps" >> "$GITHUB_ENV"
+          echo "DEPSBUILD=$GITHUB_WORKSPACE/deps-build" >> "$GITHUB_ENV"
+          echo "ENGINE_OUT=$GITHUB_WORKSPACE/engine-build" >> "$GITHUB_ENV"
+
+      - name: Fetch Tizen 5.0 ARM toolchain and sysroot
+        shell: bash
+        run: |
+          bash wmp/upstream/build/fetch-tizen-sources.sh "$DEPS"
+
+      - name: Normalize cross-toolchain executable paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_root="$DEPS/toolchain"
+          gcc="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-gcc' -perm -u+x -print -quit)"
+          objdump="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-objdump' -perm -u+x -print -quit)"
+          ar="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ar' -perm -u+x -print -quit)"
+          if [[ -z "$gcc" || -z "$objdump" || -z "$ar" ]]; then
+            echo "::error::The downloaded Tizen archive does not contain the expected ARM GCC/binutils executables."
+            find "$tool_root" -maxdepth 7 -type f | head -200
+            exit 1
+          fi
+          expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
+          mkdir -p "$expected"
+          ln -sf "$gcc" "$expected/arm-linux-gnueabi-gcc"
+          ln -sf "$objdump" "$expected/arm-linux-gnueabi-objdump"
+          ln -sf "$ar" "$expected/arm-linux-gnueabi-ar"
+          "$expected/arm-linux-gnueabi-gcc" --version
+          "$expected/arm-linux-gnueabi-objdump" --version | head -1
+
+      - name: Attach SDK libraries to the native cross-link sysroot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$DEPS/tv-libs/usr"
+          ln -s "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib" "$DEPS/tv-libs/usr/lib"
+          test -d "$DEPS/tv-libs/usr/lib"
+          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
+            test -e "$DEPS/tv-libs/usr/lib/$lib"
+          done
+
+      - name: Fetch backport source dependencies
+        run: bash wmp/upstream/build/fetch-backport-deps.sh
+
+      - name: Build Moonlight core, GameStream and crypto dependencies
+        run: bash wmp/upstream/build/build-deps-lib.sh
+
+      - name: Build libmlengine.so
+        env:
+          BUILD_VARIANT: release
+        run: bash wmp/upstream/mlclient/build-engine-so.sh
+
+      - name: Link native WMP ServiceApp
+        run: bash wmp/service/build-wmp-service.sh
+
+      - name: Verify final ARM ELF files and runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-report
+          readelf -h "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-elf-header.txt
+          readelf -d "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-dynamic.txt
+          readelf -h wmp/build/service/bin/wmp-service > build-report/wmp-service-elf-header.txt
+          readelf -d wmp/build/service/bin/wmp-service > build-report/wmp-service-dynamic.txt
+          file "$ENGINE_OUT/libmlengine.so" wmp/build/service/bin/wmp-service | tee build-report/file.txt
+          grep -q 'Machine:.*ARM' build-report/libmlengine-elf-header.txt
+          grep -q 'Machine:.*ARM' build-report/wmp-service-elf-header.txt
+          grep -q 'Shared library: \[libmlengine.so\]' build-report/wmp-service-dynamic.txt
+          grep -q 'Library runpath: \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
+          if grep -q 'NEEDED.*libesplusplayer' build-report/libmlengine-dynamic.txt; then
+            echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED."
+            exit 1
+          fi
+          echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH. ESPlus is runtime-loaded."
+
+      - name: Upload native build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmp-native-arm
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            engine-build/libmlengine.so
+            wmp/build/service/bin/wmp-service
+            wmp/build/service/lib/libmlengine.so
+            build-report/
+            wmp-tv-libs/
+ | head -n 1)"
+          if [[ -z "$python_lib" || ! -r "$python_lib" ]]; then
+            echo "::error::The libpython3.8 shared object was not installed by the package."
+            dpkg -L libpython3.8 || true
+            exit 1
+          fi
+          sudo ldconfig
+          echo "Python 3.8 shared library: $python_lib"
+          ldconfig -p | grep -E 'libpython3\\.8\\.so(\\.|$)' || true
 
       - name: Install Tizen IoT Headed 6.0 native libraries
         shell: bash
