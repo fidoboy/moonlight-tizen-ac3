@@ -34,7 +34,7 @@ const remotePort = {
         ? {accepted: true}
         : request.command === 'stop_session'
           ? {stopped: true}
-          : {service: 'ready', esplus: 'symbols_detected', streamApi: 'set'};
+          : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
     Promise.resolve().then(() => {
       messageListener([
         {key: 'protocol', value: request.protocol},
@@ -98,6 +98,7 @@ vm.runInNewContext(source, {
 
   const status = await window.WmpTransport.getStatus();
   assert.strictEqual(status.payload.service, 'ready');
+  assert.strictEqual(status.payload.libraryLoaded, true);
   assert.strictEqual(status.payload.esplus, 'symbols_detected');
   assert.strictEqual(status.payload.streamApi, 'set');
 
