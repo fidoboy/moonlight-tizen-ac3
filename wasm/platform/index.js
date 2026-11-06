@@ -3898,6 +3898,10 @@ function handleSettingsView(category) {
     return;
   }
 
+  if (category === 'basicSettings' && isWmpEngineSelected()) {
+    refreshWmpEsplusStatus();
+  }
+
   // Navigate to the corresponding settings view
   switch (category) {
     case 'basicSettings': // Navigate to the BasicSettings view
@@ -6726,6 +6730,7 @@ function saveStreamingEngine() {
     .attr('data-value', chosenEngine).data('value', chosenEngine);
   storeData('streamingEngine', chosenEngine, null);
   updateStreamingEngineSettings();
+  if (chosenEngine === 'WMP') refreshWmpEsplusStatus();
 }
 
 function isWmpEngineSelected() {
@@ -6738,6 +6743,63 @@ function updateStreamingEngineSettings() {
   var wmpSelected = isWmpEngineSelected();
   $('#audioBackendOption').toggle(!wmpSelected);
   $('#wmpAudioOption').toggle(wmpSelected);
+  $('#wmpEsplusStatus').toggle(wmpSelected);
+}
+
+function setWmpEsplusStatus(message, state) {
+  var status = document.getElementById('wmpEsplusStatus');
+  var messageElement = document.getElementById('wmpEsplusStatusMessage');
+  if (!status || !messageElement) return;
+
+  messageElement.textContent = message;
+  status.classList.remove('is-loading', 'is-ok', 'is-warning', 'is-error');
+  if (state) status.classList.add(state);
+}
+
+function refreshWmpEsplusStatus() {
+  if (!isWmpEngineSelected()) return;
+
+  setWmpEsplusStatus(t('Checking the ESPlus library...'), 'is-loading');
+
+  if (!window.WmpTransport || typeof window.WmpTransport.getStatus !== 'function') {
+    setWmpEsplusStatus(t('ESPlus status unavailable'), 'is-error');
+    return;
+  }
+
+  window.WmpTransport.getStatus().then(function(response) {
+    // Ignore a late response if the user changed the selected streaming engine.
+    if (!isWmpEngineSelected()) return;
+
+    var payload = response && response.payload ? response.payload : {};
+    if (payload.service !== 'ready') {
+      setWmpEsplusStatus(t('ESPlus status unavailable'), 'is-error');
+      return;
+    }
+
+    if (payload.libraryLoaded !== true || payload.esplus === 'library_missing') {
+      setWmpEsplusStatus(t('ESPlus library not found on this TV'), 'is-error');
+    } else if (payload.esplus === 'symbols_detected' &&
+               (payload.streamApi === 'set' || payload.streamApi === 'add')) {
+      var family = payload.streamApi === 'set' ? 'SET' : 'ADD';
+      setWmpEsplusStatus(
+        t('ESPlus library loaded') + '. ' +
+        t(family + ' API symbols detected (ABI not validated)') + '.',
+        'is-ok'
+      );
+    } else if (payload.esplus === 'core_symbols_incomplete') {
+      setWmpEsplusStatus(t('ESPlus library loaded, but required core symbols are missing'), 'is-warning');
+    } else if (payload.esplus === 'stream_api_missing') {
+      setWmpEsplusStatus(t('ESPlus library loaded, but no complete SET or ADD stream API was found'), 'is-warning');
+    } else if (payload.esplus === 'abi_ambiguous') {
+      setWmpEsplusStatus(t('Both ESPlus stream APIs detected; selection is ambiguous'), 'is-warning');
+    } else {
+      setWmpEsplusStatus(t('ESPlus status unavailable'), 'is-error');
+    }
+  }).catch(function(error) {
+    if (!isWmpEngineSelected()) return;
+    console.warn('%c[index.js, refreshWmpEsplusStatus]', 'color: orange;', 'Could not read native ESPlus status:', error);
+    setWmpEsplusStatus(t('ESPlus status unavailable'), 'is-error');
+  });
 }
 
 function saveWmpAudioPreference() {
