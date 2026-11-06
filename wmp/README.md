@@ -15,7 +15,7 @@ It is not a standalone TPK and must not be published or installed separately.
 
 ## Current service control transport
 
-The service registers the trusted native MessagePort `MoonlightWmpControl`.
+The service registers the trusted native MessagePort `MoonlightWmpControl` and links against the engine's public `mlengine.h` ABI. Its status response reports `libmlengine` availability and the live `ml_engine_running()` state. `stop_session` forwards teardown to `ml_engine_stop()`; ServiceApp termination also stops the engine before releasing the service's independent ESPlus probe handle.
 The web application opens the trusted reply port `MoonlightWmpReply`,
 launches the native service explicitly, and sends request/reply messages over
 the bidirectional Tizen MessagePort API.
