@@ -1,0 +1,165 @@
+name: WMP native ARM build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tv_libs_archive_url:
+        description: "HTTPS URL of a tar archive containing the target TV's usr/lib/* libraries"
+        required: true
+        type: string
+      tv_libs_archive_sha256:
+        description: "Optional SHA-256 checksum of the archive"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wmp-native-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Cross-build Tizen ARM engine and ServiceApp
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out wmp_mode and submodules
+        uses: actions/checkout@v4
+        with:
+          ref: wmp_mode
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl git unzip libarchive-tools file binutils \
+            ca-certificates python3
+
+      - name: Prepare workspace paths
+        shell: bash
+        run: |
+          echo "MLT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          echo "DEPS=$GITHUB_WORKSPACE/tizen-deps" >> "$GITHUB_ENV"
+          echo "BPD=$GITHUB_WORKSPACE/backport-deps" >> "$GITHUB_ENV"
+          echo "DEPSBUILD=$GITHUB_WORKSPACE/deps-build" >> "$GITHUB_ENV"
+          echo "ENGINE_OUT=$GITHUB_WORKSPACE/engine-build" >> "$GITHUB_ENV"
+
+      - name: Fetch Tizen 5.0 ARM toolchain and sysroot
+        shell: bash
+        run: |
+          bash wmp/upstream/build/fetch-tizen-sources.sh "$DEPS"
+
+      - name: Normalize cross-toolchain executable paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_root="$DEPS/toolchain"
+          gcc="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-gcc' -perm -u+x -print -quit)"
+          objdump="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-objdump' -perm -u+x -print -quit)"
+          ar="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ar' -perm -u+x -print -quit)"
+          if [[ -z "$gcc" || -z "$objdump" || -z "$ar" ]]; then
+            echo "::error::The downloaded Tizen archive does not contain the expected ARM GCC/binutils executables."
+            find "$tool_root" -maxdepth 7 -type f | head -200
+            exit 1
+          fi
+          expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
+          mkdir -p "$expected"
+          ln -sf "$gcc" "$expected/arm-linux-gnueabi-gcc"
+          ln -sf "$objdump" "$expected/arm-linux-gnueabi-objdump"
+          ln -sf "$ar" "$expected/arm-linux-gnueabi-ar"
+          "$expected/arm-linux-gnueabi-gcc" --version
+          "$expected/arm-linux-gnueabi-objdump" --version | head -1
+
+      - name: Download target TV libraries
+        shell: bash
+        env:
+          TV_LIBS_ARCHIVE_URL: ${{ inputs.tv_libs_archive_url }}
+          TV_LIBS_ARCHIVE_SHA256: ${{ inputs.tv_libs_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          case "$TV_LIBS_ARCHIVE_URL" in
+            https://*) ;;
+            *) echo "::error::tv_libs_archive_url must use HTTPS."; exit 1 ;;
+          esac
+          archive="$RUNNER_TEMP/tizen-tv-libs.tar"
+          curl --fail --show-error --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            "$TV_LIBS_ARCHIVE_URL" -o "$archive"
+          if [[ -n "$TV_LIBS_ARCHIVE_SHA256" ]]; then
+            echo "$TV_LIBS_ARCHIVE_SHA256  $archive" | sha256sum --check -
+          fi
+          mkdir -p "$DEPS/tv-libs"
+          tar -tf "$archive" >/dev/null
+          tar -xf "$archive" -C "$DEPS/tv-libs"
+          if [[ ! -d "$DEPS/tv-libs/usr/lib" ]]; then
+            echo "::error::Archive must contain usr/lib/ with the TV's native shared libraries."
+            find "$DEPS/tv-libs" -maxdepth 3 -type d -print
+            exit 1
+          fi
+          for lib in libesplusplayer.so libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
+            if [[ ! -e "$DEPS/tv-libs/usr/lib/$lib" ]]; then
+              echo "::error::Missing target library: usr/lib/$lib"
+              exit 1
+            fi
+          done
+
+      - name: Fetch backport source dependencies
+        run: bash wmp/upstream/build/fetch-backport-deps.sh
+
+      - name: Build Moonlight core, GameStream and crypto dependencies
+        env:
+          MLT: ${{ env.MLT }}
+          DEPS: ${{ env.DEPS }}
+          BPD: ${{ env.BPD }}
+          OUT: ${{ env.DEPSBUILD }}
+        run: bash wmp/upstream/build/build-deps-lib.sh
+
+      - name: Build libmlengine.so
+        env:
+          MLT: ${{ env.MLT }}
+          DEPS: ${{ env.DEPS }}
+          BPD: ${{ env.BPD }}
+          DEPSBUILD: ${{ env.DEPSBUILD }}
+          OUT: ${{ env.ENGINE_OUT }}
+          BUILD_VARIANT: release
+        run: bash wmp/upstream/mlclient/build-engine-so.sh
+
+      - name: Link native WMP ServiceApp
+        env:
+          DEPS: ${{ env.DEPS }}
+          ENGINE_SO: ${{ env.ENGINE_OUT }}/libmlengine.so
+          SERVICE_OUT: ${{ github.workspace }}/wmp/build/service
+        run: bash wmp/service/build-wmp-service.sh
+
+      - name: Verify final ARM ELF files and runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-report
+          readelf -h "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-elf-header.txt
+          readelf -d "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-dynamic.txt
+          readelf -h wmp/build/service/bin/wmp-service > build-report/wmp-service-elf-header.txt
+          readelf -d wmp/build/service/bin/wmp-service > build-report/wmp-service-dynamic.txt
+          file "$ENGINE_OUT/libmlengine.so" wmp/build/service/bin/wmp-service | tee build-report/file.txt
+          grep -q 'Machine:.*ARM' build-report/libmlengine-elf-header.txt
+          grep -q 'Machine:.*ARM' build-report/wmp-service-elf-header.txt
+          grep -q 'Shared library: \[libmlengine.so\]' build-report/wmp-service-dynamic.txt
+          grep -q 'Library runpath: \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
+          echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH."
+
+      - name: Upload native build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmp-native-arm-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            engine-build/libmlengine.so
+            wmp/build/service/bin/wmp-service
+            wmp/build/service/lib/libmlengine.so
+            build-report/
