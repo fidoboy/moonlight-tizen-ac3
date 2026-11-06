@@ -80,6 +80,10 @@ stream/packet contract and keeps the native layouts separate:
   as `UNCLASSIFIED`.
 - The neutral result distinguishes local invalid arguments and missing
   function pointers from native results.
+- `tests/wmp_esplus_abi_test.sh` now builds separate mock shared libraries
+  for SET and ADD callback signatures. It invokes every registered callback
+  through each mock, checks userdata/context forwarding and enum translation,
+  and verifies that the ADD singleton rejects a second simultaneous adapter.
 
 The adapter objects are included by the native engine build script. The
 upstream renderer/audio call sites still need to be switched from their direct
