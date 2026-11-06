@@ -22,21 +22,27 @@ This is an upstream source import, not yet the final WGT-integrated service buil
 ## ESPlus compatibility boundary
 
 The upstream player source currently targets the legacy ADD API. Project-owned
-typed adapters now live in `../service/src/wmp_esplus_adapter.[ch]` and are
+typed adapters live in `../service/src/wmp_esplus_adapter.[ch]` and are
 compiled into the engine by `mlclient/build-engine-so.sh`.
 
-The adapters keep SET and ADD callback signatures, stream registration and
-packet layouts separate. SET callbacks use userdata and SET packet timestamps
-are converted from the neutral nanosecond timebase to milliseconds. ADD
-callbacks use the legacy process-global singleton and ADD packet timestamps
-remain nanoseconds. ADD submit success value 4 is recognized; other native
-submit result values remain raw until verified. The SET submit enum likewise
-remains raw pending target confirmation.
+The neutral stream contract maps each family into its own native structure.
+SET video fields are stride/slice-height/integer-frame-rate/interlaced; ADD
+video fields are max-width/max-height/rational-frame-rate. Audio fields are
+copied field-by-field. Semantic MIME mapping accounts for the SET video enum
+starting at H263=0, and for ADD's DTS=7/OPUS=8 versus SET's OPUS=7/no-DTS
+ordering.
 
-The imported `esplus_player.c`, `video_esplus.c` and `audio_opus.c` have not
-yet been migrated to call these adapters; therefore dual-family playback is
-not yet integrated. Do not treat inclusion of the adapter objects in the build
-script as evidence that the engine selects and uses both families at runtime.
+SET callbacks carry userdata; ADD callbacks have no userdata and use the
+legacy process-global adapter singleton. Both packet layouts are constructed
+independently: SET timestamps are milliseconds in the expanded packet, while
+ADD timestamps remain nanoseconds in the compact packet. Submit outcomes
+0 through 4 are normalized while retaining the raw result.
+
+The imported `esplus_player.c`, `video_esplus.c` and `audio_opus.c` have
+not yet been migrated to call these adapters; therefore dual-family playback
+is not yet integrated. Do not treat inclusion of the adapter objects in the
+build script as evidence that the engine selects and uses both families at
+runtime.
 
 ## Porting constraints
 
