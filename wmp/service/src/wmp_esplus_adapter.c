@@ -234,9 +234,20 @@ int wmp_esplus_adapter_set_audio_info(
     return -1;
 }
 
-static uint64_t ns_to_ms(uint64_t ns)
+uint64_t wmp_esplus_ns_to_ms(uint64_t ns)
 {
     return ns / 1000000ull;
+}
+
+wmp_esplus_submit_result_t wmp_esplus_normalize_submit_result(
+    wmp_esplus_family_e family, int raw_status)
+{
+    wmp_esplus_submit_result_t result;
+    result.raw_status = raw_status;
+    result.status = WMP_ESPLUS_SUBMIT_UNCLASSIFIED;
+    if (family == WMP_ESPLUS_FAMILY_ADD && raw_status == 4)
+        result.status = WMP_ESPLUS_SUBMIT_SUCCESS;
+    return result;
 }
 
 wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
@@ -261,17 +272,15 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.type = (uint32_t)packet->type;
         native_packet.buffer = packet->data;
         native_packet.buffer_size = packet->size;
-        native_packet.pts_ms = ns_to_ms(packet->pts_ns);
-        native_packet.duration_ms = ns_to_ms(packet->duration_ns);
+        native_packet.pts_ms = wmp_esplus_ns_to_ms(packet->pts_ns);
+        native_packet.duration_ms = wmp_esplus_ns_to_ms(packet->duration_ns);
         native_packet.matroska_color_info = packet->matroska_color_info;
         native_packet.hdr10p_metadata_size = packet->hdr_metadata_size;
         native_packet.hdr10p_metadata = packet->hdr_metadata;
         result.raw_status = fn(adapter->player, &native_packet);
-        /*
-         * SET submit_status enumerator values have not yet been verified from
-         * the target header/binary. Preserve the raw enum; do not guess.
-         */
-        result.status = WMP_ESPLUS_SUBMIT_UNCLASSIFIED;
+        /* SET submit_status enumerator values have not yet been verified. */
+        result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_SET,
+                                                     result.raw_status);
         return result;
     }
 
@@ -283,9 +292,9 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.pts_ns = packet->pts_ns;
         native_packet.duration_ns = packet->duration_ns;
         result.raw_status = fn(adapter->player, &native_packet);
-        /* ADD SUCCESS=4 is confirmed by the legacy ABI. Other values stay raw. */
-        result.status = result.raw_status == 4 ?
-            WMP_ESPLUS_SUBMIT_SUCCESS : WMP_ESPLUS_SUBMIT_UNCLASSIFIED;
+        /* ADD SUCCESS=4 is confirmed; other values remain unclassified. */
+        result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD,
+                                                     result.raw_status);
         return result;
     }
 
