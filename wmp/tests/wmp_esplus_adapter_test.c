@@ -26,7 +26,9 @@ static void test_video_mime_mapping(void)
     assert(native == 2);
     assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
                                     WMP_ESPLUS_VIDEO_MIME_HEVC, &native) == 0);
-    assert(native == 3);
+    assert(native == 2);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_VIDEO_MIME_UNKNOWN, &native) == -1);
     assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_ADD,
                                     (wmp_esplus_video_mime_e)99, &native) == -1);
 }
