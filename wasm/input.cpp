@@ -34,6 +34,7 @@ static char GetModifierFlags(const EmscriptenKeyboardEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     LockMouse();
     m_MouseLastPosX = event.screenX;
@@ -46,6 +47,7 @@ EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleMouseMove(const EmscriptenMouseEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -60,6 +62,7 @@ EM_BOOL MoonlightInstance::HandleMouseMove(const EmscriptenMouseEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleMouseUp(const EmscriptenMouseEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -69,6 +72,7 @@ EM_BOOL MoonlightInstance::HandleMouseUp(const EmscriptenMouseEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleWheel(const EmscriptenWheelEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -79,6 +83,7 @@ EM_BOOL MoonlightInstance::HandleWheel(const EmscriptenWheelEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -107,6 +112,7 @@ EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleKeyUp(const EmscriptenKeyboardEvent &event) {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -168,6 +174,11 @@ EM_BOOL handlePointerLockError(int eventType, const void *reserved, void *userDa
 }
 
 void MoonlightInstance::ReportMouseMovement() {
+  if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
+    m_MouseDeltaX = m_MouseDeltaY = 0;
+    m_AccumulatedTicks = 0;
+    return;
+  }
   if (m_MouseDeltaX != 0 || m_MouseDeltaY != 0) {
     LiSendMouseMoveEvent(m_MouseDeltaX, m_MouseDeltaY);
     m_MouseDeltaX = m_MouseDeltaY = 0;
