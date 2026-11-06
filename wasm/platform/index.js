@@ -6272,22 +6272,28 @@ function sendKeysMenuOption(id, keysLabel, keyCodes) {
 // Define the options of the Stream Menu in display order, add, remove or reorder entries here to change the menu
 function getStreamMenuOptions() {
   return [
-    sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]),
-    sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]),
-    sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]),
-    sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]),
+    { group: 'keys', option: sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]) },
+    { group: 'keys', option: sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]) },
+    { group: 'keys', option: sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]) },
+    { group: 'keys', option: sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]) },
     {
-      id: 'streamMenuToggleStats',
-      text: t('Toggle performance stats'),
-      action: function() {
-        Module.toggleStats();
+      group: 'stats',
+      option: {
+        id: 'streamMenuToggleStats',
+        text: t('Toggle performance stats'),
+        action: function() {
+          Module.toggleStats();
+        }
       }
     },
     {
-      id: 'streamMenuDisconnect',
-      text: t('Disconnect'),
-      action: function() {
-        requestManualStreamStop();
+      group: 'disconnect',
+      option: {
+        id: 'streamMenuDisconnect',
+        text: t('Disconnect'),
+        action: function() {
+          requestManualStreamStop();
+        }
       }
     },
   ];
@@ -6321,7 +6327,17 @@ function streamMenuDialog() {
     class: 'mdl-dialog__content'
   }).appendTo(streamMenuDialog);
 
-  getStreamMenuOptions().forEach(function(menuOption) {
+  var streamMenuGroups = {};
+  getStreamMenuOptions().forEach(function(groupedOption) {
+    var group = streamMenuGroups[groupedOption.group];
+    if (!group) {
+      group = $('<div>', {
+        class: 'stream-menu-group stream-menu-group--' + groupedOption.group
+      }).appendTo(streamMenuDialogContent);
+      streamMenuGroups[groupedOption.group] = group;
+    }
+
+    var menuOption = groupedOption.option;
     var streamMenuDialogOption = $('<button>', {
       type: 'button',
       id: menuOption.id,
@@ -6337,7 +6353,7 @@ function streamMenuDialog() {
         menuOption.action();
       }
     });
-    streamMenuDialogOption.appendTo(streamMenuDialogContent);
+    streamMenuDialogOption.appendTo(group);
   });
 
   var streamMenuDialogActions = $('<div>', {
