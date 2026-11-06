@@ -57,7 +57,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: wmp-native-arm
-          path: ${{ runner.temp }}}/wmp-native
+          path: ${{ runner.temp }}/wmp-native
 
       - name: Validate native build outputs
         shell: bash
@@ -412,9 +412,9 @@ jobs:
         with:
           name: Moonlight-WMP-Hybrid-${{ github.sha }}
           path: |
-            ${{ runner.temp }}}/Moonlight-WMP-Hybrid.wgt
-            ${{ runner.temp }}}/Moonlight-WMP-Hybrid.sha256
-            ${{ runner.temp }}}/wmp-service-dynamic.txt
-            ${{ runner.temp }}}/libmlengine-dynamic.txt
+            ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
+            ${{ runner.temp }}/Moonlight-WMP-Hybrid.sha256
+            ${{ runner.temp }}/wmp-service-dynamic.txt
+            ${{ runner.temp }}/libmlengine-dynamic.txt
           if-no-files-found: error
           retention-days: 14
