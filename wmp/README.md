@@ -30,10 +30,11 @@ them without depending on a JSON parser.
 
 Protocol: `moonlight-wmp/1`
 
-Each request carries `protocol`, `id`, `command` and a small JSON `payload`.
+Each request carries `protocol`, `id`, `command` and a small JSON
+`payload`; start-session fields are additionally sent as `arg_*` strings.
 Replies carry `protocol`, `id`, `type=response`, `status` and JSON
-`payload`. The web bridge exposes `connect()`, `request()`, `ping()`,
-`getStatus()`, `probeEsplus()` and `close()`.
+`payload`. Lifecycle notifications carry `protocol`, `type=event`,
+`event` and optional diagnostic `detail`.
 
 MessagePort is control-plane only; it is not used to transport encoded audio/video packets.
 
