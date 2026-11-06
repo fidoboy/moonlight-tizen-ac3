@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tv_libs_archive_url:
-        description: "HTTPS URL of a tar archive containing the target TV's usr/lib/* libraries"
+        description: "HTTPS URL of a tar archive containing target TV usr/lib dependencies (ESPlus is loaded from firmware)"
         required: true
         type: string
       tv_libs_archive_sha256:
@@ -75,7 +75,7 @@ jobs:
           "$expected/arm-linux-gnueabi-gcc" --version
           "$expected/arm-linux-gnueabi-objdump" --version | head -1
 
-      - name: Download target TV libraries
+      - name: Download target TV link dependencies (ESPlus excluded)
         shell: bash
         env:
           TV_LIBS_ARCHIVE_URL: ${{ inputs.tv_libs_archive_url }}
@@ -97,16 +97,19 @@ jobs:
           tar -tf "$archive" >/dev/null
           tar -xf "$archive" -C "$DEPS/tv-libs"
           if [[ ! -d "$DEPS/tv-libs/usr/lib" ]]; then
-            echo "::error::Archive must contain usr/lib/ with the TV's native shared libraries."
+            echo "::error::Archive must contain usr/lib/ with target TV link dependencies."
             find "$DEPS/tv-libs" -maxdepth 3 -type d -print
             exit 1
           fi
-          for lib in libesplusplayer.so libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
+          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
             if [[ ! -e "$DEPS/tv-libs/usr/lib/$lib" ]]; then
               echo "::error::Missing target library: usr/lib/$lib"
               exit 1
             fi
           done
+          if [[ -e "$DEPS/tv-libs/usr/lib/libesplusplayer.so" ]]; then
+            echo "Found optional ESPlus copy in archive; it will not be linked or packaged."
+          fi
 
       - name: Fetch backport source dependencies
         run: bash wmp/upstream/build/fetch-backport-deps.sh
@@ -136,7 +139,11 @@ jobs:
           grep -q 'Machine:.*ARM' build-report/wmp-service-elf-header.txt
           grep -q 'Shared library: \[libmlengine.so\]' build-report/wmp-service-dynamic.txt
           grep -q 'Library runpath: \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
-          echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH."
+          if grep -q 'NEEDED.*libesplusplayer' build-report/libmlengine-dynamic.txt; then
+            echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED."
+            exit 1
+          fi
+          echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH. ESPlus is runtime-loaded."
 
       - name: Upload native build artifacts
         uses: actions/upload-artifact@v4
