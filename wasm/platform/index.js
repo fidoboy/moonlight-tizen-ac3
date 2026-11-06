@@ -5803,7 +5803,7 @@ function startGame(host, appID) {
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
   // handler of the key press that started the stream, because the audio context of a device
   // with an autoplay policy can only be created from a user gesture
-  if (!_directSmartHubLaunch && isWebAudioBackendSelected()) {
+  if (!_directSmartHubLaunch && !isWmpEngineSelected() && isWebAudioBackendSelected()) {
     startAudioScheduler();
   }
 
