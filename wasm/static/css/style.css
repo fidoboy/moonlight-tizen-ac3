@@ -1037,6 +1037,16 @@ body[data-color-theme="black-orange"] #background-layer {
 #streamMenuDialog .mdl-button--raised.mdl-button--colored:hover:not(:focus) {
     box-shadow: none;
 }
+
+/* Keep host key commands, statistics and stream termination visually distinct. */
+#streamMenuDialog .stream-menu-group + .stream-menu-group {
+    margin-top: 10px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+#streamMenuDialog .stream-menu-group button:last-child {
+    margin-bottom: 0;
+}
 .mdl-dialog__title {
     margin: 0;
     padding: 24px 24px 14px;
