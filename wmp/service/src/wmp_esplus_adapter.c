@@ -233,8 +233,14 @@ int wmp_esplus_map_video_mime(
         return -1;
     if (mime < WMP_ESPLUS_VIDEO_MIME_UNKNOWN || mime > WMP_ESPLUS_VIDEO_MIME_WMV3)
         return -1;
-    /* Both documented generations use the same video MIME numbering. */
-    *native_mime = (uint32_t)mime;
+    if (family == WMP_ESPLUS_FAMILY_ADD) {
+        /* Legacy header explicitly includes UNKNOWN=0 before H263=1. */
+        *native_mime = (uint32_t)mime;
+        return 0;
+    }
+    /* Samsung's SET VideoMimeType enum starts at H263=0; it has no UNKNOWN. */
+    if (mime == WMP_ESPLUS_VIDEO_MIME_UNKNOWN) return -1;
+    *native_mime = (uint32_t)mime - 1u;
     return 0;
 }
 
