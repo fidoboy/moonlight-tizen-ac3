@@ -124,6 +124,15 @@ class Tracker {
 }  // namespace gamepad_identity
 
 
+// The streaming menu owns gamepad input while it is visible.
+namespace {
+std::atomic<bool> gamepadInputBlocked{false};
+}
+
+extern "C" EMSCRIPTEN_KEEPALIVE void setGamepadInputBlocked(int blocked) {
+  gamepadInputBlocked.store(blocked != 0, std::memory_order_release);
+}
+
 // Bitmask for gamepad combo buttons to stop the streaming session
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
 
@@ -274,6 +283,12 @@ void MoonlightInstance::PollGamepads() {
       samples[i] = {events[i].connected != 0, events[i].timestamp, events[i].id};
     }
   }
+  // Keep sampling paused at the native input boundary while the UI owns the controller.
+  // This also defers tracker changes so arrivals/removals are synchronized after the menu closes.
+  if (gamepadInputBlocked.load(std::memory_order_acquire)) {
+    return;
+  }
+
   const auto changes = controllerTracker.update(samples);
   const auto activeGamepadMask = changes.mask;
   for (const auto i : changes.removed) {
