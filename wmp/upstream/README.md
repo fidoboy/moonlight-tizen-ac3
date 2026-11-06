@@ -39,11 +39,11 @@ ADD timestamps remain nanoseconds in the compact packet. Submit outcomes
 0 through 4 are normalized while retaining the raw result.
 
 Stream-registration call results are normalized independently from submit
-results. The modern SET consumer treats `0` as success and nonzero integer
-status as failure; the legacy TV50 ADD header explicitly documents its
-`int` return as a C++ bool (`1` success, `0` failure). The neutral result
-preserves the raw value and does not silently treat unexpected ADD values as
-success.
+results. The legacy TV50 ADD header explicitly documents its `int` return as
+a C++ bool (`1` success, `0` failure); other values remain unclassified.
+The SET functions declare `int`, but the target library's success convention
+has not been proven. The adapter preserves those raw values as
+`UNCLASSIFIED`; a downstream consumer's comparison is not ABI evidence.
 
 The imported `esplus_player.c`, `video_esplus.c` and `audio_opus.c` have
 not yet been migrated to call these adapters; therefore dual-family playback
