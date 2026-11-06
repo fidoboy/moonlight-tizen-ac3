@@ -67,7 +67,7 @@ typedef void (*set_error_cb)(uint32_t, void *);
 typedef void (*set_buffer_cb)(uint32_t, uint32_t, void *);
 typedef void (*set_void_cb)(void *);
 typedef void (*set_stream_cb)(uint32_t, void *);
-typedef void (*set_prepared_cb)(int, void *);
+typedef void (*set_prepared_cb)(bool, void *);
 
 typedef void (*add_error_cb)(uint32_t);
 typedef void (*add_buffer_cb)(uint32_t, uint32_t);
@@ -130,7 +130,7 @@ static void emit_ready(uint32_t stream, void *context)
     if (a && a->callbacks.ready_to_prepare)
         a->callbacks.ready_to_prepare(stream, a->context);
 }
-static void emit_prepared(int success, void *context)
+static void emit_prepared(bool success, void *context)
 {
     wmp_esplus_adapter_t *a = context;
     if (a && a->callbacks.prepare_async_done)
