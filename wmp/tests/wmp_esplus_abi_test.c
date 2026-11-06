@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../native/wmp-service/src/wmp_esplus_abi.h"
+#include "../service/src/wmp_esplus_abi.h"
 
 int main(int argc, char **argv)
 {
@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     const char *expected;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: %s <set|add|missing|core|ambiguous>\n", argv[0]);
+        fprintf(stderr, "usage: %s <set|add|missing|core|ambiguous>\\n", argv[0]);
         return 2;
     }
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
             api.selected_family != WMP_ESPLUS_FAMILY_NONE)
             goto fail;
     } else {
-        fprintf(stderr, "unknown expected case: %s\n", expected);
+        fprintf(stderr, "unknown expected case: %s\\n", expected);
         return 2;
     }
 
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     return 0;
 
 fail:
-    fprintf(stderr, "case %s failed: result=%d family=%d\n%s",
+    fprintf(stderr, "case %s failed: result=%d family=%d\\n%s",
             expected, (int)result, (int)api.selected_family, report);
     wmp_esplus_close(&api);
     return 1;
