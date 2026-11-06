@@ -253,7 +253,7 @@ static bool parse_start_request(
         !copy_bundle_value(message, "gfeVer", request->gfe_version,
                            sizeof(request->gfe_version), false) ||
         !copy_bundle_value(message, "rtspUrl", request->rtsp_url,
-                           sizeof(request->rtsp_url), false) ||
+                           sizeof(request->rtsp_url), true) ||
         !copy_bundle_value(message, "videoCodec", request->video_codec,
                            sizeof(request->video_codec), true) ||
         !copy_bundle_value(message, "audioConfig", request->audio_config,
@@ -268,7 +268,10 @@ static bool parse_start_request(
         !parse_bool_argument(message, "fullRange", &request->full_range))
         return false;
 
-    if (!is_hex_key(request->rikey) ||
+    if (request->width <= 0 || request->height <= 0 ||
+        request->fps <= 0 || request->bitrate <= 0 ||
+        request->rikeyid < 0 || request->codec_mode < 0 ||
+        !is_hex_key(request->rikey) ||
         (strcmp(request->video_codec, "H264") != 0 &&
          strcmp(request->video_codec, "HEVC") != 0 &&
          strcmp(request->video_codec, "AV1") != 0) ||
