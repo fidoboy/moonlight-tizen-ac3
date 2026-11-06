@@ -9,7 +9,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Additional streaming keyboard shortcuts:** Added support for sending `CTRL + SHIFT + ESC` and `WIN + D` to the host from the streaming menu.
 
 ### Changed
-- **Streaming menu layout and navigation:** Organized the menu actions into visually distinct groups and placed the keyboard shortcuts in a compact two-column layout. Reduced shortcut-label text size to keep key combinations on a single line without shrinking the icons, and enabled spatial navigation between items with all four directional keys.
+- **Streaming menu layout and navigation:** Organized the menu actions into visually distinct groups and placed the keyboard shortcuts in a compact two-column layout.
 
 ## v1.2.1
 
