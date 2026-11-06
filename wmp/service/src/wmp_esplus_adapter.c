@@ -97,6 +97,24 @@ typedef char assert_audio_arm32[(sizeof(void *) != 4 || sizeof(native_audio_info
 
 static wmp_esplus_adapter_t *s_add_adapter;
 
+static wmp_esplus_stream_e neutral_stream_type(uint32_t stream)
+{
+    switch (stream) {
+    case 0: return WMP_ESPLUS_STREAM_AUDIO;
+    case 1: return WMP_ESPLUS_STREAM_VIDEO;
+    default: return WMP_ESPLUS_STREAM_UNKNOWN;
+    }
+}
+
+static wmp_esplus_buffer_status_e neutral_buffer_status(uint32_t status)
+{
+    switch (status) {
+    case 0: return WMP_ESPLUS_BUFFER_STATUS_UNDERRUN;
+    case 1: return WMP_ESPLUS_BUFFER_STATUS_OVERRUN;
+    default: return WMP_ESPLUS_BUFFER_STATUS_UNKNOWN;
+    }
+}
+
 static void emit_error(uint32_t value, void *context)
 {
     wmp_esplus_adapter_t *a = context;
@@ -106,7 +124,8 @@ static void emit_buffer(uint32_t stream, uint32_t status, void *context)
 {
     wmp_esplus_adapter_t *a = context;
     if (a && a->callbacks.buffer_status)
-        a->callbacks.buffer_status(stream, status, a->context);
+        a->callbacks.buffer_status(neutral_stream_type(stream),
+                                   neutral_buffer_status(status), a->context);
 }
 static void emit_conflict(void *context)
 {
@@ -128,7 +147,7 @@ static void emit_ready(uint32_t stream, void *context)
 {
     wmp_esplus_adapter_t *a = context;
     if (a && a->callbacks.ready_to_prepare)
-        a->callbacks.ready_to_prepare(stream, a->context);
+        a->callbacks.ready_to_prepare(neutral_stream_type(stream), a->context);
 }
 static void emit_prepared(bool success, void *context)
 {
