@@ -1105,6 +1105,11 @@ body[data-color-theme="black-orange"] #background-layer {
     position: relative;
     top: -2px;
 }
+#streamMenuDialog .stream-menu-option--keys .stream-menu-option__label {
+    font-size: 0.82rem;
+    line-height: 1.1;
+    white-space: nowrap;
+}
 #streamMenuDialog .stream-menu-option__label {
     display: inline-block;
     min-width: 0;
