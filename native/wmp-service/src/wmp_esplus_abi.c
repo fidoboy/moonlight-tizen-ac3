@@ -117,9 +117,13 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     set_marker = api->set_display_ecore_subsurface != NULL;
     add_marker = api->set_ecore_display != NULL;
 
-    if (set_pair && set_marker && !add_pair && !add_marker) {
+    if (set_marker && add_marker) {
+        report_append(report, report_capacity,
+                      "STREAM_API: both ABI display markers exported; refusing to guess\\n");
+        return WMP_ESPLUS_PROBE_AMBIGUOUS;
+    } else if (set_pair && set_marker) {
         api->selected_family = WMP_ESPLUS_FAMILY_SET;
-    } else if (add_pair && add_marker && !set_pair && !set_marker) {
+    } else if (add_pair && add_marker) {
         api->selected_family = WMP_ESPLUS_FAMILY_ADD;
     } else if ((set_pair && set_marker) || (add_pair && add_marker)) {
         report_append(report, report_capacity,
