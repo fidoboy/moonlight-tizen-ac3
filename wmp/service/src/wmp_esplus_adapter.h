@@ -108,6 +108,24 @@ typedef struct {
     int raw_status;
 } wmp_esplus_submit_result_t;
 
+/*
+ * Stream-registration calls have family-specific native conventions:
+ * SET returns 0 on success and a nonzero Tizen error code on failure;
+ * legacy ADD returns a C++ bool encoded as int (1 success, 0 failure).
+ */
+typedef enum {
+    WMP_ESPLUS_CALL_SUCCESS = 0,
+    WMP_ESPLUS_CALL_NATIVE_FAILURE,
+    WMP_ESPLUS_CALL_INVALID_ARGUMENT,
+    WMP_ESPLUS_CALL_MISSING_FUNCTION,
+    WMP_ESPLUS_CALL_UNCLASSIFIED
+} wmp_esplus_call_status_e;
+
+typedef struct {
+    wmp_esplus_call_status_e status;
+    int raw_status;
+} wmp_esplus_call_result_t;
+
 typedef struct {
     void (*error)(uint32_t error, void *context);
     void (*buffer_status)(wmp_esplus_stream_e stream,
@@ -144,12 +162,15 @@ int wmp_esplus_map_audio_mime(
     wmp_esplus_audio_mime_e mime,
     uint32_t *native_mime);
 
-int wmp_esplus_adapter_set_video_info(
+wmp_esplus_call_result_t wmp_esplus_adapter_set_video_info(
     wmp_esplus_adapter_t *adapter,
     const wmp_esplus_video_info_t *info);
-int wmp_esplus_adapter_set_audio_info(
+wmp_esplus_call_result_t wmp_esplus_adapter_set_audio_info(
     wmp_esplus_adapter_t *adapter,
     const wmp_esplus_audio_info_t *info);
+
+wmp_esplus_call_result_t wmp_esplus_normalize_stream_result(
+    wmp_esplus_family_e family, int raw_status);
 
 wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
     wmp_esplus_adapter_t *adapter,
