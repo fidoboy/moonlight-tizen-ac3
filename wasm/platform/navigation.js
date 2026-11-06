@@ -836,6 +836,50 @@ function scrollHostCardIntoView(target) {
   }
 })();
 
+function moveStreamMenuFocus(direction) {
+  var view = Views.StreamMenuDialog.view;
+  var items = view.func();
+  var current = items[view.index];
+  if (!current || !items.length) return;
+
+  var currentRect = current.getBoundingClientRect();
+  var currentX = currentRect.left + currentRect.width / 2;
+  var currentY = currentRect.top + currentRect.height / 2;
+  var bestIndex = -1;
+  var bestScore = Infinity;
+
+  items.forEach(function(item, index) {
+    if (index === view.index || isDisabledNavigationTarget(item)) return;
+    var rect = item.getBoundingClientRect();
+    var deltaX = rect.left + rect.width / 2 - currentX;
+    var deltaY = rect.top + rect.height / 2 - currentY;
+    var primaryDistance;
+    var secondaryDistance;
+
+    if (direction === 'left' || direction === 'right') {
+      if ((direction === 'left' && deltaX >= 0) || (direction === 'right' && deltaX <= 0)) return;
+      primaryDistance = Math.abs(deltaX);
+      secondaryDistance = Math.abs(deltaY);
+    } else {
+      if ((direction === 'up' && deltaY >= 0) || (direction === 'down' && deltaY <= 0)) return;
+      primaryDistance = Math.abs(deltaY);
+      secondaryDistance = Math.abs(deltaX);
+    }
+
+    var score = primaryDistance + secondaryDistance * 2;
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  if (bestIndex === -1) return;
+  unmark(current);
+  view.index = bestIndex;
+  mark(items[bestIndex]);
+  focusElement(items[bestIndex]);
+}
+
 const Views = {
   Hosts: {
     view: new ListView(() => Array.from(document.querySelectorAll('#host-grid > #addHostContainer, #host-grid > .host-container'))),
@@ -1180,15 +1224,17 @@ const Views = {
       return actions.map(action => action === 'closeHostMenu' ? action : action + '-' + Views.HostMenuDialog.hostname);
     }),
     up: function() {
-      this.view.prevOption();
-      focusElement(this.view.current());
+      moveStreamMenuFocus('up');
     },
     down: function() {
-      this.view.nextOption();
-      focusElement(this.view.current());
+      moveStreamMenuFocus('down');
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      moveStreamMenuFocus('left');
+    },
+    right: function() {
+      moveStreamMenuFocus('right');
+    },
     accept: function() {
       clickElement(this.view.current());
     },
