@@ -8966,6 +8966,15 @@ function loadHTTPCertsCb() {
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
           Object.assign(revivedHost, hosts[hostUID]);
+          // Connectivity and in-flight operation state is session-local; never restore it from storage.
+          revivedHost.online = false;
+          revivedHost._statusVerified = false;
+          revivedHost._consecutivePollFailures = 0;
+          revivedHost._pollCount = 0;
+          revivedHost._pollCompletionCallbacks = [];
+          revivedHost._pollInProgress = false;
+          revivedHost._backgroundStatusRefreshInProgress = false;
+          revivedHost._backgroundAppListRefreshInProgress = false;
           revivedHost._memCachedApplist = null; // Prevent using the app list cache from a previous session
           revivedHost.httpPort = hosts[hostUID].httpPort || ((hosts[hostUID].httpsPort || 47984) + 5);
           revivedHost.httpsPort = hosts[hostUID].httpsPort || (revivedHost.httpPort - 5);
