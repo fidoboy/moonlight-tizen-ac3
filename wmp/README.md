@@ -15,7 +15,11 @@ It is not a standalone TPK and must not be published or installed separately.
 
 ## Current service control transport
 
-The service registers the trusted native MessagePort `MoonlightWmpControl` and links against the engine's public `mlengine.h` ABI. Its status response reports `libmlengine` availability and the live `ml_engine_running()` state. `stop_session` forwards teardown to `ml_engine_stop()`; ServiceApp termination also stops the engine before releasing the service's independent ESPlus probe handle.
+The service registers the trusted native MessagePort `MoonlightWmpControl` and links against the engine's public `mlengine.h` ABI. Its status response reports `libmlengine` availability and the live `ml_engine_running()` state.
+
+After the existing host `launch`/`resume` request succeeds, the Web UI forwards the resulting session parameters over MessagePort using `start_session`. The service validates the fields and invokes `ml_engine_start_session_v2()` on a worker thread, so the ServiceApp message loop is not blocked by connection setup. It returns the start result and forwards the engine lifecycle as the existing `Connection Established`, `displayVideo` and `streamTerminated: <code>` UI events. Its monitor only observes `ml_engine_running()` and the engine's accepted-video counter; it does not make session validity, recovery or disconnect decisions.
+
+`stop_session` forwards teardown to `ml_engine_stop()`. Explicit stop, host termination and ServiceApp termination converge on the public engine stop API, with the ServiceApp serializing start/stop operations so `LiStopConnection()` is not called while `LiStartConnection()` is still executing.
 The web application opens the trusted reply port `MoonlightWmpReply`,
 launches the native service explicitly, and sends request/reply messages over
 the bidirectional Tizen MessagePort API.
@@ -28,6 +32,33 @@ Replies carry `protocol`, `id`, `type=response`, `status` and JSON
 `getStatus()`, `probeEsplus()` and `close()`.
 
 MessagePort is control-plane only; it is not used to transport encoded audio/video packets.
+
+## Native ServiceApp build
+
+Build `libmlengine.so` first with the upstream engine script, then link the
+ServiceApp executable against it and the Tizen ServiceApp/MessagePort libraries:
+
+```sh
+# From the repository root; DEPS points to fetch-tizen-sources.sh output.
+MLT="$PWD" DEPS=/path/to/tizen-deps \
+  wmp/upstream/mlclient/build-engine-so.sh
+
+DEPS=/path/to/tizen-deps \
+  wmp/service/build-wmp-service.sh
+```
+
+The service build expects `engine-build/libmlengine.so` by default. Override
+`ENGINE_SO` when the engine output is elsewhere. It stages the linked ARM
+executable at `wmp/build/service/bin/wmp-service` and its runtime dependency at
+`wmp/build/service/lib/libmlengine.so`; the executable uses
+`$ORIGIN/../lib` to locate the engine. The script checks the ELF machine and
+the executable's `DT_NEEDED` entries, including `libmlengine.so` and the
+Tizen ServiceApp/MessagePort libraries.
+
+This is a cross-link recipe, not a claim that the current checkout has been
+built against the user's extracted target libraries. The generated executable
+and library still need to be staged into the native ServiceApp project before
+the hybrid WGT is assembled and signed.
 
 ## ESPlus ABI discovery and typed adapters
 
@@ -115,18 +146,20 @@ The upstream .NET host, CLI entry point, UI package, Samsung proprietary ESPlus 
 
 ## Remaining integration work
 
-The player, video sink and Opus audio sink now use the neutral adapter inside
-`libmlengine.so`. The remaining integration work is the native ServiceApp
-lifecycle and connection between the web control channel and the engine's
-media/session path. The adapter tests have not yet been executed for this
-revision in the target Alpine environment.
+The native control path now reaches the public engine start/stop API, and a
+dedicated script defines the ServiceApp-to-`libmlengine.so` link. The following
+items remain unverified or incomplete:
 
-The engine still needs adaptation to the native ServiceApp lifecycle and
-connection to the service's media/session path. Ecore/Wayland display work runs
-on the appropriate Tizen main loop through the existing thread-safe Ecore call.
-The real SET/ADD binary integration and WGT service launch path still require
-target-side validation. Do not change the existing EMSS implementation or add
-an automatic fallback between engines.
+- Execute the engine and ServiceApp cross-builds against the actual Tizen
+  dependency/sysroot and TV libraries, then inspect the resulting ELF and
+  runtime dependencies.
+- Stage `bin/wmp-service` and `lib/libmlengine.so` in the native ServiceApp
+  project and assemble/sign the hybrid WGT.
+- Validate service launch, Wayland/Ecore display access, SET/ADD playback and
+  session teardown on the TV.
+- Implement the separate AC-3/E-AC-3 passthrough path; the current imported
+  WMP audio sink is Opus.
 
+EMSS remains unchanged and there is no automatic fallback between engines.
 No proprietary Samsung library/header or SDK binary is included. No build,
 workflow or TV test is claimed.
