@@ -51,11 +51,11 @@ typedef int (*set_buffer_reg_fn)(void *, set_buffer_cb, void *);
 typedef int (*set_void_reg_fn)(void *, set_void_cb, void *);
 typedef int (*set_stream_reg_fn)(void *, set_stream_cb, void *);
 typedef int (*set_prepared_reg_fn)(void *, set_prepared_cb, void *);
-typedef int (*add_error_reg_fn)(void *, add_error_cb);
-typedef int (*add_buffer_reg_fn)(void *, add_buffer_cb);
-typedef int (*add_void_reg_fn)(void *, add_void_cb);
-typedef int (*add_stream_reg_fn)(void *, add_stream_cb);
-typedef int (*add_prepared_reg_fn)(void *, add_prepared_cb);
+typedef void (*add_error_reg_fn)(void *, add_error_cb);
+typedef void (*add_buffer_reg_fn)(void *, add_buffer_cb);
+typedef void (*add_void_reg_fn)(void *, add_void_cb);
+typedef void (*add_stream_reg_fn)(void *, add_stream_cb);
+typedef void (*add_prepared_reg_fn)(void *, add_prepared_cb);
 
 typedef char assert_set_packet_arm32[(sizeof(void *) != 4 || sizeof(set_packet_t) == 48) ? 1 : -1];
 typedef char assert_add_packet_arm32[(sizeof(void *) != 4 || sizeof(add_packet_t) == 32) ? 1 : -1];
@@ -139,12 +139,12 @@ static int bind_set(wmp_esplus_adapter_t *a)
 
     if (!error_reg || !buffer_reg || !conflict_reg || !seek_reg || !ready_reg || !prepared_reg)
         return -1;
-    if (error_reg(a->player, emit_error, a) != 0 ||
-        buffer_reg(a->player, emit_buffer, a) != 0 ||
-        conflict_reg(a->player, emit_conflict, a) != 0 ||
-        seek_reg(a->player, emit_seek_done, a) != 0 ||
-        ready_reg(a->player, emit_ready, a) != 0 ||
-        prepared_reg(a->player, emit_prepared, a) != 0)
+    if (error_reg(a->player, emit_error, a) < 0 ||
+        buffer_reg(a->player, emit_buffer, a) < 0 ||
+        conflict_reg(a->player, emit_conflict, a) < 0 ||
+        seek_reg(a->player, emit_seek_done, a) < 0 ||
+        ready_reg(a->player, emit_ready, a) < 0 ||
+        prepared_reg(a->player, emit_prepared, a) < 0)
         return -1;
     return 0;
 }
@@ -162,15 +162,12 @@ static int bind_add(wmp_esplus_adapter_t *a)
     if (!error_reg || !buffer_reg || !conflict_reg || !seek_reg || !ready_reg || !prepared_reg)
         return -1;
     s_add_adapter = a;
-    if (error_reg(a->player, add_error) != 0 ||
-        buffer_reg(a->player, add_buffer) != 0 ||
-        conflict_reg(a->player, add_conflict) != 0 ||
-        seek_reg(a->player, add_seek_done) != 0 ||
-        ready_reg(a->player, add_ready) != 0 ||
-        prepared_reg(a->player, add_prepared) != 0) {
-        s_add_adapter = NULL;
-        return -1;
-    }
+    error_reg(a->player, add_error);
+    buffer_reg(a->player, add_buffer);
+    conflict_reg(a->player, add_conflict);
+    seek_reg(a->player, add_seek_done);
+    ready_reg(a->player, add_ready);
+    prepared_reg(a->player, add_prepared);
     return 0;
 }
 
@@ -194,8 +191,8 @@ int wmp_esplus_adapter_bind(
 
     if ((api->selected_family == WMP_ESPLUS_FAMILY_SET ? bind_set(adapter) :
          bind_add(adapter)) != 0) {
-        if (s_add_adapter == adapter) s_add_adapter = NULL;
-        memset(adapter, 0, sizeof(*adapter));
+        /* Some callbacks may already be installed. Keep adapter storage valid
+         * until the player is closed; callers must not discard this object. */
         return -1;
     }
     adapter->callbacks_registered = 1;
