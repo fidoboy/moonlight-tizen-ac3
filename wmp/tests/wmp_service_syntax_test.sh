@@ -22,6 +22,14 @@ int service_app_main(int argc, char *argv[],
 #endif
 EOF
 
+cat > "$TMP/include/mlengine.h" <<'EOF'
+#ifndef TEST_MLENGINE_H
+#define TEST_MLENGINE_H
+int ml_engine_running(void);
+void ml_engine_stop(void);
+#endif
+EOF
+
 cat > "$TMP/include/bundle.h" <<'EOF'
 #ifndef TEST_BUNDLE_H
 #define TEST_BUNDLE_H
