@@ -16,12 +16,49 @@ typedef enum {
     WMP_ESPLUS_STREAM_VIDEO = 1
 } wmp_esplus_stream_e;
 
+/* Semantic codec identifiers. Never pass these values directly to ESPlus. */
+typedef enum {
+    WMP_ESPLUS_VIDEO_MIME_UNKNOWN = 0,
+    WMP_ESPLUS_VIDEO_MIME_H263,
+    WMP_ESPLUS_VIDEO_MIME_H264,
+    WMP_ESPLUS_VIDEO_MIME_HEVC,
+    WMP_ESPLUS_VIDEO_MIME_MPEG1,
+    WMP_ESPLUS_VIDEO_MIME_MPEG2,
+    WMP_ESPLUS_VIDEO_MIME_MPEG4,
+    WMP_ESPLUS_VIDEO_MIME_VP8,
+    WMP_ESPLUS_VIDEO_MIME_VP9,
+    WMP_ESPLUS_VIDEO_MIME_WMV3
+} wmp_esplus_video_mime_e;
+
+typedef enum {
+    WMP_ESPLUS_AUDIO_MIME_UNKNOWN = 0,
+    WMP_ESPLUS_AUDIO_MIME_AAC,
+    WMP_ESPLUS_AUDIO_MIME_MP2,
+    WMP_ESPLUS_AUDIO_MIME_MP3,
+    WMP_ESPLUS_AUDIO_MIME_AC3,
+    WMP_ESPLUS_AUDIO_MIME_EAC3,
+    WMP_ESPLUS_AUDIO_MIME_VORBIS,
+    WMP_ESPLUS_AUDIO_MIME_OPUS,
+    WMP_ESPLUS_AUDIO_MIME_DTS
+} wmp_esplus_audio_mime_e;
+
+/*
+ * Neutral stream descriptions retain both generations' distinct video
+ * attributes. ADD consumes max_width/max_height and a rational frame rate;
+ * SET consumes stride/slice_height, integer frame_rate and interlaced.
+ * Callers set the fields meaningful to their source stream; the adapter maps
+ * only the fields belonging to the selected native ABI.
+ */
 typedef struct {
     const void *codec_data;
     uint32_t codec_data_size;
-    uint32_t mime_type;
+    wmp_esplus_video_mime_e mime_type;
     uint32_t width;
     uint32_t height;
+    uint32_t max_width;
+    uint32_t max_height;
+    uint32_t frame_rate_num;
+    uint32_t frame_rate_den;
     uint32_t stride;
     uint32_t slice_height;
     uint32_t frame_rate;
@@ -31,7 +68,7 @@ typedef struct {
 typedef struct {
     const void *codec_data;
     uint32_t codec_data_size;
-    uint32_t mime_type;
+    wmp_esplus_audio_mime_e mime_type;
     uint32_t bitrate;
     uint32_t channels;
     uint32_t sample_rate;
@@ -66,6 +103,7 @@ typedef struct {
     void (*error)(uint32_t error, void *context);
     void (*buffer_status)(uint32_t stream, uint32_t status, void *context);
     void (*resource_conflicted)(void *context);
+    void (*eos)(void *context);
     void (*seek_done)(void *context);
     void (*ready_to_prepare)(uint32_t stream, void *context);
     void (*prepare_async_done)(bool success, void *context);
@@ -86,6 +124,15 @@ int wmp_esplus_adapter_bind(
     void *player,
     const wmp_esplus_callbacks_t *callbacks,
     void *context);
+
+int wmp_esplus_map_video_mime(
+    wmp_esplus_family_e family,
+    wmp_esplus_video_mime_e mime,
+    uint32_t *native_mime);
+int wmp_esplus_map_audio_mime(
+    wmp_esplus_family_e family,
+    wmp_esplus_audio_mime_e mime,
+    uint32_t *native_mime);
 
 int wmp_esplus_adapter_set_video_info(
     wmp_esplus_adapter_t *adapter,
