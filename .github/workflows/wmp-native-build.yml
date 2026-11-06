@@ -51,7 +51,7 @@ jobs:
           echo "Python 3.8 shared library: $python_lib"
           ldconfig -p | grep -E 'libpython3\.8\.so(\.|$)' || true
 
-      - name: Install Tizen IoT Headed 6.0 native libraries
+      - name: Install Tizen IoT Headed 6.0 SDK and locate target libraries
         shell: bash
         run: |
           set -euo pipefail
@@ -66,21 +66,67 @@ jobs:
           test -n "$pm"
           "$pm" install --accept-license --no-java-check "NativeCLI,IOT-Headed-6.0-NativeAppDevelopment-CLI"
 
-          rootstrap="$(find "$sdk/platforms" -type d -name 'iot-headed-6.0-device.core' -print -quit)"
-          test -n "$rootstrap"
-          source_libs="$rootstrap/usr/lib"
-          test -d "$source_libs"
-          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
-            if [[ ! -e "$source_libs/$lib" ]]; then
-              echo "::error::IoT Headed 6.0 rootstrap is missing usr/lib/$lib" >&2
-              exit 1
-            fi
-          done
+          report="$GITHUB_WORKSPACE/wmp-sdk-diagnostic.txt"
+          : > "$report"
+          {
+            echo "Tizen SDK root: $sdk"
+            echo
+            echo "Installed platform rootstraps:"
+            find "$sdk/platforms" -type d -name '*.device.core' -print 2>/dev/null | sort || true
+            echo
+            echo "Matching target libraries anywhere in the SDK:"
+            find "$sdk" \( -type f -o -type l \) \
+              \( -name 'libecore_wl2.so*' -o -name 'libecore.so*' \
+                 -o -name 'libssl.so*' -o -name 'libcrypto.so*' \
+                 -o -name 'libcurl.so*' \) -print 2>/dev/null | sort || true
+            echo
+            echo "Rootstrap usr/lib directories:"
+            find "$sdk/platforms" -type d -path '*/usr/lib' -print 2>/dev/null | sort || true
+          } | tee "$report"
 
+          required=(libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4)
+          selected_rootstrap=""
+          while IFS= read -r candidate; do
+            [[ -n "$candidate" ]] || continue
+            candidate_libs="$candidate/usr/lib"
+            complete=true
+            for lib in "${required[@]}"; do
+              if [[ ! -e "$candidate_libs/$lib" ]]; then
+                complete=false
+                break
+              fi
+            done
+            if [[ "$complete" == true ]]; then
+              selected_rootstrap="$candidate"
+              break
+            fi
+          done < <(find "$sdk/platforms" -type d -name '*.device.core' -print 2>/dev/null | sort)
+
+          if [[ -z "$selected_rootstrap" ]]; then
+            {
+              echo
+              echo "No single installed device rootstrap contains the complete target library set:"
+              printf '  %s\n' "${required[@]}"
+              echo
+              echo "The build is intentionally stopped rather than mixing shared libraries from different Tizen profiles or host architectures."
+            } | tee -a "$report"
+            echo "::error::No installed Tizen device rootstrap contains all required target libraries. See the wmp-sdk-diagnostic artifact."
+            exit 1
+          fi
+
+          source_libs="$selected_rootstrap/usr/lib"
           mkdir -p "$GITHUB_WORKSPACE/wmp-tv-libs/usr"
           cp -a "$source_libs" "$GITHUB_WORKSPACE/wmp-tv-libs/usr/"
-          echo "Tizen IoT Headed 6.0 target libraries staged from: $source_libs"
+          echo "Target libraries staged from: $selected_rootstrap"
           du -sh "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib"
+
+      - name: Upload Tizen SDK library diagnostics
+        if: always() && hashFiles('wmp-sdk-diagnostic.txt') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmp-sdk-diagnostic
+          path: wmp-sdk-diagnostic.txt
+          retention-days: 14
 
       - name: Prepare workspace paths
         shell: bash
