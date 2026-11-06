@@ -41,7 +41,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
           python3.8 --version
-          ldconfig -p | grep -F 'libpython3.8.so'
+          python_lib="$(dpkg -L libpython3.8 | grep -E '/libpython3\.8\.so(\.[0-9]+)*$' | head -n 1)"
+          if [[ -z "$python_lib" || ! -r "$python_lib" ]]; then
+            echo "::error::The libpython3.8 shared object was not installed by the package."
+            dpkg -L libpython3.8 || true
+            exit 1
+          fi
+          sudo ldconfig
+          echo "Python 3.8 shared library: $python_lib"
+          ldconfig -p | grep -E 'libpython3\.8\.so(\.|$)' || true
 
       - name: Install Tizen IoT Headed 6.0 native libraries
         shell: bash
