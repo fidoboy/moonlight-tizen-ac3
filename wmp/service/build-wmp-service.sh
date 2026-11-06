@@ -42,9 +42,8 @@ INCLUDES=(
 
 "$GCC" "${COMMON[@]}" "${INCLUDES[@]}" -c "$SCRIPT_DIR/src/main.c" \
     -o "$OUT/obj/main.o"
-"$GCC" "${COMMON[@]}" "${INCLUDES[@]}" -c "$SCRIPT_DIR/src/wmp_esplus_abi.c" \
-    -o "$OUT/obj/wmp_esplus_abi.o"
-
+# The ESPlus resolver is part of libmlengine; keep one implementation
+# and one dynamic-library handle owner across the service and engine.
 LIB_DIRS=(
     -L"$OUT/lib"
     -L"$SYSROOT/usr/lib"
@@ -60,7 +59,7 @@ LIB_DIRS=(
     -Wl,-rpath,'$ORIGIN/../lib' \
     "${LIB_DIRS[@]}" \
     -o "$OUT/bin/wmp-service" \
-    "$OUT/obj/main.o" "$OUT/obj/wmp_esplus_abi.o" \
+    "$OUT/obj/main.o" \
     -Wl,--no-as-needed -lmlengine -Wl,--as-needed \
     -lappcore-agent -ldlog -lmessage-port -lbundle -ldl -lpthread
 
