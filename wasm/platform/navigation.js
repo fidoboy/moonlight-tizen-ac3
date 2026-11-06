@@ -2699,15 +2699,17 @@ const Views = {
     // Read options from the dialog so they match getStreamMenuOptions().
     view: new ListView(() => document.querySelectorAll('#streamMenuDialog button')),
     up: function() {
-      this.view.prevOption();
-      focusElement(this.view.current());
+      moveStreamMenuFocus('up');
     },
     down: function() {
-      this.view.nextOption();
-      focusElement(this.view.current());
+      moveStreamMenuFocus('down');
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      moveStreamMenuFocus('left');
+    },
+    right: function() {
+      moveStreamMenuFocus('right');
+    },
     accept: function() {
       clickElement(this.view.current());
     },
