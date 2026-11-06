@@ -121,6 +121,7 @@ int main(void)
     test_video_mime_mapping();
     test_audio_mime_mapping();
     test_timestamp_conversion();
+    test_stream_registration_results();
     test_submit_results();
     puts("WMP ESPlus typed adapter tests passed.");
     return 0;
