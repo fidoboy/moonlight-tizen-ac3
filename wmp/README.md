@@ -67,6 +67,20 @@ stream/packet contract and keeps the native layouts separate:
   the upstream TV50 header; the SET order is documented by Samsung's
   `SubmitStatus` enumeration.
 
+- Stream-registration return values are normalized separately from packet-submit
+  statuses. SET returns an integer Tizen-style status: `0` is success and
+  every nonzero value is a native failure, retained verbatim. Legacy ADD
+  returns a C++ `bool` encoded as `int`: `1` is success and `0` is failure.
+  Other ADD values remain unclassified rather than being accepted as success.
+  The neutral result also distinguishes local invalid arguments and missing
+  function pointers from native failures.
+
+The SET convention is corroborated by the Tizen 6 SET consumer in OmegaTube:
+its typed declarations use `int` for both stream registration calls, and its
+video registration path treats any nonzero return as failure. The ADD upstream
+TV50 header explicitly documents the older `int` returns as C++ bool
+(`1 = OK, 0 = fail`).
+
 The adapter objects are included by the native engine build script. The
 upstream renderer/audio call sites still need to be switched from their direct
 legacy declarations to this neutral adapter before the dual-family path is
