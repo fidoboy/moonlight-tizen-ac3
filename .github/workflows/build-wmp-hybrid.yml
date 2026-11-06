@@ -1,4 +1,4 @@
-name: Build WMP hybrid WGT
+name: Build hybrid WGC (CI)
 
 on:
   workflow_dispatch:
