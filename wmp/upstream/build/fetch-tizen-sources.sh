@@ -71,7 +71,7 @@ UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-dev
   efl-devel libtbm-devel wayland-devel libwayland-client
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
-  r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\\.armv7l\\.rpm')
+  r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
   if [[ -n $r ]]; then
     unrpm "$r" "$OUT/sysroot"
   else
