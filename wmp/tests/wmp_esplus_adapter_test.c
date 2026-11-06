@@ -5,15 +5,46 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static void test_stream_layouts(void)
+static void test_neutral_layouts(void)
 {
     assert(offsetof(wmp_esplus_video_info_t, codec_data) == 0);
     assert(offsetof(wmp_esplus_video_info_t, mime_type) == sizeof(void *) + 4);
     assert(offsetof(wmp_esplus_audio_info_t, mime_type) == sizeof(void *) + 4);
-    if (sizeof(void *) == 4) {
-        assert(sizeof(wmp_esplus_video_info_t) == 36);
+    assert(offsetof(wmp_esplus_video_info_t, max_width) >
+           offsetof(wmp_esplus_video_info_t, height));
+    assert(offsetof(wmp_esplus_video_info_t, stride) >
+           offsetof(wmp_esplus_video_info_t, frame_rate_den));
+    if (sizeof(void *) == 4)
         assert(sizeof(wmp_esplus_audio_info_t) == 24);
-    }
+}
+
+static void test_video_mime_mapping(void)
+{
+    uint32_t native = UINT32_MAX;
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    WMP_ESPLUS_VIDEO_MIME_H264, &native) == 0);
+    assert(native == 2);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_VIDEO_MIME_HEVC, &native) == 0);
+    assert(native == 3);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    (wmp_esplus_video_mime_e)99, &native) == -1);
+}
+
+static void test_audio_mime_mapping(void)
+{
+    uint32_t native = UINT32_MAX;
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    WMP_ESPLUS_AUDIO_MIME_OPUS, &native) == 0);
+    assert(native == 8);
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_AUDIO_MIME_OPUS, &native) == 0);
+    assert(native == 7);
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    WMP_ESPLUS_AUDIO_MIME_DTS, &native) == 0);
+    assert(native == 7);
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_AUDIO_MIME_DTS, &native) == -1);
 }
 
 static void test_timestamp_conversion(void)
@@ -27,24 +58,35 @@ static void test_timestamp_conversion(void)
 
 static void test_submit_results(void)
 {
-    wmp_esplus_submit_result_t result;
-
-    result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD, 4);
-    assert(result.status == WMP_ESPLUS_SUBMIT_SUCCESS);
-    assert(result.raw_status == 4);
-
-    result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD, 0);
-    assert(result.status == WMP_ESPLUS_SUBMIT_UNCLASSIFIED);
-    assert(result.raw_status == 0);
-
-    result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_SET, 4);
-    assert(result.status == WMP_ESPLUS_SUBMIT_UNCLASSIFIED);
-    assert(result.raw_status == 4);
+    const wmp_esplus_family_e families[] = {
+        WMP_ESPLUS_FAMILY_ADD, WMP_ESPLUS_FAMILY_SET
+    };
+    size_t i;
+    for (i = 0; i < sizeof(families) / sizeof(families[0]); ++i) {
+        wmp_esplus_family_e family = families[i];
+        wmp_esplus_submit_result_t result;
+        result = wmp_esplus_normalize_submit_result(family, 0);
+        assert(result.status == WMP_ESPLUS_SUBMIT_NOT_PREPARED);
+        result = wmp_esplus_normalize_submit_result(family, 1);
+        assert(result.status == WMP_ESPLUS_SUBMIT_INVALID_PACKET);
+        result = wmp_esplus_normalize_submit_result(family, 2);
+        assert(result.status == WMP_ESPLUS_SUBMIT_OUT_OF_MEMORY);
+        result = wmp_esplus_normalize_submit_result(family, 3);
+        assert(result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE);
+        result = wmp_esplus_normalize_submit_result(family, 4);
+        assert(result.status == WMP_ESPLUS_SUBMIT_SUCCESS);
+        assert(result.raw_status == 4);
+        result = wmp_esplus_normalize_submit_result(family, 99);
+        assert(result.status == WMP_ESPLUS_SUBMIT_UNCLASSIFIED);
+        assert(result.raw_status == 99);
+    }
 }
 
 int main(void)
 {
-    test_stream_layouts();
+    test_neutral_layouts();
+    test_video_mime_mapping();
+    test_audio_mime_mapping();
     test_timestamp_conversion();
     test_submit_results();
     puts("WMP ESPlus typed adapter tests passed.");
