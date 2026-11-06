@@ -163,6 +163,11 @@ items remain unverified or incomplete:
   project and assemble/sign the hybrid WGT.
 - Validate service launch, Wayland/Ecore display access, SET/ADD playback and
   session teardown on the TV.
+- Map the remaining WMP controls (manual H.264 level, audio encryption/
+  passthrough options, latency/audio processing preferences and gamepad input)
+  where the native engine exposes a supported API. The current start handoff
+  carries the negotiated session credentials, resolution/rate/bitrate,
+  codec/HDR/range and channel layout only.
 - Implement the separate AC-3/E-AC-3 passthrough path; the current imported
   WMP audio sink is Opus.
 
