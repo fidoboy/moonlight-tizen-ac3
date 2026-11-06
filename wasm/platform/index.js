@@ -6262,7 +6262,7 @@ function sendKeyCombinationToHost(keyCodes) {
 function sendKeysMenuOption(id, keysLabel, keyCodes) {
   return {
     id: id,
-    text: t('Send %1$s', keysLabel),
+    text: keysLabel,
     action: function() {
       sendKeyCombinationToHost(keyCodes);
     }
@@ -6272,22 +6272,34 @@ function sendKeysMenuOption(id, keysLabel, keyCodes) {
 // Define the options of the Stream Menu in display order, add, remove or reorder entries here to change the menu
 function getStreamMenuOptions() {
   return [
-    sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]),
-    sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]),
-    sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]),
-    sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]),
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendEsc', 'ESC', [0x1B]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltEnter', 'ALT + ENTER', [0xA4, 0x0D]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendCtrlShiftEsc', 'CTRL + SHIFT + ESC', [0xA2, 0xA0, 0x1B]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendWinD', 'WIN + D', [0x5B, 0x44]) },
     {
-      id: 'streamMenuToggleStats',
-      text: t('Toggle performance stats'),
-      action: function() {
-        Module.toggleStats();
+      group: 'stats',
+      icon: 'query_stats',
+      option: {
+        id: 'streamMenuToggleStats',
+        text: t('Toggle performance stats'),
+        action: function() {
+          Module.toggleStats();
+        }
       }
     },
     {
-      id: 'streamMenuDisconnect',
-      text: t('Disconnect'),
-      action: function() {
-        requestManualStreamStop();
+      group: 'disconnect',
+      icon: 'power_settings_new',
+      option: {
+        id: 'streamMenuDisconnect',
+        text: t('Disconnect'),
+        action: function() {
+          requestManualStreamStop();
+        }
       }
     },
   ];
@@ -6321,13 +6333,37 @@ function streamMenuDialog() {
     class: 'mdl-dialog__content'
   }).appendTo(streamMenuDialog);
 
-  getStreamMenuOptions().forEach(function(menuOption) {
+  var streamMenuGroups = {};
+  getStreamMenuOptions().forEach(function(groupedOption) {
+    var group = streamMenuGroups[groupedOption.group];
+    if (!group) {
+      group = $('<div>', {
+        class: 'stream-menu-group stream-menu-group--' + groupedOption.group
+      }).appendTo(streamMenuDialogContent);
+      if (groupedOption.group === 'keys') {
+        $('<div>', {
+          class: 'stream-menu-group__title',
+          text: 'Enviar pulsación de teclas'
+        }).appendTo(group);
+      }
+      streamMenuGroups[groupedOption.group] = group;
+    }
+
+    var menuOption = groupedOption.option;
     var streamMenuDialogOption = $('<button>', {
       type: 'button',
       id: menuOption.id,
-      class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-      text: menuOption.text
+      class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect stream-menu-option stream-menu-option--' + groupedOption.group
     });
+    $('<span>', {
+      class: 'stream-menu-option__icon',
+      'aria-hidden': 'true',
+      text: groupedOption.icon
+    }).appendTo(streamMenuDialogOption);
+    $('<span>', {
+      class: 'stream-menu-option__label',
+      text: menuOption.text
+    }).appendTo(streamMenuDialogOption);
     streamMenuDialogOption.click(function() {
       if (menuOption.id === 'streamMenuDisconnect') {
         // Let the menu finish fading out before the stream termination starts its transition.
@@ -6337,7 +6373,7 @@ function streamMenuDialog() {
         menuOption.action();
       }
     });
-    streamMenuDialogOption.appendTo(streamMenuDialogContent);
+    streamMenuDialogOption.appendTo(group);
   });
 
   var streamMenuDialogActions = $('<div>', {
