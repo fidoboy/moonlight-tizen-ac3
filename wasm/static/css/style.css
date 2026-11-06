@@ -1881,6 +1881,43 @@ body[data-color-theme="black-orange"] #background-layer {
 .setting-option {
     margin: 25px 25px 37.5px;
 }
+.wmp-esplus-status {
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 10px 13px;
+    border: 1px solid var(--theme-border);
+    border-left: 3px solid var(--theme-accent);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.045);
+}
+.wmp-esplus-status-title,
+.wmp-esplus-status-message {
+    display: block;
+    text-align: left;
+}
+.wmp-esplus-status-title {
+    margin-bottom: 4px;
+    color: var(--theme-text-secondary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.wmp-esplus-status-message {
+    color: var(--theme-text-primary);
+    font-size: 1.25rem;
+    line-height: 1.45;
+}
+.wmp-esplus-status.is-loading {
+    border-left-color: var(--theme-accent);
+}
+.wmp-esplus-status.is-ok {
+    border-left-color: #4caf50;
+}
+.wmp-esplus-status.is-warning {
+    border-left-color: #d9a441;
+}
+.wmp-esplus-status.is-error {
+    border-left-color: #e05b5b;
+}
 #dolbyAudioHeading .dolby-audio-heading-icon {
     display: inline-block;
     position: relative;
