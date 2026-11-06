@@ -56,6 +56,7 @@ static bool g_service_ready;
 static pthread_mutex_t g_session_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t g_session_condition = PTHREAD_COND_INITIALIZER;
 static bool g_session_worker_active;
+static bool g_session_running;
 static bool g_session_starting;
 static bool g_session_start_acknowledged;
 static bool g_session_stop_requested;
@@ -321,14 +322,18 @@ static void *session_worker(void *context)
     g_session_starting = false;
     stop_requested = g_session_stop_requested;
     g_session_stop_requested = false;
+    g_session_running = result == 0 && !stop_requested;
     if (result != 0 || stop_requested)
         g_session_stop_in_progress = true;
     pthread_cond_broadcast(&g_session_condition);
     pthread_mutex_unlock(&g_session_mutex);
 
     if (result != 0 || stop_requested) {
+        /* The worker is the sole ServiceApp caller of engine start/stop. */
         ml_engine_stop();
+
         pthread_mutex_lock(&g_session_mutex);
+        g_session_running = false;
         g_session_stop_in_progress = false;
         pthread_cond_broadcast(&g_session_condition);
         pthread_mutex_unlock(&g_session_mutex);
@@ -352,10 +357,17 @@ static void *session_worker(void *context)
     /*
      * This monitor only forwards Common C's authoritative running state and
      * the engine's first accepted video packet. It never aborts or recovers a
-     * session. The engine owns all connection and teardown decisions.
+     * session. The worker serializes all calls into the public engine lifecycle.
      */
     while (ml_engine_running()) {
         ml_engine_stats stats;
+
+        pthread_mutex_lock(&g_session_mutex);
+        stop_requested = g_session_stop_requested;
+        pthread_mutex_unlock(&g_session_mutex);
+        if (stop_requested)
+            break;
+
         memset(&stats, 0, sizeof(stats));
         stats.struct_size = (int32_t)sizeof(stats);
         if (!video_ready && ml_engine_get_stats(&stats) == 0 &&
@@ -371,24 +383,24 @@ static void *session_worker(void *context)
     termination_code = ml_engine_last_error(diagnostic, sizeof(diagnostic));
 
     pthread_mutex_lock(&g_session_mutex);
-    while (g_session_stop_in_progress)
-        pthread_cond_wait(&g_session_condition, &g_session_mutex);
+    g_session_running = false;
     g_session_stop_in_progress = true;
     pthread_mutex_unlock(&g_session_mutex);
 
-    /* Host termination and explicit stop both converge on the public engine API. */
     ml_engine_stop();
+
+    snprintf(event, sizeof(event), "streamTerminated: %d", termination_code);
 
     pthread_mutex_lock(&g_session_mutex);
     g_session_stop_in_progress = false;
     pthread_cond_broadcast(&g_session_condition);
     pthread_mutex_unlock(&g_session_mutex);
 
-    snprintf(event, sizeof(event), "streamTerminated: %d", termination_code);
     send_event(request->remote_app_id, request->remote_port, event, diagnostic);
 
 finished:
     pthread_mutex_lock(&g_session_mutex);
+    g_session_running = false;
     g_session_starting = false;
     g_session_start_acknowledged = false;
     g_session_stop_requested = false;
@@ -478,10 +490,8 @@ static void handle_stop_session(
     const char *remote_port,
     const char *request_id)
 {
-    bool worker_active;
-
     pthread_mutex_lock(&g_session_mutex);
-    if (g_session_starting) {
+    if (g_session_worker_active) {
         g_session_stop_requested = true;
         pthread_mutex_unlock(&g_session_mutex);
         send_response(remote_app_id, remote_port, request_id, "ok",
@@ -494,21 +504,21 @@ static void handle_stop_session(
                       "error", "{\"error\":\"engine_busy\"}");
         return;
     }
-    worker_active = g_session_worker_active;
     g_session_stop_in_progress = true;
     pthread_mutex_unlock(&g_session_mutex);
 
+    /* No worker owns a session, so this idempotent cleanup is uncontended. */
     ml_engine_stop();
 
     pthread_mutex_lock(&g_session_mutex);
+    g_session_running = false;
     g_session_stop_in_progress = false;
     pthread_cond_broadcast(&g_session_condition);
     pthread_mutex_unlock(&g_session_mutex);
 
     send_response(remote_app_id, remote_port, request_id, "ok",
                   "{\"stopped\":true}");
-    if (!worker_active)
-        send_event(remote_app_id, remote_port, "streamTerminated: 0", NULL);
+    send_event(remote_app_id, remote_port, "streamTerminated: 0", NULL);
 }
 
 static void message_port_received(
@@ -525,6 +535,7 @@ static void message_port_received(
     char *payload = NULL;
     char response_payload[384];
     int engine_running;
+    bool service_ready;
 
     (void)local_port_id;
     (void)user_data;
@@ -572,13 +583,16 @@ static void message_port_received(
                  "{\"pong\":true,\"service\":\"ready\"}");
     } else if (strcmp(command, "get_status") == 0 ||
                strcmp(command, "probe_esplus") == 0) {
-        engine_running = service_is_ready() ? ml_engine_running() : 0;
+        pthread_mutex_lock(&g_session_mutex);
+        service_ready = g_service_ready;
+        engine_running = g_session_running ? 1 : 0;
+        pthread_mutex_unlock(&g_session_mutex);
         snprintf(response_payload, sizeof(response_payload),
                  "{\"service\":\"%s\",\"engine\":\"%s\","
                  "\"running\":%s,\"esplus\":\"%s\","
                  "\"streamApi\":\"%s\"}",
-                 service_is_ready() ? "ready" : "stopping",
-                 service_is_ready() ? "libmlengine" : "unavailable",
+                 service_ready ? "ready" : "stopping",
+                 service_ready ? "libmlengine" : "unavailable",
                  engine_running ? "true" : "false",
                  wmp_esplus_probe_result_name(g_esplus_probe_result),
                  wmp_esplus_family_name(g_esplus.selected_family));
@@ -644,13 +658,15 @@ static void service_control(app_control_h app_control, void *data)
 
 static void service_terminate(void *data)
 {
+    bool worker_active;
+
     (void)data;
 
     pthread_mutex_lock(&g_session_mutex);
     g_service_ready = false;
-    while (g_session_starting || g_session_stop_in_progress)
-        pthread_cond_wait(&g_session_condition, &g_session_mutex);
-    g_session_stop_in_progress = true;
+    worker_active = g_session_worker_active;
+    if (worker_active)
+        g_session_stop_requested = true;
     pthread_mutex_unlock(&g_session_mutex);
 
     if (g_control_port_id >= 0) {
@@ -658,14 +674,25 @@ static void service_terminate(void *data)
         g_control_port_id = -1;
     }
 
-    ml_engine_stop();
+    if (worker_active) {
+        /* The session worker owns teardown while it owns a live engine session. */
+        pthread_mutex_lock(&g_session_mutex);
+        while (g_session_worker_active)
+            pthread_cond_wait(&g_session_condition, &g_session_mutex);
+        pthread_mutex_unlock(&g_session_mutex);
+    } else {
+        pthread_mutex_lock(&g_session_mutex);
+        g_session_stop_in_progress = true;
+        pthread_mutex_unlock(&g_session_mutex);
 
-    pthread_mutex_lock(&g_session_mutex);
-    g_session_stop_in_progress = false;
-    pthread_cond_broadcast(&g_session_condition);
-    while (g_session_worker_active)
-        pthread_cond_wait(&g_session_condition, &g_session_mutex);
-    pthread_mutex_unlock(&g_session_mutex);
+        ml_engine_stop();
+
+        pthread_mutex_lock(&g_session_mutex);
+        g_session_running = false;
+        g_session_stop_in_progress = false;
+        pthread_cond_broadcast(&g_session_condition);
+        pthread_mutex_unlock(&g_session_mutex);
+    }
 
     wmp_esplus_close(&g_esplus);
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service terminated");
