@@ -610,5 +610,16 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Удерживайте Start, чтобы переключаться между обычным управлением и эмуляцией мыши. Используйте контроллер для управления указателем и кнопками мыши на хосте.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок A и B, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок X и Y, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
-  "The selected WMP engine is not ready to start a stream.": "Выбранный движок WMP пока не готов к запуску потока."
+  "The selected WMP engine is not ready to start a stream.": "Выбранный движок WMP пока не готов к запуску потока.",
+  "ESPlus library status": "Состояние библиотеки ESPlus",
+  "ESPlus status not checked": "Состояние ESPlus ещё не проверено.",
+  "Checking the ESPlus library...": "Проверка библиотеки ESPlus...",
+  "ESPlus status unavailable": "Состояние службы ESPlus недоступно.",
+  "ESPlus library not found on this TV": "На этом телевизоре не найдена libesplusplayer.so.",
+  "ESPlus library loaded": "libesplusplayer.so найдена и загружена.",
+  "SET API symbols detected (ABI not validated)": "Обнаружены символы API SET (ABI не проверена)",
+  "ADD API symbols detected (ABI not validated)": "Обнаружены символы API ADD (ABI не проверена)",
+  "ESPlus library loaded, but required core symbols are missing": "Библиотека загружена, но отсутствуют необходимые основные символы.",
+  "ESPlus library loaded, but no complete SET or ADD stream API was found": "Библиотека загружена, но полная потоковая API SET или ADD не найдена.",
+  "Both ESPlus stream APIs detected; selection is ambiguous": "Обнаружены обе API — SET и ADD; безопасно выбрать одну невозможно."
 }
