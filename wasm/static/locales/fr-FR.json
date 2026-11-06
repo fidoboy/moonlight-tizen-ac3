@@ -610,5 +610,16 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Maintenez Start pour passer du mode manette normal à l’émulation de la souris. Utilisez la manette pour contrôler le pointeur et les boutons de la souris sur l’hôte.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverse les affectations des boutons A et B envoyées à l’hôte. Utilisez cette option si un jeu attend la disposition inverse.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverse les affectations des boutons X et Y envoyées à l’hôte. Utilisez cette option si un jeu attend la disposition inverse.",
-  "The selected WMP engine is not ready to start a stream.": "Le moteur WMP sélectionné n’est pas encore prêt à démarrer un flux."
+  "The selected WMP engine is not ready to start a stream.": "Le moteur WMP sélectionné n’est pas encore prêt à démarrer un flux.",
+  "ESPlus library status": "État de la bibliothèque ESPlus",
+  "ESPlus status not checked": "L’état d’ESPlus n’a pas encore été vérifié.",
+  "Checking the ESPlus library...": "Vérification de la bibliothèque ESPlus...",
+  "ESPlus status unavailable": "L’état natif d’ESPlus est indisponible.",
+  "ESPlus library not found on this TV": "libesplusplayer.so est introuvable sur ce téléviseur.",
+  "ESPlus library loaded": "libesplusplayer.so a été trouvée et chargée.",
+  "SET API symbols detected (ABI not validated)": "Symboles de l’API SET détectés (ABI non validée)",
+  "ADD API symbols detected (ABI not validated)": "Symboles de l’API ADD détectés (ABI non validée)",
+  "ESPlus library loaded, but required core symbols are missing": "La bibliothèque est chargée, mais des symboles essentiels sont manquants.",
+  "ESPlus library loaded, but no complete SET or ADD stream API was found": "La bibliothèque est chargée, mais aucune API de streaming SET ou ADD complète n’a été trouvée.",
+  "Both ESPlus stream APIs detected; selection is ambiguous": "Les API SET et ADD sont toutes deux détectées ; la sélection est ambiguë."
 }
