@@ -59,10 +59,25 @@ done
 
 echo "== Tizen 5.0 armv7l sysroot"
 BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
+# Runtime EFL/Wayland packages required to link the engine. Keep these in
+# the sysroot package cache; the final TV runtime libraries are still supplied
+# separately because repository packages do not prove firmware compatibility.
+RUNTIME_PKGS="ecore-wl2 ecore-core ecore-input efl eina eo libtbm
+  libwayland-client libwayland-server libwayland-cursor
+  libwayland-extension-client libwayland-tbm-client libtdm-client
+  libdrm libpng pixman libdlog libffi"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
   efl-devel libtbm-devel wayland-devel libwayland-client
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel message-port-devel bundle-devel"
+for p in $RUNTIME_PKGS; do
+  r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\\.armv7l\\.rpm')
+  if [[ -n $r ]]; then
+    unrpm "$r" "$OUT/sysroot"
+  else
+    echo "RUNTIME_PACKAGE_NOT_FOUND=$p" | tee -a "$OUT/runtime-package-audit.txt"
+  fi
+done
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
