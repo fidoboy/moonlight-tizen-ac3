@@ -13,7 +13,7 @@ C=$MLT/moonlight-common-c; TVL=$DEPS/tv-libs/usr/lib
 # BUILD_VARIANT: release (default, -O2) or debug (-O0 -g, MLT_TRACE trace on).
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 case "$BUILD_VARIANT" in
-  release) OPT="-O2"; LOPT="-O2"; DBGLIB="" ;;
+  release) OPT="-O2"; LOPT="-O2"; DBGLIB="-ldl" ;;
   debug)   OPT="-O0 -g -DMLT_TRACE"; LOPT="-O0 -g"; DBGLIB="-ldl" ;;
   *) echo "BUILD_VARIANT must be debug or release, got: $BUILD_VARIANT" >&2; exit 1 ;;
 esac
@@ -22,12 +22,16 @@ OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
 cp "$HERE/../esplusplayer_tv50.h" "$OUT/"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
-INC="-I$C/src -I$OUT -I$HERE -I$MLT/libgamestream -I$BPD/ossl-inc -I$BPD/curl759/include"
+INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$BPD/ossl-inc -I$BPD/curl759/include"
 
 # engine objects (everything except the thin main.c)
 for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
+
+# Project-owned, typed ESPlus ABI discovery and ADD/SET adapter layer.
+"$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_abi.c" -o "$OUT/wmp_esplus_abi.o"
+"$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_adapter.c" -o "$OUT/wmp_esplus_adapter.o"
 
 # libmlengine.so: engine objects + the static deps (moonlight-common-c core,
 # libgamestream, mbedcrypto) + the TV's shared libs, resolved into the .so.
