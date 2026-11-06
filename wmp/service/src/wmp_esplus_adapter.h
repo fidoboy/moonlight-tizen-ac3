@@ -98,6 +98,10 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
     wmp_esplus_adapter_t *adapter,
     const wmp_esplus_packet_t *packet);
 
+uint64_t wmp_esplus_ns_to_ms(uint64_t nanoseconds);
+wmp_esplus_submit_result_t wmp_esplus_normalize_submit_result(
+    wmp_esplus_family_e family, int raw_status);
+
 void wmp_esplus_adapter_unbind(wmp_esplus_adapter_t *adapter);
 
 #ifdef __cplusplus
