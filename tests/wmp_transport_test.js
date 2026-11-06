@@ -31,7 +31,7 @@ const remotePort = {
     const payload = request.command === 'ping'
       ? {pong: true, service: 'ready'}
       : request.command === 'start_session'
-        ? {started: true, running: true}
+        ? {accepted: true}
         : request.command === 'stop_session'
           ? {stopped: true}
           : {service: 'ready', esplus: 'symbols_detected', streamApi: 'set'};
@@ -118,7 +118,7 @@ vm.runInNewContext(source, {
     hdr: false,
     fullRange: false
   });
-  assert.strictEqual(start.payload.started, true);
+  assert.strictEqual(start.payload.accepted, true);
   const startMessage = pendingMessages[pendingMessages.length - 1];
   assert.strictEqual(startMessage.command, 'start_session');
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
@@ -138,6 +138,15 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'displayVideo'}
   ]);
   assert.deepStrictEqual(handledEvents, ['displayVideo']);
+
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'streamTerminated: -1'},
+    {key: 'detail', value: 'WMP engine start failed (code -101)'}
+  ]);
+  assert.deepStrictEqual(handledEvents, ['displayVideo', 'streamTerminated: -1']);
+  assert.strictEqual(window.pendingStreamApiMessage, 'WMP engine start failed (code -101)');
 
   window.WmpTransport.close();
   assert.strictEqual(listenerRemoved, true);
