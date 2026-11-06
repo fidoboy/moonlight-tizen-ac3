@@ -45,6 +45,7 @@ done
   -o "$OUT/libmlengine.so" \
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
+  "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o "$DEPSBUILD/libmbedcrypto_tv.a" \
   -L"$TVL" -Wl,-rpath-link,"$TVL" -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -l:libesplusplayer.so -l:libecore_wl2.so.1 -l:libecore.so.1 \
