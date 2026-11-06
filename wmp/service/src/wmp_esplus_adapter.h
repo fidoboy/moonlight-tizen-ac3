@@ -110,8 +110,9 @@ typedef struct {
 
 /*
  * Stream-registration calls have family-specific native conventions:
- * SET returns int, but its success convention is not yet verified against
- * the target library; preserve it as UNCLASSIFIED.
+ * SET returns 0 on success and -22/-38 for the observed native failures;
+ * unknown values remain UNCLASSIFIED. This is verified against both the
+ * extracted x86-64 library and the target TV's ARM32 library.
  * Legacy ADD returns a C++ bool encoded as int (1 success, 0 failure).
  */
 typedef enum {
