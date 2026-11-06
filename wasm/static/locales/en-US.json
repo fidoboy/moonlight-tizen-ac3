@@ -610,5 +610,16 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.",
-  "The selected WMP engine is not ready to start a stream.": "The selected WMP engine is not ready to start a stream."
+  "The selected WMP engine is not ready to start a stream.": "The selected WMP engine is not ready to start a stream.",
+  "ESPlus library status": "ESPlus library status",
+  "ESPlus status not checked": "ESPlus status has not been checked yet.",
+  "Checking the ESPlus library...": "Checking the ESPlus library...",
+  "ESPlus status unavailable": "The native ESPlus status is unavailable.",
+  "ESPlus library not found on this TV": "libesplusplayer.so was not found on this TV.",
+  "ESPlus library loaded": "libesplusplayer.so was found and loaded.",
+  "SET API symbols detected (ABI not validated)": "SET API symbols detected (ABI not validated)",
+  "ADD API symbols detected (ABI not validated)": "ADD API symbols detected (ABI not validated)",
+  "ESPlus library loaded, but required core symbols are missing": "The library loaded, but required core symbols are missing.",
+  "ESPlus library loaded, but no complete SET or ADD stream API was found": "The library loaded, but no complete SET or ADD stream API was found.",
+  "Both ESPlus stream APIs detected; selection is ambiguous": "Both SET and ADD APIs were detected; the service cannot select one safely."
 }
