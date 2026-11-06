@@ -22,7 +22,9 @@ After the existing host `launch`/`resume` request succeeds, the Web UI forwards 
 `stop_session` forwards teardown to `ml_engine_stop()`. Explicit stop, host termination and ServiceApp termination converge on the public engine stop API, with the ServiceApp serializing start/stop operations so `LiStopConnection()` is not called while `LiStartConnection()` is still executing.
 The web application opens the trusted reply port `MoonlightWmpReply`,
 launches the native service explicitly, and sends request/reply messages over
-the bidirectional Tizen MessagePort API.
+the bidirectional Tizen MessagePort API. The bridge exposes
+`connect()`, `request()`, `ping()`, `getStatus()`, `probeEsplus()`,
+`startStream()`, `stopStream()` and `close()`.
 
 Protocol: `moonlight-wmp/1`
 
@@ -39,9 +41,11 @@ Build `libmlengine.so` first with the upstream engine script, then link the
 ServiceApp executable against it and the Tizen ServiceApp/MessagePort libraries:
 
 ```sh
-# From the repository root; DEPS points to fetch-tizen-sources.sh output.
+# From the repository root. BPD and DEPSBUILD are the outputs of the
+# backport-dependency and native dependency build scripts.
 MLT="$PWD" DEPS=/path/to/tizen-deps \
-  wmp/upstream/mlclient/build-engine-so.sh
+  BPD=/path/to/backport-deps DEPSBUILD=/path/to/deps-build \
+  OUT="$PWD/engine-build" wmp/upstream/mlclient/build-engine-so.sh
 
 DEPS=/path/to/tizen-deps \
   wmp/service/build-wmp-service.sh
