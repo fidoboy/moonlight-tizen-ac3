@@ -324,11 +324,7 @@ static void *session_worker(void *context)
     pthread_mutex_unlock(&g_session_mutex);
 
     if (result != 0 || stop_requested) {
-        if (result == 0) {
-            ml_engine_stop();
-        } else {
-            ml_engine_stop();
-        }
+        ml_engine_stop();
         pthread_mutex_lock(&g_session_mutex);
         g_session_stop_in_progress = false;
         pthread_cond_broadcast(&g_session_condition);
