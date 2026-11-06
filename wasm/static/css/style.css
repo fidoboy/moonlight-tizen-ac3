@@ -1059,17 +1059,18 @@ body[data-color-theme="black-orange"] #background-layer {
     transition: background-color 120ms ease, box-shadow 120ms ease;
 }
 #streamMenuDialog .stream-menu-option--keys {
-    background-color: rgba(36, 95, 134, 0.62) !important;
+    background-color: rgba(36, 95, 134, 0.558) !important;
 }
 #streamMenuDialog .stream-menu-option--stats {
-    background-color: rgba(98, 80, 143, 0.62) !important;
+    background-color: rgba(98, 80, 143, 0.558) !important;
 }
 #streamMenuDialog .stream-menu-option--disconnect {
-    background-color: rgba(179, 38, 30, 0.66) !important;
+    background-color: rgba(179, 38, 30, 0.594) !important;
 }
 #streamMenuDialog .stream-menu-option__icon {
     display: inline-block;
     flex: 0 0 26px;
+    margin-right: 10px;
     font-family: "Material Symbols Outlined";
     font-size: 25px;
     font-weight: normal;
@@ -1084,18 +1085,18 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 #streamMenuDialog .stream-menu-option--keys.hovered,
 #streamMenuDialog .stream-menu-option--keys:focus {
-    background-color: rgba(49, 123, 169, 0.76) !important;
-    box-shadow: 0 0 0 3px rgba(74, 173, 230, 0.9);
+    background-color: rgba(49, 123, 169, 0.684) !important;
+    box-shadow: 0 0 0 3px rgba(74, 173, 230, 0.81);
 }
 #streamMenuDialog .stream-menu-option--stats.hovered,
 #streamMenuDialog .stream-menu-option--stats:focus {
-    background-color: rgba(121, 101, 173, 0.76) !important;
-    box-shadow: 0 0 0 3px rgba(177, 153, 235, 0.9);
+    background-color: rgba(121, 101, 173, 0.684) !important;
+    box-shadow: 0 0 0 3px rgba(177, 153, 235, 0.81);
 }
 #streamMenuDialog .stream-menu-option--disconnect.hovered,
 #streamMenuDialog .stream-menu-option--disconnect:focus {
-    background-color: rgba(211, 59, 50, 0.8) !important;
-    box-shadow: 0 0 0 3px rgba(255, 111, 102, 0.95);
+    background-color: rgba(211, 59, 50, 0.72) !important;
+    box-shadow: 0 0 0 3px rgba(255, 111, 102, 0.855);
 }
 .mdl-dialog__title {
     margin: 0;
