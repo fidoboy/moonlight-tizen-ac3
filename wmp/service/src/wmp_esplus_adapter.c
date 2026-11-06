@@ -303,8 +303,11 @@ wmp_esplus_call_result_t wmp_esplus_normalize_stream_result(
 {
     wmp_esplus_call_result_t result = { WMP_ESPLUS_CALL_UNCLASSIFIED, raw_status };
     if (family == WMP_ESPLUS_FAMILY_SET) {
-        result.status = raw_status == 0 ? WMP_ESPLUS_CALL_SUCCESS :
-                                         WMP_ESPLUS_CALL_NATIVE_FAILURE;
+        /*
+         * The SET API declares int, but the inspected public header and
+         * available consumer code do not establish its success convention.
+         * Preserve the raw result until verified against the target library.
+         */
     } else if (family == WMP_ESPLUS_FAMILY_ADD) {
         if (raw_status == 1) result.status = WMP_ESPLUS_CALL_SUCCESS;
         else if (raw_status == 0) result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
