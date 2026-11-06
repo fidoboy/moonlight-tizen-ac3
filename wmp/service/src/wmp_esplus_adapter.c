@@ -298,6 +298,26 @@ int wmp_esplus_map_audio_mime(
     return -1;
 }
 
+wmp_esplus_call_result_t wmp_esplus_normalize_stream_result(
+    wmp_esplus_family_e family, int raw_status)
+{
+    wmp_esplus_call_result_t result = { WMP_ESPLUS_CALL_UNCLASSIFIED, raw_status };
+    if (family == WMP_ESPLUS_FAMILY_SET) {
+        result.status = raw_status == 0 ? WMP_ESPLUS_CALL_SUCCESS :
+                                         WMP_ESPLUS_CALL_NATIVE_FAILURE;
+    } else if (family == WMP_ESPLUS_FAMILY_ADD) {
+        if (raw_status == 1) result.status = WMP_ESPLUS_CALL_SUCCESS;
+        else if (raw_status == 0) result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
+    }
+    return result;
+}
+
+static wmp_esplus_call_result_t stream_local_error(wmp_esplus_call_status_e status)
+{
+    wmp_esplus_call_result_t result = { status, INT_MIN };
+    return result;
+}
+
 int wmp_esplus_adapter_set_video_info(
     wmp_esplus_adapter_t *adapter, const wmp_esplus_video_info_t *info)
 {
