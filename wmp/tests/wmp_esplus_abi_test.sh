@@ -65,4 +65,8 @@ build_case partial-family missing -DFAKE_SET_PARTIAL
 build_case incomplete-core core -DFAKE_CORE_MISSING
 build_case ambiguous-families ambiguous -DFAKE_BOTH
 
-echo "All WMP ESPlus resolver tests passed."
+cc -std=c99 -Wall -Wextra -Werror \
+  "$ROOT/service/src/wmp_esplus_adapter.c" \
+  "$ROOT/tests/wmp_esplus_adapter_test.c" -ldl -o "$TMP/wmp-esplus-adapter-test"
+"$TMP/wmp-esplus-adapter-test"
+echo "All WMP ESPlus resolver and adapter layout tests passed."
