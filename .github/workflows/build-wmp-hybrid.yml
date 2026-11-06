@@ -22,7 +22,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: wmp-hybrid-${ inputs.web_ref }
+  group: wmp-hybrid-${{ inputs.web_ref }}
   cancel-in-progress: false
 
 jobs:
@@ -30,8 +30,8 @@ jobs:
     name: Build WMP engine and native service
     uses: ./.github/workflows/wmp-native-build.yml
     with:
-      tv_libs_archive_url: ${ inputs.tv_libs_archive_url }
-      tv_libs_archive_sha256: ${ inputs.tv_libs_archive_sha256 }
+      tv_libs_archive_url: ${{ inputs.tv_libs_archive_url }}
+      tv_libs_archive_sha256: ${{ inputs.tv_libs_archive_sha256 }}
 
   package-hybrid:
     name: Assemble and sign hybrid WGT
@@ -42,13 +42,13 @@ jobs:
       - name: Check out Moonlight web application
         uses: actions/checkout@v5
         with:
-          ref: ${ inputs.web_ref }
+          ref: ${{ inputs.web_ref }}
           submodules: recursive
 
       - name: Check out WMP service packaging metadata
         uses: actions/checkout@v5
         with:
-          repository: ${ github.repository }
+          repository: ${{ github.repository }}
           ref: wmp_mode
           path: wmp-source
           fetch-depth: 1
@@ -57,7 +57,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: wmp-native-arm
-          path: ${ runner.temp }}/wmp-native
+          path: ${{ runner.temp }}}/wmp-native
 
       - name: Validate native build outputs
         shell: bash
@@ -71,7 +71,7 @@ jobs:
       - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
-          GH_TOKEN: ${ secrets.GITHUB_TOKEN }
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           asset_file="moonlight-generated-videos-v1.zip"
@@ -123,13 +123,13 @@ jobs:
           context: .
           push: false
           load: true
-          tags: moonlight-wmp-web:${ github.sha }
+          tags: moonlight-wmp-web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             BUILD_TYPE=release
-            REPO_OWNER=${ github.repository_owner }
-            REPO_NAME=${ github.event.repository.name }
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=false
 
       - name: Extract base web WGT
@@ -410,11 +410,11 @@ jobs:
       - name: Upload signed hybrid WGT
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-WMP-Hybrid-${ github.sha }
+          name: Moonlight-WMP-Hybrid-${{ github.sha }}
           path: |
-            ${ runner.temp }}/Moonlight-WMP-Hybrid.wgt
-            ${ runner.temp }}/Moonlight-WMP-Hybrid.sha256
-            ${ runner.temp }}/wmp-service-dynamic.txt
-            ${ runner.temp }}/libmlengine-dynamic.txt
+            ${{ runner.temp }}}/Moonlight-WMP-Hybrid.wgt
+            ${{ runner.temp }}}/Moonlight-WMP-Hybrid.sha256
+            ${{ runner.temp }}}/wmp-service-dynamic.txt
+            ${{ runner.temp }}}/libmlengine-dynamic.txt
           if-no-files-found: error
           retention-days: 14
