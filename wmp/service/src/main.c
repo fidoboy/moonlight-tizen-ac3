@@ -93,34 +93,34 @@ static void message_port_received(
 
     if (protocol == NULL || strcmp(protocol, WMP_PROTOCOL) != 0) {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\\"error\\":\\"unsupported_protocol\\"}");
+                      "error", "{\"error\":\"unsupported_protocol\"}");
         return;
     }
 
     if (request_id == NULL || request_id[0] == '\0' ||
         command == NULL || command[0] == '\0') {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\\"error\\":\\"invalid_request\\"}");
+                      "error", "{\"error\":\"invalid_request\"}");
         return;
     }
 
     /* MessagePort is a control channel, not a media-packet transport. */
     if (payload != NULL && strlen(payload) > 2048) {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\\"error\\":\\"payload_too_large\\"}");
+                      "error", "{\"error\":\"payload_too_large\"}");
         return;
     }
 
     if (strcmp(command, "ping") == 0) {
         snprintf(response_payload, sizeof(response_payload),
-                 "{\\"pong\\":true,\\"service\\":\\"ready\\"}");
+                 "{\"pong\":true,\"service\":\"ready\"}");
     } else if (strcmp(command, "get_status") == 0 ||
                strcmp(command, "probe_esplus") == 0) {
         engine_running = g_service_ready ? ml_engine_running() : 0;
         snprintf(response_payload, sizeof(response_payload),
-                 "{\\"service\\":\\"%s\\",\\"engine\\":\\"%s\\","
-                 "\\"running\\":%s,\\"esplus\\":\\"%s\\","
-                 "\\"streamApi\\":\\"%s\\"}",
+                 "{\"service\":\"%s\",\"engine\":\"%s\","
+                 "\"running\":%s,\"esplus\":\"%s\","
+                 "\"streamApi\":\"%s\"}",
                  g_service_ready ? "ready" : "stopping",
                  g_service_ready ? "libmlengine" : "unavailable",
                  engine_running ? "true" : "false",
@@ -129,7 +129,7 @@ static void message_port_received(
     } else if (strcmp(command, "stop_session") == 0) {
         if (!g_service_ready) {
             send_response(remote_app_id, remote_port, request_id,
-                          "error", "{\\"error\\":\\"service_not_ready\\"}");
+                          "error", "{\"error\":\"service_not_ready\"}");
             return;
         }
         /*
@@ -138,11 +138,11 @@ static void message_port_received(
          */
         ml_engine_stop();
         snprintf(response_payload, sizeof(response_payload),
-                 "{\\"stopped\\":true,\\"running\\":%s}",
+                 "{\"stopped\":true,\"running\":%s}",
                  ml_engine_running() ? "true" : "false");
     } else {
         send_response(remote_app_id, remote_port, request_id,
-                      "error", "{\\"error\\":\\"unsupported_command\\"}");
+                      "error", "{\"error\":\"unsupported_command\"}");
         dlog_print(DLOG_WARN, LOG_TAG, "Unsupported WMP command: %s", command);
         return;
     }
