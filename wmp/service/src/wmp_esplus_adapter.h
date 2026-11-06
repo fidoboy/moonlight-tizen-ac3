@@ -110,8 +110,9 @@ typedef struct {
 
 /*
  * Stream-registration calls have family-specific native conventions:
- * SET returns 0 on success and a nonzero Tizen error code on failure;
- * legacy ADD returns a C++ bool encoded as int (1 success, 0 failure).
+ * SET returns int, but its success convention is not yet verified against
+ * the target library; preserve it as UNCLASSIFIED.
+ * Legacy ADD returns a C++ bool encoded as int (1 success, 0 failure).
  */
 typedef enum {
     WMP_ESPLUS_CALL_SUCCESS = 0,
