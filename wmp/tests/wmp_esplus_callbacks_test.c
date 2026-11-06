@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     callback_state_t state;
     int second_player_marker = 2;
     void *player;
-    void *display_marker = 3;
+    int display_marker = 3;
     void *library;
     mock_action_fn fire, fire_unknown;
     mock_count_fn registered_count;
