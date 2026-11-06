@@ -56,7 +56,7 @@ build_case() {
     cc -std=c99 -Wall -Wextra -Werror -shared -fPIC "$@" \
       "$TMP/fake_esplus.c" -o "$TMP/$name/libesplusplayer.so"
     LD_LIBRARY_PATH="$TMP/$name" "$TMP/wmp-esplus-test" "$expected"
-    printf 'PASS: %s\\n' "$name"
+    printf 'PASS: %s\n' "$name"
 }
 
 build_case modern-set set -DFAKE_SET
@@ -69,4 +69,15 @@ cc -std=c99 -Wall -Wextra -Werror \
   "$ROOT/service/src/wmp_esplus_adapter.c" \
   "$ROOT/tests/wmp_esplus_adapter_test.c" -ldl -o "$TMP/wmp-esplus-adapter-test"
 "$TMP/wmp-esplus-adapter-test"
-echo "All WMP ESPlus resolver and adapter layout tests passed."
+
+cc -std=c99 -Wall -Wextra -Werror -shared -fPIC -DMOCK_SET \
+  "$ROOT/tests/wmp_esplus_callbacks_mock.c" -o "$TMP/libesplus-callbacks-set.so"
+cc -std=c99 -Wall -Wextra -Werror -shared -fPIC -DMOCK_ADD \
+  "$ROOT/tests/wmp_esplus_callbacks_mock.c" -o "$TMP/libesplus-callbacks-add.so"
+cc -std=c99 -Wall -Wextra -Werror \
+  "$ROOT/service/src/wmp_esplus_adapter.c" \
+  "$ROOT/tests/wmp_esplus_callbacks_test.c" -ldl -o "$TMP/wmp-esplus-callbacks-test"
+"$TMP/wmp-esplus-callbacks-test" set "$TMP/libesplus-callbacks-set.so"
+"$TMP/wmp-esplus-callbacks-test" add "$TMP/libesplus-callbacks-add.so"
+
+echo "All WMP ESPlus resolver, adapter and callback tests passed."
