@@ -1045,11 +1045,15 @@ body[data-color-theme="black-orange"] #background-layer {
     border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 #streamMenuDialog .stream-menu-group--keys {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0;
     padding: 12px;
     border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 8px;
 }
 #streamMenuDialog .stream-menu-group__title {
+    grid-column: 1 / -1;
     margin: 0 0 10px;
     color: rgba(255, 255, 255, 0.9);
     font-size: 1.35rem;
