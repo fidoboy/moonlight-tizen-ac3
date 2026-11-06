@@ -58,7 +58,10 @@ typedef void (*add_stream_reg_fn)(void *, add_stream_cb);
 typedef void (*add_prepared_reg_fn)(void *, add_prepared_cb);
 
 typedef char assert_set_packet_arm32[(sizeof(void *) != 4 || sizeof(set_packet_t) == 48) ? 1 : -1];
+typedef char assert_set_pts_offset_arm32[(sizeof(void *) != 4 || offsetof(set_packet_t, pts_ms) == 16) ? 1 : -1];
+typedef char assert_set_hdr_offset_arm32[(sizeof(void *) != 4 || offsetof(set_packet_t, hdr10p_metadata) == 40) ? 1 : -1];
 typedef char assert_add_packet_arm32[(sizeof(void *) != 4 || sizeof(add_packet_t) == 32) ? 1 : -1];
+typedef char assert_add_pts_offset_arm32[(sizeof(void *) != 4 || offsetof(add_packet_t, pts_ns) == 16) ? 1 : -1];
 
 static wmp_esplus_adapter_t *s_add_adapter;
 
