@@ -1,5 +1,6 @@
 #include "wmp_esplus_adapter.h"
 
+#include <dlfcn.h>
 #include <limits.h>
 #include <string.h>
 
@@ -55,6 +56,9 @@ typedef int (*add_buffer_reg_fn)(void *, add_buffer_cb);
 typedef int (*add_void_reg_fn)(void *, add_void_cb);
 typedef int (*add_stream_reg_fn)(void *, add_stream_cb);
 typedef int (*add_prepared_reg_fn)(void *, add_prepared_cb);
+
+typedef char assert_set_packet_arm32[(sizeof(void *) != 4 || sizeof(set_packet_t) == 48) ? 1 : -1];
+typedef char assert_add_packet_arm32[(sizeof(void *) != 4 || sizeof(add_packet_t) == 32) ? 1 : -1];
 
 static wmp_esplus_adapter_t *s_add_adapter;
 
