@@ -37,7 +37,15 @@
 
   function handleMessage(items) {
     var message = readMessage(items);
-    if (message.protocol !== PROTOCOL || message.type !== 'response') return;
+    if (message.protocol !== PROTOCOL) return;
+
+    if (message.type === 'event') {
+      if (typeof global.handleMessage === 'function' && message.event) {
+        global.handleMessage(String(message.event));
+      }
+      return;
+    }
+    if (message.type !== 'response') return;
 
     var id = String(message.id || '');
     var request = pending[id];
@@ -61,9 +69,9 @@
     if (response.status === 'ok') {
       request.resolve(response);
     } else {
-      request.reject(makeError(
-        response.payload.error || 'native command failed'
-      ));
+      var error = makeError(response.payload.error || 'native command failed');
+      if (response.payload.code !== undefined) error.code = Number(response.payload.code);
+      request.reject(error);
     }
   }
 
@@ -138,12 +146,21 @@
         pending[id] = {resolve: resolve, reject: reject};
 
         try {
-          remotePort.sendMessage([
+          var items = [
             {key: 'protocol', value: PROTOCOL},
             {key: 'id', value: id},
             {key: 'command', value: command},
             {key: 'payload', value: serializedPayload}
-          ], localPort);
+          ];
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            Object.keys(payload).forEach(function(key) {
+              if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) return;
+              var value = payload[key];
+              if (value === undefined || value === null) return;
+              items.push({key: 'arg_' + key, value: String(value)});
+            });
+          }
+          remotePort.sendMessage(items, localPort);
         } catch (error) {
           delete pending[id];
           reject(makeError('could not send command: ' + error.message));
@@ -175,6 +192,8 @@
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
     probeEsplus: function() { return request('probe_esplus'); },
+    startStream: function(parameters) { return request('start_session', parameters); },
+    stopStream: function() { return request('stop_session'); },
     close: close
   };
 })(window);
