@@ -6278,6 +6278,8 @@ function getStreamMenuOptions() {
     { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]) },
     { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendEsc', 'ESC', [0x1B]) },
     { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltEnter', 'ALT + ENTER', [0xA4, 0x0D]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendCtrlShiftEsc', 'CTRL + SHIFT + ESC', [0xA2, 0xA0, 0x1B]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendWinD', 'WIN + D', [0x5B, 0x44]) },
     {
       group: 'stats',
       icon: 'query_stats',
