@@ -71,11 +71,12 @@ stream/packet contract and keeps the native layouts separate:
   statuses. Legacy ADD returns a C++ `bool` encoded as `int`: `1` is success
   and `0` is failure; other values remain unclassified. The ADD upstream TV50
   header explicitly documents this convention.
-- SET declares an `int` return, but its success convention has not yet been
-  proven against the target library. The adapter therefore preserves the raw
-  value as `UNCLASSIFIED` instead of assuming that zero or nonzero means
-  success. The Tizen 6 OmegaTube consumer checks the video call as
-  `rc != 0`, but that consumer-side assumption is not sufficient ABI proof.
+- The inspected SET implementation returns `0` when the underlying
+  `SetStream` operation succeeds, `-38` when it reports failure, and `-22`
+  for null arguments. The adapter classifies those values accordingly and
+  preserves any other return as `UNCLASSIFIED`. This evidence comes from the
+  extracted ELF64 x86-64 library; the ARM32 TV library has not yet been
+  disassembled, so target-binary parity remains to be confirmed.
 - The neutral result distinguishes local invalid arguments and missing
   function pointers from native results.
 
