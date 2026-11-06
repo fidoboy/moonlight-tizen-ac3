@@ -427,9 +427,9 @@ jobs:
           if [ -f "$probe/project_def.prop" ] && grep -q '^ROOTSTRAP_PROBE_RESULT=success$' "$probe_log"; then
             service_probe_log="$report/iot-headed-6.0-wmp-service-source-build.log"
             echo "=== ACTUAL WMP SERVICE SOURCE BUILD (COMPILE-ONLY ARCHIVE) ===" | tee "$service_probe_log"
-            cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$probe/src/main.c"
-            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$probe/src/wmp_esplus_abi.c"
-            cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$probe/src/wmp_esplus_abi.h"
+            cp "$GITHUB_WORKSPACE/wmp/service/src/main.c" "$probe/src/main.c"
+            cp "$GITHUB_WORKSPACE/wmp/service/src/wmp_esplus_abi.c" "$probe/src/wmp_esplus_abi.c"
+            cp "$GITHUB_WORKSPACE/wmp/service/src/wmp_esplus_abi.h" "$probe/src/wmp_esplus_abi.h"
             cat > "$probe/project_def.prop" <<'PROP'
           APPNAME = wmpservice
 
@@ -498,10 +498,10 @@ jobs:
             else
               mkdir -p "$link_probe_root"
               cp -a "$source_project" "$link_probe"
-              cp "$GITHUB_WORKSPACE/native/wmp-service/src/main.c" "$link_probe/src/main.c"
-              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.c" "$link_probe/src/wmp_esplus_abi.c"
-              cp "$GITHUB_WORKSPACE/native/wmp-service/src/wmp_esplus_abi.h" "$link_probe/src/wmp_esplus_abi.h"
-              cp "$GITHUB_WORKSPACE/native/wmp-service/tizen-manifest.xml" "$link_probe/tizen-manifest.xml"
+              cp "$GITHUB_WORKSPACE/wmp/service/src/main.c" "$link_probe/src/main.c"
+              cp "$GITHUB_WORKSPACE/wmp/service/src/wmp_esplus_abi.c" "$link_probe/src/wmp_esplus_abi.c"
+              cp "$GITHUB_WORKSPACE/wmp/service/src/wmp_esplus_abi.h" "$link_probe/src/wmp_esplus_abi.h"
+              cp "$GITHUB_WORKSPACE/wmp/service/tizen-manifest.xml" "$link_probe/tizen-manifest.xml"
 
               # Retarget the project metadata to IoT Headed 6.0.
               sed -i 's/profile = tizen-10.0/profile = iot-headed-6.0/' "$link_probe/project_def.prop"
