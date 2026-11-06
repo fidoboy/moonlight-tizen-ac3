@@ -112,28 +112,14 @@ jobs:
         run: bash wmp/upstream/build/fetch-backport-deps.sh
 
       - name: Build Moonlight core, GameStream and crypto dependencies
-        env:
-          MLT: ${{ env.MLT }}
-          DEPS: ${{ env.DEPS }}
-          BPD: ${{ env.BPD }}
-          OUT: ${{ env.DEPSBUILD }}
         run: bash wmp/upstream/build/build-deps-lib.sh
 
       - name: Build libmlengine.so
         env:
-          MLT: ${{ env.MLT }}
-          DEPS: ${{ env.DEPS }}
-          BPD: ${{ env.BPD }}
-          DEPSBUILD: ${{ env.DEPSBUILD }}
-          OUT: ${{ env.ENGINE_OUT }}
           BUILD_VARIANT: release
         run: bash wmp/upstream/mlclient/build-engine-so.sh
 
       - name: Link native WMP ServiceApp
-        env:
-          DEPS: ${{ env.DEPS }}
-          ENGINE_SO: ${{ env.ENGINE_OUT }}/libmlengine.so
-          SERVICE_OUT: ${{ github.workspace }}/wmp/build/service
         run: bash wmp/service/build-wmp-service.sh
 
       - name: Verify final ARM ELF files and runtime metadata
