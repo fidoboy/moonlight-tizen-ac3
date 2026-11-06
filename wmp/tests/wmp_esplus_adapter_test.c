@@ -62,15 +62,15 @@ static void test_stream_registration_results(void)
 {
     wmp_esplus_call_result_t result;
 
-    /* SET uses the Tizen-style error convention: zero means success. */
+    /* SET is int-returning, but its success convention is not yet proven. */
     result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, 0);
-    assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED);
     assert(result.raw_status == 0);
     result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, -22);
-    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED);
     assert(result.raw_status == -22);
     result = wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, 5);
-    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED);
     assert(result.raw_status == 5);
 
     /* Legacy ADD returns a C++ bool encoded as int: 1 true, 0 false. */
