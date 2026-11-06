@@ -30,7 +30,11 @@ const remotePort = {
     pendingMessages.push(request);
     const payload = request.command === 'ping'
       ? {pong: true, service: 'ready'}
-      : {service: 'ready', esplus: 'available', streamApi: 'set'};
+      : request.command === 'start_session'
+        ? {started: true, running: true}
+        : request.command === 'stop_session'
+          ? {stopped: true}
+          : {service: 'ready', esplus: 'symbols_detected', streamApi: 'set'};
     Promise.resolve().then(() => {
       messageListener([
         {key: 'protocol', value: request.protocol},
@@ -43,7 +47,11 @@ const remotePort = {
   }
 };
 
+const handledEvents = [];
 const window = {
+  handleMessage(message) {
+    handledEvents.push(message);
+  },
   tizen: {
     messageport: {
       requestTrustedLocalMessagePort(name) {
@@ -90,10 +98,47 @@ vm.runInNewContext(source, {
 
   const status = await window.WmpTransport.getStatus();
   assert.strictEqual(status.payload.service, 'ready');
-  assert.strictEqual(status.payload.esplus, 'available');
+  assert.strictEqual(status.payload.esplus, 'symbols_detected');
   assert.strictEqual(status.payload.streamApi, 'set');
 
-  assert.deepStrictEqual(pendingMessages.map(message => message.command), ['ping', 'get_status']);
+  const start = await window.WmpTransport.startStream({
+    host: '192.168.0.10',
+    w: 1920,
+    h: 1080,
+    fps: 60,
+    bitrate: 20000,
+    rikey: '00112233445566778899aabbccddeeff',
+    rikeyid: 1234,
+    appVer: '1.0',
+    gfeVer: '3.0',
+    rtspUrl: 'rtsp://host/session',
+    codecMode: 1,
+    audioConfig: '51Surround',
+    videoCodec: 'H264',
+    hdr: false,
+    fullRange: false
+  });
+  assert.strictEqual(start.payload.started, true);
+  const startMessage = pendingMessages[pendingMessages.length - 1];
+  assert.strictEqual(startMessage.command, 'start_session');
+  assert.strictEqual(startMessage.arg_host, '192.168.0.10');
+  assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
+  assert.strictEqual(startMessage.arg_videoCodec, 'H264');
+
+  const stop = await window.WmpTransport.stopStream();
+  assert.strictEqual(stop.payload.stopped, true);
+  assert.deepStrictEqual(
+    pendingMessages.map(message => message.command),
+    ['ping', 'get_status', 'start_session', 'stop_session']
+  );
+
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'displayVideo'}
+  ]);
+  assert.deepStrictEqual(handledEvents, ['displayVideo']);
+
   window.WmpTransport.close();
   assert.strictEqual(listenerRemoved, true);
   console.log('WMP trusted MessagePort bridge tests passed.');
