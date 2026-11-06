@@ -3,6 +3,11 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.2.3
+
+### Fixed
+- **Stale host connectivity after startup:** Reset persisted runtime connectivity and polling state when restoring saved hosts, ensuring their online status is verified against the network before they can be selected. This prevents hosts that were online in a previous session but are now offline from appearing available and failing later during application-list retrieval.
+
 ## v1.2.2
 
 ### Added
