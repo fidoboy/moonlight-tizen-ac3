@@ -304,10 +304,14 @@ wmp_esplus_call_result_t wmp_esplus_normalize_stream_result(
     wmp_esplus_call_result_t result = { WMP_ESPLUS_CALL_UNCLASSIFIED, raw_status };
     if (family == WMP_ESPLUS_FAMILY_SET) {
         /*
-         * The SET API declares int, but the inspected public header and
-         * available consumer code do not establish its success convention.
-         * Preserve the raw result until verified against the target library.
+         * The inspected libesplusplayer ELF64 implementation returns 0
+         * when the underlying SetStream operation succeeds. It returns
+         * -38 when that operation reports false and -22 for null arguments.
+         * Keep unknown nonzero values unclassified rather than guessing.
          */
+        if (raw_status == 0) result.status = WMP_ESPLUS_CALL_SUCCESS;
+        else if (raw_status == -22 || raw_status == -38)
+            result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
     } else if (family == WMP_ESPLUS_FAMILY_ADD) {
         if (raw_status == 1) result.status = WMP_ESPLUS_CALL_SUCCESS;
         else if (raw_status == 0) result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
