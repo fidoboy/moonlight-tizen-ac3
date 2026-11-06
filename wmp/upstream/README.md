@@ -21,9 +21,10 @@ This is an upstream source import, not yet the final WGT-integrated service buil
 
 ## ESPlus compatibility boundary
 
-The upstream player source currently targets the legacy ADD API. Project-owned
+The upstream import originally targeted the legacy ADD API. Project-owned
 typed adapters live in `../service/src/wmp_esplus_adapter.[ch]` and are
-compiled into the engine by `mlclient/build-engine-so.sh`.
+compiled into the engine by `mlclient/build-engine-so.sh`; the current player
+and sink sources consume that neutral interface.
 
 The neutral stream contract maps each family into its own native structure.
 SET video fields are stride/slice-height/integer-frame-rate/interlaced; ADD

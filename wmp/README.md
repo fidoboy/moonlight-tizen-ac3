@@ -115,11 +115,11 @@ The upstream .NET host, CLI entry point, UI package, Samsung proprietary ESPlus 
 
 ## Remaining integration work
 
-The imported upstream player is still written directly against the legacy ADD
-declarations and currently references the excluded proprietary header. Its
-audio/video call sites must be migrated to the neutral adapter. The adapter
-contract is not yet runtime-integrated, and its current tests have not been
-executed in this environment.
+The player, video sink and Opus audio sink now use the neutral adapter inside
+`libmlengine.so`. The remaining integration work is the native ServiceApp
+lifecycle and connection between the web control channel and the engine's
+media/session path. The adapter tests have not yet been executed for this
+revision in the target Alpine environment.
 
 The engine still needs adaptation to the native ServiceApp lifecycle and
 connection to the service's media/session path. Ecore/Wayland display work runs
