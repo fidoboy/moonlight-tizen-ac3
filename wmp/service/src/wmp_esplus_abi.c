@@ -53,7 +53,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     char *report,
     size_t report_capacity)
 {
-    bool set_pair, add_pair, set_marker, add_marker;
+    bool set_pair, add_pair;
 
     if (api == NULL)
         return WMP_ESPLUS_PROBE_LIBRARY_MISSING;
@@ -87,6 +87,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     RESOLVE(submit_packet, "esplusplayer_submit_packet");
     RESOLVE(submit_eos_packet, "esplusplayer_submit_eos_packet");
 
+    /* Display capabilities are independent of the stream-registration ABI. */
     RESOLVE(set_display_ecore_subsurface, "esplusplayer_set_display_ecore_subsurface");
     RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
     RESOLVE(set_video_stream_info, "esplusplayer_set_video_stream_info");
@@ -97,10 +98,9 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
 #undef RESOLVE
 
     /*
-     * The Tizen 5.0 reference exports the add_* pair and set_ecore_display.
-     * The later 0.0.3 header uses set_* stream registration and
-     * set_display_ecore_subsurface. Do not require destroy for the older
-     * player: that generation exposes a process-global player lifecycle.
+     * Do not require destroy for the legacy add_* generation: that API may
+     * expose a process-global player lifecycle. Function signatures are not
+     * validated here; the typed family adapter owns all calls.
      */
     if (api->create == NULL || api->open == NULL || api->close == NULL ||
         api->prepare_async == NULL || api->start == NULL || api->stop == NULL ||
@@ -110,28 +110,28 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
         return WMP_ESPLUS_PROBE_CORE_INCOMPLETE;
     }
 
+    /*
+     * set_ecore_display is exported by both generations in audited builds.
+     * Subsurface exports are not a family discriminator either. Select only
+     * from the complete, generation-specific stream-info pair.
+     */
     set_pair = api->set_video_stream_info != NULL &&
                api->set_audio_stream_info != NULL;
     add_pair = api->add_video_stream_info != NULL &&
                api->add_audio_stream_info != NULL;
-    set_marker = api->set_display_ecore_subsurface != NULL;
-    add_marker = api->set_ecore_display != NULL;
 
-    if (set_marker && add_marker) {
+    if (set_pair && add_pair) {
         report_append(report, report_capacity,
-                      "STREAM_API: both ABI display markers exported; refusing to guess\\n");
+                      "STREAM_API: both complete SET and ADD pairs exported; refusing to guess\n");
         return WMP_ESPLUS_PROBE_AMBIGUOUS;
-    } else if (set_pair && set_marker) {
+    }
+    if (set_pair) {
         api->selected_family = WMP_ESPLUS_FAMILY_SET;
-    } else if (add_pair && add_marker) {
+    } else if (add_pair) {
         api->selected_family = WMP_ESPLUS_FAMILY_ADD;
-    } else if ((set_pair && set_marker) || (add_pair && add_marker)) {
-        report_append(report, report_capacity,
-                      "STREAM_API: ambiguous ABI markers; refusing to guess\n");
-        return WMP_ESPLUS_PROBE_AMBIGUOUS;
     } else {
         report_append(report, report_capacity,
-                      "STREAM_API: no complete stream-info pair plus matching display marker\n");
+                      "STREAM_API: no complete SET or ADD stream-info pair\n");
         return WMP_ESPLUS_PROBE_STREAM_API_MISSING;
     }
 
