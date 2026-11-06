@@ -6262,7 +6262,7 @@ function sendKeyCombinationToHost(keyCodes) {
 function sendKeysMenuOption(id, keysLabel, keyCodes) {
   return {
     id: id,
-    text: t('Send %1$s', keysLabel),
+    text: keysLabel,
     action: function() {
       sendKeyCombinationToHost(keyCodes);
     }
@@ -6336,6 +6336,12 @@ function streamMenuDialog() {
       group = $('<div>', {
         class: 'stream-menu-group stream-menu-group--' + groupedOption.group
       }).appendTo(streamMenuDialogContent);
+      if (groupedOption.group === 'keys') {
+        $('<div>', {
+          class: 'stream-menu-group__title',
+          text: 'Enviar pulsación de teclas'
+        }).appendTo(group);
+      }
       streamMenuGroups[groupedOption.group] = group;
     }
 
