@@ -478,6 +478,8 @@ static void handle_stop_session(
     const char *remote_port,
     const char *request_id)
 {
+    bool worker_active;
+
     pthread_mutex_lock(&g_session_mutex);
     if (g_session_starting) {
         g_session_stop_requested = true;
@@ -492,6 +494,7 @@ static void handle_stop_session(
                       "error", "{\"error\":\"engine_busy\"}");
         return;
     }
+    worker_active = g_session_worker_active;
     g_session_stop_in_progress = true;
     pthread_mutex_unlock(&g_session_mutex);
 
@@ -504,6 +507,8 @@ static void handle_stop_session(
 
     send_response(remote_app_id, remote_port, request_id, "ok",
                   "{\"stopped\":true}");
+    if (!worker_active)
+        send_event(remote_app_id, remote_port, "streamTerminated: 0", NULL);
 }
 
 static void message_port_received(
