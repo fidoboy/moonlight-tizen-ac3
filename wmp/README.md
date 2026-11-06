@@ -17,14 +17,16 @@ It is not a standalone TPK and must not be published or installed separately.
 
 The service registers the trusted native MessagePort `MoonlightWmpControl` and links against the engine's public `mlengine.h` ABI. Its status response reports `libmlengine` availability and the live `ml_engine_running()` state.
 
-After the existing host `launch`/`resume` request succeeds, the Web UI forwards the resulting session parameters over MessagePort using `start_session`. The service validates the fields and invokes `ml_engine_start_session_v2()` on a worker thread, so the ServiceApp message loop is not blocked by connection setup. It returns the start result and forwards the engine lifecycle as the existing `Connection Established`, `displayVideo` and `streamTerminated: <code>` UI events. Its monitor only observes `ml_engine_running()` and the engine's accepted-video counter; it does not make session validity, recovery or disconnect decisions.
+After the existing host `launch`/`resume` request succeeds, the Web UI forwards the resulting session parameters over MessagePort using `start_session`. The service validates the fields, acknowledges that the request was queued, and invokes `ml_engine_start_session_v2()` on a worker thread, so the ServiceApp message loop is not blocked by connection setup. A later startup failure is forwarded as `streamTerminated: -1` with its diagnostic detail. Successful starts forward the existing `Connection Established`, `displayVideo` and `streamTerminated: <code>` UI events. Its monitor only observes `ml_engine_running()` and the engine's accepted-video counter; it does not make session validity, recovery or disconnect decisions.
 
 `stop_session` forwards teardown to `ml_engine_stop()`. Explicit stop, host termination and ServiceApp termination converge on the public engine stop API, with the ServiceApp serializing start/stop operations so `LiStopConnection()` is not called while `LiStartConnection()` is still executing.
 The web application opens the trusted reply port `MoonlightWmpReply`,
 launches the native service explicitly, and sends request/reply messages over
 the bidirectional Tizen MessagePort API. The bridge exposes
 `connect()`, `request()`, `ping()`, `getStatus()`, `probeEsplus()`,
-`startStream()`, `stopStream()` and `close()`.
+`startStream()`, `stopStream()` and `close()`. Start parameters are also
+forwarded as individual `arg_*` bundle fields so the C ServiceApp can validate
+them without depending on a JSON parser.
 
 Protocol: `moonlight-wmp/1`
 
