@@ -40,6 +40,7 @@
     if (message.protocol !== PROTOCOL) return;
 
     if (message.type === 'event') {
+      if (message.detail) global.pendingStreamApiMessage = String(message.detail);
       if (typeof global.handleMessage === 'function' && message.event) {
         global.handleMessage(String(message.event));
       }
