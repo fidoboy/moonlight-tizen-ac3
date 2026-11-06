@@ -17,25 +17,6 @@ static wmp_esplus_api_t g_esplus;
 static wmp_esplus_probe_result_e g_esplus_probe_result = WMP_ESPLUS_PROBE_LIBRARY_MISSING;
 static int g_control_port_id = -1;
 
-static const char *esplus_family_name(void)
-{
-    switch (g_esplus.selected_family) {
-    case WMP_ESPLUS_FAMILY_SET:
-        return "set";
-    case WMP_ESPLUS_FAMILY_ADD:
-        return "add";
-    default:
-        return "none";
-    }
-}
-
-static const char *esplus_status_name(void)
-{
-    return g_esplus_probe_result == WMP_ESPLUS_PROBE_OK
-        ? "available"
-        : "unavailable";
-}
-
 static void send_response(
     const char *remote_app_id,
     const char *remote_port,
@@ -134,7 +115,8 @@ static void message_port_received(
                strcmp(command, "probe_esplus") == 0) {
         snprintf(response_payload, sizeof(response_payload),
                  "{\"service\":\"ready\",\"esplus\":\"%s\",\"streamApi\":\"%s\"}",
-                 esplus_status_name(), esplus_family_name());
+                 wmp_esplus_probe_result_name(g_esplus_probe_result),
+                 wmp_esplus_family_name(g_esplus.selected_family));
     } else {
         send_response(remote_app_id, remote_port, request_id,
                       "error", "{\"error\":\"unsupported_command\"}");
@@ -169,8 +151,9 @@ static bool service_create(void *data)
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service started");
     dlog_print(DLOG_INFO, LOG_TAG, "WMP control port registered: %s",
                WMP_CONTROL_PORT);
-    dlog_print(DLOG_INFO, LOG_TAG, "ESPlus probe result=%d",
-               (int)g_esplus_probe_result);
+    dlog_print(DLOG_INFO, LOG_TAG, "ESPlus probe state=%s family=%s",
+               wmp_esplus_probe_result_name(g_esplus_probe_result),
+               wmp_esplus_family_name(g_esplus.selected_family));
     dlog_print(DLOG_INFO, LOG_TAG, "%s", report);
 
     /*

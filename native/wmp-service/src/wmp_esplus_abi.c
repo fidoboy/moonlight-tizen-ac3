@@ -13,11 +13,9 @@ static void report_append(char *buffer, size_t capacity, const char *format, ...
 
     if (buffer == NULL || capacity == 0)
         return;
-
     used = strlen(buffer);
     if (used >= capacity - 1)
         return;
-
     va_start(args, format);
     (void)vsnprintf(buffer + used, capacity - used, format, args);
     va_end(args);
@@ -29,17 +27,25 @@ static void *resolve_symbol(void *library, const char *name)
     return dlsym(library, name);
 }
 
-static bool core_symbols_complete(const wmp_esplus_api_t *api)
+const char *wmp_esplus_probe_result_name(wmp_esplus_probe_result_e result)
 {
-    return api->create != NULL &&
-           api->open != NULL &&
-           api->close != NULL &&
-           api->destroy != NULL &&
-           api->prepare_async != NULL &&
-           api->start != NULL &&
-           api->stop != NULL &&
-           api->submit_packet != NULL &&
-           api->set_ecore_display != NULL;
+    switch (result) {
+    case WMP_ESPLUS_PROBE_OK: return "symbols_detected";
+    case WMP_ESPLUS_PROBE_LIBRARY_MISSING: return "library_missing";
+    case WMP_ESPLUS_PROBE_CORE_INCOMPLETE: return "core_symbols_incomplete";
+    case WMP_ESPLUS_PROBE_STREAM_API_MISSING: return "stream_api_missing";
+    case WMP_ESPLUS_PROBE_AMBIGUOUS: return "abi_ambiguous";
+    default: return "unknown";
+    }
+}
+
+const char *wmp_esplus_family_name(wmp_esplus_family_e family)
+{
+    switch (family) {
+    case WMP_ESPLUS_FAMILY_SET: return "set";
+    case WMP_ESPLUS_FAMILY_ADD: return "add";
+    default: return "none";
+    }
 }
 
 wmp_esplus_probe_result_e wmp_esplus_probe(
@@ -47,8 +53,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     char *report,
     size_t report_capacity)
 {
-    bool set_family;
-    bool add_family;
+    bool set_pair, add_pair, set_marker, add_marker;
 
     if (api == NULL)
         return WMP_ESPLUS_PROBE_LIBRARY_MISSING;
@@ -60,8 +65,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     api->library = dlopen("libesplusplayer.so", RTLD_NOW | RTLD_LOCAL);
     if (api->library == NULL) {
         const char *error = dlerror();
-        report_append(report, report_capacity,
-                      "LIBRARY_LOAD_FAILED: %s\n",
+        report_append(report, report_capacity, "LIBRARY_LOAD_FAILED: %s\n",
                       error != NULL ? error : "dlopen returned NULL");
         return WMP_ESPLUS_PROBE_LIBRARY_MISSING;
     }
@@ -82,8 +86,9 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     RESOLVE(stop, "esplusplayer_stop");
     RESOLVE(submit_packet, "esplusplayer_submit_packet");
     RESOLVE(submit_eos_packet, "esplusplayer_submit_eos_packet");
-    RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
 
+    RESOLVE(set_display_ecore_subsurface, "esplusplayer_set_display_ecore_subsurface");
+    RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
     RESOLVE(set_video_stream_info, "esplusplayer_set_video_stream_info");
     RESOLVE(set_audio_stream_info, "esplusplayer_set_audio_stream_info");
     RESOLVE(add_video_stream_info, "esplusplayer_add_video_stream_info");
@@ -91,44 +96,52 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
 
 #undef RESOLVE
 
-    if (!core_symbols_complete(api)) {
+    /*
+     * The Tizen 5.0 reference exports the add_* pair and set_ecore_display.
+     * The later 0.0.3 header uses set_* stream registration and
+     * set_display_ecore_subsurface. Do not require destroy for the older
+     * player: that generation exposes a process-global player lifecycle.
+     */
+    if (api->create == NULL || api->open == NULL || api->close == NULL ||
+        api->prepare_async == NULL || api->start == NULL || api->stop == NULL ||
+        api->submit_packet == NULL) {
         report_append(report, report_capacity,
                       "CORE_API: INCOMPLETE; no ESPlus calls will be made\n");
         return WMP_ESPLUS_PROBE_CORE_INCOMPLETE;
     }
 
-    set_family = api->set_video_stream_info != NULL &&
-                 api->set_audio_stream_info != NULL;
-    add_family = api->add_video_stream_info != NULL &&
-                 api->add_audio_stream_info != NULL;
+    set_pair = api->set_video_stream_info != NULL &&
+               api->set_audio_stream_info != NULL;
+    add_pair = api->add_video_stream_info != NULL &&
+               api->add_audio_stream_info != NULL;
+    set_marker = api->set_display_ecore_subsurface != NULL;
+    add_marker = api->set_ecore_display != NULL;
 
-    if (set_family) {
-        /* Prefer the modern family when both complete families are present. */
+    if (set_pair && set_marker && !add_pair && !add_marker) {
         api->selected_family = WMP_ESPLUS_FAMILY_SET;
-        report_append(report, report_capacity,
-                      "STREAM_API: modern set_* family selected\n");
-        return WMP_ESPLUS_PROBE_OK;
-    }
-
-    if (add_family) {
+    } else if (add_pair && add_marker && !set_pair && !set_marker) {
         api->selected_family = WMP_ESPLUS_FAMILY_ADD;
+    } else if ((set_pair && set_marker) || (add_pair && add_marker)) {
         report_append(report, report_capacity,
-                      "STREAM_API: legacy add_* family selected\n");
-        return WMP_ESPLUS_PROBE_OK;
+                      "STREAM_API: ambiguous ABI markers; refusing to guess\n");
+        return WMP_ESPLUS_PROBE_AMBIGUOUS;
+    } else {
+        report_append(report, report_capacity,
+                      "STREAM_API: no complete stream-info pair plus matching display marker\n");
+        return WMP_ESPLUS_PROBE_STREAM_API_MISSING;
     }
 
     report_append(report, report_capacity,
-                  "STREAM_API: no complete stream-info family; unsupported\n");
-    return WMP_ESPLUS_PROBE_STREAM_API_MISSING;
+                  "STREAM_API: %s family symbols detected; ABI NOT validated\n",
+                  wmp_esplus_family_name(api->selected_family));
+    return WMP_ESPLUS_PROBE_OK;
 }
 
 void wmp_esplus_close(wmp_esplus_api_t *api)
 {
     if (api == NULL)
         return;
-
     if (api->library != NULL)
         (void)dlclose(api->library);
-
     memset(api, 0, sizeof(*api));
 }

@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     const char *expected;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: %s <set|add|missing|core>\n", argv[0]);
+        fprintf(stderr, "usage: %s <set|add|missing|core|ambiguous>\n", argv[0]);
         return 2;
     }
 
@@ -35,6 +35,10 @@ int main(int argc, char **argv)
             goto fail;
     } else if (strcmp(expected, "core") == 0) {
         if (result != WMP_ESPLUS_PROBE_CORE_INCOMPLETE)
+            goto fail;
+    } else if (strcmp(expected, "ambiguous") == 0) {
+        if (result != WMP_ESPLUS_PROBE_AMBIGUOUS ||
+            api.selected_family != WMP_ESPLUS_FAMILY_NONE)
             goto fail;
     } else {
         fprintf(stderr, "unknown expected case: %s\n", expected);

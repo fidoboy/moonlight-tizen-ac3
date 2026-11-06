@@ -17,31 +17,39 @@ typedef enum {
     WMP_ESPLUS_PROBE_OK = 0,
     WMP_ESPLUS_PROBE_LIBRARY_MISSING,
     WMP_ESPLUS_PROBE_CORE_INCOMPLETE,
-    WMP_ESPLUS_PROBE_STREAM_API_MISSING
+    WMP_ESPLUS_PROBE_STREAM_API_MISSING,
+    WMP_ESPLUS_PROBE_AMBIGUOUS
 } wmp_esplus_probe_result_e;
 
 /*
- * Export addresses are retained as opaque pointers during the probe phase.
- * Do not call through these fields. The set_* and add_* APIs have different
- * structure layouts, callback signatures, and return conventions; each
- * family needs its own typed adapter before any player function is invoked.
+ * This is export discovery, not ABI validation. Function addresses remain
+ * opaque and MUST NOT be called through this structure. The two ESPlus
+ * generations have different packet/stream layouts, callbacks, timestamp
+ * units and return conventions. Typed adapters must be selected before any
+ * player call is made.
  */
 typedef struct {
     void *library;
+
+    /* Commonly exported lifecycle and packet entry points. */
     void *create;
     void *open;
     void *close;
-    void *destroy;
+    void *destroy; /* optional in the legacy add_* generation */
     void *prepare_async;
     void *start;
     void *stop;
     void *submit_packet;
-    void *submit_eos_packet;
+    void *submit_eos_packet; /* optional */
+
+    /* ABI-generation discriminators and stream registration pairs. */
+    void *set_display_ecore_subsurface;
     void *set_ecore_display;
     void *set_video_stream_info;
     void *set_audio_stream_info;
     void *add_video_stream_info;
     void *add_audio_stream_info;
+
     wmp_esplus_family_e selected_family;
 } wmp_esplus_api_t;
 
@@ -50,6 +58,8 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     char *report,
     size_t report_capacity);
 
+const char *wmp_esplus_probe_result_name(wmp_esplus_probe_result_e result);
+const char *wmp_esplus_family_name(wmp_esplus_family_e family);
 void wmp_esplus_close(wmp_esplus_api_t *api);
 
 #ifdef __cplusplus
