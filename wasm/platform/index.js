@@ -6272,12 +6272,13 @@ function sendKeysMenuOption(id, keysLabel, keyCodes) {
 // Define the options of the Stream Menu in display order, add, remove or reorder entries here to change the menu
 function getStreamMenuOptions() {
   return [
-    { group: 'keys', option: sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]) },
-    { group: 'keys', option: sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]) },
-    { group: 'keys', option: sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]) },
-    { group: 'keys', option: sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendWin', 'WIN', [0x5B]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltTab', 'ALT + TAB', [0xA4, 0x09]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendAltF4', 'ALT + F4', [0xA4, 0x73]) },
+    { group: 'keys', icon: 'keyboard', option: sendKeysMenuOption('streamMenuSendF11', 'F11', [0x7A]) },
     {
       group: 'stats',
+      icon: 'query_stats',
       option: {
         id: 'streamMenuToggleStats',
         text: t('Toggle performance stats'),
@@ -6288,6 +6289,7 @@ function getStreamMenuOptions() {
     },
     {
       group: 'disconnect',
+      icon: 'power_settings_new',
       option: {
         id: 'streamMenuDisconnect',
         text: t('Disconnect'),
@@ -6341,9 +6343,17 @@ function streamMenuDialog() {
     var streamMenuDialogOption = $('<button>', {
       type: 'button',
       id: menuOption.id,
-      class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-      text: menuOption.text
+      class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect stream-menu-option stream-menu-option--' + groupedOption.group
     });
+    $('<span>', {
+      class: 'stream-menu-option__icon',
+      'aria-hidden': 'true',
+      text: groupedOption.icon
+    }).appendTo(streamMenuDialogOption);
+    $('<span>', {
+      class: 'stream-menu-option__label',
+      text: menuOption.text
+    }).appendTo(streamMenuDialogOption);
     streamMenuDialogOption.click(function() {
       if (menuOption.id === 'streamMenuDisconnect') {
         // Let the menu finish fading out before the stream termination starts its transition.
