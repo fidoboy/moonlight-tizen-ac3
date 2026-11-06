@@ -12,9 +12,16 @@ extern "C" {
 #endif
 
 typedef enum {
+    WMP_ESPLUS_STREAM_UNKNOWN = -1,
     WMP_ESPLUS_STREAM_AUDIO = 0,
     WMP_ESPLUS_STREAM_VIDEO = 1
 } wmp_esplus_stream_e;
+
+typedef enum {
+    WMP_ESPLUS_BUFFER_STATUS_UNKNOWN = -1,
+    WMP_ESPLUS_BUFFER_STATUS_UNDERRUN = 0,
+    WMP_ESPLUS_BUFFER_STATUS_OVERRUN = 1
+} wmp_esplus_buffer_status_e;
 
 /* Semantic codec identifiers. Never pass these values directly to ESPlus. */
 typedef enum {
@@ -103,11 +110,12 @@ typedef struct {
 
 typedef struct {
     void (*error)(uint32_t error, void *context);
-    void (*buffer_status)(uint32_t stream, uint32_t status, void *context);
+    void (*buffer_status)(wmp_esplus_stream_e stream,
+                          wmp_esplus_buffer_status_e status, void *context);
     void (*resource_conflicted)(void *context);
     void (*eos)(void *context);
     void (*seek_done)(void *context);
-    void (*ready_to_prepare)(uint32_t stream, void *context);
+    void (*ready_to_prepare)(wmp_esplus_stream_e stream, void *context);
     void (*prepare_async_done)(bool success, void *context);
 } wmp_esplus_callbacks_t;
 
