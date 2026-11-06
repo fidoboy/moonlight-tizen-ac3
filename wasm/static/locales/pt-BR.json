@@ -610,5 +610,16 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Segure Start para alternar entre os comandos normais do controle e a emulação do mouse. Use o gamepad para controlar o ponteiro e os botões do mouse no host.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões A e B enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões X e Y enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta.",
-  "The selected WMP engine is not ready to start a stream.": "O mecanismo WMP selecionado ainda não está pronto para iniciar uma transmissão."
+  "The selected WMP engine is not ready to start a stream.": "O mecanismo WMP selecionado ainda não está pronto para iniciar uma transmissão.",
+  "ESPlus library status": "Estado da biblioteca ESPlus",
+  "ESPlus status not checked": "O estado do ESPlus ainda não foi verificado.",
+  "Checking the ESPlus library...": "Verificando a biblioteca ESPlus...",
+  "ESPlus status unavailable": "O estado nativo do ESPlus está indisponível.",
+  "ESPlus library not found on this TV": "libesplusplayer.so não foi encontrada nesta TV.",
+  "ESPlus library loaded": "libesplusplayer.so foi encontrada e carregada.",
+  "SET API symbols detected (ABI not validated)": "Símbolos da API SET detectados (ABI não validada)",
+  "ADD API symbols detected (ABI not validated)": "Símbolos da API ADD detectados (ABI não validada)",
+  "ESPlus library loaded, but required core symbols are missing": "A biblioteca foi carregada, mas faltam símbolos principais necessários.",
+  "ESPlus library loaded, but no complete SET or ADD stream API was found": "A biblioteca foi carregada, mas nenhuma API de streaming SET ou ADD completa foi encontrada.",
+  "Both ESPlus stream APIs detected; selection is ambiguous": "As APIs SET e ADD foram detectadas; não é possível selecionar uma com segurança."
 }
