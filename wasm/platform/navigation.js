@@ -1224,17 +1224,15 @@ const Views = {
       return actions.map(action => action === 'closeHostMenu' ? action : action + '-' + Views.HostMenuDialog.hostname);
     }),
     up: function() {
-      moveStreamMenuFocus('up');
+      this.view.prevOption();
+      focusElement(this.view.current());
     },
     down: function() {
-      moveStreamMenuFocus('down');
+      this.view.nextOption();
+      focusElement(this.view.current());
     },
-    left: function() {
-      moveStreamMenuFocus('left');
-    },
-    right: function() {
-      moveStreamMenuFocus('right');
-    },
+    left: function() {},
+    right: function() {},
     accept: function() {
       clickElement(this.view.current());
     },
