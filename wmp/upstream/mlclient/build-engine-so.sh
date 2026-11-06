@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build libmlengine.so (the engine, PIC) + a thin mlclient exe that links it.
-# Same inputs as build-client.sh. Produces $OUT/libmlengine.so and $OUT/mlclient.
+# ESPlus is resolved at runtime from the TV firmware by wmp_esplus_abi.c;
+# it is deliberately not a link-time or packaged dependency.
 #
 # Env: MLT, DEPS (no spaces), BPD, DEPSBUILD.  (Paths must be space-free: the
 # compiler flags are unquoted. Use a space-free symlink to the repo for MLT.)
@@ -10,7 +11,6 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 GCC=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 C=$MLT/moonlight-common-c; TVL=$DEPS/tv-libs/usr/lib
-# BUILD_VARIANT: release (default, -O2) or debug (-O0 -g, MLT_TRACE trace on).
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 case "$BUILD_VARIANT" in
   release) OPT="-O2"; LOPT="-O2"; DBGLIB="-ldl" ;;
@@ -23,7 +23,6 @@ ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
 INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$BPD/ossl-inc -I$BPD/curl759/include"
 
-# engine objects (everything except the thin main.c)
 for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
@@ -32,13 +31,10 @@ done
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_abi.c" -o "$OUT/wmp_esplus_abi.o"
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_adapter.c" -o "$OUT/wmp_esplus_adapter.o"
 
-# libmlengine.so: engine objects + the static deps (moonlight-common-c core,
-# libgamestream, mbedcrypto) + the TV's shared libs, resolved into the .so.
-# --hash-style=both: the .NET host loads the engine from memory (so downloaded
-# engine updates apply without rewriting the app folder) and its fallback ELF
-# loader resolves symbols via a SYSV DT_HASH. The engine is also built TLS-free
-# (that loader can't do R_ARM_TLS_*); verified: no _Thread_local in the
-# engine/moonlight-common-c.
+# ESPlus is intentionally absent from this link line. wmp_esplus_abi.c opens
+# the firmware's /usr/lib/libesplusplayer.so with dlopen() and resolves its
+# exports with dlsym(), as in OmegaTube. Ecore and the crypto/network libraries
+# remain normal runtime dependencies and are resolved from the target TV libs.
 "$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -shared -Wl,-soname,libmlengine.so \
   -Wl,--hash-style=both -Wl,--wrap=PltEncryptMessage \
   -o "$OUT/libmlengine.so" \
@@ -47,10 +43,9 @@ done
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o "$DEPSBUILD/libmbedcrypto_tv.a" \
   -L"$TVL" -Wl,-rpath-link,"$TVL" -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
-  -l:libesplusplayer.so -l:libecore_wl2.so.1 -l:libecore.so.1 \
+  -l:libecore_wl2.so.1 -l:libecore.so.1 \
   -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 -lpthread $DBGLIB
 
-# thin exe: main.o + the .so
 "$GCC" $FLAGS $INC -c "$HERE/main.c" -o "$OUT/main.o"
 "$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -o "$OUT/mlclient" "$OUT/main.o" \
   -L"$OUT" -Wl,-rpath-link,"$TVL" -Wl,--unresolved-symbols=ignore-in-shared-libs -lmlengine -Wl,-rpath,'$ORIGIN/../lib'
@@ -58,7 +53,6 @@ done
 echo "built: $(file "$OUT/libmlengine.so" | cut -d, -f1-3)"
 echo "       $(file "$OUT/mlclient" | cut -d, -f1-3)"
 
-# self-check 1: the ABI symbols are exported by the .so
 miss=""
 for s in ml_engine_start ml_engine_running ml_engine_wait ml_engine_stop \
          ml_engine_make_cert ml_engine_http_init ml_engine_open_url ml_engine_pair \
@@ -70,6 +64,13 @@ for s in ml_engine_start ml_engine_running ml_engine_wait ml_engine_stop \
 done
 [ -z "$miss" ] && echo "ABI exported: ml_engine_* OK" || { echo "MISSING ABI:$miss"; exit 1; }
 
-# self-check 2: no glibc symbol newer than the TV's 2.24
+# The engine must not acquire a DT_NEEDED edge to the proprietary ESPlus
+# library: it is provided by the TV firmware and loaded only by dlopen().
+if "$OBJD" -p "$OUT/libmlengine.so" | grep -q 'NEEDED.*libesplusplayer'; then
+  echo "ERROR: libmlengine.so must not link libesplusplayer at build time." >&2
+  exit 1
+fi
+echo "ESPlus runtime loading: no DT_NEEDED dependency on libesplusplayer.so"
+
 bad=$("$OBJD" -T "$OUT/libmlengine.so" "$OUT/mlclient" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
 [ -z "$bad" ] && echo "glibc symbols: all <= 2.24 OK" || { echo "TOO-NEW glibc: $bad"; exit 1; }
