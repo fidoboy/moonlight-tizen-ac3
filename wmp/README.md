@@ -1,13 +1,10 @@
 # Moonlight native WMP service
 
-This directory contains the native Tizen service application that will host the
-experimental Samsung ESPlus playback engine. EMSS remains a separate,
-independently selectable engine in the Moonlight Web application.
+This directory contains the native Tizen service application and the upstream WMP engine source being ported into it. EMSS remains a separate, independently selectable engine in the Moonlight Web application.
 
 ## Package identity
 
-The service is a native SERVICE sub-application of the existing Moonlight Web
-application. Both applications are packaged and signed in the same hybrid WGT:
+The service is a native SERVICE sub-application of the existing Moonlight Web application. Both applications are packaged and signed in the same hybrid WGT:
 
 - Shared package ID: `MoonLightS`
 - Web application ID: `MoonLightS.MoonlightWasm`
@@ -16,7 +13,7 @@ application. Both applications are packaged and signed in the same hybrid WGT:
 
 It is not a standalone TPK and must not be published or installed separately.
 
-## Implemented native control transport
+## Current service control transport
 
 The service registers the trusted native MessagePort `MoonlightWmpControl`.
 The web application opens the trusted reply port `MoonlightWmpReply`, launches
@@ -30,51 +27,44 @@ Replies carry `protocol`, `id`, `type=response`, `status` and JSON
 `payload`. The web bridge exposes `connect()`, `request()`, `ping()`,
 `getStatus()`, `probeEsplus()` and `close()`.
 
-MessagePort is a control-plane transport. It is not a suitable high-throughput
-encoded audio/video packet path; no media packets are forwarded yet.
+MessagePort is control-plane only; it is not used to transport encoded audio/video packets.
+
+## Upstream engine source
+
+The reusable native engine sources from [WMP/moonlight-tizen50-core](https://github.com/WMP/moonlight-tizen50-core) are now imported under `wmp/upstream/`, with their GPL-3.0 license and original source notices. This includes the GameStream orchestration, Moonlight Common C renderer callbacks, shared ESPlus player lifecycle, audio/video sinks, engine API and native build/dependency scripts.
+
+The upstream .NET host, CLI entry point, UI package, Samsung proprietary ESPlus header, TV libraries and generated binaries are intentionally excluded. See [upstream/README.md](upstream/README.md) for the exact boundary and porting constraints.
 
 ## ESPlus ABI discovery
 
-The probe recognizes two distinct ESPlus generations:
+The existing probe recognizes two distinct ESPlus generations:
 
 - Legacy Tizen 5.x-style ABI: `add_video_stream_info`,
   `add_audio_stream_info`, and `set_ecore_display`.
 - Later public 0.0.3-style ABI: `set_video_stream_info`,
   `set_audio_stream_info`, and `set_display_ecore_subsurface`.
 
-The legacy family is based on the public implementation reference
-[WMP/moonlight-tizen50-core](https://github.com/WMP/moonlight-tizen50-core),
-particularly `esplusplayer_tv50.h` and `mlclient/esplus_player.c`.
-The later family is based on the 0.0.3 API header supplied for this project.
-These APIs have different stream structures, packet layouts, callback
-signatures, timestamp units and return conventions.
-
 Selection requires a complete stream-info pair and its matching display API.
 If both generations appear complete, the probe reports an ambiguous ABI and
 refuses to guess. It does not infer the ABI from the Tizen OS version.
 The current probe only detects export names; it does not validate binary
 signatures, structure layouts, callback behavior or player initialization.
-No function pointer is called by the probe.
 
-Probe states are deliberately distinct: `library_missing`,
-`core_symbols_incomplete`, `stream_api_missing`, `abi_ambiguous`, and
-`symbols_detected`. The last state does **not** mean that the ABI is validated
-or that an ESPlus player has been initialized.
+The imported upstream player is written for the legacy API. Porting it to the
+later API requires a separate adapter; the two API families must never be mixed
+within one session.
 
-## Porting boundary and current limitations
+## Remaining integration work
 
-The upstream WMP project demonstrates a complete native Moonlight engine in
-which the GameStream client, Moonlight Common C callbacks, ESPlus player,
-video sink and audio sink execute in one native process. Its useful engine
-work includes a single shared player for both tracks, the video/audio callback
-implementations, packet submission, display-window setup and the native
-GameStream orchestration.
+The imported source is the porting base, not yet a compiled WGT engine. It still
+needs to be adapted to the native ServiceApp lifecycle, linked with the project's
+Moonlight Common C/dependency setup, and connected to the service's media/session
+path. Ecore/Wayland display work must run on the appropriate Tizen main loop.
 
-This repository's current WMP component is a separate Tizen service process.
-The existing WASM/EMSS pipeline cannot feed that process through the current
-MessagePort control protocol. Consequently, porting the ESPlus player alone
-does not connect it to the incoming Moonlight media stream. The native engine
-integration and its media/session control path remain future work; EMSS is not
-modified or used as a fallback.
+Before integration, remove upstream player-side watchdog/recovery decisions that
+would compete with Moonlight Common C's authority over session validity and
+disconnection. Do not change the existing EMSS implementation or add an
+automatic fallback between engines.
 
-No proprietary Samsung library or SDK binary is included in this repository.
+No proprietary Samsung library/header or SDK binary is included. No build,
+workflow or TV test is claimed by this source import.
