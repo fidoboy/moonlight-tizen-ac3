@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <bundle.h>
 #include <dlog.h>
 #include <message_port.h>
