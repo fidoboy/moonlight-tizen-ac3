@@ -68,6 +68,11 @@ static void on_prepared(bool success, void *context)
     s->prepared = success;
 }
 
+static void *optional_symbol(void *library, const char *name)
+{
+    return dlsym(library, name);
+}
+
 static void *required_symbol(void *library, const char *name)
 {
     void *value = dlsym(library, name);
@@ -81,7 +86,9 @@ int main(int argc, char **argv)
     wmp_esplus_api_t api;
     wmp_esplus_callbacks_t callbacks;
     callback_state_t state;
-    int player_marker = 1, second_player_marker = 2;
+    int second_player_marker = 2;
+    void *player;
+    void *display_marker = 3;
     void *library;
     mock_action_fn fire, fire_unknown;
     mock_count_fn registered_count;
@@ -106,6 +113,17 @@ int main(int argc, char **argv)
     memset(&api, 0, sizeof(api));
     api.library = library;
     api.selected_family = family;
+    api.create = required_symbol(library, "esplusplayer_create");
+    api.open = required_symbol(library, "esplusplayer_open");
+    api.close = required_symbol(library, "esplusplayer_close");
+    api.prepare_async = required_symbol(library, "esplusplayer_prepare_async");
+    api.start = required_symbol(library, "esplusplayer_start");
+    api.stop = required_symbol(library, "esplusplayer_stop");
+    api.set_ecore_display = required_symbol(library, "esplusplayer_set_ecore_display");
+    api.set_display_mode = required_symbol(library, "esplusplayer_set_display_mode");
+    api.get_playing_time = optional_symbol(library, "esplusplayer_get_playing_time");
+    player = wmp_esplus_adapter_create(&api);
+    assert(player != NULL);
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.error = on_error;
     callbacks.buffer_status = on_buffer;
@@ -117,11 +135,34 @@ int main(int argc, char **argv)
     memset(&state, 0, sizeof(state));
     state.expected_context = &state;
 
-    assert(wmp_esplus_adapter_bind(&adapter, &api, &player_marker,
+    assert(wmp_esplus_adapter_bind(&adapter, &api, player,
                                   &callbacks, &state) == 0);
     assert(adapter.callbacks_registered == 1);
     assert(registered_count() == 7);
-    assert(player_matches(&player_marker) == 1);
+    assert(player_matches(player) == 1);
+
+    {
+        wmp_esplus_call_result_t result;
+        result = wmp_esplus_adapter_open(&adapter);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        result = wmp_esplus_adapter_prepare_async(&adapter);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        result = wmp_esplus_adapter_start(&adapter);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        result = wmp_esplus_adapter_set_ecore_display(
+            &adapter, 1, &display_marker, 0, 0, 1920, 1080);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        result = wmp_esplus_adapter_set_display_mode(&adapter, 0);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        if (family == WMP_ESPLUS_FAMILY_ADD) {
+            uint64_t playing_time = 0;
+            assert(wmp_esplus_adapter_has_playing_time(&adapter));
+            assert(wmp_esplus_adapter_get_playing_time(&adapter, &playing_time));
+            assert(playing_time == 1234);
+        } else {
+            assert(!wmp_esplus_adapter_has_playing_time(&adapter));
+        }
+    }
 
     if (family == WMP_ESPLUS_FAMILY_ADD) {
         /* The legacy ABI has one process-global callback context. */
@@ -150,6 +191,12 @@ int main(int argc, char **argv)
     assert(state.ready_stream == WMP_ESPLUS_STREAM_UNKNOWN);
     assert(state.prepared_count == 2 && !state.prepared);
 
+    {
+        wmp_esplus_call_result_t result = wmp_esplus_adapter_stop(&adapter);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+        result = wmp_esplus_adapter_close(&adapter);
+        assert(result.status == WMP_ESPLUS_CALL_SUCCESS);
+    }
     wmp_esplus_adapter_unbind(&adapter);
     assert(dlclose(library) == 0);
     printf("PASS: %s callback ABI bridge\n", argv[1]);

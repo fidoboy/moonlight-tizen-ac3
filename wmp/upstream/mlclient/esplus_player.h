@@ -1,0 +1,14 @@
+#ifndef ESPLUS_PLAYER_H
+#define ESPLUS_PLAYER_H
+
+#include "wmp_esplus_adapter.h"
+
+int esplus_create_open(void);
+int esplus_set_video_info(const wmp_esplus_video_info_t *info);
+int esplus_set_audio_info(const wmp_esplus_audio_info_t *info);
+int esplus_set_window(int width, int height);
+int esplus_prepare(void);
+wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet);
+void esplus_close(void);
+
+#endif

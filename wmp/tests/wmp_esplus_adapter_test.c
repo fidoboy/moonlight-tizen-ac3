@@ -95,6 +95,27 @@ static void test_stream_registration_results(void)
     assert(result.raw_status == 0);
 }
 
+static void test_lifecycle_results(void)
+{
+    wmp_esplus_call_result_t result;
+
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_SET, 0);
+    assert(result.status == WMP_ESPLUS_CALL_SUCCESS && result.raw_status == 0);
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_SET, -22);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE && result.raw_status == -22);
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_SET, -38);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE && result.raw_status == -38);
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_SET, 1);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED && result.raw_status == 1);
+
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_ADD, 1);
+    assert(result.status == WMP_ESPLUS_CALL_SUCCESS && result.raw_status == 1);
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_ADD, 0);
+    assert(result.status == WMP_ESPLUS_CALL_NATIVE_FAILURE && result.raw_status == 0);
+    result = wmp_esplus_normalize_lifecycle_result(WMP_ESPLUS_FAMILY_ADD, -38);
+    assert(result.status == WMP_ESPLUS_CALL_UNCLASSIFIED && result.raw_status == -38);
+}
+
 static void test_submit_results(void)
 {
     const wmp_esplus_family_e families[] = {
@@ -128,6 +149,7 @@ int main(void)
     test_audio_mime_mapping();
     test_timestamp_conversion();
     test_stream_registration_results();
+    test_lifecycle_results();
     test_submit_results();
     puts("WMP ESPlus typed adapter tests passed.");
     return 0;

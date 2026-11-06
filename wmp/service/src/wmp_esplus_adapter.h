@@ -147,6 +147,25 @@ typedef struct {
     int callbacks_registered;
 } wmp_esplus_adapter_t;
 
+/* Lifecycle and display calls preserve each family's native return convention. */
+void *wmp_esplus_adapter_create(wmp_esplus_api_t *api);
+wmp_esplus_call_result_t wmp_esplus_normalize_lifecycle_result(
+    wmp_esplus_family_e family, int raw_status);
+wmp_esplus_call_result_t wmp_esplus_adapter_open(wmp_esplus_adapter_t *adapter);
+wmp_esplus_call_result_t wmp_esplus_adapter_close(wmp_esplus_adapter_t *adapter);
+wmp_esplus_call_result_t wmp_esplus_adapter_prepare_async(wmp_esplus_adapter_t *adapter);
+wmp_esplus_call_result_t wmp_esplus_adapter_start(wmp_esplus_adapter_t *adapter);
+wmp_esplus_call_result_t wmp_esplus_adapter_stop(wmp_esplus_adapter_t *adapter);
+wmp_esplus_call_result_t wmp_esplus_adapter_set_ecore_display(
+    wmp_esplus_adapter_t *adapter, int display_type, void *display,
+    int x, int y, int width, int height);
+wmp_esplus_call_result_t wmp_esplus_adapter_set_display_mode(
+    wmp_esplus_adapter_t *adapter, int display_mode);
+/* Playing-time query is optional and currently used only by the legacy ADD path. */
+int wmp_esplus_adapter_has_playing_time(const wmp_esplus_adapter_t *adapter);
+int wmp_esplus_adapter_get_playing_time(
+    wmp_esplus_adapter_t *adapter, uint64_t *playing_time_ms);
+
 /* Registers exactly one callback ABI family; ADD is process-global/singleton. */
 int wmp_esplus_adapter_bind(
     wmp_esplus_adapter_t *adapter,

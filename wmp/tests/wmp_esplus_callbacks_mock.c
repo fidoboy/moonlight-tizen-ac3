@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+static int s_created_player;
+
 #ifdef MOCK_SET
 typedef void (*error_cb)(uint32_t, void *);
 typedef void (*buffer_cb)(uint32_t, uint32_t, void *);
@@ -76,6 +78,34 @@ void esplusplayer_set_prepare_async_done_cb(void *p, prepared_cb cb)
 { if (accept_player(p)) { s_prepared=cb; ++s_count; } }
 #else
 #error Define MOCK_SET or MOCK_ADD
+#endif
+
+void *esplusplayer_create(void) { return &s_created_player; }
+
+#ifdef MOCK_SET
+int esplusplayer_open(void *p) { return p == &s_created_player ? 0 : -22; }
+int esplusplayer_close(void *p) { return p == &s_created_player ? 0 : -22; }
+int esplusplayer_prepare_async(void *p) { return p == &s_created_player ? 0 : -22; }
+int esplusplayer_start(void *p) { return p == &s_created_player ? 0 : -22; }
+int esplusplayer_stop(void *p) { return p == &s_created_player ? 0 : -22; }
+int esplusplayer_set_ecore_display(void *p, int type, void *display,
+                                   int x, int y, int w, int h)
+{ (void)type; (void)display; (void)x; (void)y; (void)w; (void)h; return p == &s_created_player ? 0 : -22; }
+int esplusplayer_set_display_mode(void *p, int mode)
+{ (void)mode; return p == &s_created_player ? 0 : -22; }
+#else
+int esplusplayer_open(void *p) { return p == &s_created_player ? 1 : 0; }
+int esplusplayer_close(void *p) { return p == &s_created_player ? 1 : 0; }
+int esplusplayer_prepare_async(void *p) { return p == &s_created_player ? 1 : 0; }
+int esplusplayer_start(void *p) { return p == &s_created_player ? 1 : 0; }
+int esplusplayer_stop(void *p) { return p == &s_created_player ? 1 : 0; }
+int esplusplayer_set_ecore_display(void *p, int type, void *display,
+                                   int x, int y, int w, int h)
+{ (void)type; (void)display; (void)x; (void)y; (void)w; (void)h; return p == &s_created_player ? 1 : 0; }
+int esplusplayer_set_display_mode(void *p, int mode)
+{ (void)mode; return p == &s_created_player ? 1 : 0; }
+int esplusplayer_get_playing_time(void *p, uint64_t *time_ms)
+{ if (p != &s_created_player || !time_ms) return 0; *time_ms = 1234; return 1; }
 #endif
 
 int mock_registered_count(void) { return s_count; }

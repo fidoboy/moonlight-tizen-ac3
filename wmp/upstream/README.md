@@ -50,10 +50,18 @@ pulled from the Samsung AU7172 running Tizen 6. The adapter classifies
 as `UNCLASSIFIED`.
 
 The imported `esplus_player.c`, `video_esplus.c` and `audio_opus.c` have
-not yet been migrated to call these adapters; therefore dual-family playback
-is not yet integrated. Do not treat inclusion of the adapter objects in the
-build script as evidence that the engine selects and uses both families at
-runtime.
+now been migrated to the neutral contract. Player creation, callback binding,
+open/prepare/start/stop/close, Ecore display configuration, stream registration
+and packet submission all pass through the selected family adapter. The
+upstream proprietary header is no longer included or copied by the engine
+build script.
+
+The SET lifecycle/display return convention (zero success, -22/-38 native
+failure) is confirmed in the target TV's ARM32 disassembly. The ADD playing-time
+query remains optional and ADD-only: its SET return contract has not been
+independently verified. Depth sampling/nudge metrics
+are therefore not enabled for SET. The display-mode call is optional; the
+Ecore overlay attachment is required for the video path.
 
 ## Porting constraints
 
@@ -61,10 +69,9 @@ Select exactly one ABI family for a session. Never mix ADD and SET symbols,
 callback conventions, stream-info layouts or packet layouts. Display capability
 discovery is independent of ABI family detection.
 
-The upstream implementation includes player monitoring/recovery behavior.
-Before integrating it, remove any player-side watchdog or inferred session-abort
-logic that conflicts with this project's rule that Moonlight Common C owns
-session validity and disconnection.
+The upstream player-side stall watchdog and autonomous seek/IDR recovery have
+been removed. Player error/resource callbacks are observational only; Moonlight
+Common C remains authoritative for session validity and disconnection.
 
 Do not treat this source import or adapter implementation as a successful
 build or a validated TV runtime. No compilation or device test is implied.

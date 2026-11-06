@@ -19,7 +19,6 @@ case "$BUILD_VARIANT" in
 esac
 echo "engine variant: $BUILD_VARIANT"
 OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
-cp "$HERE/../esplusplayer_tv50.h" "$OUT/"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
 INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$BPD/ossl-inc -I$BPD/curl759/include"

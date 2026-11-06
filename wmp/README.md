@@ -80,15 +80,32 @@ stream/packet contract and keeps the native layouts separate:
   as `UNCLASSIFIED`.
 - The neutral result distinguishes local invalid arguments and missing
   function pointers from native results.
-- `tests/wmp_esplus_abi_test.sh` now builds separate mock shared libraries
-  for SET and ADD callback signatures. It invokes every registered callback
-  through each mock, checks userdata/context forwarding and enum translation,
-  and verifies that the ADD singleton rejects a second simultaneous adapter.
+- Lifecycle and display operations (create/open/prepare/start/stop/close,
+  Ecore display attachment and display mode) now use typed adapter entry
+  points. SET's observed zero-success / negative-error convention and ADD's
+  legacy bool convention are normalized independently. The SET lifecycle and
+  display return convention is confirmed by disassembly of the target TV's
+  ARM32 library; it is not extrapolated from stream-registration tests.
+- `get_playing_time` remains an optional ADD-only query because its SET
+  contract has not been established. The observational depth sampler and
+  nudge mode therefore run only when the selected ADD library exports it.
+- `esplus_player.c`, `video_esplus.c` and `audio_opus.c` now consume the
+  neutral contract. Their direct dependency on the excluded proprietary
+  `esplusplayer_tv50.h` has been removed.
+- The player-side stall watchdog and autonomous seek/IDR recovery have been
+  removed. Player errors and resource conflicts are recorded as observations;
+  Moonlight Common C remains the authority for session state and termination.
+  Frozen public statistics fields for recoveries remain present for ABI
+  compatibility but are no longer incremented by this player.
+- `tests/wmp_esplus_abi_test.sh` now also covers lifecycle result
+  normalization and mock calls through create/open/prepare/start/stop/close
+  and display attachment/mode for both families. The ADD playing-time query
+  is covered separately.
 
-The adapter objects are included by the native engine build script. The
-upstream renderer/audio call sites still need to be switched from their direct
-legacy declarations to this neutral adapter before the dual-family path is
-runtime-integrated. No claim of successful compilation or TV validation is made.
+The engine build no longer attempts to copy the excluded proprietary
+`esplusplayer_tv50.h`; the adapter sources are compiled from
+`wmp/service/src`. These source changes have not yet been compiled or run
+against the real Samsung library, and no TV validation is claimed.
 
 ## Upstream engine source
 
@@ -105,13 +122,11 @@ contract is not yet runtime-integrated, and its current tests have not been
 executed in this environment.
 
 The engine still needs adaptation to the native ServiceApp lifecycle and
-connection to the service's media/session path. Ecore/Wayland display work must
-run on the appropriate Tizen main loop.
-
-Before integrating it, remove upstream player-side watchdog/recovery decisions
-that would compete with Moonlight Common C's authority over session validity
-and disconnection. Do not change the existing EMSS implementation or add an
-automatic fallback between engines.
+connection to the service's media/session path. Ecore/Wayland display work runs
+on the appropriate Tizen main loop through the existing thread-safe Ecore call.
+The real SET/ADD binary integration and WGT service launch path still require
+target-side validation. Do not change the existing EMSS implementation or add
+an automatic fallback between engines.
 
 No proprietary Samsung library/header or SDK binary is included. No build,
 workflow or TV test is claimed.

@@ -218,6 +218,107 @@ static int bind_add(wmp_esplus_adapter_t *a)
     return 0;
 }
 
+
+static wmp_esplus_call_result_t stream_local_error(wmp_esplus_call_status_e status);
+
+void *wmp_esplus_adapter_create(wmp_esplus_api_t *api)
+{
+    typedef void *(*create_fn)(void);
+    create_fn fn;
+    if (!api || !api->library || !api->create ||
+        (api->selected_family != WMP_ESPLUS_FAMILY_SET &&
+         api->selected_family != WMP_ESPLUS_FAMILY_ADD))
+        return NULL;
+    fn = (create_fn)api->create;
+    return fn();
+}
+
+wmp_esplus_call_result_t wmp_esplus_normalize_lifecycle_result(
+    wmp_esplus_family_e family, int raw_status)
+{
+    wmp_esplus_call_result_t result = { WMP_ESPLUS_CALL_UNCLASSIFIED, raw_status };
+    if (family == WMP_ESPLUS_FAMILY_SET) {
+        /* Target-TV ARM32 SET wrappers: 0 success, -22 invalid, -38 unavailable/failure. */
+        if (raw_status == 0) result.status = WMP_ESPLUS_CALL_SUCCESS;
+        else if (raw_status == -22 || raw_status == -38)
+            result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
+    } else if (family == WMP_ESPLUS_FAMILY_ADD) {
+        /* Legacy ADD API returns C++ bool encoded as int. */
+        if (raw_status == 1) result.status = WMP_ESPLUS_CALL_SUCCESS;
+        else if (raw_status == 0) result.status = WMP_ESPLUS_CALL_NATIVE_FAILURE;
+    }
+    return result;
+}
+
+static wmp_esplus_call_result_t lifecycle_call(
+    wmp_esplus_adapter_t *adapter, void *address)
+{
+    typedef int (*lifecycle_fn)(void *);
+    lifecycle_fn fn = (lifecycle_fn)address;
+    if (!adapter || !adapter->api || !adapter->player)
+        return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
+    if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+    return wmp_esplus_normalize_lifecycle_result(
+        adapter->api->selected_family, fn(adapter->player));
+}
+
+wmp_esplus_call_result_t wmp_esplus_adapter_open(wmp_esplus_adapter_t *a)
+{ return lifecycle_call(a, a && a->api ? a->api->open : NULL); }
+wmp_esplus_call_result_t wmp_esplus_adapter_close(wmp_esplus_adapter_t *a)
+{ return lifecycle_call(a, a && a->api ? a->api->close : NULL); }
+wmp_esplus_call_result_t wmp_esplus_adapter_prepare_async(wmp_esplus_adapter_t *a)
+{ return lifecycle_call(a, a && a->api ? a->api->prepare_async : NULL); }
+wmp_esplus_call_result_t wmp_esplus_adapter_start(wmp_esplus_adapter_t *a)
+{ return lifecycle_call(a, a && a->api ? a->api->start : NULL); }
+wmp_esplus_call_result_t wmp_esplus_adapter_stop(wmp_esplus_adapter_t *a)
+{ return lifecycle_call(a, a && a->api ? a->api->stop : NULL); }
+
+wmp_esplus_call_result_t wmp_esplus_adapter_set_ecore_display(
+    wmp_esplus_adapter_t *adapter, int display_type, void *display,
+    int x, int y, int width, int height)
+{
+    typedef int (*display_fn)(void *, int, void *, int, int, int, int);
+    display_fn fn;
+    if (!adapter || !adapter->api || !adapter->player)
+        return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
+    fn = (display_fn)adapter->api->set_ecore_display;
+    if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+    return wmp_esplus_normalize_lifecycle_result(
+        adapter->api->selected_family,
+        fn(adapter->player, display_type, display, x, y, width, height));
+}
+
+wmp_esplus_call_result_t wmp_esplus_adapter_set_display_mode(
+    wmp_esplus_adapter_t *adapter, int display_mode)
+{
+    typedef int (*display_mode_fn)(void *, int);
+    display_mode_fn fn;
+    if (!adapter || !adapter->api || !adapter->player)
+        return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
+    fn = (display_mode_fn)adapter->api->set_display_mode;
+    if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+    return wmp_esplus_normalize_lifecycle_result(
+        adapter->api->selected_family, fn(adapter->player, display_mode));
+}
+
+int wmp_esplus_adapter_has_playing_time(const wmp_esplus_adapter_t *adapter)
+{
+    return adapter && adapter->api && adapter->player &&
+           adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD &&
+           adapter->api->get_playing_time != NULL;
+}
+
+int wmp_esplus_adapter_get_playing_time(
+    wmp_esplus_adapter_t *adapter, uint64_t *playing_time_ms)
+{
+    typedef int (*playing_time_fn)(void *, uint64_t *);
+    playing_time_fn fn;
+    if (!playing_time_ms || !wmp_esplus_adapter_has_playing_time(adapter))
+        return 0;
+    fn = (playing_time_fn)adapter->api->get_playing_time;
+    return fn(adapter->player, playing_time_ms) != 0;
+}
+
 int wmp_esplus_adapter_bind(
     wmp_esplus_adapter_t *adapter,
     wmp_esplus_api_t *api,

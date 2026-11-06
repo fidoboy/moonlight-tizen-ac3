@@ -90,6 +90,8 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     /* Display capabilities are independent of the stream-registration ABI. */
     RESOLVE(set_display_ecore_subsurface, "esplusplayer_set_display_ecore_subsurface");
     RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
+    RESOLVE(set_display_mode, "esplusplayer_set_display_mode");
+    RESOLVE(get_playing_time, "esplusplayer_get_playing_time");
     RESOLVE(set_video_stream_info, "esplusplayer_set_video_stream_info");
     RESOLVE(set_audio_stream_info, "esplusplayer_set_audio_stream_info");
     RESOLVE(add_video_stream_info, "esplusplayer_add_video_stream_info");
@@ -104,7 +106,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
      */
     if (api->create == NULL || api->open == NULL || api->close == NULL ||
         api->prepare_async == NULL || api->start == NULL || api->stop == NULL ||
-        api->submit_packet == NULL) {
+        api->submit_packet == NULL || api->set_ecore_display == NULL) {
         report_append(report, report_capacity,
                       "CORE_API: INCOMPLETE; no ESPlus calls will be made\n");
         return WMP_ESPLUS_PROBE_CORE_INCOMPLETE;
