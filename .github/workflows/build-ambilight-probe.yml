@@ -37,7 +37,15 @@ jobs:
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
           python3.8 --version
 
+      - name: Restore Tizen Studio SDK cache
+        id: tizen-sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tizen-studio
+          key: tizen-studio-${{ runner.os }}-6.1-iot-headed-6.0-tizen-10.0-gcc92-gcc142-v1
+
       - name: Install Tizen Web and Native SDKs
+        if: steps.tizen-sdk-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -51,6 +59,15 @@ jobs:
           test -n "$pm"
           required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
           "$pm" install --accept-license --no-java-check "$required"
+
+      - name: Configure Tizen SDK environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$RUNNER_TEMP/tizen-studio"
+          test -x "$sdk/tools/ide/bin/tizen"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
