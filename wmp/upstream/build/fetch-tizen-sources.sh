@@ -104,6 +104,13 @@ fetch_runtime_soname() { # soname package-name...
 fetch_runtime_soname libssl.so.1.0.0 libopenssl openssl
 fetch_runtime_soname libcrypto.so.1.0.0 libopenssl openssl
 fetch_runtime_soname libcurl.so.4 libcurl curl
+# libcurl's Tizen build has these direct runtime dependencies. Resolve each by
+# exact SONAME so we never mix an ABI from another Tizen release.
+fetch_runtime_soname libcares.so.2 libcares c-ares cares
+fetch_runtime_soname libnghttp2.so.14 libnghttp2 nghttp2
+fetch_runtime_soname libicuuc.so.60 libicu icu
+fetch_runtime_soname libicudata.so.60 libicu icu
+fetch_runtime_soname libz.so.1 zlib libz
 
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
@@ -132,5 +139,5 @@ echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
 echo "Compiler:  ${gcc_bin:-<not found>}"
-echo "OpenSSL 1.0.x and libcurl runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
+echo "OpenSSL 1.0.x, libcurl and its c-ares/nghttp2/ICU/zlib runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
 exit $missing
