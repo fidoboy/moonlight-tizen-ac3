@@ -2992,6 +2992,24 @@ function updateGamepadTestButtonVisibility() {
 }
 
 // Consume gamepad input exclusively while the controller test modal is open.
+function updateGamepadTestDiagnostics(change) {
+  var state = gamepadTestDialogState;
+  if (!state || !state.diagnostics) return;
+
+  var activeButtons = [];
+  state.buttonStates.forEach(function(pressed, index) {
+    if (pressed) activeButtons.push('#' + index);
+  });
+
+  var message = 'Gamepad API: ' + state.buttonCount + ' botones';
+  if (change) {
+    message += ' | Último evento: #' + change.index + ' ' +
+      (change.pressed ? 'pulsado' : 'liberado');
+  }
+  message += ' | Activos: ' + (activeButtons.length ? activeButtons.join(', ') : 'ninguno');
+  state.diagnostics.textContent = message;
+}
+
 function handleGamepadTestInput(event) {
   if (!isGamepadTestDialogOpen || !gamepadTestDialogState || !event || !event.detail) {
     var gamepadTestButton = document.getElementById('gamepadTestBtn');
@@ -3002,6 +3020,8 @@ function handleGamepadTestInput(event) {
 
   event.detail.changes.forEach(function(change) {
     if (change.type === 'button') {
+      gamepadTestDialogState.buttonStates[change.index] = !!change.pressed;
+      updateGamepadTestDiagnostics(change);
       var buttonIds = gamepadTestDialogState.buttonIds[change.index];
       if (buttonIds) {
         if (!Array.isArray(buttonIds)) buttonIds = [buttonIds];
@@ -3129,6 +3149,10 @@ function gamepadTestDialog() {
     class: 'gamepad-test-instructions',
     text: t('Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.')
   }).appendTo(content);
+  var diagnostics = $('<div>', {
+    class: 'gamepad-test-diagnostics',
+    'aria-live': 'polite'
+  }).appendTo(content);
 
   if (!dialog[0].showModal) dialogPolyfill.registerDialog(dialog[0]);
   isGamepadTestDialogOpen = true;
@@ -3140,6 +3164,9 @@ function gamepadTestDialog() {
     gamepadIndex: gamepadIndex,
     controllerType: controllerType,
     axes: selectedGamepad ? selectedGamepad.axes.slice(0, 4) : [0, 0, 0, 0],
+    buttonCount: selectedGamepad ? selectedGamepad.buttons.length : 0,
+    buttonStates: selectedGamepad ? selectedGamepad.buttons.map(function(button) { return !!button.pressed; }) : [],
+    diagnostics: diagnostics[0],
     buttonIds: controllerType === 'switch' ? {
       0: ['gamepadTestSwitchPath21', 'gamepadTestSwitchPath22'],
       1: ['gamepadTestSwitchPath14', 'gamepadTestSwitchPath17'],
@@ -3161,6 +3188,7 @@ function gamepadTestDialog() {
       17: controllerType === 'ps' ? 'Create_outline' : null
     }
   };
+  updateGamepadTestDiagnostics();
 
   // The TV remote's Back/Return key is the only way to dismiss this dialog.
   gamepadTestDialogState.blockKeyboard = function(event) {
