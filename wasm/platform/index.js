@@ -1745,6 +1745,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   updateGamepadTestButtonVisibility();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#hosts-carousel-viewport').show();
+  $('#host-grid').show();
   $('#settings-list').hide();
   $('#game-grid').hide();
   $('#goBackBtn').hide();
