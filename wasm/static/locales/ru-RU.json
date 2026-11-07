@@ -610,5 +610,8 @@
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок X и Y, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
   "Send keystrokes": "Отправить нажатия клавиш",
   "Show performance stats": "Показать статистику",
-  "Hide performance stats": "Скрыть статистику"
+  "Hide performance stats": "Скрыть статистику",
+  "Stream menu shortcut": "Быстрый вызов меню трансляции",
+  "Open the stream menu by holding Select": "Открывать меню трансляции при удержании Select",
+  "- Hold Select for 1 second to open the stream menu. A short press is sent to the host normally.": "- Удерживайте Select в течение 1 секунды, чтобы открыть меню трансляции. Короткое нажатие обычно отправляется на хост."
 }
