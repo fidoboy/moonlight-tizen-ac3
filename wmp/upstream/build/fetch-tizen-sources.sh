@@ -59,14 +59,10 @@ done
 
 echo "== Tizen 5.0 armv7l sysroot"
 BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
-# Runtime EFL/Wayland packages required to link the engine. Keep these in
-# the sysroot package cache; the final TV runtime libraries are still supplied
-# separately because repository packages do not prove firmware compatibility.
-RUNTIME_PKGS="ecore-wl2 ecore-core ecore-input efl eina eo libtbm
-  libwayland-client libwayland-server libwayland-cursor
-  libwayland-extension-client libwayland-tbm-client libtdm-client
-  libdrm libpng pixman libdlog libffi
-  appcore-agent message-port bundle"
+# Runtime libraries required by the native ServiceApp and its engine. Ecore,
+# EFL and Wayland are deliberately excluded: the engine sources do not use
+# them, and linking Ecore would pull in an unrelated EFL/OpenSSL dependency tree.
+RUNTIME_PKGS="libdlog libffi appcore-agent message-port bundle"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
   efl-devel libtbm-devel wayland-devel libwayland-client
@@ -150,8 +146,6 @@ fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 libudev systemd
 fetch_runtime_soname libmount.so.1 libmount util-linux
-fetch_runtime_soname libecore_file.so.1 ecore-file
-
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
