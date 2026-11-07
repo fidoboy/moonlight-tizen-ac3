@@ -34,9 +34,12 @@ pick() { # dir name suffix
   grep -E "^$(sed 's/[+.]/\\&/g' <<<"$name")-[0-9].*$suffix\$" <<<"${LISTING[$dir]}" | sort -V | tail -1
 }
 
-fetch() { # dir name suffix -> prints local path, or nothing if not found
+fetch() { # dir name suffix [quiet] -> prints local path, or nothing if not found
   local f; f=$(pick "$1" "$2" "$3")
-  if [[ -z $f ]]; then echo "WARN: $2 not found in $1" >&2; return 0; fi
+  if [[ -z $f ]]; then
+    [[ ${4:-false} == true ]] || echo "WARN: $2 not found in $1" >&2
+    return 0
+  fi
   [[ -s $OUT/rpm/$f ]] || curl -fsS --retry 3 -o "$OUT/rpm/$f" "$1/$(sed 's/+/%2B/g' <<<"$f")"
   echo "$OUT/rpm/$f"
 }
@@ -79,12 +82,20 @@ done
 # from the upstream project names. Resolve the packages by their actual Tizen
 # RPM names, checking both Unified and Base repositories and verifying the
 # required SONAME is present after extraction. Never substitute a newer ABI.
-fetch_runtime_soname() { # soname package-name...
-  local soname="$1" repo pkg rpm found
-  shift
-  for repo in "$T55_UNI" "$T55_BASE"; do
+fetch_runtime_soname() { # soname repo package-name...
+  local soname="$1" repo="$2" pkg rpm found
+  shift 2
+  case "$repo" in
+    unified) repo="$T55_UNI/packages/armv7l" ;;
+    base) repo="$T55_BASE/packages/armv7l" ;;
+    auto) repo="" ;;
+    *) echo "Invalid Tizen repository '$repo' for $soname" >&2; return 2 ;;
+  esac
+  local repos=()
+  if [[ -n "$repo" ]]; then repos=("$repo"); else repos=("$T55_UNI/packages/armv7l" "$T55_BASE/packages/armv7l"); fi
+  for repo in "${repos[@]}"; do
     for pkg in "$@"; do
-      rpm=$(fetch "$repo/packages/armv7l" "$pkg" '\.armv7l\.rpm')
+      rpm=$(fetch "$repo" "$pkg" '.armv7l\.rpm' true)
       [[ -n "$rpm" ]] || continue
       unrpm "$rpm" "$OUT/sysroot"
       found=$(find "$OUT/sysroot" \( -type f -o -type l \) -name "$soname" -print -quit)
@@ -94,7 +105,7 @@ fetch_runtime_soname() { # soname package-name...
       fi
     done
   done
-  echo "MISSING: Tizen 5.5 ARM package providing $soname (tried: $*)" >&2
+  echo "MISSING: Tizen 5.5 ARM package providing $soname (repository: $repo; tried: $*)" >&2
   return 1
 }
 
@@ -126,16 +137,16 @@ fetch_runtime_soname libxdgmime.so.1 xdgmime
 fetch_runtime_soname libtzplatform-config-2.0.so.2 libtzplatform-config
 fetch_runtime_soname libcapi-system-info.so.0 capi-system-info
 fetch_runtime_soname libvconf.so.0 vconf-compat vconf
-fetch_runtime_soname libsqlite3.so.0 sqlite3 sqlite libsqlite
+fetch_runtime_soname libsqlite3.so.0 base sqlite3 sqlite libsqlite
 fetch_runtime_soname libiniparser.so.0 iniparser
 fetch_runtime_soname libxml2.so.2 libxml2
 fetch_runtime_soname libstorage.so.0.1 libstorage
-fetch_runtime_soname libpcre.so.1 libpcre
-fetch_runtime_soname libsensor.so.4 sensord sensord-dummy libsensor
-fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-info-parser
+fetch_runtime_soname libpcre.so.1 base libpcre
+fetch_runtime_soname libsensor.so.4 unified sensord-dummy
+fetch_runtime_soname libpkgmgr_parser.so.0 unified pkgmgr-info-parser
 fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
-fetch_runtime_soname libudev.so.1 libsystemd
+fetch_runtime_soname libudev.so.1 unified libsystemd
 fetch_runtime_soname libmount.so.1 libmount util-linux
 for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
@@ -154,7 +165,7 @@ dlog_repo=""
 dlog_package=""
 for repo in "$T55_UNI" "$T55_BASE"; do
   for p in tizen-dlog-devel dlog-devel libdlog-devel; do
-    candidate=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
+    candidate=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm' true)
     if [[ -n "$candidate" ]]; then
       dlog_devel=$candidate
       dlog_repo=$repo
