@@ -1180,6 +1180,11 @@ function handleMessage(msg) {
         if (typeof finishAppsModeAfterStreamTransition === 'function') {
           finishAppsModeAfterStreamTransition(true);
         }
+        // Keep the other hosts polled while the error dialog is awaiting acknowledgement.
+        // The selected host stays paused until its Apps recovery and box art downloads finish.
+        if (typeof startPollingHosts === 'function') {
+          startPollingHosts(api);
+        }
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');
         if (errorQuitButton) errorQuitButton.disabled = false;
