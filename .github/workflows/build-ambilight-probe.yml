@@ -201,6 +201,10 @@ jobs:
 
           spawn {*}$argv
           expect {
+            -re {(?i)save\s+(author|distributor1?)\s+password} {
+              send -- "n\r"
+              exp_continue -continue_timer
+            }
             -re {(?i)(author|authoring)[^\r\n]{0,100}password|password[^\r\n]{0,100}(author|authoring)} {
               send -- "$author_password\r"
               exp_continue -continue_timer
