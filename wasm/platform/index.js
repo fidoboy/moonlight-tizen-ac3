@@ -220,7 +220,7 @@ function ensureSubnetScannerLoaded() {
 
   return subnetScannerLoadPromise;
 }
-var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
+var activePolls = {}; // Active polling cycles, keyed by server UID
 var hostPollingPausedForNetworkTest = false;
 var pairingCert; // Loads the generated certificate
 var myUniqueid;
@@ -1380,7 +1380,9 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
   var initialStatusPromise = refreshServerInfoSucceeded
     ? Promise.resolve()
-    : withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh');
+    : Promise.resolve().then(function() {
+        return withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh');
+      });
 
   cycle.initializationPromise = initialStatusPromise.then(function() {
     if (!isCurrentCycle()) return;
@@ -1427,6 +1429,9 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
             Navigation.change(Views.Hosts);
             Navigation.start();
             Navigation.switch();
+            // This cycle has no further scheduled poll. Remove it so a later
+            // explicit start can create a fresh cycle for this offline host.
+            endBackgroundPollingOfHost(returnedHost);
             return;
           }
           scheduleNextPoll(5000);
