@@ -139,7 +139,7 @@ fetch_runtime_soname libxdgmime.so.1 xdgmime
 fetch_runtime_soname libtzplatform-config-2.0.so.2 libtzplatform-config
 fetch_runtime_soname libcapi-system-info.so.0 capi-system-info
 fetch_runtime_soname libvconf.so.0 vconf-compat vconf
-fetch_runtime_soname libsqlite3.so.0 sqlite3
+fetch_runtime_soname libsqlite3.so.0 sqlite3 sqlite
 fetch_runtime_soname libiniparser.so.0 iniparser
 fetch_runtime_soname libxml2.so.2 libxml2
 fetch_runtime_soname libstorage.so.0.1 libstorage
