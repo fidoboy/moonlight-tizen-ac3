@@ -1678,7 +1678,7 @@ function dismissPersistentSnackbar() {
 
 var isManualHostRefreshRunning = false;
 
-// Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
+// Discover only previously unknown hosts without touching registered-host polling.
 function refreshHosts() {
   if (isManualHostRefreshRunning || initialHostListInteractionLocked) return;
   isManualHostRefreshRunning = true;
