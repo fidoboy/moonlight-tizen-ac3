@@ -16,10 +16,11 @@ const SyncFunctions = {
     const h264Level = rawH264Level == null || rawH264Level === ''
       ? 'Auto'
       : String(rawH264Level).replace(/\./g, '_');
+    const selectHoldStreamMenu = !!args[34];
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
-    return Module.startStream(...args.slice(0, 31), h264Level);
+    return Module.startStream(...args.slice(0, 31), h264Level, selectHoldStreamMenu);
   },
   // no parameters
   'stopRequest': (...args) => Module.stopStream(...args),
@@ -1428,6 +1429,9 @@ function handleMessage(msg) {
     } else {
       console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Warning: Gamepad ' + gamepadIdx + ' does not support the rumble feature!');
     }
+  } else if (msg.indexOf('openStreamMenu') === 0) {
+    // The native gamepad handler requests the existing UI menu; JS only presents it.
+    if (typeof openStreamMenuFromGamepad === 'function') openStreamMenuFromGamepad();
   } else if (msg.indexOf('mouseEmulationOn') === 0) {
     // Show mouse emulation enable status as a notification
     snackbarLogLong('Mouse emulation is activated');
