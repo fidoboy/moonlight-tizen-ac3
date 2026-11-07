@@ -610,5 +610,8 @@
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões X e Y enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta.",
   "Send keystrokes": "Enviar pressionamentos de tecla",
   "Show performance stats": "Mostrar estatísticas",
-  "Hide performance stats": "Ocultar estatísticas"
+  "Hide performance stats": "Ocultar estatísticas",
+  "Stream menu shortcut": "Atalho do menu de transmissão",
+  "Open the stream menu by holding Select": "Abrir o menu da transmissão ao manter Select pressionado",
+  "- Hold Select for 1 second to open the stream menu. A short press is sent to the host normally.": "- Mantenha Select pressionado por 1 segundo para abrir o menu da transmissão. Um toque breve é enviado normalmente ao host."
 }
