@@ -5,6 +5,9 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ## v1.2.3
 
+### Changed
+- **Background host services:** Improved the lifecycle and coordination of background services that query and maintain host status. Host polling now remains active across the Hosts, Apps and Settings views, pauses during streaming, and resumes appropriately afterward. Manual network discovery and Auto WOL recovery run independently without interrupting known-host polling; discovery excludes known hosts, while Auto WOL only updates the registered host whose server identity matches the target.
+
 ### Fixed
 - **Streaming menu input isolation:** Fixed an issue where gamepad events continued to be forwarded to the host while the streaming menu was visible. The menu now takes ownership of input while open, preventing gamepad, keyboard and mouse events from reaching the remote session; normal remote input is restored when the menu closes.
 - **Stale host connectivity after startup:** Reset persisted runtime connectivity and polling state when restoring saved hosts, ensuring their online status is verified against the network before they can be selected. This prevents hosts that were online in a previous session but are now offline from appearing available and failing later during application-list retrieval.
