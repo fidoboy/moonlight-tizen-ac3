@@ -64,8 +64,7 @@ BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
 # them, and linking Ecore would pull in an unrelated EFL/OpenSSL dependency tree.
 RUNTIME_PKGS="libdlog libffi appcore-agent message-port bundle"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
-  capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
-  efl-devel libtbm-devel wayland-devel libwayland-client
+  capi-media-audio-io-devel
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel
   appcore-agent-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
