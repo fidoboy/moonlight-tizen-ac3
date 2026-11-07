@@ -6289,7 +6289,7 @@ function getStreamMenuOptions() {
       icon: 'query_stats',
       option: {
         id: 'streamMenuToggleStats',
-        text: t('Toggle performance stats'),
+        text: t(isPerformanceStatsOverlayVisible() ? 'Hide performance stats' : 'Show performance stats'),
         action: function() {
           Module.toggleStats();
         }
