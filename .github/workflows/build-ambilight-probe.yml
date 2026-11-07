@@ -134,12 +134,16 @@ jobs:
           mkdir -p "$(dirname "$profiles")"
           # The SDK cache does not include per-run CLI user configuration.
           # Restore the signing profile location explicitly on every runner.
-          tizen cli-config "default.profiles.path=$profiles"
+          tizen cli-config -g "default.profiles.path=$profiles"
+          configured_profiles="$(tizen cli-config -l)"
+          grep -Fqx "default.profiles.path=$profiles" <<< "$configured_profiles"
+
           tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
           tizen security-profiles add \
             -n AmbilightProbe \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.p12" \
-            -p "$CERT_PASSWORD"
+            -p "$CERT_PASSWORD" \
+            -- "$TIZEN_STUDIO_DATA_PATH/profile"
           test -s "$profiles"
           sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
