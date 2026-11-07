@@ -3021,6 +3021,20 @@ function handleGamepadTestInput(event) {
   event.detail.changes.forEach(function(change) {
     if (change.type === 'button') {
       gamepadTestDialogState.buttonStates[change.index] = !!change.pressed;
+      if (change.index === 1) {
+        var testState = gamepadTestDialogState;
+        if (testState.bHoldTimeout) {
+          window.clearTimeout(testState.bHoldTimeout);
+          testState.bHoldTimeout = null;
+        }
+        if (change.pressed) {
+          testState.bHoldTimeout = window.setTimeout(function() {
+            if (gamepadTestDialogState === testState && testState.buttonStates[1]) {
+              closeGamepadTestDialog();
+            }
+          }, 1000);
+        }
+      }
       updateGamepadTestDiagnostics(change);
       var buttonIds = gamepadTestDialogState.buttonIds[change.index];
       if (buttonIds) {
@@ -3147,7 +3161,7 @@ function gamepadTestDialog() {
   }
   $('<p>', {
     class: 'gamepad-test-instructions',
-    text: t('Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. When you are finished, press the Back button on your TV remote to close this dialog.')
+    text: t('Press the buttons and move the sticks on your controller to test that all buttons work. The corresponding controls should light up on the screen. To close this dialog, press the Back button on your TV remote or hold the B button on your controller for more than 1 second.')
   }).appendTo(content);
   var diagnostics = $('<div>', {
     class: 'gamepad-test-diagnostics',
@@ -3229,6 +3243,10 @@ function gamepadTestDialog() {
 function closeGamepadTestDialog() {
   if (!gamepadTestDialogState) return;
   var state = gamepadTestDialogState;
+  if (state.bHoldTimeout) {
+    window.clearTimeout(state.bHoldTimeout);
+    state.bHoldTimeout = null;
+  }
   document.removeEventListener('keydown', state.blockKeyboard, true);
   document.removeEventListener('keyup', state.blockKeyboard, true);
   closeUiDialog(state.dialog);
