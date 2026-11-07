@@ -3103,7 +3103,7 @@ function gamepadTestDialog() {
   var content = $('<div>', { class: 'mdl-dialog__content gamepad-test-content' }).appendTo(dialog);
   var svg = controllerType === 'switch' ? NINTENDO_SWITCH_PRO_GAMEPAD_TEST_SVG :
     (controllerType === 'ps' ? PLAYSTATION_GAMEPAD_TEST_SVG : `
-    <svg xmlns="http://www.w3.org/2000/svg" id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 441 383" role="img" aria-label="Game controller diagram">
+    <svg xmlns="http://www.w3.org/2000/svg" id="gamepadTestSvg" class="gamepad-test-svg" viewBox="0 0 441 383" role="img" aria-label="Xbox controller diagram">
       <g id="gamepadTestController">
         <path d="M220.5 294.5C220.5 294.5 195 294.5 150 294.5C105 294.5 81.5 378.5 49.5 378.5C17.5 378.5 4 363.9 4 317.5C4 271.1 43.5 165.5 55 137.5C66.5 109.5 95.5 92.0001 128 92.0001C154 92.0001 200.5 92.0001 220.5 92.0001" class="gamepad-test-shell"/>
         <path d="M220 294.5C220 294.5 245.5 294.5 290.5 294.5C335.5 294.5 359 378.5 391 378.5C423 378.5 436.5 363.9 436.5 317.5C436.5 271.1 397 165.5 385.5 137.5C374 109.5 345 92.0001 312.5 92.0001C286.5 92.0001 240 92.0001 220 92.0001" class="gamepad-test-shell"/>
@@ -3141,6 +3141,7 @@ function gamepadTestDialog() {
         <g id="gamepadTestSelect" class="gamepad-test-control"><circle cx="188" cy="162" r="10"/><rect x="184" y="159" width="8" height="6" class="gamepad-test-small-detail"/><text x="188" y="166">−</text></g>
         <g id="gamepadTestStart" class="gamepad-test-control"><circle cx="253" cy="162" r="10"/><path d="M248 158h10 M248 162h10 M248 166h10" class="gamepad-test-small-detail"/></g>
         <g id="gamepadTestHome" class="gamepad-test-control"><rect x="211.5" y="153" width="18" height="18" rx="9"/><path d="M220.5 158 V164 M218 160.5 L220.5 158 L223 160.5 M218 166 H223" class="gamepad-test-small-detail"/></g>
+        <g id="gamepadTestShare" class="gamepad-test-control"><circle cx="220.5" cy="190" r="8"/><path d="M218 190 L223 187 M218 190 L223 193" class="gamepad-test-small-detail"/><circle cx="217" cy="190" r="1.5" class="gamepad-test-small-detail"/><circle cx="224" cy="186.5" r="1.5" class="gamepad-test-small-detail"/><circle cx="224" cy="193.5" r="1.5" class="gamepad-test-small-detail"/></g>
         <circle cx="220.5" cy="125" r="14" class="gamepad-test-home-base"/>
         <path d="M215.5 125 L220.5 120 L225.5 125 V130 H215.5 Z" class="gamepad-test-home-icon"/>
         <g id="gamepadTestL3" class="gamepad-test-control"><circle cx="113" cy="160" r="10" class="gamepad-test-stick-click"/></g>
@@ -3199,7 +3200,7 @@ function gamepadTestDialog() {
       4: 'gamepadTestLB', 5: 'gamepadTestRB', 6: 'gamepadTestLT', 7: 'gamepadTestRT',
       8: 'gamepadTestSelect', 9: 'gamepadTestStart', 10: 'gamepadTestL3', 11: 'gamepadTestR3',
       12: 'gamepadTestDpadUp', 13: 'gamepadTestDpadDown', 14: 'gamepadTestDpadLeft', 15: 'gamepadTestDpadRight',
-      17: controllerType === 'ps' ? 'Create_outline' : null
+      17: controllerType === 'xbox' ? 'gamepadTestShare' : null
     }
   };
   updateGamepadTestDiagnostics();
