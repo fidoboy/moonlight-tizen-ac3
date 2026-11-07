@@ -529,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.",
   "This dialog will close once the pairing is complete.": "This dialog will close once the pairing is complete.",
   "This is a warning message, proceed with caution!": "This is a warning message, proceed with caution!",
-  "Toggle performance stats": "Toggle performance stats",
   "Top": "Top",
   "Top left": "Top left",
   "Top right": "Top right",
@@ -609,5 +608,7 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.",
-  "Send keystrokes": "Send keystrokes"
+  "Send keystrokes": "Send keystrokes",
+  "Show performance stats": "Show performance stats",
+  "Hide performance stats": "Hide performance stats"
 }
