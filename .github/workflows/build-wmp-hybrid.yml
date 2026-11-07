@@ -359,6 +359,23 @@ jobs:
             cp -a "$log_dir/." "$diagnostics/"
           fi
 
+          if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/WmpService" ]]; then
+            mkdir -p "$diagnostics/WmpService"
+            for metadata in .project .tproject .cproject project_def.prop tizen-manifest.xml; do
+              if [[ -f "$HYBRID_ROOT/WmpService/$metadata" ]]; then
+                cp "$HYBRID_ROOT/WmpService/$metadata" "$diagnostics/WmpService/$metadata"
+              fi
+            done
+          fi
+          if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/MoonlightWeb" ]]; then
+            mkdir -p "$diagnostics/MoonlightWeb"
+            for metadata in .project .tproject config.xml; do
+              if [[ -f "$HYBRID_ROOT/MoonlightWeb/$metadata" ]]; then
+                cp "$HYBRID_ROOT/MoonlightWeb/$metadata" "$diagnostics/MoonlightWeb/$metadata"
+              fi
+            done
+          fi
+
           if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
             find "$RUNNER_TEMP" "$GITHUB_WORKSPACE" -type f -path '*/cli/logs/cli.log' -print 2>/dev/null | while IFS= read -r log; do
               destination="$diagnostics/$(echo "$log" | sed 's|/|_|g')"
