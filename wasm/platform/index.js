@@ -1690,24 +1690,15 @@ function refreshHosts() {
     button.setAttribute('aria-busy', 'true');
   }
 
-  // The operation itself starts only after the progress snackbar has slid into view.
+  // The manual scan is an independent discovery operation. It must not
+  // stop, restart, or otherwise participate in polling known hosts.
   snackbarLogPersistent('Scanning the local network to discover new hosts...').then(function() {
-    // Refresh known-host status first, then pause background polling while scanning the subnet.
-    stopPollingHosts();
-    return startPollingHosts();
+    return ensureSubnetScannerLoaded().then(function() {
+      return startManualSubnetScanner();
+    });
   })
-    .catch(function(error) {
-      console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
-    })
-    .then(function() {
-      stopPollingHosts();
-      return ensureSubnetScannerLoaded().then(function() {
-        return startSubnetScanner(null, true);
-      });
-    })
     .then(function(newHostCount) {
       isSubnetScanFinished = true;
-      if (isInGame !== true) startPollingHosts();
       runWhenMainUiActive(function() {
         if (newHostCount > 0) {
           snackbarLog('Network scan completed.');
@@ -1719,7 +1710,6 @@ function refreshHosts() {
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
       isSubnetScanFinished = true;
-      if (isInGame !== true) startPollingHosts();
       runWhenMainUiActive(function() { snackbarLogLong('Network scan failed.'); });
     })
     .finally(function() {
