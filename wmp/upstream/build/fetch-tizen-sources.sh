@@ -128,10 +128,9 @@ for p in tizen-dlog-devel dlog-devel libdlog-devel; do
 done
 if [[ -z "$dlog_devel" ]]; then
   echo "MISSING: Tizen 5.0 ARM DLog development RPM (tried tizen-dlog-devel, dlog-devel, libdlog-devel)" >&2
-  missing=1
-else
-  unrpm "$dlog_devel" "$OUT/sysroot"
+  exit 1
 fi
+unrpm "$dlog_devel" "$OUT/sysroot"
 
 echo "== Cross toolchain (GCC 6.2)"
 if [[ ! -d $OUT/toolchain ]]; then
