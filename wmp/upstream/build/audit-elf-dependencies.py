@@ -85,6 +85,10 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--root", action="append", required=True, type=Path)
     parser.add_argument("--search-dir", action="append", required=True, type=Path)
+    parser.add_argument(
+        "--system-soname", action="append", default=[],
+        help="DT_NEEDED SONAME supplied by the target Tizen firmware, not bundled with the app",
+    )
     args = parser.parse_args()
 
     roots = [p.resolve() for p in args.root]
@@ -100,6 +104,8 @@ def main() -> int:
     visited: set[str] = set()
     records: dict[str, dict] = {}
     missing: dict[str, list[str]] = {}
+    system_external: dict[str, list[str]] = {}
+    system_sonames = set(args.system_soname)
 
     while queue:
         path = queue.popleft()
@@ -130,7 +136,8 @@ def main() -> int:
         for soname in needed:
             candidates = by_soname.get(soname) or by_name.get(soname) or []
             if not candidates:
-                missing.setdefault(soname, []).append(str(path))
+                target = system_external if soname in system_sonames else missing
+                target.setdefault(soname, []).append(str(path))
                 continue
             dependency = choose(candidates)
             dep_key = str(dependency.resolve())
@@ -166,6 +173,15 @@ def main() -> int:
     else:
         lines.append("  none")
 
+    lines.extend(["", "Platform-provided external dependencies:"])
+    if system_external:
+        for soname in sorted(system_external):
+            lines.append(f"  {soname}")
+            for requester in sorted(set(system_external[soname])):
+                lines.append(f"    required by: {requester}")
+    else:
+        lines.append("  none")
+
     lines.extend(["", "ELF symbol-version information:", ""])
     for record in sorted(records.values(), key=lambda item: item["path"]):
         lines.append(f"--- {record['path']} ---")
@@ -177,7 +193,12 @@ def main() -> int:
 
     print(f"ELF objects inspected: {len(records)}")
     print(f"Unresolved DT_NEEDED entries: {len(missing)}")
+    print(f"Platform-provided external DT_NEEDED entries: {len(system_external)}")
     print(f"Report: {args.output}")
+    for soname in sorted(system_external):
+        print(f"PLATFORM: {soname}")
+        for requester in sorted(set(system_external[soname])):
+            print(f"  required by: {requester}")
     if missing:
         for soname in sorted(missing):
             print(f"UNRESOLVED: {soname}")
