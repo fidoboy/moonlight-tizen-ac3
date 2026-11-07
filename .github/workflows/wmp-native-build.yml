@@ -120,7 +120,11 @@ jobs:
             echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED."
             exit 1
           fi
-          echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH. ESPlus is runtime-loaded."
+          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\\.so' build-report/libmlengine-dynamic.txt; then
+            echo "::error::libmlengine.so must use its private static OpenSSL/cURL stack, not firmware crypto/network SONAMEs."
+            exit 1
+          fi
+          echo "Both outputs are ARM ELF files; WMP crypto/cURL are statically embedded, ServiceApp links libmlengine.so with the expected relative RUNPATH, and ESPlus is runtime-loaded."
 
       - name: Audit recursive target ELF dependencies
         shell: bash
