@@ -1999,14 +1999,17 @@ function hostChosen(host, onSuccessCallback) {
     return;
   }
 
-  // Avoid delay from other polling during pairing
-  stopPollingHosts();
-
   api = host;
   // If the host is not yet paired or has been removed from the server, go to the pairing flow.
   if (!host.paired) {
+    // Avoid delay from other polling during the pairing operation.
+    stopPollingHosts();
+
     // Continue with the pairing flow
     pairingDialog(host, function() {
+      // Resume polling for all hosts after pairing. showApps() will pause the
+      // selected host again while its box art downloads are in progress.
+      startPollingHosts();
       // After pairing the host, save the host object, show the apps, and navigate to the Apps view
       saveHosts();
       Navigation.push(Views.Apps);
