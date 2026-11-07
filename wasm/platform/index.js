@@ -6347,7 +6347,7 @@ function streamMenuDialog() {
       if (groupedOption.group === 'keys') {
         $('<div>', {
           class: 'stream-menu-group__title',
-          text: 'Enviar pulsación de teclas'
+          text: t('Send keystrokes')
         }).appendTo(group);
       }
       streamMenuGroups[groupedOption.group] = group;
