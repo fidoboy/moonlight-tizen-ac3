@@ -100,7 +100,7 @@ static void run_probe(bundle *reply)
     int pixel_ret = -9999;
     int x = 0;
     int y = 0;
-    int wait_ms = 20;
+    int wait_ms = 0;
     bool supported = false;
     const char *error = "";
 
