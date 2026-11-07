@@ -145,9 +145,14 @@ gcc_bin=$(find "$OUT/toolchain" -name '*-gcc' -type f -perm -u+x | head -1)
 # Self-check: the pieces the native client needs must be present.
 missing=0
 for f in usr/include/stdio.h usr/include/media/media_packet.h usr/include/gstreamer-1.0/gst/gst.h \
-         usr/include/glib-2.0/glib.h usr/include/dlog.h; do
+         usr/include/glib-2.0/glib.h; do
   [[ -e $OUT/sysroot/$f ]] || { echo "MISSING: sysroot/$f" >&2; missing=1; }
 done
+# Tizen packages may install DLog as usr/include/dlog/dlog.h rather than
+# usr/include/dlog.h. The service build adds the discovered parent directory
+# to its include path, so validate the header recursively as well.
+dlog_header=$(find "$OUT/sysroot/usr/include" -type f -name dlog.h -print -quit)
+[[ -n "$dlog_header" ]] || { echo "MISSING: DLog header under sysroot/usr/include" >&2; missing=1; }
 ls "$OUT"/src/esplusplayer-*/esplusplayer-*/include/esplusplayer_capi/esplusplayer_capi.h >/dev/null 2>&1 \
   || { echo "MISSING: esplusplayer reference headers" >&2; missing=1; }
 [[ -n $gcc_bin ]] || { echo "MISSING: cross gcc in toolchain/" >&2; missing=1; }
