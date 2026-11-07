@@ -282,6 +282,9 @@ jobs:
           if app is None or app.attrib.get("appid") != "MoonLightS.WmpService" or app.attrib.get("exec") != "wmp-service":
               raise SystemExit("Unexpected WMP native service identity")
           native.set("version", version)
+          # Keep Tizen's package namespace as the default namespace. The native
+          # CLI's package-name reader expects an unprefixed <manifest> element.
+          ET.register_namespace("", "http://tizen.org/ns/packages")
           tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
           PY
 
@@ -411,6 +414,7 @@ jobs:
           path: ${{ runner.temp }}/tizen-cli-diagnostics/
           if-no-files-found: warn
           retention-days: 7
+          include-hidden-files: true
 
       - name: Inspect hybrid WGT and native linkage
         shell: bash
