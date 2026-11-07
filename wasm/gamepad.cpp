@@ -46,10 +46,10 @@ inline uint32_t supportedButtons(int count, bool flipAB = false, bool flipXY = f
   static constexpr uint32_t buttons[] = {
     A_FLAG, B_FLAG, X_FLAG, Y_FLAG, LB_FLAG, RB_FLAG, 0, 0,
     BACK_FLAG, PLAY_FLAG, LS_CLK_FLAG, RS_CLK_FLAG,
-    UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG, SPECIAL_FLAG
+    UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG, SPECIAL_FLAG, MISC_FLAG
   };
   uint32_t flags = 0;
-  for (int i = 0; i < count && i < 17; ++i) {
+  for (int i = 0; i < count && i < 18; ++i) {
     auto flag = buttons[i];
     if (flipAB && i < 2) {
       flag = buttons[1 - i];
@@ -162,7 +162,7 @@ enum GamepadButton {
   Back, Play,
   LeftStick, RightStick,
   Up, Down, Left, Right,
-  Special,
+  Special, Share,
   Count,
 };
 
@@ -178,7 +178,7 @@ enum GamepadAxis {
 static gamepad_identity::Tracker controllerTracker;
 
 // Function to map gamepad buttons to flags
-static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
+static int GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
   // Triggers are considered analog buttons in the "Emscripten API", however they need
   // to be passed in separate arguments for "Limelight" (it even lacks flags for them).
 
@@ -193,7 +193,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define button mapping with A/B swapped
   static const int buttonMasksAB[] = {
@@ -203,7 +203,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define button mapping with X/Y swapped
   static const int buttonMasksXY[] = {
@@ -213,7 +213,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define default button mapping
   static const int buttonMasksDefault[] = {
@@ -223,7 +223,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
 
   // Check if the A/B or X/Y face buttons switches are checked
@@ -245,7 +245,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     buttonMasksSize = sizeof(buttonMasksDefault) / sizeof(buttonMasksDefault[0]);
   }
 
-  short result = 0;
+  int result = 0;
   
   for (int i = 0; i < gamepad.numButtons && i < buttonMasksSize; ++i) {
     if (gamepad.digitalButton[i] == EM_TRUE) {
