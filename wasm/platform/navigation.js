@@ -1803,6 +1803,7 @@ const Views = {
     view: new ListView(() => [
       'rumbleFeedbackBtn',
       'mouseEmulationBtn',
+      'selectHoldStreamMenuBtn',
       'flipABfaceButtonsBtn',
       'flipXYfaceButtonsBtn'
     ]),
