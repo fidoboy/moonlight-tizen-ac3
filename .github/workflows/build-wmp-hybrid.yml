@@ -57,20 +57,6 @@ jobs:
           file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
           file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
 
-      - name: Validate SDK libraries for the hybrid ServiceApp link
-        shell: bash
-        run: |
-          set -euo pipefail
-          TV_LIBS_DIR="$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib"
-          test -d "$TV_LIBS_DIR"
-          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
-            test -e "$TV_LIBS_DIR/$lib" || {
-              echo "::error::Missing SDK library: usr/lib/$lib" >&2
-              exit 1
-            }
-          done
-          echo "TV_LIBS_DIR=$TV_LIBS_DIR" >> "$GITHUB_ENV"
-
       - name: Ensure required versioned MP4 assets are available
         shell: bash
         env:
@@ -285,7 +271,7 @@ jobs:
           USER_INC_DIRS = src
           USER_OBJS =
           USER_LIBS = appcore-agent dlog message-port bundle dl pthread mlengine
-          USER_LFLAGS = -Wl,--no-undefined -Wl,-rpath-link,$TV_LIBS_DIR -L$TV_LIBS_DIR
+          USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
 
@@ -403,6 +389,10 @@ jobs:
           grep -q 'Library runpath: \[\$ORIGIN/../lib\]' "$inspection/wmp-service-dynamic.txt"
           if grep -q 'NEEDED.*libesplusplayer' "$inspection/libmlengine-dynamic.txt"; then
             echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED." >&2
+            exit 1
+          fi
+          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\\.so' "$inspection/libmlengine-dynamic.txt"; then
+            echo "::error::libmlengine.so must contain the private static OpenSSL/cURL stack." >&2
             exit 1
           fi
           sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" | tee "$inspection/sha256.txt"
