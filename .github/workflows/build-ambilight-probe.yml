@@ -195,6 +195,33 @@ jobs:
 
           echo "AMBILIGHT_PROBE_ROOT=$root" >> "$GITHUB_ENV"
 
+      - name: Inspect generated Tizen project metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$AMBILIGHT_PROBE_ROOT"
+          for project in AmbilightProbeWeb AmbilightProbeService; do
+            dir="$root/$project"
+            echo "::group::Project $project"
+            echo "Project directory: $dir"
+            find "$dir" -maxdepth 3 -type f -printf '%P\\n' | sort
+            for metadata in .project .tproject project_def.prop tizen-manifest.xml config.xml; do
+              if [[ -f "$dir/$metadata" ]]; then
+                echo "---- $metadata"
+                sed -n '1,240p' "$dir/$metadata"
+              fi
+            done
+            echo "::endgroup::"
+          done
+
+          echo "::group::Native project metadata references"
+          grep -RniE 'package(Name)?|appid|application.?id|project.?name|profile' \\
+            "$root/AmbilightProbeService" \\
+            --include='.project' --include='.tproject' --include='*.xml' \\
+            --include='*.prop' --include='*.ini' --include='*.properties' \\
+            --exclude-dir=Release --exclude-dir=Debug || true
+          echo "::endgroup::"
+
       - name: Build and sign hybrid diagnostic WGT
         shell: bash
         run: |
