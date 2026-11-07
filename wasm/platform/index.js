@@ -6077,8 +6077,8 @@ function startGame(host, appID) {
             dolbyChannelLayout,
             dolbyDecodingMode,
             h264Level,
-
-            selectHoldStreamMenu          ]);
+            selectHoldStreamMenu
+          ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
           if (failedResumeApp && failedResumeApp.name === 'TimeoutError') {
@@ -6147,8 +6147,8 @@ function startGame(host, appID) {
           dolbyChannelLayout,
           dolbyDecodingMode,
           h264Level,
-
-          selectHoldStreamMenu        ]);
+          selectHoldStreamMenu
+        ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
         if (failedLaunchApp && failedLaunchApp.name === 'TimeoutError') {
