@@ -822,6 +822,7 @@ function attachListeners() {
   $('#removeAllHostsBtn').on('click', deleteAllHostsDialog);
   $('#rumbleFeedbackSwitch').on('click', saveRumbleFeedback);
   $('#mouseEmulationSwitch').on('click', saveMouseEmulation);
+  $('#selectHoldStreamMenuSwitch').on('click', saveSelectHoldStreamMenu);
   $('#flipABfaceButtonsSwitch').on('click', saveFlipABfaceButtons);
   $('#flipXYfaceButtonsSwitch').on('click', saveFlipXYfaceButtons);
   $('.audioBackendMenu li').on('click', saveAudioBackend);
@@ -5874,7 +5875,7 @@ function startGame(host, appID) {
       // Normal launches read the live controls. Smart Hub launches use the
       // stream-only snapshot loaded directly from IndexedDB, without touching UI controls.
       var streamWidth, streamHeight, frameRate, bitrate, rikey, rikeyid, gamepadMask;
-      var framePacing, optimizeGames, rumbleFeedback, mouseEmulation;
+      var framePacing, optimizeGames, rumbleFeedback, mouseEmulation, selectHoldStreamMenu;
       var flipABfaceButtons, flipXYfaceButtons, opticalOutputEnabled;
       var audioBackend, audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio;
       var videoCodec, h264Level, hdrMode, fullRange, gameMode, disableWarnings, performanceStats;
@@ -5894,6 +5895,7 @@ function startGame(host, appID) {
         optimizeGames = directSettings.optimizeGames;
         rumbleFeedback = directSettings.rumbleFeedback;
         mouseEmulation = directSettings.mouseEmulation;
+        selectHoldStreamMenu = directSettings.selectHoldStreamMenu;
         flipABfaceButtons = directSettings.flipABfaceButtons;
         flipXYfaceButtons = directSettings.flipXYfaceButtons;
         opticalOutputEnabled = directSettings.opticalOutputEnabled;
@@ -5921,6 +5923,7 @@ function startGame(host, appID) {
         optimizeGames = $('#optimizeGamesSwitch').parent().hasClass('is-checked') ? 1 : 0;
         rumbleFeedback = $('#rumbleFeedbackSwitch').parent().hasClass('is-checked') ? 1 : 0;
         mouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        selectHoldStreamMenu = $('#selectHoldStreamMenuSwitch').parent().hasClass('is-checked') ? 1 : 0;
         flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
@@ -5957,6 +5960,7 @@ function startGame(host, appID) {
       '\n Optimize game settings: ' + optimizeGames + 
       '\n Rumble feedback: ' + rumbleFeedback + 
       '\n Mouse emulation: ' + mouseEmulation + 
+      '\n Select hold stream menu: ' + selectHoldStreamMenu +
       '\n Flip A/B face buttons: ' + flipABfaceButtons + 
       '\n Flip X/Y face buttons: ' + flipXYfaceButtons + 
       '\n Audio backend: ' + audioBackend + 
@@ -6072,8 +6076,9 @@ function startGame(host, appID) {
             gameMode, disableWarnings, performanceStats,
             dolbyChannelLayout,
             dolbyDecodingMode,
-            h264Level
-          ]);
+            h264Level,
+
+            selectHoldStreamMenu          ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
           if (failedResumeApp && failedResumeApp.name === 'TimeoutError') {
@@ -6141,8 +6146,9 @@ function startGame(host, appID) {
           gameMode, disableWarnings, performanceStats,
           dolbyChannelLayout,
           dolbyDecodingMode,
-          h264Level
-        ]);
+          h264Level,
+
+          selectHoldStreamMenu        ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
         if (failedLaunchApp && failedLaunchApp.name === 'TimeoutError') {
@@ -6477,6 +6483,11 @@ function directSmartHubVideoReady(videoElement) {
   }
 
   return true;
+}
+
+function openStreamMenuFromGamepad() {
+  // Reuse the same stream-state and video-readiness checks as the remote-control shortcut.
+  if (typeof toggleStreamMenuDialog === 'function') toggleStreamMenuDialog();
 }
 
 function toggleStreamMenuDialog() {
@@ -7425,6 +7436,14 @@ function saveMouseEmulation() {
   }, 100);
 }
 
+function saveSelectHoldStreamMenu() {
+  setTimeout(() => {
+    const enabled = $('#selectHoldStreamMenuSwitch').parent().hasClass('is-checked');
+    console.log('%c[index.js, saveSelectHoldStreamMenu]', 'color: green;', 'Saving Select hold stream menu state: ' + enabled);
+    storeData('selectHoldStreamMenu', enabled, null);
+  }, 100);
+}
+
 function saveFlipABfaceButtons() {
   setTimeout(() => {
     const chosenFlipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked');
@@ -8342,6 +8361,7 @@ function loadDirectSmartHubStreamSettings() {
       optimizeGames: boolValue(stored.optimizeGames, false) ? 1 : 0,
       rumbleFeedback: boolValue(stored.rumbleFeedback, false) ? 1 : 0,
       mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
+      selectHoldStreamMenu: boolValue(stored.selectHoldStreamMenu, false) ? 1 : 0,
       flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
       flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
       opticalOutputEnabled: ac3Enabled,
@@ -8591,6 +8611,15 @@ function loadUserDataCb() {
       document.querySelector('#mouseEmulationBtn').MaterialSwitch.off();
     } else {
       document.querySelector('#mouseEmulationBtn').MaterialSwitch.on();
+    }
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored Select hold stream menu preferences.');
+  getData('selectHoldStreamMenu', function(previousValue) {
+    if (previousValue.selectHoldStreamMenu === true) {
+      document.querySelector('#selectHoldStreamMenuBtn').MaterialSwitch.on();
+    } else {
+      document.querySelector('#selectHoldStreamMenuBtn').MaterialSwitch.off();
     }
   });
 
