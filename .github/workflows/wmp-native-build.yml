@@ -42,6 +42,20 @@ jobs:
           echo "DEPSBUILD=$GITHUB_WORKSPACE/deps-build" >> "$GITHUB_ENV"
           echo "ENGINE_OUT=$GITHUB_WORKSPACE/engine-build" >> "$GITHUB_ENV"
 
+      - name: Cache Tizen 5.5 ARM sysroot and toolchain
+        uses: actions/cache@v4
+        with:
+          path: tizen-deps
+          key: ${{ runner.os }}-tizen55-sysroot-${{ hashFiles('wmp/upstream/build/fetch-tizen-sources.sh') }}-v1
+
+      - name: Cache OpenSSL and cURL source trees
+        uses: actions/cache@v4
+        with:
+          path: |
+            backport-deps/openssl111
+            backport-deps/curl759
+          key: ${{ runner.os }}-wmp-backport-sources-${{ hashFiles('wmp/upstream/build/fetch-backport-deps.sh') }}-v1
+
       - name: Fetch Tizen 5.5 ARM toolchain and sysroot
         shell: bash
         run: |
