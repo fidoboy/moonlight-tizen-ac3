@@ -44,7 +44,7 @@ done
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
-  -lcurl -lssl -lcrypto -ldl -lpthread $DBGLIB
+  -lcurl -lssl -lcrypto -lecore_wl2 -lecore -ldl -lpthread $DBGLIB
 
 # The ServiceApp has its own entry point and is linked separately by
 # wmp/service/build-wmp-service.sh. This script builds only libmlengine.so.
