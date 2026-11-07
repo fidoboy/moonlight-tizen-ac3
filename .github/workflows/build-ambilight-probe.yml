@@ -197,8 +197,36 @@ jobs:
             'expect {' \
             '  -re {Author password:} { send -- "ambilight-probe-ci\r"; exp_continue }' \
             '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
-            '  eof' \
-            '}' > "$RUNNER_TEMP/run-probe-build.exp"
+          '}' \
+          'set result [wait]' \
+          'exit [lindex $result 3]' > "$RUNNER_TEMP/run-probe-build.exp"
+          chmod +x "$RUNNER_TEMP/run-probe-build.exp"
+          set +e
+          expect "$RUNNER_TEMP/run-probe-build.exp" \
+            tizen build-app \
+            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+            -b 'name:b1,targets:[AmbilightProbeWeb,AmbilightProbeService],methods:[m1]' \
+            -p 'name:p1,targets:[b1]' \
+            -s AmbilightProbe \
+            -- "$AMBILIGHT_PROBE_ROOT"
+          build_status=$?
+          set -e
+
+          if [[ "$build_status" -ne 0 ]]; then
+            echo "::group::Tizen CLI diagnostic log"
+            found_log=false
+            while IFS= read -r log; do
+              found_log=true
+              echo "---- $log"
+              tail -n 300 "$log"
+            done < <(find "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$HOME" -type f -path '*/cli/logs/cli.log' -print 2>/dev/null | sort -u)
+            if [[ "$found_log" != true ]]; then
+              echo "No cli.log found in workspace, runner temp or home."
+              find "$GITHUB_WORKSPACE" "$RUNNER_TEMP" "$HOME" -maxdepth 5 -type d -name logs -print 2>/dev/null || true
+            fi
+            echo "::endgroup::"
+            exit "$build_status"
+          fi
           chmod +x "$RUNNER_TEMP/run-probe-build.exp"
           expect "$RUNNER_TEMP/run-probe-build.exp" \
             tizen build-app \
