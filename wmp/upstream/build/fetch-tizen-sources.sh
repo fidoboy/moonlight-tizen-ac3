@@ -123,8 +123,8 @@ fetch_runtime_soname libglib-2.0.so.0 libglib glib2 glib
 fetch_runtime_soname libcapi-appfw-app-control.so.0 capi-appfw-app-control
 fetch_runtime_soname libappcore-common.so.1 appcore-common app-core-common
 fetch_runtime_soname libpkgmgr-info.so.0 pkgmgr-info
-fetch_runtime_soname libgio-2.0.so.0 libglib glib2 glib
-fetch_runtime_soname libgobject-2.0.so.0 libglib glib2 glib
+fetch_runtime_soname libgio-2.0.so.0 libgio
+fetch_runtime_soname libgobject-2.0.so.0 libgobject
 fetch_runtime_soname libcapi-base-common.so.0 capi-base-common
 fetch_runtime_soname libjson-glib-1.0.so.0 libjson-glib json-glib
 fetch_runtime_soname libxkbcommon.so.0 libxkbcommon xkbcommon
