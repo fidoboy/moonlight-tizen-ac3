@@ -276,9 +276,10 @@
   "In order for your changes to take effect, a restart of the application is required.<br><br>Would you like to proceed with the restart?": "In order for your changes to take effect, a restart of the application is required.<br><br>Would you like to proceed with the restart?",
   "Incoming bitrate from network:": "Входящий битрейт из сети:",
   "Frame rates:": "Частота кадров:",
-  "decoded FPS": "декодировано FPS",
-  "received FPS": "получено FPS",
-  "rendered FPS": "отрисовано FPS",
+  "Recv": "Пр.",
+  "Dec": "Дек.",
+  "Rend": "Отр.",
+
   "Invalid MAC address format": "Invalid MAC address format",
   "Invalid MAC address: default zero MAC address not allowed": "Invalid MAC address: default zero MAC address not allowed",
   "Keyboard": "Клавиатура",
