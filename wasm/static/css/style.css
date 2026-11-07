@@ -606,6 +606,11 @@ body[data-color-theme="black-orange"] #background-layer {
     filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
 }
 .gamepad-test-control.gamepad-test-active text { fill: #102013; }
+.gamepad-test-control.gamepad-test-active {
+    fill: #65d66e;
+    stroke: #d5ffd8;
+    filter: drop-shadow(0 0 7px rgba(101, 214, 110, 0.95));
+}
 .gamepad-test-stick-cap {
     fill: #aab3bf !important;
     stroke: #dce1e7 !important;
