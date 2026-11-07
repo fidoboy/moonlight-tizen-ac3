@@ -217,6 +217,6 @@ ls "$OUT"/src/esplusplayer-*/esplusplayer-*/include/esplusplayer_capi/esplusplay
 echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
-echo "Compiler:  \${gcc_bin:-<not found>}"
+echo "Compiler:  ${gcc_bin:-<not found>}"
 echo "OpenSSL 1.0.x, libcurl and its c-ares/nghttp2/ICU/zlib runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
 exit "$missing"
