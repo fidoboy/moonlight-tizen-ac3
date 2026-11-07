@@ -367,7 +367,7 @@ void MoonlightInstance::PollGamepads() {
     }
 
     // Hold Select locally until the gesture is known: a short press is replayed as a
-    // one-poll button pulse, while a long press opens the stream menu without reaching the host.
+    // brief button pulse, while a long press opens the stream menu without reaching the host.
     if (selectHoldStreamMenuSwitch) {
       const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
       if (selectPressed) selectClickPulseUntil.erase(gamepadID);
