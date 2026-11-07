@@ -347,9 +347,9 @@ jobs:
 
           if [[ -d "$log_dir" ]]; then
             cp -a "$log_dir/." "$diagnostics/"
-          else
-            printf 'Tizen CLI log directory not found: %s\n' "$log_dir" > "$diagnostics/LOG-NOT-FOUND.txt"
-            printf 'Searched runner temp and workspace for cli/logs/cli.log.\n' >> "$diagnostics/LOG-NOT-FOUND.txt"
+          fi
+
+          if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
             find "$RUNNER_TEMP" "$GITHUB_WORKSPACE" -type f -path '*/cli/logs/cli.log' -print 2>/dev/null | while IFS= read -r log; do
               destination="$diagnostics/$(echo "$log" | sed 's|/|_|g')"
               cp "$log" "$destination"
@@ -357,7 +357,7 @@ jobs:
           fi
 
           if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
-            printf 'No Tizen CLI logs were found.\n' > "$diagnostics/LOG-NOT-FOUND.txt"
+            printf 'Tizen CLI log directory not found or empty: %s\n' "$log_dir" > "$diagnostics/LOG-NOT-FOUND.txt"
           fi
           find "$diagnostics" -maxdepth 1 -type f -printf '%f (%s bytes)\n' | sort
 
