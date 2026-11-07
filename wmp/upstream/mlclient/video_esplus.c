@@ -20,7 +20,7 @@
 static int s_fps;
 static uint8_t *s_scratch;
 static size_t s_scratch_cap;
-static uint64_t s_base_pts_ms;
+static uint64_t s_base_pts_us;
 static int s_have_base;
 static uint64_t s_arrival_base_ms;
 static int s_have_arrival;
@@ -104,7 +104,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 static void VidDecStart(void)
 {
     MLT("video start");
-    s_base_pts_ms = 0;
+    s_base_pts_us = 0;
     s_have_base = 0;
     s_arrival_base_ms = 0;
     s_have_arrival = 0;
@@ -159,7 +159,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
 
     if (!s_have_base) {
-        s_base_pts_ms = du->presentationTimeMs;
+        s_base_pts_us = du->presentationTimeUs;
         s_have_base = 1;
     }
     if (esplus_cfg.latency_mode == ESPLUS_LAT_ARRIVAL) {
@@ -170,7 +170,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
         }
         pts_ms = (int64_t)(now - s_arrival_base_ms);
     } else {
-        pts_ms = (int64_t)(du->presentationTimeMs - s_base_pts_ms);
+        /* Common C timestamps are microseconds; ESPlus timing is milliseconds. */
+        pts_ms = (int64_t)((du->presentationTimeUs - s_base_pts_us) / 1000ull);
         if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE)
             pts_ms -= esplus_correction_ms();
     }
