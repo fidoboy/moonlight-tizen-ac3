@@ -130,6 +130,12 @@ jobs:
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
+      - name: Cache Tizen Studio SDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/tizen-studio
+          key: tizen-studio-6.1-iot-headed-6.0-tizen-10.0-native-${{ runner.os }}-v1
+
       - name: Install Tizen Web and Native SDKs
         shell: bash
         run: |
@@ -140,17 +146,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
 
-          installer="$RUNNER_TEMP/tizen-web-cli.bin"
-          curl --fail --location --retry 3 --output "$installer" \
-            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
-          chmod +x "$installer"
-          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
-
           sdk="$RUNNER_TEMP/tizen-studio"
-          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
-          test -n "$pm"
-          required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
-          "$pm" install --accept-license --no-java-check "$required"
+          if [[ ! -x "$sdk/tools/ide/bin/tizen" ]]; then
+            installer="$RUNNER_TEMP/tizen-web-cli.bin"
+            curl --fail --location --retry 3 --output "$installer" \
+              https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+            chmod +x "$installer"
+            "$installer" --accept-license "$sdk"
+
+            pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+            test -n "$pm"
+            required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
+            "$pm" install --accept-license --no-java-check "$required"
+          else
+            echo "Restored complete Tizen Studio SDK from cache; skipping installation."
+          fi
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
