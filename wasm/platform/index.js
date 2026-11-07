@@ -1427,7 +1427,7 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
               api === returnedHost &&
               $('#game-grid').is(':visible') &&
               $('#hosts-carousel-viewport').is(':hidden')) {
-            showHostsMode(true, true);
+            showHostsMode(true);
             Navigation.change(Views.Hosts);
             Navigation.start();
             Navigation.switch();
