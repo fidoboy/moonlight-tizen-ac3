@@ -4814,10 +4814,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
       checkForAppUpdatesAtStartup();
     }, 0);
   }
-  // We want to eventually poll on the app screen, but we can't now because
-  // it slows down box art loading and we don't update the UI live anyway.
   if (!deferPostTransitionActions) {
-    stopPollingHosts();
     if (!appListInteractionLocked) Navigation.start();
   }
   if (!deferPostTransitionActions && typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
