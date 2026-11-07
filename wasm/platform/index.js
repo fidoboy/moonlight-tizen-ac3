@@ -1429,11 +1429,9 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
             Navigation.change(Views.Hosts);
             Navigation.start();
             Navigation.switch();
-            // This cycle has no further scheduled poll. Remove it so a later
-            // explicit start can create a fresh cycle for this offline host.
-            endBackgroundPollingOfHost(returnedHost);
-            return;
           }
+          // Keep polling this host after returning to Hosts so its recovery
+          // can be detected without requiring another user action.
           scheduleNextPoll(5000);
         });
       }, delay);
