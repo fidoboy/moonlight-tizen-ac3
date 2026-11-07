@@ -78,5 +78,9 @@ EOF
   -L"$CRYPTO_PREFIX/lib" -Wl,--exclude-libs,ALL \
   -lcurl -lssl -lcrypto -ldl -lpthread
 echo "linktest built:"; file "$OUT/linktest" | cut -d, -f1-3
+if "$OBJD" -p "$OUT/linktest" | grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\.so'; then
+  echo "ERROR: linktest acquired a firmware OpenSSL/cURL dependency." >&2
+  exit 1
+fi
 bad=$("$OBJD" -T "$OUT/linktest" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
 [ -z "$bad" ] && echo "glibc symbols: all <= 2.24 OK" || { echo "TOO-NEW glibc: $bad"; exit 1; }
