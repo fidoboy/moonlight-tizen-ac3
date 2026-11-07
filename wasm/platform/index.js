@@ -2566,11 +2566,20 @@ function autoWolDialog(host, onSuccess, onCancel) {
   var isPolling = true;
   var pollTimeout = null;
   var hasFailed = false;
+  // Auto WOL owns its discovery lifecycle; cancelling it must not abort
+  // startup discovery or the independent manual subnet scan.
+  var autoWolScanState = {
+    cancelled: false,
+    abortController: null,
+    promise: null
+  };
 
   var stopPollingTasks = function() {
     isPolling = false;
     if (pollTimeout) clearTimeout(pollTimeout);
-    if (typeof abortSubnetScan === 'function') abortSubnetScan();
+    if (typeof abortAutoWolSubnetScan === 'function') {
+      abortAutoWolSubnetScan(autoWolScanState);
+    }
   };
 
   var cleanup = function() {
@@ -2594,9 +2603,10 @@ function autoWolDialog(host, onSuccess, onCancel) {
       var pollLoop = function() {
         if (!isPolling) return;
 
-        // Continuously sweep the subnet to catch the host if it wakes up with a new DHCP IP
+        // Search only for this host identity. The Auto WOL scanner has its own
+        // cancellation state and never registers or updates any other host.
         var scanPromise = ensureSubnetScannerLoaded().then(function() {
-          return startSubnetScanner();
+          return startAutoWolSubnetScanner(host, autoWolScanState);
         }).catch(function(e) {
           console.warn('%c[index.js, autoWolDialog]', 'color: orange;', 'Subnet scan failed during WOL wait, continuing to poll:', e);
         });
