@@ -169,7 +169,6 @@
   "DOWN": "DOWN",
   "DOWN ARROW": "DOWN ARROW",
   "Data received: %1$s MB": "Empfangene Daten: %1$s MB",
-  "Decoding frame rate:": "Dekodier-Bildrate:",
   "Decoding mode:": "Audio-Decodierung:",
   "Decrypt host audio": "Host-Audio entschlüsseln",
   "Delete All Hosts": "Alle Hosts löschen",
