@@ -195,27 +195,32 @@ static void sampler_stop(void)
     MLT("sampler stopped");
 }
 
-static void on_prepared(bool ok)
+static void on_prepared(bool ok, void *context)
 {
+    (void)context;
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
     mldiag_player("pdone", ok ? 1 : 0);
     PLOG("prepare_async_done=%d\n", ok ? 1 : 0);
     MLT("cb prepare_async_done ok=%d", ok ? 1 : 0);
 }
-static void on_ready(wmp_esplus_stream_e stream)
+static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
+    (void)stream;
+    (void)context;
     MLT("cb ready_to_prepare stream=%d", (int)stream);
 }
-static void on_error(uint32_t error)
+static void on_error(uint32_t error, void *context)
 {
+    (void)context;
     __atomic_fetch_add(&esplus_stats.errors, 1, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.last_error, error, __ATOMIC_RELAXED);
     PLOG("player error 0x%x\n", error);
     MLT("cb player error 0x%x", error);
 }
-static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status)
+static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status, void *context)
 {
+    (void)context;
     if (status == WMP_ESPLUS_BUFFER_STATUS_UNDERRUN)
         __atomic_fetch_add(&esplus_stats.underruns, 1, __ATOMIC_RELAXED);
     else if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
@@ -223,10 +228,11 @@ static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e sta
     if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
         PLOG("OVERRUN stream=%d\n", (int)stream);
 }
-static void on_seek_done(void) { MLT("cb seek_done"); }
-static void on_eos(void) { MLT("cb eos"); }
-static void on_conflict(void)
+static void on_seek_done(void *context) { (void)context; MLT("cb seek_done"); }
+static void on_eos(void *context) { (void)context; MLT("cb eos"); }
+static void on_conflict(void *context)
 {
+    (void)context;
     /* Record the native condition; Common C remains responsible for session state. */
     __atomic_store_n(&esplus_stats.recovery_state, 2, __ATOMIC_RELAXED);
     PLOG("resource conflict\n");
@@ -364,6 +370,7 @@ static void *win_create_main(void *arg)
     }
     if (sw <= 0 || sh <= 0) { sw = 1920; sh = 1080; }
     MLT("win: screen %dx%d (%s; stream %dx%d)", sw, sh, src, r->w, r->h);
+    (void)src;
 
     s_win = ecore_wl2_window_new(s_disp, NULL, 0, 0, sw, sh);
     MLT("ecore_wl2_window_new -> %p", s_win);
@@ -386,6 +393,7 @@ static void *win_create_main(void *arg)
     mode_result = wmp_esplus_adapter_set_display_mode(&s_adapter, 0 /* LETTER_BOX */);
     MLT("esplusplayer_set_display_mode(LETTER_BOX) -> status=%d raw=%d",
         (int)mode_result.status, mode_result.raw_status);
+    (void)mode_result;
     /* The legacy header labels LETTER_BOX as zero; display-mode setup is optional. */
     r->rc = 0;
     return NULL;
@@ -485,6 +493,8 @@ void esplus_close(void)
         MLT("esplusplayer_stop status=%d raw=%d, close status=%d raw=%d",
             (int)stopped.status, stopped.raw_status,
             (int)closed.status, closed.raw_status);
+        (void)stopped;
+        (void)closed;
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
     }
