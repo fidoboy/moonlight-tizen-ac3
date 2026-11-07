@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Download Tizen sources, headers and toolchain for a native Moonlight client
-# on a Samsung TV with Tizen 5.0 (armv7l, glibc 2.24, GCC 6.2, softfp).
+# on a Samsung TV with Tizen 5.5+ ARMv7l baseline (GCC 6.2 cross-toolchain, softfp).
 #
 # Usage: fetch-tizen-sources.sh [output-dir]   (default: ./tizen-deps)
 # Needs: curl, unzip, and bsdtar (libarchive-tools) or rpm2cpio + cpio.
 #
 # Result:
 #   <out>/src/      reference sources (esplusplayer, trackrenderer, capi-media-*)
-#   <out>/sysroot/  Tizen 5.0 armv7l headers + libs to compile against
+#   <out>/sysroot/  Tizen 5.5 armv7l headers + libs to compile against
 #   <out>/toolchain Tizen cross-arm-gcc-6.2 (same GCC major as the TV firmware)
 #   <out>/rpm/      downloaded packages (kept for re-extraction)
 #
@@ -18,8 +18,8 @@ set -euo pipefail
 
 OUT=$(realpath -m "${1:-./tizen-deps}")
 SNAP=https://download.tizen.org/snapshots/TIZEN
-T50_BASE=$SNAP/Tizen-5.0/Tizen-5.0-Base/latest/repos/standard
-T50_UNI=$SNAP/Tizen-5.0/Tizen-5.0-Unified/latest/repos/standard
+T55_BASE=$SNAP/Tizen-5.5/Tizen-5.5-Base/latest/repos/standard
+T55_UNI=$SNAP/Tizen-5.5/Tizen-5.5-Unified/latest/repos/standard
 T65_UNI=$SNAP/Tizen-6.5/Tizen-6.5-Unified/latest/repos/standard
 SDK=https://download.tizen.org/sdk/tizenstudio/official/binary
 TOOLCHAIN_ZIP=cross-arm-gcc-6.2_0.2.2_ubuntu-64.zip
@@ -49,7 +49,7 @@ unrpm() { # rpm destdir
 
 echo "== Reference sources"
 for spec in "$T65_UNI/source esplusplayer" "$T65_UNI/source libtrackrenderer" \
-            "$T50_UNI/source capi-media-player" "$T50_UNI/source capi-media-tool"; do
+            "$T55_UNI/source capi-media-player" "$T55_UNI/source capi-media-tool"; do
   read -r dir name <<<"$spec"
   r=$(fetch "$dir" "$name" '\.src\.rpm'); [[ -n $r ]] || continue
   d=$OUT/src/$(basename "$r" .src.rpm); rm -rf "$d"; unrpm "$r" "$d"
@@ -57,7 +57,7 @@ for spec in "$T65_UNI/source esplusplayer" "$T65_UNI/source libtrackrenderer" \
   echo "   $d"
 done
 
-echo "== Tizen 5.0 armv7l sysroot"
+echo "== Tizen 5.5 armv7l sysroot"
 BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
 # Runtime libraries required by the native ServiceApp and its engine. Ecore,
 # EFL and Wayland are deliberately excluded: the engine sources do not use
@@ -68,7 +68,7 @@ UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-dev
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel
   appcore-agent-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
-  r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
+  r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
   if [[ -n $r ]]; then
     unrpm "$r" "$OUT/sysroot"
   else
@@ -82,7 +82,7 @@ done
 fetch_runtime_soname() { # soname package-name...
   local soname="$1" repo pkg rpm found
   shift
-  for repo in "$T50_UNI" "$T50_BASE"; do
+  for repo in "$T55_UNI" "$T55_BASE"; do
     for pkg in "$@"; do
       rpm=$(fetch "$repo/packages/armv7l" "$pkg" '\.armv7l\.rpm')
       [[ -n "$rpm" ]] || continue
@@ -94,7 +94,7 @@ fetch_runtime_soname() { # soname package-name...
       fi
     done
   done
-  echo "MISSING: Tizen 5.0 ARM package providing $soname (tried: $*)" >&2
+  echo "MISSING: Tizen 5.5 ARM package providing $soname (tried: $*)" >&2
   return 1
 }
 
@@ -102,7 +102,7 @@ fetch_runtime_soname() { # soname package-name...
 fetch_runtime_soname libz.so.1 zlib libz
 
 # ServiceApp and the selected Tizen framework libraries have additional
-# runtime dependencies. Resolve these by exact SONAME from the same Tizen 5.0
+# runtime dependencies. Resolve these by exact SONAME from the same Tizen 5.5
 # Unified/Base snapshots; development RPMs alone do not provide link-time
 # implementations for these dependencies.
 fetch_runtime_soname libaul.so.0 aul
@@ -126,7 +126,7 @@ fetch_runtime_soname libxdgmime.so.1 xdgmime
 fetch_runtime_soname libtzplatform-config-2.0.so.2 libtzplatform-config
 fetch_runtime_soname libcapi-system-info.so.0 capi-system-info
 fetch_runtime_soname libvconf.so.0 vconf-compat vconf
-fetch_runtime_soname libsqlite3.so.0 sqlite3 sqlite
+fetch_runtime_soname libsqlite3.so.0 sqlite3 sqlite libsqlite
 fetch_runtime_soname libiniparser.so.0 iniparser
 fetch_runtime_soname libxml2.so.2 libxml2
 fetch_runtime_soname libstorage.so.0.1 libstorage
@@ -137,14 +137,14 @@ fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 libudev systemd
 fetch_runtime_soname libmount.so.1 libmount util-linux
-for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
-r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
+for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
+r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
 [[ -e $OUT/sysroot/usr/include/asm ]] || ln -s asm-arm "$OUT/sysroot/usr/include/asm"
-for p in $UNI_PKGS; do r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
+for p in $UNI_PKGS; do r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 
 # DLog development RPMs have moved between Tizen 5.0 Unified and Base.
-# Search both repositories for the matching Tizen 5.0 ARM package; never
+# Search both repositories for the matching Tizen 5.5 ARM package; never
 # substitute headers from a newer Tizen release. Keep a focused audit because
 # package-name matches alone do not prove that the RPM contains dlog.h.
 DLOG_AUDIT="$OUT/dlog-package-audit.txt"
@@ -152,7 +152,7 @@ DLOG_AUDIT="$OUT/dlog-package-audit.txt"
 dlog_devel=""
 dlog_repo=""
 dlog_package=""
-for repo in "$T50_UNI" "$T50_BASE"; do
+for repo in "$T55_UNI" "$T55_BASE"; do
   for p in tizen-dlog-devel dlog-devel libdlog-devel; do
     candidate=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
     if [[ -n "$candidate" ]]; then
@@ -168,11 +168,11 @@ if [[ -z "$dlog_devel" ]]; then
   {
     echo "RESULT: no DLog development RPM found"
     echo "Repositories searched:"
-    echo "  $T50_UNI/packages/armv7l"
-    echo "  $T50_BASE/packages/armv7l"
+    echo "  $T55_UNI/packages/armv7l"
+    echo "  $T55_BASE/packages/armv7l"
     echo "Package names tried: tizen-dlog-devel, dlog-devel, libdlog-devel"
   } | tee "$DLOG_AUDIT"
-  echo "MISSING: Tizen 5.0 ARM DLog development RPM; see $DLOG_AUDIT" >&2
+  echo "MISSING: Tizen 5.5 ARM DLog development RPM; see $DLOG_AUDIT" >&2
   exit 1
 fi
 
@@ -200,16 +200,16 @@ unrpm "$dlog_devel" "$OUT/sysroot"
 # already part of UNI_PKGS; record the RPM's declared paths and extracted
 # header location so package-content and include-path failures are distinct.
 MESSAGE_PORT_AUDIT="$OUT/message-port-package-audit.txt"
-message_port_rpm=$(fetch "$T50_UNI/packages/armv7l" message-port-devel '\.armv7l\.rpm')
+message_port_rpm=$(fetch "$T55_UNI/packages/armv7l" message-port-devel '\.armv7l\.rpm')
 if [[ -n "$message_port_rpm" ]]; then
   {
     echo "Selected package: $(basename "$message_port_rpm")"
-    echo "Repository: $T50_UNI/packages/armv7l"
+    echo "Repository: $T55_UNI/packages/armv7l"
     echo "Relevant paths recorded inside RPM:"
     bsdtar -tf "$message_port_rpm" | grep -Ei '(^|/)(message_port\.h|libmessage-port[^/]*|pkgconfig/.*message.port.*)$' || true
   } | tee "$MESSAGE_PORT_AUDIT"
 else
-  echo "RESULT: message-port-devel RPM not found in Tizen 5.0 Unified" | tee "$MESSAGE_PORT_AUDIT"
+  echo "RESULT: message-port-devel RPM not found in Tizen 5.5 Unified" | tee "$MESSAGE_PORT_AUDIT"
 fi
 {
   echo
@@ -247,5 +247,5 @@ echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
 echo "Compiler:  ${gcc_bin:-<not found>}"
-echo "Tizen framework runtime dependencies were resolved from Tizen 5.0 ARM RPMs; WMP crypto and cURL are built privately as static ARM libraries."
+echo "Tizen framework runtime dependencies were resolved from Tizen 5.5 ARM RPMs; WMP crypto and cURL are built privately as static ARM libraries."
 exit "$missing"
