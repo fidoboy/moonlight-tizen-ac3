@@ -12,26 +12,95 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dlfcn.h>
 
 #include "esplus_player.h"
 #include "esplus_stats.h"
 #include "mldiag.h"
 #include "mltrace.h"
 
-int ecore_init(void);
-int ecore_shutdown(void);
-int ecore_wl2_init(void);
-int ecore_wl2_shutdown(void);
-void *ecore_wl2_display_connect(const char *name);
-void ecore_wl2_display_disconnect(void *display);
-void *ecore_wl2_window_new(void *display, void *parent, int x, int y, int w, int h);
-void ecore_wl2_window_show(void *window);
-void ecore_wl2_window_alpha_set(void *window, unsigned char alpha);
-void ecore_wl2_window_free(void *window);
-void ecore_wl2_display_flush(void *display);
-void ecore_wl2_display_screen_size_get(void *display, int *w, int *h) __attribute__((weak));
-void ecore_wl2_display_sync(void *display) __attribute__((weak));
-void *ecore_main_loop_thread_safe_call_sync(void *(*cb)(void *data), void *data);
+/*
+ * Ecore is provided by the TV firmware. Load it at runtime instead of linking
+ * against it: Ecore_Wl2 pulls in a large firmware-specific EFL/Wayland/TBM
+ * dependency tree that should not become a build-time sysroot requirement.
+ */
+static void *s_ecore_lib, *s_ecore_wl2_lib;
+static int (*p_ecore_init)(void);
+static int (*p_ecore_shutdown)(void);
+static int (*p_ecore_wl2_init)(void);
+static int (*p_ecore_wl2_shutdown)(void);
+static void *(*p_ecore_wl2_display_connect)(const char *);
+static void (*p_ecore_wl2_display_disconnect)(void *);
+static void *(*p_ecore_wl2_window_new)(void *, void *, int, int, int, int);
+static void (*p_ecore_wl2_window_show)(void *);
+static void (*p_ecore_wl2_window_alpha_set)(void *, unsigned char);
+static void (*p_ecore_wl2_window_free)(void *);
+static void (*p_ecore_wl2_display_flush)(void *);
+static void (*p_ecore_wl2_display_screen_size_get)(void *, int *, int *);
+static void (*p_ecore_wl2_display_sync)(void *);
+static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void *);
+
+#define ecore_init p_ecore_init
+#define ecore_shutdown p_ecore_shutdown
+#define ecore_wl2_init p_ecore_wl2_init
+#define ecore_wl2_shutdown p_ecore_wl2_shutdown
+#define ecore_wl2_display_connect p_ecore_wl2_display_connect
+#define ecore_wl2_display_disconnect p_ecore_wl2_display_disconnect
+#define ecore_wl2_window_new p_ecore_wl2_window_new
+#define ecore_wl2_window_show p_ecore_wl2_window_show
+#define ecore_wl2_window_alpha_set p_ecore_wl2_window_alpha_set
+#define ecore_wl2_window_free p_ecore_wl2_window_free
+#define ecore_wl2_display_flush p_ecore_wl2_display_flush
+#define ecore_wl2_display_screen_size_get p_ecore_wl2_display_screen_size_get
+#define ecore_wl2_display_sync p_ecore_wl2_display_sync
+#define ecore_main_loop_thread_safe_call_sync p_ecore_main_loop_thread_safe_call_sync
+
+#define LOAD_ECORE(handle, symbol) do { \
+    *(void **)(&p_##symbol) = dlsym((handle), #symbol); \
+    if (!p_##symbol) goto fail; \
+} while (0)
+
+static int ecore_runtime_load(void)
+{
+    if (s_ecore_lib && s_ecore_wl2_lib) return 1;
+    s_ecore_lib = dlopen("libecore.so.1", RTLD_NOW | RTLD_LOCAL);
+    if (!s_ecore_lib) goto fail;
+    s_ecore_wl2_lib = dlopen("libecore_wl2.so.1", RTLD_NOW | RTLD_LOCAL);
+    if (!s_ecore_wl2_lib) goto fail;
+
+    LOAD_ECORE(s_ecore_lib, ecore_init);
+    LOAD_ECORE(s_ecore_lib, ecore_shutdown);
+    LOAD_ECORE(s_ecore_lib, ecore_main_loop_thread_safe_call_sync);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_init);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_shutdown);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_connect);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_disconnect);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_new);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_show);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_alpha_set);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_free);
+    LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_flush);
+
+    *(void **)(&p_ecore_wl2_display_screen_size_get) =
+        dlsym(s_ecore_wl2_lib, "ecore_wl2_display_screen_size_get");
+    *(void **)(&p_ecore_wl2_display_sync) =
+        dlsym(s_ecore_wl2_lib, "ecore_wl2_display_sync");
+    return 1;
+
+fail:
+    PLOG("Ecore runtime unavailable: %s\\n", dlerror() ? dlerror() : "missing symbol");
+    if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
+    if (s_ecore_lib) dlclose(s_ecore_lib);
+    s_ecore_wl2_lib = s_ecore_lib = NULL;
+    return 0;
+}
+
+static void ecore_runtime_unload(void)
+{
+    if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
+    if (s_ecore_lib) dlclose(s_ecore_lib);
+    s_ecore_wl2_lib = s_ecore_lib = NULL;
+}
 
 #define PLOG(...) fprintf(stderr, "[esplus] " __VA_ARGS__)
 
@@ -415,14 +484,16 @@ int esplus_set_window(int width, int height)
     int n;
     MLT("esplus_set_window %dx%d pl=%p", width, height, s_pl);
     if (!s_pl || width <= 0 || height <= 0) return -1;
+    if (!ecore_runtime_load()) return -1;
     n = ecore_init();
     MLT("ecore_init -> %d", n);
-    if (n <= 0) return -1;
+    if (n <= 0) { ecore_runtime_unload(); return -1; }
     req.w = width; req.h = height; req.rc = -1;
     ecore_main_loop_thread_safe_call_sync(win_create_main, &req);
     if (req.rc != 0) {
         ecore_main_loop_thread_safe_call_sync(win_destroy_main, NULL);
         ecore_shutdown();
+        ecore_runtime_unload();
         MLT("esplus_set_window -> -1 (%s)",
             req.rc == -2 ? "set_ecore_display" : "no window/display access");
         return -1;
@@ -508,5 +579,8 @@ void esplus_close(void)
     if (s_win || s_disp || s_ecore) {
         ecore_main_loop_thread_safe_call_sync(win_destroy_main, NULL);
         ecore_shutdown();
+        ecore_runtime_unload();
+    } else {
+        ecore_runtime_unload();
     }
 }
