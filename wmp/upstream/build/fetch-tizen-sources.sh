@@ -132,6 +132,26 @@ fetch_runtime_soname libffi.so.6 libffi
 fetch_runtime_soname libeeze.so.1 eeze
 fetch_runtime_soname libttrace.so.1 libttrace ttrace
 
+# Transitive dependencies pulled in by the Tizen 5.0 ServiceApp framework
+# libraries (aul, appcore, pkgmgr-info, GIO and Eeze). Each RPM is accepted
+# only when it contains the exact SONAME required by the linker.
+fetch_runtime_soname libxdgmime.so.1 xdgmime
+fetch_runtime_soname libtzplatform-config-2.0.so.2 libtzplatform-config
+fetch_runtime_soname libcapi-system-info.so.0 capi-system-info
+fetch_runtime_soname libvconf.so.0 vconf-compat vconf
+fetch_runtime_soname libsqlite3.so.0 sqlite3
+fetch_runtime_soname libiniparser.so.0 iniparser
+fetch_runtime_soname libxml2.so.2 libxml2
+fetch_runtime_soname libstorage.so.0.1 libstorage
+fetch_runtime_soname libpcre.so.1 pcre
+fetch_runtime_soname libsensor.so.4 sensord libsensor
+fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-parser pkgmgr-parser-devel
+fetch_runtime_soname libminizip.so.1 minizip
+fetch_runtime_soname libgmodule-2.0.so.0 libglib glib2
+fetch_runtime_soname libudev.so.1 libudev systemd
+fetch_runtime_soname libmount.so.1 libmount
+fetch_runtime_soname libecore_file.so.1 ecore-file
+
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
