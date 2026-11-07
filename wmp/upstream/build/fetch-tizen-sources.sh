@@ -98,15 +98,7 @@ fetch_runtime_soname() { # soname package-name...
   return 1
 }
 
-fetch_runtime_soname libssl.so.1.0.0 libopenssl openssl
-fetch_runtime_soname libcrypto.so.1.0.0 libopenssl openssl
-fetch_runtime_soname libcurl.so.4 libcurl curl
-# libcurl's Tizen build has these direct runtime dependencies. Resolve each by
-# exact SONAME so we never mix an ABI from another Tizen release.
-fetch_runtime_soname libcares.so.2 libcares c-ares cares
-fetch_runtime_soname libnghttp2.so.14 libnghttp2 nghttp2
-fetch_runtime_soname libicuuc.so.60 libicu icu
-fetch_runtime_soname libicudata.so.60 libicu icu
+# zlib remains a possible dependency of the Tizen framework libraries.
 fetch_runtime_soname libz.so.1 zlib libz
 
 # ServiceApp and the selected Tizen framework libraries have additional
@@ -255,5 +247,5 @@ echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
 echo "Compiler:  ${gcc_bin:-<not found>}"
-echo "OpenSSL 1.0.x, libcurl and its c-ares/nghttp2/ICU/zlib runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
+echo "Tizen framework runtime dependencies were resolved from Tizen 5.0 ARM RPMs; WMP crypto and cURL are built privately as static ARM libraries."
 exit "$missing"
