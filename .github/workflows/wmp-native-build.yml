@@ -141,7 +141,17 @@ jobs:
             --search-dir "$DEPS/sysroot/usr/lib" \
             --search-dir "$DEPS/sysroot/usr/lib64" \
             --search-dir "$DEPS/tv-libs/lib" \
-            --search-dir "$DEPS/tv-libs/usr/lib"
+            --search-dir "$DEPS/tv-libs/usr/lib" \
+            --search-dir wmp/build/service/lib
+
+      - name: Upload ELF dependency audit report
+        if: always() && hashFiles('build-report/elf-dependencies.txt') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: wmp-elf-dependency-audit-${{ github.sha }}
+          path: build-report/elf-dependencies.txt
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload native build artifacts
         uses: actions/upload-artifact@v4
