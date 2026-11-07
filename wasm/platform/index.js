@@ -6486,6 +6486,8 @@ function directSmartHubVideoReady(videoElement) {
 }
 
 function openStreamMenuFromGamepad() {
+  // Never let a duplicate controller event toggle an already-open menu closed.
+  if (isDialogOpen || $('#streamMenuDialogOverlay').length > 0) return;
   // Reuse the same stream-state and video-readiness checks as the remote-control shortcut.
   if (typeof toggleStreamMenuDialog === 'function') toggleStreamMenuDialog();
 }
