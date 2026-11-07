@@ -275,7 +275,7 @@ function startManualSubnetScanner() {
 function normalizeAutoWolIPv4(value) {
   if (typeof value !== 'string') return null;
   value = value.trim();
-  if (!/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(value)) return null;
+  if (!/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(value)) return null;
   var octets = value.split('.').map(function(part) { return Number(part); });
   if (octets.some(function(part) { return !Number.isInteger(part) || part < 0 || part > 255; })) return null;
   return octets.join('.');
@@ -313,7 +313,7 @@ function startAutoWolSubnetScanner(targetHost, operation) {
     var direct = normalizeAutoWolIPv4(value);
     if (direct) excluded[direct] = true;
     // Include IPv4 literals embedded in hostnames or HTTP(S) base URLs.
-    var matches = value.match(/(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/g);
+    var matches = value.match(/(?:[0-9]{1,3}\.){3}[0-9]{1,3}/g);
     if (matches) matches.forEach(function(match) {
       var ip = normalizeAutoWolIPv4(match);
       if (ip) excluded[ip] = true;
