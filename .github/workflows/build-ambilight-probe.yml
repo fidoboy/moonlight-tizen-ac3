@@ -1,0 +1,223 @@
+name: Build Ambilight capture probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch or tag containing the Ambilight probe source"
+        required: true
+        default: "1.2.4-pre"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ambilight-probe-${{ inputs.source_ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Tizen 6.0 hybrid diagnostic WGT
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip
+
+      - name: Install Python 3.8 for Tizen Package Manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+          python3.8 --version
+
+      - name: Install Tizen Web and Native SDKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
+          "$pm" install --accept-license --no-java-check "$required"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
+          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+
+      - name: Create CI signing profile
+        shell: bash
+        env:
+          CERT_PASSWORD: ambilight-probe-ci
+        run: |
+          set -euo pipefail
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+          tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
+          tizen security-profiles add \
+            -n AmbilightProbe \
+            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.p12" \
+            -p "$CERT_PASSWORD"
+          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          test -s "$profiles"
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.pwd||" "$profiles"
+          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+
+      - name: Prepare web and native service projects
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/AmbilightProbePackage"
+          web="$root/AmbilightProbeWeb"
+          service="$root/AmbilightProbeService"
+          mkdir -p "$root"
+
+          tizen list web-project > "$RUNNER_TEMP/web-project-templates.txt"
+          web_profile="$(awk '$1 ~ /^tizen-[0-9]+\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' \
+            "$RUNNER_TEMP/web-project-templates.txt" | sort -Vr | head -n 1)"
+          test -n "$web_profile"
+          tizen create web-project -p "$web_profile" -t WebBasicApplication -n AmbilightProbeWeb -- "$root"
+          tizen create native-project -p tizen-10.0 -t ServiceApp -n AmbilightProbeService -- "$root"
+          test -d "$web" && test -d "$service"
+
+          cp "$GITHUB_WORKSPACE/ambilight-probe/web/config.xml" "$web/config.xml"
+          cp "$GITHUB_WORKSPACE/ambilight-probe/web/index.html" "$web/index.html"
+          cp "$GITHUB_WORKSPACE/ambilight-probe/service/tizen-manifest.xml" "$service/tizen-manifest.xml"
+          cp "$GITHUB_WORKSPACE/ambilight-probe/service/main.c" "$service/src/main.c"
+
+          python3 - "$web/.project" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          from pathlib import Path
+          path = Path(sys.argv[1])
+          tree = ET.parse(path); root = tree.getroot()
+          projects = root.find("projects")
+          if projects is None: projects = ET.SubElement(root, "projects")
+          if not any((x.text or "").strip() == "AmbilightProbeService" for x in projects.findall("project")):
+              ET.SubElement(projects, "project").text = "AmbilightProbeService"
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          PY
+
+          python3 - "$web/config.xml" "$service/tizen-manifest.xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          web = ET.parse(sys.argv[1]).getroot()
+          tree = ET.parse(sys.argv[2]); native = tree.getroot()
+          version = web.attrib.get("version")
+          app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
+          if not version or native.attrib.get("package") != "AmbilightProbe":
+              raise SystemExit("Web version or native package ID is invalid")
+          if app is None or app.attrib.get("appid") != "AmbilightProbe.AmbilightProbeService" or app.attrib.get("exec") != "ambilight-probe-service":
+              raise SystemExit("Native probe service identity is invalid")
+          native.set("version", version)
+          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
+          PY
+
+          cat > "$service/project_def.prop" <<'PROP'
+          APPNAME = ambilight-probe-service
+
+          type = app
+          profile = iot-headed-6.0
+
+          USER_SRCS = src/main.c
+          USER_DEFS =
+          USER_INC_DIRS = src
+          USER_OBJS =
+          USER_LIBS = appcore-agent dlog message-port bundle dl pthread
+          USER_LFLAGS = -Wl,--no-undefined
+          USER_EDCS =
+          PROP
+
+          if [[ -f "$service/.tproject" ]]; then
+            sed -i 's/tizen-10.0/iot-headed-6.0/g' "$service/.tproject"
+          fi
+
+          python3 - "$service/.cproject" <<'PY'
+          import re, sys
+          from pathlib import Path
+          path = Path(sys.argv[1]); content = path.read_text(encoding="utf-8")
+          options = re.compile(
+              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>).*?(</option>)',
+              re.DOTALL)
+          sysroot = "$" + "{SBI_SYSROOT}"
+          flags = "\n".join([
+              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
+              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>'])
+          content, n = options.subn(lambda m: m.group(1) + "\n" + flags + "\n                                " + m.group(2), content)
+          if n != 2: raise SystemExit(f"Expected 2 linker configurations, found {n}")
+          selectors = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>.*?</option>',
+              re.DOTALL)
+          content, n = selectors.subn("", content)
+          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 SBI selectors, found {n}")
+          catalogues = re.compile(
+              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>.*?</option>',
+              re.DOTALL)
+          content, n = catalogues.subn("", content)
+          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 Native_API catalogues, found {n}")
+          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content or re.search(r'value="Native_API"', content):
+              raise SystemExit("Tizen 10 platform selectors remain")
+          path.write_text(content, encoding="utf-8")
+          PY
+
+          echo "AMBILIGHT_PROBE_ROOT=$root" >> "$GITHUB_ENV"
+
+      - name: Build and sign hybrid diagnostic WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            'set timeout -1' \
+            'log_user 1' \
+            'spawn {*}$argv' \
+            'expect {' \
+            '  -re {Author password:} { send -- "ambilight-probe-ci\r"; exp_continue }' \
+            '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
+            '  eof' \
+            '}' > "$RUNNER_TEMP/run-probe-build.exp"
+          chmod +x "$RUNNER_TEMP/run-probe-build.exp"
+          expect "$RUNNER_TEMP/run-probe-build.exp" \
+            tizen build-app \
+            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+            -b 'name:b1,targets:[AmbilightProbeWeb,AmbilightProbeService],methods:[m1]' \
+            -p 'name:p1,targets:[b1]' \
+            -s AmbilightProbe \
+            -- "$AMBILIGHT_PROBE_ROOT"
+
+          wgt="$(find "$AMBILIGHT_PROBE_ROOT" -type f -name '*.wgt' -size +0c -print -quit)"
+          test -n "$wgt"
+          mkdir -p "$RUNNER_TEMP/probe-output"
+          cp "$wgt" "$RUNNER_TEMP/probe-output/AmbilightProbe-Tizen6.wgt"
+          unzip -l "$wgt" | tee "$RUNNER_TEMP/probe-output/package-files.txt"
+          unzip -q "$wgt" -d "$RUNNER_TEMP/probe-output/unpacked"
+          test -s "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service"
+          test -s "$RUNNER_TEMP/probe-output/unpacked/config.xml"
+          test -s "$RUNNER_TEMP/probe-output/unpacked/index.html"
+          test -s "$RUNNER_TEMP/probe-output/unpacked/tizen-manifest.xml"
+          file "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service" | tee "$RUNNER_TEMP/probe-output/file.txt"
+          readelf -h "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service" > "$RUNNER_TEMP/probe-output/elf-header.txt"
+          grep -q 'Machine:.*ARM' "$RUNNER_TEMP/probe-output/elf-header.txt"
+          sha256sum "$RUNNER_TEMP/probe-output/AmbilightProbe-Tizen6.wgt" > "$RUNNER_TEMP/probe-output/SHA256SUMS.txt"
+
+      - name: Upload diagnostic package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AmbilightProbe-Tizen6
+          path: ${{ runner.temp }}/probe-output/
+          if-no-files-found: error
+          retention-days: 14
