@@ -128,7 +128,7 @@ var manualSubnetScanCancelled = false;
 function normalizeManualIPv4(value) {
   if (typeof value !== 'string') return null;
   value = value.trim();
-  if (!/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(value)) return null;
+  if (!/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(value)) return null;
   var octets = value.split('.').map(function(part) { return Number(part); });
   if (octets.some(function(part) { return !Number.isInteger(part) || part < 0 || part > 255; })) return null;
   return octets.join('.');
@@ -170,7 +170,7 @@ function startManualSubnetScanner() {
       if (typeof value !== 'string') return;
       exclude(value);
       // Also extract IPv4 literals embedded in HTTP(S) base URLs.
-      var matches = value.match(/(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/g);
+      var matches = value.match(/(?:[0-9]{1,3}\.){3}[0-9]{1,3}/g);
       if (matches) matches.forEach(exclude);
     }
     Object.keys(hosts || {}).forEach(function(uid) {
