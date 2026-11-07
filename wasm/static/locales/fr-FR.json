@@ -608,5 +608,6 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Envoie des vibrations à une manette compatible lorsque le jeu diffusé le demande.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Maintenez Start pour passer du mode manette normal à l’émulation de la souris. Utilisez la manette pour contrôler le pointeur et les boutons de la souris sur l’hôte.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverse les affectations des boutons A et B envoyées à l’hôte. Utilisez cette option si un jeu attend la disposition inverse.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverse les affectations des boutons X et Y envoyées à l’hôte. Utilisez cette option si un jeu attend la disposition inverse."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverse les affectations des boutons X et Y envoyées à l’hôte. Utilisez cette option si un jeu attend la disposition inverse.",
+  "Send keystrokes": "Envoyer des frappes clavier"
 }
