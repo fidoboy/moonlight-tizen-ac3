@@ -114,6 +114,24 @@ fetch_runtime_soname libicuuc.so.60 libicu icu
 fetch_runtime_soname libicudata.so.60 libicu icu
 fetch_runtime_soname libz.so.1 zlib libz
 
+# ServiceApp and the selected Tizen framework libraries have additional
+# runtime dependencies. Resolve these by exact SONAME from the same Tizen 5.0
+# Unified/Base snapshots; development RPMs alone do not provide link-time
+# implementations for these dependencies.
+fetch_runtime_soname libaul.so.0 aul
+fetch_runtime_soname libglib-2.0.so.0 glib2
+fetch_runtime_soname libcapi-appfw-app-control.so.0 capi-appfw-app-control
+fetch_runtime_soname libappcore-common.so.1 appcore-common app-core-common
+fetch_runtime_soname libpkgmgr-info.so.0 pkgmgr-info
+fetch_runtime_soname libgio-2.0.so.0 glib2
+fetch_runtime_soname libgobject-2.0.so.0 glib2
+fetch_runtime_soname libcapi-base-common.so.0 capi-base-common
+fetch_runtime_soname libjson-glib-1.0.so.0 libjson-glib json-glib
+fetch_runtime_soname libxkbcommon.so.0 libxkbcommon xkbcommon
+fetch_runtime_soname libffi.so.6 libffi
+fetch_runtime_soname libeeze.so.1 eeze
+fetch_runtime_soname libttrace.so.1 libttrace ttrace
+
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
