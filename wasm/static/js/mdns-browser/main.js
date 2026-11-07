@@ -105,12 +105,208 @@ window.subnetScanAbortCtrl = null;
 window.subnetScanPromise = null;
 
 window.abortSubnetScan = function() {
+  if (manualSubnetScanPromise) {
+    manualSubnetScanCancelled = true;
+    if (manualSubnetScanAbortCtrl) {
+      manualSubnetScanAbortCtrl.abort();
+      manualSubnetScanAbortCtrl = null;
+    }
+  }
   if (window.subnetScanAbortCtrl) {
     console.log('%c[main.js]', 'color: orange;', 'User initiated action: Aborting background subnet scan to free network stack.');
     window.subnetScanAbortCtrl.abort();
     window.subnetScanAbortCtrl = null;
   }
 };
+
+// Manual discovery has its own controller and promise. It never shares the
+// startup/Auto WOL scan lifecycle or the unified known-host discovery handler.
+var manualSubnetScanAbortCtrl = null;
+var manualSubnetScanPromise = null;
+var manualSubnetScanCancelled = false;
+
+function normalizeManualIPv4(value) {
+  if (typeof value !== 'string') return null;
+  value = value.trim();
+  if (!/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(value)) return null;
+  var octets = value.split('.').map(function(part) { return Number(part); });
+  if (octets.some(function(part) { return !Number.isInteger(part) || part < 0 || part > 255; })) return null;
+  return octets.join('.');
+}
+
+function startManualSubnetScanner() {
+  if (isInGame === true) return Promise.resolve(0);
+  if (manualSubnetScanPromise) return manualSubnetScanPromise;
+
+  manualSubnetScanCancelled = false;
+  manualSubnetScanPromise = new Promise(function(resolve, reject) {
+    var localIp;
+    var gatewayIp;
+    try {
+      localIp = normalizeManualIPv4(webapis.network.getIp());
+      gatewayIp = normalizeManualIPv4(webapis.network.getGateway());
+    } catch (error) {
+      reject(new Error('Could not determine the TV or gateway IP for the manual network scan.'));
+      return;
+    }
+    // Fail closed: never scan if we cannot guarantee that both the TV and
+    // gateway are excluded from the candidate list.
+    if (!localIp || !gatewayIp) {
+      reject(new Error('Could not determine the TV or gateway IP for the manual network scan.'));
+      return;
+    }
+
+    var excluded = Object.create(null);
+    function exclude(value) {
+      var ip = normalizeManualIPv4(value);
+      if (ip) excluded[ip] = true;
+    }
+    exclude(localIp);
+    exclude(gatewayIp);
+    exclude('127.0.0.1');
+    exclude('0.0.0.0');
+
+    function excludeHostAddress(value) {
+      if (typeof value !== 'string') return;
+      exclude(value);
+      // Also extract IPv4 literals embedded in HTTP(S) base URLs.
+      var matches = value.match(/(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/g);
+      if (matches) matches.forEach(exclude);
+    }
+    Object.keys(hosts || {}).forEach(function(uid) {
+      var host = hosts[uid];
+      if (!host) return;
+      excludeHostAddress(host.address);
+      excludeHostAddress(host.localAddress);
+      excludeHostAddress(host.externalIP);
+      excludeHostAddress(host.userEnteredAddress);
+      excludeHostAddress(host.hostname);
+      excludeHostAddress(host._baseUrlHttp);
+      excludeHostAddress(host._baseUrlHttps);
+    });
+
+    var parts = localIp.split('.');
+    var subnet = parts[0] + '.' + parts[1] + '.' + parts[2];
+    var candidates = [];
+    for (var i = 1; i <= 254; i++) {
+      var candidate = subnet + '.' + i;
+      if (!excluded[candidate]) candidates.push(candidate);
+    }
+
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    manualSubnetScanAbortCtrl = controller;
+    var pendingChecks = [];
+    var nextIndex = 0;
+    var activeRequests = 0;
+    var settled = false;
+    var concurrency = 64;
+
+    function isActive() {
+      return !manualSubnetScanCancelled && isInGame !== true &&
+        manualSubnetScanAbortCtrl === controller;
+    }
+    function finish() {
+      if (settled || activeRequests !== 0 || (isActive() && nextIndex < candidates.length)) return;
+      settled = true;
+      Promise.all(pendingChecks).then(function(results) {
+        if (manualSubnetScanAbortCtrl === controller) manualSubnetScanAbortCtrl = null;
+        manualSubnetScanPromise = null;
+        resolve(results.filter(function(isNew) { return isNew; }).length);
+      }, function(error) {
+        if (manualSubnetScanAbortCtrl === controller) manualSubnetScanAbortCtrl = null;
+        manualSubnetScanPromise = null;
+        reject(error);
+      });
+    }
+
+    function scanNext() {
+      if (!isActive() || nextIndex >= candidates.length) {
+        finish();
+        return;
+      }
+      var ip = candidates[nextIndex++];
+      activeRequests++;
+      var requestController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var requestDone = false;
+      var timeoutId = setTimeout(function() {
+        if (requestController) requestController.abort();
+        completeRequest(null);
+      }, 1000);
+      function completeRequest(response) {
+        if (requestDone) return;
+        requestDone = true;
+        clearTimeout(timeoutId);
+        if (response && response.ok && isActive()) {
+          pendingChecks.push(findNewNvService('ipv4:' + ip, isActive));
+        }
+        activeRequests--;
+        if (isActive() && nextIndex < candidates.length) scanNext();
+        finish();
+      }
+      if (controller) {
+        controller.signal.addEventListener('abort', function() {
+          if (requestController) requestController.abort();
+        }, { once: true });
+      }
+      try {
+        fetch('http://' + ip + ':47989/serverinfo', requestController ? { signal: requestController.signal } : {})
+          .then(completeRequest, function() { completeRequest(null); });
+      } catch (error) {
+        completeRequest(null);
+      }
+    }
+
+    if (candidates.length === 0) {
+      finish();
+      return;
+    }
+    for (var slot = 0; slot < Math.min(concurrency, candidates.length); slot++) scanNext();
+  });
+
+  return manualSubnetScanPromise;
+}
+
+function findNewNvService(ipString, isScanActive) {
+  var ip = ipString.replace('ipv4:', '');
+  return new Promise(function(resolve) {
+    var completed = false;
+    function finish(isNew) {
+      if (completed) return;
+      completed = true;
+      resolve(isNew === true);
+    }
+    if (typeof isScanActive !== 'function' || !isScanActive()) {
+      finish(false);
+      return;
+    }
+    try {
+      var discoveredHost = new NvHTTP(ip, myUniqueid);
+      discoveredHost.httpPort = 47989;
+      discoveredHost.httpsPort = 47984;
+      discoveredHost.pollServer(function(returnedHost) {
+        try {
+          // A cancelled scan or an existing server UID must never mutate a
+          // known host. Only genuinely new identities are registered here.
+          if (!isScanActive() || !returnedHost.online ||
+              hosts[returnedHost.serverUid] != null) {
+            finish(false);
+            return;
+          }
+          addHostToGrid(returnedHost, true);
+          beginBackgroundPollingOfHost(returnedHost, true);
+          saveHosts();
+          finish(true);
+        } catch (error) {
+          console.error('%c[main.js, findNewNvService]', 'color: red;', 'Could not register new host:', error);
+          finish(false);
+        }
+      });
+    } catch (error) {
+      console.error('%c[main.js, findNewNvService]', 'color: red;', 'Could not check new host:', error);
+      finish(false);
+    }
+  });
+}
 
 function startSubnetScanner(excludedIPs, trackDiscoveryResults) {
   // Do not begin a new subnet scan while the stream is active.
