@@ -106,7 +106,16 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           from pathlib import Path
           path = Path(sys.argv[1])
-          tree = ET.parse(path); root = tree.getroot()
+          if path.exists():
+              tree = ET.parse(path); root = tree.getroot()
+          else:
+              root = ET.Element("projectDescription")
+              ET.SubElement(root, "name").text = "AmbilightProbeWeb"
+              ET.SubElement(root, "comment")
+              ET.SubElement(root, "projects")
+              ET.SubElement(root, "buildSpec")
+              ET.SubElement(root, "natures")
+              tree = ET.ElementTree(root)
           projects = root.find("projects")
           if projects is None: projects = ET.SubElement(root, "projects")
           if not any((x.text or "").strip() == "AmbilightProbeService" for x in projects.findall("project")):
