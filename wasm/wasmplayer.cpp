@@ -1446,7 +1446,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     // Print frame rates at various stages of the pipeline
     ret = snprintf(
       &output[offset], length - offset,
-      "Frame rates: %.2f received FPS | %.2f decoded FPS | %.2f rendered FPS\n"
+      "Frame rates: %.2f Recv | %.2f Dec | %.2f Rend\n"
       "Incoming bitrate from network: %.2f Mbps\n",
       stats.receivedFps, stats.decodedFps, stats.renderedFps, stats.receivedBitrate
     );
