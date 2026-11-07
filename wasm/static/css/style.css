@@ -1829,6 +1829,8 @@ body[data-color-theme="black-orange"] #background-layer {
     flex: 1 1 auto;
     min-width: 0;
     text-align: right;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 #performance-stats .performance-stats-audio-fec--normal .performance-stats-value { color: #fff; }
