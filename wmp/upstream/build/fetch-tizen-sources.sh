@@ -132,7 +132,7 @@ fetch_runtime_soname libxml2.so.2 libxml2
 fetch_runtime_soname libstorage.so.0.1 libstorage
 fetch_runtime_soname libpcre.so.1 libpcre
 fetch_runtime_soname libsensor.so.4 sensord sensord-dummy libsensor
-fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-parser pkgmgr-parser-devel
+fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-info-parser
 fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 libudev systemd
