@@ -20,7 +20,7 @@ for tool in "$GCC" "$AR" "$RANLIB"; do
   [[ -x "$tool" ]] || { echo "Missing ARM toolchain executable: $tool" >&2; exit 1; }
 done
 export PATH="$TOOLBIN:$PATH"
-export CC=arm-linux-gnueabi-gcc
+export CC=gcc
 export AR=arm-linux-gnueabi-ar
 export RANLIB=arm-linux-gnueabi-ranlib
 export CFLAGS="$ARCH -O2 -fPIC"
