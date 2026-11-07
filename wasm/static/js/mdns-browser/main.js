@@ -270,6 +270,234 @@ function startManualSubnetScanner() {
   return manualSubnetScanPromise;
 }
 
+// Auto WOL uses a private scan lifecycle and verifies every candidate against
+// the target server UID. It never registers discoveries or mutates other hosts.
+function normalizeAutoWolIPv4(value) {
+  if (typeof value !== 'string') return null;
+  value = value.trim();
+  if (!/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/.test(value)) return null;
+  var octets = value.split('.').map(function(part) { return Number(part); });
+  if (octets.some(function(part) { return !Number.isInteger(part) || part < 0 || part > 255; })) return null;
+  return octets.join('.');
+}
+
+function abortAutoWolSubnetScan(operation) {
+  if (!operation) return;
+  operation.cancelled = true;
+  if (operation.abortController) {
+    operation.abortController.abort();
+    operation.abortController = null;
+  }
+}
+
+function startAutoWolSubnetScanner(targetHost, operation) {
+  if (!targetHost || !targetHost.serverUid || !operation ||
+      operation.cancelled || isInGame === true) {
+    return Promise.resolve(false);
+  }
+  if (operation.promise) return operation.promise;
+
+  var localIp;
+  var gatewayIp = null;
+  try {
+    localIp = normalizeAutoWolIPv4(webapis.network.getIp());
+    gatewayIp = normalizeAutoWolIPv4(webapis.network.getGateway());
+  } catch (error) {
+    return Promise.resolve(false);
+  }
+  if (!localIp) return Promise.resolve(false);
+
+  var excluded = Object.create(null);
+  function excludeAddress(value) {
+    if (typeof value !== 'string') return;
+    var direct = normalizeAutoWolIPv4(value);
+    if (direct) excluded[direct] = true;
+    // Include IPv4 literals embedded in hostnames or HTTP(S) base URLs.
+    var matches = value.match(/(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/g);
+    if (matches) matches.forEach(function(match) {
+      var ip = normalizeAutoWolIPv4(match);
+      if (ip) excluded[ip] = true;
+    });
+  }
+
+  excludeAddress(localIp);
+  excludeAddress(gatewayIp);
+  excludeAddress('127.0.0.1');
+  excludeAddress('0.0.0.0');
+  Object.keys(hosts || {}).forEach(function(uid) {
+    var knownHost = hosts[uid];
+    if (!knownHost) return;
+    excludeAddress(knownHost.address);
+    excludeAddress(knownHost.localAddress);
+    excludeAddress(knownHost.externalIP);
+    excludeAddress(knownHost.userEnteredAddress);
+    excludeAddress(knownHost.hostname);
+    excludeAddress(knownHost._baseUrlHttp);
+    excludeAddress(knownHost._baseUrlHttps);
+  });
+
+  var subnetParts = localIp.split('.');
+  var subnet = subnetParts[0] + '.' + subnetParts[1] + '.' + subnetParts[2];
+  var candidates = [];
+  for (var i = 1; i <= 254; i++) {
+    var candidate = subnet + '.' + i;
+    if (!excluded[candidate]) candidates.push(candidate);
+  }
+
+  var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  operation.abortController = controller;
+  var pendingChecks = [];
+  var nextIndex = 0;
+  var activeRequests = 0;
+  var targetFound = false;
+  var settled = false;
+
+  function isActive() {
+    return operation.cancelled !== true && isInGame !== true &&
+      operation.abortController === controller;
+  }
+
+  function checkTargetAtAddress(ip) {
+    return new Promise(function(resolve) {
+      var completed = false;
+      function finish(found) {
+        if (completed) return;
+        completed = true;
+        resolve(found === true);
+      }
+      if (!isActive() || targetFound) {
+        finish(false);
+        return;
+      }
+
+      try {
+        var candidateHost = new NvHTTP(ip, myUniqueid);
+        candidateHost.httpPort = 47989;
+        candidateHost.httpsPort = 47984;
+        // _parseServerInfo rejects any response whose UID differs from this
+        // expected identity, so another known or unknown host cannot be adopted.
+        candidateHost.serverUid = targetHost.serverUid;
+        candidateHost.pollServer(function(returnedHost) {
+          if (!isActive() || targetFound || !returnedHost.online ||
+              returnedHost.serverUid !== targetHost.serverUid) {
+            finish(false);
+            return;
+          }
+
+          targetFound = true;
+          var applyTargetAddress = function() {
+            if (!isActive()) {
+              finish(false);
+              return;
+            }
+            // Serialize the address change after any already-running poll of
+            // the registered object, preventing that older poll from restoring
+            // its stale address after this discovery completes.
+            targetHost.address = returnedHost.address;
+            targetHost.localAddress = returnedHost.localAddress;
+            if (returnedHost.externalIP) targetHost.externalIP = returnedHost.externalIP;
+            targetHost.httpPort = returnedHost.httpPort;
+            targetHost.httpsPort = returnedHost.httpsPort;
+            targetHost.externalPort = returnedHost.externalPort;
+            targetHost._baseUrlHttp = returnedHost._baseUrlHttp;
+            targetHost._baseUrlHttps = returnedHost._baseUrlHttps;
+            if (returnedHost.macAddress && returnedHost.macAddress !== '00:00:00:00:00:00') {
+              targetHost.macAddress = returnedHost.macAddress;
+            }
+            targetHost.online = true;
+            targetHost._statusVerified = true;
+            targetHost._consecutivePollFailures = 0;
+            updateHostStatusIndicator(targetHost);
+            saveHosts();
+            finish(true);
+          };
+
+          if (targetHost._pollInProgress) {
+            targetHost.pollServer(applyTargetAddress);
+          } else {
+            applyTargetAddress();
+          }
+        });
+      } catch (error) {
+        finish(false);
+      }
+    });
+  }
+
+  var scanPromise = new Promise(function(resolve) {
+    function finishScan() {
+      if (settled || activeRequests !== 0 ||
+          (isActive() && !targetFound && nextIndex < candidates.length)) return;
+      settled = true;
+      Promise.all(pendingChecks).then(function(results) {
+        resolve(isActive() && results.some(function(found) { return found === true; }));
+      }, function() {
+        resolve(false);
+      });
+    }
+
+    function scanNext() {
+      if (!isActive() || targetFound || nextIndex >= candidates.length) {
+        finishScan();
+        return;
+      }
+
+      var ip = candidates[nextIndex++];
+      activeRequests++;
+      var requestController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var requestSettled = false;
+      var timeoutId = window.setTimeout(function() {
+        if (requestController) requestController.abort();
+        completeRequest(null);
+      }, 1000);
+
+      function completeRequest(response) {
+        if (requestSettled) return;
+        requestSettled = true;
+        window.clearTimeout(timeoutId);
+        if (controller) controller.signal.removeEventListener('abort', onOperationAbort);
+        if (response && response.ok && isActive() && !targetFound) {
+          pendingChecks.push(checkTargetAtAddress(ip));
+        }
+        activeRequests--;
+        if (isActive() && !targetFound && nextIndex < candidates.length) scanNext();
+        finishScan();
+      }
+
+      function onOperationAbort() {
+        if (requestController) requestController.abort();
+      }
+      if (controller) {
+        controller.signal.addEventListener('abort', onOperationAbort, { once: true });
+      }
+
+      try {
+        fetch('http://' + ip + ':47989/serverinfo',
+          requestController ? { signal: requestController.signal } : {})
+          .then(completeRequest, function() { completeRequest(null); });
+      } catch (error) {
+        completeRequest(null);
+      }
+    }
+
+    if (candidates.length === 0) {
+      finishScan();
+      return;
+    }
+    for (var slot = 0; slot < Math.min(64, candidates.length); slot++) scanNext();
+  });
+
+  operation.promise = scanPromise;
+  scanPromise.then(function() {
+    if (operation.promise === scanPromise) operation.promise = null;
+    if (operation.abortController === controller) operation.abortController = null;
+  }, function() {
+    if (operation.promise === scanPromise) operation.promise = null;
+    if (operation.abortController === controller) operation.abortController = null;
+  });
+  return scanPromise;
+}
+
 function findNewNvService(ipString, isScanActive) {
   var ip = ipString.replace('ipv4:', '');
   return new Promise(function(resolve) {
