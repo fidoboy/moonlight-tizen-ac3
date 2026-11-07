@@ -208,6 +208,22 @@ jobs:
           fi
           echo "Both outputs are ARM ELF files; ServiceApp links libmlengine.so with the expected relative RUNPATH. ESPlus is runtime-loaded."
 
+      - name: Audit recursive target ELF dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 wmp/upstream/build/audit-elf-dependencies.py \\
+            --readelf readelf \\
+            --output build-report/elf-dependencies.txt \\
+            --root "$ENGINE_OUT/libmlengine.so" \\
+            --root wmp/build/service/bin/wmp-service \\
+            --search-dir "$DEPS/sysroot/lib" \\
+            --search-dir "$DEPS/sysroot/usr/lib" \\
+            --search-dir "$DEPS/sysroot/usr/lib64" \\
+            --search-dir "$DEPS/tv-libs/usr/lib" \\
+            --search-dir "$ENGINE_OUT" \\
+            --search-dir wmp/build/service/lib
+
       - name: Upload native build artifacts
         uses: actions/upload-artifact@v4
         with:
