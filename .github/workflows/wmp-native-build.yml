@@ -142,7 +142,14 @@ jobs:
             --search-dir "$DEPS/sysroot/usr/lib64" \
             --search-dir "$DEPS/tv-libs/lib" \
             --search-dir "$DEPS/tv-libs/usr/lib" \
-            --search-dir wmp/build/service/lib
+            --search-dir wmp/build/service/lib \
+            --system-soname libblkid.so.1 \
+            --system-soname libbuxton2.so.1 \
+            --system-soname libcrypto.so.1.1 \
+            --system-soname libecore.so.1 \
+            --system-soname liblzma.so.5 \
+            --system-soname libsmack.so.1 \
+            --system-soname libuuid.so.1
 
       - name: Upload ELF dependency audit report
         if: always() && hashFiles('build-report/elf-dependencies.txt') != ''
