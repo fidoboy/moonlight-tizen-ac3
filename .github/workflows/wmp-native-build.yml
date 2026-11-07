@@ -42,7 +42,7 @@ jobs:
           echo "DEPSBUILD=$GITHUB_WORKSPACE/deps-build" >> "$GITHUB_ENV"
           echo "ENGINE_OUT=$GITHUB_WORKSPACE/engine-build" >> "$GITHUB_ENV"
 
-      - name: Fetch Tizen 5.0 ARM toolchain and sysroot
+      - name: Fetch Tizen 5.5 ARM toolchain and sysroot
         shell: bash
         run: |
           bash wmp/upstream/build/fetch-tizen-sources.sh "$DEPS"
