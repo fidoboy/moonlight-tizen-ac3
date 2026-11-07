@@ -363,11 +363,18 @@ void MoonlightInstance::PollGamepads() {
       comboTriggered[gamepadID] = false;
     }
 
-    // A long Select press opens the existing stream menu. Short presses remain normal gamepad input.
+    // Hold Select locally until the gesture is known: a short press is replayed as a
+    // one-poll button pulse, while a long press opens the stream menu without reaching the host.
     if (selectHoldStreamMenuSwitch) {
       const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
       const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS || buttonFlags == PERF_STATS_BUTTONS;
-      if (selectPressed && !reservedCombo) {
+      if (selectPressed && reservedCombo) {
+        // Preserve the existing stop/statistics combinations; they take precedence over this shortcut.
+        selectPressTimes.erase(gamepadID);
+        if (!selectButtonConsumed[gamepadID]) {
+          selectMenuTriggered[gamepadID] = false;
+        }
+      } else if (selectPressed) {
         const auto now = std::chrono::steady_clock::now();
         auto press = selectPressTimes.find(gamepadID);
         if (press == selectPressTimes.end()) {
@@ -378,14 +385,19 @@ void MoonlightInstance::PollGamepads() {
           selectButtonConsumed[gamepadID] = true;
           PostToJs(std::string("openStreamMenu"));
         }
-      } else if (!selectPressed) {
+        // Do not expose a pending or consumed Select hold to the streamed game.
+        buttonFlags &= ~BACK_FLAG;
+      } else {
+        const bool replayShortPress = selectPressTimes.find(gamepadID) != selectPressTimes.end() &&
+                                      !selectMenuTriggered[gamepadID] &&
+                                      !selectButtonConsumed[gamepadID];
         selectPressTimes.erase(gamepadID);
         selectMenuTriggered[gamepadID] = false;
         selectButtonConsumed[gamepadID] = false;
-      }
-      if (selectButtonConsumed[gamepadID]) {
-        // Release Select on the host once the long-press shortcut consumes it.
-        buttonFlags &= ~BACK_FLAG;
+        if (replayShortPress) {
+          // Deliver a normal Select click after the user releases it before the long-press threshold.
+          buttonFlags |= BACK_FLAG;
+        }
       }
     } else {
       selectPressTimes.erase(gamepadID);
