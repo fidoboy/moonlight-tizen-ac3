@@ -579,6 +579,13 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
   var sourceLines = String(sourceText || '').split('\n');
   String(text || '').split('\n').forEach(function(line, lineIndex) {
     if (!line) return;
+    if (sourceLines[lineIndex] &&
+        sourceLines[lineIndex].indexOf('Frames dropped by your network connection:') === 0) {
+      var separator = document.createElement('div');
+      separator.className = 'performance-stats-separator';
+      separator.setAttribute('aria-hidden', 'true');
+      textElement.appendChild(separator);
+    }
     var row = document.createElement('div');
     if (sourceLines[lineIndex] && sourceLines[lineIndex].indexOf('Audio FEC:') === 0) {
       var fecMatch = sourceLines[lineIndex].match(/^Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order$/);
