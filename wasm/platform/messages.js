@@ -8,7 +8,7 @@ const SyncFunctions = {
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
-  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode */
+  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
   'startRequest': (...args) => {
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
