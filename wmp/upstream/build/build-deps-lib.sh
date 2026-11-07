@@ -61,7 +61,7 @@ for f in "$MLT"/libgamestream/http.c "$MLT"/libgamestream/pairing.c "$MLT"/libga
   "$GCC" $BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG $GINC -c "$f" -o "$OUT/gs/$(basename "$f" .c).o"
 done
 
-echo "== link test against TV libs =="
+echo "== link test against private static crypto/network libraries =="
 cat > "$OUT/linktest.c" <<'EOF'
 #include <curl/curl.h>
 #include <openssl/evp.h>
@@ -75,10 +75,8 @@ int main(void){ curl_global_init(CURL_GLOBAL_DEFAULT); SSL_library_init();
 EOF
 "$GCC" $BASE -I"$CRYPTO_PREFIX/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
 "$GCC" $BASE -o "$OUT/linktest" "$OUT/linktest.o" "$OUT"/obj/*.o "$OUT"/gs/*.o \
-  -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
-  -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
-  -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 \
-  -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 -lpthread
+  -L"$CRYPTO_PREFIX/lib" -Wl,--exclude-libs,ALL \
+  -lcurl -lssl -lcrypto -ldl -lpthread
 echo "linktest built:"; file "$OUT/linktest" | cut -d, -f1-3
 bad=$("$OBJD" -T "$OUT/linktest" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
 [ -z "$bad" ] && echo "glibc symbols: all <= 2.24 OK" || { echo "TOO-NEW glibc: $bad"; exit 1; }
