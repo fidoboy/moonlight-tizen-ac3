@@ -46,6 +46,8 @@ grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' "$PREFIX/include/openssl/opensslv.h"
 
 echo "== cURL 7.59.0 (static, HTTP/HTTPS only, OpenSSL 1.1.1d) =="
 cd "$BPD/curl759"
+# The Git checkout omits release-generated Autotools files; recreate them.
+./buildconf
 ./configure \
   --build="$(./config.guess)" \
   --host=arm-linux-gnueabi \
