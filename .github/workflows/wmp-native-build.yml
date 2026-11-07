@@ -1,26 +1,9 @@
 name: WMP native ARM build
 
 on:
-  workflow_call:
-    inputs:
-      tv_libs_archive_url:
-        description: "HTTPS URL of a tar archive containing target TV usr/lib dependencies (ESPlus is loaded from firmware)"
-        required: true
-        type: string
-      tv_libs_archive_sha256:
-        description: "Optional SHA-256 checksum of the archive"
-        required: false
-        type: string
+  workflow_call: {}
   workflow_dispatch:
     inputs:
-      tv_libs_archive_url:
-        description: "HTTPS URL of a tar archive containing target TV usr/lib dependencies (ESPlus is loaded from firmware)"
-        required: true
-        type: string
-      tv_libs_archive_sha256:
-        description: "Optional SHA-256 checksum of the archive"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -85,41 +68,23 @@ jobs:
           "$expected/arm-linux-gnueabi-gcc" --version
           "$expected/arm-linux-gnueabi-objdump" --version | head -1
 
-      - name: Download target TV link dependencies (ESPlus excluded)
+      - name: Prepare link libraries from the Tizen 5.0 ARM repository sysroot
         shell: bash
-        env:
-          TV_LIBS_ARCHIVE_URL: ${{ inputs.tv_libs_archive_url }}
-          TV_LIBS_ARCHIVE_SHA256: ${{ inputs.tv_libs_archive_sha256 }}
         run: |
           set -euo pipefail
-          case "$TV_LIBS_ARCHIVE_URL" in
-            https://*) ;;
-            *) echo "::error::tv_libs_archive_url must use HTTPS."; exit 1 ;;
-          esac
-          archive="$RUNNER_TEMP/tizen-tv-libs.tar"
-          curl --fail --show-error --location --retry 3 \
-            --proto '=https' --tlsv1.2 \
-            "$TV_LIBS_ARCHIVE_URL" -o "$archive"
-          if [[ -n "$TV_LIBS_ARCHIVE_SHA256" ]]; then
-            echo "$TV_LIBS_ARCHIVE_SHA256  $archive" | sha256sum --check -
-          fi
-          mkdir -p "$DEPS/tv-libs"
-          tar -tf "$archive" >/dev/null
-          tar -xf "$archive" -C "$DEPS/tv-libs"
-          if [[ ! -d "$DEPS/tv-libs/usr/lib" ]]; then
-            echo "::error::Archive must contain usr/lib/ with target TV link dependencies."
-            find "$DEPS/tv-libs" -maxdepth 3 -type d -print
-            exit 1
-          fi
+          mkdir -p "$DEPS/tv-libs/usr/lib" "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib"
           for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
-            if [[ ! -e "$DEPS/tv-libs/usr/lib/$lib" ]]; then
-              echo "::error::Missing target library: usr/lib/$lib"
+            source="$(find "$DEPS/sysroot" -type f -o -type l | while IFS= read -r candidate; do
+              if [[ "$(basename "$candidate")" == "$lib" && -e "$candidate" ]]; then printf '%s\n' "$candidate"; break; fi
+            done)"
+            if [[ -z "$source" ]]; then
+              echo "::error::Tizen 5.0 ARM repository did not provide required library $lib." >&2
               exit 1
             fi
+            cp -aL "$source" "$DEPS/tv-libs/usr/lib/$lib"
           done
-          if [[ -e "$DEPS/tv-libs/usr/lib/libesplusplayer.so" ]]; then
-            echo "Found optional ESPlus copy in archive; it will not be linked or packaged."
-          fi
+          cp -a "$DEPS/tv-libs/usr/lib/." "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib/"
+          echo "Prepared link libraries from the public Tizen 5.0 ARM repository; ESPlus remains runtime-loaded from TV firmware."
 
       - name: Fetch backport source dependencies
         run: bash wmp/upstream/build/fetch-backport-deps.sh
@@ -181,3 +146,4 @@ jobs:
             wmp/build/service/bin/wmp-service
             wmp/build/service/lib/libmlengine.so
             build-report/
+            wmp-tv-libs/usr/lib/
