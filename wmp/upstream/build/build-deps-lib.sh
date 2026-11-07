@@ -53,8 +53,11 @@ echo "== moonlight-common-c (core + PlatformCrypto) =="
 # LC_LOG: Limelog goes to the logMessage callback (the engine counts it in the ML-ERROR line),
 # not only to the host's stderr
 CFLAGS="$BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG -DUSE_MBEDTLS -DLC_LOG"
-CINC="-I$C/src -I$C/enet/include -I$C/reedsolomon -I$OUT/shim -I$BPD/mbedtls/include"
-for f in "$C"/src/*.c "$C"/enet/*.c "$C"/reedsolomon/rs.c; do
+CINC="-I$C/src -I$C/enet/include -I$C/nanors -I$C/nanors/deps -I$C/nanors/deps/obl -I$OUT/shim -I$BPD/mbedtls/include"
+for f in "$C"/src/*.c "$C"/enet/*.c \
+         "$C"/nanors/rs.c \
+         "$C"/nanors/deps/obl/oblas_common.c \
+         "$C"/nanors/deps/obl/oblas_lite.c; do
   b=$(basename "$f" .c); case "$b" in win32|ConnectionTester) continue;; esac
   "$GCC" $CFLAGS $CINC -c "$f" -o "$OUT/obj/$b.o"
 done
