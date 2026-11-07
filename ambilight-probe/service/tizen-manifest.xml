@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="5.5" package="AmbilightProbe" version="0.1.0">
+    <label>Ambilight Probe Service</label>
+    <description>Native diagnostic for Samsung video processor RGB sampling</description>
+    <service-application appid="AmbilightProbe.AmbilightProbeService"
+                        exec="ambilight-probe-service"
+                        nodisplay="true"
+                        multiple="false"
+                        type="capp"
+                        taskmanage="false">
+        <label>Ambilight Probe Service</label>
+        <background-category value="background-network" />
+    </service-application>
+    <privileges>
+        <privilege>http://tizen.org/privilege/internet</privilege>
+    </privileges>
+</manifest>
