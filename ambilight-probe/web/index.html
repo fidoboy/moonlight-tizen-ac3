@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambilight Probe</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; background: #10131a; color: #f2f4f8; font-family: Arial, sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; padding: 5vh 6vw; }
+  main { width: 100%; max-width: 1100px; }
+  h1 { margin: 0 0 12px; font-size: 38px; font-weight: 600; }
+  p { color: #c5cbd5; font-size: 21px; line-height: 1.45; }
+  button { margin: 20px 0; padding: 17px 34px; border: 0; border-radius: 8px; background: #e5eaf2; color: #121722; font-size: 23px; font-weight: 600; }
+  button:disabled { opacity: .45; }
+  #status { margin-top: 14px; padding: 20px 24px; border: 1px solid #465063; border-radius: 8px; background: #191f2a; min-height: 135px; }
+  #headline { font-size: 25px; font-weight: 600; margin-bottom: 10px; }
+  #details { white-space: pre-wrap; color: #c9d0dc; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; }
+  .ok { color: #7ee0a0; } .bad { color: #ffb1a9; } .muted { color: #c9d0dc; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Diagnóstico Ambilight</h1>
+  <p>Comprueba si el firmware y el procesador de vídeo exponen la captura RGB nativa de Samsung. La prueba realiza una sola lectura de un bloque de píxeles; no inicia una captura continua ni envía datos a la red.</p>
+  <button id="probe">Probar compatibilidad</button>
+  <section id="status" aria-live="polite">
+    <div id="headline" class="muted">Preparado</div>
+    <div id="details">Pulse el botón para ejecutar la comprobación en el televisor.</div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var SERVICE_APP_ID = 'AmbilightProbe.AmbilightProbeService';
+  var SERVICE_PORT = 'AmbilightProbeControl';
+  var REPLY_PORT = 'AmbilightProbeReply';
+  var PROTOCOL = 'ambilight-probe/1';
+  var button = document.getElementById('probe');
+  var headline = document.getElementById('headline');
+  var details = document.getElementById('details');
+  var localPort = null;
+  var listenerId = null;
+
+  function show(title, text, kind) {
+    headline.textContent = title;
+    headline.className = kind || 'muted';
+    details.textContent = text;
+    button.disabled = false;
+    button.textContent = 'Repetir prueba';
+  }
+
+  function valueOf(items, key) {
+    for (var i = 0; i < items.length; i++) if (items[i].key === key) return items[i].value;
+    return '';
+  }
+
+  function onMessage(items) {
+    if (!Array.isArray(items) || valueOf(items, 'type') !== 'probe_result' || valueOf(items, 'protocol') !== PROTOCOL) return;
+    var supported = valueOf(items, 'supported') === 'true';
+    var family = valueOf(items, 'family') || 'no detectada';
+    var error = valueOf(items, 'error');
+    var report = [
+      'Resultado: ' + (supported ? 'captura RGB disponible' : 'captura RGB no disponible'),
+      'Biblioteca: ' + (valueOf(items, 'library') || '—'),
+      'Familia de funciones: ' + family,
+      'Fase: ' + (valueOf(items, 'stage') || '—'),
+      'Consulta: ret=' + valueOf(items, 'condition_ret') + ', bloques=' + valueOf(items, 'slots'),
+      'Bloque: ' + valueOf(items, 'block_width') + ' × ' + valueOf(items, 'block_height') + ' px; pantalla=' + valueOf(items, 'width') + ' × ' + valueOf(items, 'height') + ' px',
+      'Retardo: ' + valueOf(items, 'delay_ms') + ' ms (espera aplicada: ' + valueOf(items, 'sample_delay_ms') + ' ms)',
+      'Posición: ret=' + valueOf(items, 'position_ret') + '; lectura: ret=' + valueOf(items, 'pixel_ret'),
+      'RGB 10-bit: ' + valueOf(items, 'r') + ', ' + valueOf(items, 'g') + ', ' + valueOf(items, 'b')
+    ];
+    if (error) report.push('Detalle: ' + error);
+    report.push('', 'Esta prueba confirma que se puede consultar el capturador. No confirma todavía que sus muestras sigan el vídeo concreto de Moonlight; eso se comprobará con una retransmisión activa.');
+    show(supported ? 'Compatible: API de captura operativa' : 'No compatible en esta combinación de TV/firmware', report.join('\n'), supported ? 'ok' : 'bad');
+  }
+
+  function sendProbe() {
+    try {
+      var remote = tizen.messageport.requestTrustedRemoteMessagePort(SERVICE_APP_ID, SERVICE_PORT);
+      remote.sendMessage([
+        { key: 'protocol', value: PROTOCOL },
+        { key: 'command', value: 'probe' }
+      ], localPort);
+    } catch (error) {
+      show('No se pudo contactar con el servicio nativo', String(error && error.message ? error.message : error) + '\nCompruebe que el servicio auxiliar se ha iniciado y vuelva a intentarlo.', 'bad');
+    }
+  }
+
+  button.addEventListener('click', function () {
+    button.disabled = true;
+    button.textContent = 'Comprobando…';
+    headline.textContent = 'Ejecutando prueba nativa…';
+    headline.className = 'muted';
+    details.textContent = 'Cargando libvideoenhance.so, comprobando funciones y leyendo una muestra RGB.';
+    try {
+      if (!localPort) {
+        localPort = tizen.messageport.requestTrustedLocalMessagePort(REPLY_PORT);
+        listenerId = localPort.addMessagePortListener(onMessage);
+      }
+      tizen.application.launch(SERVICE_APP_ID, function () {
+        sendProbe();
+      }, function (error) {
+        show('No se pudo iniciar el servicio nativo', String(error && error.message ? error.message : error), 'bad');
+      });
+    } catch (error) {
+      show('API Tizen no disponible', String(error && error.message ? error.message : error), 'bad');
+    }
+  });
+
+  window.addEventListener('unload', function () {
+    if (localPort && listenerId !== null) {
+      try { localPort.removeMessagePortListener(listenerId); } catch (error) {}
+    }
+  });
+})();
+</script>
+</body>
+</html>
