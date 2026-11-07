@@ -181,6 +181,8 @@ def main() -> int:
     if missing:
         for soname in sorted(missing):
             print(f"UNRESOLVED: {soname}")
+            for requester in sorted(set(missing[soname])):
+                print(f"  required by: {requester}")
         return 1
     print("All recursive DT_NEEDED dependencies were found in the target sysroot/TV libraries.")
     return 0
