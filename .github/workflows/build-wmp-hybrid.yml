@@ -8,14 +8,6 @@ on:
         required: true
         default: master
         type: string
-      tv_libs_archive_url:
-        description: "HTTPS URL of a tar archive containing target TV usr/lib dependencies (ESPlus is loaded from firmware)"
-        required: true
-        type: string
-      tv_libs_archive_sha256:
-        description: "Optional SHA-256 checksum of the archive"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -29,9 +21,6 @@ jobs:
   build-native:
     name: Build WMP engine and native service
     uses: ./.github/workflows/wmp-native-build.yml
-    with:
-      tv_libs_archive_url: ${{ inputs.tv_libs_archive_url }}
-      tv_libs_archive_sha256: ${{ inputs.tv_libs_archive_sha256 }}
 
   package-hybrid:
     name: Assemble and sign hybrid WGT
