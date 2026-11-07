@@ -1,6 +1,6 @@
 #!/bin/sh
-# Build Moonlight Common C + libgamestream for Tizen 5.0 and link-test against
-# the OpenSSL 1.0.2 and libcurl ABIs supplied by the Tizen ARM sysroot.
+# Build Moonlight Common C + libgamestream for the Tizen ARM target and
+# link-test against the private static OpenSSL 1.1.1d + cURL 7.59 stack.
 # PlatformCrypto uses the OpenSSL backend, matching the upstream CMake default.
 #
 # Env:
@@ -12,7 +12,7 @@ MLT=${MLT:?set MLT}; DEPS=${DEPS:?set DEPS (no spaces)}; BPD=${BPD:?set BPD}
 GCC=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 C=$MLT/moonlight-common-c
-TVL=$DEPS/tv-libs/usr/lib
+CRYPTO_PREFIX=$BPD/arm-static
 
 # -core patches to the vendored moonlight-common-c (see common-c-patches/README.md; none at the moment).
 # Applied to the submodule checkout before compiling; idempotent (reverse-check -> skip).
@@ -30,6 +30,9 @@ for p in "$HERE"/common-c-patches/*.patch; do
 done
 
 OUT=${OUT:-./deps-build}; mkdir -p "$OUT/obj" "$OUT/gs" "$OUT/shim"
+
+# Build private PIC archives before compiling Moonlight against their headers.
+bash "$HERE/build-static-crypto.sh"
 cat > "$OUT/shim/emscripten.h" <<'EOF'
 #include <stdio.h>
 #define EM_LOG_CONSOLE 1
@@ -40,11 +43,10 @@ BASE="--sysroot=$DEPS/sysroot $ARCH -O2 -fPIC"
 
 echo "== moonlight-common-c (core + OpenSSL PlatformCrypto) =="
 # LC_LOG: Limelog goes to the logMessage callback (the engine counts it in the ML-ERROR line),
-# not only to the host's stderr. Keep USE_MBEDTLS/USE_PSA_CRYPTO undefined:
-# the Tizen target provides OpenSSL 1.0.2, and mbedTLS 2.28 lacks the multipart
-# PSA AEAD entry points used by the current Moonlight Common C source.
+# not only to the host's stderr. Use the private OpenSSL 1.1.1 backend; do not
+# enable mbedTLS/PSA, whose multipart AEAD API is not implemented by this source.
 CFLAGS="$BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG -DLC_LOG"
-CINC="-I$C/src -I$C/enet/include -I$C/nanors -I$C/nanors/deps -I$C/nanors/deps/obl -I$OUT/shim -I$BPD/ossl-inc"
+CINC="-I$C/src -I$C/enet/include -I$C/nanors -I$C/nanors/deps -I$C/nanors/deps/obl -I$OUT/shim -I$CRYPTO_PREFIX/include"
 for f in "$C"/src/*.c "$C"/enet/*.c \
          "$C"/nanors/rs.c \
          "$C"/nanors/deps/obl/oblas_common.c \
@@ -54,7 +56,7 @@ for f in "$C"/src/*.c "$C"/enet/*.c \
 done
 
 echo "== libgamestream =="
-GINC="-I$MLT/libgamestream -I$C/src -I$BPD/ossl-inc -I$BPD/curl759/include"
+GINC="-I$MLT/libgamestream -I$C/src -I$CRYPTO_PREFIX/include"
 for f in "$MLT"/libgamestream/http.c "$MLT"/libgamestream/pairing.c "$MLT"/libgamestream/mkcert.c; do
   "$GCC" $BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG $GINC -c "$f" -o "$OUT/gs/$(basename "$f" .c).o"
 done
@@ -71,7 +73,7 @@ extern int gs_pair(void*,char*);
 int main(void){ curl_global_init(CURL_GLOBAL_DEFAULT); SSL_library_init();
   return (EVP_sha256()!=0)&&((void*)LiStartConnection!=0)&&((void*)gs_pair!=0); }
 EOF
-"$GCC" $BASE -I"$BPD/ossl-inc" -I"$BPD/curl759/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
+"$GCC" $BASE -I"$CRYPTO_PREFIX/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
 "$GCC" $BASE -o "$OUT/linktest" "$OUT/linktest.o" "$OUT"/obj/*.o "$OUT"/gs/*.o \
   -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
   -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
