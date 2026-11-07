@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets"
-        id="http://fidoboy.github.io/ambilight-probe" version="0.1.0" viewmodes="fullscreen">
+        id="http://fidoboy.github.io/ambilight-probe" version="0.1.1" viewmodes="fullscreen">
     <tizen:application id="AmbiProbeX.AmbilightProbeWeb" package="AmbiProbeX" required_version="5.5" launch_mode="single" />
     <content src="index.html" />
     <name>Ambilight Probe</name>
