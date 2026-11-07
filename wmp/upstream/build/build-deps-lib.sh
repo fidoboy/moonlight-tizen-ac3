@@ -1,11 +1,7 @@
 #!/bin/sh
-# Milestone 1 step 2: build mbedTLS + the full Moonlight core/crypto/gamestream
-# object set for Tizen 5.0, and link-test it against the TV's real OpenSSL 1.0.2,
-# libcrypto, libcurl. Proves the whole dependency chain links.
-#
-# Result (2026-11-01): mbedTLS 96/96, PlatformCrypto + libgamestream compile,
-# link test produces an ARM ELF with NEEDED libssl.so.1.0.0/libcrypto.so.1.0.0/
-# libcurl.so.4 and no glibc symbol above 2.24.
+# Build Moonlight Common C + libgamestream for Tizen 5.0 and link-test against
+# the OpenSSL 1.0.2 and libcurl ABIs supplied by the Tizen ARM sysroot.
+# PlatformCrypto uses the OpenSSL backend, matching the upstream CMake default.
 #
 # Env:
 #   MLT   = moonlight-tizen checkout
@@ -34,7 +30,7 @@ for p in "$HERE"/common-c-patches/*.patch; do
   fi
 done
 
-OUT=${OUT:-./deps-build}; mkdir -p "$OUT/mbedtls" "$OUT/obj" "$OUT/gs" "$OUT/shim"
+OUT=${OUT:-./deps-build}; mkdir -p "$OUT/obj" "$OUT/gs" "$OUT/shim"
 cat > "$OUT/shim/emscripten.h" <<'EOF'
 #include <stdio.h>
 #define EM_LOG_CONSOLE 1
@@ -43,17 +39,13 @@ EOF
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 BASE="--sysroot=$DEPS/sysroot $ARCH -O2 -fPIC"
 
-echo "== mbedTLS =="
-for f in "$BPD"/mbedtls/library/*.c; do
-  "$GCC" $BASE -I"$BPD/mbedtls/include" -c "$f" -o "$OUT/mbedtls/$(basename "$f" .c).o"
-done
-"$AR" rcs "$OUT/libmbedcrypto_tv.a" "$OUT"/mbedtls/*.o
-
-echo "== moonlight-common-c (core + PlatformCrypto) =="
+echo "== moonlight-common-c (core + OpenSSL PlatformCrypto) =="
 # LC_LOG: Limelog goes to the logMessage callback (the engine counts it in the ML-ERROR line),
-# not only to the host's stderr
-CFLAGS="$BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG -DUSE_MBEDTLS -DLC_LOG"
-CINC="-I$C/src -I$C/enet/include -I$C/nanors -I$C/nanors/deps -I$C/nanors/deps/obl -I$OUT/shim -I$BPD/mbedtls/include"
+# not only to the host's stderr. Keep USE_MBEDTLS/USE_PSA_CRYPTO undefined:
+# the Tizen target provides OpenSSL 1.0.2, and mbedTLS 2.28 lacks the multipart
+# PSA AEAD entry points used by the current Moonlight Common C source.
+CFLAGS="$BASE -std=gnu11 -DHAS_SOCKLEN_T -DNDEBUG -DLC_LOG"
+CINC="-I$C/src -I$C/enet/include -I$C/nanors -I$C/nanors/deps -I$C/nanors/deps/obl -I$OUT/shim -I$BPD/ossl-inc"
 for f in "$C"/src/*.c "$C"/enet/*.c \
          "$C"/nanors/rs.c \
          "$C"/nanors/deps/obl/oblas_common.c \
@@ -74,17 +66,18 @@ cat > "$OUT/linktest.c" <<'EOF'
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
-#include <mbedtls/entropy.h>
 X509 *g_Cert; EVP_PKEY *g_PrivateKey; char *g_UniqueId; char *g_CertHex;
 extern int LiStartConnection(void*,void*,void*,void*,void*,void*,int,void*,int);
 extern int gs_pair(void*,char*);
 int main(void){ curl_global_init(CURL_GLOBAL_DEFAULT); SSL_library_init();
-  mbedtls_entropy_context e; mbedtls_entropy_init(&e);
   return (EVP_sha256()!=0)&&((void*)LiStartConnection!=0)&&((void*)gs_pair!=0); }
 EOF
 "$GCC" $BASE -I"$BPD/ossl-inc" -I"$BPD/curl759/include" -I"$BPD/mbedtls/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
-"$GCC" $BASE -o "$OUT/linktest" "$OUT/linktest.o" "$OUT"/obj/*.o "$OUT"/gs/*.o "$OUT/libmbedcrypto_tv.a" \
-  -L"$TVL" -Wl,-rpath-link,"$TVL" -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 -lpthread
+"$GCC" $BASE -o "$OUT/linktest" "$OUT/linktest.o" "$OUT"/obj/*.o "$OUT"/gs/*.o \
+  -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
+  -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
+  -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 \
+  -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 -lpthread
 echo "linktest built:"; file "$OUT/linktest" | cut -d, -f1-3
 bad=$("$OBJD" -T "$OUT/linktest" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
 [ -z "$bad" ] && echo "glibc symbols: all <= 2.24 OK" || { echo "TOO-NEW glibc: $bad"; exit 1; }
