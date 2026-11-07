@@ -65,7 +65,7 @@ BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
 RUNTIME_PKGS="ecore-wl2 ecore-core ecore-input efl eina eo libtbm
   libwayland-client libwayland-server libwayland-cursor
   libwayland-extension-client libwayland-tbm-client libtdm-client
-  libdrm libpng pixman libdlog libffi"
+  libdrm libpng pixman libdlog libffi openssl libcurl"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
   efl-devel libtbm-devel wayland-devel libwayland-client
@@ -105,5 +105,5 @@ echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
 echo "Compiler:  ${gcc_bin:-<not found>}"
-echo "Next: copy /lib and /usr/lib from the TV to $OUT/tv-libs (link against those, not sysroot .so files)."
+echo "Runtime link libraries are supplied from the Tizen 5.0 ARM repository sysroot."
 exit $missing
