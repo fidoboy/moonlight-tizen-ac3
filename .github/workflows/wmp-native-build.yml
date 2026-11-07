@@ -62,9 +62,17 @@ jobs:
           fi
           expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
           mkdir -p "$expected"
-          ln -sf "$gcc" "$expected/arm-linux-gnueabi-gcc"
-          ln -sf "$objdump" "$expected/arm-linux-gnueabi-objdump"
-          ln -sf "$ar" "$expected/arm-linux-gnueabi-ar"
+          link_tool() {
+            local source="$1" name="$2" target="$expected/$2"
+            # The SDK archive may already place an executable at its canonical path.
+            # Do not ask ln to replace a file with a link to itself.
+            if [[ "$(realpath "$source")" != "$(realpath -m "$target")" ]]; then
+              ln -sfn "$source" "$target"
+            fi
+          }
+          link_tool "$gcc" arm-linux-gnueabi-gcc
+          link_tool "$objdump" arm-linux-gnueabi-objdump
+          link_tool "$ar" arm-linux-gnueabi-ar
           "$expected/arm-linux-gnueabi-gcc" --version
           "$expected/arm-linux-gnueabi-objdump" --version | head -1
 
