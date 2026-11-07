@@ -65,7 +65,7 @@ BASE_PKGS="glibc glibc-devel libgcc libstdc++ libstdc++-devel"
 RUNTIME_PKGS="ecore-wl2 ecore-core ecore-input efl eina eo libtbm
   libwayland-client libwayland-server libwayland-cursor
   libwayland-extension-client libwayland-tbm-client libtdm-client
-  libdrm libpng pixman libdlog libffi openssl libcurl"
+  libdrm libpng pixman libdlog libffi"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
   efl-devel libtbm-devel wayland-devel libwayland-client
@@ -78,6 +78,33 @@ for p in $RUNTIME_PKGS; do
     echo "RUNTIME_PACKAGE_NOT_FOUND=$p" | tee -a "$OUT/runtime-package-audit.txt"
   fi
 done
+# OpenSSL and libcurl are split into runtime RPMs whose package names differ
+# from the upstream project names. Resolve the packages by their actual Tizen
+# RPM names, checking both Unified and Base repositories and verifying the
+# required SONAME is present after extraction. Never substitute a newer ABI.
+fetch_runtime_soname() { # soname package-name...
+  local soname="$1" repo pkg rpm found
+  shift
+  for repo in "$T50_UNI" "$T50_BASE"; do
+    for pkg in "$@"; do
+      rpm=$(fetch "$repo/packages/armv7l" "$pkg" '\\.armv7l\\.rpm')
+      [[ -n "$rpm" ]] || continue
+      unrpm "$rpm" "$OUT/sysroot"
+      found=$(find "$OUT/sysroot" \\( -type f -o -type l \\) -name "$soname" -print -quit)
+      if [[ -n "$found" && -e "$found" ]]; then
+        echo "   $soname <- $(basename "$rpm")"
+        return 0
+      fi
+    done
+  done
+  echo "MISSING: Tizen 5.0 ARM package providing $soname (tried: $*)" >&2
+  return 1
+}
+
+fetch_runtime_soname libssl.so.1.0.0 libopenssl openssl
+fetch_runtime_soname libcrypto.so.1.0.0 libopenssl openssl
+fetch_runtime_soname libcurl.so.4 libcurl curl
+
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
@@ -105,5 +132,5 @@ echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
 echo "Compiler:  ${gcc_bin:-<not found>}"
-echo "Runtime link libraries are supplied from the Tizen 5.0 ARM repository sysroot."
+echo "OpenSSL 1.0.x and libcurl runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
 exit $missing
