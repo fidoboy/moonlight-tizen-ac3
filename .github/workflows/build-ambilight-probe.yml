@@ -246,6 +246,28 @@ jobs:
             -s AmbilightProbe \
             -- "$AMBILIGHT_PROBE_ROOT"
 
+      - name: Collect and validate diagnostic WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/probe-output"
+          mkdir -p "$output"
+
+          mapfile -d '' packages < <(find "$AMBILIGHT_PROBE_ROOT" -type f -name '*.wgt' -print0)
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one WGT under $AMBILIGHT_PROBE_ROOT; found ${#packages[@]}."
+            find "$AMBILIGHT_PROBE_ROOT" -maxdepth 6 -type f -printf '%p\n' | sort
+            exit 1
+          fi
+
+          package="${packages[0]}"
+          test -s "$package"
+          file "$package"
+          unzip -t "$package"
+          cp "$package" "$output/"
+          test -s "$output/$(basename "$package")"
+          echo "Diagnostic package ready: $output/$(basename "$package")"
+
       - name: Upload diagnostic package
         uses: actions/upload-artifact@v4
         with:
