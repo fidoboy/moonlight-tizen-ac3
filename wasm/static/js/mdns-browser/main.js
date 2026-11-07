@@ -297,14 +297,18 @@ function startAutoWolSubnetScanner(targetHost, operation) {
   }
   if (operation.promise) return operation.promise;
 
-  var localIp;
+  var localIp = null;
   var gatewayIp = null;
   try {
     localIp = normalizeAutoWolIPv4(webapis.network.getIp());
-    gatewayIp = normalizeAutoWolIPv4(webapis.network.getGateway());
   } catch (error) {
     return Promise.resolve(false);
   }
+  // Gateway exclusion is best-effort, matching the shared scanner: a failure
+  // to query it must not prevent Auto WOL from searching for its target.
+  try {
+    gatewayIp = normalizeAutoWolIPv4(webapis.network.getGateway());
+  } catch (gatewayError) {}
   if (!localIp) return Promise.resolve(false);
 
   var excluded = Object.create(null);
