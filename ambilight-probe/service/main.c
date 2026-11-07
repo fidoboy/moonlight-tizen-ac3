@@ -13,7 +13,7 @@
 #undef LOG_TAG
 #define LOG_TAG "MoonlightAmbilightProbe"
 #define PROBE_PORT "AmbilightProbeControl"
-#define PROBE_WEB_APP_ID "AmbilightProbe.AmbilightProbeWeb"
+#define PROBE_WEB_APP_ID "AmbiProbeX.AmbilightProbeWeb"
 #define PROBE_PROTOCOL "ambilight-probe/1"
 
 typedef struct {
