@@ -588,6 +588,7 @@
   "audio stream initialization": "initialisation du flux audio",
   "control stream establishment": "établissement du flux de contrôle",
   "control stream initialization": "initialisation du flux de contrôle",
+  "Input Settings": "Paramètres des commandes",
   "input stream establishment": "établissement du flux d’entrée",
   "input stream initialization": "initialisation du flux d’entrée",
   "name resolution": "résolution de nom",
