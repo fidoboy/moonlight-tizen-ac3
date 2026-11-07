@@ -11,7 +11,7 @@
   "- Choose the screen corner where the performance overlay is displayed.": "- Выберите угол экрана, в котором поверх изображения будет отображаться блок с графиками и статистикой производительности трансляции.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Выберите, где показывать текущую конфигурацию трансляции: сверху, снизу или скрыть на экранах хостов и приложений.",
   "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- При отсутствии активности пользователя показывает чёрный экран с логотипом Moonlight.",
-  "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.": "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.",
+  "- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.": "- Включите эту функцию для достижения сверхнизкой задержки в игровом режиме или отключите её, чтобы разрешить телевизору использовать различные улучшения изображения, с немного большей задержкой.",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Включает или отключает звуки навигации в интерфейсе Moonlight.",
   "- Find out if a new application update is available.": "- Find out if a new application update is available.",
   "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.": "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.",
