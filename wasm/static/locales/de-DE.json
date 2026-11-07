@@ -529,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "Der Fernseher konnte den Stream mit den ausgewählten Videoeinstellungen nicht starten. Verringern Sie die Auflösung oder Bildrate und ändern Sie gegebenenfalls den Codec.",
   "This dialog will close once the pairing is complete.": "Dieser Dialog wird nach erfolgreicher Kopplung geschlossen.",
   "This is a warning message, proceed with caution!": "Dies ist eine Warnmeldung. Gehen Sie vorsichtig vor!",
-  "Toggle performance stats": "Leistungsstatistiken ein-/ausblenden",
   "Top": "Oben",
   "Top left": "Oben links",
   "Top right": "Oben rechts",
@@ -609,5 +608,7 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Halten Sie Start gedrückt, um zwischen der normalen Controller-Eingabe und der Mausemulation zu wechseln. Steuern Sie damit den Mauszeiger und die Maustasten auf dem Host.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten A und B. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten X und Y. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet.",
-  "Send keystrokes": "Tastatureingaben senden"
+  "Send keystrokes": "Tastatureingaben senden",
+  "Show performance stats": "Leistungsstatistiken anzeigen",
+  "Hide performance stats": "Leistungsstatistiken ausblenden"
 }
