@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ambilight-probe-\${{ github.ref }}
+  group: ambilight-probe-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 1
 
       - name: Install build tools
@@ -213,6 +213,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AmbilightProbe-Tizen6
-          path: \${{ runner.temp }}/probe-output/
+          path: ${{ runner.temp }}/probe-output/
           if-no-files-found: error
           retention-days: 14
