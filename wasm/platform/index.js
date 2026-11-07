@@ -1432,6 +1432,20 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
           if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
           returnedHost._statusVerified = true;
           updateHostStatusIndicator(returnedHost);
+
+          // If the host whose Apps view is currently displayed goes offline,
+          // return to Hosts without restarting the polling loops.
+          if (!returnedHost.online &&
+              api === returnedHost &&
+              $('#game-grid').is(':visible') &&
+              $('#hosts-carousel-viewport').is(':hidden')) {
+            showHostsMode(true, true);
+            Navigation.change(Views.Hosts);
+            Navigation.start();
+            Navigation.switch();
+            return;
+          }
+
           scheduleNextPoll(5000);
         });
       }, delay);
