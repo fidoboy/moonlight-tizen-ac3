@@ -135,7 +135,7 @@ fetch_runtime_soname libsensor.so.4 sensord sensord-dummy libsensor
 fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-info-parser
 fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
-fetch_runtime_soname libudev.so.1 libudev systemd
+fetch_runtime_soname libudev.so.1 libsystemd
 fetch_runtime_soname libmount.so.1 libmount util-linux
 for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
