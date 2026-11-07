@@ -33,8 +33,8 @@ done
 
 # ESPlus is intentionally absent from this link line. wmp_esplus_abi.c opens
 # the firmware's /usr/lib/libesplusplayer.so with dlopen() and resolves its
-# exports with dlsym(), as in OmegaTube. Ecore and the crypto/network libraries
-# remain normal runtime dependencies and are resolved from the target TV libs.
+# exports with dlsym(), as in OmegaTube. Only crypto/network libraries used by
+# the engine are linked; no Ecore/EFL APIs are referenced by the engine sources.
 "$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -shared -Wl,-soname,libmlengine.so \
   -Wl,--hash-style=both -Wl,--wrap=PltEncryptMessage \
   -o "$OUT/libmlengine.so" \
@@ -45,7 +45,6 @@ done
   -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
   -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
-  -l:libecore_wl2.so.1 -l:libecore.so.1 \
   -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 \
   -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 \
   -lpthread $DBGLIB
