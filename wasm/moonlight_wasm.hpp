@@ -108,7 +108,7 @@ class MoonlightInstance {
     bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
     std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
     std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-    std::string h264Level);
+    std::string h264Level, bool selectHoldStreamMenu);
   void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
   MessageResult StopStream();
 
@@ -131,7 +131,7 @@ class MoonlightInstance {
 
   void ReportMouseMovement();
 
-  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons);
+  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons);
   void PollGamepads();
 
   void MouseLockLost();
@@ -338,7 +338,7 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level);
+  std::string h264Level, bool selectHoldStreamMenu);
 MessageResult stopStream();
 
 MessageResult cancelRequest();
