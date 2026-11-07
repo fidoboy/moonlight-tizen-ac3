@@ -346,14 +346,23 @@ int gs_pair(int serverMajorVersion, const char* address, unsigned short httpPort
   RAND_bytes(client_secret_data, 16);
 
   const ASN1_BIT_STRING *asnSignature;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  /* X509_get0_signature() was introduced in OpenSSL 1.1.0. */
+  asnSignature = g_Cert->signature;
+#else
   X509_get0_signature(&asnSignature, NULL, g_Cert);
+#endif
 
   unsigned char challenge_response[16 + 256 + 16];
   unsigned char challenge_response_hash[32];
   unsigned char challenge_response_hash_enc[32];
   char challenge_response_hex[65];
   memcpy(challenge_response, challenge_response_data + hash_length, 16);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  memcpy(challenge_response + 16, ASN1_STRING_data((ASN1_STRING *)asnSignature), 256);
+#else
   memcpy(challenge_response + 16, ASN1_STRING_get0_data(asnSignature), 256);
+#endif
   memcpy(challenge_response + 16 + 256, client_secret_data, 16);
   if (serverMajorVersion >= 7)
     SHA256(challenge_response, 16 + 256 + 16, challenge_response_hash);
