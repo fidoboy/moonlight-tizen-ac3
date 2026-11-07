@@ -117,7 +117,7 @@ jobs:
           grep -q 'Machine:.*ARM' build-report/libmlengine-elf-header.txt
           grep -q 'Machine:.*ARM' build-report/wmp-service-elf-header.txt
           grep -q 'Shared library: \[libmlengine.so\]' build-report/wmp-service-dynamic.txt
-          grep -q 'Library runpath: \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
+          grep -Eq 'Library (runpath|rpath): \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
           if grep -q 'NEEDED.*libesplusplayer' build-report/libmlengine-dynamic.txt; then
             echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED."
             exit 1
