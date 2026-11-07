@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build libmlengine.so (the engine, PIC) + a thin mlclient exe that links it.
+# Build libmlengine.so (the position-independent WMP streaming engine).
 # ESPlus is resolved at runtime from the TV firmware by wmp_esplus_abi.c;
 # it is deliberately not a link-time or packaged dependency.
 #
@@ -73,5 +73,5 @@ if "$OBJD" -p "$OUT/libmlengine.so" | grep -q 'NEEDED.*libesplusplayer'; then
 fi
 echo "ESPlus runtime loading: no DT_NEEDED dependency on libesplusplayer.so"
 
-bad=$("$OBJD" -T "$OUT/libmlengine.so" "$OUT/mlclient" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
+bad=$("$OBJD" -T "$OUT/libmlengine.so" | grep -oE 'GLIBC_2\.(2[5-9]|[3-9][0-9])' | sort -u || true)
 [ -z "$bad" ] && echo "glibc symbols: all <= 2.24 OK" || { echo "TOO-NEW glibc: $bad"; exit 1; }
