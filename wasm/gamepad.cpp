@@ -147,6 +147,7 @@ bool selectHoldStreamMenuSwitch = false;
 std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
 std::map<int, bool> selectMenuTriggered;
 std::map<int, bool> selectButtonConsumed;
+std::map<int, std::chrono::steady_clock::time_point> selectClickPulseUntil;
 
 // Flags for gamepad to track face buttons state
 bool flipABfaceButtonsSwitch = false;
@@ -261,6 +262,7 @@ void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseE
   selectPressTimes.clear();
   selectMenuTriggered.clear();
   selectButtonConsumed.clear();
+  selectClickPulseUntil.clear();
   rumbleFeedbackSwitch = rumbleFeedback;
   mouseEmulationSwitch = mouseEmulation;
   selectHoldStreamMenuSwitch = selectHoldStreamMenu;
@@ -301,6 +303,7 @@ void MoonlightInstance::PollGamepads() {
     selectPressTimes.erase(i);
     selectMenuTriggered.erase(i);
     selectButtonConsumed.erase(i);
+    selectClickPulseUntil.erase(i);
     LiSendMultiControllerEvent(i, activeGamepadMask & ~(1u << i), 0, 0, 0, 0, 0, 0, 0);
   }
   for (const auto i : changes.arrived) {
@@ -367,6 +370,7 @@ void MoonlightInstance::PollGamepads() {
     // one-poll button pulse, while a long press opens the stream menu without reaching the host.
     if (selectHoldStreamMenuSwitch) {
       const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
+      if (selectPressed) selectClickPulseUntil.erase(gamepadID);
       const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS || buttonFlags == PERF_STATS_BUTTONS;
       if (selectPressed && reservedCombo) {
         // Preserve the existing stop/statistics combinations; they take precedence over this shortcut.
@@ -396,10 +400,19 @@ void MoonlightInstance::PollGamepads() {
         selectButtonConsumed[gamepadID] = false;
         if (replayShortPress) {
           // Deliver a normal Select click after the user releases it before the long-press threshold.
-          buttonFlags |= BACK_FLAG;
+          selectClickPulseUntil[gamepadID] = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+        }
+        const auto pulse = selectClickPulseUntil.find(gamepadID);
+        if (pulse != selectClickPulseUntil.end()) {
+          if (std::chrono::steady_clock::now() < pulse->second) {
+            buttonFlags |= BACK_FLAG;
+          } else {
+            selectClickPulseUntil.erase(pulse);
+          }
         }
       }
     } else {
+      selectClickPulseUntil.erase(gamepadID);
       selectPressTimes.erase(gamepadID);
       selectMenuTriggered[gamepadID] = false;
       selectButtonConsumed[gamepadID] = false;
