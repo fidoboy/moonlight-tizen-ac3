@@ -16,6 +16,8 @@
 #include "lib.hpp"
 
 #include "samsung/wasm/elementary_media_stream_source.h"
+
+extern std::atomic<bool> streamMenuInputBlocked;
 #include "samsung/wasm/elementary_media_stream_source_listener.h"
 #include "samsung/wasm/elementary_media_track.h"
 #include "samsung/wasm/elementary_media_track_listener.h"

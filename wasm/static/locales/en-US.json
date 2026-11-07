@@ -11,7 +11,7 @@
   "- Choose the screen corner where the performance overlay is displayed.": "- Choose the screen corner where the box containing the streaming performance graphs and statistics will be overlaid.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Please select whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.",
   "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Displays a black screen with the Moonlight logo when there is no user input.",
-  "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.": "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.",
+  "- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.": "- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Enable or disable navigation sounds in the Moonlight interface.",
   "- Find out if a new application update is available.": "- Find out if a new application update is available.",
   "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.": "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.",
@@ -149,6 +149,7 @@
   "Checking configured hosts...": "Checking hosts...",
   "Checking for available Moonlight updates...": "Checking for available Moonlight updates...",
   "Close": "Close",
+  "Close menu": "Close menu",
   "Closing %1$s...": "Closing %1$s...",
   "Closing application...": "Closing application...",
   "Closing local audio engine...": "Closing local audio engine...",
@@ -528,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.",
   "This dialog will close once the pairing is complete.": "This dialog will close once the pairing is complete.",
   "This is a warning message, proceed with caution!": "This is a warning message, proceed with caution!",
-  "Toggle performance stats": "Toggle performance stats",
   "Top": "Top",
   "Top left": "Top left",
   "Top right": "Top right",
@@ -607,5 +607,8 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Sends vibration effects to a compatible gamepad when the streamed game requests them.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.",
+  "Send keystrokes": "Send keystrokes",
+  "Show performance stats": "Show performance stats",
+  "Hide performance stats": "Hide performance stats"
 }

@@ -11,7 +11,7 @@
   "- Choose the screen corner where the performance overlay is displayed.": "- Wählen Sie die Bildschirmecke, in der das eingeblendete Feld mit den Diagrammen und Leistungsstatistiken der Übertragung angezeigt wird.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Legen Sie fest, ob die aktuelle Streaming-Konfiguration oben, unten oder gar nicht auf den Host- und App-Bildschirmen angezeigt wird.",
   "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Zeigt bei ausbleibender Benutzereingabe einen schwarzen Bildschirm mit dem Moonlight-Logo an.",
-  "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.": "- Aktivieren Sie diese Option für extrem niedrige Latenz im Spielmodus oder deaktivieren Sie sie für niedrige Latenz mit Video-Nachbearbeitung.",
+  "- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.": "- Aktivieren Sie diese Option für extrem niedrige Latenz im Spielmodus. Deaktivieren Sie sie, damit der Fernseher seine verschiedenen Bildverbesserungen anwenden kann, wobei die Latenz etwas höher ausfällt.",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Aktiviert oder deaktiviert Navigationsgeräusche in der Moonlight-Oberfläche.",
   "- Find out if a new application update is available.": "- Prüfen, ob ein neues App-Update verfügbar ist.",
   "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.": "- HDR erfordert ein HDR10-fähiges Gerät, eine GPU mit HEVC-Main-10-Encoding und ein HDR10-fähiges Spiel.",
@@ -149,6 +149,7 @@
   "Checking configured hosts...": "Hosts werden überprüft …",
   "Checking for available Moonlight updates...": "Suche nach verfügbaren Moonlight-Updates …",
   "Close": "Schließen",
+  "Close menu": "Menü schließen",
   "Closing %1$s...": "%1$s wird geschlossen …",
   "Closing application...": "Anwendung wird geschlossen...",
   "Closing local audio engine...": "Lokale Audio-Engine wird geschlossen...",
@@ -528,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "Der Fernseher konnte den Stream mit den ausgewählten Videoeinstellungen nicht starten. Verringern Sie die Auflösung oder Bildrate und ändern Sie gegebenenfalls den Codec.",
   "This dialog will close once the pairing is complete.": "Dieser Dialog wird nach erfolgreicher Kopplung geschlossen.",
   "This is a warning message, proceed with caution!": "Dies ist eine Warnmeldung. Gehen Sie vorsichtig vor!",
-  "Toggle performance stats": "Leistungsstatistiken ein-/ausblenden",
   "Top": "Oben",
   "Top left": "Oben links",
   "Top right": "Oben rechts",
@@ -607,5 +607,8 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Sendet Vibrationssignale an einen kompatiblen Controller, wenn das gestreamte Spiel sie anfordert.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Halten Sie Start gedrückt, um zwischen der normalen Controller-Eingabe und der Mausemulation zu wechseln. Steuern Sie damit den Mauszeiger und die Maustasten auf dem Host.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten A und B. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten X und Y. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Vertauscht die an den Host gesendeten Belegungen der Tasten X und Y. Verwenden Sie diese Option, wenn ein Spiel die umgekehrte Tastenanordnung erwartet.",
+  "Send keystrokes": "Tastatureingaben senden",
+  "Show performance stats": "Leistungsstatistiken anzeigen",
+  "Hide performance stats": "Leistungsstatistiken ausblenden"
 }

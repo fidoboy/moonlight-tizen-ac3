@@ -1089,15 +1089,19 @@ function handleMessage(msg) {
       if (typeof finishAppsModeAfterStreamTransition === 'function') {
         finishAppsModeAfterStreamTransition();
       }
-      // Restore the main Hosts screen while keeping its ambient background stopped.
-      showHostsMode(true, true);
+      // Mark the stream as terminated, then explicitly resume host polling.
+      isInGame = false;
+      if (typeof startPollingHosts === 'function') {
+        startPollingHosts();
+      }
+      // Restore the Hosts screen and keep the ambient background stopped.
+      showHostsMode(true);
       $('#host-grid').stop(true, true).show();
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
       $('body').css('backgroundColor', '#282C38');
-      isInGame = false;
       Navigation.change(Views.Hosts);
       Navigation.start();
       Navigation.switch();
@@ -1151,6 +1155,11 @@ function handleMessage(msg) {
           if (typeof finishAppsModeAfterStreamTransition === 'function') {
             finishAppsModeAfterStreamTransition();
           }
+          // Resume other hosts now. The selected host remains paused until showApps()
+          // finishes its box art downloads and restarts that host's background polling.
+          if (typeof startPollingHosts === 'function') {
+            startPollingHosts(api);
+          }
           window._streamTerminationRecoveryInProgress = false;
           var quitButtonAfterRecovery = document.getElementById('quitRunningAppBtn');
           if (quitButtonAfterRecovery) quitButtonAfterRecovery.disabled = false;
@@ -1173,6 +1182,11 @@ function handleMessage(msg) {
         // interaction only after the refreshed list has been rendered.
         if (typeof finishAppsModeAfterStreamTransition === 'function') {
           finishAppsModeAfterStreamTransition(true);
+        }
+        // Keep the other hosts polled while the error dialog is awaiting acknowledgement.
+        // The selected host stays paused until its Apps recovery and box art downloads finish.
+        if (typeof startPollingHosts === 'function') {
+          startPollingHosts(api);
         }
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');

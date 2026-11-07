@@ -220,7 +220,7 @@ function ensureSubnetScannerLoaded() {
 
   return subnetScannerLoadPromise;
 }
-var activePolls = {}; // Hosts currently being polled. An associated array of polling IDs, keyed by server UID
+var activePolls = {}; // Active polling cycles, keyed by server UID
 var hostPollingPausedForNetworkTest = false;
 var pairingCert; // Loads the generated certificate
 var myUniqueid;
@@ -330,6 +330,8 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     // The full interface will show the error in a modal after it has returned
     // and the transition layer has completely disappeared.
     isInGame = false;
+    // Streaming may already have stopped background polling; resume it explicitly.
+    startPollingHosts();
     showHosts(function() {
       hideStreamTransitionBackground(function() {
         warningDialog(t('Error'), message, null, true, 'OK', { code: null, apiMessage: null });
@@ -387,7 +389,7 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   }).catch(function(recoveryError) {
     console.error('%c[index.js, streamStartupApiFailure]', 'color: red;', 'Could not restore the Apps view after a launch error:', recoveryError);
     // Fall back to Hosts without showing a secondary snackbar that could obscure the error.
-    showHostsMode(true, true);
+    showHostsMode(true);
     $('#host-grid').stop(true, true).show();
     $('#game-grid').stop(true, true).hide();
     $('#settings-list').hide();
@@ -1356,119 +1358,124 @@ function updateHostStatusIndicator(host) {
 }
 
 function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
-  // Never start host checks or polling during streaming or a network test.
   if (isInGame === true || hostPollingPausedForNetworkTest) return Promise.resolve();
 
-  // Clear any existing polling interval for this host before starting a new one.
-  // Without this, every call to beginBackgroundPollingOfHost (e.g. on each navigation
-  // back to the host view) would leak the old setInterval, causing multiple overlapping
-  // poll loops that corrupt the _pollCompletionCallbacks deduplication guard and
-  // prevent the host from ever recovering to the online state.
-  endBackgroundPollingOfHost(host);
-  // Ensure the key exists so the hasOwnProperty check in scheduleNextPoll passes
-  activePolls[host.serverUid] = null;
+  var hostUID = host.serverUid;
+  var existingCycle = activePolls[hostUID];
+  // Repeated starts share the existing initialization and never create another chain.
+  if (existingCycle) return existingCycle.initializationPromise || Promise.resolve();
 
-  // Discovery has already completed a successful poll for a newly found host.
-  // Reuse that result instead of immediately requesting /serverinfo a second time.
-  var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  // The cycle object is also its identity: callbacks from an invalidated cycle
+  // cannot act on a newer cycle registered under the same server UID.
+  var cycle = { timeoutId: null, initializationPromise: null };
+  activePolls[hostUID] = cycle;
+  var isCurrentCycle = function() {
+    return activePolls[hostUID] === cycle;
+  };
+
+  // Count overlapping initial refreshes so network-test quiescence checks do
+  // not mistake an older, still-finishing request for an idle host.
+  host._backgroundStatusRefreshCount = (host._backgroundStatusRefreshCount || 0) + 1;
   host._backgroundStatusRefreshInProgress = true;
-  var initialStatusPromise = refreshServerInfoSucceeded
-    ? Promise.resolve().then(function() {
-        host.online = true;
-        host._statusVerified = true;
-      })
-    : withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh').then(function(ret) {
-        refreshServerInfoSucceeded = true;
-        if (DEBUG_MODE) {
-          console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString());
-        }
 
-        // A successful server-info refresh confirms that the host is online.
-        host.online = true;
-        host._statusVerified = true;
+  // Discovery may already have completed a successful status check.
+  var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  var initialStatusPromise = refreshServerInfoSucceeded
+    ? Promise.resolve()
+    : Promise.resolve().then(function() {
+        return withOperationTimeout(host.refreshServerInfo(), 10000, 'Background host status refresh');
       });
 
-  return initialStatusPromise.catch(function(failedRefreshInfo) {
-    console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; retaining the last known host status until pollServer verifies it:', failedRefreshInfo, host.hostname, host.address);
-  }).finally(function() {
-    host._backgroundStatusRefreshInProgress = false;
-    // The in-flight request may finish during streaming or a network test, but it must not restart periodic polling.
-    if (isInGame === true || hostPollingPausedForNetworkTest) {
-      host._consecutivePollFailures = 0;
-      host._pollCompletionCallbacks = [];
-      return;
+  cycle.initializationPromise = initialStatusPromise.then(function() {
+    if (!isCurrentCycle()) return;
+    refreshServerInfoSucceeded = true;
+    if (DEBUG_MODE) {
+      console.log('%c[index.js, beginBackgroundPollingOfHost]', 'color: green;', 'Starting background polling of host ' + host.serverUid, host, '\n' + host.toString());
     }
+    host.online = true;
+    host._statusVerified = true;
+  }, function(failedRefreshInfo) {
+    if (isCurrentCycle()) {
+      console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; retaining the last known host status until pollServer verifies it:', failedRefreshInfo, host.hostname, host.address);
+    }
+  }).then(function() {
+    host._backgroundStatusRefreshCount = Math.max(0, (host._backgroundStatusRefreshCount || 1) - 1);
+    host._backgroundStatusRefreshInProgress = host._backgroundStatusRefreshCount > 0;
 
-    // The completed network poll is the source of truth for the displayed status.
+    if (!isCurrentCycle()) return;
+    if (isInGame === true || hostPollingPausedForNetworkTest) return;
+
     if (refreshServerInfoSucceeded) {
       host._statusVerified = true;
+      host._consecutivePollFailures = 0;
     }
     updateHostStatusIndicator(host);
 
-    // Reset poll state so that recovery polls from the interval below start with
-    // a clean slate. Without this, stale _pollCompletionCallbacks entries from
-    // previous (leaked) intervals can block the deduplication guard and prevent
-    // pollServer from ever starting a new poll.
-    // Note: resetting _consecutivePollFailures to 0 here is always safe. If the
-    // host was previously online, this counter was already 0 (it is reset to 0 on
-    // every successful poll). Online *recovery* (host.online = true) is set
-    // unconditionally in pollServer's success callback regardless of this counter;
-    // the counter only gates the *offline* direction (host.online = false after
-    // >= 2 consecutive failures inside pollServer), so resetting it here does not
-    // interfere with future offline detection either.
-    host._consecutivePollFailures = 0;
-    host._pollCompletionCallbacks = [];
-
     var scheduleNextPoll = function(delay) {
-      // Stop if polling was canceled or streaming has started.
-      if (isInGame === true || hostPollingPausedForNetworkTest || !activePolls.hasOwnProperty(host.serverUid)) return;
-
-      activePolls[host.serverUid] = window.setTimeout(function() {
-        // In case it was canceled while waiting or streaming has started
-        if (!activePolls.hasOwnProperty(host.serverUid) || isInGame === true || hostPollingPausedForNetworkTest) return;
+      if (!isCurrentCycle() || isInGame === true || hostPollingPausedForNetworkTest) return;
+      cycle.timeoutId = window.setTimeout(function() {
+        cycle.timeoutId = null;
+        if (!isCurrentCycle() || isInGame === true || hostPollingPausedForNetworkTest) return;
 
         host.pollServer(function(returnedHost) {
-          // The request may complete after polling was stopped or streaming began.
-          if (isInGame === true || !activePolls.hasOwnProperty(host.serverUid)) return;
+          if (!isCurrentCycle() || isInGame === true || hostPollingPausedForNetworkTest) return;
           returnedHost._statusVerified = true;
           updateHostStatusIndicator(returnedHost);
+
+          // If the host shown in Apps goes offline, return to Hosts.
+          if (!returnedHost.online &&
+              api === returnedHost &&
+              $('#game-grid').is(':visible') &&
+              $('#hosts-carousel-viewport').is(':hidden')) {
+            showHostsMode(true);
+            Navigation.change(Views.Hosts);
+            Navigation.start();
+            Navigation.switch();
+          }
+          // Keep polling this host after returning to Hosts so its recovery
+          // can be detected without requiring another user action.
           scheduleNextPoll(5000);
         });
       }, delay);
     };
 
-    // Check if the host is currently online
     if (host.online) {
-      // The host was already online, so start polling in the background now
       scheduleNextPoll(5000);
     } else {
-      // The host was offline, so poll immediately to check the host's status
       scheduleNextPoll(0);
     }
   });
-}
 
-function startPollingHosts() {
+  return cycle.initializationPromise;
+}
+function startPollingHosts(excludedHost) {
   // Calls from startup/discovery callbacks must not restart polling during a stream or network test.
   if (isInGame === true || hostPollingPausedForNetworkTest) return Promise.resolve();
 
   var pollPromises = [];
   for (var hostUID in hosts) {
-    pollPromises.push(beginBackgroundPollingOfHost(hosts[hostUID]));
+    var host = hosts[hostUID];
+    // Apps recovery resumes the selected host only after its box art downloads finish.
+    if (host === excludedHost) continue;
+    pollPromises.push(beginBackgroundPollingOfHost(host));
   }
   return Promise.all(pollPromises);
 }
 
 function endBackgroundPollingOfHost(host) {
-  console.log('%c[index.js, endBackgroundPollingOfHost]', 'color: green;', 'Stopping background polling of host ' + host.serverUid, host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
-  // Clear the host's polling interval and remove it from the activePolls object, also while the first
-  // refresh is still running and the entry is null, otherwise the polling would start anyway when it finishes
-  if (activePolls.hasOwnProperty(host.serverUid)) {
-    window.clearTimeout(activePolls[host.serverUid]);
+  console.log('%c[index.js, endBackgroundPollingOfHost]', 'color: green;', 'Stopping background polling of host ' + host.serverUid, host, '\n' + host.toString());
+
+  // Invalidate this exact cycle. Pending network requests may finish, but
+  // their callbacks can no longer schedule another poll.
+  var cycle = activePolls[host.serverUid];
+  if (cycle) {
+    if (cycle.timeoutId !== null) {
+      window.clearTimeout(cycle.timeoutId);
+      cycle.timeoutId = null;
+    }
     delete activePolls[host.serverUid];
   }
 }
-
 function stopPollingHosts() {
   for (var hostUID in hosts) {
     endBackgroundPollingOfHost(hosts[hostUID]);
@@ -1671,7 +1678,7 @@ function dismissPersistentSnackbar() {
 
 var isManualHostRefreshRunning = false;
 
-// Reuse the startup discovery sequence so removed hosts can be rediscovered and paired again.
+// Discover only previously unknown hosts without touching registered-host polling.
 function refreshHosts() {
   if (isManualHostRefreshRunning || initialHostListInteractionLocked) return;
   isManualHostRefreshRunning = true;
@@ -1683,24 +1690,15 @@ function refreshHosts() {
     button.setAttribute('aria-busy', 'true');
   }
 
-  // The operation itself starts only after the progress snackbar has slid into view.
+  // The manual scan is an independent discovery operation. It must not
+  // stop, restart, or otherwise participate in polling known hosts.
   snackbarLogPersistent('Scanning the local network to discover new hosts...').then(function() {
-    // Refresh known-host status first, then pause background polling while scanning the subnet.
-    stopPollingHosts();
-    return startPollingHosts();
+    return ensureSubnetScannerLoaded().then(function() {
+      return startManualSubnetScanner();
+    });
   })
-    .catch(function(error) {
-      console.warn('%c[index.js, refreshHosts]', 'color: orange;', 'Known-host checks failed before network scan; continuing:', error);
-    })
-    .then(function() {
-      stopPollingHosts();
-      return ensureSubnetScannerLoaded().then(function() {
-        return startSubnetScanner(null, true);
-      });
-    })
     .then(function(newHostCount) {
       isSubnetScanFinished = true;
-      if (isInGame !== true) startPollingHosts();
       runWhenMainUiActive(function() {
         if (newHostCount > 0) {
           snackbarLog('Network scan completed.');
@@ -1712,7 +1710,6 @@ function refreshHosts() {
     .catch(function(error) {
       console.error('%c[index.js, refreshHosts]', 'color: red;', 'Network scan failed:', error);
       isSubnetScanFinished = true;
-      if (isInGame !== true) startPollingHosts();
       runWhenMainUiActive(function() { snackbarLogLong('Network scan failed.'); });
     })
     .finally(function() {
@@ -1728,7 +1725,7 @@ function refreshHosts() {
 }
 
 // Handle layout elements when displaying the Hosts view
-function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
+function showHostsMode(deferAmbientBackgroundActivation) {
   $('#background-layer').show();
   if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
@@ -1748,6 +1745,7 @@ function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   updateGamepadTestButtonVisibility();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#hosts-carousel-viewport').show();
+  $('#host-grid').show();
   $('#settings-list').hide();
   $('#game-grid').hide();
   $('#goBackBtn').hide();
@@ -1758,14 +1756,6 @@ function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   showUiLayer('main-ui-layer');
   Navigation.start();
   Navigation.pop();
-  // Stop any existing polls before starting new ones to prevent setInterval leaks.
-  // Without this, navigating back to the host view multiple times accumulates
-  // duplicate polling intervals for each host, which causes race conditions in
-  // _pollCompletionCallbacks and prevents the host from recovering to online.
-  if (!skipPollingRestart) {
-    stopPollingHosts();
-    startPollingHosts();
-  }
 }
 
 // Move once from Add Host to the first loaded host using normal navigation.
@@ -1904,7 +1894,7 @@ function restoreUiAfterWasmLoad() {
 
   // Navigate to the Hosts view and establish the complete initial focus state before paint.
   Navigation.push(Views.Hosts);
-  showHostsMode(true);
+  showHostsMode();
   Navigation.switch();
   Navigation.switch();
   lockHostListInteraction();
@@ -1982,14 +1972,17 @@ function hostChosen(host, onSuccessCallback) {
     return;
   }
 
-  // Avoid delay from other polling during pairing
-  stopPollingHosts();
-
   api = host;
   // If the host is not yet paired or has been removed from the server, go to the pairing flow.
   if (!host.paired) {
+    // Avoid delay from other polling during the pairing operation.
+    stopPollingHosts();
+
     // Continue with the pairing flow
     pairingDialog(host, function() {
+      // Resume polling for all hosts after pairing. showApps() will pause the
+      // selected host again while its box art downloads are in progress.
+      startPollingHosts();
       // After pairing the host, save the host object, show the apps, and navigate to the Apps view
       saveHosts();
       Navigation.push(Views.Apps);
@@ -2574,11 +2567,20 @@ function autoWolDialog(host, onSuccess, onCancel) {
   var isPolling = true;
   var pollTimeout = null;
   var hasFailed = false;
+  // Auto WOL owns its discovery lifecycle; cancelling it must not abort
+  // startup discovery or the independent manual subnet scan.
+  var autoWolScanState = {
+    cancelled: false,
+    abortController: null,
+    promise: null
+  };
 
   var stopPollingTasks = function() {
     isPolling = false;
     if (pollTimeout) clearTimeout(pollTimeout);
-    if (typeof abortSubnetScan === 'function') abortSubnetScan();
+    if (typeof abortAutoWolSubnetScan === 'function') {
+      abortAutoWolSubnetScan(autoWolScanState);
+    }
   };
 
   var cleanup = function() {
@@ -2602,9 +2604,10 @@ function autoWolDialog(host, onSuccess, onCancel) {
       var pollLoop = function() {
         if (!isPolling) return;
 
-        // Continuously sweep the subnet to catch the host if it wakes up with a new DHCP IP
+        // Search only for this host identity. The Auto WOL scanner has its own
+        // cancellation state and never registers or updates any other host.
         var scanPromise = ensureSubnetScannerLoaded().then(function() {
-          return startSubnetScanner();
+          return startAutoWolSubnetScanner(host, autoWolScanState);
         }).catch(function(e) {
           console.warn('%c[index.js, autoWolDialog]', 'color: orange;', 'Subnet scan failed during WOL wait, continuing to poll:', e);
         });
@@ -2910,8 +2913,8 @@ function hostMenuDialog(host) {
     type: 'button',
     id: 'closeHostMenu',
     class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-    'data-i18n': 'Close',
-    text: t('Close')
+    'data-i18n': 'Close menu',
+    text: t('Close menu')
   });
 
   // Close the dialog if the Close button is pressed
@@ -3673,8 +3676,8 @@ function hostDetailsDialog(host) {
     type: 'button',
     id: 'closeHostDetails',
     class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-    'data-i18n': 'Close',
-    text: t('Close')
+    'data-i18n': 'Close menu',
+    text: t('Close menu')
   });
 
   // Close the dialog if the Close button is pressed
@@ -3757,7 +3760,6 @@ function showSettingsMode() {
   $('#listener').removeClass('fullscreen');
 
   showUiLayer('main-ui-layer');
-    stopPollingHosts();
   Navigation.start();
   // Register showSettingsMode to re-run every time the language changes
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
@@ -4815,10 +4817,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
       checkForAppUpdatesAtStartup();
     }, 0);
   }
-  // We want to eventually poll on the app screen, but we can't now because
-  // it slows down box art loading and we don't update the UI live anyway.
   if (!deferPostTransitionActions) {
-    stopPollingHosts();
     if (!appListInteractionLocked) Navigation.start();
   }
   if (!deferPostTransitionActions && typeof syncScreensaverTimer === 'function') syncScreensaverTimer();
@@ -4837,7 +4836,6 @@ function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
       checkForAppUpdatesAtStartup();
     }, 0);
   }
-  stopPollingHosts();
   if (!appListInteractionLocked) Navigation.start();
   flushDeferredMainUiActions();
 }
@@ -4915,6 +4913,9 @@ function showApps(host, options) {
           clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
           showAppsMode(!!(options && options.keepInteractionLocked));
+          // Stream recovery excludes this host from the global polling restart.
+          // With no apps there are no box-art downloads to trigger the usual resume.
+          beginBackgroundPollingOfHost(host);
           resolve();
           return;
         }
@@ -5714,6 +5715,9 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
 
       hideUiLayerImmediately('main-ui-layer');
       $('#listener').addClass('fullscreen');
+      // Stop all background host polling as the stream enters fullscreen.
+      // In-flight callbacks also observe isInGame and cannot schedule another poll.
+      stopPollingHosts();
       isInGame = true;
       fullscreenWasmModule(streamWidth, streamHeight);
       showUiLayer('stream-diagnostics-layer');
@@ -6285,7 +6289,7 @@ function getStreamMenuOptions() {
       icon: 'query_stats',
       option: {
         id: 'streamMenuToggleStats',
-        text: t('Toggle performance stats'),
+        text: t(isPerformanceStatsOverlayVisible() ? 'Hide performance stats' : 'Show performance stats'),
         action: function() {
           Module.toggleStats();
         }
@@ -6343,7 +6347,7 @@ function streamMenuDialog() {
       if (groupedOption.group === 'keys') {
         $('<div>', {
           class: 'stream-menu-group__title',
-          text: 'Enviar pulsación de teclas'
+          text: t('Send keystrokes')
         }).appendTo(group);
       }
       streamMenuGroups[groupedOption.group] = group;
@@ -6396,6 +6400,7 @@ function streamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
+  Module._setStreamMenuInputBlocked(1);
   fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
@@ -6430,6 +6435,7 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
     if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
     closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
+    Module._setStreamMenuInputBlocked(0);
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
       videoElement.focus();
@@ -8964,6 +8970,16 @@ function loadHTTPCertsCb() {
         for (var hostUID in hosts) { // Revive saved hosts; render their cards after the loading snackbar enters.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
           Object.assign(revivedHost, hosts[hostUID]);
+          // Connectivity and in-flight operation state is session-local; never restore it from storage.
+          revivedHost.online = false;
+          revivedHost._statusVerified = false;
+          revivedHost._consecutivePollFailures = 0;
+          revivedHost._pollCount = 0;
+          revivedHost._pollCompletionCallbacks = [];
+          revivedHost._pollInProgress = false;
+          revivedHost._backgroundStatusRefreshCount = 0;
+          revivedHost._backgroundStatusRefreshInProgress = false;
+          revivedHost._backgroundAppListRefreshInProgress = false;
           revivedHost._memCachedApplist = null; // Prevent using the app list cache from a previous session
           revivedHost.httpPort = hosts[hostUID].httpPort || ((hosts[hostUID].httpsPort || 47984) + 5);
           revivedHost.httpsPort = hosts[hostUID].httpsPort || (revivedHost.httpPort - 5);

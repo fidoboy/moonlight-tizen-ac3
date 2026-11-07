@@ -11,7 +11,7 @@
   "- Choose the screen corner where the performance overlay is displayed.": "- Escolha o canto da tela em que será sobreposto o quadro com os gráficos e as estatísticas de desempenho da transmissão.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Escolha se a configuração atual de transmissão será exibida em cima, embaixo ou ficará oculta nas telas de Hosts e Aplicativos.",
   "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Exibe uma tela preta com o logotipo do Moonlight quando não há atividade do usuário.",
-  "- Enable for ultra low latency with game mode or disable for low latency with post-processing video enhancements.": "- Ative para latência ultrabaixa com o modo jogo, ou desative para baixa latência com aprimoramentos de vídeo pós-processados.",
+  "- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.": "- Ative para obter latência ultrabaixa com o Modo Jogo ou desative para permitir os diversos aprimoramentos de imagem da TV, com uma latência um pouco maior.",
   "- Enable or disable navigation sounds in the Moonlight interface.": "- Ative ou desative os sons de navegação na interface do Moonlight.",
   "- Find out if a new application update is available.": "- Descubra se há uma nova atualização do aplicativo disponível.",
   "- HDR requires an HDR10-capable device, a GPU that can encode HEVC Main 10, and HDR10-enabled game.": "- O HDR exige um dispositivo compatível com HDR10, uma GPU que codifique HEVC Main 10 e um jogo com HDR10 habilitado.",
@@ -149,6 +149,7 @@
   "Checking configured hosts...": "Verificando hosts…",
   "Checking for available Moonlight updates...": "Verificando atualizações disponíveis do Moonlight...",
   "Close": "Fechar",
+  "Close menu": "Fechar menu",
   "Closing %1$s...": "Fechando %1$s...",
   "Closing application...": "Fechando aplicativo...",
   "Closing local audio engine...": "Fechando o mecanismo de áudio local...",
@@ -528,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "A TV não conseguiu iniciar a transmissão com as configurações de vídeo selecionadas. Tente reduzir a resolução ou a taxa de quadros e considere alterar o codec.",
   "This dialog will close once the pairing is complete.": "Este diálogo será fechado quando o pareamento for concluído.",
   "This is a warning message, proceed with caution!": "Esta é uma mensagem de aviso, prossiga com cautela!",
-  "Toggle performance stats": "Estatísticas de desempenho",
   "Top": "Em cima",
   "Top left": "Canto superior esquerdo",
   "Top right": "Canto superior direito",
@@ -607,5 +607,8 @@
   "- Sends vibration effects to a compatible gamepad when the streamed game requests them.": "- Envia efeitos de vibração para um gamepad compatível quando o jogo transmitido os solicita.",
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Segure Start para alternar entre os comandos normais do controle e a emulação do mouse. Use o gamepad para controlar o ponteiro e os botões do mouse no host.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões A e B enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta.",
-  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões X e Y enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta."
+  "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Inverte as funções dos botões X e Y enviadas ao host. Use esta opção quando o jogo esperar a disposição oposta.",
+  "Send keystrokes": "Enviar pressionamentos de tecla",
+  "Show performance stats": "Mostrar estatísticas",
+  "Hide performance stats": "Ocultar estatísticas"
 }
