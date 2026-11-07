@@ -2,7 +2,7 @@
 <manifest xmlns="http://tizen.org/ns/packages" api-version="5.5" package="AmbilightProbe" version="0.1.0">
     <label>Ambilight Probe Service</label>
     <description>Native diagnostic for Samsung video processor RGB sampling</description>
-    <service-application appid="AmbilightProbe.AmbilightProbeService"
+    <service-application appid="AmbiProbeX.AmbilightProbeService"
                         exec="ambilight-probe-service"
                         nodisplay="true"
                         multiple="false"
