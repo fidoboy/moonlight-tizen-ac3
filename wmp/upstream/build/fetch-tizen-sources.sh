@@ -147,9 +147,9 @@ fetch_runtime_soname libpcre.so.1 pcre
 fetch_runtime_soname libsensor.so.4 sensord libsensor
 fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-parser pkgmgr-parser-devel
 fetch_runtime_soname libminizip.so.1 minizip
-fetch_runtime_soname libgmodule-2.0.so.0 libglib glib2
+fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 libudev systemd
-fetch_runtime_soname libmount.so.1 libmount
+fetch_runtime_soname libmount.so.1 libmount util-linux
 fetch_runtime_soname libecore_file.so.1 ecore-file
 
 for p in $BASE_PKGS; do r=$(fetch "$T50_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
