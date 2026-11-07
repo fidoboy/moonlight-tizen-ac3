@@ -50,12 +50,9 @@ done
   -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 \
   -lpthread $DBGLIB
 
-"$GCC" $FLAGS $INC -c "$HERE/main.c" -o "$OUT/main.o"
-"$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -o "$OUT/mlclient" "$OUT/main.o" \
-  -L"$OUT" -Wl,-rpath-link,"$TVL" -Wl,--unresolved-symbols=ignore-in-shared-libs -lmlengine -Wl,-rpath,'$ORIGIN/../lib'
-
+# The ServiceApp has its own entry point and is linked separately by
+# wmp/service/build-wmp-service.sh. This script builds only libmlengine.so.
 echo "built: $(file "$OUT/libmlengine.so" | cut -d, -f1-3)"
-echo "       $(file "$OUT/mlclient" | cut -d, -f1-3)"
 
 miss=""
 for s in ml_engine_start ml_engine_running ml_engine_wait ml_engine_stop \
