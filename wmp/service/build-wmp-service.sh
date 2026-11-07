@@ -76,6 +76,7 @@ LIB_DIRS=(
 
 "$GCC" --sysroot="$SYSROOT" "${ARCH[@]}" -O2 \
     -Wl,--no-undefined \
+    -Wl,--allow-shlib-undefined \
     -Wl,-rpath,'$ORIGIN/../lib' \
     "${LIB_DIRS[@]}" \
     -o "$OUT/bin/wmp-service" \
