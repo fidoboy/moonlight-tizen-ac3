@@ -147,7 +147,7 @@ jobs:
                   or package_id != "AmbiProbeX"
                   or native.attrib.get("package") != package_id):
               raise SystemExit("Web application identity or hybrid package ID is invalid")
-          if app is None or app.attrib.get("appid") != "AmbiProbeX.AmbilightProbeService" or app.attrib.get("exec") != "ambilight-probe-service":
+          if app is None or app.attrib.get("appid") != "AmbiProbeX.ambilight-probe-service" or app.attrib.get("exec") != "ambilight-probe-service":
               raise SystemExit("Native probe service identity is invalid")
           native.set("version", version)
           ET.register_namespace("", "http://tizen.org/ns/packages")
@@ -281,6 +281,30 @@ jobs:
           test -s "$package"
           file "$package"
           unzip -t "$package"
+          python3 - "$package" <<'PY'
+          import sys, zipfile, xml.etree.ElementTree as ET
+          package = sys.argv[1]
+          expected_web_id = "AmbiProbeX.AmbilightProbeWeb"
+          expected_service_id = "AmbiProbeX.ambilight-probe-service"
+          with zipfile.ZipFile(package) as archive:
+              names = set(archive.namelist())
+              required = {"config.xml", "tizen-manifest.xml", "bin/ambilight-probe-service"}
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit("WGT is missing required entries: " + ", ".join(missing))
+              web = ET.fromstring(archive.read("config.xml"))
+              web_app = next((n for n in web.iter() if n.tag.endswith("application")), None)
+              native = ET.fromstring(archive.read("tizen-manifest.xml"))
+              service = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
+              if web_app is None or web_app.attrib.get("id") != expected_web_id:
+                  raise SystemExit("Packaged web application ID does not match the probe frontend")
+              if service is None or service.attrib.get("appid") != expected_service_id:
+                  actual = service.attrib.get("appid") if service is not None else "missing"
+                  raise SystemExit(f"Packaged native service ID mismatch: {actual}")
+              if service.attrib.get("exec") != "ambilight-probe-service":
+                  raise SystemExit("Packaged native service executable does not match the binary")
+              print(f"Validated hybrid WGT: web={expected_web_id}; native service={expected_service_id}")
+          PY
           cp "$package" "$output/"
           test -s "$output/$(basename "$package")"
           echo "Diagnostic package ready: $output/$(basename "$package")"
