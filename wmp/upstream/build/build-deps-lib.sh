@@ -10,7 +10,6 @@
 set -e
 MLT=${MLT:?set MLT}; DEPS=${DEPS:?set DEPS (no spaces)}; BPD=${BPD:?set BPD}
 GCC=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc
-AR=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-ar
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 C=$MLT/moonlight-common-c
 TVL=$DEPS/tv-libs/usr/lib
@@ -72,7 +71,7 @@ extern int gs_pair(void*,char*);
 int main(void){ curl_global_init(CURL_GLOBAL_DEFAULT); SSL_library_init();
   return (EVP_sha256()!=0)&&((void*)LiStartConnection!=0)&&((void*)gs_pair!=0); }
 EOF
-"$GCC" $BASE -I"$BPD/ossl-inc" -I"$BPD/curl759/include" -I"$BPD/mbedtls/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
+"$GCC" $BASE -I"$BPD/ossl-inc" -I"$BPD/curl759/include" -c "$OUT/linktest.c" -o "$OUT/linktest.o"
 "$GCC" $BASE -o "$OUT/linktest" "$OUT/linktest.o" "$OUT"/obj/*.o "$OUT"/gs/*.o \
   -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
   -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
