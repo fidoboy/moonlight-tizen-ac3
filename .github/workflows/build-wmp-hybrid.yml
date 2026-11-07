@@ -391,7 +391,7 @@ jobs:
             echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED." >&2
             exit 1
           fi
-          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\\.so' "$inspection/libmlengine-dynamic.txt"; then
+          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\.so' "$inspection/libmlengine-dynamic.txt"; then
             echo "::error::libmlengine.so must contain the private static OpenSSL/cURL stack." >&2
             exit 1
           fi
