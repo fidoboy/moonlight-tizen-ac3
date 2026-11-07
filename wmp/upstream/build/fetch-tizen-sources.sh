@@ -167,49 +167,29 @@ fi
   fi
 } | tee -a "$DLOG_AUDIT"
 
-unrpm "$dlog_devel" "$OUT/sysroot"
-
-{
-  echo
-  echo "Relevant paths after extraction into sysroot:"
-  find "$OUT/sysroot" \( -type f -o -type l \) \
-    \( -iname 'dlog.h' -o -iname 'libdlog.so*' -o -iname '*dlog*.pc' \) -print | sort
-  echo
-  echo "Header candidates and file types:"
-  while IFS= read -r header; do
-    [[ -n "$header" ]] || continue
-    ls -l "$header"
-    file "$header" 2>/dev/null || true
-  done < <(find "$OUT/sysroot" -type f -iname 'dlog.h' -print)
-  echo
-  echo "DLog library candidates and symlink targets:"
-  while IFS= read -r library; do
-    [[ -n "$library" ]] || continue
-    ls -l "$library"
-    readlink -f "$library" || true
-  done < <(find "$OUT/sysroot" \( -type f -o -type l \) -name 'libdlog.so*' -print | sort)
-} | tee -a "$DLOG_AUDIT"
 # Audit the Message Port development package as well. Its package is
-# already part of UNI_PKGS; record the RPM's declared paths and the extracted
-# header location so include-path and package-content failures are distinct.
+# already part of UNI_PKGS; record the RPM's declared paths and extracted
+# header location so package-content and include-path failures are distinct.
 MESSAGE_PORT_AUDIT="$OUT/message-port-package-audit.txt"
-message_port_rpm=$(fetch "$T50_UNI/packages/armv7l" message-port-devel '\\.armv7l\\.rpm')
+message_port_rpm=$(fetch "$T50_UNI/packages/armv7l" message-port-devel '\.armv7l\.rpm')
 if [[ -n "$message_port_rpm" ]]; then
   {
     echo "Selected package: $(basename "$message_port_rpm")"
     echo "Repository: $T50_UNI/packages/armv7l"
     echo "Relevant paths recorded inside RPM:"
-    bsdtar -tf "$message_port_rpm" | grep -Ei '(^|/)(message_port\\.h|libmessage-port[^/]*|pkgconfig/.*message.port.*)$' || true
-    echo
-    echo "Header locations after extraction:"
-    find "$OUT/sysroot/usr/include" -type f -name message_port.h -print | sort
-    echo
-    echo "Message Port library candidates:"
-    find "$OUT/sysroot" \\( -type f -o -type l \\) -name 'libmessage-port.so*' -print | sort
+    bsdtar -tf "$message_port_rpm" | grep -Ei '(^|/)(message_port\.h|libmessage-port[^/]*|pkgconfig/.*message.port.*)$' || true
   } | tee "$MESSAGE_PORT_AUDIT"
 else
   echo "RESULT: message-port-devel RPM not found in Tizen 5.0 Unified" | tee "$MESSAGE_PORT_AUDIT"
 fi
+{
+  echo
+  echo "Header locations after extraction:"
+  find "$OUT/sysroot/usr/include" -type f -name message_port.h -print | sort
+  echo
+  echo "Message Port library candidates:"
+  find "$OUT/sysroot" \( -type f -o -type l \) -name 'libmessage-port.so*' -print | sort
+} | tee -a "$MESSAGE_PORT_AUDIT"
 
 echo "== Cross toolchain (GCC 6.2)"
 if [[ ! -d $OUT/toolchain ]]; then
@@ -224,12 +204,11 @@ for f in usr/include/stdio.h usr/include/media/media_packet.h usr/include/gstrea
          usr/include/glib-2.0/glib.h; do
   [[ -e $OUT/sysroot/$f ]] || { echo "MISSING: sysroot/$f" >&2; missing=1; }
 done
-# Tizen packages may install DLog as usr/include/dlog/dlog.h rather than
-# usr/include/dlog.h. The service build adds the discovered parent directory
-# to its include path, so validate the header recursively as well.
-dlog_header=$(find "$OUT/sysroot/usr/include" -type f -name dlog.h -print -quit)
+# Tizen packages may install DLog and Message Port headers in subdirectories.
+# The service build adds each discovered parent directory to its include path.
 message_port_header=$(find "$OUT/sysroot/usr/include" -type f -name message_port.h -print -quit)
 [[ -n "$message_port_header" ]] || { echo "MISSING: Message Port header under sysroot/usr/include" >&2; missing=1; }
+dlog_header=$(find "$OUT/sysroot/usr/include" -type f -name dlog.h -print -quit)
 [[ -n "$dlog_header" ]] || { echo "MISSING: DLog header under sysroot/usr/include" >&2; missing=1; }
 ls "$OUT"/src/esplusplayer-*/esplusplayer-*/include/esplusplayer_capi/esplusplayer_capi.h >/dev/null 2>&1 \
   || { echo "MISSING: esplusplayer reference headers" >&2; missing=1; }
@@ -238,6 +217,6 @@ ls "$OUT"/src/esplusplayer-*/esplusplayer-*/include/esplusplayer_capi/esplusplay
 echo
 echo "Sources:   $OUT/src"
 echo "Sysroot:   $OUT/sysroot"
-echo "Compiler:  ${gcc_bin:-<not found>}"
+echo "Compiler:  \${gcc_bin:-<not found>}"
 echo "OpenSSL 1.0.x, libcurl and its c-ares/nghttp2/ICU/zlib runtime SONAMEs were resolved from Tizen 5.0 ARM RPMs."
-exit $missing
+exit "$missing"
