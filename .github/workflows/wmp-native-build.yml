@@ -1,6 +1,16 @@
 name: WMP native ARM build
 
 on:
+  workflow_call:
+    inputs:
+      tv_libs_archive_url:
+        description: "HTTPS URL of a tar archive containing target TV usr/lib dependencies (ESPlus is loaded from firmware)"
+        required: true
+        type: string
+      tv_libs_archive_sha256:
+        description: "Optional SHA-256 checksum of the archive"
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       tv_libs_archive_url:
