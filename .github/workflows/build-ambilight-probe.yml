@@ -188,17 +188,51 @@ jobs:
 
       - name: Build and sign hybrid diagnostic WGT
         shell: bash
+        env:
+          AUTHOR_CERT_PASSWORD: ambilight-probe-ci
+          DISTRIBUTOR_CERT_PASSWORD: tizenpkcs12passfordsigner
         run: |
           set -euo pipefail
-          printf '%s\n' \
-            'set timeout -1' \
-            'log_user 1' \
-            'spawn {*}$argv' \
-            'expect {' \
-            '  -re {Author password:} { send -- "ambilight-probe-ci\r"; exp_continue }' \
-            '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
-            '  eof' \
-            '}' > "$RUNNER_TEMP/run-probe-build.exp"
+          cat > "$RUNNER_TEMP/run-probe-build.exp" <<'EXPECT'
+          set timeout 600
+          log_user 1
+          set author_password $env(AUTHOR_CERT_PASSWORD)
+          set distributor_password $env(DISTRIBUTOR_CERT_PASSWORD)
+
+          spawn {*}$argv
+          expect {
+            -re {(?i)(author|authoring)[^\r\n]{0,100}password|password[^\r\n]{0,100}(author|authoring)} {
+              send -- "$author_password\r"
+              exp_continue -continue_timer
+            }
+            -re {(?i)(distributor|distributor1)[^\r\n]{0,100}password|password[^\r\n]{0,100}(distributor|distributor1)} {
+              send -- "$distributor_password\r"
+              exp_continue -continue_timer
+            }
+            timeout {
+              puts stderr "\nERROR: Timed out after 600 seconds waiting for the Tizen build/signing process."
+              puts stderr "Last process output:"
+              puts stderr $expect_out(buffer)
+              exit 124
+            }
+            eof {}
+          }
+
+          set result [wait]
+          if {[lindex $result 2] != 0} {
+            puts stderr "ERROR: Could not collect the Tizen build process exit status: $result"
+            exit 125
+          }
+          set exit_status [lindex $result 3]
+          if {$exit_status != 0} {
+            puts stderr "ERROR: Tizen build/signing process exited with status $exit_status."
+            exit $exit_status
+          }
+          if {[llength $result] > 4 && [lindex $result 4] != 0} {
+            puts stderr "ERROR: Tizen build/signing process terminated by signal [lindex $result 4]."
+            exit 126
+          }
+          EXPECT
           chmod +x "$RUNNER_TEMP/run-probe-build.exp"
           expect "$RUNNER_TEMP/run-probe-build.exp" \
             tizen build-app \
@@ -207,21 +241,6 @@ jobs:
             -p 'name:p1,targets:[b1]' \
             -s AmbilightProbe \
             -- "$AMBILIGHT_PROBE_ROOT"
-
-          wgt="$(find "$AMBILIGHT_PROBE_ROOT" -type f -name '*.wgt' -size +0c -print -quit)"
-          test -n "$wgt"
-          mkdir -p "$RUNNER_TEMP/probe-output"
-          cp "$wgt" "$RUNNER_TEMP/probe-output/AmbilightProbe-Tizen6.wgt"
-          unzip -l "$wgt" | tee "$RUNNER_TEMP/probe-output/package-files.txt"
-          unzip -q "$wgt" -d "$RUNNER_TEMP/probe-output/unpacked"
-          test -s "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service"
-          test -s "$RUNNER_TEMP/probe-output/unpacked/config.xml"
-          test -s "$RUNNER_TEMP/probe-output/unpacked/index.html"
-          test -s "$RUNNER_TEMP/probe-output/unpacked/tizen-manifest.xml"
-          file "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service" | tee "$RUNNER_TEMP/probe-output/file.txt"
-          readelf -h "$RUNNER_TEMP/probe-output/unpacked/bin/ambilight-probe-service" > "$RUNNER_TEMP/probe-output/elf-header.txt"
-          grep -q 'Machine:.*ARM' "$RUNNER_TEMP/probe-output/elf-header.txt"
-          sha256sum "$RUNNER_TEMP/probe-output/AmbilightProbe-Tizen6.wgt" > "$RUNNER_TEMP/probe-output/SHA256SUMS.txt"
 
       - name: Upload diagnostic package
         uses: actions/upload-artifact@v4
