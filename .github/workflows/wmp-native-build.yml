@@ -82,9 +82,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$DEPS/tv-libs/usr/lib" "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib"
           for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
-            source="$(find "$DEPS/sysroot" -type f -o -type l | while IFS= read -r candidate; do
-              if [[ "$(basename "$candidate")" == "$lib" && -e "$candidate" ]]; then printf '%s\n' "$candidate"; break; fi
-            done)"
+            source="$(find "$DEPS/sysroot" \( -type f -o -type l \) -name "$lib" -print -quit)"
+            if [[ -n "$source" && ! -e "$source" ]]; then source=""; fi
             if [[ -z "$source" ]]; then
               echo "::error::Tizen 5.0 ARM repository did not provide required library $lib." >&2
               exit 1
