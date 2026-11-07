@@ -69,8 +69,7 @@ RUNTIME_PKGS="libdlog libffi appcore-agent message-port bundle"
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel
-  appcore-agent-devel message-port-devel bundle-devel
-  ecore-core-devel ecore-wl2-devel"
+  appcore-agent-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
   r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
   if [[ -n $r ]]; then
@@ -130,11 +129,6 @@ fetch_runtime_soname libxkbcommon.so.0 auto libxkbcommon xkbcommon
 fetch_runtime_soname libffi.so.6 auto libffi
 fetch_runtime_soname libeeze.so.1 auto eeze
 fetch_runtime_soname libttrace.so.1 auto libttrace ttrace
-
-# The ESPlus window integration calls Ecore and Ecore_Wl2 directly. Keep the
-# sysroot limited to their core runtime components rather than importing all EFL.
-fetch_runtime_soname libecore.so.1 unified ecore-core
-fetch_runtime_soname libecore_wl2.so.1 unified ecore-wl2
 
 # Transitive dependencies pulled in by the Tizen 5.0 ServiceApp framework
 # libraries (aul, appcore, pkgmgr-info, GIO and Eeze). Each RPM is accepted
