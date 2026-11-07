@@ -31,7 +31,7 @@ declare -A LISTING
 pick() { # dir name suffix
   local dir=$1 name=$2 suffix=$3
   [[ -n ${LISTING[$dir]:-} ]] || LISTING[$dir]=$(curl -fsS --retry 3 "$dir/" | grep -oE 'href="[^"]+"' | cut -d'"' -f2 | sed 's/%2B/+/g')
-  grep -E "^$(sed 's/[+.]/\&/g' <<<"$name")-[0-9].*$suffix\$" <<<"${LISTING[$dir]}" | sort -V | tail -1
+  grep -E "^$(sed 's/[+.]/\\&/g' <<<"$name")-[0-9].*$suffix\$" <<<"\${LISTING[$dir]}" | sort -V | tail -1
 }
 
 fetch() { # dir name suffix -> prints local path, or nothing if not found
