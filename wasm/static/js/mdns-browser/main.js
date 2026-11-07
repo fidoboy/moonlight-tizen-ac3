@@ -263,6 +263,10 @@ function startManualSubnetScanner() {
     for (var slot = 0; slot < Math.min(concurrency, candidates.length); slot++) scanNext();
   });
 
+  manualSubnetScanPromise = manualSubnetScanPromise.catch(function(error) {
+    manualSubnetScanPromise = null;
+    throw error;
+  });
   return manualSubnetScanPromise;
 }
 
