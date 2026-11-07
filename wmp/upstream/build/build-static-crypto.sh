@@ -48,7 +48,7 @@ echo "== cURL 7.59.0 (static, HTTP/HTTPS only, OpenSSL 1.1.1d) =="
 cd "$BPD/curl759"
 # The Git checkout omits release-generated Autotools files; recreate them.
 ./buildconf
-./configure \
+CC="$GCC" AR="$AR" RANLIB="$RANLIB" ./configure \
   --build="$(./config.guess)" \
   --host=arm-linux-gnueabi \
   --prefix="$PREFIX" \
