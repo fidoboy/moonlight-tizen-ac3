@@ -144,7 +144,6 @@ jobs:
             --search-dir "$DEPS/tv-libs/lib" \
             --search-dir "$DEPS/tv-libs/usr/lib" \
             --search-dir wmp/build/service/lib \
-            # Transitive dependencies of Tizen framework RPMs; supplied by firmware, not bundled. \
             --system-soname libblkid.so.1 \
             --system-soname libbuxton2.so.1 \
             --system-soname libcrypto.so.1.1 \
