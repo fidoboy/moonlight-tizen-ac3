@@ -133,6 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           # Transitive dependencies of Tizen framework RPMs; supplied by firmware, not bundled.
+          # These transitive framework dependencies are provided by Tizen firmware,
+          # not bundled with the ServiceApp. Any other missing SONAME remains fatal.
           python3 wmp/upstream/build/audit-elf-dependencies.py \
             --readelf readelf \
             --output build-report/elf-dependencies.txt \
