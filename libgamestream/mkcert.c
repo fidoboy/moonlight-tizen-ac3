@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include <openssl/crypto.h>
+#include <openssl/opensslv.h>
 #include <openssl/pem.h>
 #include <openssl/conf.h>
 #include <openssl/pkcs12.h>
