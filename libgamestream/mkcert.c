@@ -83,8 +83,14 @@ int mkcert(X509 **x509p, EVP_PKEY **pkeyp, int bits, int serial, int years) {
     X509_set_version(cert, 2);
     ASN1_INTEGER_set(X509_get_serialNumber(cert), serial);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    /* OpenSSL 1.0.2 exposes the certificate fields through these accessors. */
+    X509_gmtime_adj(X509_get_notBefore(cert), 0);
+    X509_gmtime_adj(X509_get_notAfter(cert), 60 * 60 * 24 * 365 * years);
+#else
     X509_gmtime_adj(X509_getm_notBefore(cert), 0);
     X509_gmtime_adj(X509_getm_notAfter(cert), 60 * 60 * 24 * 365 * years);
+#endif
 
     X509_set_pubkey(cert, pk);
 
