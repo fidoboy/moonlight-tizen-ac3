@@ -100,7 +100,16 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           from pathlib import Path
           path = Path(sys.argv[1])
-          tree = ET.parse(path); root = tree.getroot()
+          if path.exists():
+              tree = ET.parse(path); root = tree.getroot()
+          else:
+              root = ET.Element("projectDescription")
+              ET.SubElement(root, "name").text = "AmbilightProbeWeb"
+              ET.SubElement(root, "comment")
+              ET.SubElement(root, "projects")
+              ET.SubElement(root, "buildSpec")
+              ET.SubElement(root, "natures")
+              tree = ET.ElementTree(root)
           projects = root.find("projects")
           if projects is None: projects = ET.SubElement(root, "projects")
           if not any((x.text or "").strip() == "AmbilightProbeService" for x in projects.findall("project")):
@@ -114,9 +123,9 @@ jobs:
           tree = ET.parse(sys.argv[2]); native = tree.getroot()
           version = web.attrib.get("version")
           app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
-          if not version or native.attrib.get("package") != "AmbilightProbe":
-              raise SystemExit("Web version or native package ID is invalid")
-          if app is None or app.attrib.get("appid") != "AmbilightProbe.AmbilightProbeService" or app.attrib.get("exec") != "ambilight-probe-service":
+          if not version or web.attrib.get("package") != "AmbiProbeX" or native.attrib.get("package") != web.attrib.get("package"):
+              raise SystemExit("Web version or hybrid package ID is invalid")
+          if app is None or app.attrib.get("appid") != "AmbiProbeX.AmbilightProbeService" or app.attrib.get("exec") != "ambilight-probe-service":
               raise SystemExit("Native probe service identity is invalid")
           native.set("version", version)
           ET.register_namespace("", "http://tizen.org/ns/packages")
