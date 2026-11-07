@@ -78,7 +78,16 @@
     show(supported ? 'Compatible: API de captura operativa' : 'No compatible en esta combinación de TV/firmware', report.join('\n'), supported ? 'ok' : 'bad');
   }
 
-  function sendProbe() {
+  function errorDescription(error) {
+    var parts = [];
+    if (error && error.name) parts.push(error.name);
+    if (error && error.code !== undefined) parts.push('código ' + error.code);
+    if (error && error.message) parts.push(error.message);
+    else if (error) parts.push(String(error));
+    return parts.join(' — ') || 'Error desconocido';
+  }
+
+  function sendProbe(attempt) {
     try {
       var remote = tizen.messageport.requestTrustedRemoteMessagePort(SERVICE_APP_ID, SERVICE_PORT);
       remote.sendMessage([
@@ -86,7 +95,18 @@
         { key: 'command', value: 'probe' }
       ], localPort);
     } catch (error) {
-      show('No se pudo contactar con el servicio nativo', String(error && error.message ? error.message : error) + '\nCompruebe que el servicio auxiliar se ha iniciado y vuelva a intentarlo.', 'bad');
+      // The launch callback may run before the service has registered its port.
+      // Retry only NotFoundError; certificate and other API errors are terminal.
+      if (error && error.name === 'NotFoundError' && attempt < 32) {
+        details.textContent = 'Esperando a que el servicio nativo registre su puerto… (' + (attempt + 1) + '/32)';
+        window.setTimeout(function () { sendProbe(attempt + 1); }, 250);
+        return;
+      }
+      var reason = errorDescription(error);
+      if (error && error.name === 'NotFoundError') {
+        reason += '\nNo se ha encontrado el puerto "' + SERVICE_PORT + '" de "' + SERVICE_APP_ID + '" después de 8 segundos.';
+      }
+      show('No se pudo contactar con el servicio nativo', reason, 'bad');
     }
   }
 
@@ -103,9 +123,9 @@
         listenerId = localPort.addMessagePortListener(onMessage);
       }
       tizen.application.launch(SERVICE_APP_ID, function () {
-        sendProbe();
+        sendProbe(0);
       }, function (error) {
-        show('No se pudo iniciar el servicio nativo', String(error && error.message ? error.message : error), 'bad');
+        show('No se pudo iniciar el servicio nativo', errorDescription(error), 'bad');
       });
     } catch (error) {
       show('API Tizen no disponible', String(error && error.message ? error.message : error), 'bad');
