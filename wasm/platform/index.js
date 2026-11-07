@@ -2910,8 +2910,8 @@ function hostMenuDialog(host) {
     type: 'button',
     id: 'closeHostMenu',
     class: 'mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect',
-    'data-i18n': 'Close',
-    text: t('Close')
+    'data-i18n': 'Close menu',
+    text: t('Close menu')
   });
 
   // Close the dialog if the Close button is pressed
