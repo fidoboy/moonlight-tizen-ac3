@@ -21,8 +21,8 @@ for tool in "$GCC" "$AR" "$RANLIB"; do
 done
 export PATH="$TOOLBIN:$PATH"
 export CC=gcc
-export AR=arm-linux-gnueabi-ar
-export RANLIB=arm-linux-gnueabi-ranlib
+export AR=ar
+export RANLIB=ranlib
 export CFLAGS="$ARCH -O2 -fPIC"
 export CPPFLAGS="--sysroot=$DEPS/sysroot"
 export LDFLAGS="--sysroot=$DEPS/sysroot"
