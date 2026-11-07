@@ -69,7 +69,7 @@ RUNTIME_PKGS="ecore-wl2 ecore-core ecore-input efl eina eo libtbm
 UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-devel capi-media-player-devel
   capi-media-audio-io-devel ecore-wl2-devel ecore-wayland-devel ecore-devel eina-devel
   efl-devel libtbm-devel wayland-devel libwayland-client
-  capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel message-port-devel bundle-devel libdlog-devel"
+  capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
   r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
   if [[ -n $r ]]; then
@@ -117,6 +117,21 @@ r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n 
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
 [[ -e $OUT/sysroot/usr/include/asm ]] || ln -s asm-arm "$OUT/sysroot/usr/include/asm"
 for p in $UNI_PKGS; do r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
+
+# Tizen 5.0 still publishes the legacy tizen-dlog-devel package name.
+# Newer releases use libdlog-devel; accept either, but never fetch headers
+# from a different Tizen release.
+dlog_devel=""
+for p in tizen-dlog-devel dlog-devel libdlog-devel; do
+  dlog_devel=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
+  [[ -n "$dlog_devel" ]] && break
+done
+if [[ -z "$dlog_devel" ]]; then
+  echo "MISSING: Tizen 5.0 ARM DLog development RPM (tried tizen-dlog-devel, dlog-devel, libdlog-devel)" >&2
+  missing=1
+else
+  unrpm "$dlog_devel" "$OUT/sysroot"
+fi
 
 echo "== Cross toolchain (GCC 6.2)"
 if [[ ! -d $OUT/toolchain ]]; then
