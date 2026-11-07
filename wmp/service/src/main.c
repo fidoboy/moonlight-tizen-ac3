@@ -16,6 +16,7 @@
 #include "mlengine.h"
 #include "wmp_esplus_abi.h"
 
+#undef LOG_TAG
 #define LOG_TAG "MoonlightWmp"
 #define WMP_CONTROL_PORT "MoonlightWmpControl"
 #define WMP_PROTOCOL "moonlight-wmp/1"
