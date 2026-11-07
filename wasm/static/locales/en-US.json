@@ -610,5 +610,8 @@
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.",
   "Send keystrokes": "Send keystrokes",
   "Show performance stats": "Show performance stats",
-  "Hide performance stats": "Hide performance stats"
+  "Hide performance stats": "Hide performance stats",
+  "Stream menu shortcut": "Stream menu shortcut",
+  "Open the stream menu by holding Select": "Open the stream menu by holding Select",
+  "- Hold Select for 1 second to open the stream menu. A short press is sent to the host normally.": "- Hold Select for 1 second to open the stream menu. A short press is sent to the host normally."
 }
