@@ -67,7 +67,8 @@ jobs:
           gcc="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-gcc' -perm -u+x -print -quit)"
           objdump="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-objdump' -perm -u+x -print -quit)"
           ar="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ar' -perm -u+x -print -quit)"
-          if [[ -z "$gcc" || -z "$objdump" || -z "$ar" ]]; then
+          ranlib="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ranlib' -perm -u+x -print -quit)"
+          if [[ -z "$gcc" || -z "$objdump" || -z "$ar" || -z "$ranlib" ]]; then
             echo "::error::The downloaded Tizen archive does not contain the expected ARM GCC/binutils executables."
             find "$tool_root" -maxdepth 7 -type f | head -200
             exit 1
@@ -85,6 +86,7 @@ jobs:
           link_tool "$gcc" arm-linux-gnueabi-gcc
           link_tool "$objdump" arm-linux-gnueabi-objdump
           link_tool "$ar" arm-linux-gnueabi-ar
+          link_tool "$ranlib" arm-linux-gnueabi-ranlib
           "$expected/arm-linux-gnueabi-gcc" --version
           "$expected/arm-linux-gnueabi-objdump" --version | head -1
 
