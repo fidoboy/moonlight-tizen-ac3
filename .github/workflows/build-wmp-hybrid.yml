@@ -336,6 +336,40 @@ jobs:
           test -n "$hybrid_wgt"
           cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
 
+      - name: Collect Tizen CLI diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          diagnostics="$RUNNER_TEMP/tizen-cli-diagnostics"
+          mkdir -p "$diagnostics"
+          log_dir="${TIZEN_STUDIO_DATA_PATH:-$RUNNER_TEMP/tizen-studio-data}/cli/logs"
+
+          if [[ -d "$log_dir" ]]; then
+            cp -a "$log_dir/." "$diagnostics/"
+          else
+            printf 'Tizen CLI log directory not found: %s\\n' "$log_dir" > "$diagnostics/LOG-NOT-FOUND.txt"
+            printf 'Searched runner temp and workspace for cli/logs/cli.log.\\n' >> "$diagnostics/LOG-NOT-FOUND.txt"
+            find "$RUNNER_TEMP" "$GITHUB_WORKSPACE" -type f -path '*/cli/logs/cli.log' -print 2>/dev/null | while IFS= read -r log; do
+              destination="$diagnostics/$(echo "$log" | sed 's|/|_|g')"
+              cp "$log" "$destination"
+            done
+          fi
+
+          if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
+            printf 'No Tizen CLI logs were found.\\n' > "$diagnostics/LOG-NOT-FOUND.txt"
+          fi
+          find "$diagnostics" -maxdepth 1 -type f -printf '%f (%s bytes)\\n' | sort
+
+      - name: Upload Tizen CLI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tizen-cli-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/tizen-cli-diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Inspect hybrid WGT and native linkage
         shell: bash
         run: |
