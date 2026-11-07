@@ -293,7 +293,7 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
   }, timeoutMs);
 }
 
-function streamStartupTimeoutFailure(stage, customMessage) {
+null {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
   streamStartupGeneration++;
@@ -330,6 +330,8 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     // The full interface will show the error in a modal after it has returned
     // and the transition layer has completely disappeared.
     isInGame = false;
+    // Streaming may already have stopped background polling; resume it explicitly.
+    startPollingHosts();
     showHosts(function() {
       hideStreamTransitionBackground(function() {
         warningDialog(t('Error'), message, null, true, 'OK', { code: null, apiMessage: null });
@@ -387,7 +389,7 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   }).catch(function(recoveryError) {
     console.error('%c[index.js, streamStartupApiFailure]', 'color: red;', 'Could not restore the Apps view after a launch error:', recoveryError);
     // Fall back to Hosts without showing a secondary snackbar that could obscure the error.
-    showHostsMode(true, true);
+    showHostsMode(true);
     $('#host-grid').stop(true, true).show();
     $('#game-grid').stop(true, true).hide();
     $('#settings-list').hide();
@@ -1733,7 +1735,7 @@ function refreshHosts() {
 }
 
 // Handle layout elements when displaying the Hosts view
-function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
+function showHostsMode(deferAmbientBackgroundActivation) {
   $('#background-layer').show();
   if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
@@ -1763,14 +1765,6 @@ function showHostsMode(skipPollingRestart, deferAmbientBackgroundActivation) {
   showUiLayer('main-ui-layer');
   Navigation.start();
   Navigation.pop();
-  // Stop any existing polls before starting new ones to prevent setInterval leaks.
-  // Without this, navigating back to the host view multiple times accumulates
-  // duplicate polling intervals for each host, which causes race conditions in
-  // _pollCompletionCallbacks and prevents the host from recovering to online.
-  if (!skipPollingRestart) {
-    stopPollingHosts();
-    startPollingHosts();
-  }
 }
 
 // Move once from Add Host to the first loaded host using normal navigation.
@@ -1909,7 +1903,7 @@ function restoreUiAfterWasmLoad() {
 
   // Navigate to the Hosts view and establish the complete initial focus state before paint.
   Navigation.push(Views.Hosts);
-  showHostsMode(true);
+  showHostsMode();
   Navigation.switch();
   Navigation.switch();
   lockHostListInteraction();
