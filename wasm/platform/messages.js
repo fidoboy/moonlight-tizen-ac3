@@ -1152,6 +1152,10 @@ function handleMessage(msg) {
           if (typeof finishAppsModeAfterStreamTransition === 'function') {
             finishAppsModeAfterStreamTransition();
           }
+          // Resume periodic host status checks while the application UI is active.
+          if (typeof startPollingHosts === 'function') {
+            startPollingHosts();
+          }
           window._streamTerminationRecoveryInProgress = false;
           var quitButtonAfterRecovery = document.getElementById('quitRunningAppBtn');
           if (quitButtonAfterRecovery) quitButtonAfterRecovery.disabled = false;
