@@ -276,9 +276,10 @@
   "In order for your changes to take effect, a restart of the application is required.<br><br>Would you like to proceed with the restart?": "Para que los cambios surtan efecto, es necesario reiniciar la aplicación.<br><br>¿Desea reiniciarla ahora?",
   "Incoming bitrate from network:": "Tasa de bits recibida de la red:",
   "Frame rates:": "Frecuencias de fotogramas:",
-  "decoded FPS": "FPS decodificados",
-  "received FPS": "FPS recibidos",
-  "rendered FPS": "FPS renderizados",
+  "Recv": "Rec.",
+  "Dec": "Dec.",
+  "Rend": "Ren.",
+
   "Invalid MAC address format": "Formato de dirección MAC no válido",
   "Invalid MAC address: default zero MAC address not allowed": "Dirección MAC no válida: no se permite una dirección compuesta solo por ceros",
   "Keyboard": "Teclado",
