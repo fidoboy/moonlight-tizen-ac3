@@ -118,16 +118,19 @@ r=$(fetch "$T50_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n 
 [[ -e $OUT/sysroot/usr/include/asm ]] || ln -s asm-arm "$OUT/sysroot/usr/include/asm"
 for p in $UNI_PKGS; do r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 
-# Tizen 5.0 still publishes the legacy tizen-dlog-devel package name.
-# Newer releases use libdlog-devel; accept either, but never fetch headers
-# from a different Tizen release.
+# DLog development RPMs have moved between Tizen 5.0 Unified and Base.
+# Search both repositories for the matching Tizen 5.0 ARM package; never
+# substitute headers from a newer Tizen release.
 dlog_devel=""
-for p in tizen-dlog-devel dlog-devel libdlog-devel; do
-  dlog_devel=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
+for repo in "$T50_UNI" "$T50_BASE"; do
+  for p in tizen-dlog-devel dlog-devel libdlog-devel; do
+    dlog_devel=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
+    [[ -n "$dlog_devel" ]] && break
+  done
   [[ -n "$dlog_devel" ]] && break
 done
 if [[ -z "$dlog_devel" ]]; then
-  echo "MISSING: Tizen 5.0 ARM DLog development RPM (tried tizen-dlog-devel, dlog-devel, libdlog-devel)" >&2
+  echo "MISSING: Tizen 5.0 ARM DLog development RPM (tried Unified/Base: tizen-dlog-devel, dlog-devel, libdlog-devel)" >&2
   exit 1
 fi
 unrpm "$dlog_devel" "$OUT/sysroot"
