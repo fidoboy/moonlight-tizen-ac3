@@ -1462,13 +1462,16 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   });
 }
 
-function startPollingHosts() {
+function startPollingHosts(excludedHost) {
   // Calls from startup/discovery callbacks must not restart polling during a stream or network test.
   if (isInGame === true || hostPollingPausedForNetworkTest) return Promise.resolve();
 
   var pollPromises = [];
   for (var hostUID in hosts) {
-    pollPromises.push(beginBackgroundPollingOfHost(hosts[hostUID]));
+    var host = hosts[hostUID];
+    // Apps recovery resumes the selected host only after its box art downloads finish.
+    if (host === excludedHost) continue;
+    pollPromises.push(beginBackgroundPollingOfHost(host));
   }
   return Promise.all(pollPromises);
 }
@@ -4847,7 +4850,6 @@ function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
       checkForAppUpdatesAtStartup();
     }, 0);
   }
-  stopPollingHosts();
   if (!appListInteractionLocked) Navigation.start();
   flushDeferredMainUiActions();
 }
