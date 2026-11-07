@@ -120,21 +120,75 @@ for p in $UNI_PKGS; do r=$(fetch "$T50_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'
 
 # DLog development RPMs have moved between Tizen 5.0 Unified and Base.
 # Search both repositories for the matching Tizen 5.0 ARM package; never
-# substitute headers from a newer Tizen release.
+# substitute headers from a newer Tizen release. Keep a focused audit because
+# package-name matches alone do not prove that the RPM contains dlog.h.
+DLOG_AUDIT="$OUT/dlog-package-audit.txt"
+: > "$DLOG_AUDIT"
 dlog_devel=""
+dlog_repo=""
+dlog_package=""
 for repo in "$T50_UNI" "$T50_BASE"; do
   for p in tizen-dlog-devel dlog-devel libdlog-devel; do
-    dlog_devel=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
-    [[ -n "$dlog_devel" ]] && break
+    candidate=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
+    if [[ -n "$candidate" ]]; then
+      dlog_devel=$candidate
+      dlog_repo=$repo
+      dlog_package=$p
+      break
+    fi
   done
   [[ -n "$dlog_devel" ]] && break
 done
 if [[ -z "$dlog_devel" ]]; then
-  echo "MISSING: Tizen 5.0 ARM DLog development RPM (tried Unified/Base: tizen-dlog-devel, dlog-devel, libdlog-devel)" >&2
+  {
+    echo "RESULT: no DLog development RPM found"
+    echo "Repositories searched:"
+    echo "  $T50_UNI/packages/armv7l"
+    echo "  $T50_BASE/packages/armv7l"
+    echo "Package names tried: tizen-dlog-devel, dlog-devel, libdlog-devel"
+  } | tee "$DLOG_AUDIT"
+  echo "MISSING: Tizen 5.0 ARM DLog development RPM; see $DLOG_AUDIT" >&2
   exit 1
 fi
+
+{
+  echo "Selected package: $(basename "$dlog_devel")"
+  echo "Matched package name: $dlog_package"
+  echo "Repository: $dlog_repo"
+  echo "RPM file: $dlog_devel"
+  echo
+  echo "Relevant paths recorded inside RPM:"
+  if command -v bsdtar >/dev/null; then
+    bsdtar -tf "$dlog_devel" | grep -Ei '(^|/)(dlog\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
+  elif command -v rpm2cpio >/dev/null && command -v cpio >/dev/null; then
+    (cd "$OUT" && rpm2cpio "$dlog_devel" | cpio -t 2>/dev/null) | grep -Ei '(^|/)(dlog\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
+  else
+    echo "Cannot list RPM contents: neither bsdtar nor rpm2cpio+cpio is available"
+  fi
+} | tee -a "$DLOG_AUDIT"
+
 unrpm "$dlog_devel" "$OUT/sysroot"
 
+{
+  echo
+  echo "Relevant paths after extraction into sysroot:"
+  find "$OUT/sysroot" \( -type f -o -type l \) \
+    \( -iname 'dlog.h' -o -iname 'libdlog.so*' -o -iname '*dlog*.pc' \) -print | sort
+  echo
+  echo "Header candidates and file types:"
+  while IFS= read -r header; do
+    [[ -n "$header" ]] || continue
+    ls -l "$header"
+    file "$header" 2>/dev/null || true
+  done < <(find "$OUT/sysroot" -type f -iname 'dlog.h' -print)
+  echo
+  echo "DLog library candidates and symlink targets:"
+  while IFS= read -r library; do
+    [[ -n "$library" ]] || continue
+    ls -l "$library"
+    readlink -f "$library" || true
+  done < <(find "$OUT/sysroot" \( -type f -o -type l \) -name 'libdlog.so*' -print | sort)
+} | tee -a "$DLOG_AUDIT"
 echo "== Cross toolchain (GCC 6.2)"
 if [[ ! -d $OUT/toolchain ]]; then
   curl -fsS --retry 3 -o "$OUT/rpm/$TOOLCHAIN_ZIP" "$SDK/$TOOLCHAIN_ZIP"
