@@ -205,7 +205,9 @@ def main() -> int:
             for requester in sorted(set(missing[soname])):
                 print(f"  required by: {requester}")
         return 1
-    print("All recursive DT_NEEDED dependencies were found in the target sysroot/TV libraries.")
+    print("No unclassified DT_NEEDED dependencies remain.")
+    if system_external:
+        print("The listed platform dependencies must be supplied by the target Tizen firmware at runtime.")
     return 0
 
 
