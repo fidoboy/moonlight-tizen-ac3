@@ -5726,6 +5726,9 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
 
       hideUiLayerImmediately('main-ui-layer');
       $('#listener').addClass('fullscreen');
+      // Stop all background host polling as the stream enters fullscreen.
+      // In-flight callbacks also observe isInGame and cannot schedule another poll.
+      stopPollingHosts();
       isInGame = true;
       fullscreenWasmModule(streamWidth, streamHeight);
       showUiLayer('stream-diagnostics-layer');
