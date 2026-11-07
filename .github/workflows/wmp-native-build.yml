@@ -88,24 +88,6 @@ jobs:
           "$expected/arm-linux-gnueabi-gcc" --version
           "$expected/arm-linux-gnueabi-objdump" --version | head -1
 
-      - name: Prepare link libraries from the Tizen 5.0 ARM repository sysroot
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$DEPS/tv-libs/usr/lib" "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib"
-          for lib in libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4 \
-                     libcares.so.2 libnghttp2.so.14 libicuuc.so.60 libicudata.so.60 libz.so.1; do
-            source="$(find "$DEPS/sysroot" \( -type f -o -type l \) -name "$lib" -print -quit)"
-            if [[ -n "$source" && ! -e "$source" ]]; then source=""; fi
-            if [[ -z "$source" ]]; then
-              echo "::error::Tizen 5.0 ARM repository did not provide required library $lib." >&2
-              exit 1
-            fi
-            cp -aL "$source" "$DEPS/tv-libs/usr/lib/$lib"
-          done
-          cp -a "$DEPS/tv-libs/usr/lib/." "$GITHUB_WORKSPACE/wmp-tv-libs/usr/lib/"
-          echo "Prepared link libraries from the public Tizen 5.0 ARM repository; ESPlus remains runtime-loaded from TV firmware."
-
       - name: Fetch backport source dependencies
         run: bash wmp/upstream/build/fetch-backport-deps.sh
 
@@ -166,4 +148,3 @@ jobs:
             wmp/build/service/bin/wmp-service
             wmp/build/service/lib/libmlengine.so
             build-report/
-            wmp-tv-libs/usr/lib/
