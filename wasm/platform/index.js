@@ -293,7 +293,7 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
   }, timeoutMs);
 }
 
-null {
+function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
   streamStartupGeneration++;
