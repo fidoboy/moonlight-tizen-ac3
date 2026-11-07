@@ -78,10 +78,10 @@ for p in $RUNTIME_PKGS; do
     echo "RUNTIME_PACKAGE_NOT_FOUND=$p" | tee -a "$OUT/runtime-package-audit.txt"
   fi
 done
-# OpenSSL and libcurl are split into runtime RPMs whose package names differ
-# from the upstream project names. Resolve the packages by their actual Tizen
-# RPM names, checking both Unified and Base repositories and verifying the
-# required SONAME is present after extraction. Never substitute a newer ABI.
+# Resolve runtime dependencies by their exact SONAME. Use repository-specific
+# package mappings where metadata has confirmed the provider; retain a quiet
+# two-repository probe only for dependencies whose provider is not yet pinned.
+# Every extracted RPM is checked for the exact SONAME before it is accepted.
 fetch_runtime_soname() { # soname repo package-name...
   local soname="$1" repo="$2" pkg rpm found
   shift 2
@@ -110,44 +110,44 @@ fetch_runtime_soname() { # soname repo package-name...
 }
 
 # zlib remains a possible dependency of the Tizen framework libraries.
-fetch_runtime_soname libz.so.1 zlib libz
+fetch_runtime_soname libz.so.1 auto zlib libz
 
 # ServiceApp and the selected Tizen framework libraries have additional
 # runtime dependencies. Resolve these by exact SONAME from the same Tizen 5.5
 # Unified/Base snapshots; development RPMs alone do not provide link-time
 # implementations for these dependencies.
-fetch_runtime_soname libaul.so.0 aul
-fetch_runtime_soname libglib-2.0.so.0 libglib glib2 glib
-fetch_runtime_soname libcapi-appfw-app-control.so.0 capi-appfw-app-control
-fetch_runtime_soname libappcore-common.so.1 appcore-common app-core-common
-fetch_runtime_soname libpkgmgr-info.so.0 pkgmgr-info
-fetch_runtime_soname libgio-2.0.so.0 libgio
-fetch_runtime_soname libgobject-2.0.so.0 libgobject
-fetch_runtime_soname libcapi-base-common.so.0 capi-base-common
-fetch_runtime_soname libjson-glib-1.0.so.0 libjson-glib json-glib
-fetch_runtime_soname libxkbcommon.so.0 libxkbcommon xkbcommon
-fetch_runtime_soname libffi.so.6 libffi
-fetch_runtime_soname libeeze.so.1 eeze
-fetch_runtime_soname libttrace.so.1 libttrace ttrace
+fetch_runtime_soname libaul.so.0 auto aul
+fetch_runtime_soname libglib-2.0.so.0 auto libglib glib2 glib
+fetch_runtime_soname libcapi-appfw-app-control.so.0 auto capi-appfw-app-control
+fetch_runtime_soname libappcore-common.so.1 auto appcore-common app-core-common
+fetch_runtime_soname libpkgmgr-info.so.0 auto pkgmgr-info
+fetch_runtime_soname libgio-2.0.so.0 auto libgio
+fetch_runtime_soname libgobject-2.0.so.0 auto libgobject
+fetch_runtime_soname libcapi-base-common.so.0 auto capi-base-common
+fetch_runtime_soname libjson-glib-1.0.so.0 auto libjson-glib json-glib
+fetch_runtime_soname libxkbcommon.so.0 auto libxkbcommon xkbcommon
+fetch_runtime_soname libffi.so.6 auto libffi
+fetch_runtime_soname libeeze.so.1 auto eeze
+fetch_runtime_soname libttrace.so.1 auto libttrace ttrace
 
 # Transitive dependencies pulled in by the Tizen 5.0 ServiceApp framework
 # libraries (aul, appcore, pkgmgr-info, GIO and Eeze). Each RPM is accepted
 # only when it contains the exact SONAME required by the linker.
-fetch_runtime_soname libxdgmime.so.1 xdgmime
-fetch_runtime_soname libtzplatform-config-2.0.so.2 libtzplatform-config
-fetch_runtime_soname libcapi-system-info.so.0 capi-system-info
-fetch_runtime_soname libvconf.so.0 vconf-compat vconf
-fetch_runtime_soname libsqlite3.so.0 base sqlite3 sqlite libsqlite
-fetch_runtime_soname libiniparser.so.0 iniparser
-fetch_runtime_soname libxml2.so.2 libxml2
-fetch_runtime_soname libstorage.so.0.1 libstorage
+fetch_runtime_soname libxdgmime.so.1 auto xdgmime
+fetch_runtime_soname libtzplatform-config-2.0.so.2 auto libtzplatform-config
+fetch_runtime_soname libcapi-system-info.so.0 auto capi-system-info
+fetch_runtime_soname libvconf.so.0 auto vconf-compat vconf
+fetch_runtime_soname libsqlite3.so.0 base libsqlite
+fetch_runtime_soname libiniparser.so.0 auto iniparser
+fetch_runtime_soname libxml2.so.2 auto libxml2
+fetch_runtime_soname libstorage.so.0.1 auto libstorage
 fetch_runtime_soname libpcre.so.1 base libpcre
 fetch_runtime_soname libsensor.so.4 unified sensord-dummy
 fetch_runtime_soname libpkgmgr_parser.so.0 unified pkgmgr-info-parser
-fetch_runtime_soname libminizip.so.1 minizip
-fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
+fetch_runtime_soname libminizip.so.1 auto minizip
+fetch_runtime_soname libgmodule-2.0.so.0 auto libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 unified libsystemd
-fetch_runtime_soname libmount.so.1 libmount util-linux
+fetch_runtime_soname libmount.so.1 auto libmount util-linux
 for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
