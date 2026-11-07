@@ -124,14 +124,23 @@ jobs:
           PY
 
           python3 - "$web/config.xml" "$service/tizen-manifest.xml" <<'PY'
-          import sys, xml.etree.ElementTree as ET
+          import re, sys, xml.etree.ElementTree as ET
           web = ET.parse(sys.argv[1]).getroot()
           tree = ET.parse(sys.argv[2]); native = tree.getroot()
           version = web.attrib.get("version")
-          app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
-          if not version or native.attrib.get("package") != "AmbilightProbe":
-              raise SystemExit("Web version or native package ID is invalid")
-          if app is None or app.attrib.get("appid") != "AmbilightProbe.AmbilightProbeService" or app.attrib.get("exec") != "ambilight-probe-service":
+          web_app = next((n for n in web.iter() if n.tag.endswith("application")), None)
+          service_app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
+          if web_app is None:
+              raise SystemExit("Web application identity is missing")
+          package_id = web_app.attrib.get("package", "")
+          web_app_id = web_app.attrib.get("id", "")
+          if re.fullmatch(r"[A-Za-z0-9]{10}", package_id) is None:
+              raise SystemExit(f"Tizen TV package ID must be exactly 10 alphanumeric characters: {package_id!r}")
+          if not version or native.attrib.get("package") != package_id:
+              raise SystemExit("Web and native package IDs do not match")
+          if not web_app_id.startswith(package_id + "."):
+              raise SystemExit("Web application ID does not use the package ID as prefix")
+          if service_app is None or not service_app.attrib.get("appid", "").startswith(package_id + ".") or service_app.attrib.get("exec") != "ambilight-probe-service":
               raise SystemExit("Native probe service identity is invalid")
           native.set("version", version)
           tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
