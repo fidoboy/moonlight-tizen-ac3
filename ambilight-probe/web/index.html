@@ -12,6 +12,7 @@
   h1 { margin: 0 0 12px; font-size: 38px; font-weight: 600; }
   p { color: #c5cbd5; font-size: 21px; line-height: 1.45; }
   button { margin: 20px 0; padding: 17px 34px; border: 0; border-radius: 8px; background: #e5eaf2; color: #121722; font-size: 23px; font-weight: 600; }
+  button:focus { outline: 4px solid #70b7ff; outline-offset: 5px; }
   button:disabled { opacity: .45; }
   #status { margin-top: 14px; padding: 20px 24px; border: 1px solid #465063; border-radius: 8px; background: #191f2a; min-height: 135px; }
   #headline { font-size: 25px; font-weight: 600; margin-bottom: 10px; }
@@ -23,7 +24,7 @@
 <main>
   <h1>Diagnóstico Ambilight</h1>
   <p>Comprueba si el firmware y el procesador de vídeo exponen la captura RGB nativa de Samsung. La prueba realiza una sola lectura de un bloque de píxeles; no inicia una captura continua ni envía datos a la red.</p>
-  <button id="probe">Probar compatibilidad</button>
+  <button id="probe" type="button" tabindex="0">Probar compatibilidad</button>
   <section id="status" aria-live="polite">
     <div id="headline" class="muted">Preparado</div>
     <div id="details">Pulse el botón para ejecutar la comprobación en el televisor.</div>
@@ -48,6 +49,7 @@
     details.textContent = text;
     button.disabled = false;
     button.textContent = 'Repetir prueba';
+    button.focus();
   }
 
   function valueOf(items, key) {
@@ -88,7 +90,8 @@
     }
   }
 
-  button.addEventListener('click', function () {
+  function startProbe() {
+    if (button.disabled) return;
     button.disabled = true;
     button.textContent = 'Comprobando…';
     headline.textContent = 'Ejecutando prueba nativa…';
@@ -107,6 +110,24 @@
     } catch (error) {
       show('API Tizen no disponible', String(error && error.message ? error.message : error), 'bad');
     }
+  }
+
+  button.addEventListener('click', startProbe);
+
+  // Samsung TV remotes may deliver the confirmation key to the document
+  // without activating an unfocused HTML button. Route it explicitly.
+  document.addEventListener('keydown', function (event) {
+    var key = event.key || '';
+    var code = event.keyCode || event.which || 0;
+    if (key === 'Enter' || key === 'Return' || key === 'Select' || code === 13) {
+      event.preventDefault();
+      event.stopPropagation();
+      startProbe();
+    }
+  }, true);
+
+  window.addEventListener('load', function () {
+    try { button.focus(); } catch (error) {}
   });
 
   window.addEventListener('unload', function () {
