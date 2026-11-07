@@ -113,9 +113,10 @@ function replaceKnownStatsLabels(text) {
         ' · ' + outOfOrder + ' ' + t('FEC out-of-order');
     })
     .replace(/Codec:/g, t('Codec:'))
-    .replace(/Incoming frame rate from network:/g, t('Incoming frame rate from network:'))
-    .replace(/Decoding frame rate:/g, t('Decoding frame rate:'))
-    .replace(/Rendering frame rate:/g, t('Rendering frame rate:'))
+    .replace(/Frame rates:/g, t('Frame rates:'))
+    .replace(/received FPS/g, t('received FPS'))
+    .replace(/decoded FPS/g, t('decoded FPS'))
+    .replace(/rendered FPS/g, t('rendered FPS'))
     .replace(/Incoming bitrate from network:/g, t('Incoming bitrate from network:'))
     .replace(/Frames dropped by your network connection:/g, t('Frames dropped by your network connection:'))
     .replace(/Average network latency:/g, t('Average network latency:'))
