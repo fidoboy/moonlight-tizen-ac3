@@ -54,6 +54,7 @@ jobs:
           name: tizen-dlog-package-audit-${{ github.sha }}
           path: |
             tizen-deps/dlog-package-audit.txt
+            tizen-deps/message-port-package-audit.txt
             tizen-deps/runtime-package-audit.txt
           if-no-files-found: ignore
           retention-days: 14
