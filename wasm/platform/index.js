@@ -8981,7 +8981,7 @@ function loadHTTPCertsCb() {
           revivedHost._pollCount = 0;
           revivedHost._pollCompletionCallbacks = [];
           revivedHost._pollInProgress = false;
-           revivedHost._backgroundStatusRefreshCount = 0;
+          revivedHost._backgroundStatusRefreshCount = 0;
           revivedHost._backgroundStatusRefreshInProgress = false;
           revivedHost._backgroundAppListRefreshInProgress = false;
           revivedHost._memCachedApplist = null; // Prevent using the app list cache from a previous session
