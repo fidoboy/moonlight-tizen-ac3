@@ -310,7 +310,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level) {
+  std::string h264Level, bool selectHoldStreamMenu) {
   
   if (m_StopThread != 0) {
     pthread_join(m_StopThread, NULL);
@@ -452,7 +452,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   memcpy(m_StreamConfig.remoteInputAesIv, &rikeyiv, sizeof(rikeyiv));
 
   // Manage gamepad input states based on selected settings
-  HandleGamepadInputState(rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons);
+  HandleGamepadInputState(rumbleFeedback, mouseEmulation, selectHoldStreamMenu, flipABfaceButtons, flipXYfaceButtons);
 
   // Apply the desired latency mode ​based on the toggle switch state
   EmssLatencyMode selectedLatencyMode = gameMode ? EmssLatencyMode::kUltraLow : EmssLatencyMode::kLow;
@@ -688,11 +688,11 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level) {
+  std::string h264Level, bool selectHoldStreamMenu) {
   PostToJs("Starting the streaming session...");
   return g_Instance->StartStream(host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend, audioConfig, opticalOutputEnabled, audioSync,
-  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats, h264Level);
+  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats, h264Level, selectHoldStreamMenu);
 }
 
 void setDolbyAudioOptions(std::string dolbyChannelLayout, std::string dolbyDecodingMode) {
