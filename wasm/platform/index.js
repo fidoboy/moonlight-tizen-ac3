@@ -3757,7 +3757,6 @@ function showSettingsMode() {
   $('#listener').removeClass('fullscreen');
 
   showUiLayer('main-ui-layer');
-    stopPollingHosts();
   Navigation.start();
   // Register showSettingsMode to re-run every time the language changes
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
