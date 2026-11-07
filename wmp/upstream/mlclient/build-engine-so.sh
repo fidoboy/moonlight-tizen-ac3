@@ -31,10 +31,9 @@ done
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_abi.c" -o "$OUT/wmp_esplus_abi.o"
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_adapter.c" -o "$OUT/wmp_esplus_adapter.o"
 
-# ESPlus is intentionally absent from this link line. wmp_esplus_abi.c opens
-# the firmware's /usr/lib/libesplusplayer.so with dlopen() and resolves its
-# exports with dlsym(), as in OmegaTube. Only crypto/network libraries used by
-# the engine are linked; no Ecore/EFL APIs are referenced by the engine sources.
+# ESPlus and the Ecore windowing stack are provided by the TV firmware
+# and resolved with dlopen()/dlsym(); do not add their large firmware-specific
+# EFL/Wayland/TBM dependency trees to the build-time sysroot.
 "$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -shared -Wl,-soname,libmlengine.so \
   -Wl,--hash-style=both -Wl,--wrap=PltEncryptMessage \
   -o "$OUT/libmlengine.so" \
@@ -44,7 +43,7 @@ done
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
-  -lcurl -lssl -lcrypto -lecore_wl2 -lecore -ldl -lpthread $DBGLIB
+  -lcurl -lssl -lcrypto -ldl -lpthread $DBGLIB
 
 # The ServiceApp has its own entry point and is linked separately by
 # wmp/service/build-wmp-service.sh. This script builds only libmlengine.so.
