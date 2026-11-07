@@ -132,6 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Transitive dependencies of Tizen framework RPMs; supplied by firmware, not bundled.
           python3 wmp/upstream/build/audit-elf-dependencies.py \
             --readelf readelf \
             --output build-report/elf-dependencies.txt \
