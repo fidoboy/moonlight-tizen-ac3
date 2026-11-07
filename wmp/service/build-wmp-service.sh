@@ -30,6 +30,16 @@ if [[ -z "$DLOG_HEADER" ]]; then
     find "$SYSROOT/usr/include" -maxdepth 4 -iname '*dlog*' -print >&2 || true
     exit 1
 fi
+
+# Message Port headers may also be installed below a component-specific
+# include directory. Resolve the package's actual layout instead of assuming
+# that message_port.h is directly under /usr/include.
+MESSAGE_PORT_HEADER="$(find "$SYSROOT/usr/include" -type f -name message_port.h -print -quit)"
+if [[ -z "$MESSAGE_PORT_HEADER" ]]; then
+    echo "message_port.h not found anywhere under $SYSROOT/usr/include" >&2
+    find "$SYSROOT/usr/include" -maxdepth 5 -iname '*message*port*' -print >&2 || true
+    exit 1
+fi
 if [[ ! -f "$ENGINE_SO" ]]; then
     echo "libmlengine.so not found: $ENGINE_SO" >&2
     echo "Build it first with wmp/upstream/mlclient/build-engine-so.sh." >&2
@@ -44,6 +54,7 @@ COMMON=(--sysroot="$SYSROOT" "${ARCH[@]}" -std=gnu11 -O2 -Wall -Wextra -Werror)
 INCLUDES=(
     -I"$SYSROOT/usr/include"
     -I"$(dirname "$DLOG_HEADER")"
+    -I"$(dirname "$MESSAGE_PORT_HEADER")"
     -I"$SYSROOT/usr/include/appcore-agent"
     -I"$SCRIPT_DIR/src"
     -I"$WMP_ROOT/upstream/mlclient"
