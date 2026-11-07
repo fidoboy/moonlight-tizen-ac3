@@ -27,23 +27,64 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip
 
-      - name: Restore Python 3.8 tool cache
+      - name: Restore Python 3.8 Debian package cache
+        id: python38-cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.tool_cache }}/Python/3.8.20/x64
-          key: python-3.8.20-${{ runner.os }}-${{ runner.arch }}-x64-v1
+          path: ${{ runner.temp }}/python38-debs
+          key: python38-debs-ubuntu-22.04-3.8.20-v1
 
-      - name: Set up Python 3.8 for Tizen Package Manager
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.8.20"
-          architecture: x64
-          check-latest: false
-
-      - name: Verify Python 3.8 runtime
+      - name: Install Python 3.8 for Tizen Package Manager
         shell: bash
         run: |
           set -euo pipefail
+          cache_dir="$RUNNER_TEMP/python38-debs"
+          staging_dir="$RUNNER_TEMP/python38-debs-staging"
+          package_version="3.8.20-1+jammy1"
+          python_packages=(
+            "python3.8=$package_version"
+            "libpython3.8=$package_version"
+            "python3.8-minimal=$package_version"
+            "libpython3.8-minimal=$package_version"
+            "libpython3.8-stdlib=$package_version"
+          )
+
+          cached_packages=()
+          cache_complete=true
+          for package in python3.8 libpython3.8 python3.8-minimal libpython3.8-minimal libpython3.8-stdlib; do
+            matches=("$cache_dir/${package}_${package_version}_"*.deb)
+            if [[ ! -f "${matches[0]}" ]]; then
+              cache_complete=false
+              break
+            fi
+            cached_packages+=("${matches[0]}")
+          done
+
+          if [[ "$cache_complete" == "true" && ${#cached_packages[@]} -eq 5 ]]; then
+            echo "Installing Python 3.8.20 from the restored Debian package cache."
+            sudo apt-get install -y --no-install-recommends "${cached_packages[@]}"
+          else
+            echo "Python 3.8.20 cache miss; installing the pinned packages from deadsnakes."
+            sudo apt-get install -y --no-install-recommends software-properties-common
+            sudo add-apt-repository -y ppa:deadsnakes/ppa
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "${python_packages[@]}"
+
+            rm -rf "$staging_dir"
+            mkdir -p "$staging_dir"
+            (
+              cd "$staging_dir"
+              apt-get download "${python_packages[@]}"
+            )
+            for package in python3.8 libpython3.8 python3.8-minimal libpython3.8-minimal libpython3.8-stdlib; do
+              matches=("$staging_dir/${package}_${package_version}_"*.deb)
+              test -f "${matches[0]}"
+            done
+            mkdir -p "$cache_dir"
+            cp "$staging_dir"/*.deb "$cache_dir/"
+            test "$(find "$cache_dir" -maxdepth 1 -type f -name '*.deb' | wc -l)" -eq 5
+          fi
+
           python3.8 --version
           python3.8 -c 'import sys; assert sys.version_info[:2] == (3, 8), sys.version'
 
