@@ -57,8 +57,7 @@ cd "$BPD/curl759"
   --disable-pop3 --disable-imap --disable-smb --disable-smtp \
   --disable-gopher --disable-mqtt --disable-ares \
   --without-zlib --without-nghttp2 --without-libidn2 \
-  --without-libpsl --without-librtmp --without-libssh2 \
-  --without-brotli --without-zstd
+  --without-librtmp --without-libssh2
 make -j"$JOBS"
 make install
 
