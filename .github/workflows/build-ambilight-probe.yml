@@ -215,11 +215,7 @@ jobs:
           done
 
           echo "::group::Native project metadata references"
-          grep -RniE 'package(Name)?|appid|application.?id|project.?name|profile' \\
-            "$root/AmbilightProbeService" \\
-            --include='.project' --include='.tproject' --include='*.xml' \\
-            --include='*.prop' --include='*.ini' --include='*.properties' \\
-            --exclude-dir=Release --exclude-dir=Debug || true
+          grep -RniE 'package(Name)?|appid|application.?id|project.?name|profile' "$root/AmbilightProbeService" --include='.project' --include='.tproject' --include='*.xml' --include='*.prop' --include='*.ini' --include='*.properties' --exclude-dir=Release --exclude-dir=Debug || true
           echo "::endgroup::"
 
       - name: Build and sign hybrid diagnostic WGT
