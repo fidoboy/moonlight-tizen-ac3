@@ -370,10 +370,9 @@ function startSubnetScanner(excludedIPs, trackDiscoveryResults) {
       }
       window.subnetScanAbortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       
-      // Every scan excludes the TV itself, the configured gateway, and
-      // every already-known host. Startup may additionally pass addresses
-      // checked in phase 2; the same baseline exclusions apply to manual
-      // refresh and Auto WOL scans as well.
+      // Startup and Auto WOL scans exclude the TV, gateway, and the known
+      // host addresses supplied here. Manual refresh uses its own stricter
+      // scanner and does not enter this shared discovery lifecycle.
       var excludedIPSet = Object.create(null);
       function addExcludedIPv4(ip) {
         if (typeof ip !== 'string' ||
