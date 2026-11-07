@@ -1,45 +1,18 @@
 #!/bin/sh
-# Milestone 1 step 2: fetch the crypto/http deps the native Moonlight client
-# needs and that are NOT in the Tizen 5.0 sysroot. Picks versions matching the
-# TV's own libraries so we can link against them:
-#   - OpenSSL 1.0.2o headers -> Tizen target provides libcrypto.so.1.0.0
-#   - libcurl 7.59.0 headers -> Tizen target provides libcurl.so.4
-# OpenSSL/curl are linked from the Tizen ARM sysroot; only their headers are fetched.
+# Fetch source dependencies for the private native crypto/network stack.
+# OpenSSL 1.1.1d matches the version used by master’s Emscripten port; cURL
+# remains at 7.59.0 for compatibility with the vendored GameStream code.
+# Both are built as static ARM libraries by build-static-crypto.sh.
 #
 # Output dir layout (default ./backport-deps):
-#   ossl-inc/openssl/   flat OpenSSL 1.0.2 headers + hand-written opensslconf.h (32-bit ARM)
-#   curl759/include/    curl 7.59 headers
+#   openssl111/         OpenSSL 1.1.1d source
+#   curl759/            cURL 7.59.0 source
+#   arm-static/         populated by build-static-crypto.sh
 set -e
 OUT=${OUT:-./backport-deps}
 mkdir -p "$OUT"
 cd "$OUT"
 
-[ -d curl759 ]  || git clone --depth 1 -b curl-7_59_0      https://github.com/curl/curl.git        curl759
-[ -d openssl102 ] || git clone --depth 1 -b OpenSSL_1_0_2o https://github.com/openssl/openssl.git   openssl102
-
-# OpenSSL 1.0.2 keeps headers in source dirs; include/openssl is populated at
-# configure time. Build a flat include dir by symlink, plus an ARM opensslconf.h.
-mkdir -p ossl-inc/openssl
-find openssl102/crypto openssl102/ssl -name '*.h' | while read -r h; do
-  ln -sf "$(realpath "$h")" "ossl-inc/openssl/$(basename "$h")"
-done
-ln -sf "$(realpath openssl102/e_os2.h)" ossl-inc/openssl/e_os2.h
-cat > ossl-inc/openssl/opensslconf.h <<'EOF'
-#ifndef OPENSSL_CONF_TV
-#define OPENSSL_CONF_TV
-#define OPENSSL_THREADS
-#define OPENSSL_NO_STATIC_ENGINE
-#define OPENSSL_NO_KRB5            /* TV libcrypto built without kerberos */
-#define THIRTY_TWO_BIT
-#undef  SIXTY_FOUR_BIT
-#undef  SIXTY_FOUR_BIT_LONG
-#define BN_LLONG
-#define RC4_INT unsigned int
-#define DES_LONG unsigned long
-#define RC4_CHUNK unsigned long
-#define DES_INT
-#define OPENSSL_UNISTD <unistd.h>
-#define OPENSSL_EXPORT_VAR_AS_FUNCTION
-#endif
-EOF
+[ -d curl759 ] || git clone --depth 1 -b curl-7_59_0 https://github.com/curl/curl.git curl759
+[ -d openssl111 ] || git clone --depth 1 -b OpenSSL_1_1_1d https://github.com/openssl/openssl.git openssl111
 echo "backport deps ready in $OUT"
