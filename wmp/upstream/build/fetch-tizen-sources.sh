@@ -151,6 +151,10 @@ if [[ -z "$dlog_devel" ]]; then
   exit 1
 fi
 
+# The DLog runtime package does not contain development headers. Extract the
+# selected development RPM explicitly so dlog.h and libdlog.so enter sysroot.
+unrpm "$dlog_devel" "$OUT/sysroot"
+
 {
   echo "Selected package: $(basename "$dlog_devel")"
   echo "Matched package name: $dlog_package"
