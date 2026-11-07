@@ -47,6 +47,17 @@ jobs:
         run: |
           bash wmp/upstream/build/fetch-tizen-sources.sh "$DEPS"
 
+      - name: Upload Tizen DLog package diagnostics
+        if: always() && hashFiles('tizen-deps/dlog-package-audit.txt') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: tizen-dlog-package-audit-${{ github.sha }}
+          path: |
+            tizen-deps/dlog-package-audit.txt
+            tizen-deps/runtime-package-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Normalize cross-toolchain executable paths
         shell: bash
         run: |
