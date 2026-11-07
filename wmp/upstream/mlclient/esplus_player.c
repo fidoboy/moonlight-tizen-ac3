@@ -62,6 +62,7 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 
 static int ecore_runtime_load(void)
 {
+    const char *error;
     if (s_ecore_lib && s_ecore_wl2_lib) return 1;
     s_ecore_lib = dlopen("libecore.so.1", RTLD_NOW | RTLD_LOCAL);
     if (!s_ecore_lib) goto fail;
@@ -88,7 +89,9 @@ static int ecore_runtime_load(void)
     return 1;
 
 fail:
-    PLOG("Ecore runtime unavailable: %s\\n", dlerror() ? dlerror() : "missing symbol");
+    error = dlerror();
+    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\\n",
+            error ? error : "missing symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
     if (s_ecore_lib) dlclose(s_ecore_lib);
     s_ecore_wl2_lib = s_ecore_lib = NULL;
