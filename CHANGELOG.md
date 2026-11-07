@@ -9,9 +9,6 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Streaming menu activation:** Added a setting to invoke the streaming menu by holding the Select button, allowing users to choose this gamepad shortcut.
 - **Gamepad test dialog dismissal:** Added the option to close the controller test dialog by holding the B button for more than one second. The Back button on the TV remote remains available to close the dialog.
 
-All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
-
-
 ## v1.2.3
 
 ### Changed
