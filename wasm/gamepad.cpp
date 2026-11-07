@@ -143,6 +143,10 @@ bool rumbleFeedbackSwitch = false;
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
 bool mouseEmulationActive = false;
+bool selectHoldStreamMenuSwitch = false;
+std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
+std::map<int, bool> selectMenuTriggered;
+std::map<int, bool> selectButtonConsumed;
 
 // Flags for gamepad to track face buttons state
 bool flipABfaceButtonsSwitch = false;
@@ -252,10 +256,14 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
 }
 
 // Function to handle the gamepad input state
-void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons) {
+void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
   controllerTracker.reset();
+  selectPressTimes.clear();
+  selectMenuTriggered.clear();
+  selectButtonConsumed.clear();
   rumbleFeedbackSwitch = rumbleFeedback;
   mouseEmulationSwitch = mouseEmulation;
+  selectHoldStreamMenuSwitch = selectHoldStreamMenu;
   flipABfaceButtonsSwitch = flipABfaceButtons;
   flipXYfaceButtonsSwitch = flipXYfaceButtons;
 }
@@ -290,6 +298,9 @@ void MoonlightInstance::PollGamepads() {
   const auto changes = controllerTracker.update(samples);
   const auto activeGamepadMask = changes.mask;
   for (const auto i : changes.removed) {
+    selectPressTimes.erase(i);
+    selectMenuTriggered.erase(i);
+    selectButtonConsumed.erase(i);
     LiSendMultiControllerEvent(i, activeGamepadMask & ~(1u << i), 0, 0, 0, 0, 0, 0, 0);
   }
   for (const auto i : changes.arrived) {
@@ -321,7 +332,7 @@ void MoonlightInstance::PollGamepads() {
     const auto& gamepad = events[gamepadID];
 
     // Process input for active gamepad
-    const auto buttonFlags = GetButtonFlags(gamepad);
+    auto buttonFlags = GetButtonFlags(gamepad);
     const auto leftTrigger = gamepad.analogButton[GamepadButton::LeftTrigger]
       * std::numeric_limits<unsigned char>::max();
     const auto rightTrigger = gamepad.analogButton[GamepadButton::RightTrigger]
@@ -350,6 +361,36 @@ void MoonlightInstance::PollGamepads() {
     } else {
       // Reset when buttons are released
       comboTriggered[gamepadID] = false;
+    }
+
+    // A long Select press opens the existing stream menu. Short presses remain normal gamepad input.
+    if (selectHoldStreamMenuSwitch) {
+      const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
+      const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS || buttonFlags == PERF_STATS_BUTTONS;
+      if (selectPressed && !reservedCombo) {
+        const auto now = std::chrono::steady_clock::now();
+        auto press = selectPressTimes.find(gamepadID);
+        if (press == selectPressTimes.end()) {
+          selectPressTimes[gamepadID] = now;
+        } else if (!selectMenuTriggered[gamepadID] &&
+                   std::chrono::duration_cast<std::chrono::milliseconds>(now - press->second).count() >= 1000) {
+          selectMenuTriggered[gamepadID] = true;
+          selectButtonConsumed[gamepadID] = true;
+          PostToJs(std::string("openStreamMenu"));
+        }
+      } else if (!selectPressed) {
+        selectPressTimes.erase(gamepadID);
+        selectMenuTriggered[gamepadID] = false;
+        selectButtonConsumed[gamepadID] = false;
+      }
+      if (selectButtonConsumed[gamepadID]) {
+        // Release Select on the host once the long-press shortcut consumes it.
+        buttonFlags &= ~BACK_FLAG;
+      }
+    } else {
+      selectPressTimes.erase(gamepadID);
+      selectMenuTriggered[gamepadID] = false;
+      selectButtonConsumed[gamepadID] = false;
     }
 
     // Check if the mouse emulation switch is checked
