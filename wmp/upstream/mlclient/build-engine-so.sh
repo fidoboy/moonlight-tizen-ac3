@@ -41,10 +41,14 @@ done
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
-  "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o "$DEPSBUILD/libmbedcrypto_tv.a" \
-  -L"$TVL" -Wl,-rpath-link,"$TVL" -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
+  "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
+  -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
+  -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
+  -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -l:libecore_wl2.so.1 -l:libecore.so.1 \
-  -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 -lpthread $DBGLIB
+  -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 \
+  -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 \
+  -lpthread $DBGLIB
 
 "$GCC" $FLAGS $INC -c "$HERE/main.c" -o "$OUT/main.o"
 "$GCC" --sysroot=$DEPS/sysroot $ARCH $LOPT -o "$OUT/mlclient" "$OUT/main.o" \
