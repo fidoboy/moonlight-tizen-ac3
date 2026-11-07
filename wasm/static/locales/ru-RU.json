@@ -529,7 +529,6 @@
   "The TV was unable to start the streaming with the selected video settings. Try reducing the resolution or frame rate and consider changing the codec.": "Телевизор не смог начать потоковую передачу с выбранными настройками видео. Попробуйте уменьшить разрешение или частоту кадров и при необходимости сменить кодек.",
   "This dialog will close once the pairing is complete.": "This dialog will close once the pairing is complete.",
   "This is a warning message, proceed with caution!": "This is a warning message, proceed with caution!",
-  "Toggle performance stats": "Toggle performance stats",
   "Top": "Сверху",
   "Top left": "Слева вверху",
   "Top right": "Справа вверху",
@@ -609,5 +608,7 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Удерживайте Start, чтобы переключаться между обычным управлением и эмуляцией мыши. Используйте контроллер для управления указателем и кнопками мыши на хосте.",
   "- Reverses the A and B button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок A и B, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
   "- Reverses the X and Y button assignments sent to the host. Use this when a game expects the opposite layout.": "- Меняет местами назначения кнопок X и Y, передаваемые на хост. Используйте этот параметр, если игра ожидает обратную раскладку.",
-  "Send keystrokes": "Отправить нажатия клавиш"
+  "Send keystrokes": "Отправить нажатия клавиш",
+  "Show performance stats": "Показать статистику",
+  "Hide performance stats": "Скрыть статистику"
 }
