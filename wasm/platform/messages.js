@@ -1089,15 +1089,16 @@ function handleMessage(msg) {
       if (typeof finishAppsModeAfterStreamTransition === 'function') {
         finishAppsModeAfterStreamTransition();
       }
-      // Restore the main Hosts screen while keeping its ambient background stopped.
-      showHostsMode(true, true);
+      // Mark the stream as terminated before restarting host polling.
+      isInGame = false;
+      // Restore the Hosts screen, restart periodic polling, and keep the ambient background stopped.
+      showHostsMode(false, true);
       $('#host-grid').stop(true, true).show();
       $('#game-grid').stop(true, true).hide();
       $('#settings-list').hide();
       $('#main-content').removeClass('fullscreen');
       $('#listener').removeClass('fullscreen');
       $('body').css('backgroundColor', '#282C38');
-      isInGame = false;
       Navigation.change(Views.Hosts);
       Navigation.start();
       Navigation.switch();
