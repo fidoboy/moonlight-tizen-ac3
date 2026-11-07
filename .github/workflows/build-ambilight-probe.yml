@@ -120,7 +120,7 @@ jobs:
               raise SystemExit("Native probe service identity is invalid")
           native.set("version", version)
           ET.register_namespace("", "http://tizen.org/ns/packages")
-tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
+          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
           PY
 
           cat > "$service/project_def.prop" <<'PROP'
