@@ -31,7 +31,7 @@ declare -A LISTING
 pick() { # dir name suffix
   local dir=$1 name=$2 suffix=$3
   [[ -n ${LISTING[$dir]:-} ]] || LISTING[$dir]=$(curl -fsS --retry 3 "$dir/" | grep -oE 'href="[^"]+"' | cut -d'"' -f2 | sed 's/%2B/+/g')
-  grep -E "^$(sed 's/[+.]/\\&/g' <<<"$name")-[0-9].*$suffix\$" <<<"${LISTING[$dir]}" | sort -V | tail -1
+  grep -E "^$(sed 's/[+.]/\\&/g' <<<"$name")-[0-9].*$suffix\\$" <<<"${LISTING[$dir]}" | sort -V | tail -1
 }
 
 fetch() { # dir name suffix -> prints local path, or nothing if not found
@@ -51,7 +51,7 @@ echo "== Reference sources"
 for spec in "$T65_UNI/source esplusplayer" "$T65_UNI/source libtrackrenderer" \
             "$T55_UNI/source capi-media-player" "$T55_UNI/source capi-media-tool"; do
   read -r dir name <<<"$spec"
-  r=$(fetch "$dir" "$name" '\.src\.rpm'); [[ -n $r ]] || continue
+  r=$(fetch "$dir" "$name" '\\.src\\.rpm'); [[ -n $r ]] || continue
   d=$OUT/src/$(basename "$r" .src.rpm); rm -rf "$d"; unrpm "$r" "$d"
   for t in "$d"/*.tar.*; do [[ -e $t ]] && tar -xf "$t" -C "$d" && rm "$t"; done
   echo "   $d"
@@ -68,7 +68,7 @@ UNI_PKGS="capi-base-common-devel glib2-devel gstreamer-devel capi-media-tool-dev
   capi-appfw-application-devel capi-appfw-app-common-devel capi-appfw-app-control-devel capi-appfw-service-application-devel
   appcore-agent-devel message-port-devel bundle-devel"
 for p in $RUNTIME_PKGS; do
-  r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\.armv7l\.rpm')
+  r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\\.armv7l\\.rpm')
   if [[ -n $r ]]; then
     unrpm "$r" "$OUT/sysroot"
   else
@@ -84,10 +84,10 @@ fetch_runtime_soname() { # soname package-name...
   shift
   for repo in "$T55_UNI" "$T55_BASE"; do
     for pkg in "$@"; do
-      rpm=$(fetch "$repo/packages/armv7l" "$pkg" '\.armv7l\.rpm')
+      rpm=$(fetch "$repo/packages/armv7l" "$pkg" '\\.armv7l\\.rpm')
       [[ -n "$rpm" ]] || continue
       unrpm "$rpm" "$OUT/sysroot"
-      found=$(find "$OUT/sysroot" \( -type f -o -type l \) -name "$soname" -print -quit)
+      found=$(find "$OUT/sysroot" \\( -type f -o -type l \\) -name "$soname" -print -quit)
       if [[ -n "$found" && -e "$found" ]]; then
         echo "   $soname <- $(basename "$rpm")"
         return 0
@@ -119,7 +119,7 @@ fetch_runtime_soname libffi.so.6 libffi
 fetch_runtime_soname libeeze.so.1 eeze
 fetch_runtime_soname libttrace.so.1 libttrace ttrace
 
-# Transitive dependencies pulled in by the Tizen 5.0 ServiceApp framework
+# Transitive dependencies pulled in by the Tizen 5.5 ServiceApp framework
 # libraries (aul, appcore, pkgmgr-info, GIO and Eeze). Each RPM is accepted
 # only when it contains the exact SONAME required by the linker.
 fetch_runtime_soname libxdgmime.so.1 xdgmime
@@ -130,18 +130,18 @@ fetch_runtime_soname libsqlite3.so.0 sqlite3 sqlite libsqlite
 fetch_runtime_soname libiniparser.so.0 iniparser
 fetch_runtime_soname libxml2.so.2 libxml2
 fetch_runtime_soname libstorage.so.0.1 libstorage
-fetch_runtime_soname libpcre.so.1 pcre
+fetch_runtime_soname libpcre.so.1 libpcre
 fetch_runtime_soname libsensor.so.4 sensord libsensor
 fetch_runtime_soname libpkgmgr_parser.so.0 pkgmgr-parser pkgmgr-parser-devel
 fetch_runtime_soname libminizip.so.1 minizip
 fetch_runtime_soname libgmodule-2.0.so.0 libgmodule libglib glib2
 fetch_runtime_soname libudev.so.1 libudev systemd
 fetch_runtime_soname libmount.so.1 libmount util-linux
-for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
-r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\.noarch\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
+for p in $BASE_PKGS; do r=$(fetch "$T55_BASE/packages/armv7l" "$p" '\\.armv7l\\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
+r=$(fetch "$T55_BASE/packages/noarch" linux-glibc-devel '\\.noarch\\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"
 # The RPM %post normally links asm -> asm-<arch>; extraction skips scripts.
 [[ -e $OUT/sysroot/usr/include/asm ]] || ln -s asm-arm "$OUT/sysroot/usr/include/asm"
-for p in $UNI_PKGS; do r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\.armv7l\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
+for p in $UNI_PKGS; do r=$(fetch "$T55_UNI/packages/armv7l" "$p" '\\.armv7l\\.rpm'); [[ -n $r ]] && unrpm "$r" "$OUT/sysroot"; done
 
 # DLog development RPMs have moved between Tizen 5.0 Unified and Base.
 # Search both repositories for the matching Tizen 5.5 ARM package; never
@@ -154,7 +154,7 @@ dlog_repo=""
 dlog_package=""
 for repo in "$T55_UNI" "$T55_BASE"; do
   for p in tizen-dlog-devel dlog-devel libdlog-devel; do
-    candidate=$(fetch "$repo/packages/armv7l" "$p" '\.armv7l\.rpm')
+    candidate=$(fetch "$repo/packages/armv7l" "$p" '\\.armv7l\\.rpm')
     if [[ -n "$candidate" ]]; then
       dlog_devel=$candidate
       dlog_repo=$repo
@@ -188,9 +188,9 @@ unrpm "$dlog_devel" "$OUT/sysroot"
   echo
   echo "Relevant paths recorded inside RPM:"
   if command -v bsdtar >/dev/null; then
-    bsdtar -tf "$dlog_devel" | grep -Ei '(^|/)(dlog\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
+    bsdtar -tf "$dlog_devel" | grep -Ei '(^|/)(dlog\\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
   elif command -v rpm2cpio >/dev/null && command -v cpio >/dev/null; then
-    (cd "$OUT" && rpm2cpio "$dlog_devel" | cpio -t 2>/dev/null) | grep -Ei '(^|/)(dlog\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
+    (cd "$OUT" && rpm2cpio "$dlog_devel" | cpio -t 2>/dev/null) | grep -Ei '(^|/)(dlog\\.h|libdlog[^/]*|pkgconfig/.*dlog.*)$' || true
   else
     echo "Cannot list RPM contents: neither bsdtar nor rpm2cpio+cpio is available"
   fi
@@ -200,13 +200,13 @@ unrpm "$dlog_devel" "$OUT/sysroot"
 # already part of UNI_PKGS; record the RPM's declared paths and extracted
 # header location so package-content and include-path failures are distinct.
 MESSAGE_PORT_AUDIT="$OUT/message-port-package-audit.txt"
-message_port_rpm=$(fetch "$T55_UNI/packages/armv7l" message-port-devel '\.armv7l\.rpm')
+message_port_rpm=$(fetch "$T55_UNI/packages/armv7l" message-port-devel '\\.armv7l\\.rpm')
 if [[ -n "$message_port_rpm" ]]; then
   {
     echo "Selected package: $(basename "$message_port_rpm")"
     echo "Repository: $T55_UNI/packages/armv7l"
     echo "Relevant paths recorded inside RPM:"
-    bsdtar -tf "$message_port_rpm" | grep -Ei '(^|/)(message_port\.h|libmessage-port[^/]*|pkgconfig/.*message.port.*)$' || true
+    bsdtar -tf "$message_port_rpm" | grep -Ei '(^|/)(message_port\\.h|libmessage-port[^/]*|pkgconfig/.*message.port.*)$' || true
   } | tee "$MESSAGE_PORT_AUDIT"
 else
   echo "RESULT: message-port-devel RPM not found in Tizen 5.5 Unified" | tee "$MESSAGE_PORT_AUDIT"
@@ -217,7 +217,7 @@ fi
   find "$OUT/sysroot/usr/include" -type f -name message_port.h -print | sort
   echo
   echo "Message Port library candidates:"
-  find "$OUT/sysroot" \( -type f -o -type l \) -name 'libmessage-port.so*' -print | sort
+  find "$OUT/sysroot" \\( -type f -o -type l \\) -name 'libmessage-port.so*' -print | sort
 } | tee -a "$MESSAGE_PORT_AUDIT"
 
 echo "== Cross toolchain (GCC 6.2)"
