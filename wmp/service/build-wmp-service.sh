@@ -22,6 +22,14 @@ if [[ ! -f "$SYSROOT/usr/include/appcore-agent/service_app.h" ]]; then
     echo "ServiceApp headers not found under $SYSROOT/usr/include/appcore-agent" >&2
     exit 1
 fi
+# Tizen RPM layouts may place dlog.h in a nested include directory. Resolve
+# the actual header from this sysroot instead of assuming /usr/include.
+DLOG_HEADER="$(find "$SYSROOT/usr/include" -type f -name dlog.h -print -quit)"
+if [[ -z "$DLOG_HEADER" ]]; then
+    echo "dlog.h not found anywhere under $SYSROOT/usr/include" >&2
+    find "$SYSROOT/usr/include" -maxdepth 4 -iname '*dlog*' -print >&2 || true
+    exit 1
+fi
 if [[ ! -f "$ENGINE_SO" ]]; then
     echo "libmlengine.so not found: $ENGINE_SO" >&2
     echo "Build it first with wmp/upstream/mlclient/build-engine-so.sh." >&2
@@ -35,6 +43,7 @@ ARCH=(-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp)
 COMMON=(--sysroot="$SYSROOT" "${ARCH[@]}" -std=gnu11 -O2 -Wall -Wextra -Werror)
 INCLUDES=(
     -I"$SYSROOT/usr/include"
+    -I"$(dirname "$DLOG_HEADER")"
     -I"$SYSROOT/usr/include/appcore-agent"
     -I"$SCRIPT_DIR/src"
     -I"$WMP_ROOT/upstream/mlclient"
