@@ -42,12 +42,9 @@ done
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
-  -L"$TVL" -L"$DEPS/sysroot/usr/lib" \
-  -Wl,-rpath-link,"$TVL" -Wl,-rpath-link,"$DEPS/sysroot/usr/lib" \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
-  -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -l:libcurl.so.4 \
-  -l:libcares.so.2 -l:libnghttp2.so.14 -l:libicuuc.so.60 -l:libicudata.so.60 -l:libz.so.1 \
-  -lpthread $DBGLIB
+  -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
+  -lcurl -lssl -lcrypto -ldl -lpthread $DBGLIB
 
 # The ServiceApp has its own entry point and is linked separately by
 # wmp/service/build-wmp-service.sh. This script builds only libmlengine.so.
