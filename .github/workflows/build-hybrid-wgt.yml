@@ -120,6 +120,62 @@ jobs:
           dotnet --info
           dotnet --list-sdks | grep -E '^8\.'
 
+      - name: Diagnose Tizen Core .NET project creation
+        shell: bash
+        run: |
+          set -uo pipefail
+          echo "=== Tizen Core version ==="
+          "$TIZEN_CORE_CLI" --version
+          echo "=== tz new help ==="
+          "$TIZEN_CORE_CLI" new --help 2>&1 || true
+          echo "=== Installed .NET SDKs ==="
+          dotnet --info
+          echo "=== Registered .NET templates ==="
+          "$TIZEN_CORE_CLI" list templates -t dotnet
+
+          probe() {
+            local label="$1" template="$2" profile="$3"
+            local dir="$RUNNER_TEMP/tz-probe-$label"
+            mkdir -p "$dir"
+            echo "::group::Probe $label: template=$template profile=$profile"
+            set +e
+            "$TIZEN_CORE_CLI" new -t "$template" -n ProbeProject -T dotnet -p "$profile" -w "$dir" 2>&1
+            local status=$?
+            set -e
+            echo "PROBE_STATUS_$label=$status"
+            echo "Generated files:"
+            find "$dir" -maxdepth 3 -type f -printf '%P\n' | sort || true
+            echo "::endgroup::"
+            return "$status"
+          }
+
+          set +e
+          probe service-tizen-9 TizenServiceApp tizen-9.0
+          service_tizen_status=$?
+          probe service-tv-samsung-9 TizenServiceApp tv-samsung-9.0
+          service_tv_status=$?
+          probe nui-tizen-9 TizenNUIApp tizen-9.0
+          nui_status=$?
+          set -e
+
+          echo "=== Probe summary ==="
+          echo "TizenServiceApp / tizen-9.0: $service_tizen_status"
+          echo "TizenServiceApp / tv-samsung-9.0: $service_tv_status"
+          echo "TizenNUIApp / tizen-9.0: $nui_status"
+
+          echo "=== Recent SDK / Tizen logs ==="
+          find "$RUNNER_TEMP/tizen-studio" "$RUNNER_TEMP/tizen-studio-data" "$HOME/.tizen" "$HOME/.config" \
+            -type f \( -iname '*.log' -o -iname '*tizen*core*' \) -mmin -10 -print 2>/dev/null |
+            while IFS= read -r log; do
+              echo "--- $log ---"
+              tail -n 200 "$log"
+            done
+
+          if (( service_tizen_status != 0 )); then
+            echo "::error::The exact TizenServiceApp/tizen-9.0 scaffold command fails in an isolated workspace."
+            exit 1
+          fi
+
       - name: Ensure versioned MP4 splash assets are available
         shell: bash
         env:
