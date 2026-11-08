@@ -72,18 +72,13 @@ jobs:
           mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
           tizen certificate -a Moonlight -f Moonlight -p 123456
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
-          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd"
-          printf '%s' '123456' > "$author_pwd"
-          chmod 600 "$author_pwd"
           test -s "$author_key"
-          openssl pkcs12 -legacy -in "$author_key" -passin "file:$author_pwd" -noout
-          echo "Author PKCS12/password-file verification: OK"
+          ls -la "$TIZEN_STUDIO_DATA_PATH/keystore/author/"
+          openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -noout
+          echo "Author PKCS12 verification: OK"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           "$TIZEN_CORE_CLI" security-profiles add \
-            -n Moonlight \
-            -x "$profiles" \
-            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" \
-            -p 123456
+            -n Moonlight -x "$profiles" -a "$author_key" -p 123456
           test -s "$profiles"
           "$TIZEN_CORE_CLI" security-profiles list -x "$profiles"
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
