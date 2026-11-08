@@ -180,8 +180,7 @@ jobs:
           tizen list web-project 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"
           tizen list rootstrap 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"
           if ! grep -Eqi 'tizen-10\.0-(device|emulator)' "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
-            echo "No Tizen 10.0 device/emulator rootstrap is installed; refusing to create the TV project."
-            exit 1
+            echo "No Tizen 10.0 device/emulator rootstrap is installed. The prebuilt-TPK packaging test is independent; native source build will be reported as unavailable."
           fi
           if ! grep -Eqi 'tv-10\.0|TV.*10\.0|10\.0.*TV' "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"; then
             echo "The TV 10.0 Web profile is not available; refusing to create the TV project."
