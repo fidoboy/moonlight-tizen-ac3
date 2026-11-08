@@ -1,35 +1,25 @@
-name: Build WGT (CI) Hybrid
+name: Build Hybrid WGT (CI) Debug Mode
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["1.2.4-pre"]
-    paths:
-      - "ambilight-service/Program.cs"
-      - "ambilight-service/TizenAmbilight.csproj"
-      - "ambilight-service/VideoPlaneCapture.cs"
-      - "ambilight-service/WledOutput.cs"
-      - "ambilight-service/tizen-manifest.xml"
-      - "wasm/platform/ambilight.js"
-      - "wasm/index.html"
-      - "wasm/platform/index.js"
-      - "wasm/platform/messages.js"
-      - "res/config.xml"
-      - "Dockerfile"
-      - ".github/workflows/build-ac3-passthrough-hybrid.yml"
-
+    inputs:
+      show_private_data:
+        description: "Include private data and secrets in application debug logs"
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: write
 
 concurrency:
-  group: moonlight-ambilight-package-${{ github.ref }}
+  group: hybrid-wgt-debug-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-hybrid:
     if: github.ref == 'refs/heads/1.2.4-pre'
-    name: Build and package the single Moonlight + Ambilight WGT
+    name: Build and package one hybrid WGT with debug diagnostics
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -150,11 +140,13 @@ jobs:
           context: .
           push: false
           load: true
-          tags: moonlight-ambilight-web:${{ github.sha }}
+          tags: moonlight-hybrid-web-debug:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             BUILD_TYPE=release
+            DEBUG_MODE=true
+            LOG_SHOW_PRIVATE_DATA=${{ inputs.show_private_data }}
             REPO_OWNER=${{ github.repository_owner }}
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=false
@@ -169,7 +161,7 @@ jobs:
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           unzip -tq "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
-      - name: Build the original .NET Tizen service
+      - name: Build the .NET Tizen service (Debug)
         shell: bash
         run: |
           set -euo pipefail
@@ -224,9 +216,9 @@ jobs:
           PY
 
           dotnet msbuild ambilight-service/TizenAmbilight.csproj \
-            -restore -t:Rebuild -p:Configuration=Release -v:m
+            -restore -t:Rebuild -p:Configuration=Debug -v:m
 
-          mapfile -d '' service_packages < <(find ambilight-service/bin/Release -type f -name '*.tpk' -size +0c -print0)
+          mapfile -d '' service_packages < <(find ambilight-service/bin/Debug -type f -name '*.tpk' -size +0c -print0)
           if [[ ${#service_packages[@]} -ne 1 ]]; then
             echo "::error::Expected one .NET Tizen TPK, found ${#service_packages[@]}."
             find ambilight-service/bin -maxdepth 8 -type f -printf '%p\n' | sort || true
@@ -307,9 +299,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          draft="$RUNNER_TEMP/Moonlight-Hybrid-Tizen65.wgt"
-          patched="$RUNNER_TEMP/Moonlight-Hybrid-Tizen55.wgt"
-          output="$RUNNER_TEMP/Moonlight-Hybrid.wgt"
+          draft="$RUNNER_TEMP/Moonlight-Hybrid-Debug-Tizen65.wgt"
+          patched="$RUNNER_TEMP/Moonlight-Hybrid-Debug-Tizen55.wgt"
+          output="$RUNNER_TEMP/Moonlight-Hybrid-Debug.wgt"
 
           "$TIZEN_CORE_CLI" pack \
             --type wgt \
@@ -454,8 +446,8 @@ jobs:
           PY
 
           mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt"
-          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt" \
+          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid-Debug.wgt"
+          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid-Debug.wgt" \
             > "$RUNNER_TEMP/hybrid-output/SHA256SUMS"
 
       - name: Show packaging diagnostics on failure
@@ -472,7 +464,7 @@ jobs:
       - name: Upload hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v4
         with:
-          name: Moonlight-Hybrid
+          name: Moonlight-Hybrid-Debug
           path: ${{ runner.temp }}/hybrid-output/
           if-no-files-found: error
           retention-days: 14
