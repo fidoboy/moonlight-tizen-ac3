@@ -161,6 +161,14 @@ jobs:
           done
 
           echo "=== Tizen Core template/config references for .NET build selection ==="
+          echo "=== Tizen Core CLI config ==="
+          for config_file in "$TIZEN_STUDIO/tools/tizen-core/templates/config/cli_config.yaml" "$TIZEN_STUDIO/tools/tizen-core/templates/config/tizen_dotnet_project.yaml"; do
+            if [[ -f "$config_file" ]]; then
+              echo "--- $config_file ---"
+              cat "$config_file"
+            fi
+          done | tee "$log_dir/tizen-core-cli-config.log"
+          "$TIZEN_CORE_CLI" dotnet-build build --help 2>&1 | tee "$log_dir/tizen-dotnet-build-help.log" || true
           core_root="$TIZEN_STUDIO/tools/tizen-core"
           if [[ -d "$core_root" ]]; then
             grep -RInE --include='*.yaml' --include='*.yml' --include='*.json' --include='*.config' --include='*.xml' \
