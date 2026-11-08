@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages" package="MoonLightS" version="1.2.4" api-version="5.5">
+  <label>Moonlight Ambilight Service</label>
+  <service-application appid="MoonLightS.MoonlightAmbilight"
+                       exec="moonlight-ambilight"
+                       nodisplay="true"
+                       multiple="false"
+                       type="capp"
+                       taskmanage="false">
+    <label>Moonlight Ambilight</label>
+    <background-category value="background-network"/>
+  </service-application>
+  <privileges>
+    <privilege>http://tizen.org/privilege/internet</privilege>
+    <privilege>http://tizen.org/privilege/network.get</privilege>
+  </privileges>
+</manifest>
