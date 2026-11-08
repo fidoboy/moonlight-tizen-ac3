@@ -1,75 +1,227 @@
-name: Build hybrid WGC (CI)
+name: Build WMP hybrid WGT (CI)
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'CMakeLists.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'res/**'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'wasm/**'
+      - 'wmp/**'
+      - '.github/workflows/build-wmp-hybrid.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'CMakeLists.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'res/**'
+      - 'h264bitstream/**'
+      - 'libgamestream/**'
+      - 'moonlight-common-c/**'
+      - 'opus/**'
+      - 'ports/**'
+      - 'wasm/**'
+      - '.github/release-notes.md'
+      - '.github/workflows/build-wmp-hybrid.yml'
+      - '.github/workflows/release-stable.yml'
+      - 'wmp/**'
+      - '.github/workflows/build-wmp-hybrid.yml'
   workflow_dispatch:
-    inputs:
-      web_ref:
-        description: "Moonlight web branch or tag to package"
-        required: true
-        default: master
-        type: string
 
 permissions:
   contents: read
   actions: write
 
-concurrency:
-  group: wmp-hybrid-${{ inputs.web_ref }}
-  cancel-in-progress: false
-
 jobs:
-  build-native:
-    name: Build WMP engine and native service
-    uses: ./.github/workflows/wmp-native-build.yml
-
-  package-hybrid:
-    name: Assemble and sign hybrid WGT
-    needs: build-native
-    runs-on: ubuntu-22.04
-    timeout-minutes: 60
+  validate:
+    name: Validate code and resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out Moonlight web application
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Validate JavaScript, locales and local documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check wasm/platform/index.js
+          node tests/gamepad_mask_test.js
+          node --check wasm/platform/messages.js
+          node --check wasm/static/js/i18n-sync.js
+          node wasm/static/js/i18n-sync.js --check
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          locale_dir = Path("wasm/static/locales")
+          en = json.loads((locale_dir / "en-US.json").read_text(encoding="utf-8"))
+
+          for locale_path in sorted(locale_dir.glob("*.json")):
+              if locale_path.name == "en-US.json":
+                  continue
+              locale = json.loads(locale_path.read_text(encoding="utf-8"))
+              missing = sorted(set(en) - set(locale))
+              extra = sorted(set(locale) - set(en))
+              if missing or extra:
+                  raise SystemExit(
+                      f"{locale_path.name} keys differ from en-US.json: "
+                      f"Missing={missing!r}; extra={extra!r}"
+                  )
+
+          es = json.loads((locale_dir / "es-ES.json").read_text(encoding="utf-8"))
+          pt = json.loads((locale_dir / "pt-BR.json").read_text(encoding="utf-8"))
+          required = {
+              "Audio stream:",
+              "Dolby audio output",
+              "Enable Dolby Digital",
+              "Quit host app on disconnect",
+              "Automatically quit the running app on the host",
+          }
+          for name, locale in (("en-US", en), ("es-ES", es), ("pt-BR", pt)):
+              missing_required = sorted(required - set(locale))
+              if missing_required:
+                  raise SystemExit(f"{name} is missing required feature strings: {missing_required!r}")
+
+          docs = [
+              "docs/README.md",
+              "docs/Features-Overview.md",
+              "docs/Quick-Start-Guide.md",
+              "docs/Installation-Guide.md",
+              "docs/Updating-Guide.md",
+              "docs/Frequently-Asked-Questions.md",
+              "docs/Known-Issues-and-Limitations.md",
+              "docs/Troubleshooting-Guide.md",
+              "docs/Development-Guide.md",
+          ]
+          missing_docs = [name for name in docs if not Path(name).is_file()]
+          if missing_docs:
+              raise SystemExit(f"Missing documentation pages: {missing_docs!r}")
+          locale_count = len(list(locale_dir.glob("*.json")))
+          print(f"Locale checks passed for {locale_count} languages; {len(docs)} local documentation pages are present.")
+          PY
+
+      - name: Validate workflow structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/build-wmp-hybrid.yml").read_text(encoding="utf-8")
+          build_start = workflow.find("\n  build:\n")
+          if build_start < 0:
+              raise SystemExit("The build job is missing.")
+
+          build = workflow[build_start:]
+          checkout_start = build.find("      - name: Checkout source")
+          assets_start = build.find("      - name: Ensure required versioned MP4 assets are available")
+          docker_start = build.find("      - name: Build Tizen widget")
+
+          if checkout_start < 0 or assets_start < 0 or docker_start < 0:
+              raise SystemExit("The build job must contain checkout, asset preparation and Docker build steps.")
+          if not checkout_start < assets_start < docker_start:
+              raise SystemExit("The build job checkout must precede asset preparation and Docker build.")
+
+          checkout = build[checkout_start:assets_start]
+          if "uses: actions/checkout@v5" not in checkout or "submodules: recursive" not in checkout:
+              raise SystemExit("The build job must checkout source with recursive submodules.")
+
+          if "    needs: validate" not in build:
+              raise SystemExit("The build job must depend on the validate job.")
+          if "    if: github.event_name != 'pull_request'" not in build:
+              raise SystemExit("The build job must remain disabled for pull_request events.")
+
+          if "Build WMP native ARM engine and ServiceApp" not in build:
+              raise SystemExit("The WMP native engine and ServiceApp must be built in this workflow.")
+          if "Assemble unsigned hybrid WGT" not in build:
+              raise SystemExit("The unsigned WMP hybrid WGT assembly step is missing.")
+          if "uses: ./.github/workflows/" in build:
+              raise SystemExit("The WMP build must not call a separate reusable workflow.")
+          print("AC-3 web build and WMP hybrid workflow structure checks passed.")
+          PY
+
+      - name: Lint GitHub Actions workflows
+        uses: raven-actions/actionlint@v2
+        with:
+          version: 1.7.7
+          files: .github/workflows/build-wmp-hybrid.yml
+          shellcheck: false
+          pyflakes: false
+
+
+  build:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    name: Build unsigned WMP hybrid WGT
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout source
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.web_ref }}
           submodules: recursive
 
-      - name: Check out WMP service packaging metadata
+      - name: Ensure required versioned MP4 assets are available")
+          docker_start = build.find("      - name: Build Tizen widget")
+
+          if checkout_start < 0 or assets_start < 0 or docker_start < 0:
+              raise SystemExit("The build job must contain checkout, asset preparation and Docker build steps.")
+          if not checkout_start < assets_start < docker_start:
+              raise SystemExit("The build job checkout must precede asset preparation and Docker build.")
+
+          checkout = build[checkout_start:assets_start]
+          if "uses: actions/checkout@v5" not in checkout or "submodules: recursive" not in checkout:
+              raise SystemExit("The build job must checkout source with recursive submodules.")
+
+          if "    needs: validate" not in build:
+              raise SystemExit("The build job must depend on the validate job.")
+          if "    if: github.event_name != 'pull_request'" not in build:
+              raise SystemExit("The build job must remain disabled for pull_request events.")
+
+          print("Workflow structure checks passed.")
+          PY
+
+      - name: Lint GitHub Actions workflows
+        uses: raven-actions/actionlint@v2
+        with:
+          version: 1.7.7
+          files: .github/workflows/build-ac3-passthrough.yml
+          shellcheck: false
+          pyflakes: false
+
+
+  build:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    name: Build ${{ matrix.variant }} WGT
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            force_game_mode: 'false'
+            artifact: Moonlight
+          - variant: forcegm
+            force_game_mode: 'true'
+            artifact: Moonlight-ForceGM
+    steps:
+      - name: Checkout source
         uses: actions/checkout@v5
         with:
-          repository: ${{ github.repository }}
-          ref: wmp_mode
-          path: wmp-source
-          fetch-depth: 1
-
-      - name: Download native WMP build outputs
-        uses: actions/download-artifact@v6
-        with:
-          name: wmp-native-arm
-          path: ${{ runner.temp }}/wmp-native
-
-      - name: Validate native build outputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
-
-      - name: Validate SDK libraries for the hybrid ServiceApp link
-        shell: bash
-        run: |
-          set -euo pipefail
-          TV_LIBS_DIR="$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib"
-          test -d "$TV_LIBS_DIR"
-          for lib in libecore_wl2.so.1 libecore.so.1 libssl.so.1.0.0 libcrypto.so.1.0.0 libcurl.so.4; do
-            test -e "$TV_LIBS_DIR/$lib" || {
-              echo "::error::Missing SDK library: usr/lib/$lib" >&2
-              exit 1
-            }
-          done
-          echo "TV_LIBS_DIR=$TV_LIBS_DIR" >> "$GITHUB_ENV"
+          submodules: recursive
 
       - name: Ensure required versioned MP4 assets are available
         shell: bash
@@ -77,50 +229,163 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          asset_file="moonlight-generated-videos-v1.zip"
-          asset_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/build-assets/$asset_file"
-          asset_path="$RUNNER_TEMP/$asset_file"
-          api_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
-          mkdir -p generated-videos
+          ASSET_FILE="moonlight-generated-videos-v1.zip"
+          ASSET_URL="https://raw.githubusercontent.com/fidoboy/moonlight-tizen-ac3/build-assets/$ASSET_FILE"
+          ASSET_PATH="$RUNNER_TEMP/video-assets/$ASSET_FILE"
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos "$RUNNER_TEMP/video-assets"
 
-          status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
+          download_asset() {
+            local status
+            status="$(curl --silent --show-error --location --output "$ASSET_PATH" --write-out '%{http_code}' "$ASSET_URL")"
+            printf '%s' "$status"
+          }
+
+          status="$(download_asset)"
           if [[ "$status" == "404" ]]; then
-            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
+            echo "Video asset ZIP not found on build-assets; starting the asset-generation workflow."
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets/dispatch-response.json" --write-out '%{http_code}' \
               --request POST \
               -H 'Accept: application/vnd.github+json' \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               -H 'Content-Type: application/json' \
-              --data '{"ref":"master"}' "$api_url")"
+              --data '{"ref":"master"}' \
+              "$API_URL")"
             if [[ "$dispatch_status" != "204" ]]; then
-              cat "$RUNNER_TEMP/video-assets-dispatch.json" >&2 || true
-              echo "::error::Could not dispatch Generate video assets (HTTP $dispatch_status)." >&2
+              echo "::error::Could not start Generate video assets (HTTP $dispatch_status). The workflow token needs Actions write permission." >&2
+              cat "$RUNNER_TEMP/video-assets/dispatch-response.json" >&2
               exit 1
             fi
+
+            # Wait for the ZIP to be published. Do not regenerate if the ZIP already exists.
             status="404"
             for attempt in $(seq 1 120); do
               sleep 10
-              status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
-              [[ "$status" == "200" ]] && break
+              status="$(download_asset)"
+              if [[ "$status" == "200" ]]; then
+                break
+              fi
               if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
-                echo "::error::Unexpected HTTP $status while waiting for generated video assets." >&2
+                echo "::error::Unexpected HTTP $status while waiting for the generated video asset ZIP." >&2
                 exit 1
               fi
             done
-          fi
-          if [[ "$status" != "200" ]]; then
-            echo "::error::Could not retrieve generated video assets (HTTP $status)." >&2
+            if [[ "$status" != "200" ]]; then
+              echo "::error::The video asset ZIP was not published within 20 minutes. Check the Generate video assets workflow run." >&2
+              exit 1
+            fi
+          elif [[ "$status" != "200" ]]; then
+            echo "::error::Could not download the video asset ZIP (HTTP $status)." >&2
             exit 1
           fi
-          unzip -tq "$asset_path"
-          unzip -oq "$asset_path" -d generated-videos
-          test -s generated-videos/launch-screen.mp4
-          test -s generated-videos/launch-screen-portrait.mp4
+
+          # A present but invalid ZIP is an error; generation is only triggered when the ZIP is missing.
+          if ! unzip -tq "$ASSET_PATH" >/dev/null; then
+            echo "::error::The video asset ZIP exists but is invalid; refusing to regenerate it automatically." >&2
+            exit 1
+          fi
+          unzip -oq "$ASSET_PATH" -d generated-videos
+          for video in launch-screen.mp4 launch-screen-portrait.mp4; do
+            if [[ ! -s "generated-videos/$video" ]]; then
+              echo "::error::Required video generated-videos/$video is missing or empty in the existing ZIP." >&2
+              exit 1
+            fi
+          done
+          echo "Installed all versioned MP4 assets into generated-videos/."
+
+      - name: Check out WMP native service sources
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: wmp_mode
+          path: wmp-source
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Cache Tizen 5.5 ARM sysroot and toolchain
+        uses: actions/cache@v4
+        with:
+          path: wmp-source/tizen-deps
+          key: ${{ runner.os }}-tizen55-sysroot-${{ hashFiles('wmp-source/wmp/upstream/build/fetch-tizen-sources.sh') }}-v1
+
+      - name: Cache OpenSSL and cURL source trees
+        uses: actions/cache@v4
+        with:
+          path: |
+            wmp-source/backport-deps/openssl111
+            wmp-source/backport-deps/curl759
+          key: ${{ runner.os }}-wmp-backport-sources-${{ hashFiles('wmp-source/wmp/upstream/build/fetch-backport-deps.sh') }}-v1
+
+      - name: Build WMP native ARM engine and ServiceApp
+        working-directory: wmp-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential curl git unzip libarchive-tools file binutils \
+            autoconf automake libtool ca-certificates python3
+          export MLT="$GITHUB_WORKSPACE/wmp-source"
+          export DEPS="$MLT/tizen-deps"
+          export BPD="$MLT/backport-deps"
+          export DEPSBUILD="$MLT/deps-build"
+          export ENGINE_OUT="$MLT/engine-build"
+          bash wmp/upstream/build/fetch-tizen-sources.sh "$DEPS"
+          tool_root="$DEPS/toolchain"
+          gcc="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-gcc' -perm -u+x -print -quit)"
+          objdump="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-objdump' -perm -u+x -print -quit)"
+          ar="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ar' -perm -u+x -print -quit)"
+          ranlib="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ranlib' -perm -u+x -print -quit)"
+          if [[ -z "$gcc" || -z "$objdump" || -z "$ar" || -z "$ranlib" ]]; then
+            echo "::error::Tizen ARM toolchain executables are missing." >&2
+            find "$tool_root" -maxdepth 7 -type f | head -200
+            exit 1
+          fi
+          expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
+          mkdir -p "$expected"
+          for tool in gcc objdump ar ranlib; do
+            case "$tool" in
+              gcc) source="$gcc"; name=arm-linux-gnueabi-gcc ;;
+              objdump) source="$objdump"; name=arm-linux-gnueabi-objdump ;;
+              ar) source="$ar"; name=arm-linux-gnueabi-ar ;;
+              ranlib) source="$ranlib"; name=arm-linux-gnueabi-ranlib ;;
+            esac
+            target="$expected/$name"
+            if [[ "$(realpath "$source")" != "$(realpath -m "$target")" ]]; then ln -sfn "$source" "$target"; fi
+          done
+          "$expected/arm-linux-gnueabi-gcc" --version
+          "$expected/arm-linux-gnueabi-objdump" --version | head -1
+          bash wmp/upstream/build/fetch-backport-deps.sh
+          bash wmp/upstream/build/build-deps-lib.sh
+          BUILD_VARIANT=release bash wmp/upstream/mlclient/build-engine-so.sh
+          bash wmp/service/build-wmp-service.sh
+          mkdir -p build-report
+          readelf -h "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-elf-header.txt
+          readelf -d "$ENGINE_OUT/libmlengine.so" > build-report/libmlengine-dynamic.txt
+          readelf -h wmp/build/service/bin/wmp-service > build-report/wmp-service-elf-header.txt
+          readelf -d wmp/build/service/bin/wmp-service > build-report/wmp-service-dynamic.txt
+          file "$ENGINE_OUT/libmlengine.so" wmp/build/service/bin/wmp-service | tee build-report/file.txt
+          grep -q 'Machine:.*ARM' build-report/libmlengine-elf-header.txt
+          grep -q 'Machine:.*ARM' build-report/wmp-service-elf-header.txt
+          grep -q 'Shared library: \[libmlengine.so\]' build-report/wmp-service-dynamic.txt
+          grep -Eq 'Library (runpath|rpath): \[\$ORIGIN/../lib\]' build-report/wmp-service-dynamic.txt
+          if grep -q 'NEEDED.*libesplusplayer' build-report/libmlengine-dynamic.txt; then echo "::error::ESPlus must be runtime-loaded, not DT_NEEDED." >&2; exit 1; fi
+          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\.so' build-report/libmlengine-dynamic.txt; then echo "::error::Private static OpenSSL/cURL stack is missing." >&2; exit 1; fi
+          python3 wmp/upstream/build/audit-elf-dependencies.py \
+            --readelf readelf --output build-report/elf-dependencies.txt \
+            --root "$ENGINE_OUT/libmlengine.so" --root wmp/build/service/bin/wmp-service \
+            --search-dir "$DEPS/sysroot/lib" --search-dir "$DEPS/sysroot/usr/lib" \
+            --search-dir "$DEPS/sysroot/usr/lib64" --search-dir "$DEPS/tv-libs/lib" \
+            --search-dir "$DEPS/tv-libs/usr/lib" --search-dir wmp/build/service/lib \
+            --system-soname libblkid.so.1 --system-soname libbuxton2.so.1 \
+            --system-soname libcrypto.so.1.1 --system-soname libecore.so.1 \
+            --system-soname liblzma.so.5 --system-soname libsmack.so.1 --system-soname libuuid.so.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build the Moonlight web WGT
+      - name: Build Tizen widget
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -135,7 +400,7 @@ jobs:
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=false
 
-      - name: Extract base web WGT
+      - name: Extract base Moonlight web WGT
         shell: bash
         run: |
           set -euo pipefail
@@ -144,213 +409,109 @@ jobs:
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
-      - name: Install Tizen Web and Native SDKs
+      - name: Assemble unsigned hybrid WGT
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends expect software-properties-common
-          sudo add-apt-repository -y ppa:deadsnakes/ppa
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+          service_binary="wmp-source/wmp/build/service/bin/wmp-service"
+          engine="wmp-source/wmp/build/service/lib/libmlengine.so"
+          manifest="wmp-source/wmp/service/tizen-manifest.xml"
+          web_wgt="$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          output="$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
 
-          installer="$RUNNER_TEMP/tizen-web-cli.bin"
-          curl --fail --location --retry 3 --output "$installer" \
-            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
-          chmod +x "$installer"
-          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
-
-          sdk="$RUNNER_TEMP/tizen-studio"
-          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
-          test -n "$pm"
-          required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
-          "$pm" install --accept-license --no-java-check "$required"
-          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
-          echo "$sdk/tools" >> "$GITHUB_PATH"
-          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
-          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
-
-      - name: Create headless CI signing profile
-        shell: bash
-        env:
-          CERT_PASSWORD: moonlight-hybrid-ci
-        run: |
-          set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
-          tizen certificate -a MoonlightHybrid -f MoonlightHybrid -p "$CERT_PASSWORD"
-          tizen security-profiles add \
-            -n MoonlightHybrid \
-            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12" \
-            -p "$CERT_PASSWORD"
-          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
-          test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd||" "$profiles"
-          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
-
-      - name: Prepare hybrid web and native projects
-        shell: bash
-        run: |
-          set -euo pipefail
-          hybrid_root="$RUNNER_TEMP/WmpHybridPackage"
-          web_project="$hybrid_root/MoonlightWeb"
-          service_project="$hybrid_root/WmpService"
-          mkdir -p "$hybrid_root"
-
-          tizen list web-project > "$RUNNER_TEMP/web-project-templates.txt"
-          web_profile="$(awk '$1 ~ /^tizen-[0-9]+\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' \
-            "$RUNNER_TEMP/web-project-templates.txt" | sort -Vr | head -n 1)"
-          test -n "$web_profile"
-          tizen create web-project -p "$web_profile" -t WebBasicApplication -n MoonlightWeb -- "$hybrid_root"
-          tizen create native-project -p tizen-10.0 -t ServiceApp -n WmpService -- "$hybrid_root"
-          test -d "$web_project" && test -d "$service_project"
-
-          # Reuse the exact web application WGT; the hybrid package is signed once below.
-          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$web_project" <<'PY'
-          import sys, zipfile
+          # The native job already cross-compiles both ARM ELF files. This job
+          # only assembles the Tizen hybrid package; Apps2Samsung signs it for
+          # the selected TV immediately before installation.
+          python3 - "$service_binary" "$manifest" "$web_wgt" "$engine" "$output" <<'PY'
+          import stat, sys, zipfile
           from pathlib import Path, PurePosixPath
-          source, destination = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
-          skipped = {"author-signature.xml", "signature1.xml", "signature2.xml"}
-          with zipfile.ZipFile(source) as archive:
-              for member in archive.infolist():
-                  name = PurePosixPath(member.filename)
-                  if name.is_absolute() or ".." in name.parts:
-                      raise SystemExit(f"Unsafe path in source WGT: {member.filename}")
-                  if not name.parts or name.name in skipped:
-                      continue
-                  target = (destination / Path(*name.parts)).resolve()
-                  if destination not in target.parents and target != destination:
-                      raise SystemExit(f"Source WGT path escapes project: {member.filename}")
-                  if member.is_dir():
-                      target.mkdir(parents=True, exist_ok=True)
-                  else:
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      target.write_bytes(archive.read(member))
-          PY
+          import xml.etree.ElementTree as ET
 
-          for required_file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
-            test -s "$web_project/$required_file"
-          done
+          binary, manifest, web_wgt, engine, output = map(Path, sys.argv[1:])
+          for path in (binary, manifest, web_wgt, engine):
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"Required hybrid input is missing or empty: {path}")
 
-          # Add the native ServiceApp as a dependency of the web project.
-          python3 - "$web_project/.project" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          from pathlib import Path
-          path = Path(sys.argv[1])
-          if path.exists():
-              tree = ET.parse(path); root = tree.getroot()
-          else:
-              root = ET.Element("projectDescription")
-              ET.SubElement(root, "name").text = "MoonlightWeb"
-              ET.SubElement(root, "comment"); ET.SubElement(root, "projects")
-              ET.SubElement(root, "buildSpec"); ET.SubElement(root, "natures")
-              tree = ET.ElementTree(root)
-          projects = root.find("projects")
-          if projects is None: projects = ET.SubElement(root, "projects")
-          if not any((x.text or "").strip() == "WmpService" for x in projects.findall("project")):
-              ET.SubElement(projects, "project").text = "WmpService"
-          tree.write(path, encoding="UTF-8", xml_declaration=True)
-          PY
-
-          mkdir -p "$service_project/src" "$service_project/lib"
-          cp wmp-source/wmp/service/src/main.c "$service_project/src/main.c"
-          cp wmp-source/wmp/service/src/wmp_esplus_abi.h "$service_project/src/wmp_esplus_abi.h"
-          cp wmp-source/wmp/upstream/mlclient/mlengine.h "$service_project/src/mlengine.h"
-          cp "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" "$service_project/lib/libmlengine.so"
-          cp wmp-source/wmp/service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
-
-          python3 - "$web_project/config.xml" "$service_project/tizen-manifest.xml" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          web = ET.parse(sys.argv[1]).getroot()
-          tree = ET.parse(sys.argv[2]); native = tree.getroot()
-          version = web.attrib.get("version")
-          if not version: raise SystemExit("Web config.xml has no version")
-          if native.attrib.get("package") != "MoonLightS":
+          root = ET.parse(manifest).getroot()
+          if root.attrib.get("package") != "MoonLightS":
               raise SystemExit("Native manifest package ID must be MoonLightS")
-          app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
-          if app is None or app.attrib.get("appid") != "MoonLightS.WmpService" or app.attrib.get("exec") != "wmp-service":
-              raise SystemExit("Unexpected WMP native service identity")
-          native.set("version", version)
-          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
+          service = next((n for n in root.iter() if n.tag.endswith("service-application")), None)
+          if service is None or service.attrib.get("appid") != "MoonLightS.WmpService":
+              raise SystemExit("Native service application identity is invalid")
+          if service.attrib.get("exec") != "wmp-service":
+              raise SystemExit("Native service executable must be wmp-service")
+
+          entries = {
+              "bin/wmp-service": binary,
+              "lib/libmlengine.so": engine,
+              "info/manifest.xml": manifest,
+          }
+          with zipfile.ZipFile(web_wgt) as web:
+              for member in web.infolist():
+                  path = PurePosixPath(member.filename)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"Unsafe path in base web WGT: {member.filename}")
+                  if not path.parts or member.is_dir():
+                      continue
+                  if path.name in {"author-signature.xml", "signature1.xml", "signature2.xml"}:
+                      continue
+                  name = (PurePosixPath("res/wgt") / path).as_posix()
+                  if name in entries:
+                      raise SystemExit(f"Duplicate hybrid package entry: {name}")
+                  entries[name] = web.read(member)
+
+          required = {
+              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml",
+              "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/service/service.js",
+              "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm"
+          }
+          missing = sorted(required - entries.keys())
+          if missing:
+              raise SystemExit("Hybrid package inputs are missing: " + ", ".join(missing))
+
+          config = ET.fromstring(entries["res/wgt/config.xml"])
+          web_app = next((n for n in config.iter() if n.tag.endswith("application")), None)
+          if web_app is None or web_app.attrib.get("id") != "MoonLightS.MoonlightWasm" or web_app.attrib.get("package") != "MoonLightS":
+              raise SystemExit("Web application identity does not match the native package")
+          version = config.attrib.get("version")
+          if not version:
+              raise SystemExit("Web config.xml has no application version")
+          root.set("version", version)
+          entries["info/manifest.xml"] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for name, source in sorted(entries.items()):
+                  info = zipfile.ZipInfo(name)
+                  info.create_system = 3
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  mode = 0o755 if name == "bin/wmp-service" else 0o644
+                  info.external_attr = (stat.S_IFREG | mode) << 16
+                  data = source if isinstance(source, bytes) else source.read_bytes()
+                  archive.writestr(info, data)
+
+          with zipfile.ZipFile(output) as archive:
+              bad = archive.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt ZIP entry: {bad}")
+              names = set(archive.namelist())
+              signature_names = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+              if any(PurePosixPath(n).name in signature_names for n in names):
+                  raise SystemExit("Unsigned CI artifact unexpectedly contains signature files")
+          print(f"Created unsigned hybrid WGT: {output} ({len(entries)} files)")
           PY
+          test -s "$output"
+          sha256sum "$output" | tee "$RUNNER_TEMP/Moonlight-WMP-Hybrid.sha256"
 
-          cat > "$service_project/project_def.prop" <<PROP
-          APPNAME = wmp-service
+      - name: Upload unsigned hybrid WGT candidate for inspection
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-WMP-Hybrid-unsigned-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
+          if-no-files-found: error
+          retention-days: 7
 
-          type = app
-          profile = iot-headed-6.0
-
-          USER_SRCS = src/main.c
-          USER_DEFS =
-          USER_INC_DIRS = src
-          USER_OBJS =
-          USER_LIBS = appcore-agent dlog message-port bundle dl pthread mlengine
-          USER_LFLAGS = -Wl,--no-undefined -Wl,-rpath-link,$TV_LIBS_DIR -L$TV_LIBS_DIR
-          USER_EDCS =
-          PROP
-
-          if [[ -f "$service_project/.tproject" ]]; then
-            sed -i 's/tizen-10.0/iot-headed-6.0/g' "$service_project/.tproject"
-          fi
-
-          # Retarget the generated Tizen 10 linker settings to IoT Headed 6.0.
-          python3 - "$service_project/.cproject" <<'PY'
-          import re, sys
-          from pathlib import Path
-          path = Path(sys.argv[1]); content = path.read_text(encoding="utf-8")
-          options = re.compile(
-              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>).*?(</option>)',
-              re.DOTALL)
-          sysroot = "$" + "{SBI_SYSROOT}"
-          flags = "\n".join([
-              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
-              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>'])
-          content, n = options.subn(lambda m: m.group(1) + "\n" + flags + "\n                                " + m.group(2), content)
-          if n != 2: raise SystemExit(f"Expected 2 linker configurations, found {n}")
-          selectors = re.compile(
-              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>.*?</option>',
-              re.DOTALL)
-          content, n = selectors.subn("", content)
-          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 SBI selectors, found {n}")
-          catalogues = re.compile(
-              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>.*?</option>',
-              re.DOTALL)
-          content, n = catalogues.subn("", content)
-          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 Native_API catalogues, found {n}")
-          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content or re.search(r'value="Native_API"', content):
-              raise SystemExit("Tizen 10 platform selectors remain")
-          path.write_text(content, encoding="utf-8")
-          PY
-
-          echo "HYBRID_ROOT=$hybrid_root" >> "$GITHUB_ENV"
-
-      - name: Build and sign the hybrid WGT
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' \
-            'set timeout -1' \
-            'log_user 1' \
-            'spawn {*}$argv' \
-            'expect {' \
-            '  -re {Author password:} { send -- "moonlight-hybrid-ci\r"; exp_continue }' \
-            '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
-            '  eof' \
-            '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
-          chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
-          expect "$RUNNER_TEMP/run-hybrid-build.exp" \
-            tizen build-app \
-            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
-            -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
-            -p 'name:p1,targets:[b1]' \
-            -s MoonlightHybrid \
-            -- "$HYBRID_ROOT"
-
-          hybrid_wgt="$(find "$HYBRID_ROOT" -type f -name '*.wgt' -size +0c -print -quit)"
-          test -n "$hybrid_wgt"
-          cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
-
-      - name: Inspect hybrid WGT and native linkage
+      - name: Inspect unsigned hybrid WGT and native linkage
         shell: bash
         run: |
           set -euo pipefail
@@ -363,34 +524,44 @@ jobs:
           from pathlib import Path, PurePosixPath
           package, output = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
           required = {
-              "bin/wmp-service", "lib/libmlengine.so", "config.xml", "tizen-manifest.xml",
+              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml",
               "res/wgt/config.xml", "res/wgt/service/service.js", "res/wgt/index.html",
               "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
-              "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json",
-              "author-signature.xml", "signature1.xml"
+              "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json"
           }
           with zipfile.ZipFile(package) as archive:
-              names = set(archive.namelist())
+              entries = archive.infolist()
+              names = {entry.filename for entry in entries}
+              print("WGT archive entries:")
+              for entry in entries:
+                  print(f"  {entry.filename} ({entry.file_size} bytes)")
               missing = sorted(required - names)
               if missing: raise SystemExit("Missing WGT entries: " + ", ".join(missing))
+
+              # CI intentionally emits an unsigned package. Apps2Samsung signs
+              # this WGT with the certificate belonging to the target TV.
+              signature_names = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+              unexpected = sorted(n for n in names if Path(n).name in signature_names)
+              if unexpected:
+                  raise SystemExit("Unsigned WGT contains signature artefacts: " + ", ".join(unexpected))
               for name in names:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
-              for name in ("bin/wmp-service", "lib/libmlengine.so", "config.xml", "tizen-manifest.xml"):
+              for name in ("bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml"):
                   target = output / name
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
-              config = ET.fromstring(archive.read("config.xml"))
+              config = ET.fromstring(archive.read("res/wgt/config.xml"))
               web = next((n for n in config.iter() if n.tag.endswith("application")), None)
               if web is None or web.attrib.get("id") != "MoonLightS.MoonlightWasm" or web.attrib.get("package") != "MoonLightS":
                   raise SystemExit("Web application identity is incorrect")
-              manifest = ET.fromstring(archive.read("tizen-manifest.xml"))
+              manifest = ET.fromstring(archive.read("info/manifest.xml"))
               native = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
               if manifest.attrib.get("package") != "MoonLightS" or native is None:
                   raise SystemExit("Native manifest package or service application is missing")
               if native.attrib.get("appid") != "MoonLightS.WmpService" or native.attrib.get("exec") != "wmp-service":
                   raise SystemExit("Native service identity is incorrect")
-              print(f"Hybrid WGT validated: {len(names)} entries; web app, native service and signatures are present.")
+              print(f"Unsigned hybrid WGT validated: {len(names)} entries; web app and native service are present.")
           PY
           file "$inspection/bin/wmp-service" "$inspection/lib/libmlengine.so"
           readelf -h "$inspection/bin/wmp-service" > "$inspection/wmp-service-elf-header.txt"
@@ -405,15 +576,19 @@ jobs:
             echo "::error::libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED." >&2
             exit 1
           fi
+          if grep -Eq 'NEEDED.*lib(ssl|crypto|curl)\.so' "$inspection/libmlengine-dynamic.txt"; then
+            echo "::error::libmlengine.so must contain the private static OpenSSL/cURL stack." >&2
+            exit 1
+          fi
           sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" | tee "$inspection/sha256.txt"
           cp "$inspection/sha256.txt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid.sha256"
           cp "$inspection/wmp-service-dynamic.txt" "$RUNNER_TEMP/"
           cp "$inspection/libmlengine-dynamic.txt" "$RUNNER_TEMP/"
 
-      - name: Upload signed hybrid WGT
+      - name: Upload unsigned hybrid WGT
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-WMP-Hybrid-${{ github.sha }}
+          name: Moonlight-WMP-Hybrid-unsigned-${{ github.sha }}
           path: |
             ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
             ${{ runner.temp }}/Moonlight-WMP-Hybrid.sha256
