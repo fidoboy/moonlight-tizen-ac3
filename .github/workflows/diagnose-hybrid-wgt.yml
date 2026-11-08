@@ -76,7 +76,7 @@ jobs:
           printf '%s\n' '123456' > "$author_pwd"
           chmod 600 "$author_pwd"
           test -s "$author_key"
-          openssl pkcs12 -in "$author_key" -passin "file:$author_pwd" -noout
+          openssl pkcs12 -legacy -in "$author_key" -passin "file:$author_pwd" -noout
           echo "Author PKCS12/password-file verification: OK"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           "$TIZEN_CORE_CLI" security-profiles add \
