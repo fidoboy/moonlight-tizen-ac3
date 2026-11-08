@@ -115,6 +115,8 @@ jobs:
           grep -Fq -- '--proj-dir' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--sign-profile' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--profiles-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--out-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           dotnet --info
           dotnet --list-sdks | grep -E '^8\.'
 
@@ -264,15 +266,27 @@ jobs:
             "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
+
+            # A hybrid WGT stores the Web project under res/wgt. Remove the
+            # extra package-root config.xml and re-sign the modified archive
+            # through Tizen Core CLI so both package signatures are regenerated.
+            local unsigned="$RUNNER_TEMP/$name-unsigned.wgt"
+            cp "$output" "$unsigned"
+            zip -q -d "$unsigned" config.xml author-signature.xml signature1.xml
+            "$TIZEN_CORE_CLI" pack --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --base-pkg "$unsigned" --out-path "$output"
+            test -s "$output"
+            unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
           import sys, zipfile, xml.etree.ElementTree as ET
           from pathlib import Path
           source, output = Path(sys.argv[1]), Path(sys.argv[2])
           with zipfile.ZipFile(output) as z:
               names = set(z.namelist())
-              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
+              required = {"tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
               missing = sorted(required - names)
               if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
+              if "config.xml" in names:
+                  raise SystemExit("Unexpected root config.xml remains in hybrid WGT")
               for f in source.rglob("*"):
                   if f.is_file():
                       p = "res/wgt/" + f.relative_to(source).as_posix()
@@ -282,7 +296,7 @@ jobs:
               splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
               if splash is None or splash.get("ready_when") != "custom":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
-              print("Hybrid WGT structure, signature, Moonlight payload and video splash verified.")
+              print("Hybrid WGT structure, regenerated signatures, Moonlight payload and video splash verified.")
           PY
           }
 
