@@ -305,7 +305,7 @@ jobs:
           web_project="$HYBRID_ROOT/MoonlightWeb"
           native_output="$service_project/Release"
 
-          # Compile only. Tizen's package/build-app commands always invoke the
+          # Compile only. Tizen's package-generation commands always invoke the
           # signing subsystem, so they are deliberately not used in this CI.
           tizen build-native \
             -a arm \
@@ -452,7 +452,7 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
-      - name: Inspect hybrid WGT and native linkage
+      - name: Inspect unsigned hybrid WGT and native linkage
         shell: bash
         run: |
           set -euo pipefail
@@ -488,15 +488,15 @@ jobs:
               for name in names:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
-              for name in ("bin/wmp-service", "lib/libmlengine.so", "config.xml", "tizen-manifest.xml"):
-                  target = output / name
+              for name in ("bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml", "tizen-manifest.xml"):
+                  target = output / name.replace("/", "_")
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
-              config = ET.fromstring(archive.read("config.xml"))
+              config = ET.fromstring(archive.read("res/wgt/config.xml"))
               web = next((n for n in config.iter() if n.tag.endswith("application")), None)
               if web is None or web.attrib.get("id") != "MoonLightS.MoonlightWasm" or web.attrib.get("package") != "MoonLightS":
                   raise SystemExit("Web application identity is incorrect")
-              manifest = ET.fromstring(archive.read("tizen-manifest.xml"))
+              manifest = ET.fromstring(archive.read("info/manifest.xml"))
               native = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
               if manifest.attrib.get("package") != "MoonLightS" or native is None:
                   raise SystemExit("Native manifest package or service application is missing")
