@@ -130,215 +130,30 @@ jobs:
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
-      - name: Cache Tizen Studio SDK
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/tizen-studio
-          key: tizen-studio-6.1-tizen-10.0-generic-native-${{ runner.os }}-v1
-
-      - name: Install Tizen Web and Native SDKs
+      - name: Assemble unsigned hybrid WGT
         shell: bash
         run: |
           set -euo pipefail
-          sdk="$RUNNER_TEMP/tizen-studio"
+          service_binary="$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
+          engine="$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+          manifest="wmp-source/wmp/service/tizen-manifest.xml"
+          web_wgt="$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          output="$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
 
-          # Hosted runners are fresh, so install only host packages that are
-          # actually missing. Avoid refreshing APT and adding the PPA on every run.
-          need_apt=false
-          if ! command -v add-apt-repository >/dev/null 2>&1; then
-            need_apt=true
-          fi
-          if [[ "$need_apt" == true ]]; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends software-properties-common
-          fi
-
-          if ! command -v python3.8 >/dev/null 2>&1 || ! ldconfig -p 2>/dev/null | grep -q 'libpython3[.]8[.]so'; then
-            if ! grep -Rqs 'deadsnakes/ppa' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
-              sudo add-apt-repository -y ppa:deadsnakes/ppa
-            fi
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
-          fi
-
-          if [[ ! -x "$sdk/tools/ide/bin/tizen" ]]; then
-            echo "Tizen Studio cache miss; installing SDK and required native components."
-            installer="$RUNNER_TEMP/tizen-web-cli.bin"
-            curl --fail --location --retry 3 --output "$installer" \
-              https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
-            chmod +x "$installer"
-            "$installer" --accept-license "$sdk"
-
-            pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
-            test -n "$pm"
-            required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,TIZEN-10.0-NativeAppDevelopment-CLI"
-            "$pm" install --accept-license --no-java-check "$required"
-          else
-            echo "Tizen Studio SDK restored from cache; skipping SDK installation."
-          fi
-          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
-          echo "$sdk/tools" >> "$GITHUB_PATH"
-          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
-          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
-
-      - name: Prepare hybrid web and native projects
-        shell: bash
-        run: |
-          set -euo pipefail
-          hybrid_root="$RUNNER_TEMP/WmpHybridPackage"
-          web_project="$hybrid_root/MoonlightWeb"
-          service_project="$hybrid_root/WmpService"
-          mkdir -p "$hybrid_root"
-
-          tizen list web-project > "$RUNNER_TEMP/web-project-templates.txt"
-          web_profile="$(awk '$1 ~ /^tizen-[0-9]+\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' \
-            "$RUNNER_TEMP/web-project-templates.txt" | sort -Vr | head -n 1)"
-          test -n "$web_profile"
-          tizen create web-project -p "$web_profile" -t WebBasicApplication -n MoonlightWeb -- "$hybrid_root"
-          tizen create native-project -p tizen-10.0 -t ServiceApp -n WmpService -- "$hybrid_root"
-          test -d "$web_project" && test -d "$service_project"
-
-          # Reuse the exact web application WGT; the hybrid package is signed once below.
-          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$web_project" <<'PY'
-          import sys, zipfile
-          from pathlib import Path, PurePosixPath
-          source, destination = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
-          skipped = {"author-signature.xml", "signature1.xml", "signature2.xml"}
-          with zipfile.ZipFile(source) as archive:
-              for member in archive.infolist():
-                  name = PurePosixPath(member.filename)
-                  if name.is_absolute() or ".." in name.parts:
-                      raise SystemExit(f"Unsafe path in source WGT: {member.filename}")
-                  if not name.parts or name.name in skipped:
-                      continue
-                  target = (destination / Path(*name.parts)).resolve()
-                  if destination not in target.parents and target != destination:
-                      raise SystemExit(f"Source WGT path escapes project: {member.filename}")
-                  if member.is_dir():
-                      target.mkdir(parents=True, exist_ok=True)
-                  else:
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      target.write_bytes(archive.read(member))
-          PY
-
-          for required_file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
-            test -s "$web_project/$required_file"
-          done
-
-          # Add the native ServiceApp as a dependency of the web project.
-          python3 - "$web_project/.project" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          from pathlib import Path
-          path = Path(sys.argv[1])
-          if path.exists():
-              tree = ET.parse(path); root = tree.getroot()
-          else:
-              root = ET.Element("projectDescription")
-              ET.SubElement(root, "name").text = "MoonlightWeb"
-              ET.SubElement(root, "comment"); ET.SubElement(root, "projects")
-              ET.SubElement(root, "buildSpec"); ET.SubElement(root, "natures")
-              tree = ET.ElementTree(root)
-          projects = root.find("projects")
-          if projects is None: projects = ET.SubElement(root, "projects")
-          if not any((x.text or "").strip() == "WmpService" for x in projects.findall("project")):
-              ET.SubElement(projects, "project").text = "WmpService"
-          tree.write(path, encoding="UTF-8", xml_declaration=True)
-          PY
-
-          mkdir -p "$service_project/src" "$service_project/lib"
-          cp wmp-source/wmp/service/src/main.c "$service_project/src/main.c"
-          cp wmp-source/wmp/service/src/wmp_esplus_abi.h "$service_project/src/wmp_esplus_abi.h"
-          cp wmp-source/wmp/upstream/mlclient/mlengine.h "$service_project/src/mlengine.h"
-          cp "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" "$service_project/lib/libmlengine.so"
-          cp wmp-source/wmp/service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
-
-          python3 - "$web_project/config.xml" "$service_project/tizen-manifest.xml" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          web = ET.parse(sys.argv[1]).getroot()
-          tree = ET.parse(sys.argv[2]); native = tree.getroot()
-          version = web.attrib.get("version")
-          if not version: raise SystemExit("Web config.xml has no version")
-          if native.attrib.get("package") != "MoonLightS":
-              raise SystemExit("Native manifest package ID must be MoonLightS")
-          app = next((n for n in native.iter() if n.tag.endswith("service-application")), None)
-          if app is None or app.attrib.get("appid") != "MoonLightS.WmpService" or app.attrib.get("exec") != "wmp-service":
-              raise SystemExit("Unexpected WMP native service identity")
-          native.set("version", version)
-          # Keep Tizen's package namespace as the default namespace. The native
-          # CLI's package-name reader expects an unprefixed <manifest> element.
-          ET.register_namespace("", "http://tizen.org/ns/packages")
-          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
-          PY
-
-          cat > "$service_project/project_def.prop" <<PROP
-          APPNAME = wmp-service
-
-          type = app
-          profile = tizen-10.0
-
-          USER_SRCS = src/main.c
-          USER_DEFS =
-          USER_INC_DIRS = src
-          USER_OBJS =
-          USER_LIBS = appcore-agent dlog message-port bundle dl pthread mlengine
-          USER_LFLAGS = -Wl,--no-undefined
-          USER_EDCS =
-          PROP
-
-          echo "HYBRID_ROOT=$hybrid_root" >> "$GITHUB_ENV"
-
-      - name: Verify generic Tizen ARM rootstrap
-        shell: bash
-        run: |
-          set -euo pipefail
-          rootstraps="$RUNNER_TEMP/available-rootstraps.txt"
-          tizen list rootstrap | tee "$rootstraps"
-          grep -q '^tizen-10[.]0-device[.]core' "$rootstraps"
-          tizen list rootstrap tizen-10.0-device.core | tee "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
-          grep -q 'Native_API' "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
-
-      - name: Build native WMP service and assemble unsigned hybrid WGT
-        shell: bash
-        run: |
-          set -euo pipefail
-          service_project="$HYBRID_ROOT/WmpService"
-          web_project="$HYBRID_ROOT/MoonlightWeb"
-          native_output="$service_project/Release"
-
-          # Compile only. Tizen's package-generation commands always invoke the
-          # signing subsystem, so they are deliberately not used in this CI.
-          tizen build-native \
-            -a arm \
-            -c gcc \
-            -C Release \
-            -r tizen-10.0-device.core \
-            -- "$service_project"
-
-          service_binary="$(find "$native_output" -type f -name wmp-service -print -quit)"
-          if [[ -z "$service_binary" ]]; then
-            echo "::error::Native build did not produce wmp-service under $native_output." >&2
-            find "$service_project" -maxdepth 4 -type f -print | sort >&2
-            exit 1
-          fi
-
-          # A Tizen hybrid WGT is a ZIP with the native package directories
-          # (bin/lib/info) and the web application under res/wgt. Apps2Samsung
-          # adds the device-specific author/distributor signatures at install.
-          python3 - "$service_binary" "$service_project/tizen-manifest.xml" \
-            "$web_project" "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" \
-            "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" <<'PY'
-          import os, stat, sys, zipfile
+          # The native job already cross-compiles both ARM ELF files. This job
+          # only assembles the Tizen hybrid package; Apps2Samsung signs it for
+          # the selected TV immediately before installation.
+          python3 - "$service_binary" "$manifest" "$web_wgt" "$engine" "$output" <<'PY'
+          import stat, sys, zipfile
           from pathlib import Path, PurePosixPath
           import xml.etree.ElementTree as ET
 
-          binary, manifest, web_root, engine, output = map(Path, sys.argv[1:])
-          web_root = web_root.resolve()
-          for path in (binary, manifest, engine, web_root / "config.xml", web_root / "index.html"):
+          binary, manifest, web_wgt, engine, output = map(Path, sys.argv[1:])
+          for path in (binary, manifest, web_wgt, engine):
               if not path.is_file() or path.stat().st_size == 0:
                   raise SystemExit(f"Required hybrid input is missing or empty: {path}")
 
-          tree = ET.parse(manifest)
-          root = tree.getroot()
+          root = ET.parse(manifest).getroot()
           if root.attrib.get("package") != "MoonLightS":
               raise SystemExit("Native manifest package ID must be MoonLightS")
           service = next((n for n in root.iter() if n.tag.endswith("service-application")), None)
@@ -347,40 +162,43 @@ jobs:
           if service.attrib.get("exec") != "wmp-service":
               raise SystemExit("Native service executable must be wmp-service")
 
-          entries = {}
-          entries["bin/wmp-service"] = binary
-          entries["lib/libmlengine.so"] = engine
-          entries["info/manifest.xml"] = manifest
-          # Retain the native source manifest at package root as well. The
-          # authoritative hybrid package metadata is info/manifest.xml.
-          entries["tizen-manifest.xml"] = manifest
-
-          excluded = {".project", ".tproject", ".cproject", ".settings"}
-          for path in web_root.rglob("*"):
-              if not path.is_file():
-                  continue
-              rel = path.relative_to(web_root)
-              if any(part in excluded for part in rel.parts):
-                  continue
-              if path.name in {"author-signature.xml", "signature1.xml", "signature2.xml"}:
-                  continue
-              name = (PurePosixPath("res/wgt") / PurePosixPath(rel.as_posix())).as_posix()
-              entries[name] = path
+          entries = {
+              "bin/wmp-service": binary,
+              "lib/libmlengine.so": engine,
+              "info/manifest.xml": manifest,
+          }
+          with zipfile.ZipFile(web_wgt) as web:
+              for member in web.infolist():
+                  path = PurePosixPath(member.filename)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"Unsafe path in base web WGT: {member.filename}")
+                  if not path.parts or member.is_dir():
+                      continue
+                  if path.name in {"author-signature.xml", "signature1.xml", "signature2.xml"}:
+                      continue
+                  name = (PurePosixPath("res/wgt") / path).as_posix()
+                  if name in entries:
+                      raise SystemExit(f"Duplicate hybrid package entry: {name}")
+                  entries[name] = web.read(member)
 
           required = {
               "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml",
-              "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html",
-              "res/wgt/service/service.js", "res/wgt/moonlight-wasm.js",
-              "res/wgt/moonlight-wasm.wasm"
+              "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/service/service.js",
+              "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm"
           }
           missing = sorted(required - entries.keys())
           if missing:
               raise SystemExit("Hybrid package inputs are missing: " + ", ".join(missing))
 
-          config = ET.parse(entries["res/wgt/config.xml"]).getroot()
+          config = ET.fromstring(entries["res/wgt/config.xml"])
           web_app = next((n for n in config.iter() if n.tag.endswith("application")), None)
           if web_app is None or web_app.attrib.get("id") != "MoonLightS.MoonlightWasm" or web_app.attrib.get("package") != "MoonLightS":
               raise SystemExit("Web application identity does not match the native package")
+          version = config.attrib.get("version")
+          if not version:
+              raise SystemExit("Web config.xml has no application version")
+          root.set("version", version)
+          entries["info/manifest.xml"] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
           output.parent.mkdir(parents=True, exist_ok=True)
           with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
@@ -389,19 +207,21 @@ jobs:
                   info.compress_type = zipfile.ZIP_DEFLATED
                   mode = 0o755 if name == "bin/wmp-service" else 0o644
                   info.external_attr = (stat.S_IFREG | mode) << 16
-                  archive.writestr(info, source.read_bytes())
+                  data = source if isinstance(source, bytes) else source.read_bytes()
+                  archive.writestr(info, data)
 
           with zipfile.ZipFile(output) as archive:
               bad = archive.testzip()
               if bad:
                   raise SystemExit(f"Corrupt ZIP entry: {bad}")
               names = set(archive.namelist())
-              if any(Path(n).name in {"author-signature.xml", "signature1.xml", "signature2.xml"} for n in names):
+              signature_names = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+              if any(PurePosixPath(n).name in signature_names for n in names):
                   raise SystemExit("Unsigned CI artifact unexpectedly contains signature files")
           print(f"Created unsigned hybrid WGT: {output} ({len(entries)} files)")
           PY
-          test -s "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
-          sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" | tee "$RUNNER_TEMP/Moonlight-WMP-Hybrid.sha256"
+          test -s "$output"
+          sha256sum "$output" | tee "$RUNNER_TEMP/Moonlight-WMP-Hybrid.sha256"
 
       - name: Upload unsigned hybrid WGT candidate for inspection
         uses: actions/upload-artifact@v6
@@ -410,47 +230,6 @@ jobs:
           path: ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
           if-no-files-found: error
           retention-days: 7
-
-      - name: Collect Tizen CLI diagnostics
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          diagnostics="$RUNNER_TEMP/tizen-cli-diagnostics"
-          mkdir -p "$diagnostics"
-
-          # Tizen CLI logs can contain transient signing passwords. Never copy
-          # raw cli.log files into workflow artifacts.
-          printf '%s\n' "Raw Tizen CLI logs intentionally excluded because they may contain credentials." \
-            > "$diagnostics/RAW-CLI-LOGS-EXCLUDED.txt"
-
-          if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/WmpService" ]]; then
-            mkdir -p "$diagnostics/WmpService"
-            for metadata in .project .tproject .cproject project_def.prop tizen-manifest.xml; do
-              if [[ -f "$HYBRID_ROOT/WmpService/$metadata" ]]; then
-                cp "$HYBRID_ROOT/WmpService/$metadata" "$diagnostics/WmpService/$metadata"
-              fi
-            done
-          fi
-          if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/MoonlightWeb" ]]; then
-            mkdir -p "$diagnostics/MoonlightWeb"
-            for metadata in .project .tproject config.xml; do
-              if [[ -f "$HYBRID_ROOT/MoonlightWeb/$metadata" ]]; then
-                cp "$HYBRID_ROOT/MoonlightWeb/$metadata" "$diagnostics/MoonlightWeb/$metadata"
-              fi
-            done
-          fi
-          find "$diagnostics" -type f -printf '%P (%s bytes)\n' | sort
-
-      - name: Upload Tizen CLI diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: tizen-cli-diagnostics-${{ github.run_id }}
-          path: ${{ runner.temp }}/tizen-cli-diagnostics/
-          if-no-files-found: warn
-          retention-days: 7
-          include-hidden-files: true
 
       - name: Inspect unsigned hybrid WGT and native linkage
         shell: bash
@@ -465,7 +244,7 @@ jobs:
           from pathlib import Path, PurePosixPath
           package, output = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
           required = {
-              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml", "tizen-manifest.xml",
+              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml",
               "res/wgt/config.xml", "res/wgt/service/service.js", "res/wgt/index.html",
               "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
               "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json"
@@ -488,7 +267,7 @@ jobs:
               for name in names:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
-              for name in ("bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml", "tizen-manifest.xml"):
+              for name in ("bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml"):
                   target = output / name
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
