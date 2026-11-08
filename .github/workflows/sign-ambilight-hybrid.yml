@@ -17,12 +17,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sign:
+  package:
     name: Package previously built hybrid inputs
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - name: Install signing prerequisites
+      - name: Install packaging prerequisites
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3 unzip zip
@@ -137,13 +137,9 @@ jobs:
           print("Hybrid container minimum set to Tizen 5.5; embedded .NET service remains API 9.")
           PY
 
-          # Leave the hybrid WGT unsigned; the target installer applies its own
-          # signing identity. The .NET service TPK build itself remains unchanged.
-          "$TIZEN_CORE_CLI" pack \
-            --type wgt \
-            --base-pkg "$patched" \
-            --out-path "$output"
-
+          # Keep the patched hybrid archive unsigned. The installer will apply
+          # its own signing identity; no CI certificate or signing profile is needed.
+          cp "$patched" "$output"
           test -s "$output"
           echo "HYBRID_WGT=$output" >> "$GITHUB_ENV"
 
