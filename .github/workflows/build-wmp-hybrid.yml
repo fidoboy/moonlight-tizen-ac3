@@ -184,7 +184,7 @@ jobs:
       - name: Create headless CI signing profile
         shell: bash
         env:
-          CERT_PASSWORD: MoonlightHybrid2026
+          CERT_PASSWORD: 123456
         run: |
           set -euo pipefail
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
@@ -348,7 +348,7 @@ jobs:
           spawn {*}$argv
           expect {
             -nocase -re {Author password:} {
-              send -- "MoonlightHybrid2026\r"
+              send -- "123456\r"
               exp_continue
             }
             -nocase -re {Save author password[^\r\n]*} {
