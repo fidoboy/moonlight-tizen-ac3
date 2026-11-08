@@ -229,34 +229,11 @@ jobs:
           echo "Signing profile registered."
           echo "::endgroup::"
 
-          echo "::group::3/7 Validate SDK distributor credentials"
-          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd"
-          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          distributor_keystore="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
-          if [[ ! -s "$distributor_pwd" ]]; then
-            echo "::error::SDK distributor password file is missing or empty: $distributor_pwd" >&2
-            exit 1
-          fi
-          if [[ ! -s "$distributor_keystore" ]]; then
-            echo "::error::SDK distributor PKCS#12 file is missing or empty: $distributor_keystore" >&2
-            exit 1
-          fi
-          echo "SDK distributor credentials are present."
-          echo "::endgroup::"
-
-          echo "::group::4/7 Normalize headless profile password references"
-          sed -i \
-            -e "s|$author_pwd||g" \
-            -e "s|$distributor_pwd|tizenpkcs12passfordsigner|g" \
-            "$profiles"
-          if grep -Fq "$author_pwd" "$profiles"; then
-            echo "::error::Author .pwd reference remains in profiles.xml after normalization." >&2
-            exit 1
-          fi
-          if grep -Fq "$distributor_pwd" "$profiles"; then
-            echo "::error::Distributor .pwd reference remains in profiles.xml after normalization." >&2
-            exit 1
-          fi
+          echo "::group::3/5 Validate generated signing profile"
+          # Tizen's security-profiles command has already resolved the SDK's
+          # distributor certificate and password. Keep its profiles.xml intact:
+          # SDK installations do not necessarily ship a standalone distributor
+          # .pwd file, and rewriting credential references breaks signing.
           if ! grep -Fq "$author_keystore" "$profiles"; then
             echo "::error::profiles.xml does not reference the generated author PKCS#12 file." >&2
             exit 1
@@ -271,7 +248,7 @@ jobs:
               ET.parse(sys.argv[1])
           except Exception as exc:
               raise SystemExit(f"profiles.xml is not well-formed XML: {exc}")
-          print("profiles.xml is well-formed and contains the expected keystore references.")
+          print("Tizen-generated profiles.xml is valid; credential references were left unchanged.")
           PY
           echo "::endgroup::"
 
