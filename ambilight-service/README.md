@@ -19,7 +19,7 @@ GitHub Actions workflow **Build Moonlight Samsung TV hybrid WGT** on branch `1.2
 3. Uses Tizen Core CLI to merge the Web WGT and .NET TPK into one signed hybrid WGT.
 4. Validates package/application identities, the .NET assembly, signatures and the Web-to-service AppControl fields.
 
-The Web UI and service use package ID `MoonLightS`, with distinct application IDs `MoonLightS.MoonlightWasm` and `MoonLightS.MoonlightAmbilight`. The Web WGT retains Moonlight's Tizen 5.5 minimum. The service's .NET target is API 9, matching the upstream service project; it is an optional component and must not change the Web application's required version. On a TV where this service runtime or the capture library is unavailable, only Ambilight is disabled. The outer hybrid package is explicitly checked in CI to retain the Web application's Tizen 5.5 minimum.
+The Web UI and service use package ID `MoonLightS`, with distinct application IDs `MoonLightS.MoonlightWasm` and `MoonLightS.MoonlightAmbilight`. The original .NET TPK is built and retained with package API 6.5, service API 9 and the `tizen90` target. After the hybrid package is assembled, only the outer hybrid manifest's package API floor is set to 5.5 and the WGT is re-signed. The embedded service application remains API 9; its build target and capture implementation are not downgraded. Before sending AppControl, Moonlight reads `http://tizen.org/feature/platform.version`: on Tizen 5.5–6.0 it does not launch the service at all and disables only Ambilight. On Tizen 6.5 or later it probes the service; the service then checks the Samsung capture library and symbol before enabling the setting.
 
 ## Capture compatibility
 

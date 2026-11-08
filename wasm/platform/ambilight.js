@@ -14,11 +14,12 @@
 
       var value = String(tizen.systeminfo.getCapability(
         'http://tizen.org/feature/platform.version') || '');
-      var match = /^\\s*(\\d+)\\.(\\d+)(?:\\.|$)/.exec(value);
-      if (!match) return false;
+      var parts = value.split('.');
+      if (parts.length < 2) return false;
 
-      var major = Number(match[1]);
-      var minor = Number(match[2]);
+      var major = parseInt(parts[0], 10);
+      var minor = parseInt(parts[1], 10);
+      if (!isFinite(major) || !isFinite(minor)) return false;
       var required = MINIMUM_SERVICE_PLATFORM_VERSION.split('.');
       var requiredMajor = Number(required[0]);
       var requiredMinor = Number(required[1]);
