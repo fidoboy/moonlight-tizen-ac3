@@ -230,6 +230,8 @@ jobs:
               raise SystemExit("Moonlight Web application ID changed unexpectedly")
           if web_app.get("package") != "MoonLightS":
               raise SystemExit("Moonlight Web package ID changed unexpectedly")
+          if web_app.get("required_version") != "5.5":
+              raise SystemExit("Moonlight Web minimum platform version must remain Tizen 5.5")
           if manifest.get("package") != web_app.get("package"):
               raise SystemExit("Web and .NET service package IDs must match")
           if service_app is None:
@@ -240,6 +242,8 @@ jobs:
               raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
           if service_app.get("exec") != "MoonlightAmbilight.dll":
               raise SystemExit("Ambilight .NET entry assembly mismatch")
+          if service_app.get("api-version") != "5":
+              raise SystemExit("The optional service must target API 5 or lower, never raise Moonlight's Tizen 5.5 minimum")
 
           manifest.set("version", web.get("version", "1.2.3"))
           tree.write(service_path, encoding="UTF-8", xml_declaration=True)
@@ -280,6 +284,8 @@ jobs:
                   raise SystemExit("The .NET TPK service application ID is incorrect")
               if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll":
                   raise SystemExit("The TPK does not contain the expected .NET service declaration")
+              if app.get("api-version") != "5":
+                  raise SystemExit("The optional .NET service must be built for API 5")
               if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
                   raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
               print("Validated the compiled .NET Tizen ServiceApplication TPK.")
@@ -386,12 +392,16 @@ jobs:
                   raise SystemExit("Packaged Moonlight Web application identity is invalid")
               if web_app.get("package") != "MoonLightS":
                   raise SystemExit("Packaged Web package ID is invalid")
+              if web_app.get("required_version") != "5.5":
+                  raise SystemExit("Moonlight's packaged minimum Tizen version must remain 5.5")
               if service.get("package") != "MoonLightS":
                   raise SystemExit("Packaged .NET service package ID differs from Web package")
               if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
                   raise SystemExit("Packaged Ambilight service application ID is invalid")
               if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
                   raise SystemExit("Packaged service is not the expected .NET Tizen application")
+              if service_app.get("api-version") != "5":
+                  raise SystemExit("Packaged optional service requests an API above the Tizen 5.5 baseline")
 
               assemblies = [name for name in names
                             if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
@@ -409,11 +419,13 @@ jobs:
               "new tizen.ApplicationControlData('wledIp'",
               "new tizen.ApplicationControlData('wledPort'",
               "new tizen.ApplicationControlData('ledCount'",
+              "initialize",
+              "shutdown",
           ]
           for token in contract:
               if token not in js:
                   raise SystemExit("Web AppControl contract is missing: " + token)
-          for token in ['"command"', '"wledIp"', '"wledPort"', '"ledCount"', '"start"', '"stop"']:
+          for token in ['"command"', '"wledIp"', '"wledPort"', '"ledCount"', '"initialize"', '"start"', '"stop"', '"shutdown"']:
               if token not in cs:
                   raise SystemExit("The .NET service does not handle AppControl field: " + token)
 
