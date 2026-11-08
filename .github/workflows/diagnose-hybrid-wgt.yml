@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo apt-get install -y --no-install-recommends software-properties-common expect unzip
           sudo add-apt-repository -y ppa:deadsnakes/ppa
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
@@ -118,23 +118,23 @@ jobs:
 
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
-      - name: Reproduce the hybrid packaging sequence
+      - name: Reproduce the hybrid packaging and signing sequence
         shell: bash
         run: |
           set -euo pipefail
           workspace="$RUNNER_TEMP/hybrid-reproduction"
           web_project="$workspace/MoonlightWeb"
           base_wgt="$RUNNER_TEMP/MoonlightWeb-base.wgt"
-          hybrid_wgt="$RUNNER_TEMP/Moonlight-hybrid.wgt"
+          draft_wgt="$RUNNER_TEMP/MoonlightWeb-hybrid-unsigned.wgt"
+          final_project="$RUNNER_TEMP/MoonlightWeb-hybrid-project"
+          final_wgt="$RUNNER_TEMP/MoonlightWeb.wgt"
 
           mkdir -p "$workspace"
 
-          echo "=== 1. Generate and package the base Web WGT ==="
+          echo "=== 1. Generate and package the unsigned base Web WGT ==="
           "$TIZEN_CORE_CLI" new -t Basic -n MoonlightWeb -T web -p tizen-9.0 -w "$workspace"
           test -d "$web_project"
-          "$TIZEN_CORE_CLI" pack --proj-dir "$web_project" --type wgt \
-            --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" \
-            --out-path "$base_wgt"
+          "$TIZEN_CORE_CLI" pack --proj-dir "$web_project" --type wgt --out-path "$base_wgt"
           test -s "$base_wgt"
           unzip -tq "$base_wgt"
 
@@ -153,7 +153,7 @@ jobs:
           test -s "$service_tpk"
           echo "Service TPK: $service_tpk"
 
-          echo "=== 3. Validate the embedded service manifest ==="
+          echo "=== 3. Verify the embedded service manifest ==="
           python3 - ambilight-service/tizen-manifest.xml <<'PY'
           import sys
           import xml.etree.ElementTree as ET
@@ -178,26 +178,82 @@ jobs:
           print("Service manifest verified:", actual)
           PY
 
-          echo "=== 4. Package the hybrid WGT with tz pack ==="
-          "$TIZEN_CORE_CLI" pack --type wgt \
-            --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" \
-            --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" \
-            --out-path "$hybrid_wgt"
-          test -s "$hybrid_wgt"
-          unzip -tq "$hybrid_wgt"
-          echo "Hybrid package created: $hybrid_wgt"
+          echo "=== 4. Assemble the hybrid WGT without signing ==="
+          "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" \
+            --base-pkg "$base_wgt" --out-path "$draft_wgt"
+          test -s "$draft_wgt"
+          unzip -tq "$draft_wgt"
 
-          echo "=== Verify the embedded service package ==="
-          python3 - "$hybrid_wgt" <<'PY'
-          import sys, zipfile
-          from pathlib import PurePosixPath
-          with zipfile.ZipFile(sys.argv[1]) as z:
-              names = z.namelist()
-              matches = [n for n in names if n.lower().endswith(".tpk")]
-              if not matches:
-                  raise SystemExit("Hybrid WGT does not contain an embedded service TPK")
-              print("Embedded service package(s):", matches)
+          echo "=== 5. Prepare the hybrid project for standard Tizen signing ==="
+          rm -rf "$final_project"
+          mkdir -p "$final_project"
+          unzip -q "$draft_wgt" -d "$final_project"
+          python3 - "$final_project/tizen-manifest.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          path = sys.argv[1]
+          ET.register_namespace("", "http://tizen.org/ns/packages")
+          tree = ET.parse(path)
+          root = tree.getroot()
+          service_app = next((node for node in root.iter()
+                              if node.tag.endswith("service-application")), None)
+          if service_app is None:
+              raise SystemExit("Hybrid manifest has no embedded service application")
+          if service_app.get("api-version") != "9":
+              raise SystemExit("Embedded service API 9 requirement changed unexpectedly")
+          root.set("api-version", "5.5")
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print("Hybrid manifest floor set to Tizen 5.5; service remains API 9.")
           PY
+
+          echo "=== 6. Sign the complete hybrid WGT with tizen package + expect ==="
+          cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
+          set timeout -1
+          log_user 1
+          spawn {*}$argv
+          expect {
+            -re {Author password:} { send -- "123456\\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            eof
+          }
+          set status [wait]
+          exit [lindex $status 3]
+          EXPECT
+          chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
+          expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$final_project"
+
+          test -s "$final_project/MoonlightWeb.wgt"
+          cp "$final_project/MoonlightWeb.wgt" "$final_wgt"
+          unzip -tq "$final_wgt"
+
+          echo "=== 7. Verify final signed hybrid package and embedded TPK ==="
+          python3 - "$final_wgt" "$service_tpk" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import PurePosixPath
+
+          package_path, service_path = sys.argv[1:]
+          with zipfile.ZipFile(package_path) as package:
+              names = package.namelist()
+              tpks = [name for name in names if name.lower().endswith(".tpk")]
+              if len(tpks) != 1:
+                  raise SystemExit(f"Expected exactly one embedded service TPK, found {len(tpks)}: {tpks}")
+              if package.read(tpks[0]) != open(service_path, "rb").read():
+                  raise SystemExit("Signing changed or replaced the embedded service TPK")
+              for signature in ("author-signature.xml", "signature1.xml"):
+                  if signature not in names:
+                      raise SystemExit(f"Final signed hybrid WGT is missing {signature}")
+              for name in names:
+                  path = PurePosixPath(name)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"Unsafe path in final WGT: {name}")
+              print("Final signed hybrid WGT verified.")
+              print("Embedded service TPK:", tpks[0])
+              print("Signature entries:", "author-signature.xml, signature1.xml")
+          PY
+
+          echo "Final hybrid WGT: $final_wgt"
 
       - name: Upload diagnostic logs
         if: always()
