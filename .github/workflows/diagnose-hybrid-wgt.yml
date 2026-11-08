@@ -132,7 +132,7 @@ jobs:
           mkdir -p "$workspace"
 
           echo "=== Tizen Core CLI pack options (verify signing controls) ==="
-          "$TIZEN_CORE_CLI" pack --help 2>&1 | tee "$RUNNER_TEMP/tz-pack-help.txt"
+          "$TIZEN_CORE_CLI" pack --help 2>&1 | tee "$RUNNER_TEMP/tz-pack-help.txt" || true
 
           echo "=== 1. Generate and sign the base Web WGT with the AC3 tizen package + expect method ==="
           "$TIZEN_CORE_CLI" new -t Basic -n MoonlightWeb -T web -p tizen-9.0 -w "$workspace"
@@ -142,8 +142,8 @@ jobs:
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            -re {Author password:} { send -- "123456\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
             eof
           }
           set status [wait]
