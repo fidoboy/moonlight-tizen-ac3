@@ -289,8 +289,8 @@ jobs:
           mkdir -p "$workspace"
 
           "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
-          grep -qi 'BasicUI' "$RUNNER_TEMP/web-templates.txt" || {
-            echo "::error::Tizen Core BasicUI web template is unavailable."
+          grep -Eq '^[[:space:]]+Basic \[web_app\]' "$RUNNER_TEMP/web-templates.txt" || {
+            echo "::error::Tizen Core Basic web template is unavailable."
             exit 1
           }
 
@@ -300,7 +300,7 @@ jobs:
             local output="$3"
             local project="$workspace/$project_name"
 
-            "$TIZEN_CORE_CLI" new --type web --template BasicUI \
+            "$TIZEN_CORE_CLI" new --type web --template Basic \
               --project-name "$project_name" --profile tizen-9.0 --path "$workspace"
             test -d "$project"
             cp -a "$source/." "$project/"
