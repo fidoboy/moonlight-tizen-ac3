@@ -183,10 +183,6 @@ jobs:
 
       - name: Create and validate headless Tizen signing profile
         shell: bash
-        env:
-          # Generate a fresh per-run certificate password; never reuse the short
-          # password used by the Docker image's local development certificate.
-          TIZEN_CERT_PASSWORD: ${{ env.TIZEN_CERT_PASSWORD }}
         run: |
           set -euo pipefail
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
