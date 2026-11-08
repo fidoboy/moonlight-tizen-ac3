@@ -202,174 +202,46 @@ jobs:
           import sys
           import zipfile
           import xml.etree.ElementTree as ET
-          from pathlib import PurePosixPath
 
-          source_path, output_path = sys.argv[1:3]
+          with zipfile.ZipFile(sys.argv[1]) as package:
+              web = ET.fromstring(package.read("config.xml"))
+
+          service_path = sys.argv[2]
+          # Tizen.NET.Sdk resolves the manifest root using its default namespace.
+          # ElementTree otherwise serializes it as ns0:manifest, which makes
+          # GetManifestInfo report tpkName is Invalid.
           ET.register_namespace("", "http://tizen.org/ns/packages")
+          tree = ET.parse(service_path)
+          manifest = tree.getroot()
+          web_app = next((node for node in web.iter()
+                          if node.tag.endswith("application")), None)
+          service_app = next((node for node in manifest.iter()
+                              if node.tag.endswith("service-application")), None)
 
-          required_splash_resources = {
-              "static/res/launch-screen.mp4",
-              "static/res/launch-screen-portrait.mp4",
-              "static/res/launch-screen.png",
-              "static/res/launch-screen-portrait.png",
-          }
+          if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
+              raise SystemExit("Moonlight Web application ID changed unexpectedly")
+          if web_app.get("package") != "MoonLightS":
+              raise SystemExit("Moonlight Web package ID changed unexpectedly")
+          if web_app.get("required_version") != "5.5":
+              raise SystemExit("Moonlight Web minimum platform version must remain Tizen 5.5")
+          if manifest.get("package") != web_app.get("package"):
+              raise SystemExit("Web and .NET service package IDs must match")
+          if manifest.get("api-version") != "6.5":
+              raise SystemExit("The original .NET service package API version must remain 6.5")
+          if service_app is None:
+              raise SystemExit("The .NET ServiceApplication manifest is missing")
+          if service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
+              raise SystemExit("Ambilight service application ID mismatch")
+          if service_app.get("type") != "dotnet":
+              raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
+          if service_app.get("exec") != "MoonlightAmbilight.dll":
+              raise SystemExit("Ambilight .NET entry assembly mismatch")
+          if service_app.get("api-version") != "9":
+              raise SystemExit("The service runtime must match the original upstream Tizen API 9 build target")
 
-          with zipfile.ZipFile(source_path, "r") as source:
-              names = set(source.namelist())
-              if "tizen-manifest.xml" not in names or "config.xml" not in names:
-                  raise SystemExit("Hybrid WGT is missing its outer manifest or config.xml")
-
-              manifest = ET.fromstring(source.read("tizen-manifest.xml"))
-              if manifest.get("api-version") != "6.5":
-                  raise SystemExit("Expected hybrid package API floor 6.5 before adjustment")
-              service_app = next((node for node in manifest.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Embedded .NET service must retain original API 9 target")
-              manifest.set("api-version", "5.5")
-              patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
-
-              # Tizen Core keeps the Web project under res/wgt. The outer
-              # package config has its own resource root. Keep the original
-              # VSS paths relative to that outer root and mirror only the four
-              # splash assets there; the original Web files/config stay intact
-              # under res/wgt with their original relative paths.
-              config = ET.fromstring(source.read("config.xml"))
-
-              def resolve_outer_resource(value, description):
-                  if value in names:
-                      return value
-                  nested_value = f"res/wgt/{value}"
-                  if nested_value in names:
-                      return nested_value
-                  raise SystemExit(
-                      f"Outer {description} does not exist in hybrid WGT: {value}"
-                  )
-
-              splash_copies = {}
-              rewritten_references = []
-              for node in config.iter():
-                  tag = node.tag.split("}")[-1]
-                  attributes = []
-                  if tag == "content":
-                      attributes.append("src")
-                  elif tag == "icon":
-                      attributes.append("src")
-                  elif tag == "src":
-                      attributes.append("name")
-                  is_splash = tag in ("vss_default", "vss_landscape", "vss_portrait")
-                  if is_splash:
-                      attributes.extend(("video", "background_image", "image"))
-
-                  for attribute in attributes:
-                      value = node.get(attribute)
-                      if not value:
-                          continue
-
-                      if is_splash:
-                          # A previously patched input may already carry the
-                          # res/wgt/ prefix. Strip it for the package-root
-                          # splash copy, but do not alter the embedded Web WGT.
-                          outer_value = value[8:] if value.startswith("res/wgt/") else value
-                          outer_path = PurePosixPath(outer_value)
-                          if outer_path.is_absolute() or ".." in outer_path.parts:
-                              raise SystemExit(f"Unsafe outer splash path: {value}")
-
-                          nested_value = f"res/wgt/{outer_value}"
-                          candidates = [p for p in (outer_value, nested_value) if p in names]
-                          if not candidates:
-                              raise SystemExit(
-                                  f"Outer splash resource is missing from both package roots: {value}"
-                              )
-                          root_data = source.read(candidates[0])
-                          if len(candidates) == 2 and source.read(candidates[1]) != root_data:
-                              raise SystemExit(
-                                  f"Conflicting root and Web copies of splash resource: {outer_value}"
-                              )
-                          if outer_value not in names:
-                              splash_copies[outer_value] = root_data
-                          node.set(attribute, outer_value)
-                          rewritten_references.append((tag, attribute, outer_value))
-                      else:
-                          resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
-                          if resolved != value:
-                              node.set(attribute, resolved)
-                          rewritten_references.append((tag, attribute, resolved))
-
-              required_references = {
-                  ("content", "src"): "res/wgt/index.html",
-                  ("icon", "src"): "res/wgt/icon.png",
-                  ("src", "name"): "res/wgt/index.html",
-              }
-              for key, expected in required_references.items():
-                  if not any((tag, attribute) == key and value == expected
-                             for tag, attribute, value in rewritten_references):
-                      raise SystemExit(
-                          f"Outer config.xml is missing the expected {key[0]} "
-                          f"reference to {expected}"
-                      )
-
-              if not any(tag == "content" and attribute == "src"
-                         and value == "res/wgt/service/service.js"
-                         for tag, attribute, value in rewritten_references):
-                  raise SystemExit(
-                      "Outer config.xml does not point the Smart Hub service "
-                      "to res/wgt/service/service.js"
-                  )
-
-              outer_splash_paths = {
-                  value for tag, attribute, value in rewritten_references
-                  if tag in ("vss_default", "vss_landscape", "vss_portrait")
-              }
-              if not required_splash_resources.issubset(outer_splash_paths):
-                  raise SystemExit(
-                      "Outer config.xml does not declare all four original "
-                      "package-root splash resources"
-                  )
-
-              ET.register_namespace("", "http://www.w3.org/ns/widgets")
-              ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
-              patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
-
-              with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
-                  for entry in source.infolist():
-                      if entry.filename == "tizen-manifest.xml":
-                          data = patched_manifest
-                      elif entry.filename == "config.xml":
-                          data = patched_config
-                      else:
-                          data = source.read(entry.filename)
-                      output.writestr(entry, data)
-                  for name, data in splash_copies.items():
-                      output.writestr(name, data)
-
-          with zipfile.ZipFile(output_path) as result:
-              final_manifest = ET.fromstring(result.read("tizen-manifest.xml"))
-              service_app = next((node for node in final_manifest.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if final_manifest.get("api-version") != "5.5":
-                  raise SystemExit("Hybrid container minimum must remain Tizen 5.5")
-              if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Hybrid packaging changed embedded service API 9 target")
-
-              final_names = set(result.namelist())
-              final_config = ET.fromstring(result.read("config.xml"))
-              final_splash = next((node for node in final_config.iter()
-                                   if node.tag.endswith("video_splash_screen")), None)
-              if final_splash is None:
-                  raise SystemExit("Patched outer config.xml lost video_splash_screen")
-
-              for name in required_splash_resources:
-                  nested_name = f"res/wgt/{name}"
-                  if name not in final_names or nested_name not in final_names:
-                      raise SystemExit(
-                          f"Splash resource must exist both at package root and Web root: {name}"
-                      )
-                  if result.read(name) != result.read(nested_name):
-                      raise SystemExit(
-                          f"Package-root splash copy differs from original Web resource: {name}"
-                      )
-          print("Hybrid package root splash copies added; original Web WGT and its resources remain unchanged.")
+          manifest.set("version", web.get("version", "1.2.3"))
+          tree.write(service_path, encoding="UTF-8", xml_declaration=True)
+          print("Validated matching package ID and .NET service app ID; aligned package version.")
           PY
 
           dotnet msbuild ambilight-service/TizenAmbilight.csproj \
@@ -464,9 +336,17 @@ jobs:
           import sys
           import zipfile
           import xml.etree.ElementTree as ET
+          from pathlib import PurePosixPath
 
           source_path, output_path = sys.argv[1:3]
           ET.register_namespace("", "http://tizen.org/ns/packages")
+
+          required_splash_resources = {
+              "static/res/launch-screen.mp4",
+              "static/res/launch-screen-portrait.mp4",
+              "static/res/launch-screen.png",
+              "static/res/launch-screen-portrait.png",
+          }
 
           with zipfile.ZipFile(source_path, "r") as source:
               names = set(source.namelist())
@@ -483,9 +363,10 @@ jobs:
               manifest.set("api-version", "5.5")
               patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
 
-              # Tizen Core nests the original Web WGT under res/wgt/. The
-              # outer config.xml remains the package entry point, so every
-              # file reference in it must resolve from the outer package root.
+              # Tizen Core nests the Web project under res/wgt. The outer
+              # package config has its own resource root. Preserve the
+              # original VSS paths at package root and mirror those four
+              # assets there; leave the embedded Web project untouched.
               config = ET.fromstring(source.read("config.xml"))
 
               def resolve_outer_resource(value, description):
@@ -498,28 +379,54 @@ jobs:
                       f"Outer {description} does not exist in hybrid WGT: {value}"
                   )
 
+              splash_copies = {}
               rewritten_references = []
               for node in config.iter():
                   tag = node.tag.split("}")[-1]
                   attributes = []
-                  if tag == "content":
-                      attributes.append("src")
-                  elif tag == "icon":
+                  if tag in ("content", "icon"):
                       attributes.append("src")
                   elif tag == "src":
                       attributes.append("name")
 
-                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
+                  is_splash = tag in ("vss_default", "vss_landscape", "vss_portrait")
+                  if is_splash:
                       attributes.extend(("video", "background_image", "image"))
 
                   for attribute in attributes:
                       value = node.get(attribute)
                       if not value:
                           continue
-                      resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
-                      if resolved != value:
-                          node.set(attribute, resolved)
-                      rewritten_references.append((tag, attribute, resolved))
+
+                      if is_splash:
+                          # The package-level splash is resolved from the
+                          # package root, not from the embedded Web root.
+                          # Strip any stale prefix left by earlier builds.
+                          outer_value = value[8:] if value.startswith("res/wgt/") else value
+                          outer_path = PurePosixPath(outer_value)
+                          if outer_path.is_absolute() or ".." in outer_path.parts:
+                              raise SystemExit(f"Unsafe outer splash path: {value}")
+
+                          nested_value = f"res/wgt/{outer_value}"
+                          candidates = [p for p in (outer_value, nested_value) if p in names]
+                          if not candidates:
+                              raise SystemExit(
+                                  f"Outer splash resource is absent from package and Web roots: {value}"
+                              )
+                          root_data = source.read(candidates[0])
+                          if len(candidates) == 2 and source.read(candidates[1]) != root_data:
+                              raise SystemExit(
+                                  f"Conflicting package-root and Web splash resource: {outer_value}"
+                              )
+                          if outer_value not in names:
+                              splash_copies[outer_value] = root_data
+                          node.set(attribute, outer_value)
+                          rewritten_references.append((tag, attribute, outer_value))
+                      else:
+                          resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
+                          if resolved != value:
+                              node.set(attribute, resolved)
+                          rewritten_references.append((tag, attribute, resolved))
 
               required_references = {
                   ("content", "src"): "res/wgt/index.html",
@@ -542,12 +449,16 @@ jobs:
                       "to res/wgt/service/service.js"
                   )
 
-              splash_paths = [value for tag, attribute, value in rewritten_references
-                              if tag in ("vss_default", "vss_landscape", "vss_portrait")]
-              if not any(path.endswith("launch-screen.mp4") for path in splash_paths):
-                  raise SystemExit("Landscape launch-screen.mp4 is not declared by outer config.xml")
-              if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_paths):
-                  raise SystemExit("Portrait launch-screen-portrait.mp4 is not declared by outer config.xml")
+              outer_splash_paths = {
+                  value for tag, attribute, value in rewritten_references
+                  if tag in ("vss_default", "vss_landscape", "vss_portrait")
+              }
+              if not required_splash_resources.issubset(outer_splash_paths):
+                  raise SystemExit(
+                      "Outer config.xml must declare the four splash assets "
+                      "using package-root static/res paths"
+                  )
+
               ET.register_namespace("", "http://www.w3.org/ns/widgets")
               ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
               patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
@@ -561,6 +472,8 @@ jobs:
                       else:
                           data = source.read(entry.filename)
                       output.writestr(entry, data)
+                  for name, data in splash_copies.items():
+                      output.writestr(name, data)
 
           with zipfile.ZipFile(output_path) as result:
               final_manifest = ET.fromstring(result.read("tizen-manifest.xml"))
@@ -576,13 +489,25 @@ jobs:
               final_splash = next((node for node in final_config.iter()
                                    if node.tag.endswith("video_splash_screen")), None)
               if final_splash is None:
-                  raise SystemExit("Patched outer config.xml lost video_splash_screen")
+                  raise SystemExit("Package-root config.xml lost video_splash_screen")
               for node in final_splash.iter():
                   for attribute in ("video", "background_image", "image"):
                       value = node.get(attribute)
                       if value and value not in final_names:
-                          raise SystemExit(f"Patched splash path is invalid: {value}")
-          print("Hybrid container floor set to Tizen 5.5; .NET service remains API 9; outer splash paths validated.")
+                          raise SystemExit(f"Package-root splash path is invalid: {value}")
+
+              for name in required_splash_resources:
+                  nested_name = f"res/wgt/{name}"
+                  if name not in final_names or nested_name not in final_names:
+                      raise SystemExit(
+                          f"Splash resource must exist at package root and Web root: {name}"
+                      )
+                  if result.read(name) != result.read(nested_name):
+                      raise SystemExit(
+                          f"Package-root splash copy differs from original Web resource: {name}"
+                      )
+          print("Package-root splash references and mirrored resources validated; embedded Web WGT preserved.")
+
           PY
 
           package_one() {
