@@ -315,6 +315,18 @@
                 </label>
               </div>
             </div>
+            <div class="setting-option">
+              <label data-i18n="Ambilight">Ambilight</label>
+              <span class="mdl-list__item-text-body">Capture the Moonlight video plane and send live colors to your WLED device.</span>
+              <div id="ambilightMenu">
+                <label id="ambilightBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ambilightSwitch">
+                  <input type="checkbox" id="ambilightSwitch" class="mdl-switch__input">
+                  <span class="mdl-switch__label">Enable Ambilight</span>
+                </label>
+              </div>
+              <label for="ambilightWledIp">WLED IP address</label>
+              <input type="text" id="ambilightWledIp" class="mdl-textfield__input" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off">
+            </div>
           </div>
           <div id="interfaceSettings" class="settings-options">
             <div class="setting-option">
@@ -964,6 +976,7 @@
   <script defer src="static/js/jquery-2.2.0.min.js"></script>
   <script defer src="static/js/material.min.js"></script>
   <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+  <script type="text/javascript" src="platform/ambilight.js"></script>
   <script type="text/javascript" src="platform/messages.js"></script>
   <script type="text/javascript" src="platform/i18n.js"></script>
   <script type="text/javascript" src="platform/common.js"></script>
