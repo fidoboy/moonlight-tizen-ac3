@@ -15,6 +15,6 @@ The Web/WASM application never receives frames and does not perform capture or i
 
 Run **Build Moonlight Samsung TV hybrid WGT** from GitHub Actions on branch `1.2.4-pre`. The workflow builds the Moonlight Web WGT, builds the native ARM ServiceApp against the baseline Tizen 9.0 rootstrap, adds it as a Web project dependency, signs one hybrid WGT and checks the packaged application IDs and executable.
 
-The native capture ABI uses 32-bit pointers. The workflow therefore targets the 32-bit ARM Tizen device rootstrap. The capture library is a Samsung firmware component and may not be present on every TV model/firmware; the service reports a capture initialization failure and does not affect Moonlight streaming when unavailable.
+The native capture ABI uses 32-bit pointers. The workflow therefore targets the 32-bit ARM Tizen device rootstrap. The capture library is a Samsung firmware component and may not be present on every TV model/firmware; the service logs a capture initialization failure and does not affect Moonlight streaming when unavailable.
 
 The Moonlight Web app's `required_version` remains unchanged. The native service build target is Tizen 9.0; actual compatibility with earlier TV firmware must be established by compiling against an older Samsung TV-compatible rootstrap and testing that firmware. The current CI build is not evidence of support on every TV generation.
