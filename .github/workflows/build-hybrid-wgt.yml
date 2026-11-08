@@ -29,7 +29,7 @@ concurrency:
 jobs:
   build-hybrid:
     if: github.ref == 'refs/heads/1.2.4-pre'
-    name: Build and package one hybrid WGT
+    name: Build and package standard and ForceGM hybrid WGTs
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -144,13 +144,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build Moonlight Web application
+      - name: Build Moonlight Web application (standard)
         uses: docker/build-push-action@v7
         with:
           context: .
           push: false
           load: true
-          tags: moonlight-hybrid-web:${{ github.sha }}
+          tags: moonlight-hybrid-web-standard:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -159,15 +159,35 @@ jobs:
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=false
 
-      - name: Extract base Web WGT
+      - name: Build Moonlight Web application (ForceGM)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-hybrid-web-forcegm:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=true
+
+      - name: Extract standard and ForceGM Web WGTs
         shell: bash
         run: |
           set -euo pipefail
-          container_id="$(docker create "moonlight-ambilight-web:$GITHUB_SHA")"
-          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
-          docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          standard_container="$(docker create "moonlight-hybrid-web-standard:$GITHUB_SHA")"
+          forcegm_container="$(docker create "moonlight-hybrid-web-forcegm:$GITHUB_SHA")"
+          trap 'docker rm -f "$standard_container" "$forcegm_container" >/dev/null 2>&1 || true' EXIT
+
+          docker cp "$standard_container:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          docker cp "$forcegm_container:/home/moonlight/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          test -s "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
           unzip -tq "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          unzip -tq "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
 
       - name: Build the original .NET Tizen service
         shell: bash
@@ -274,6 +294,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/build-inputs"
           cp "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt"
+          cp "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" "$RUNNER_TEMP/build-inputs/Moonlight-ForceGM-Web-Base.wgt"
           cp "$AMBILIGHT_SERVICE_TPK" "$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk"
           cp wasm/platform/ambilight.js "$RUNNER_TEMP/build-inputs/ambilight.js"
           cp ambilight-service/Program.cs "$RUNNER_TEMP/build-inputs/Program.cs"
@@ -286,6 +307,7 @@ jobs:
           cd "$RUNNER_TEMP/build-inputs"
           sha256sum --check SHA256SUMS
           unzip -tq Moonlight-Web-Base.wgt
+          unzip -tq Moonlight-ForceGM-Web-Base.wgt
           unzip -tq Moonlight-Ambilight-Service.tpk
           test -s ambilight.js
           test -s Program.cs
@@ -301,27 +323,15 @@ jobs:
         shell: bash
         run: |
           cp "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          cp "$RUNNER_TEMP/build-inputs/Moonlight-ForceGM-Web-Base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
           echo "AMBILIGHT_SERVICE_TPK=$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk" >> "$GITHUB_ENV"
 
-      - name: Package Web UI and .NET service as one hybrid WGT
+      - name: Package standard and ForceGM hybrid WGTs
         shell: bash
         run: |
           set -euo pipefail
-          draft="$RUNNER_TEMP/Moonlight-Hybrid-Tizen65.wgt"
-          patched="$RUNNER_TEMP/Moonlight-Hybrid-Tizen55.wgt"
-          output="$RUNNER_TEMP/Moonlight-Hybrid.wgt"
 
-          "$TIZEN_CORE_CLI" pack \
-            --type wgt \
-            --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
-            --base-pkg "$RUNNER_TEMP/Moonlight-Web-Base.wgt" \
-            --out-path "$draft"
-
-          # Preserve the upstream .NET service TPK exactly as built (Tizen API 9,
-          # package platform API 6.5). Only the outer hybrid package floor must stay
-          # at Moonlight's Tizen 5.5 minimum. The service app retains api-version=9
-          # and will not be launched by Moonlight on platforms below Tizen 6.5.
-          python3 - "$draft" "$patched" <<'PY'
+          cat > "$RUNNER_TEMP/patch-hybrid-manifest.py" <<'PY'
           import sys
           import zipfile
           import xml.etree.ElementTree as ET
@@ -330,20 +340,18 @@ jobs:
           ET.register_namespace("", "http://tizen.org/ns/packages")
 
           with zipfile.ZipFile(source_path, "r") as source:
-              names = source.namelist()
-              if "tizen-manifest.xml" not in names:
+              if "tizen-manifest.xml" not in source.namelist():
                   raise SystemExit("Hybrid WGT has no root tizen-manifest.xml")
               manifest = ET.fromstring(source.read("tizen-manifest.xml"))
               if manifest.get("api-version") != "6.5":
-                  raise SystemExit("Expected the original hybrid package API floor 6.5 before adjustment")
+                  raise SystemExit("Expected hybrid package API floor 6.5 before adjustment")
               service_app = next((node for node in manifest.iter()
                                   if node.tag.endswith("service-application")), None)
               if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("The embedded .NET service must retain its original API 9 target")
+                  raise SystemExit("Embedded .NET service must retain original API 9 target")
 
               manifest.set("api-version", "5.5")
               patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
-
               with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
                   for entry in source.infolist():
                       data = patched_manifest if entry.filename == "tizen-manifest.xml" else source.read(entry.filename)
@@ -356,24 +364,44 @@ jobs:
               if final_manifest.get("api-version") != "5.5":
                   raise SystemExit("Hybrid container minimum must remain Tizen 5.5")
               if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Hybrid packaging changed the original service API 9 target")
-          print("Hybrid container minimum set to Tizen 5.5; embedded .NET service remains API 9.")
+                  raise SystemExit("Hybrid packaging changed embedded service API 9 target")
+          print("Hybrid container floor set to Tizen 5.5; embedded service remains API 9.")
           PY
 
-          # Produce the hybrid WGT as a packaging input for Apps2Samsung.
-          # Samsung signing is handled by the Apps2Samsung publication process.
-          cp "$patched" "$output"
-          test -s "$output"
-          echo "HYBRID_WGT=$output" >> "$GITHUB_ENV"
+          package_one() {
+            local base_pkg="$1"
+            local stem="$2"
+            local output_name="$3"
+            local draft="$RUNNER_TEMP/${stem}-Tizen65.wgt"
+            local patched="$RUNNER_TEMP/${stem}-Tizen55.wgt"
+            local output="$RUNNER_TEMP/$output_name"
 
-      - name: Validate the single hybrid WGT and AppControl contract
+            "$TIZEN_CORE_CLI" pack \
+              --type wgt \
+              --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
+              --base-pkg "$base_pkg" \
+              --out-path "$draft"
+
+            python3 "$RUNNER_TEMP/patch-hybrid-manifest.py" "$draft" "$patched"
+            cp "$patched" "$output"
+            test -s "$output"
+            unzip -tq "$output"
+            echo "Created unsigned hybrid WGT: $output"
+          }
+
+          package_one "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "Moonlight" "Moonlight.wgt"
+          package_one "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" "Moonlight-ForceGM" "Moonlight-ForceGM.wgt"
+
+          echo "HYBRID_WGT_STANDARD=$RUNNER_TEMP/Moonlight.wgt" >> "$GITHUB_ENV"
+          echo "HYBRID_WGT_FORCEGM=$RUNNER_TEMP/Moonlight-ForceGM.wgt" >> "$GITHUB_ENV"
+
+      - name: Validate both hybrid WGTs and AppControl contract
         shell: bash
         run: |
           set -euo pipefail
-          package="$HYBRID_WGT"
-          unzip -t "$package"
+          mkdir -p "$RUNNER_TEMP/hybrid-output"
 
-          python3 - "$package" $RUNNER_TEMP/build-inputs/ambilight.js $RUNNER_TEMP/build-inputs/Program.cs <<'PY'
+          cat > "$RUNNER_TEMP/validate-hybrid.py" <<'PY'
           import sys
           import zipfile
           import xml.etree.ElementTree as ET
@@ -405,7 +433,6 @@ jobs:
                                   if node.tag.endswith("service-application")), None)
               if service.get("api-version") != "5.5":
                   raise SystemExit("Hybrid package installation minimum must remain Tizen 5.5")
-
               if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
                   raise SystemExit("Packaged Moonlight Web application identity is invalid")
               if web_app.get("package") != "MoonLightS":
@@ -419,8 +446,7 @@ jobs:
               if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
                   raise SystemExit("Packaged service is not the expected .NET Tizen application")
               if service_app.get("api-version") != "9":
-                  raise SystemExit("Packaged optional service must preserve the original upstream API 9 target")
-
+                  raise SystemExit("Packaged optional service must preserve original API 9 target")
               assemblies = [name for name in names
                             if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
               if not assemblies:
@@ -449,14 +475,17 @@ jobs:
               if token not in cs:
                   raise SystemExit("The .NET service does not handle AppControl field: " + token)
 
-          print("Validated one unsigned hybrid WGT: Moonlight Web/WASM + .NET Tizen service.")
-          print("Validated matching Web-to-.NET AppControl application ID and start/stop fields.")
+          print(f"Validated hybrid WGT: {package_path}")
           PY
 
-          mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt"
-          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt" \
-            > "$RUNNER_TEMP/hybrid-output/SHA256SUMS"
+          for package in "$HYBRID_WGT_STANDARD" "$HYBRID_WGT_FORCEGM"; do
+            unzip -tq "$package"
+            python3 "$RUNNER_TEMP/validate-hybrid.py" "$package" "$RUNNER_TEMP/build-inputs/ambilight.js" "$RUNNER_TEMP/build-inputs/Program.cs"
+          done
+
+          cp "$HYBRID_WGT_STANDARD" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
+          cp "$HYBRID_WGT_FORCEGM" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
 
       - name: Show packaging diagnostics on failure
         if: failure()
@@ -469,7 +498,7 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload hybrid WGT for Apps2Samsung
+      - name: Upload standard and ForceGM hybrid WGTs for Apps2Samsung
         uses: actions/upload-artifact@v4
         with:
           name: Moonlight-Hybrid
