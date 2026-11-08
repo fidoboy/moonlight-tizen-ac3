@@ -1,0 +1,478 @@
+name: Build Hybrid WGT (CI)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["1.2.4-pre"]
+    paths:
+      - "ambilight-service/Program.cs"
+      - "ambilight-service/TizenAmbilight.csproj"
+      - "ambilight-service/VideoPlaneCapture.cs"
+      - "ambilight-service/WledOutput.cs"
+      - "ambilight-service/tizen-manifest.xml"
+      - "wasm/platform/ambilight.js"
+      - "wasm/index.html"
+      - "wasm/platform/index.js"
+      - "wasm/platform/messages.js"
+      - "res/config.xml"
+      - "Dockerfile"
+      - ".github/workflows/build-hybrid-wgt.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: hybrid-wgt-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-hybrid:
+    if: github.ref == 'refs/heads/1.2.4-pre'
+    name: Build and package one hybrid WGT
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out Moonlight
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip
+
+      - name: Install Tizen SDK packaging tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+
+          # Install the Tizen CLI components used by the SDK packaging environment.
+          # The final hybrid package is assembled by Tizen Core CLI (tz).
+          "$pm" install --accept-license --no-java-check \
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI"
+
+          core_cli="$sdk/tools/tizen-core/tz"
+          test -x "$core_cli"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+          echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
+          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
+          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+          echo "TIZEN_CORE_CLI=$core_cli" >> "$GITHUB_ENV"
+
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify Tizen Core and .NET build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x "$TIZEN_CORE_CLI"
+          "$TIZEN_CORE_CLI" --version
+          "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          dotnet --info
+          dotnet --list-sdks | grep -E '^8\.'
+
+      - name: Ensure versioned MP4 splash assets are available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          asset_file="moonlight-generated-videos-v1.zip"
+          asset_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/build-assets/$asset_file"
+          asset_path="$RUNNER_TEMP/$asset_file"
+          api_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos
+
+          status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
+          if [[ "$status" == "404" ]]; then
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' "$api_url")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              cat "$RUNNER_TEMP/video-assets-dispatch.json" >&2 || true
+              echo "::error::Could not dispatch Generate video assets (HTTP $dispatch_status)." >&2
+              exit 1
+            fi
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
+              [[ "$status" == "200" ]] && break
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for generated video assets." >&2
+                exit 1
+              fi
+            done
+          fi
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Could not retrieve generated video assets (HTTP $status)." >&2
+            exit 1
+          fi
+          unzip -tq "$asset_path"
+          unzip -oq "$asset_path" -d generated-videos
+          test -s generated-videos/launch-screen.mp4
+          test -s generated-videos/launch-screen-portrait.mp4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Moonlight Web application
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-hybrid-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=false
+
+      - name: Extract base Web WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create "moonlight-ambilight-web:$GITHUB_SHA")"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          unzip -tq "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+
+      - name: Build the original .NET Tizen service
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep the .NET service identity and version aligned with Moonlight's
+          # Web package. The Web app and service remain separate applications
+          # inside one package, with the same Tizen package ID.
+          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" ambilight-service/tizen-manifest.xml <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+
+          with zipfile.ZipFile(sys.argv[1]) as package:
+              web = ET.fromstring(package.read("config.xml"))
+
+          service_path = sys.argv[2]
+          # Tizen.NET.Sdk resolves the manifest root using its default namespace.
+          # ElementTree otherwise serializes it as ns0:manifest, which makes
+          # GetManifestInfo report tpkName is Invalid.
+          ET.register_namespace("", "http://tizen.org/ns/packages")
+          tree = ET.parse(service_path)
+          manifest = tree.getroot()
+          web_app = next((node for node in web.iter()
+                          if node.tag.endswith("application")), None)
+          service_app = next((node for node in manifest.iter()
+                              if node.tag.endswith("service-application")), None)
+
+          if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
+              raise SystemExit("Moonlight Web application ID changed unexpectedly")
+          if web_app.get("package") != "MoonLightS":
+              raise SystemExit("Moonlight Web package ID changed unexpectedly")
+          if web_app.get("required_version") != "5.5":
+              raise SystemExit("Moonlight Web minimum platform version must remain Tizen 5.5")
+          if manifest.get("package") != web_app.get("package"):
+              raise SystemExit("Web and .NET service package IDs must match")
+          if manifest.get("api-version") != "6.5":
+              raise SystemExit("The original .NET service package API version must remain 6.5")
+          if service_app is None:
+              raise SystemExit("The .NET ServiceApplication manifest is missing")
+          if service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
+              raise SystemExit("Ambilight service application ID mismatch")
+          if service_app.get("type") != "dotnet":
+              raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
+          if service_app.get("exec") != "MoonlightAmbilight.dll":
+              raise SystemExit("Ambilight .NET entry assembly mismatch")
+          if service_app.get("api-version") != "9":
+              raise SystemExit("The service runtime must match the original upstream Tizen API 9 build target")
+
+          manifest.set("version", web.get("version", "1.2.3"))
+          tree.write(service_path, encoding="UTF-8", xml_declaration=True)
+          print("Validated matching package ID and .NET service app ID; aligned package version.")
+          PY
+
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj \
+            -restore -t:Rebuild -p:Configuration=Release -v:m
+
+          mapfile -d '' service_packages < <(find ambilight-service/bin/Release -type f -name '*.tpk' -size +0c -print0)
+          if [[ ${#service_packages[@]} -ne 1 ]]; then
+            echo "::error::Expected one .NET Tizen TPK, found ${#service_packages[@]}."
+            find ambilight-service/bin -maxdepth 8 -type f -printf '%p\n' | sort || true
+            exit 1
+          fi
+
+          service_tpk="${service_packages[0]}"
+          unzip -tq "$service_tpk"
+          python3 - "$service_tpk" <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import PurePosixPath
+
+          path = sys.argv[1]
+          with zipfile.ZipFile(path) as package:
+              names = package.namelist()
+              manifests = [name for name in names
+                           if PurePosixPath(name).name == "tizen-manifest.xml"]
+              if len(manifests) != 1:
+                  raise SystemExit("The .NET TPK must contain exactly one tizen-manifest.xml")
+              manifest = ET.fromstring(package.read(manifests[0]))
+              app = next((node for node in manifest.iter()
+                          if node.tag.endswith("service-application")), None)
+              if manifest.get("package") != "MoonLightS":
+                  raise SystemExit("The .NET TPK package ID is not MoonLightS")
+              if manifest.get("api-version") != "6.5":
+                  raise SystemExit("The original .NET TPK package API version must remain 6.5")
+              if app is None or app.get("appid") != "MoonLightS.MoonlightAmbilight":
+                  raise SystemExit("The .NET TPK service application ID is incorrect")
+              if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll":
+                  raise SystemExit("The TPK does not contain the expected .NET service declaration")
+              if app.get("api-version") != "9":
+                  raise SystemExit("The .NET service TPK must preserve the original upstream API 9 target")
+              if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
+                  raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
+              print("Validated the compiled .NET Tizen ServiceApplication TPK.")
+          PY
+
+          echo "AMBILIGHT_SERVICE_TPK=$service_tpk" >> "$GITHUB_ENV"
+
+      - name: Prepare reusable unsigned build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/build-inputs"
+          cp "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt"
+          cp "$AMBILIGHT_SERVICE_TPK" "$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk"
+          cp wasm/platform/ambilight.js "$RUNNER_TEMP/build-inputs/ambilight.js"
+          cp ambilight-service/Program.cs "$RUNNER_TEMP/build-inputs/Program.cs"
+          sha256sum "$RUNNER_TEMP/build-inputs/"* > "$RUNNER_TEMP/build-inputs/SHA256SUMS"
+
+      - name: Verify staged build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/build-inputs"
+          sha256sum --check SHA256SUMS
+          unzip -tq Moonlight-Web-Base.wgt
+          unzip -tq Moonlight-Ambilight-Service.tpk
+          test -s ambilight.js
+          test -s Program.cs
+      - name: Verify Tizen Core pack support
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TIZEN_CORE_CLI" --version
+          "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+      - name: Resolve package input paths
+        shell: bash
+        run: |
+          cp "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          echo "AMBILIGHT_SERVICE_TPK=$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk" >> "$GITHUB_ENV"
+
+      - name: Package Web UI and .NET service as one hybrid WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          draft="$RUNNER_TEMP/Moonlight-Hybrid-Tizen65.wgt"
+          patched="$RUNNER_TEMP/Moonlight-Hybrid-Tizen55.wgt"
+          output="$RUNNER_TEMP/Moonlight-Hybrid.wgt"
+
+          "$TIZEN_CORE_CLI" pack \
+            --type wgt \
+            --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
+            --base-pkg "$RUNNER_TEMP/Moonlight-Web-Base.wgt" \
+            --out-path "$draft"
+
+          # Preserve the upstream .NET service TPK exactly as built (Tizen API 9,
+          # package platform API 6.5). Only the outer hybrid package floor must stay
+          # at Moonlight's Tizen 5.5 minimum. The service app retains api-version=9
+          # and will not be launched by Moonlight on platforms below Tizen 6.5.
+          python3 - "$draft" "$patched" <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+
+          source_path, output_path = sys.argv[1:3]
+          ET.register_namespace("", "http://tizen.org/ns/packages")
+
+          with zipfile.ZipFile(source_path, "r") as source:
+              names = source.namelist()
+              if "tizen-manifest.xml" not in names:
+                  raise SystemExit("Hybrid WGT has no root tizen-manifest.xml")
+              manifest = ET.fromstring(source.read("tizen-manifest.xml"))
+              if manifest.get("api-version") != "6.5":
+                  raise SystemExit("Expected the original hybrid package API floor 6.5 before adjustment")
+              service_app = next((node for node in manifest.iter()
+                                  if node.tag.endswith("service-application")), None)
+              if service_app is None or service_app.get("api-version") != "9":
+                  raise SystemExit("The embedded .NET service must retain its original API 9 target")
+
+              manifest.set("api-version", "5.5")
+              patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
+
+              with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
+                  for entry in source.infolist():
+                      data = patched_manifest if entry.filename == "tizen-manifest.xml" else source.read(entry.filename)
+                      output.writestr(entry, data)
+
+          with zipfile.ZipFile(output_path) as result:
+              final_manifest = ET.fromstring(result.read("tizen-manifest.xml"))
+              service_app = next((node for node in final_manifest.iter()
+                                  if node.tag.endswith("service-application")), None)
+              if final_manifest.get("api-version") != "5.5":
+                  raise SystemExit("Hybrid container minimum must remain Tizen 5.5")
+              if service_app is None or service_app.get("api-version") != "9":
+                  raise SystemExit("Hybrid packaging changed the original service API 9 target")
+          print("Hybrid container minimum set to Tizen 5.5; embedded .NET service remains API 9.")
+          PY
+
+          # Produce the hybrid WGT as a packaging input for Apps2Samsung.
+          # Samsung signing is handled by the Apps2Samsung publication process.
+          cp "$patched" "$output"
+          test -s "$output"
+          echo "HYBRID_WGT=$output" >> "$GITHUB_ENV"
+
+      - name: Validate the single hybrid WGT and AppControl contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$HYBRID_WGT"
+          unzip -t "$package"
+
+          python3 - "$package" $RUNNER_TEMP/build-inputs/ambilight.js $RUNNER_TEMP/build-inputs/Program.cs <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import PurePosixPath
+
+          package_path, js_path, cs_path = sys.argv[1:]
+          with zipfile.ZipFile(package_path) as package:
+              names = set(package.namelist())
+              required = {
+                  "tizen-manifest.xml",
+                  "res/wgt/config.xml",
+                  "res/wgt/index.html",
+                  "res/wgt/platform/ambilight.js",
+              }
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit("Hybrid WGT is missing: " + ", ".join(missing))
+
+              for name in names:
+                  path = PurePosixPath(name)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"Unsafe path in hybrid WGT: {name}")
+
+              web = ET.fromstring(package.read("res/wgt/config.xml"))
+              web_app = next((node for node in web.iter()
+                              if node.tag.endswith("application")), None)
+              service = ET.fromstring(package.read("tizen-manifest.xml"))
+              service_app = next((node for node in service.iter()
+                                  if node.tag.endswith("service-application")), None)
+              if service.get("api-version") != "5.5":
+                  raise SystemExit("Hybrid package installation minimum must remain Tizen 5.5")
+
+              if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
+                  raise SystemExit("Packaged Moonlight Web application identity is invalid")
+              if web_app.get("package") != "MoonLightS":
+                  raise SystemExit("Packaged Web package ID is invalid")
+              if web_app.get("required_version") != "5.5":
+                  raise SystemExit("Moonlight's packaged minimum Tizen version must remain 5.5")
+              if service.get("package") != "MoonLightS":
+                  raise SystemExit("Packaged .NET service package ID differs from Web package")
+              if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
+                  raise SystemExit("Packaged Ambilight service application ID is invalid")
+              if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
+                  raise SystemExit("Packaged service is not the expected .NET Tizen application")
+              if service_app.get("api-version") != "9":
+                  raise SystemExit("Packaged optional service must preserve the original upstream API 9 target")
+
+              assemblies = [name for name in names
+                            if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
+              if not assemblies:
+                  raise SystemExit("Packaged .NET service assembly is missing")
+
+          with open(js_path, encoding="utf-8") as file:
+              js = file.read()
+          with open(cs_path, encoding="utf-8") as file:
+              cs = file.read()
+
+          contract = [
+              "MoonLightS.MoonlightAmbilight",
+              "new tizen.ApplicationControlData('command'",
+              "new tizen.ApplicationControlData('wledIp'",
+              "new tizen.ApplicationControlData('wledPort'",
+              "new tizen.ApplicationControlData('ledCount'",
+              "initialize",
+              "shutdown",
+              "MINIMUM_SERVICE_PLATFORM_VERSION",
+              "http://tizen.org/feature/platform.version",
+          ]
+          for token in contract:
+              if token not in js:
+                  raise SystemExit("Web AppControl contract is missing: " + token)
+          for token in ['"command"', '"wledIp"', '"wledPort"', '"ledCount"', '"initialize"', '"start"', '"stop"', '"shutdown"']:
+              if token not in cs:
+                  raise SystemExit("The .NET service does not handle AppControl field: " + token)
+
+          print("Validated one unsigned hybrid WGT: Moonlight Web/WASM + .NET Tizen service.")
+          print("Validated matching Web-to-.NET AppControl application ID and start/stop fields.")
+          PY
+
+          mkdir -p "$RUNNER_TEMP/hybrid-output"
+          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt"
+          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt" \
+            > "$RUNNER_TEMP/hybrid-output/SHA256SUMS"
+
+      - name: Show packaging diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          find "$RUNNER_TEMP" "$HOME" -type f \
+            \( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \) \
+            -print 2>/dev/null | while IFS= read -r log; do
+              echo "--- $log (last 300 lines) ---"
+              tail -n 300 "$log"
+            done
+      - name: Upload hybrid WGT for Apps2Samsung
+        uses: actions/upload-artifact@v4
+        with:
+          name: Moonlight-Hybrid
+          path: ${{ runner.temp }}/hybrid-output/
+          if-no-files-found: error
+          retention-days: 14
