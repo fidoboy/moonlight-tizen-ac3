@@ -170,10 +170,10 @@ jobs:
           start = project.find("files:")
           if start < 0:
               raise SystemExit("Tizen Core .NET project metadata has no files list")
-          end = project.find("\\ndeps:", start)
+          end = project.find("\ndeps:", start)
           if end < 0:
               raise SystemExit("Tizen Core .NET project metadata has no deps section")
-          project = project[:start] + "files:\\n  - TizenAmbilight.csproj\\n  - Program.cs\\n  - VideoPlaneCapture.cs\\n  - WledOutput.cs\\n  - tizen-manifest.xml" + project[end:]
+          project = project[:start] + "files:\n  - TizenAmbilight.csproj\n  - Program.cs\n  - VideoPlaneCapture.cs\n  - WledOutput.cs\n  - tizen-manifest.xml" + project[end:]
           project_path.write_text(project, encoding="utf-8")
           PY
 
