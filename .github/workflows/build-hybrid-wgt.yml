@@ -374,6 +374,10 @@ jobs:
           source, output = Path(sys.argv[1]), Path(sys.argv[2])
           with zipfile.ZipFile(output) as z:
               names = set(z.namelist())
+              tpks = [name for name in names if name.lower().endswith(".tpk")]
+              if not tpks:
+                  raise SystemExit("Hybrid WGT does not contain the embedded service TPK")
+              print("Embedded service TPK(s):", tpks)
               required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
               missing = sorted(required - names)
               if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
