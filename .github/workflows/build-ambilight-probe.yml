@@ -137,12 +137,17 @@ jobs:
           CERT_PASSWORD: ambilight-probe-ci
         run: |
           set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
           tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
 
-          # The cached SDK can retain a CLI profile-path setting. Inspect it,
-          # then explicitly direct this command to this run's profile directory.
-          tizen cli-config -l || true
+          # The CLI requires an existing profiles.xml when a profile directory
+          # is supplied explicitly. Bootstrap an empty Tizen 3.1 profile store.
+          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          if [[ ! -s "$profiles" ]]; then
+            printf '%s\\n' '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' \
+              '<profiles active="" version="3.1"></profiles>' > "$profiles"
+          fi
+
           tizen security-profiles add \
             -n AmbilightProbe \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.p12" \
