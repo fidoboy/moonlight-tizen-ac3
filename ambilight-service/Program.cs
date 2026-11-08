@@ -54,6 +54,7 @@ namespace MoonlightAmbilight
                     error = StartCapture(ip, port, leds);
                     ok = error == null;
                     supported = _supported;
+                    exitAfterReply = !_supported;
                 }
                 else if (String.Equals(command, "stop", StringComparison.OrdinalIgnoreCase))
                 {
