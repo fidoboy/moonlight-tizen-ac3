@@ -204,6 +204,7 @@ jobs:
           with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
               for name, source in sorted(entries.items()):
                   info = zipfile.ZipInfo(name)
+                  info.create_system = 3
                   info.compress_type = zipfile.ZIP_DEFLATED
                   mode = 0o755 if name == "bin/wmp-service" else 0o644
                   info.external_attr = (stat.S_IFREG | mode) << 16
