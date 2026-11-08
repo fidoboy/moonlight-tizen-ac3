@@ -139,7 +139,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/tizen-studio
-          key: tizen-studio-6.1-iot-headed-6.0-tizen-10.0-native-${{ runner.os }}-v1
+          key: tizen-studio-6.1-tizen-10.0-generic-native-${{ runner.os }}-v1
 
       - name: Install Tizen Web and Native SDKs
         shell: bash
@@ -176,7 +176,7 @@ jobs:
 
             pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
             test -n "$pm"
-            required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI"
+            required="NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,TIZEN-10.0-NativeAppDevelopment-CLI"
             "$pm" install --accept-license --no-java-check "$required"
           else
             echo "Tizen Studio SDK restored from cache; skipping SDK installation."
@@ -312,7 +312,7 @@ jobs:
           APPNAME = wmp-service
 
           type = app
-          profile = iot-headed-6.0
+          profile = tizen-10.0
 
           USER_SRCS = src/main.c
           USER_DEFS =
@@ -323,40 +323,17 @@ jobs:
           USER_EDCS =
           PROP
 
-          if [[ -f "$service_project/.tproject" ]]; then
-            sed -i 's/tizen-10.0/iot-headed-6.0/g' "$service_project/.tproject"
-          fi
-
-          # Retarget the generated Tizen 10 linker settings to IoT Headed 6.0.
-          python3 - "$service_project/.cproject" <<'PY'
-          import re, sys
-          from pathlib import Path
-          path = Path(sys.argv[1]); content = path.read_text(encoding="utf-8")
-          options = re.compile(
-              r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>).*?(</option>)',
-              re.DOTALL)
-          sysroot = "$" + "{SBI_SYSROOT}"
-          flags = "\n".join([
-              '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
-              '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>'])
-          content, n = options.subn(lambda m: m.group(1) + "\n" + flags + "\n                                " + m.group(2), content)
-          if n != 2: raise SystemExit(f"Expected 2 linker configurations, found {n}")
-          selectors = re.compile(
-              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>.*?</option>',
-              re.DOTALL)
-          content, n = selectors.subn("", content)
-          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 SBI selectors, found {n}")
-          catalogues = re.compile(
-              r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option[.]frameworks[.]core"[^>]*>.*?</option>',
-              re.DOTALL)
-          content, n = catalogues.subn("", content)
-          if n != 4: raise SystemExit(f"Expected 4 Tizen 10 Native_API catalogues, found {n}")
-          if "tizen-10.0-emulator64.core_gcc92.x86.64" in content or re.search(r'value="Native_API"', content):
-              raise SystemExit("Tizen 10 platform selectors remain")
-          path.write_text(content, encoding="utf-8")
-          PY
-
           echo "HYBRID_ROOT=$hybrid_root" >> "$GITHUB_ENV"
+
+      - name: Verify generic Tizen ARM rootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rootstraps="$RUNNER_TEMP/available-rootstraps.txt"
+          tizen list rootstrap | tee "$rootstraps"
+          grep -q '^tizen-10[.]0-device[.]core' "$rootstraps"
+          tizen list rootstrap tizen-10.0-device.core | tee "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
+          grep -q 'Native_API' "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
 
       - name: Build and sign the hybrid WGT
         shell: bash
@@ -398,7 +375,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
           expect "$RUNNER_TEMP/run-hybrid-build.exp" \
             tizen build-app \
-            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"tizen-10.0-device.core","platform":"tizen-10.0","arch":"arm"}],configs:[Release]' \
             -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
             -p 'name:p1,targets:[b1]' \
             -s Moonlight \
