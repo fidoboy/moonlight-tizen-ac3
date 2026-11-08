@@ -210,7 +210,7 @@ jobs:
               find "$TIZEN_STUDIO" /usr/share/dotnet -type f -name msbuild -o -name MSBuild.dll 2>/dev/null | head -n 30 | tee "$log_dir/msbuild-candidates.txt"
 
               echo "=== Test 8: switch Tizen Core to its documented MSBuild backend ==="
-              if run_logged select-msbuild-backend "$TIZEN_CORE_CLI" set -D msbuild; then
+              if run_logged select-msbuild-backend "$TIZEN_CORE_CLI" set -D msbuild -m /usr/bin/msbuild; then
                 msbuild_select_status=0
               else
                 msbuild_select_status=$?
@@ -218,7 +218,6 @@ jobs:
               echo "MSBuild backend selection: $msbuild_select_status"
 
               if (( msbuild_select_status == 0 )); then
-                run_logged inspect-msbuild-config "$TIZEN_CORE_CLI" get -D -m || true
                 echo "=== Test 9: build the complete hybrid workspace through Tizen Core/MSBuild ==="
                 if run_logged build-hybrid-workspace-msbuild "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
                   build_status=0
