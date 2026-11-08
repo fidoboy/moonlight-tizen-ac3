@@ -342,15 +342,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\n' \
-            'set timeout -1' \
-            'log_user 1' \
-            'spawn {*}$argv' \
-            'expect {' \
-            '  -re {Author password:} { send -- "moonlight-hybrid-ci\r"; exp_continue }' \
-            '  -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }' \
-            '  eof' \
-            '}' > "$RUNNER_TEMP/run-hybrid-build.exp"
+          cat > "$RUNNER_TEMP/run-hybrid-build.exp" <<'EXPECT'
+          set timeout 60
+          log_user 1
+          spawn {*}$argv
+          expect {
+            -nocase -re {Author password:} {
+              send -- "moonlight-hybrid-ci\\r"
+              exp_continue
+            }
+            -nocase -re {Save author password[^\\r\\n]*} {
+              send -- "n\\r"
+              exp_continue
+            }
+            -nocase -re {Distributor1 password:} {
+              send -- "tizenpkcs12passfordsigner\\r"
+              exp_continue
+            }
+            -nocase -re {Save distributor1 password[^\\r\\n]*} {
+              send -- "n\\r"
+              exp_continue
+            }
+            timeout {
+              puts stderr "Timed out waiting for a recognized Tizen signing prompt."
+              close
+              wait
+              exit 124
+            }
+            eof
+          }
+          set child_status [wait]
+          set exit_status [lindex $child_status 3]
+          exit $exit_status
+          EXPECT
           chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
           expect "$RUNNER_TEMP/run-hybrid-build.exp" \
             tizen build-app \
