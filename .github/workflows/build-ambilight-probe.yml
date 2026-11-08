@@ -140,12 +140,17 @@ jobs:
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
           tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
 
+          # The cached SDK can retain a CLI profile-path setting. Inspect it,
+          # then explicitly direct this command to this run's profile directory.
+          tizen cli-config -l || true
           tizen security-profiles add \
             -n AmbilightProbe \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.p12" \
-            -p "$CERT_PASSWORD"
+            -p "$CERT_PASSWORD" \
+            -- "$TIZEN_STUDIO_DATA_PATH/profile"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
+          tizen cli-config "default.profiles.path=$profiles"
           sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
