@@ -224,7 +224,9 @@ jobs:
         run: |
           set -euo pipefail
           "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
+          "$TIZEN_CORE_CLI" list templates --type dotnet | tee "$RUNNER_TEMP/dotnet-templates.txt"
           grep -Fq 'Basic [web_app]' "$RUNNER_TEMP/web-templates.txt"
+          grep -Fq 'TizenServiceApp' "$RUNNER_TEMP/dotnet-templates.txt"
 
           package_one() {
             local source="$1" name="$2" output="$3"
@@ -233,21 +235,30 @@ jobs:
             local service="$workspace/AmbilightService"
             mkdir -p "$workspace"
 
-            # Create the Tizen Web project metadata, then replace its sample payload
-            # with the complete, already-built Moonlight Web application.
-            "$TIZEN_CORE_CLI" new --type web --template Basic --project-name "$name" --profile tizen-9.0 -w "$workspace"
+            # Scaffold both projects from their native Tizen Core templates.
+            # Moonlight replaces only the Web payload; the generated Web project
+            # metadata remains intact.
+            "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
+            "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"
             test -d "$web"
+            test -s "$service/tizen_dotnet_project.yaml"
             cp -a "$source/." "$web/"
 
-            # The dependent project is the original .NET ServiceApplication project,
-            # not a prebuilt TPK passed as --ref-pkgs.
-            cp -a ambilight-service "$service"
-            python3 - "$web/config.xml" "$service/tizen-manifest.xml" <<'PY'
+            # Populate the SDK-scaffolded .NET service project with our sources.
+            # Keep its Tizen Core project metadata, use the repository's real
+            # project settings and service manifest, and remove the template entry point.
+            cp ambilight-service/TizenAmbilight.csproj "$service/TizenAmbilight.csproj"
+            cp ambilight-service/tizen-manifest.xml "$service/tizen-manifest.xml"
+            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service/"
+            rm -f "$service/AmbilightService.csproj" "$service/AmbilightService_App.cs"
+            python3 - "$web/config.xml" "$service/tizen-manifest.xml" "$service/tizen_dotnet_project.yaml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
+          from pathlib import Path
           web = ET.parse(sys.argv[1]).getroot()
           ET.register_namespace("", "http://tizen.org/ns/packages")
-          tree = ET.parse(sys.argv[2])
+          manifest_path = Path(sys.argv[2])
+          tree = ET.parse(manifest_path)
           manifest = tree.getroot()
           app = next((n for n in web.iter() if n.tag.endswith("application")), None)
           if app is None or app.get("id") != "MoonLightS.MoonlightWasm" or app.get("package") != "MoonLightS":
@@ -258,22 +269,26 @@ jobs:
           if service.get("appid") != "MoonLightS.MoonlightAmbilight" or service.get("type") != "dotnet" or service.get("exec") != "MoonlightAmbilight.dll" or service.get("api-version") != "9":
               raise SystemExit("Ambilight must remain the original Tizen .NET ServiceApplication")
           manifest.set("version", web.get("version", "1.2.4"))
-          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
+          tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
+
+          project_path = Path(sys.argv[3])
+          project = project_path.read_text(encoding="utf-8")
+          project = project.replace("csproj_file: AmbilightService.csproj", "csproj_file: TizenAmbilight.csproj")
+          start = project.find("files:")
+          if start < 0:
+              raise SystemExit("Tizen Core .NET project metadata has no files list")
+          end = project.find("\ndeps:", start)
+          if end < 0:
+              raise SystemExit("Tizen Core .NET project metadata has no deps section")
+          project = project[:start] + "files:\n  - TizenAmbilight.csproj\n  - Program.cs\n  - VideoPlaneCapture.cs\n  - WledOutput.cs\n  - tizen-manifest.xml" + project[end:]
+          project_path.write_text(project, encoding="utf-8")
+          if "csproj_file: TizenAmbilight.csproj" not in project:
+              raise SystemExit("Tizen Core project metadata does not reference TizenAmbilight.csproj")
           PY
 
             "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
             "$TIZEN_CORE_CLI" build --proj-dir "$web"
             "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
-            test -s "$output"
-            unzip -tq "$output"
-
-            # A hybrid WGT stores the Web project under res/wgt. Remove the
-            # extra package-root config.xml and re-sign the modified archive
-            # through Tizen Core CLI so both package signatures are regenerated.
-            local unsigned="$RUNNER_TEMP/$name-unsigned.wgt"
-            cp "$output" "$unsigned"
-            zip -q -d "$unsigned" config.xml author-signature.xml signature1.xml
-            "$TIZEN_CORE_CLI" pack --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --base-pkg "$unsigned" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
@@ -282,11 +297,9 @@ jobs:
           source, output = Path(sys.argv[1]), Path(sys.argv[2])
           with zipfile.ZipFile(output) as z:
               names = set(z.namelist())
-              required = {"tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
+              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
               missing = sorted(required - names)
               if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
-              if "config.xml" in names:
-                  raise SystemExit("Unexpected root config.xml remains in hybrid WGT")
               for f in source.rglob("*"):
                   if f.is_file():
                       p = "res/wgt/" + f.relative_to(source).as_posix()
@@ -296,7 +309,7 @@ jobs:
               splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
               if splash is None or splash.get("ready_when") != "custom":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
-              print("Hybrid WGT structure, regenerated signatures, Moonlight payload and video splash verified.")
+              print("Single-pass hybrid WGT, signatures, Moonlight payload and video splash verified.")
           PY
           }
 
