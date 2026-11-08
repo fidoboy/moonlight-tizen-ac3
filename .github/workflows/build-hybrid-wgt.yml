@@ -325,7 +325,32 @@ jobs:
           # 2. Compile the Tizen .NET service directly. Do not use "tz build":
           # its hybrid wrapper passes dotnet as the MSBuild executable.
           find ambilight-service -type f -name '*.tpk' -delete
-          dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Debug -v:m
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Release -v:m
+
+          # Verify the embedded service identity and its API 9 requirement.
+          python3 - ambilight-service/tizen-manifest.xml <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          ns = "{http://tizen.org/ns/packages}"
+          service = root.find(f"{ns}service-application")
+          expected = {
+              "package": "MoonLightS",
+              "appid": "MoonLightS.MoonlightAmbilight",
+              "exec": "MoonlightAmbilight.dll",
+              "api-version": "9",
+          }
+          actual = {
+              "package": root.get("package"),
+              "appid": service.get("appid") if service is not None else None,
+              "exec": service.get("exec") if service is not None else None,
+              "api-version": service.get("api-version") if service is not None else None,
+          }
+          for key, value in expected.items():
+              if actual[key] != value:
+                  raise SystemExit(f"Invalid service manifest {key}: expected {value!r}, got {actual[key]!r}")
+          print("Service manifest verified:", actual)
+          PY
 
           mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#service_pkgs[@]} != 1 )); then
