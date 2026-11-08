@@ -3,6 +3,33 @@
 
   var SERVICE_APP_ID = 'MoonLightS.MoonlightAmbilight';
   var OPERATION = 'http://tizen.org/appcontrol/operation/default';
+  // Tizen API 9 (tizen90) maps to Tizen 6.5. Older TVs still install and run
+  // Moonlight, but must never be asked to launch this optional .NET service.
+  var MINIMUM_SERVICE_PLATFORM_VERSION = '6.5';
+
+  function platformSupportsService() {
+    try {
+      if (!window.tizen || !tizen.systeminfo ||
+          typeof tizen.systeminfo.getCapability !== 'function') return false;
+
+      var value = String(tizen.systeminfo.getCapability(
+        'http://tizen.org/feature/platform.version') || '');
+      var match = /^\\s*(\\d+)\\.(\\d+)(?:\\.|$)/.exec(value);
+      if (!match) return false;
+
+      var major = Number(match[1]);
+      var minor = Number(match[2]);
+      var required = MINIMUM_SERVICE_PLATFORM_VERSION.split('.');
+      var requiredMajor = Number(required[0]);
+      var requiredMinor = Number(required[1]);
+
+      return major > requiredMajor ||
+        (major === requiredMajor && minor >= requiredMinor);
+    } catch (error) {
+      console.warn('[ambilight] Could not read Tizen platform version:', error);
+      return false;
+    }
+  }
   var initialized = false;
   var supported = false;
   var serviceStarted = false;
@@ -70,6 +97,8 @@
           SERVICE_APP_ID,
           function() {
             // The process may be running even if its AppControl reply is delayed.
+            // Do not let a late launch callback resurrect a service already reported unsupported.
+            if ((command === 'initialize' || command === 'start') && initialized && !supported) return;
             serviceStarted = true;
           },
           function(error) {
@@ -92,6 +121,18 @@
 
   function initialize() {
     if (initialization) return initialization;
+
+    // Fail closed on Tizen 5.5–6.0 and on platforms where the version cannot be read.
+    // In that case the service is left completely unlaunched, as if it were absent.
+    if (!platformSupportsService()) {
+      initialized = true;
+      supported = false;
+      serviceStarted = false;
+      active = false;
+      initialization = Promise.resolve(false);
+      return initialization;
+    }
+
     initialization = serialize('initialize').then(function(result) {
       initialized = true;
       supported = result.supported === true && result.ok !== false;
