@@ -1,0 +1,157 @@
+name: Diagnose Hybrid WGT Project Creation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["1.2.4-pre"]
+    paths:
+      - ".github/workflows/diagnose-hybrid-wgt.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hybrid-wgt-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.ref == 'refs/heads/1.2.4-pre'
+    name: Diagnose Tizen project creation without rebuilding Moonlight
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out Moonlight
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Install Tizen SDK packaging tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
+
+          installer="$RUNNER_TEMP/tizen-web-cli.bin"
+          curl --fail --location --retry 3 --output "$installer" \
+            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
+          chmod +x "$installer"
+          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
+
+          sdk="$RUNNER_TEMP/tizen-studio"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          "$pm" install --accept-license --no-java-check \
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI"
+
+          core_cli="$sdk/tools/tizen-core/tz"
+          test -x "$core_cli"
+          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
+          echo "$sdk/tools" >> "$GITHUB_PATH"
+          echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
+          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
+          echo "TIZEN_CORE_CLI=$core_cli" >> "$GITHUB_ENV"
+
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Reproduce the exact project-creation sequence
+        shell: bash
+        run: |
+          set -uo pipefail
+          log_dir="$RUNNER_TEMP/tizen-project-diagnostics"
+          mkdir -p "$log_dir"
+
+          echo "=== Tizen Core version ==="
+          "$TIZEN_CORE_CLI" --version 2>&1 | tee "$log_dir/tizen-version.log"
+          echo "=== Registered .NET templates ==="
+          "$TIZEN_CORE_CLI" list templates -t dotnet 2>&1 | tee "$log_dir/dotnet-templates.log"
+          echo "=== Installed .NET SDK ==="
+          dotnet --info 2>&1 | tee "$log_dir/dotnet-info.log"
+
+          run_logged() {
+            local label="$1"
+            shift
+            echo "::group::$label"
+            "$@" 2>&1 | tee "$log_dir/$label.log"
+            local statuses=("${PIPESTATUS[@]}")
+            local command_status="${statuses[0]}"
+            echo "EXIT_CODE_$label=$command_status"
+            echo "::endgroup::"
+            return "$command_status"
+          }
+
+          workspace="$RUNNER_TEMP/hybrid-reproduction"
+          mkdir -p "$workspace"
+
+          echo "=== Test 1: create Web project, exactly as the packaging job does ==="
+          if run_logged create-web-project \
+            "$TIZEN_CORE_CLI" new -t Basic -n MoonlightWeb -T web -p tizen-9.0 -w "$workspace"; then
+            web_status=0
+          else
+            web_status=$?
+          fi
+
+          echo "=== Test 2: create .NET service in that SAME workspace ==="
+          if (( web_status == 0 )); then
+            if run_logged create-dotnet-service-after-web \
+              "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"; then
+              sequential_status=0
+            else
+              sequential_status=$?
+            fi
+          else
+            sequential_status=125
+            echo "Skipped: Web project creation failed."
+          fi
+
+          echo "=== Test 3: create .NET service alone in a fresh workspace ==="
+          isolated_workspace="$RUNNER_TEMP/service-only"
+          mkdir -p "$isolated_workspace"
+          if run_logged create-dotnet-service-alone \
+            "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$isolated_workspace"; then
+            isolated_status=0
+          else
+            isolated_status=$?
+          fi
+
+          echo "=== Generated files in the sequential workspace ==="
+          find "$workspace" -maxdepth 4 -type f -printf '%P\n' | sort | tee "$log_dir/sequential-files.txt"
+          echo "=== Generated files in the isolated workspace ==="
+          find "$isolated_workspace" -maxdepth 4 -type f -printf '%P\n' | sort | tee "$log_dir/isolated-files.txt"
+
+          echo "=== Recent Tizen SDK logs ==="
+          for root in "$RUNNER_TEMP/tizen-studio" "$HOME/.tizen" "$HOME/.config"; do
+            if [[ -d "$root" ]]; then
+              find "$root" -type f \( -iname '*.log' -o -iname '*tizen*core*' \) -mmin -30 -print 2>/dev/null
+            fi
+          done | while IFS= read -r log; do
+            echo "--- $log ---"
+            tail -n 300 "$log"
+          done
+
+          echo "=== RESULT ==="
+          echo "Web project creation: $web_status"
+          echo "Service after Web project in same workspace: $sequential_status"
+          echo "Service alone in fresh workspace: $isolated_status"
+
+          if (( web_status != 0 || sequential_status != 0 )); then
+            echo "::error::The project-creation sequence used by the packaging job failed. See the command output and logs above."
+            exit 1
+          fi
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tizen-project-diagnostics-${{ github.sha }}
+          path: ${{ runner.temp }}/tizen-project-diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
