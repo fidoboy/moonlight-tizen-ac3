@@ -259,6 +259,7 @@ jobs:
           PY
 
             "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
+            "$TIZEN_CORE_CLI" build --proj-dir "$web"
             "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
