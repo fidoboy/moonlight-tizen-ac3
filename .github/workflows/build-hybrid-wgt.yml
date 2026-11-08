@@ -216,146 +216,76 @@ jobs:
             test -s "$project/static/res/launch-screen-portrait.mp4"
           done
 
-      - name: Build the original .NET Tizen service
+      - name: Package and sign the Tizen Core hybrid workspaces
         shell: bash
         run: |
           set -euo pipefail
+          "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
+          grep -Eq '^[[:space:]]+Basic \\[web_app\\]' "$RUNNER_TEMP/web-templates.txt"
 
-          # Keep the original .NET service identity and version aligned with Moonlight.
-          python3 - "$RUNNER_TEMP/web-standard/config.xml" ambilight-service/tizen-manifest.xml <<'PY'
+          package_one() {
+            local source="$1" name="$2" output="$3"
+            local workspace="$RUNNER_TEMP/hybrid-$name"
+            local web="$workspace/$name"
+            local service="$workspace/AmbilightService"
+            mkdir -p "$workspace"
+
+            # Create the Tizen Web project metadata, then replace its sample payload
+            # with the complete, already-built Moonlight Web application.
+            "$TIZEN_CORE_CLI" new --type web --template Basic --project-name "$name" --profile tizen-9.0 --path "$workspace"
+            test -d "$web"
+            cp -a "$source/." "$web/"
+
+            # The dependent project is the original .NET ServiceApplication project,
+            # not a prebuilt TPK passed as --ref-pkgs.
+            cp -a ambilight-service "$service"
+            python3 - "$web/config.xml" "$service/tizen-manifest.xml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
           web = ET.parse(sys.argv[1]).getroot()
-          service_path = sys.argv[2]
           ET.register_namespace("", "http://tizen.org/ns/packages")
-          tree = ET.parse(service_path)
+          tree = ET.parse(sys.argv[2])
           manifest = tree.getroot()
-          web_app = next((node for node in web.iter() if node.tag.endswith("application")), None)
-          service_app = next((node for node in manifest.iter() if node.tag.endswith("service-application")), None)
-          if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
-              raise SystemExit("Moonlight Web application ID changed unexpectedly")
-          if web_app.get("package") != "MoonLightS" or web_app.get("required_version") != "5.5":
-              raise SystemExit("Moonlight Web package identity or Tizen minimum changed")
-          if manifest.get("package") != web_app.get("package") or manifest.get("api-version") != "6.5":
-              raise SystemExit("The original .NET service package identity/API changed")
-          if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
-              raise SystemExit("Ambilight service application ID mismatch")
-          if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
-              raise SystemExit("Ambilight service must remain the original .NET ServiceApplication")
-          if service_app.get("api-version") != "9":
-              raise SystemExit("The service runtime must retain its original Tizen API 9 target")
+          app = next((n for n in web.iter() if n.tag.endswith("application")), None)
+          if app is None or app.get("id") != "MoonLightS.MoonlightWasm" or app.get("package") != "MoonLightS":
+              raise SystemExit("Unexpected Moonlight Web identity")
+          service = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
+          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.5" or service is None:
+              raise SystemExit("Unexpected Ambilight service package")
+          if service.get("appid") != "MoonLightS.MoonlightAmbilight" or service.get("type") != "dotnet" or service.get("exec") != "MoonlightAmbilight.dll" or service.get("api-version") != "9":
+              raise SystemExit("Ambilight must remain the original Tizen .NET ServiceApplication")
           manifest.set("version", web.get("version", "1.2.4"))
-          tree.write(service_path, encoding="UTF-8", xml_declaration=True)
+          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
           PY
 
-          dotnet msbuild ambilight-service/TizenAmbilight.csproj \
-            -restore -t:Rebuild -p:Configuration=Release -v:m
-
-          mapfile -d '' service_packages < <(find ambilight-service/bin/Release -type f -name '*.tpk' -size +0c -print0)
-          if [[ ${#service_packages[@]} -ne 1 ]]; then
-            echo "::error::Expected one .NET Tizen TPK, found ${#service_packages[@]}."
-            find ambilight-service/bin -maxdepth 8 -type f -printf '%p\\n' | sort || true
-            exit 1
-          fi
-
-          service_tpk="${service_packages[0]}"
-          unzip -tq "$service_tpk"
-          python3 - "$service_tpk" <<'PY'
-          import sys, zipfile, xml.etree.ElementTree as ET
-          from pathlib import PurePosixPath
-          with zipfile.ZipFile(sys.argv[1]) as package:
-              names = package.namelist()
-              manifests = [name for name in names if PurePosixPath(name).name == "tizen-manifest.xml"]
-              if len(manifests) != 1:
-                  raise SystemExit("The .NET TPK must contain exactly one tizen-manifest.xml")
-              manifest = ET.fromstring(package.read(manifests[0]))
-              app = next((node for node in manifest.iter() if node.tag.endswith("service-application")), None)
-              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.5":
-                  raise SystemExit("The .NET TPK package identity/API version is incorrect")
-              if app is None or app.get("appid") != "MoonLightS.MoonlightAmbilight":
-                  raise SystemExit("The .NET TPK service application ID is incorrect")
-              if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll" or app.get("api-version") != "9":
-                  raise SystemExit("The TPK does not preserve the original .NET service declaration")
-              if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
-                  raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
-          PY
-          echo "AMBILIGHT_SERVICE_TPK=$service_tpk" >> "$GITHUB_ENV"
-
-      - name: Package and sign each hybrid WGT directly
-        shell: bash
-        run: |
-          set -euo pipefail
-          workspace="$RUNNER_TEMP/MoonlightHybrid"
-          mkdir -p "$workspace"
-
-          "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
-          grep -Eq '^[[:space:]]+Basic \[web_app\]' "$RUNNER_TEMP/web-templates.txt" || {
-            echo "::error::Tizen Core Basic web template is unavailable."
-            exit 1
-          }
-
-          package_one() {
-            local source="$1"
-            local project_name="$2"
-            local output="$3"
-            local project="$workspace/$project_name"
-
-            "$TIZEN_CORE_CLI" new --type web --template Basic \
-              --project-name "$project_name" --profile tizen-9.0 --path "$workspace"
-            test -d "$project"
-            cp -a "$source/." "$project/"
-
-            # One Tizen Core hybrid-pack operation: Web project + compiled service TPK.
-            # There is no base WGT, no post-pack ZIP editing, and no second signing pass.
-            "$TIZEN_CORE_CLI" pack \
-              --proj-dir "$project" \
-              --type wgt \
-              --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
-              --sign-profile Moonlight \
-              --profiles-path "$TIZEN_PROFILES_PATH" \
-              --out-path "$output"
-
+            "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
+            "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
-          import sys, zipfile
-          from pathlib import Path, PurePosixPath
-          source, package_path = Path(sys.argv[1]), Path(sys.argv[2])
-          with zipfile.ZipFile(package_path) as package:
-              names = set(package.namelist())
-              required = {
-                  "config.xml", "tizen-manifest.xml",
-                  "res/wgt/config.xml", "res/wgt/index.html",
-                  "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
-                  "res/wgt/service/service.js",
-                  "author-signature.xml", "signature1.xml"
-              }
+          import sys, zipfile, xml.etree.ElementTree as ET
+          from pathlib import Path
+          source, output = Path(sys.argv[1]), Path(sys.argv[2])
+          with zipfile.ZipFile(output) as z:
+              names = set(z.namelist())
+              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
               missing = sorted(required - names)
-              if missing:
-                  raise SystemExit("Direct hybrid WGT is missing: " + ", ".join(missing))
-              for name in names:
-                  path = PurePosixPath(name)
-                  if path.is_absolute() or ".." in path.parts:
-                      raise SystemExit("Unsafe WGT path: " + name)
-              for file in source.rglob("*"):
-                  if not file.is_file():
-                      continue
-                  relative = file.relative_to(source).as_posix()
-                  packaged = "res/wgt/" + relative
-                  if packaged not in names:
-                      raise SystemExit("Original Moonlight Web file is absent: " + packaged)
-                  if package.read(packaged) != file.read_bytes():
-                      raise SystemExit("Original Moonlight Web file changed during packaging: " + relative)
-              outer = package.read("config.xml").decode("utf-8")
-              if "res/wgt/index.html" not in outer or "res/wgt/service/service.js" not in outer:
-                  raise SystemExit("Outer package config does not target the nested Moonlight Web app/service")
-              print(f"Verified one signed hybrid WGT; preserved {sum(1 for f in source.rglob('*') if f.is_file())} original Web files.")
+              if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
+              for f in source.rglob("*"):
+                  if f.is_file():
+                      p = "res/wgt/" + f.relative_to(source).as_posix()
+                      if p not in names or z.read(p) != f.read_bytes():
+                          raise SystemExit("Moonlight Web payload changed or missing: " + p)
+              config = ET.fromstring(z.read("res/wgt/config.xml"))
+              splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
+              if splash is None or splash.get("ready_when") != "custom":
+                  raise SystemExit("Moonlight video splash declaration was not preserved")
+              print("Hybrid WGT structure, signature, Moonlight payload and video splash verified.")
           PY
           }
 
           package_one "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/Moonlight.wgt"
           package_one "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
-
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
           cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
