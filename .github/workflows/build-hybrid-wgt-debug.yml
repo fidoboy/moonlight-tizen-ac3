@@ -334,8 +334,10 @@ jobs:
           ET.register_namespace("", "http://tizen.org/ns/packages")
 
           with zipfile.ZipFile(source_path, "r") as source:
-              if "tizen-manifest.xml" not in source.namelist():
-                  raise SystemExit("Hybrid WGT has no root tizen-manifest.xml")
+              names = set(source.namelist())
+              if "tizen-manifest.xml" not in names or "config.xml" not in names:
+                  raise SystemExit("Hybrid WGT is missing its outer manifest or config.xml")
+
               manifest = ET.fromstring(source.read("tizen-manifest.xml"))
               if manifest.get("api-version") != "6.5":
                   raise SystemExit("Expected hybrid package API floor 6.5 before adjustment")
@@ -343,12 +345,77 @@ jobs:
                                   if node.tag.endswith("service-application")), None)
               if service_app is None or service_app.get("api-version") != "9":
                   raise SystemExit("Embedded .NET service must retain original API 9 target")
-
               manifest.set("api-version", "5.5")
               patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
+
+              # Tizen Core nests the Web WGT under res/wgt/. Redirect all
+              # outer application references without modifying the nested app.
+              config = ET.fromstring(source.read("config.xml"))
+
+              def resolve_outer_resource(value, description):
+                  if value in names:
+                      return value
+                  nested_value = f"res/wgt/{value}"
+                  if nested_value in names:
+                      return nested_value
+                  raise SystemExit(
+                      f"Outer {description} does not exist in hybrid WGT: {value}"
+                  )
+
+              rewritten_references = []
+              for node in config.iter():
+                  tag = node.tag.split("}")[-1]
+                  attributes = []
+                  if tag in ("content", "icon"):
+                      attributes.append("src")
+                  elif tag == "src":
+                      attributes.append("name")
+                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
+                      attributes.extend(("video", "background_image", "image"))
+
+                  for attribute in attributes:
+                      value = node.get(attribute)
+                      if not value:
+                          continue
+                      resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
+                      if resolved != value:
+                          node.set(attribute, resolved)
+                      rewritten_references.append((tag, attribute, resolved))
+
+              required_references = {
+                  ("content", "src"): "res/wgt/index.html",
+                  ("icon", "src"): "res/wgt/icon.png",
+                  ("src", "name"): "res/wgt/index.html",
+              }
+              for key, expected in required_references.items():
+                  if not any((tag, attribute) == key and value == expected
+                             for tag, attribute, value in rewritten_references):
+                      raise SystemExit(f"Outer config.xml is missing {key[0]} reference to {expected}")
+
+              if not any(tag == "content" and attribute == "src"
+                         and value == "res/wgt/service/service.js"
+                         for tag, attribute, value in rewritten_references):
+                  raise SystemExit("Outer config.xml does not point the Smart Hub service to res/wgt/service/service.js")
+
+              splash_paths = [value for tag, attribute, value in rewritten_references
+                              if tag in ("vss_default", "vss_landscape", "vss_portrait")]
+              if not any(path.endswith("launch-screen.mp4") for path in splash_paths):
+                  raise SystemExit("Landscape launch-screen.mp4 is not declared by outer config.xml")
+              if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_paths):
+                  raise SystemExit("Portrait launch-screen-portrait.mp4 is not declared by outer config.xml")
+
+              ET.register_namespace("", "http://www.w3.org/ns/widgets")
+              ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
+              patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
+
               with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
                   for entry in source.infolist():
-                      data = patched_manifest if entry.filename == "tizen-manifest.xml" else source.read(entry.filename)
+                      if entry.filename == "tizen-manifest.xml":
+                          data = patched_manifest
+                      elif entry.filename == "config.xml":
+                          data = patched_config
+                      else:
+                          data = source.read(entry.filename)
                       output.writestr(entry, data)
 
           with zipfile.ZipFile(output_path) as result:
@@ -359,7 +426,7 @@ jobs:
                   raise SystemExit("Hybrid container minimum must remain Tizen 5.5")
               if service_app is None or service_app.get("api-version") != "9":
                   raise SystemExit("Hybrid packaging changed embedded service API 9 target")
-          print("Hybrid container floor set to Tizen 5.5; embedded service remains API 9.")
+          print("Hybrid outer resources repaired; .NET service remains API 9.")
           PY
 
           package_one() {
@@ -418,6 +485,48 @@ jobs:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
                       raise SystemExit(f"Unsafe path in hybrid WGT: {name}")
+
+              # Confirm that all paths used by the outer app resolve from
+              # the outer WGT root, not just from the nested res/wgt directory.
+              outer_config = ET.fromstring(package.read("config.xml"))
+              outer_references = []
+              for node in outer_config.iter():
+                  tag = node.tag.split("}")[-1]
+                  attributes = []
+                  if tag in ("content", "icon"):
+                      attributes.append("src")
+                  elif tag == "src":
+                      attributes.append("name")
+                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
+                      attributes.extend(("video", "background_image", "image"))
+                  for attribute in attributes:
+                      value = node.get(attribute)
+                      if value:
+                          if value not in names:
+                              raise SystemExit(
+                                  f"Outer config reference does not resolve: "
+                                  f"{tag}@{attribute}={value}"
+                              )
+                          outer_references.append((tag, attribute, value))
+
+              expected_outer = {
+                  ("content", "src", "res/wgt/index.html"),
+                  ("icon", "src", "res/wgt/icon.png"),
+                  ("src", "name", "res/wgt/index.html"),
+                  ("content", "src", "res/wgt/service/service.js"),
+              }
+              if not expected_outer.issubset(set(outer_references)):
+                  missing_outer = sorted(expected_outer - set(outer_references))
+                  raise SystemExit(
+                      "Hybrid outer config is missing valid app/service references: "
+                      + repr(missing_outer)
+                  )
+              splash_resources = [value for tag, attribute, value in outer_references
+                                  if tag in ("vss_default", "vss_landscape", "vss_portrait")]
+              if not any(path.endswith("launch-screen.mp4") for path in splash_resources):
+                  raise SystemExit("Landscape launch-screen.mp4 is not declared by the outer package")
+              if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_resources):
+                  raise SystemExit("Portrait launch-screen-portrait.mp4 is not declared by the outer package")
 
               web = ET.fromstring(package.read("res/wgt/config.xml"))
               web_app = next((node for node in web.iter()
