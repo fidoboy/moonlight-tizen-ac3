@@ -492,10 +492,18 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard and ForceGM hybrid WGTs for Apps2Samsung
-        uses: actions/upload-artifact@v4
+      - name: Upload standard hybrid Debug WGT for Apps2Samsung
+        uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-Hybrid-Debug
-          path: ${{ runner.temp }}/hybrid-output/
+          name: Moonlight-Debug-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-Debug.wgt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ForceGM hybrid Debug WGT for Apps2Samsung
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-ForceGM-Debug-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM-Debug.wgt
           if-no-files-found: error
           retention-days: 14

@@ -5,17 +5,17 @@ on:
   push:
     branches: ["1.2.4-pre"]
     paths:
-      - "ambilight-service/Program.cs"
-      - "ambilight-service/TizenAmbilight.csproj"
-      - "ambilight-service/VideoPlaneCapture.cs"
-      - "ambilight-service/WledOutput.cs"
-      - "ambilight-service/tizen-manifest.xml"
-      - "wasm/platform/ambilight.js"
-      - "wasm/index.html"
-      - "wasm/platform/index.js"
-      - "wasm/platform/messages.js"
-      - "res/config.xml"
+      - "CMakeLists.txt"
       - "Dockerfile"
+      - ".dockerignore"
+      - "res/**"
+      - "h264bitstream/**"
+      - "libgamestream/**"
+      - "moonlight-common-c/**"
+      - "opus/**"
+      - "ports/**"
+      - "wasm/**"
+      - "ambilight-service/**"
       - ".github/workflows/build-hybrid-wgt.yml"
 
 permissions:
@@ -498,10 +498,18 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard and ForceGM hybrid WGTs for Apps2Samsung
-        uses: actions/upload-artifact@v4
+      - name: Upload standard hybrid WGT for Apps2Samsung
+        uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-Hybrid
-          path: ${{ runner.temp }}/hybrid-output/
+          name: Moonlight-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight.wgt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ForceGM hybrid WGT for Apps2Samsung
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-ForceGM-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM.wgt
           if-no-files-found: error
           retention-days: 14
