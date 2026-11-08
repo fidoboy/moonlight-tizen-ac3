@@ -35,6 +35,7 @@
   'use strict';
   var SERVICE_APP_ID = 'AmbiProbeX.ambilight-probe-service';
   var SERVICE_PORT = 'AmbilightProbeControl';
+  var STATUS_PORT = 'AmbilightProbeStatus';
   var REPLY_PORT = 'AmbilightProbeReply';
   var PROTOCOL = 'ambilight-probe/1';
   var button = document.getElementById('probe');
@@ -58,7 +59,21 @@
   }
 
   function onMessage(items) {
-    if (!Array.isArray(items) || valueOf(items, 'type') !== 'probe_result' || valueOf(items, 'protocol') !== PROTOCOL) return;
+    if (!Array.isArray(items) || valueOf(items, 'protocol') !== PROTOCOL) return;
+    if (valueOf(items, 'type') === 'service_status') {
+      var registered = valueOf(items, 'probe_port_registered') === 'true';
+      if (!registered) {
+        show('El servicio nativo ha arrancado, pero no ha registrado el puerto de prueba',
+          'Puerto: ' + SERVICE_PORT + '\\nCódigo de registro: ' + valueOf(items, 'probe_port_error') +
+          '\\nEl puerto de diagnóstico sí está operativo. Este código identifica el fallo de registro.',
+          'bad');
+        return;
+      }
+      details.textContent = 'Servicio nativo iniciado y puerto de prueba registrado. Ejecutando comprobación RGB…';
+      sendProbe(0);
+      return;
+    }
+    if (valueOf(items, 'type') !== 'probe_result') return;
     var supported = valueOf(items, 'supported') === 'true';
     var family = valueOf(items, 'family') || 'no detectada';
     var error = valueOf(items, 'error');
@@ -85,6 +100,25 @@
     if (error && error.message) parts.push(error.message);
     else if (error) parts.push(String(error));
     return parts.join(' — ') || 'Error desconocido';
+  }
+
+  function sendStatus(attempt) {
+    try {
+      var remote = tizen.messageport.requestTrustedRemoteMessagePort(SERVICE_APP_ID, STATUS_PORT);
+      remote.sendMessage([
+        { key: 'protocol', value: PROTOCOL },
+        { key: 'command', value: 'status' }
+      ], localPort);
+    } catch (error) {
+      if (error && error.name === 'NotFoundError' && attempt < 32) {
+        details.textContent = 'Esperando al servicio nativo y a su puerto de diagnóstico… (' + (attempt + 1) + '/32)';
+        window.setTimeout(function () { sendStatus(attempt + 1); }, 250);
+        return;
+      }
+      show('No se pudo contactar con el diagnóstico del servicio nativo',
+        errorDescription(error) + '\\nNo se ha encontrado el puerto "' + STATUS_PORT + '" después de 8 segundos.',
+        'bad');
+    }
   }
 
   function sendProbe(attempt) {
@@ -123,7 +157,7 @@
         listenerId = localPort.addMessagePortListener(onMessage);
       }
       tizen.application.launch(SERVICE_APP_ID, function () {
-        sendProbe(0);
+        sendStatus(0);
       }, function (error) {
         show('No se pudo iniciar el servicio nativo', errorDescription(error), 'bad');
       });
