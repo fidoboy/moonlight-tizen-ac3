@@ -2,7 +2,7 @@
 <manifest package="MoonLightS" version="1.0.0" api-version="5.5" xmlns="http://tizen.org/ns/packages">
   <author>Moonlight Tizen</author>
   <profile name="tv" />
-  <service-application appid="MoonLightS.MoonlightAmbilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="5" type="dotnet" on-boot="false" auto-restart="false">
+  <service-application appid="MoonLightS.MoonlightAmbilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="9" type="dotnet" on-boot="false" auto-restart="false">
     <label>Moonlight Ambilight</label>
     <splash-screens />
   </service-application>
