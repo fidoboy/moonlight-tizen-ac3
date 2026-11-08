@@ -140,23 +140,6 @@ jobs:
           mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
           tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
 
-          # A cached SDK can retain CLI configuration that points to a profile
-          # store from a previous runner. Clear only profile-path entries whose
-          # target file no longer exists, so the CLI can initialize its default
-          # profile store under TIZEN_STUDIO_DATA_PATH.
-          profile_config="$(tizen cli-config -l)"
-          printf '%s\n' "$profile_config"
-          while IFS='=' read -r key value; do
-            case "$key" in
-              *profiles.path)
-                if [[ -n "$value" && ! -s "$value" ]]; then
-                  echo "Removing stale Tizen CLI setting: $key=$value"
-                  tizen cli-config -d "$key"
-                fi
-                ;;
-            esac
-          done <<< "$profile_config"
-
           tizen security-profiles add \
             -n AmbilightProbe \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/AmbilightProbe.p12" \
