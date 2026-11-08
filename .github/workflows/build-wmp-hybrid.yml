@@ -129,11 +129,6 @@ jobs:
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          # Export the complete signing profile and author keystore used by the successful web build.
-          docker cp "$container_id:/home/moonlight/tizen-studio-data/profile" "$RUNNER_TEMP/Moonlight-Tizen-Profile"
-          docker cp "$container_id:/home/moonlight/tizen-studio-data/keystore/author" "$RUNNER_TEMP/Moonlight-Tizen-Author"
-          test -s "$RUNNER_TEMP/Moonlight-Tizen-Profile/profiles.xml"
-          test -s "$RUNNER_TEMP/Moonlight-Tizen-Author/Moonlight.p12"
 
       - name: Cache Tizen Studio SDK
         uses: actions/cache@v4
@@ -186,38 +181,80 @@ jobs:
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
 
-      - name: Restore original Tizen signing profile
+      - name: Create and validate headless Tizen signing profile
         shell: bash
+        env:
+          # Generate a fresh per-run certificate password; never reuse the short
+          # password used by the Docker image's local development certificate.
+          TIZEN_CERT_PASSWORD: ${{ env.TIZEN_CERT_PASSWORD }}
         run: |
           set -euo pipefail
-          source_profile="$RUNNER_TEMP/Moonlight-Tizen-Profile"
-          source_author="$RUNNER_TEMP/Moonlight-Tizen-Author"
-          destination_profile="$TIZEN_STUDIO_DATA_PATH/profile"
-          destination_author="$TIZEN_STUDIO_DATA_PATH/keystore/author"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
 
-          test -s "$source_profile/profiles.xml"
-          test -s "$source_author/Moonlight.p12"
-          mkdir -p "$destination_profile" "$destination_author"
+          # Tizen author keystores require a policy-compliant password. Generate
+          # 16 characters with upper/lowercase, digits and special characters.
+          password="$(python3 - <<'PY'
+          import secrets
+          import string
+          groups = (
+              string.ascii_uppercase,
+              string.ascii_lowercase,
+              string.digits,
+              "!@#$%^&*()-_=+",
+          )
+          chars = [secrets.choice(group) for group in groups]
+          alphabet = "".join(groups)
+          chars.extend(secrets.choice(alphabet) for _ in range(16 - len(chars)))
+          secrets.SystemRandom().shuffle(chars)
+          print("".join(chars))
+          PY
+          )"
+          if [[ ${#password} -lt 8 || ${#password} -gt 16 ]] ||
+             ! [[ "$password" =~ [A-Z] ]] ||
+             ! [[ "$password" =~ [a-z] ]] ||
+             ! [[ "$password" =~ [0-9] ]] ||
+             ! [[ "$password" =~ [^A-Za-z0-9] ]]; then
+            echo "::error::Generated Tizen certificate password does not meet the 8-16 character complexity policy." >&2
+            exit 1
+          fi
+          echo "::add-mask::$password"
+          echo "TIZEN_CERT_PASSWORD=$password" >> "$GITHUB_ENV"
+          export TIZEN_CERT_PASSWORD="$password"
 
-          # Restore the exact profile XML and every author-keystore file.
-          cp -a "$source_profile/." "$destination_profile/"
-          cp -a "$source_author/." "$destination_author/"
+          tizen certificate -a MoonlightHybrid -f MoonlightHybrid -p "$TIZEN_CERT_PASSWORD"
+          author_keystore="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12"
+          test -s "$author_keystore"
+          tizen security-profiles add \
+            -n MoonlightHybrid \
+            -a "$author_keystore" \
+            -p "$TIZEN_CERT_PASSWORD"
 
-          # Relocate only absolute paths; retain the profile settings and
-          # password handling exactly as they were in the working container.
-          profiles="$destination_profile/profiles.xml"
+          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          test -s "$profiles"
+
+          # Match the supported headless CI workaround used by the standard
+          # Moonlight packaging path: no GNOME keyring .pwd file for the author,
+          # and the SDK's bundled distributor password in profiles.xml.
+          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd"
+          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          test -s "$distributor_pwd"
           sed -i \
-            -e "s|/home/moonlight/tizen-studio-data|$TIZEN_STUDIO_DATA_PATH|g" \
-            -e "s|/home/moonlight/tizen-studio|$TIZEN_STUDIO|g" \
+            -e "s|$author_pwd||g" \
+            -e "s|$distributor_pwd|tizenpkcs12passfordsigner|g" \
             "$profiles"
 
-          grep -q "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" "$profiles"
-          grep -q "$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" "$profiles"
+          # Prove that the generated PKCS#12 can actually be opened with the
+          # password supplied to Tizen; do not print the password or key material.
+          openssl pkcs12 -in "$author_keystore" -passin env:TIZEN_CERT_PASSWORD -noout >/dev/null
+          grep -Fq "$author_keystore" "$profiles"
+          grep -Fq "tizen-distributor-signer.p12" "$profiles"
+          if grep -Fq "$author_pwd" "$profiles" || grep -Fq "$distributor_pwd" "$profiles"; then
+            echo "::error::Signing profile still contains an unresolved password-file reference." >&2
+            exit 1
+          fi
 
-          # Tizen CLI otherwise keeps using its default profile outside RUNNER_TEMP.
-          # Explicitly select the restored profile, as in established headless Tizen CI builds.
           tizen cli-config "profiles.path=$profiles"
-          echo "Original Moonlight signing profile restored; no new profile or certificate generated."
+          echo "Headless Tizen signing profile created and PKCS#12 password validated."
 
       - name: Prepare hybrid web and native projects
         shell: bash
@@ -345,7 +382,7 @@ jobs:
           spawn {*}$argv
           expect {
             -nocase -re {Author password:} {
-              send -- "123456\r"
+              send -- "$env(TIZEN_CERT_PASSWORD)\r"
               exp_continue
             }
             -nocase -re {Save author password[^\r\n]*} {
@@ -378,7 +415,7 @@ jobs:
             -m 'name:m1,compiler:gcc,rootstraps:[{"name":"tizen-10.0-device.core","platform":"tizen-10.0","arch":"arm"}],configs:[Release]' \
             -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
             -p 'name:p1,targets:[b1]' \
-            -s Moonlight \
+            -s MoonlightHybrid \
             -- "$HYBRID_ROOT" 2>&1 | tee "$RUNNER_TEMP/hybrid-build.log"
 
           # Tizen CLI may still report package creation success after a signing
