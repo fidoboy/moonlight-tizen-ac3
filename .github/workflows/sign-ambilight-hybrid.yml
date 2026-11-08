@@ -95,7 +95,7 @@ jobs:
 
           # Fail here, before profile registration or packaging, if the PKCS#12
           # was not actually encrypted with the password supplied to tz cert.
-          openssl pkcs12 -in "$author_cert" -passin "env:CERT_PASSWORD" -noout
+          openssl pkcs12 -legacy -in "$author_cert" -passin "env:CERT_PASSWORD" -noout
           printf '%s' "$CERT_PASSWORD" > "$author_pwd"
           chmod 600 "$author_pwd"
           openssl pkcs12 -in "$author_cert" -passin "file:$author_pwd" -noout
@@ -283,8 +283,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          find "$RUNNER_TEMP" "$HOME" -type f \\
-            \\( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \\) \\
+          find "$RUNNER_TEMP" "$HOME" -type f \
+            \( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \) \
             -print 2>/dev/null | while IFS= read -r log; do
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
