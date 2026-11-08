@@ -420,6 +420,46 @@ jobs:
             cp "$project/Moonlight.wgt" "$output"
             unzip -tq "$output"
 
+            # Verify the XML signatures cryptographically using the certificates
+            # embedded in each signature, including all referenced package digests.
+            local signature_check="$RUNNER_TEMP/$name-signature-check"
+            rm -rf "$signature_check"
+            mkdir -p "$signature_check"
+            unzip -q "$output" -d "$signature_check"
+            python3 - "$signature_check" <<'PY'
+          import base64
+          import subprocess
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          ns = "{http://www.w3.org/2000/09/xmldsig#}"
+          for filename in ("author-signature.xml", "signature1.xml"):
+              signature = root / filename
+              tree = ET.parse(signature)
+              cert = tree.find(".//" + ns + "X509Certificate")
+              if cert is None or not (cert.text or "").strip():
+                  raise SystemExit(f"{filename} has no embedded signing certificate")
+              encoded = "".join(cert.text.split())
+              pem = root / (filename + ".pem")
+              pem.write_text(
+                  "-----BEGIN CERTIFICATE-----\\n" +
+                  "\\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+                  "\\n-----END CERTIFICATE-----\\n",
+                  encoding="ascii",
+              )
+              subprocess.run(
+                  [
+                      "xmlsec1", "--verify", "--pubkey-cert-pem", str(pem),
+                      "--enabled-reference-uris", "empty,same-doc,local", str(signature),
+                  ],
+                  cwd=root,
+                  check=True,
+              )
+              print(f"Cryptographically verified {filename}")
+          PY
+
             # 5. Validate the final signed WGT, not the unsigned tz pack output.
             python3 - "$output" "$service_tpk" "$source" <<'PY'
           import sys
