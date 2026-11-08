@@ -74,7 +74,7 @@ jobs:
           # Preserve the complete Package Manager output, including failures.
           set +e
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+            "NativeCLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
             2>&1 | tee "$RUNNER_TEMP/tizen-package-install.txt"
           install_status=${PIPESTATUS[0]}
           set -e
