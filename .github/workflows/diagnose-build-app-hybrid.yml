@@ -243,6 +243,23 @@ jobs:
           status=${PIPESTATUS[0]}
           echo "Source project target attempt exit code: $status" \
             | tee "$RUNNER_TEMP/build-app-diagnostics/dotnet-source-exit-code.txt"
+
+          # Preserve the CLI's internal log immediately: later Tizen commands may overwrite it.
+          cli_log="$TIZEN_STUDIO_DATA_PATH/cli/logs/cli.log"
+          if [[ -f "$cli_log" ]]; then
+            cp "$cli_log" "$RUNNER_TEMP/build-app-diagnostics/cli-log-after-source-build-app.txt"
+            echo "Captured CLI log from: $cli_log" \
+              | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
+          else
+            echo "Expected CLI log not found: $cli_log" \
+              | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
+            for log_root in "$TIZEN_STUDIO_DATA_PATH" "$TIZEN_STUDIO" "$HOME/.tizen"; do
+              if [[ -d "$log_root" ]]; then
+                find "$log_root" -type f -name 'cli.log' -print 2>/dev/null \
+                  | tee -a "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
+              fi
+            done
+          fi
           exit 0
 
       - name: Inspect any produced hybrid package
