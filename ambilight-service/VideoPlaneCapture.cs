@@ -285,7 +285,11 @@ namespace TizenAmbilight
         /// iteration). Holding a result across a capture would observe mutating data.</summary>
         public static VideoPlaneResult Capture()
         {
-            if (!_cfProbed) ProbeColorFormatOnce();
+            if (!_cfProbed)
+            {
+                _cfProbed = true;
+                Marshal.WriteInt32(_param, OffColorFormat, 0);
+            }
             var r = new VideoPlaneResult();
             if (_call == null) { r.Rc = -1; r.Error = "not initialised"; return r; }
 
