@@ -98,7 +98,10 @@ jobs:
             -- "$TIZEN_STUDIO_DATA_PATH/profile"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd|123456|" "$profiles"
+          # Match the AC3 Dockerfile workaround for headless Tizen packaging:
+          # remove the gnome-keyring password-file reference and use the built-in
+          # distributor signer password. Keep Moonlight.pwd on disk for Tizen.NET.
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO_DATA_PATH/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
 
@@ -361,33 +364,140 @@ jobs:
 
           package_hybrid() {
             local source="$1" name="$2" base_wgt="$3" output="$4"
-            # 3. Merge the compiled service TPK into the corresponding base Web WGT.
-            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$output"
-            test -s "$output"
+            local draft="$RUNNER_TEMP/$name-unsigned.wgt"
+            local project="$RUNNER_TEMP/$name-final-project"
+
+            # 1. Assemble the hybrid WGT without asking Tizen Core to sign it.
+            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$draft"
+            test -s "$draft"
+            unzip -tq "$draft"
+
+            # 2. Expand the assembled package so the standard Tizen CLI can sign
+            #    the complete hybrid payload, including the embedded service TPK.
+            rm -rf "$project"
+            mkdir -p "$project"
+            unzip -q "$draft" -d "$project"
+
+            # 3. Keep the Web installation floor at Tizen 5.5 while preserving
+            #    the embedded .NET service's original Tizen API 9 requirement.
+            python3 - "$project/tizen-manifest.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          path = sys.argv[1]
+          ET.register_namespace("", "http://tizen.org/ns/packages")
+          tree = ET.parse(path)
+          root = tree.getroot()
+          service_app = next((node for node in root.iter()
+                              if node.tag.endswith("service-application")), None)
+          if service_app is None:
+              raise SystemExit("Hybrid manifest has no embedded service application")
+          if service_app.get("api-version") != "9":
+              raise SystemExit("Embedded service API 9 requirement changed unexpectedly")
+          root.set("api-version", "5.5")
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print("Hybrid manifest floor set to Tizen 5.5; service remains API 9.")
+          PY
+
+            # 4. Sign the already assembled hybrid project with the standard
+            #    Tizen package command. Prompts match the AC3 Dockerfile.
+            cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
+          set timeout -1
+          log_user 1
+          spawn {*}$argv
+          expect {
+            -re {Author password:} { send -- "123456\\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            eof
+          }
+          set status [wait]
+          exit [lindex $status 3]
+          EXPECT
+            chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
+            expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$project"
+
+            test -s "$project/Moonlight.wgt"
+            cp "$project/Moonlight.wgt" "$output"
             unzip -tq "$output"
-            python3 - "$source" "$output" <<'PY'
-          import sys, zipfile, xml.etree.ElementTree as ET
-          from pathlib import Path
-          source, output = Path(sys.argv[1]), Path(sys.argv[2])
-          with zipfile.ZipFile(output) as z:
-              names = set(z.namelist())
+
+            # 5. Validate the final signed WGT, not the unsigned tz pack output.
+            python3 - "$output" "$service_tpk" "$source" <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path, PurePosixPath
+
+          package_path, service_tpk_path, source_path = map(Path, sys.argv[1:])
+          with zipfile.ZipFile(package_path) as package:
+              names = set(package.namelist())
               tpks = [name for name in names if name.lower().endswith(".tpk")]
               if not tpks:
-                  raise SystemExit("Hybrid WGT does not contain the embedded service TPK")
-              print("Embedded service TPK(s):", tpks)
-              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js"}
+                  raise SystemExit("Final signed hybrid WGT does not contain the embedded service TPK")
+              if len(tpks) != 1:
+                  raise SystemExit(f"Expected one embedded service TPK, found {len(tpks)}")
+              if package.read(tpks[0]) != service_tpk_path.read_bytes():
+                  raise SystemExit("Signing changed or replaced the embedded service TPK")
+
+              required = {
+                  "config.xml", "tizen-manifest.xml", "author-signature.xml",
+                  "signature1.xml", "res/wgt/config.xml", "res/wgt/index.html",
+                  "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
+                  "res/wgt/service/service.js",
+              }
               missing = sorted(required - names)
-              if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
-              for f in source.rglob("*"):
-                  if f.is_file():
-                      p = "res/wgt/" + f.relative_to(source).as_posix()
-                      if p not in names or z.read(p) != f.read_bytes():
-                          raise SystemExit("Moonlight Web payload changed or missing: " + p)
-              config = ET.fromstring(z.read("res/wgt/config.xml"))
-              splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
+              if missing:
+                  raise SystemExit("Final signed hybrid WGT missing: " + ", ".join(missing))
+
+              ds = "{http://www.w3.org/2000/09/xmldsig#}"
+              for signature_name in ("author-signature.xml", "signature1.xml"):
+                  try:
+                      signature_root = ET.fromstring(package.read(signature_name))
+                  except ET.ParseError as exc:
+                      raise SystemExit(f"Invalid {signature_name}: {exc}")
+                  signatures = list(signature_root.iter(ds + "Signature"))
+                  if not signatures:
+                      raise SystemExit(f"{signature_name} contains no XML Digital Signature")
+                  for signature in signatures:
+                      value = signature.find(".//" + ds + "SignatureValue")
+                      refs = signature.findall(".//" + ds + "Reference")
+                      if value is None or not (value.text or "").strip():
+                          raise SystemExit(f"{signature_name} has an empty SignatureValue")
+                      if not refs or any(
+                          ref.find(ds + "DigestValue") is None or
+                          not (ref.find(ds + "DigestValue").text or "").strip()
+                          for ref in refs
+                      ):
+                          raise SystemExit(f"{signature_name} has missing reference digests")
+
+              manifest = ET.fromstring(package.read("tizen-manifest.xml"))
+              service_app = next((node for node in manifest.iter()
+                                  if node.tag.endswith("service-application")), None)
+              if manifest.get("api-version") != "5.5":
+                  raise SystemExit("Final hybrid package minimum must remain Tizen 5.5")
+              if service_app is None or service_app.get("api-version") != "9":
+                  raise SystemExit("Final hybrid package changed the embedded service API 9 target")
+
+              for name in names:
+                  path = PurePosixPath(name)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"Unsafe path in final hybrid WGT: {name}")
+
+              for item in source_path.rglob("*"):
+                  if item.is_file():
+                      member = "res/wgt/" + item.relative_to(source_path).as_posix()
+                      if member not in names or package.read(member) != item.read_bytes():
+                          raise SystemExit("Moonlight Web payload changed or missing after signing: " + member)
+
+              config = ET.fromstring(package.read("res/wgt/config.xml"))
+              splash = next((node for node in config.iter()
+                             if node.tag.endswith("video_splash_screen")), None)
               if splash is None or splash.get("ready_when") != "custom":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
-              print("Hybrid WGT, embedded service TPK, Moonlight payload and video splash verified.")
+
+              print("Final signed hybrid WGT verified:")
+              print("  Embedded service TPK:", tpks)
+              print("  Author and distributor XML signatures are present and structurally valid.")
+              print("  Moonlight Web payload, manifest and video splash are preserved.")
           PY
           }
 
