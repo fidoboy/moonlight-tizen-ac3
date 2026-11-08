@@ -68,7 +68,10 @@
         tizen.application.launchAppControl(
           control,
           SERVICE_APP_ID,
-          function() {},
+          function() {
+            // The process may be running even if its AppControl reply is delayed.
+            serviceStarted = true;
+          },
           function(error) {
             finish(new Error(error && error.message ? error.message : 'Could not launch Ambilight service.'));
           },
