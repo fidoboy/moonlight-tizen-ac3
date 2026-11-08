@@ -97,29 +97,49 @@ jobs:
       - name: Create CI signing profile
         shell: bash
         env:
-          CERT_PASSWORD: moonlight-hybrid-ci
+          # Tizen policy: at least 8 characters, uppercase, lowercase and digit.
+          # This key is generated for this CI run only.
+          CERT_PASSWORD: MoonlightHybrid2026
         run: |
           set -euo pipefail
+          password_length="${#CERT_PASSWORD}"
+          if (( password_length < 8 )) || \\
+             [[ ! "$CERT_PASSWORD" =~ [A-Z] ]] || \\
+             [[ ! "$CERT_PASSWORD" =~ [a-z] ]] || \\
+             [[ ! "$CERT_PASSWORD" =~ [0-9] ]]; then
+            echo "::error::The Tizen author-certificate password does not meet Tizen policy."
+            exit 1
+          fi
+
           mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile" "$TIZEN_STUDIO_DATA_PATH/keystore/author"
           author_cert="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12"
+          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           if [[ ! -s "$profiles" ]]; then
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' \
+            printf '%s\\n' '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' \\
               '<profiles active="" version="3.1"></profiles>' > "$profiles"
           fi
 
           # Use Tizen Core for both certificate creation and profile registration.
           # Mixing the legacy "tizen" certificate manager with "tz pack" can leave
           # a password entry that Tizen Core cannot decrypt when re-signing.
-          "$TIZEN_CORE_CLI" cert \
-            --name MoonlightHybrid \
-            --password "$CERT_PASSWORD" \
+          "$TIZEN_CORE_CLI" cert \\
+            --name MoonlightHybrid \\
+            --password "$CERT_PASSWORD" \\
             --cert-file "$author_cert"
+          test -s "$author_cert"
 
-          "$TIZEN_CORE_CLI" security-profiles add \
-            --name MoonlightHybrid \
-            --xml-path "$profiles" \
-            --author "$author_cert" \
+          # Some SDK versions omit the local-author .pwd sidecar. Create it
+          # explicitly with restrictive permissions and verify its exact contents.
+          printf '%s' "$CERT_PASSWORD" > "$author_pwd"
+          chmod 600 "$author_pwd"
+          test -s "$author_pwd"
+          printf '%s' "$CERT_PASSWORD" | cmp -s - "$author_pwd"
+
+          "$TIZEN_CORE_CLI" security-profiles add \\
+            --name MoonlightHybrid \\
+            --xml-path "$profiles" \\
+            --author "$author_cert" \\
             --password "$CERT_PASSWORD"
           test -s "$profiles"
 
