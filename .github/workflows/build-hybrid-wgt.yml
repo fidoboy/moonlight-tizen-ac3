@@ -233,7 +233,7 @@ jobs:
 
             # Create the Tizen Web project metadata, then replace its sample payload
             # with the complete, already-built Moonlight Web application.
-            "$TIZEN_CORE_CLI" new --type web --template Basic --project-name "$name" --profile tizen-9.0 --path "$workspace"
+            "$TIZEN_CORE_CLI" new --type web --template Basic --project-name "$name" --profile tizen-9.0 -w "$workspace"
             test -d "$web"
             cp -a "$source/." "$web/"
 
