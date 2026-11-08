@@ -355,7 +355,7 @@ jobs:
           mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#service_pkgs[@]} != 1 )); then
             echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
-            printf '%s\\n' "${service_pkgs[@]}"
+            printf '%s\n' "${service_pkgs[@]}"
             exit 1
           fi
           service_tpk="${service_pkgs[0]}"
@@ -427,7 +427,6 @@ jobs:
             mkdir -p "$signature_check"
             unzip -q "$output" -d "$signature_check"
             python3 - "$signature_check" <<'PY'
-          import base64
           import subprocess
           import sys
           import xml.etree.ElementTree as ET
@@ -444,9 +443,9 @@ jobs:
               encoded = "".join(cert.text.split())
               pem = root / (filename + ".pem")
               pem.write_text(
-                  "-----BEGIN CERTIFICATE-----\\n" +
-                  "\\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
-                  "\\n-----END CERTIFICATE-----\\n",
+                  "-----BEGIN CERTIFICATE-----\n" +
+                  "\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+                  "\n-----END CERTIFICATE-----\n",
                   encoding="ascii",
               )
               subprocess.run(
