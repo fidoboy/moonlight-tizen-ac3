@@ -923,7 +923,10 @@ function handleMessage(msg) {
           window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var exitDirectLaunch = function() {
         try {
-          tizen.application.getCurrentApplication().exit();
+          // Reuse Moonlight's common exit path so the optional Ambilight service
+          // receives shutdown before the Web application returns to Smart Hub.
+          if (typeof exitApplication === 'function') exitApplication();
+          else tizen.application.getCurrentApplication().exit();
         } catch (error) {
           console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not exit after direct Smart Hub session ended:', error);
         }
