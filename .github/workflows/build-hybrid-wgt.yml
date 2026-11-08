@@ -121,6 +121,7 @@ jobs:
           grep -Fq -- '--sign-profile' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--profiles-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--out-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           dotnet --info
           dotnet --list-sdks | grep -E '^8\.'
@@ -304,73 +305,32 @@ jobs:
             fi
           }
 
+          # Build the Tizen .NET service directly; avoid the broken tz build wrapper.
+          find ambilight-service -type f -name '*.tpk' -delete
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Debug -v:m
+
+          mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+          if (( ${#service_pkgs[@]} != 1 )); then
+            echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
+            printf '%s\\n' "${service_pkgs[@]}"
+            exit 1
+          fi
+          service_tpk="${service_pkgs[0]}"
+          test -s "$service_tpk"
+
           package_one() {
             local source="$1" name="$2" output="$3"
             local workspace="$RUNNER_TEMP/hybrid-$name"
             local web="$workspace/$name"
-            local service="$workspace/AmbilightService"
-            local service_project="$service/AmbilightService"
+            local base_wgt="$RUNNER_TEMP/$name-base.wgt"
             mkdir -p "$workspace"
-
-            # Record the templates actually registered in this CI SDK before
-            # asking Tizen Core to instantiate either project.
-            run_tz "list-web-templates-$name" "$TIZEN_CORE_CLI" list templates -t web
-            run_tz "list-dotnet-templates-$name" "$TIZEN_CORE_CLI" list templates -t dotnet
-
-            # Scaffold both projects from their native Tizen Core templates.
-            # Moonlight replaces only the Web payload; the generated Web project
-            # metadata remains intact.
             run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
-            run_tz "create-dotnet-service-project-$name" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"
             test -d "$web"
-            test -s "$service_project/tizen_dotnet_project.yaml"
             cp -a "$source/." "$web/"
-
-            # Populate the SDK-scaffolded .NET service project with our sources.
-            # Keep its Tizen Core project metadata, use the repository's real
-            # project settings and service manifest, and remove the template entry point.
-            cp ambilight-service/TizenAmbilight.csproj "$service_project/TizenAmbilight.csproj"
-            cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
-            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
-            rm -f "$service_project/AmbilightService.csproj" "$service_project/AmbilightService_App.cs"
-            python3 - "$web/config.xml" "$service_project/tizen-manifest.xml" "$service_project/tizen_dotnet_project.yaml" <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-          web = ET.parse(sys.argv[1]).getroot()
-          ET.register_namespace("", "http://tizen.org/ns/packages")
-          manifest_path = Path(sys.argv[2])
-          tree = ET.parse(manifest_path)
-          manifest = tree.getroot()
-          app = next((n for n in web.iter() if n.tag.endswith("application")), None)
-          if app is None or app.get("id") != "MoonLightS.MoonlightWasm" or app.get("package") != "MoonLightS":
-              raise SystemExit("Unexpected Moonlight Web identity")
-          service = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
-          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.5" or service is None:
-              raise SystemExit("Unexpected Ambilight service package")
-          if service.get("appid") != "MoonLightS.MoonlightAmbilight" or service.get("type") != "dotnet" or service.get("exec") != "MoonlightAmbilight.dll" or service.get("api-version") != "9":
-              raise SystemExit("Ambilight must remain the original Tizen .NET ServiceApplication")
-          manifest.set("version", web.get("version", "1.2.4"))
-          tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
-
-          project_path = Path(sys.argv[3])
-          project = project_path.read_text(encoding="utf-8")
-          project = project.replace("csproj_file: AmbilightService.csproj", "csproj_file: TizenAmbilight.csproj")
-          start = project.find("files:")
-          if start < 0:
-              raise SystemExit("Tizen Core .NET project metadata has no files list")
-          end = project.find("\ndeps:", start)
-          if end < 0:
-              raise SystemExit("Tizen Core .NET project metadata has no deps section")
-          project = project[:start] + "files:\n  - TizenAmbilight.csproj\n  - Program.cs\n  - VideoPlaneCapture.cs\n  - WledOutput.cs\n  - tizen-manifest.xml" + project[end:]
-          project_path.write_text(project, encoding="utf-8")
-          if "csproj_file: TizenAmbilight.csproj" not in project:
-              raise SystemExit("Tizen Core project metadata does not reference TizenAmbilight.csproj")
-          PY
-
-            run_tz "add-hybrid-dependency-$name" "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
-            run_tz "build-hybrid-workspace-$name" "$TIZEN_CORE_CLI" build --proj-dir "$web"
-            run_tz "pack-hybrid-workspace-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
+            run_tz "pack-base-web-wgt-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$base_wgt"
+            test -s "$base_wgt"
+            unzip -tq "$base_wgt"
+            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
@@ -391,7 +351,7 @@ jobs:
               splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
               if splash is None or splash.get("ready_when") != "custom":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
-              print("Single-pass hybrid WGT, signatures, Moonlight payload and video splash verified.")
+              print("Hybrid WGT, signatures, Moonlight payload and video splash verified.")
           PY
           }
 
