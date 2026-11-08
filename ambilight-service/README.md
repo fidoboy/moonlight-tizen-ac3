@@ -15,11 +15,11 @@ The .NET service captures the decoded TV video plane through Samsung's `libvideo
 GitHub Actions workflow **Build Moonlight Samsung TV hybrid WGT** on branch `1.2.4-pre`:
 
 1. Builds Moonlight Web/WASM and obtains its base WGT.
-2. Builds `TizenAmbilight.csproj` with .NET 8 and `Tizen.NET.Sdk/1.1.9` targeting Tizen API 6 / Tizen 5.5 M2.
+2. Builds `TizenAmbilight.csproj` with .NET 8 and `Tizen.NET.Sdk/1.1.9` targeting Tizen API 5 (`tizen50`, Tizen 5.0 M2). This deliberately targets below Moonlight's Tizen 5.5 minimum so the auxiliary service cannot raise the client's platform requirement.
 3. Uses Tizen Core CLI to merge the Web WGT and .NET TPK into one signed hybrid WGT.
 4. Validates package/application identities, the .NET assembly, signatures and the Web-to-service AppControl fields.
 
-The Web UI and service use package ID `MoonLightS`, with distinct application IDs `MoonLightS.MoonlightWasm` and `MoonLightS.MoonlightAmbilight`. The service and package manifest target Tizen 5.5 so including this optional service does not raise Moonlight's minimum platform version.
+The Web UI and service use package ID `MoonLightS`, with distinct application IDs `MoonLightS.MoonlightWasm` and `MoonLightS.MoonlightAmbilight`. The Web package continues to declare Moonlight's Tizen 5.5 minimum. The auxiliary .NET service targets API 5, which is below that minimum, so including it does not impose a newer platform requirement. Tizen .NET is supported on Samsung TVs from Tizen 4.0 onward; on devices where the video-plane capture library is absent, only Ambilight is unavailable.
 
 ## Capture compatibility
 
