@@ -118,6 +118,12 @@ jobs:
             echo
             echo "=== build-app help ==="
             tizen build-app --help
+            echo
+            echo "=== detailed build-app help ==="
+            tizen build-app -h
+            echo
+            echo "=== build-app manual ==="
+            tizen manual build-app
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-help.txt"
           status=${PIPESTATUS[0]}
           if (( status != 0 )); then
@@ -207,7 +213,8 @@ jobs:
               -s Moonlight -- "$workspace"
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-attempt.txt"
           status=${PIPESTATUS[0]}
-          echo "Prebuilt TPK target attempt exit code: $status"
+          echo "Prebuilt TPK target attempt exit code: $status" \
+            | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-exit-code.txt"
           exit 0
 
       - name: Test whether build-app requires the .NET source project
@@ -217,14 +224,20 @@ jobs:
         run: |
           set -uo pipefail
           workspace="$BUILD_APP_WORKSPACE"
+          cp -a "$GITHUB_WORKSPACE/ambilight-service" "$workspace/ambilight-service"
           {
-            echo "=== build-app with Web project plus .NET project directory ==="
+            echo "=== build-app with explicit build target and .NET project directory ==="
+            echo "Working directory: $workspace"
+            echo "Projects: MoonlightWeb, ambilight-service"
+            echo "Command follows the documented build-app structure: build targets -> package targets."
             tizen build-app \
-              -p "name:MoonlightHybridSource,type:.wgt,targets:[MoonlightWeb,ambilight-service]" \
-              -s Moonlight -- "$GITHUB_WORKSPACE"
+              -b "name:MoonlightBuild,targets:[MoonlightWeb,ambilight-service]" \
+              -p "name:MoonlightHybridSource,type:.wgt,targets:[MoonlightBuild]" \
+              -s Moonlight -- "$workspace"
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/dotnet-source-attempt.txt"
           status=${PIPESTATUS[0]}
-          echo "Source project target attempt exit code: $status"
+          echo "Source project target attempt exit code: $status" \
+            | tee "$RUNNER_TEMP/build-app-diagnostics/dotnet-source-exit-code.txt"
           exit 0
 
       - name: Inspect any produced hybrid package
