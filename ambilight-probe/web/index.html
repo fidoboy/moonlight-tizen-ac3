@@ -64,8 +64,8 @@
       var registered = valueOf(items, 'probe_port_registered') === 'true';
       if (!registered) {
         show('El servicio nativo ha arrancado, pero no ha registrado el puerto de prueba',
-          'Puerto: ' + SERVICE_PORT + '\\nCódigo de registro: ' + valueOf(items, 'probe_port_error') +
-          '\\nEl puerto de diagnóstico sí está operativo. Este código identifica el fallo de registro.',
+          'Puerto: ' + SERVICE_PORT + '\nCódigo de registro: ' + valueOf(items, 'probe_port_error') +
+          '\nEl puerto de diagnóstico sí está operativo. Este código identifica el fallo de registro.',
           'bad');
         return;
       }
@@ -116,7 +116,7 @@
         return;
       }
       show('No se pudo contactar con el diagnóstico del servicio nativo',
-        errorDescription(error) + '\\nNo se ha encontrado el puerto "' + STATUS_PORT + '" después de 8 segundos.',
+        errorDescription(error) + '\nNo se ha encontrado el puerto "' + STATUS_PORT + '" después de 8 segundos.',
         'bad');
     }
   }
