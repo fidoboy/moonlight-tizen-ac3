@@ -129,6 +129,8 @@ jobs:
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
+          docker cp "$container_id:/home/moonlight/tizen-studio-data/keystore/author/Moonlight.p12" "$RUNNER_TEMP/Moonlight-Author.p12"
+          test -s "$RUNNER_TEMP/Moonlight-Author.p12"
 
       - name: Cache Tizen Studio SDK
         uses: actions/cache@v4
@@ -187,15 +189,18 @@ jobs:
           CERT_PASSWORD: 123456
         run: |
           set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
-          tizen certificate -a MoonlightHybrid -f MoonlightHybrid -p "$CERT_PASSWORD"
+          author_p12="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
+          mkdir -p "$(dirname "$author_p12")"
+          test -s "$RUNNER_TEMP/Moonlight-Author.p12"
+          openssl pkcs12 -in "$RUNNER_TEMP/Moonlight-Author.p12" -passin "pass:$CERT_PASSWORD" -noout
+          cp "$RUNNER_TEMP/Moonlight-Author.p12" "$author_p12"
           tizen security-profiles add \
-            -n MoonlightHybrid \
-            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12" \
+            -n Moonlight \
+            -a "$author_p12" \
             -p "$CERT_PASSWORD"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd||" "$profiles"
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
 
@@ -381,7 +386,7 @@ jobs:
             -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
             -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
             -p 'name:p1,targets:[b1]' \
-            -s MoonlightHybrid \
+            -s Moonlight \
             -- "$HYBRID_ROOT" 2>&1 | tee "$RUNNER_TEMP/hybrid-build.log"
 
           # Tizen CLI may still report package creation success after a signing
