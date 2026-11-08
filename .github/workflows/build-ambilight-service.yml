@@ -242,8 +242,8 @@ jobs:
               raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
           if service_app.get("exec") != "MoonlightAmbilight.dll":
               raise SystemExit("Ambilight .NET entry assembly mismatch")
-          if service_app.get("api-version") != "5":
-              raise SystemExit("The optional service must target API 5 or lower, never raise Moonlight's Tizen 5.5 minimum")
+          if service_app.get("api-version") != "9":
+              raise SystemExit("The service runtime must match the original upstream Tizen API 9 build target")
 
           manifest.set("version", web.get("version", "1.2.3"))
           tree.write(service_path, encoding="UTF-8", xml_declaration=True)
@@ -284,8 +284,8 @@ jobs:
                   raise SystemExit("The .NET TPK service application ID is incorrect")
               if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll":
                   raise SystemExit("The TPK does not contain the expected .NET service declaration")
-              if app.get("api-version") != "5":
-                  raise SystemExit("The optional .NET service must be built for API 5")
+              if app.get("api-version") != "9":
+                  raise SystemExit("The .NET service TPK must preserve the original upstream API 9 target")
               if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
                   raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
               print("Validated the compiled .NET Tizen ServiceApplication TPK.")
@@ -400,8 +400,8 @@ jobs:
                   raise SystemExit("Packaged Ambilight service application ID is invalid")
               if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
                   raise SystemExit("Packaged service is not the expected .NET Tizen application")
-              if service_app.get("api-version") != "5":
-                  raise SystemExit("Packaged optional service requests an API above the Tizen 5.5 baseline")
+              if service_app.get("api-version") != "9":
+                  raise SystemExit("Packaged optional service must preserve the original upstream API 9 target")
 
               assemblies = [name for name in names
                             if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
