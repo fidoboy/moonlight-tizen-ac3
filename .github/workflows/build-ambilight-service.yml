@@ -215,6 +215,10 @@ jobs:
               web = ET.fromstring(package.read("config.xml"))
 
           service_path = sys.argv[2]
+          # Tizen.NET.Sdk resolves the manifest root using its default namespace.
+          # ElementTree otherwise serializes it as ns0:manifest, which makes
+          # GetManifestInfo report tpkName is Invalid.
+          ET.register_namespace("", "http://tizen.org/ns/packages")
           tree = ET.parse(service_path)
           manifest = tree.getroot()
           web_app = next((node for node in web.iter()
