@@ -63,8 +63,8 @@ jobs:
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
 
-          # Keep the legacy CLI only for certificate creation. The final hybrid
-          # package is assembled by Tizen Core CLI (tz), not the old build-app flow.
+          # Install the Tizen CLI components used by the SDK packaging environment.
+          # The final hybrid package is assembled by Tizen Core CLI (tz).
           "$pm" install --accept-license --no-java-check \
             "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI"
 
