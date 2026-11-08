@@ -34,7 +34,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             software-properties-common expect unzip \
-            libxcb-icccm4 libkf5itemmodels5 bridge-utils libxcb-shape0 openvpn
+            libxcb-icccm4 libkf5itemmodels5 bridge-utils libxcb-shape0 openvpn \
+            libkf5kiowidgets5 libxcb-render-util0 libxcb-image0 libsdl1.2debian libv4l-0
           sudo add-apt-repository -y ppa:deadsnakes/ppa
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
