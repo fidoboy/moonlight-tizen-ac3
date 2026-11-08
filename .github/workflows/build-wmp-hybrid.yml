@@ -490,7 +490,7 @@ jobs:
 
           # Tizen CLI logs can contain transient signing passwords. Never copy
           # raw cli.log files into workflow artifacts.
-          printf '%s\\n' "Raw Tizen CLI logs intentionally excluded because they may contain credentials." \
+          printf '%s\n' "Raw Tizen CLI logs intentionally excluded because they may contain credentials." \
             > "$diagnostics/RAW-CLI-LOGS-EXCLUDED.txt"
 
           if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/WmpService" ]]; then
@@ -509,7 +509,7 @@ jobs:
               fi
             done
           fi
-          find "$diagnostics" -type f -printf '%P (%s bytes)\\n' | sort
+          find "$diagnostics" -type f -printf '%P (%s bytes)\n' | sort
 
       - name: Upload Tizen CLI diagnostics
         if: always()
