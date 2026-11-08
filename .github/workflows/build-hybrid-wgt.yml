@@ -354,30 +354,71 @@ jobs:
               manifest.set("api-version", "5.5")
               patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
 
-              # Tizen Core nests the original Web WGT under res/wgt/. The outer
-              # package config is used for Samsung's video splash declaration,
-              # so its splash paths must resolve from the outer package root.
+              # Tizen Core nests the original Web WGT under res/wgt/. The
+              # outer config.xml remains the package entry point, so every
+              # file reference in it must resolve from the outer package root.
               config = ET.fromstring(source.read("config.xml"))
-              splash = next((node for node in config.iter()
-                             if node.tag.endswith("video_splash_screen")), None)
-              if splash is None:
-                  raise SystemExit("Outer hybrid config.xml has no video_splash_screen declaration")
 
-              patched_splash_paths = []
-              for node in splash.iter():
-                  for attribute in ("video", "background_image", "image"):
+              def resolve_outer_resource(value, description):
+                  if value in names:
+                      return value
+                  nested_value = f"res/wgt/{value}"
+                  if nested_value in names:
+                      return nested_value
+                  raise SystemExit(
+                      f"Outer {description} does not exist in hybrid WGT: {value}"
+                  )
+
+              rewritten_references = []
+              for node in config.iter():
+                  tag = node.tag.split("}")[-1]
+                  attributes = []
+                  if tag == "content":
+                      attributes.append("src")
+                  elif tag == "icon":
+                      attributes.append("src")
+                  elif tag == "src":
+                      attributes.append("name")
+
+                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
+                      attributes.extend(("video", "background_image", "image"))
+
+                  for attribute in attributes:
                       value = node.get(attribute)
                       if not value:
                           continue
-                      if value not in names and f"res/wgt/{value}" in names:
-                          node.set(attribute, f"res/wgt/{value}")
-                          value = node.get(attribute)
-                      if value not in names:
-                          raise SystemExit(f"Splash resource does not exist in hybrid WGT: {value}")
-                      patched_splash_paths.append(value)
+                      resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
+                      if resolved != value:
+                          node.set(attribute, resolved)
+                      rewritten_references.append((tag, attribute, resolved))
 
-              if not patched_splash_paths:
-                  raise SystemExit("No video splash resources were found in outer config.xml")
+              required_references = {
+                  ("content", "src"): "res/wgt/index.html",
+                  ("icon", "src"): "res/wgt/icon.png",
+                  ("src", "name"): "res/wgt/index.html",
+              }
+              for key, expected in required_references.items():
+                  if not any((tag, attribute) == key and value == expected
+                             for tag, attribute, value in rewritten_references):
+                      raise SystemExit(
+                          f"Outer config.xml is missing the expected {key[0]} "
+                          f"reference to {expected}"
+                      )
+
+              if not any(tag == "content" and attribute == "src"
+                         and value == "res/wgt/service/service.js"
+                         for tag, attribute, value in rewritten_references):
+                  raise SystemExit(
+                      "Outer config.xml does not point the Smart Hub service "
+                      "to res/wgt/service/service.js"
+                  )
+
+              splash_paths = [value for tag, attribute, value in rewritten_references
+                              if tag in ("vss_default", "vss_landscape", "vss_portrait")]
+              if not any(path.endswith("launch-screen.mp4") for path in splash_paths):
+                  raise SystemExit("Landscape launch-screen.mp4 is not declared by outer config.xml")
+              if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_paths):
+                  raise SystemExit("Portrait launch-screen-portrait.mp4 is not declared by outer config.xml")
               ET.register_namespace("", "http://www.w3.org/ns/widgets")
               ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
               patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
@@ -473,23 +514,44 @@ jobs:
                   if path.is_absolute() or ".." in path.parts:
                       raise SystemExit(f"Unsafe path in hybrid WGT: {name}")
 
-              # Validate the outer Samsung splash declaration against the
-              # actual outer-package paths, not merely the nested Web WGT.
+              # Validate every file reference used by the outer Tizen
+              # application config against the outer package's actual paths.
               outer_config = ET.fromstring(package.read("config.xml"))
-              splash = next((node for node in outer_config.iter()
-                             if node.tag.endswith("video_splash_screen")), None)
-              if splash is None:
-                  raise SystemExit("Hybrid outer config.xml has no video_splash_screen")
-              splash_resources = []
-              for node in splash.iter():
-                  for attribute in ("video", "background_image", "image"):
+              outer_references = []
+              for node in outer_config.iter():
+                  tag = node.tag.split("}")[-1]
+                  attributes = []
+                  if tag in ("content", "icon"):
+                      attributes.append("src")
+                  elif tag == "src":
+                      attributes.append("name")
+                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
+                      attributes.extend(("video", "background_image", "image"))
+                  for attribute in attributes:
                       value = node.get(attribute)
                       if value:
                           if value not in names:
-                              raise SystemExit(f"Hybrid splash path does not resolve: {value}")
-                          splash_resources.append(value)
-              if not splash_resources:
-                  raise SystemExit("Hybrid outer config.xml has no splash resource references")
+                              raise SystemExit(
+                                  f"Outer config reference does not resolve: "
+                                  f"{tag}@{attribute}={value}"
+                              )
+                          outer_references.append((tag, attribute, value))
+
+              expected_outer = {
+                  ("content", "src", "res/wgt/index.html"),
+                  ("icon", "src", "res/wgt/icon.png"),
+                  ("src", "name", "res/wgt/index.html"),
+                  ("content", "src", "res/wgt/service/service.js"),
+              }
+              if not expected_outer.issubset(set(outer_references)):
+                  missing_outer = sorted(expected_outer - set(outer_references))
+                  raise SystemExit(
+                      "Hybrid outer config is missing valid app/service references: "
+                      + repr(missing_outer)
+                  )
+
+              splash_resources = [value for tag, attribute, value in outer_references
+                                  if tag in ("vss_default", "vss_landscape", "vss_portrait")]
               if not any(path.endswith("launch-screen.mp4") for path in splash_resources):
                   raise SystemExit("Landscape launch-screen.mp4 is not declared by the outer package")
               if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_resources):
