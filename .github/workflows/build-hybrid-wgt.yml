@@ -176,8 +176,8 @@ jobs:
           push: false
           load: true
           tags: moonlight-hybrid-web-standard:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=moonlight-web-standard
+          cache-to: type=gha,mode=max,scope=moonlight-web-standard
           build-args: |
             BUILD_TYPE=release
             REPO_OWNER=${{ github.repository_owner }}
@@ -191,8 +191,8 @@ jobs:
           push: false
           load: true
           tags: moonlight-hybrid-web-forcegm:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=moonlight-web-forcegm
+          cache-to: type=gha,mode=max,scope=moonlight-web-forcegm
           build-args: |
             BUILD_TYPE=release
             REPO_OWNER=${{ github.repository_owner }}
