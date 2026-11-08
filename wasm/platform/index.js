@@ -169,6 +169,8 @@ var isStartupHttpReady = false;
 var isStartupHostsLoaded = false;
 var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
+var ambilightSupportState = 'checking';
+var ambilightInitializationPromise = null;
 var isStartupUiRestored = false;
 var isDeferredStartupScheduled = false;
 var isDeferredStartupStarted = false;
@@ -4588,10 +4590,17 @@ function wakeOnLanWarningDialog(host) {
   });
 }
 
-// Restart the application
+// Restart the application only after the independent Ambilight service has exited.
 function restartApplication() {
-  var restartApplication = window.location;
-  restartApplication.reload(true);
+  var reload = function() { window.location.reload(true); };
+  if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
+    window.moonlightAmbilight.shutdown().then(reload, function(error) {
+      console.warn('[ambilight] Could not shut down service before restart:', error);
+      reload();
+    });
+  } else {
+    reload();
+  }
 }
 
 // Show the Restart Moonlight dialog
@@ -4670,10 +4679,30 @@ function requiredRestartAppDialog() {
   });
 }
 
-// Exit the application
+// Stop the independent Ambilight service before returning to Smart Hub.
 function exitApplication() {
-  var exitApplication = tizen.application.getCurrentApplication();
-  exitApplication.exit();
+  var application = tizen.application.getCurrentApplication();
+  var exit = function() {
+    try { application.exit(); }
+    catch (error) {
+      console.error('%c[index.js, exitApplication]', 'color: red;', 'Could not exit Moonlight:', error);
+    }
+  };
+
+  if (!window.moonlightAmbilight || typeof window.moonlightAmbilight.shutdown !== 'function') {
+    exit();
+    return;
+  }
+
+  var exitTimeout = window.setTimeout(exit, 2500);
+  window.moonlightAmbilight.shutdown().then(function() {
+    window.clearTimeout(exitTimeout);
+    exit();
+  }).catch(function(error) {
+    console.warn('[ambilight] Could not shut down service before exit:', error);
+    window.clearTimeout(exitTimeout);
+    exit();
+  });
 }
 
 // Show the Exit Moonlight dialog
@@ -7034,18 +7063,90 @@ function initializeColorThemeSelector() {
 
 }
 
+function updateAmbilightSettingsVisibility() {
+  var toggle = document.getElementById('ambilightSwitch');
+  var ipContainer = document.getElementById('ambilightWledIpContainer');
+  if (ipContainer) {
+    ipContainer.style.display =
+      ambilightSupportState === 'supported' && toggle && toggle.checked ? 'block' : 'none';
+  }
+}
+
+function updateAmbilightAvailability(supported) {
+  ambilightSupportState = supported ? 'supported' : 'unsupported';
+
+  var toggle = document.getElementById('ambilightSwitch');
+  var switchLabel = document.getElementById('ambilightBtn');
+  var description = document.getElementById('ambilightDescription');
+
+  if (description) {
+    description.textContent = supported
+      ? t('Capture the Moonlight video plane and send live colors to your WLED device.')
+      : t('Ambilight is not supported on this TV.');
+  }
+
+  if (toggle) {
+    if (!supported) {
+      toggle.checked = false;
+      if (switchLabel && switchLabel.MaterialSwitch) {
+        switchLabel.MaterialSwitch.off();
+      }
+    }
+    toggle.disabled = !supported;
+    if (switchLabel && switchLabel.MaterialSwitch) {
+      if (supported) switchLabel.MaterialSwitch.enable();
+      else switchLabel.MaterialSwitch.disable();
+    }
+    syncDisabledSwitchAppearance(toggle);
+  }
+
+  if (supported) {
+    // Restore the user's preference only after the hardware probe succeeds.
+    loadAmbilightPreferences();
+  } else {
+    updateAmbilightSettingsVisibility();
+  }
+}
+
+function initializeAmbilightSupport() {
+  if (ambilightInitializationPromise) return ambilightInitializationPromise;
+
+  if (!window.moonlightAmbilight ||
+      typeof window.moonlightAmbilight.initialize !== 'function') {
+    updateAmbilightAvailability(false);
+    ambilightInitializationPromise = Promise.resolve(false);
+    return ambilightInitializationPromise;
+  }
+
+  ambilightInitializationPromise = window.moonlightAmbilight.initialize().then(function(supported) {
+    updateAmbilightAvailability(supported === true);
+    return supported === true;
+  }).catch(function(error) {
+    console.warn('[ambilight] Service/capture capability check failed:', error);
+    updateAmbilightAvailability(false);
+    return false;
+  });
+
+  return ambilightInitializationPromise;
+}
+
 function loadAmbilightPreferences() {
   getData('ambilightEnabled', function(data) {
-    var enabled = !!(data && data.ambilightEnabled === true);
+    var enabled = ambilightSupportState === 'supported' &&
+      !!(data && data.ambilightEnabled === true);
     var toggle = document.getElementById('ambilightSwitch');
     if (toggle) {
       toggle.checked = enabled;
       var label = document.getElementById('ambilightBtn');
       if (label && label.MaterialSwitch) {
         enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
+        if (ambilightSupportState === 'supported') label.MaterialSwitch.enable();
+        else label.MaterialSwitch.disable();
       }
     }
+    updateAmbilightSettingsVisibility();
   });
+
   getData('ambilightWledIp', function(data) {
     var input = document.getElementById('ambilightWledIp');
     if (input && data && typeof data.ambilightWledIp === 'string') input.value = data.ambilightWledIp;
@@ -7054,11 +7155,20 @@ function loadAmbilightPreferences() {
 
 function saveAmbilightPreference() {
   window.setTimeout(function() {
+    if (ambilightSupportState !== 'supported') {
+      updateAmbilightAvailability(false);
+      return;
+    }
+
     var enabled = $('#ambilightSwitch').prop('checked') === true;
     storeData('ambilightEnabled', enabled, null);
-    if (!enabled && window.moonlightAmbilight) {
+    updateAmbilightSettingsVisibility();
+
+    if (enabled) {
+      if (isInGame) startAmbilightForStream();
+    } else if (window.moonlightAmbilight) {
       window.moonlightAmbilight.stop().catch(function(error) {
-        console.warn('[ambilight] Could not stop native service:', error);
+        console.warn('[ambilight] Could not stop capture:', error);
       });
     }
   }, 100);
@@ -7067,20 +7177,29 @@ function saveAmbilightPreference() {
 function saveAmbilightWledIp() {
   var ip = String($('#ambilightWledIp').val() || '').trim();
   storeData('ambilightWledIp', ip, null);
+
+  if (ambilightSupportState === 'supported' &&
+      $('#ambilightSwitch').prop('checked') === true && isInGame) {
+    startAmbilightForStream();
+  }
 }
 
 function startAmbilightForStream() {
   if (!window.moonlightAmbilight) return;
-  getData('ambilightEnabled', function(enabledData) {
-    if (!enabledData || enabledData.ambilightEnabled !== true) return;
-    getData('ambilightWledIp', function(ipData) {
-      var ip = ipData && ipData.ambilightWledIp;
-      if (!ip) {
-        console.warn('[ambilight] Enabled but no WLED IP address is configured.');
-        return;
-      }
-      window.moonlightAmbilight.start(ip, 21324, 73).catch(function(error) {
-        console.warn('[ambilight] Could not start native service:', error);
+
+  return initializeAmbilightSupport().then(function(supported) {
+    if (!supported) return null;
+    getData('ambilightEnabled', function(enabledData) {
+      if (!enabledData || enabledData.ambilightEnabled !== true) return;
+      getData('ambilightWledIp', function(ipData) {
+        var ip = ipData && ipData.ambilightWledIp;
+        if (!ip) {
+          console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+          return;
+        }
+        window.moonlightAmbilight.start(ip, 21324, 73).catch(function(error) {
+          console.warn('[ambilight] Could not start capture:', error);
+        });
       });
     });
   });
@@ -9414,8 +9533,7 @@ function directSmartHubLaunchFailure(message) {
 
   var exitAfterMessage = function() {
     window.setTimeout(function() {
-      try { tizen.application.getCurrentApplication().exit(); }
-      catch (error) { console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not exit Moonlight:', error); }
+      exitApplication();
     }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
   if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
@@ -9705,6 +9823,10 @@ function initializeConfigSummaryBar() {
 }
 
 function onWindowLoad() {
+  // Launch the service and probe capture support in parallel with normal Moonlight startup.
+  // Failure disables only Ambilight; it never blocks the streaming client.
+  initializeAmbilightSupport();
+
   var isForceGMVariant = checkForceGMVariant();
   var buildVer = getBuildVersion(appInfo.version);
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
