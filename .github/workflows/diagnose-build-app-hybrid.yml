@@ -228,6 +228,8 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          # Prevent build-app's non-zero exit from skipping CLI log collection.
+          set +e
           workspace="$BUILD_APP_WORKSPACE"
           cp -a "$GITHUB_WORKSPACE/ambilight-service" "$workspace/ambilight-service"
           {
