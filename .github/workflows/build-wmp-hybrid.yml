@@ -184,7 +184,7 @@ jobs:
       - name: Create headless CI signing profile
         shell: bash
         env:
-          CERT_PASSWORD: moonlight-hybrid-ci
+          CERT_PASSWORD: MoonlightHybrid2026
         run: |
           set -euo pipefail
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
@@ -348,7 +348,7 @@ jobs:
           spawn {*}$argv
           expect {
             -nocase -re {Author password:} {
-              send -- "moonlight-hybrid-ci\r"
+              send -- "MoonlightHybrid2026\r"
               exp_continue
             }
             -nocase -re {Save author password[^\r\n]*} {
@@ -382,7 +382,14 @@ jobs:
             -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
             -p 'name:p1,targets:[b1]' \
             -s MoonlightHybrid \
-            -- "$HYBRID_ROOT"
+            -- "$HYBRID_ROOT" 2>&1 | tee "$RUNNER_TEMP/hybrid-build.log"
+
+          # Tizen CLI may still report package creation success after a signing
+          # exception. Do not accept its exit code alone as proof of signing.
+          if grep -Eiq 'CertificationException|Invalid password|Invaild password|BUILD FAILED' "$RUNNER_TEMP/hybrid-build.log"; then
+            echo "::error::Tizen reported a signing/build failure; refusing to publish the WGT." >&2
+            exit 1
+          fi
 
           hybrid_wgt="$(find "$HYBRID_ROOT" -type f -name '*.wgt' -size +0c -print -quit)"
           test -n "$hybrid_wgt"
