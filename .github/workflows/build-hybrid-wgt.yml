@@ -79,6 +79,25 @@ jobs:
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
           echo "TIZEN_CORE_CLI=$core_cli" >> "$GITHUB_ENV"
 
+      - name: Create the Moonlight signing profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TIZEN_STUDIO_DATA_PATH="$RUNNER_TEMP/tizen-studio-data"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+          tizen certificate -a Moonlight -f Moonlight -p 123456
+          tizen security-profiles add \
+            -n Moonlight \
+            -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" \
+            -p 123456 \
+            -x "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          test -s "$profiles"
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
+          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+          echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
+
       - name: Install .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -92,7 +111,9 @@ jobs:
           "$TIZEN_CORE_CLI" --version
           "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--proj-dir' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--sign-profile' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--profiles-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           dotnet --info
           dotnet --list-sdks | grep -E '^8\.'
 
@@ -145,7 +166,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build Moonlight Web application (standard)
+      - name: Build Moonlight Web files (standard)
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -160,7 +181,7 @@ jobs:
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=false
 
-      - name: Build Moonlight Web application (ForceGM)
+      - name: Build Moonlight Web files (ForceGM)
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -175,7 +196,7 @@ jobs:
             REPO_NAME=${{ github.event.repository.name }}
             FORCE_GAME_MODE=true
 
-      - name: Extract standard and ForceGM Web WGTs
+      - name: Extract unsigned Moonlight Web files
         shell: bash
         run: |
           set -euo pipefail
@@ -183,65 +204,48 @@ jobs:
           forcegm_container="$(docker create "moonlight-hybrid-web-forcegm:$GITHUB_SHA")"
           trap 'docker rm -f "$standard_container" "$forcegm_container" >/dev/null 2>&1 || true' EXIT
 
-          docker cp "$standard_container:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          docker cp "$forcegm_container:/home/moonlight/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
-          test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          test -s "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
-          unzip -tq "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          unzip -tq "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
+          docker cp "$standard_container:/home/moonlight/build/widget" "$RUNNER_TEMP/web-standard"
+          docker cp "$forcegm_container:/home/moonlight/build/widget" "$RUNNER_TEMP/web-forcegm"
+          for project in "$RUNNER_TEMP/web-standard" "$RUNNER_TEMP/web-forcegm"; do
+            test -s "$project/config.xml"
+            test -s "$project/index.html"
+            test -s "$project/moonlight-wasm.js"
+            test -s "$project/moonlight-wasm.wasm"
+            test -s "$project/service/service.js"
+            test -s "$project/static/res/launch-screen.mp4"
+            test -s "$project/static/res/launch-screen-portrait.mp4"
+          done
 
       - name: Build the original .NET Tizen service
         shell: bash
         run: |
           set -euo pipefail
 
-          # Keep the .NET service identity and version aligned with Moonlight's
-          # Web package. The Web app and service remain separate applications
-          # inside one package, with the same Tizen package ID.
-          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" ambilight-service/tizen-manifest.xml <<'PY'
+          # Keep the original .NET service identity and version aligned with Moonlight.
+          python3 - "$RUNNER_TEMP/web-standard/config.xml" ambilight-service/tizen-manifest.xml <<'PY'
           import sys
-          import zipfile
           import xml.etree.ElementTree as ET
-
-          with zipfile.ZipFile(sys.argv[1]) as package:
-              web = ET.fromstring(package.read("config.xml"))
-
+          web = ET.parse(sys.argv[1]).getroot()
           service_path = sys.argv[2]
-          # Tizen.NET.Sdk resolves the manifest root using its default namespace.
-          # ElementTree otherwise serializes it as ns0:manifest, which makes
-          # GetManifestInfo report tpkName is Invalid.
           ET.register_namespace("", "http://tizen.org/ns/packages")
           tree = ET.parse(service_path)
           manifest = tree.getroot()
-          web_app = next((node for node in web.iter()
-                          if node.tag.endswith("application")), None)
-          service_app = next((node for node in manifest.iter()
-                              if node.tag.endswith("service-application")), None)
-
+          web_app = next((node for node in web.iter() if node.tag.endswith("application")), None)
+          service_app = next((node for node in manifest.iter() if node.tag.endswith("service-application")), None)
           if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
               raise SystemExit("Moonlight Web application ID changed unexpectedly")
-          if web_app.get("package") != "MoonLightS":
-              raise SystemExit("Moonlight Web package ID changed unexpectedly")
-          if web_app.get("required_version") != "5.5":
-              raise SystemExit("Moonlight Web minimum platform version must remain Tizen 5.5")
-          if manifest.get("package") != web_app.get("package"):
-              raise SystemExit("Web and .NET service package IDs must match")
-          if manifest.get("api-version") != "6.5":
-              raise SystemExit("The original .NET service package API version must remain 6.5")
-          if service_app is None:
-              raise SystemExit("The .NET ServiceApplication manifest is missing")
-          if service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
+          if web_app.get("package") != "MoonLightS" or web_app.get("required_version") != "5.5":
+              raise SystemExit("Moonlight Web package identity or Tizen minimum changed")
+          if manifest.get("package") != web_app.get("package") or manifest.get("api-version") != "6.5":
+              raise SystemExit("The original .NET service package identity/API changed")
+          if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
               raise SystemExit("Ambilight service application ID mismatch")
-          if service_app.get("type") != "dotnet":
-              raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
-          if service_app.get("exec") != "MoonlightAmbilight.dll":
-              raise SystemExit("Ambilight .NET entry assembly mismatch")
+          if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
+              raise SystemExit("Ambilight service must remain the original .NET ServiceApplication")
           if service_app.get("api-version") != "9":
-              raise SystemExit("The service runtime must match the original upstream Tizen API 9 build target")
-
-          manifest.set("version", web.get("version", "1.2.3"))
+              raise SystemExit("The service runtime must retain its original Tizen API 9 target")
+          manifest.set("version", web.get("version", "1.2.4"))
           tree.write(service_path, encoding="UTF-8", xml_declaration=True)
-          print("Validated matching package ID and .NET service app ID; aligned package version.")
           PY
 
           dotnet msbuild ambilight-service/TizenAmbilight.csproj \
@@ -250,441 +254,112 @@ jobs:
           mapfile -d '' service_packages < <(find ambilight-service/bin/Release -type f -name '*.tpk' -size +0c -print0)
           if [[ ${#service_packages[@]} -ne 1 ]]; then
             echo "::error::Expected one .NET Tizen TPK, found ${#service_packages[@]}."
-            find ambilight-service/bin -maxdepth 8 -type f -printf '%p\n' | sort || true
+            find ambilight-service/bin -maxdepth 8 -type f -printf '%p\\n' | sort || true
             exit 1
           fi
 
           service_tpk="${service_packages[0]}"
           unzip -tq "$service_tpk"
           python3 - "$service_tpk" <<'PY'
-          import sys
-          import zipfile
-          import xml.etree.ElementTree as ET
+          import sys, zipfile, xml.etree.ElementTree as ET
           from pathlib import PurePosixPath
-
-          path = sys.argv[1]
-          with zipfile.ZipFile(path) as package:
+          with zipfile.ZipFile(sys.argv[1]) as package:
               names = package.namelist()
-              manifests = [name for name in names
-                           if PurePosixPath(name).name == "tizen-manifest.xml"]
+              manifests = [name for name in names if PurePosixPath(name).name == "tizen-manifest.xml"]
               if len(manifests) != 1:
                   raise SystemExit("The .NET TPK must contain exactly one tizen-manifest.xml")
               manifest = ET.fromstring(package.read(manifests[0]))
-              app = next((node for node in manifest.iter()
-                          if node.tag.endswith("service-application")), None)
-              if manifest.get("package") != "MoonLightS":
-                  raise SystemExit("The .NET TPK package ID is not MoonLightS")
-              if manifest.get("api-version") != "6.5":
-                  raise SystemExit("The original .NET TPK package API version must remain 6.5")
+              app = next((node for node in manifest.iter() if node.tag.endswith("service-application")), None)
+              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.5":
+                  raise SystemExit("The .NET TPK package identity/API version is incorrect")
               if app is None or app.get("appid") != "MoonLightS.MoonlightAmbilight":
                   raise SystemExit("The .NET TPK service application ID is incorrect")
-              if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll":
-                  raise SystemExit("The TPK does not contain the expected .NET service declaration")
-              if app.get("api-version") != "9":
-                  raise SystemExit("The .NET service TPK must preserve the original upstream API 9 target")
+              if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll" or app.get("api-version") != "9":
+                  raise SystemExit("The TPK does not preserve the original .NET service declaration")
               if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
                   raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
-              print("Validated the compiled .NET Tizen ServiceApplication TPK.")
           PY
-
           echo "AMBILIGHT_SERVICE_TPK=$service_tpk" >> "$GITHUB_ENV"
 
-      - name: Prepare reusable unsigned build inputs
+      - name: Package and sign each hybrid WGT directly
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/build-inputs"
-          cp "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt"
-          cp "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" "$RUNNER_TEMP/build-inputs/Moonlight-ForceGM-Web-Base.wgt"
-          cp "$AMBILIGHT_SERVICE_TPK" "$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk"
-          cp wasm/platform/ambilight.js "$RUNNER_TEMP/build-inputs/ambilight.js"
-          cp ambilight-service/Program.cs "$RUNNER_TEMP/build-inputs/Program.cs"
-          sha256sum "$RUNNER_TEMP/build-inputs/"* > "$RUNNER_TEMP/build-inputs/SHA256SUMS"
+          workspace="$RUNNER_TEMP/MoonlightHybrid"
+          mkdir -p "$workspace"
 
-      - name: Verify staged build inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/build-inputs"
-          sha256sum --check SHA256SUMS
-          unzip -tq Moonlight-Web-Base.wgt
-          unzip -tq Moonlight-ForceGM-Web-Base.wgt
-          unzip -tq Moonlight-Ambilight-Service.tpk
-          test -s ambilight.js
-          test -s Program.cs
-      - name: Verify Tizen Core pack support
-        shell: bash
-        run: |
-          set -euo pipefail
-          "$TIZEN_CORE_CLI" --version
-          "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
-      - name: Resolve package input paths
-        shell: bash
-        run: |
-          cp "$RUNNER_TEMP/build-inputs/Moonlight-Web-Base.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          cp "$RUNNER_TEMP/build-inputs/Moonlight-ForceGM-Web-Base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt"
-          echo "AMBILIGHT_SERVICE_TPK=$RUNNER_TEMP/build-inputs/Moonlight-Ambilight-Service.tpk" >> "$GITHUB_ENV"
-
-      - name: Package standard and ForceGM hybrid WGTs
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cat > "$RUNNER_TEMP/patch-hybrid-manifest.py" <<'PY'
-          import sys
-          import zipfile
-          import xml.etree.ElementTree as ET
-          from pathlib import PurePosixPath
-
-          source_path, output_path = sys.argv[1:3]
-          ET.register_namespace("", "http://tizen.org/ns/packages")
-
-          required_splash_resources = {
-              "static/res/launch-screen.mp4",
-              "static/res/launch-screen-portrait.mp4",
-              "static/res/launch-screen.png",
-              "static/res/launch-screen-portrait.png",
+          "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
+          grep -qi 'BasicUI' "$RUNNER_TEMP/web-templates.txt" || {
+            echo "::error::Tizen Core BasicUI web template is unavailable."
+            exit 1
           }
-
-          with zipfile.ZipFile(source_path, "r") as source:
-              names = set(source.namelist())
-              if "tizen-manifest.xml" not in names or "config.xml" not in names:
-                  raise SystemExit("Hybrid WGT is missing its outer manifest or config.xml")
-
-              manifest = ET.fromstring(source.read("tizen-manifest.xml"))
-              if manifest.get("api-version") != "6.5":
-                  raise SystemExit("Expected hybrid package API floor 6.5 before adjustment")
-              service_app = next((node for node in manifest.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Embedded .NET service must retain original API 9 target")
-              manifest.set("api-version", "5.5")
-              patched_manifest = ET.tostring(manifest, encoding="UTF-8", xml_declaration=True)
-
-              # Tizen Core nests the Web project under res/wgt. The outer
-              # package config has its own resource root. Preserve the
-              # original VSS paths at package root and mirror those four
-              # assets there; leave the embedded Web project untouched.
-              config = ET.fromstring(source.read("config.xml"))
-
-              def resolve_outer_resource(value, description):
-                  if value in names:
-                      return value
-                  nested_value = f"res/wgt/{value}"
-                  if nested_value in names:
-                      return nested_value
-                  raise SystemExit(
-                      f"Outer {description} does not exist in hybrid WGT: {value}"
-                  )
-
-              splash_copies = {}
-              rewritten_references = []
-              for node in config.iter():
-                  tag = node.tag.split("}")[-1]
-                  attributes = []
-                  if tag in ("content", "icon"):
-                      attributes.append("src")
-                  elif tag == "src":
-                      attributes.append("name")
-
-                  is_splash = tag in ("vss_default", "vss_landscape", "vss_portrait")
-                  if is_splash:
-                      attributes.extend(("video", "background_image", "image"))
-
-                  for attribute in attributes:
-                      value = node.get(attribute)
-                      if not value:
-                          continue
-
-                      if is_splash:
-                          # The package-level splash is resolved from the
-                          # package root, not from the embedded Web root.
-                          # Strip any stale prefix left by earlier builds.
-                          outer_value = value[8:] if value.startswith("res/wgt/") else value
-                          outer_path = PurePosixPath(outer_value)
-                          if outer_path.is_absolute() or ".." in outer_path.parts:
-                              raise SystemExit(f"Unsafe outer splash path: {value}")
-
-                          nested_value = f"res/wgt/{outer_value}"
-                          candidates = [p for p in (outer_value, nested_value) if p in names]
-                          if not candidates:
-                              raise SystemExit(
-                                  f"Outer splash resource is absent from package and Web roots: {value}"
-                              )
-                          root_data = source.read(candidates[0])
-                          if len(candidates) == 2 and source.read(candidates[1]) != root_data:
-                              raise SystemExit(
-                                  f"Conflicting package-root and Web splash resource: {outer_value}"
-                              )
-                          if outer_value not in names:
-                              splash_copies[outer_value] = root_data
-                          node.set(attribute, outer_value)
-                          rewritten_references.append((tag, attribute, outer_value))
-                      else:
-                          resolved = resolve_outer_resource(value, f"{tag}@{attribute}")
-                          if resolved != value:
-                              node.set(attribute, resolved)
-                          rewritten_references.append((tag, attribute, resolved))
-
-              required_references = {
-                  ("content", "src"): "res/wgt/index.html",
-                  ("icon", "src"): "res/wgt/icon.png",
-                  ("src", "name"): "res/wgt/index.html",
-              }
-              for key, expected in required_references.items():
-                  if not any((tag, attribute) == key and value == expected
-                             for tag, attribute, value in rewritten_references):
-                      raise SystemExit(
-                          f"Outer config.xml is missing the expected {key[0]} "
-                          f"reference to {expected}"
-                      )
-
-              if not any(tag == "content" and attribute == "src"
-                         and value == "res/wgt/service/service.js"
-                         for tag, attribute, value in rewritten_references):
-                  raise SystemExit(
-                      "Outer config.xml does not point the Smart Hub service "
-                      "to res/wgt/service/service.js"
-                  )
-
-              outer_splash_paths = {
-                  value for tag, attribute, value in rewritten_references
-                  if tag in ("vss_default", "vss_landscape", "vss_portrait")
-              }
-              if not required_splash_resources.issubset(outer_splash_paths):
-                  raise SystemExit(
-                      "Outer config.xml must declare the four splash assets "
-                      "using package-root static/res paths"
-                  )
-
-              ET.register_namespace("", "http://www.w3.org/ns/widgets")
-              ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
-              patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
-
-              with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
-                  for entry in source.infolist():
-                      if entry.filename == "tizen-manifest.xml":
-                          data = patched_manifest
-                      elif entry.filename == "config.xml":
-                          data = patched_config
-                      else:
-                          data = source.read(entry.filename)
-                      output.writestr(entry, data)
-                  for name, data in splash_copies.items():
-                      output.writestr(name, data)
-
-          with zipfile.ZipFile(output_path) as result:
-              final_manifest = ET.fromstring(result.read("tizen-manifest.xml"))
-              service_app = next((node for node in final_manifest.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if final_manifest.get("api-version") != "5.5":
-                  raise SystemExit("Hybrid container minimum must remain Tizen 5.5")
-              if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Hybrid packaging changed embedded service API 9 target")
-
-              final_names = set(result.namelist())
-              final_config = ET.fromstring(result.read("config.xml"))
-              final_splash = next((node for node in final_config.iter()
-                                   if node.tag.endswith("video_splash_screen")), None)
-              if final_splash is None:
-                  raise SystemExit("Package-root config.xml lost video_splash_screen")
-              for node in final_splash.iter():
-                  for attribute in ("video", "background_image", "image"):
-                      value = node.get(attribute)
-                      if value and value not in final_names:
-                          raise SystemExit(f"Package-root splash path is invalid: {value}")
-
-              for name in required_splash_resources:
-                  nested_name = f"res/wgt/{name}"
-                  if name not in final_names or nested_name not in final_names:
-                      raise SystemExit(
-                          f"Splash resource must exist at package root and Web root: {name}"
-                      )
-                  if result.read(name) != result.read(nested_name):
-                      raise SystemExit(
-                          f"Package-root splash copy differs from original Web resource: {name}"
-                      )
-          print("Package-root splash references and mirrored resources validated; embedded Web WGT preserved.")
-
-          PY
 
           package_one() {
-            local base_pkg="$1"
-            local stem="$2"
-            local output_name="$3"
-            local draft="$RUNNER_TEMP/${stem}-Tizen65.wgt"
-            local patched="$RUNNER_TEMP/${stem}-Tizen55.wgt"
-            local output="$RUNNER_TEMP/$output_name"
+            local source="$1"
+            local project_name="$2"
+            local output="$3"
+            local project="$workspace/$project_name"
 
+            "$TIZEN_CORE_CLI" new --type web --template BasicUI \
+              --project-name "$project_name" --profile tizen-9.0 --path "$workspace"
+            test -d "$project"
+            cp -a "$source/." "$project/"
+
+            # One Tizen Core hybrid-pack operation: Web project + compiled service TPK.
+            # There is no base WGT, no post-pack ZIP editing, and no second signing pass.
             "$TIZEN_CORE_CLI" pack \
+              --proj-dir "$project" \
               --type wgt \
               --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
-              --base-pkg "$base_pkg" \
-              --out-path "$draft"
+              --sign-profile Moonlight \
+              --profiles-path "$TIZEN_PROFILES_PATH" \
+              --out-path "$output"
 
-            python3 "$RUNNER_TEMP/patch-hybrid-manifest.py" "$draft" "$patched"
-            cp "$patched" "$output"
             test -s "$output"
             unzip -tq "$output"
-            echo "Created unsigned hybrid WGT: $output"
-          }
-
-          package_one "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "Moonlight" "Moonlight.wgt"
-          package_one "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" "Moonlight-ForceGM" "Moonlight-ForceGM.wgt"
-
-          echo "HYBRID_WGT_STANDARD=$RUNNER_TEMP/Moonlight.wgt" >> "$GITHUB_ENV"
-          echo "HYBRID_WGT_FORCEGM=$RUNNER_TEMP/Moonlight-ForceGM.wgt" >> "$GITHUB_ENV"
-
-      - name: Validate both hybrid WGTs and AppControl contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/hybrid-output"
-
-          cat > "$RUNNER_TEMP/validate-hybrid.py" <<'PY'
-          import sys
-          import zipfile
-          import xml.etree.ElementTree as ET
-          from pathlib import PurePosixPath
-
-          package_path, js_path, cs_path = sys.argv[1:]
+            python3 - "$source" "$output" <<'PY'
+          import sys, zipfile
+          from pathlib import Path, PurePosixPath
+          source, package_path = Path(sys.argv[1]), Path(sys.argv[2])
           with zipfile.ZipFile(package_path) as package:
               names = set(package.namelist())
               required = {
-                  "config.xml",
-                  "tizen-manifest.xml",
-                  "res/wgt/config.xml",
-                  "res/wgt/index.html",
-                  "res/wgt/platform/ambilight.js",
+                  "config.xml", "tizen-manifest.xml",
+                  "res/wgt/config.xml", "res/wgt/index.html",
+                  "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
+                  "res/wgt/service/service.js",
+                  "author-signature.xml", "signature1.xml"
               }
               missing = sorted(required - names)
               if missing:
-                  raise SystemExit("Hybrid WGT is missing: " + ", ".join(missing))
-
+                  raise SystemExit("Direct hybrid WGT is missing: " + ", ".join(missing))
               for name in names:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
-                      raise SystemExit(f"Unsafe path in hybrid WGT: {name}")
-
-              # Validate every file reference used by the outer Tizen
-              # application config against the outer package's actual paths.
-              outer_config = ET.fromstring(package.read("config.xml"))
-              outer_references = []
-              for node in outer_config.iter():
-                  tag = node.tag.split("}")[-1]
-                  attributes = []
-                  if tag in ("content", "icon"):
-                      attributes.append("src")
-                  elif tag == "src":
-                      attributes.append("name")
-                  if tag in ("vss_default", "vss_landscape", "vss_portrait"):
-                      attributes.extend(("video", "background_image", "image"))
-                  for attribute in attributes:
-                      value = node.get(attribute)
-                      if value:
-                          if value not in names:
-                              raise SystemExit(
-                                  f"Outer config reference does not resolve: "
-                                  f"{tag}@{attribute}={value}"
-                              )
-                          outer_references.append((tag, attribute, value))
-
-              expected_outer = {
-                  ("content", "src", "res/wgt/index.html"),
-                  ("icon", "src", "res/wgt/icon.png"),
-                  ("src", "name", "res/wgt/index.html"),
-                  ("content", "src", "res/wgt/service/service.js"),
-              }
-              if not expected_outer.issubset(set(outer_references)):
-                  missing_outer = sorted(expected_outer - set(outer_references))
-                  raise SystemExit(
-                      "Hybrid outer config is missing valid app/service references: "
-                      + repr(missing_outer)
-                  )
-
-              splash_resources = [value for tag, attribute, value in outer_references
-                                  if tag in ("vss_default", "vss_landscape", "vss_portrait")]
-              if not any(path.endswith("launch-screen.mp4") for path in splash_resources):
-                  raise SystemExit("Landscape launch-screen.mp4 is not declared by the outer package")
-              if not any(path.endswith("launch-screen-portrait.mp4") for path in splash_resources):
-                  raise SystemExit("Portrait launch-screen-portrait.mp4 is not declared by the outer package")
-
-              web = ET.fromstring(package.read("res/wgt/config.xml"))
-              web_app = next((node for node in web.iter()
-                              if node.tag.endswith("application")), None)
-              service = ET.fromstring(package.read("tizen-manifest.xml"))
-              service_app = next((node for node in service.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if service.get("api-version") != "5.5":
-                  raise SystemExit("Hybrid package installation minimum must remain Tizen 5.5")
-              if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
-                  raise SystemExit("Packaged Moonlight Web application identity is invalid")
-              if web_app.get("package") != "MoonLightS":
-                  raise SystemExit("Packaged Web package ID is invalid")
-              if web_app.get("required_version") != "5.5":
-                  raise SystemExit("Moonlight's packaged minimum Tizen version must remain 5.5")
-              if service.get("package") != "MoonLightS":
-                  raise SystemExit("Packaged .NET service package ID differs from Web package")
-              if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
-                  raise SystemExit("Packaged Ambilight service application ID is invalid")
-              if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
-                  raise SystemExit("Packaged service is not the expected .NET Tizen application")
-              if service_app.get("api-version") != "9":
-                  raise SystemExit("Packaged optional service must preserve original API 9 target")
-              assemblies = [name for name in names
-                            if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
-              if not assemblies:
-                  raise SystemExit("Packaged .NET service assembly is missing")
-
-          with open(js_path, encoding="utf-8") as file:
-              js = file.read()
-          with open(cs_path, encoding="utf-8") as file:
-              cs = file.read()
-
-          contract = [
-              "MoonLightS.MoonlightAmbilight",
-              "new tizen.ApplicationControlData('command'",
-              "new tizen.ApplicationControlData('wledIp'",
-              "new tizen.ApplicationControlData('wledPort'",
-              "new tizen.ApplicationControlData('ledCount'",
-              "initialize",
-              "shutdown",
-              "MINIMUM_SERVICE_PLATFORM_VERSION",
-              "http://tizen.org/feature/platform.version",
-          ]
-          for token in contract:
-              if token not in js:
-                  raise SystemExit("Web AppControl contract is missing: " + token)
-          for token in ['"command"', '"wledIp"', '"wledPort"', '"ledCount"', '"initialize"', '"start"', '"stop"', '"shutdown"']:
-              if token not in cs:
-                  raise SystemExit("The .NET service does not handle AppControl field: " + token)
-
-          print(f"Validated hybrid WGT and all outer splash resources: {package_path}")
+                      raise SystemExit("Unsafe WGT path: " + name)
+              for file in source.rglob("*"):
+                  if not file.is_file():
+                      continue
+                  relative = file.relative_to(source).as_posix()
+                  packaged = "res/wgt/" + relative
+                  if packaged not in names:
+                      raise SystemExit("Original Moonlight Web file is absent: " + packaged)
+                  if package.read(packaged) != file.read_bytes():
+                      raise SystemExit("Original Moonlight Web file changed during packaging: " + relative)
+              outer = package.read("config.xml").decode("utf-8")
+              if "res/wgt/index.html" not in outer or "res/wgt/service/service.js" not in outer:
+                  raise SystemExit("Outer package config does not target the nested Moonlight Web app/service")
+              print(f"Verified one signed hybrid WGT; preserved {sum(1 for f in source.rglob('*') if f.is_file())} original Web files.")
           PY
+          }
 
-          for package in "$HYBRID_WGT_STANDARD" "$HYBRID_WGT_FORCEGM"; do
-            unzip -tq "$package"
-            python3 "$RUNNER_TEMP/validate-hybrid.py" "$package" "$RUNNER_TEMP/build-inputs/ambilight.js" "$RUNNER_TEMP/build-inputs/Program.cs"
-          done
+          package_one "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/Moonlight.wgt"
+          package_one "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
 
-          cp "$HYBRID_WGT_STANDARD" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
-          cp "$HYBRID_WGT_FORCEGM" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
+          mkdir -p "$RUNNER_TEMP/hybrid-output"
+          cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
+          cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
           (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
-
-      - name: Audit original Moonlight payload and resource paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/validate-hybrid-wgt.py \
-            --base-wgt "$RUNNER_TEMP/Moonlight-Web-Base.wgt" \
-            --hybrid-wgt "$HYBRID_WGT_STANDARD" \
-            --variant standard
-          python3 scripts/validate-hybrid-wgt.py \
-            --base-wgt "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" \
-            --hybrid-wgt "$HYBRID_WGT_FORCEGM" \
-            --variant ForceGM
 
       - name: Show packaging diagnostics on failure
         if: failure()
