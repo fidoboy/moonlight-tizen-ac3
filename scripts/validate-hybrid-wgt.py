@@ -255,14 +255,22 @@ def audit_outer_package(files, label):
     require({"vss_default", "vss_landscape", "vss_portrait"} <= profiles,
             f"{label}: outer config.xml is missing a splash profile")
 
+    # The outer package configuration resolves its launch-screen resources
+    # from the hybrid package root, while the embedded Web WGT retains its
+    # original copies and relative references beneath res/wgt.
     for name in (
-        "res/wgt/static/res/launch-screen.mp4",
-        "res/wgt/static/res/launch-screen-portrait.mp4",
-        "res/wgt/static/res/launch-screen.png",
-        "res/wgt/static/res/launch-screen-portrait.png",
+        "static/res/launch-screen.mp4",
+        "static/res/launch-screen-portrait.mp4",
+        "static/res/launch-screen.png",
+        "static/res/launch-screen-portrait.png",
     ):
+        nested = "res/wgt/" + name
         require(name in available and files[name],
-                f"{label}: missing or empty outer splash resource {name}")
+                f"{label}: missing or empty package-root splash resource {name}")
+        require(nested in available and files[nested],
+                f"{label}: missing or empty original Web splash resource {nested}")
+        require(files[name] == files[nested],
+                f"{label}: package-root splash copy differs from {nested}")
     return len(references)
 
 def main():
