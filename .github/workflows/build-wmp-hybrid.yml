@@ -388,6 +388,14 @@ jobs:
           test -n "$hybrid_wgt"
           cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
 
+      - name: Upload hybrid WGT candidate for inspection
+        uses: actions/upload-artifact@v6
+        with:
+          name: Moonlight-WMP-Hybrid-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Collect Tizen CLI diagnostics
         if: always()
         shell: bash
@@ -456,13 +464,35 @@ jobs:
               "bin/wmp-service", "lib/libmlengine.so", "config.xml", "tizen-manifest.xml",
               "res/wgt/config.xml", "res/wgt/service/service.js", "res/wgt/index.html",
               "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
-              "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json",
-              "author-signature.xml", "signature1.xml"
+              "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json"
           }
           with zipfile.ZipFile(package) as archive:
-              names = set(archive.namelist())
+              entries = archive.infolist()
+              names = {entry.filename for entry in entries}
+              print("WGT archive entries:")
+              for entry in entries:
+                  print(f"  {entry.filename} ({entry.file_size} bytes)")
               missing = sorted(required - names)
               if missing: raise SystemExit("Missing WGT entries: " + ", ".join(missing))
+
+              # Tizen may place signature files in a subdirectory. Validate
+              # their basenames and non-empty contents rather than requiring
+              # them to be at the ZIP root.
+              signature_paths = {
+                  Path(entry.filename).name: entry
+                  for entry in entries
+                  if Path(entry.filename).name in {"author-signature.xml", "signature1.xml"}
+              }
+              missing_signatures = sorted(
+                  name for name in ("author-signature.xml", "signature1.xml")
+                  if name not in signature_paths
+              )
+              if missing_signatures:
+                  raise SystemExit("Missing WGT signature files: " + ", ".join(missing_signatures))
+              for name, entry in sorted(signature_paths.items()):
+                  if entry.is_dir() or entry.file_size == 0:
+                      raise SystemExit(f"Empty or invalid WGT signature: {entry.filename}")
+                  print(f"Verified signature entry: {entry.filename} ({entry.file_size} bytes)")
               for name in names:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
