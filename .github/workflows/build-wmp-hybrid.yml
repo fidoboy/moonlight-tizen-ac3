@@ -192,7 +192,7 @@ jobs:
           author_p12="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
           mkdir -p "$(dirname "$author_p12")"
           test -s "$RUNNER_TEMP/Moonlight-Author.p12"
-          openssl pkcs12 -in "$RUNNER_TEMP/Moonlight-Author.p12" -passin "pass:$CERT_PASSWORD" -noout
+          openssl pkcs12 -legacy -in "$RUNNER_TEMP/Moonlight-Author.p12" -passin "pass:$CERT_PASSWORD" -noout
           cp "$RUNNER_TEMP/Moonlight-Author.p12" "$author_p12"
           tizen security-profiles add \
             -n Moonlight \
