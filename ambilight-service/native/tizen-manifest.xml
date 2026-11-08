@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns="http://tizen.org/ns/packages" package="MoonLightS" version="1.2.4" api-version="5.5">
   <label>Moonlight Ambilight Service</label>
+  <profile name="tv"/>
   <service-application appid="MoonLightS.MoonlightAmbilight"
                        exec="moonlight-ambilight"
                        nodisplay="true"
