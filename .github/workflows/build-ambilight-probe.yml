@@ -137,7 +137,7 @@ jobs:
           CERT_PASSWORD: ambilight-probe-ci
         run: |
           set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
           tizen certificate -a AmbilightProbe -f AmbilightProbe -p "$CERT_PASSWORD"
 
           tizen security-profiles add \
