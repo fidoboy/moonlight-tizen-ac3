@@ -183,7 +183,28 @@ jobs:
                 direct_build_status=$?
               fi
               echo "Direct Tizen.NET build with explicit AuthorPass: $direct_build_status"
-              echo "=== Test 5: build the complete hybrid workspace through Tizen Core ==="
+
+              echo "=== Test 5: compile service without automatic TPK creation ==="
+              if run_logged dotnet-build-without-tpk dotnet build "$service_project/TizenAmbilight.csproj" --configuration Debug "-p:TizenCreateTpkOnBuild=false"; then
+                unsigned_build_status=0
+              else
+                unsigned_build_status=$?
+              fi
+              echo "Build without automatic TPK creation: $unsigned_build_status"
+
+              echo "=== Test 6: invoke TizenPackage explicitly with signing properties ==="
+              if (( unsigned_build_status == 0 )); then
+                if run_logged explicit-tpk-sign dotnet msbuild "$service_project/TizenAmbilight.csproj" -target:TizenPackage "-p:AuthorPath=$author_key" "-p:AuthorPass=123456" "-p:DistributorPath=$dist_key" "-p:DistributorPass=tizenpkcs12passfordsigner"; then
+                  explicit_sign_status=0
+                else
+                  explicit_sign_status=$?
+                fi
+              else
+                explicit_sign_status=125
+              fi
+              echo "Explicit TizenPackage signing: $explicit_sign_status"
+
+              echo "=== Test 7: build the complete hybrid workspace through Tizen Core ==="
               if run_logged build-hybrid-workspace "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
                 build_status=0
               else
