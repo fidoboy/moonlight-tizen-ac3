@@ -25,7 +25,7 @@ jobs:
       - name: Install signing prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3 unzip zip
+          sudo apt-get install -y --no-install-recommends python3 unzip zip openssl
       - name: Install Tizen Core packaging tools
         shell: bash
         run: |
@@ -92,13 +92,20 @@ jobs:
           printf '%s\n' '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' '<profiles active="" version="3.1"></profiles>' > "$profiles"
           "$TIZEN_CORE_CLI" cert --name MoonlightHybrid --password "$CERT_PASSWORD" --cert-file "$author_cert"
           test -s "$author_cert"
+
+          # Fail here, before profile registration or packaging, if the PKCS#12
+          # was not actually encrypted with the password supplied to tz cert.
+          openssl pkcs12 -in "$author_cert" -passin "env:CERT_PASSWORD" -noout
           printf '%s' "$CERT_PASSWORD" > "$author_pwd"
           chmod 600 "$author_pwd"
+          openssl pkcs12 -in "$author_cert" -passin "file:$author_pwd" -noout
           printf '%s' "$CERT_PASSWORD" | cmp -s - "$author_pwd"
+
           "$TIZEN_CORE_CLI" security-profiles add --name MoonlightHybrid --xml-path "$profiles" --author "$author_cert" --password "$CERT_PASSWORD"
           test -s "$profiles"
           "$TIZEN_CORE_CLI" set --profiles-path "$profiles"
           echo "TIZEN_PROFILES=$profiles" >> "$GITHUB_ENV"
+          echo "Author PKCS#12 validated with both environment and .pwd credentials."
       - name: Resolve package input paths
         shell: bash
         run: |
