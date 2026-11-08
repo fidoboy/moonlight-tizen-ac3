@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tizen-signing-profile-\${{ github.ref }}
+  group: tizen-signing-profile-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -19,8 +19,8 @@ jobs:
       - name: Cache Tizen Studio SDK
         uses: actions/cache@v4
         with:
-          path: \${{ runner.temp }}/tizen-studio
-          key: tizen-studio-6.1-tizen-10.0-generic-native-\${{ runner.os }}-v1
+          path: ${{ runner.temp }}/tizen-studio
+          key: tizen-studio-6.1-tizen-10.0-generic-native-${{ runner.os }}-v1
 
       - name: Install Tizen Web and Native SDKs
         shell: bash
@@ -78,7 +78,7 @@ jobs:
           print("".join(chars))
           PY
           )"
-          if [[ \${#password} -lt 8 || \${#password} -gt 16 ]] ||
+          if [[ ${#password} -lt 8 || ${#password} -gt 16 ]] ||
              ! [[ "$password" =~ [A-Z] ]] ||
              ! [[ "$password" =~ [a-z] ]] ||
              ! [[ "$password" =~ [0-9] ]] ||
@@ -190,5 +190,5 @@ jobs:
           set -euo pipefail
           echo "No Tizen CLI log files are uploaded because they may contain signing credentials."
           if [[ -d "$RUNNER_TEMP/tizen-studio-data/profile" ]]; then
-            find "$RUNNER_TEMP/tizen-studio-data/profile" -maxdepth 1 -type f -printf 'Profile metadata present: %f (%s bytes)\\n' | sort
+            find "$RUNNER_TEMP/tizen-studio-data/profile" -maxdepth 1 -type f -printf 'Profile metadata present: %f (%s bytes)\n' | sort
           fi
