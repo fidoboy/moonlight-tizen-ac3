@@ -146,7 +146,7 @@ jobs:
           mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#service_pkgs[@]} != 1 )); then
             echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
-            printf '%s\\n' "${service_pkgs[@]}"
+            printf '%s\n' "${service_pkgs[@]}"
             exit 1
           fi
           service_tpk="${service_pkgs[0]}"
@@ -213,8 +213,8 @@ jobs:
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            -re {Author password:} { send -- "123456\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
             eof
           }
           set status [wait]
