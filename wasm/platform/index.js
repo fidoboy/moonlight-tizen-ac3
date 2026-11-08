@@ -7199,6 +7199,9 @@ function startAmbilightForStream() {
         }
         window.moonlightAmbilight.start(ip, 21324, 73).catch(function(error) {
           console.warn('[ambilight] Could not start capture:', error);
+          if (window.moonlightAmbilight && !window.moonlightAmbilight.isSupported()) {
+            updateAmbilightAvailability(false);
+          }
         });
       });
     });
