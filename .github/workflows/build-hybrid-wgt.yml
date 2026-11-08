@@ -138,10 +138,11 @@ jobs:
             local dir="$RUNNER_TEMP/tz-probe-$label"
             mkdir -p "$dir"
             echo "::group::Probe $label: template=$template profile=$profile"
-            set +e
-            "$TIZEN_CORE_CLI" new -t "$template" -n ProbeProject -T dotnet -p "$profile" -w "$dir" 2>&1
-            local status=$?
-            set -e
+            if "$TIZEN_CORE_CLI" new -t "$template" -n ProbeProject -T dotnet -p "$profile" -w "$dir" 2>&1; then
+              local status=0
+            else
+              local status=$?
+            fi
             echo "PROBE_STATUS_$label=$status"
             echo "Generated files:"
             find "$dir" -maxdepth 3 -type f -printf '%P\n' | sort || true
@@ -164,12 +165,14 @@ jobs:
           echo "TizenNUIApp / tizen-9.0: $nui_status"
 
           echo "=== Recent SDK / Tizen logs ==="
-          find "$RUNNER_TEMP/tizen-studio" "$RUNNER_TEMP/tizen-studio-data" "$HOME/.tizen" "$HOME/.config" \
-            -type f \( -iname '*.log' -o -iname '*tizen*core*' \) -mmin -10 -print 2>/dev/null |
-            while IFS= read -r log; do
-              echo "--- $log ---"
-              tail -n 200 "$log"
-            done
+          for root in "$RUNNER_TEMP/tizen-studio" "$RUNNER_TEMP/tizen-studio-data" "$HOME/.tizen" "$HOME/.config"; do
+            if [[ -d "$root" ]]; then
+              find "$root" -type f \( -iname '*.log' -o -iname '*tizen*core*' \) -mmin -10 -print 2>/dev/null
+            fi
+          done | while IFS= read -r log; do
+            echo "--- $log ---"
+            tail -n 200 "$log"
+          done
 
           if (( service_tizen_status != 0 )); then
             echo "::error::The exact TizenServiceApp/tizen-9.0 scaffold command fails in an isolated workspace."
