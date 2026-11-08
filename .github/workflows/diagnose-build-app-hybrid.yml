@@ -46,8 +46,17 @@ jobs:
           sdk="$RUNNER_TEMP/tizen-studio"
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
+          # The Samsung TV SDK is an Extension SDK, not a baseline Tizen platform.
+          # Register its official repository explicitly before resolving TV package IDs.
+          "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories-before.txt"
+          if ! grep -Fq "Samsung Tizen TV SDK" "$RUNNER_TEMP/tizen-extra-repositories-before.txt"; then
+            "$pm" extra --add -n "Samsung Tizen TV SDK" \
+              -r "https://sdf.samsungcloudcdn.com/Public/smart_tv_sdk/releases/samsung_tizen_studio_tv_sdk/stv_ext_public/TV"
+          fi
+          "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV Extensions-9.0"
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources"
+          "$pm" show-pkgs | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
 
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
