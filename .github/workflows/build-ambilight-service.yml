@@ -97,7 +97,6 @@ jobs:
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12" \
             -p "$CERT_PASSWORD"
           test -s "$profiles"
-          tizen cli-config "default.profiles.path=$profiles"
           sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd||" "$profiles"
 
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
