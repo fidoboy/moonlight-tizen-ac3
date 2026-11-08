@@ -185,7 +185,7 @@ jobs:
           echo "=== Recent Tizen SDK logs ==="
           for root in "$RUNNER_TEMP/tizen-studio" "$HOME/.tizen" "$HOME/.config"; do
             if [[ -d "$root" ]]; then
-              find "$root" -type f \( -iname '*.log' -o -iname '*tizen*core*' \) -mmin -30 -print 2>/dev/null
+              find "$root" -type f -iname '*.log' -mmin -30 -print 2>/dev/null
             fi
           done | while IFS= read -r log; do
             echo "--- $log ---"
