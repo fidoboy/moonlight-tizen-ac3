@@ -32,6 +32,23 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
+
+          # libkchart2 is listed in Ubuntu 22.04 (Jammy) universe.
+          # Verify that this runner has a candidate before asking apt to install it.
+          echo "=== APT policy: libkchart2 ==="
+          apt-cache policy libkchart2 | tee "$RUNNER_TEMP/libkchart2-policy.txt"
+          echo "=== APT search: libkchart packages ==="
+          apt-cache search '^libkchart' | tee "$RUNNER_TEMP/libkchart-search.txt"
+          libkchart_candidate="$(apt-cache policy libkchart2 | awk '/Candidate:/ { print $2; exit }')"
+          if [[ -z "$libkchart_candidate" || "$libkchart_candidate" == "(none)" ]]; then
+            echo "libkchart2 has no APT candidate on this Ubuntu runner."
+            echo "=== Configured Ubuntu repositories ==="
+            grep -RhsE '^(deb |Types:|URIs:|Suites:|Components:)' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true
+            exit 1
+          fi
+          echo "Installing libkchart2 candidate: $libkchart_candidate"
+          sudo apt-get install -y --no-install-recommends "libkchart2=$libkchart_candidate"
+
           sudo apt-get install -y --no-install-recommends \
             software-properties-common expect unzip \
             libxcb-icccm4 libkf5itemmodels5 bridge-utils libxcb-shape0 openvpn \
