@@ -348,19 +348,19 @@ jobs:
           spawn {*}$argv
           expect {
             -nocase -re {Author password:} {
-              send -- "moonlight-hybrid-ci\\r"
+              send -- "moonlight-hybrid-ci\r"
               exp_continue
             }
-            -nocase -re {Save author password[^\\r\\n]*} {
-              send -- "n\\r"
+            -nocase -re {Save author password[^\r\n]*} {
+              send -- "n\r"
               exp_continue
             }
             -nocase -re {Distributor1 password:} {
-              send -- "tizenpkcs12passfordsigner\\r"
+              send -- "tizenpkcs12passfordsigner\r"
               exp_continue
             }
-            -nocase -re {Save distributor1 password[^\\r\\n]*} {
-              send -- "n\\r"
+            -nocase -re {Save distributor1 password[^\r\n]*} {
+              send -- "n\r"
               exp_continue
             }
             timeout {
