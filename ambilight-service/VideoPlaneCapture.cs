@@ -173,6 +173,12 @@ namespace TizenAmbilight
         {
             if (_call != null) return null;
 
+            // The captured Samsung secvideo ABI used by this implementation stores pointers
+            // in 32-bit fields at fixed offsets. Never enter the native API from a 64-bit
+            // process: that ABI has not been validated for this service.
+            if (IntPtr.Size != 4)
+                return FailInitialization("unsupported process ABI: Ambilight capture currently requires 32-bit pointers");
+
             try
             {
                 IntPtr err0 = dlerror();
