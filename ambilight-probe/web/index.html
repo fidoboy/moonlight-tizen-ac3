@@ -163,20 +163,20 @@
       if (!appInfo || appInfo.id !== SERVICE_APP_ID) {
         show('El servicio nativo no está registrado en Tizen',
           'ID solicitado: ' + SERVICE_APP_ID +
-          '\\nID devuelto: ' + (appInfo && appInfo.id ? appInfo.id : 'ninguno') +
-          '\\nEl paquete WGT no ha registrado el componente nativo con el identificador esperado.',
+          '\nID devuelto: ' + (appInfo && appInfo.id ? appInfo.id : 'ninguno') +
+          '\nEl paquete WGT no ha registrado el componente nativo con el identificador esperado.',
           'bad');
         return;
       }
 
       details.textContent = 'Servicio encontrado en el registro de Tizen.' +
-        '\\nID: ' + appInfo.id +
-        '\\nPaquete: ' + (appInfo.packageId || 'no indicado') +
-        '\\nVersión: ' + (appInfo.version || 'no indicada') +
-        '\\nSolicitando su arranque…';
+        '\nID: ' + appInfo.id +
+        '\nPaquete: ' + (appInfo.packageId || 'no indicado') +
+        '\nVersión: ' + (appInfo.version || 'no indicada') +
+        '\nSolicitando su arranque…';
 
       tizen.application.launch(SERVICE_APP_ID, function () {
-        details.textContent += '\\nPetición de arranque aceptada. Buscando el puerto de diagnóstico…';
+        details.textContent += '\nPetición de arranque aceptada. Buscando el puerto de diagnóstico…';
         sendStatus(0);
       }, function (error) {
         show('Tizen reconoce el servicio, pero no puede iniciarlo', errorDescription(error), 'bad');
@@ -185,8 +185,8 @@
       var reason = errorDescription(error);
       if (error && error.name === 'NotFoundError') {
         show('El servicio nativo no está registrado en Tizen',
-          reason + '\\nID solicitado: ' + SERVICE_APP_ID +
-          '\\nEl manifiesto híbrido no ha registrado el componente nativo.',
+          reason + '\nID solicitado: ' + SERVICE_APP_ID +
+          '\nEl manifiesto híbrido no ha registrado el componente nativo.',
           'bad');
       } else {
         show('No se pudo verificar o iniciar el servicio nativo', reason, 'bad');
