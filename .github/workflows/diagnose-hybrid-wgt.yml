@@ -6,6 +6,7 @@ on:
     branches: ["1.2.4-pre"]
     paths:
       - ".github/workflows/diagnose-hybrid-wgt.yml"
+      - ".github/workflows/build-hybrid-wgt.yml"
 
 permissions:
   contents: read
@@ -55,12 +56,41 @@ jobs:
           echo "$sdk/tools" >> "$GITHUB_PATH"
           echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
+          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
           echo "TIZEN_CORE_CLI=$core_cli" >> "$GITHUB_ENV"
 
       - name: Install .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Create the temporary Tizen signing profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          export TIZEN_STUDIO_DATA_PATH="$RUNNER_TEMP/tizen-studio-data"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+          tizen certificate -a Moonlight -f Moonlight -p 123456
+          tizen security-profiles add -n Moonlight -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" -p 123456 -- "$TIZEN_STUDIO_DATA_PATH/profile"
+          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+          test -s "$profiles"
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd|123456|" "$profiles"
+          distributor_pwd="$TIZEN_STUDIO_DATA_PATH/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+          echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
+          python3 - "$profiles" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          items = root.findall(".//profileitem")
+          author = next((item for item in items if item.get("distributor") == "0"), None)
+          distributor = next((item for item in items if item.get("distributor") == "1"), None)
+          if author is None or author.get("password") != "123456":
+              raise SystemExit("Author password was not written into the signing profile")
+          if distributor is None or distributor.get("password") != "tizenpkcs12passfordsigner":
+              raise SystemExit("Distributor password was not written into the signing profile")
+          print("Signing profile contains both non-interactive password values.")
+          PY
 
       - name: Reproduce the exact project-creation sequence
         shell: bash
@@ -122,6 +152,42 @@ jobs:
             isolated_status=$?
           fi
 
+          build_status=125
+          if (( web_status == 0 && sequential_status == 0 )); then
+            service_project="$workspace/AmbilightService/AmbilightService"
+            test -s "$service_project/tizen_dotnet_project.yaml"
+            cp ambilight-service/TizenAmbilight.csproj "$service_project/TizenAmbilight.csproj"
+            cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
+            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
+            rm -f "$service_project/AmbilightService.csproj" "$service_project/AmbilightService_App.cs"
+
+            python3 - "$service_project/tizen_dotnet_project.yaml" <<'PY'
+          import sys
+          from pathlib import Path
+          project_path = Path(sys.argv[1])
+          project = project_path.read_text(encoding="utf-8")
+          project = project.replace("csproj_file: AmbilightService.csproj", "csproj_file: TizenAmbilight.csproj")
+          start = project.find("files:")
+          if start < 0:
+              raise SystemExit("Tizen Core .NET project metadata has no files list")
+          end = project.find("\\ndeps:", start)
+          if end < 0:
+              raise SystemExit("Tizen Core .NET project metadata has no deps section")
+          project = project[:start] + "files:\\n  - TizenAmbilight.csproj\\n  - Program.cs\\n  - VideoPlaneCapture.cs\\n  - WledOutput.cs\\n  - tizen-manifest.xml" + project[end:]
+          project_path.write_text(project, encoding="utf-8")
+          PY
+
+            if run_logged add-hybrid-dependency "$TIZEN_CORE_CLI" add-deps "$workspace/MoonlightWeb" --deps "../AmbilightService"; then
+              if run_logged build-hybrid-workspace "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
+                build_status=0
+              else
+                build_status=$?
+              fi
+            else
+              build_status=$?
+            fi
+          fi
+
           echo "=== Generated files in the sequential workspace ==="
           find "$workspace" -maxdepth 4 -type f -printf '%P\n' | sort | tee "$log_dir/sequential-files.txt"
           echo "=== Generated files in the isolated workspace ==="
@@ -141,9 +207,10 @@ jobs:
           echo "Web project creation: $web_status"
           echo "Service after Web project in same workspace: $sequential_status"
           echo "Service alone in fresh workspace: $isolated_status"
+          echo "Tizen Core hybrid build: $build_status"
 
-          if (( web_status != 0 || sequential_status != 0 )); then
-            echo "::error::The project-creation sequence used by the packaging job failed. See the command output and logs above."
+          if (( web_status != 0 || sequential_status != 0 || build_status != 0 )); then
+            echo "::error::Tizen Core project creation or hybrid build failed. See the command output and logs above."
             exit 1
           fi
 

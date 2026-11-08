@@ -17,7 +17,6 @@ on:
       - "wasm/**"
       - "ambilight-service/**"
       - "scripts/validate-hybrid-wgt.py"
-      - ".github/workflows/build-hybrid-wgt.yml"
 
 permissions:
   contents: read
@@ -93,8 +92,8 @@ jobs:
             -- "$TIZEN_STUDIO_DATA_PATH/profile"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
-          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd|123456|" "$profiles"
+          distributor_pwd="$TIZEN_STUDIO_DATA_PATH/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
