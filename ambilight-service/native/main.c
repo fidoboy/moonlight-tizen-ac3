@@ -73,7 +73,9 @@ static bool capture_init(capture_context_t *ctx)
 
     ctx->library = dlopen(CAPTURE_LIBRARY, RTLD_NOW | RTLD_LOCAL);
     if (ctx->library == NULL)
-        ctx->library = dlopen("/usr/lib/" CAPTURE_LIBRARY, RTLD_NOW | RTLD_LOCAL);
+        ctx->library = dlopen(CAPTURE_LIBRARY, RTLD_LAZY | RTLD_LOCAL);
+    if (ctx->library == NULL)
+        ctx->library = dlopen("/usr/lib/" CAPTURE_LIBRARY, RTLD_LAZY | RTLD_LOCAL);
     if (ctx->library == NULL) {
         const char *error = dlerror();
         dlog_print(DLOG_ERROR, LOG_TAG, "dlopen %s: %s", CAPTURE_LIBRARY,
