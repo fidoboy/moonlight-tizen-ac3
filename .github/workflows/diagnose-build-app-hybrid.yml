@@ -56,7 +56,7 @@ jobs:
           # Preserve the complete Package Manager output, including failures.
           set +e
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV Extensions-9.0" \
+            "NativeCLI,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
             2>&1 | tee "$RUNNER_TEMP/tizen-package-install.txt"
           install_status=${PIPESTATUS[0]}
           set -e
@@ -68,11 +68,19 @@ jobs:
             echo "Package Manager installation failed; see tizen-package-install.txt."
             exit "$install_status"
           fi
-          if ! awk '$1 == "i" && $2 == "TV" && $3 == "Extensions-9.0" { found=1 } END { exit !found }' \
-            "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
-            echo "TV Extensions-9.0 is not listed as installed by package-manager-cli."
-            exit 1
-          fi
+          required_tv_packages=(
+            TV-SAMSUNG-Public
+            TV-SAMSUNG-Public-WebAppDevelopment
+            TV-SAMSUNG-Extension-Tools
+            TV-SAMSUNG-Extension-Resources
+          )
+          for package in "${required_tv_packages[@]}"; do
+            if ! awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' \
+              "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
+              echo "Required Samsung TV package is not installed: $package"
+              exit 1
+            fi
+          done
 
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
@@ -152,15 +160,15 @@ jobs:
           mkdir -p "$workspace"
           tizen list web-project 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"
           tizen list rootstrap 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"
-          if ! grep -Eqi 'tizen-9\.0-(device|emulator)' "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
-            echo "No Tizen 9.0 device/emulator rootstrap is installed; refusing to create the TV project."
+          if ! grep -Eqi 'tizen-10\.0-(device|emulator)' "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
+            echo "No Tizen 10.0 device/emulator rootstrap is installed; refusing to create the TV project."
             exit 1
           fi
-          if ! grep -Eqi 'tv-9\.0|TV.*9\.0|9\.0.*TV' "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"; then
-            echo "The TV 9.0 Web profile is not available; refusing to create the TV project."
+          if ! grep -Eqi 'tv-10\.0|TV.*10\.0|10\.0.*TV' "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"; then
+            echo "The TV 10.0 Web profile is not available; refusing to create the TV project."
             exit 1
           fi
-          tizen create web-project -p tv-9.0 -t Basic -n MoonlightWeb -- "$workspace"
+          tizen create web-project -p tv-10.0 -t Basic -n MoonlightWeb -- "$workspace"
           test -d "$workspace/MoonlightWeb"
           echo "BUILD_APP_WORKSPACE=$workspace" >> "$GITHUB_ENV"
           echo "WEB_PROJECT=$workspace/MoonlightWeb" >> "$GITHUB_ENV"
