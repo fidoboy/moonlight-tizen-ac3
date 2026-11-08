@@ -19,7 +19,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: moonlight-ambilight-hybrid-\${{ github.ref }}
+  group: moonlight-ambilight-hybrid-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
       - name: Check out Moonlight
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.ref }}
+          ref: ${{ github.ref }}
           submodules: recursive
           fetch-depth: 1
 
@@ -156,8 +156,8 @@ jobs:
           set -euo pipefail
           docker build \
             --build-arg BUILD_TYPE=release \
-            --build-arg REPO_OWNER="\${GITHUB_REPOSITORY%%/*}" \
-            --build-arg REPO_NAME="\${GITHUB_REPOSITORY#*/}" \
+            --build-arg REPO_OWNER="${GITHUB_REPOSITORY%%/*}" \
+            --build-arg REPO_NAME="${GITHUB_REPOSITORY#*/}" \
             --build-arg FORCE_GAME_MODE=false \
             --tag "moonlight-ambilight-web:$GITHUB_SHA" \
             .
@@ -333,13 +333,13 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -d '' packages < <(find "$HYBRID_ROOT" -type f -name '*.wgt' -size +0c -print0)
-          if [[ \${#packages[@]} -ne 1 ]]; then
-            echo "::error::Expected one hybrid WGT, found \${#packages[@]}."
+          if [[ ${#packages[@]} -ne 1 ]]; then
+            echo "::error::Expected one hybrid WGT, found ${#packages[@]}."
             find "$HYBRID_ROOT" -maxdepth 7 -type f -printf '%p\n' | sort
             exit 1
           fi
 
-          package="\${packages[0]}"
+          package="${packages[0]}"
           unzip -t "$package"
           python3 - "$package" <<'PY'
           import sys, zipfile, xml.etree.ElementTree as ET
@@ -393,6 +393,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Moonlight-Ambilight-Samsung-TV-Hybrid
-          path: \${{ runner.temp }}/hybrid-output/
+          path: ${{ runner.temp }}/hybrid-output/
           if-no-files-found: error
           retention-days: 14
