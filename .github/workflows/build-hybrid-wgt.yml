@@ -85,6 +85,12 @@ jobs:
           export TIZEN_STUDIO_DATA_PATH="$RUNNER_TEMP/tizen-studio-data"
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
           tizen certificate -a Moonlight -f Moonlight -p 123456
+          author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
+          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd"
+          # Tizen.NET reads the author password from this file when signing the service TPK.
+          printf '%s\n' '123456' > "$author_pwd"
+          chmod 600 "$author_pwd"
+          openssl pkcs12 -in "$author_key" -passin "file:$author_pwd" -noout
           tizen security-profiles add \
             -n Moonlight \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" \
