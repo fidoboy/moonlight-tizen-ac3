@@ -338,8 +338,6 @@ jobs:
 
           source_path, output_path = sys.argv[1:3]
           ET.register_namespace("", "http://tizen.org/ns/packages")
-          ET.register_namespace("", "http://www.w3.org/ns/widgets")
-          ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
 
           with zipfile.ZipFile(source_path, "r") as source:
               names = set(source.namelist())
@@ -380,6 +378,8 @@ jobs:
 
               if not patched_splash_paths:
                   raise SystemExit("No video splash resources were found in outer config.xml")
+              ET.register_namespace("", "http://www.w3.org/ns/widgets")
+              ET.register_namespace("tizen", "http://tizen.org/ns/widgets")
               patched_config = ET.tostring(config, encoding="UTF-8", xml_declaration=True)
 
               with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as output:
