@@ -809,6 +809,9 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
+  $('#ambilightSwitch').on('click', saveAmbilightPreference);
+  $('#ambilightWledIp').on('change', saveAmbilightWledIp);
+  loadAmbilightPreferences();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -5739,6 +5742,7 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       // In-flight callbacks also observe isInGame and cannot schedule another poll.
       stopPollingHosts();
       isInGame = true;
+      startAmbilightForStream();
       fullscreenWasmModule(streamWidth, streamHeight);
       showUiLayer('stream-diagnostics-layer');
       resolve();
@@ -7028,6 +7032,58 @@ function initializeColorThemeSelector() {
     }
   });
 
+}
+
+function loadAmbilightPreferences() {
+  getData('ambilightEnabled', function(data) {
+    var enabled = !!(data && data.ambilightEnabled === true);
+    var toggle = document.getElementById('ambilightSwitch');
+    if (toggle) {
+      toggle.checked = enabled;
+      var label = document.getElementById('ambilightBtn');
+      if (label && label.MaterialSwitch) {
+        enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
+      }
+    }
+  });
+  getData('ambilightWledIp', function(data) {
+    var input = document.getElementById('ambilightWledIp');
+    if (input && data && typeof data.ambilightWledIp === 'string') input.value = data.ambilightWledIp;
+  });
+}
+
+function saveAmbilightPreference() {
+  window.setTimeout(function() {
+    var enabled = $('#ambilightSwitch').prop('checked') === true;
+    storeData('ambilightEnabled', enabled, null);
+    if (!enabled && window.moonlightAmbilight) {
+      window.moonlightAmbilight.stop().catch(function(error) {
+        console.warn('[ambilight] Could not stop native service:', error);
+      });
+    }
+  }, 100);
+}
+
+function saveAmbilightWledIp() {
+  var ip = String($('#ambilightWledIp').val() || '').trim();
+  storeData('ambilightWledIp', ip, null);
+}
+
+function startAmbilightForStream() {
+  if (!window.moonlightAmbilight) return;
+  getData('ambilightEnabled', function(enabledData) {
+    if (!enabledData || enabledData.ambilightEnabled !== true) return;
+    getData('ambilightWledIp', function(ipData) {
+      var ip = ipData && ipData.ambilightWledIp;
+      if (!ip) {
+        console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+        return;
+      }
+      window.moonlightAmbilight.start(ip, 21324, 73).catch(function(error) {
+        console.warn('[ambilight] Could not start native service:', error);
+      });
+    });
+  });
 }
 
 function saveNavigationSoundPreference() {
