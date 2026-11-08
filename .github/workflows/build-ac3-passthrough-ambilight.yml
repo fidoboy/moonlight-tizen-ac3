@@ -1,4 +1,4 @@
-name: Build Moonlight + Ambilight hybrid WGT
+name: Build WGT (CI) with Ambilight
 
 on:
   workflow_dispatch:
@@ -16,7 +16,7 @@ on:
       - "wasm/platform/messages.js"
       - "res/config.xml"
       - "Dockerfile"
-      - ".github/workflows/build-ambilight-hybrid.yml"
+      - ".github/workflows/build-ac3-passthrough-ambilight.yml"
 
 permissions:
   contents: read
@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   build-hybrid:
+    if: github.ref == 'refs/heads/1.2.4-pre'
     name: Build and package the single Moonlight + Ambilight WGT
     runs-on: ubuntu-22.04
     timeout-minutes: 60
