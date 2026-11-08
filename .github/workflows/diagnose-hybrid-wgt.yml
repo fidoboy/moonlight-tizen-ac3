@@ -88,205 +88,86 @@ jobs:
           "$TIZEN_CORE_CLI" security-profiles list -x "$profiles"
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
-      - name: Reproduce the exact project-creation sequence
+      - name: Reproduce the hybrid packaging sequence
         shell: bash
         run: |
-          set -uo pipefail
-          log_dir="$RUNNER_TEMP/tizen-project-diagnostics"
-          mkdir -p "$log_dir"
-
-          echo "=== Tizen Core version ==="
-          "$TIZEN_CORE_CLI" --version 2>&1 | tee "$log_dir/tizen-version.log"
-          echo "=== Registered .NET templates ==="
-          "$TIZEN_CORE_CLI" list templates -t dotnet 2>&1 | tee "$log_dir/dotnet-templates.log"
-          echo "=== Installed .NET SDK ==="
-          dotnet --info 2>&1 | tee "$log_dir/dotnet-info.log"
-
-          run_logged() {
-            local label="$1"
-            shift
-            echo "::group::$label"
-            "$@" 2>&1 | tee "$log_dir/$label.log"
-            local statuses=("${PIPESTATUS[@]}")
-            local command_status="${statuses[0]}"
-            echo "EXIT_CODE_$label=$command_status"
-            echo "::endgroup::"
-            return "$command_status"
-          }
-
+          set -euo pipefail
           workspace="$RUNNER_TEMP/hybrid-reproduction"
+          web_project="$workspace/MoonlightWeb"
+          base_wgt="$RUNNER_TEMP/MoonlightWeb-base.wgt"
+          hybrid_wgt="$RUNNER_TEMP/Moonlight-hybrid.wgt"
+
           mkdir -p "$workspace"
 
-          echo "=== Test 1: create Web project, exactly as the packaging job does ==="
-          if run_logged create-web-project \
-            "$TIZEN_CORE_CLI" new -t Basic -n MoonlightWeb -T web -p tizen-9.0 -w "$workspace"; then
-            web_status=0
-          else
-            web_status=$?
-          fi
+          echo "=== 1. Generate and package the base Web WGT ==="
+          "$TIZEN_CORE_CLI" new -t Basic -n MoonlightWeb -T web -p tizen-9.0 -w "$workspace"
+          test -d "$web_project"
+          "$TIZEN_CORE_CLI" pack --proj-dir "$web_project" --type wgt \
+            --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" \
+            --out-path "$base_wgt"
+          test -s "$base_wgt"
+          unzip -tq "$base_wgt"
 
-          echo "=== Test 2: create .NET service in that SAME workspace ==="
-          if (( web_status == 0 )); then
-            if run_logged create-dotnet-service-after-web \
-              "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"; then
-              sequential_status=0
-            else
-              sequential_status=$?
-            fi
-          else
-            sequential_status=125
-            echo "Skipped: Web project creation failed."
-          fi
+          echo "=== 2. Compile the service directly with dotnet msbuild ==="
+          find ambilight-service -type f -name '*.tpk' -delete
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj \
+            -restore -t:Rebuild -p:Configuration=Release -v:m
 
-          echo "=== Test 3: create .NET service alone in a fresh workspace ==="
-          isolated_workspace="$RUNNER_TEMP/service-only"
-          mkdir -p "$isolated_workspace"
-          if run_logged create-dotnet-service-alone \
-            "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$isolated_workspace"; then
-            isolated_status=0
-          else
-            isolated_status=$?
-          fi
-
-          echo "=== Generated Tizen .NET project metadata (before modification) ==="
-          for project_yaml in \
-            "$workspace/AmbilightService/AmbilightService/tizen_dotnet_project.yaml" \
-            "$isolated_workspace/AmbilightService/AmbilightService/tizen_dotnet_project.yaml"; do
-            if [[ -s "$project_yaml" ]]; then
-              echo "--- $project_yaml ---"
-              cat "$project_yaml" | tee -a "$log_dir/generated-dotnet-project-yaml.log"
-            else
-              echo "Missing generated metadata: $project_yaml"
-            fi
-          done
-
-          echo "=== Tizen Core template/config references for .NET build selection ==="
-          echo "=== Tizen Core CLI config ==="
-          for config_file in "$TIZEN_STUDIO/tools/tizen-core/templates/config/cli_config.yaml" "$TIZEN_STUDIO/tools/tizen-core/templates/config/tizen_dotnet_project.yaml"; do
-            if [[ -f "$config_file" ]]; then
-              echo "--- $config_file ---"
-              cat "$config_file"
-            fi
-          done | tee "$log_dir/tizen-core-cli-config.log"
-          "$TIZEN_CORE_CLI" dotnet-build build --help 2>&1 | tee "$log_dir/tizen-dotnet-build-help.log" || true
-          core_root="$TIZEN_STUDIO/tools/tizen-core"
-          if [[ -d "$core_root" ]]; then
-            grep -RInE --include='*.yaml' --include='*.yml' --include='*.json' --include='*.config' --include='*.xml' \
-              'dotnet-build-tool|msbuild-path|build_tool|build-tool|csproj_file' "$core_root" \
-              2>&1 | tee "$log_dir/tizen-core-build-config-references.log" || true
-          fi
-
-          build_status=125
-          if (( web_status == 0 && sequential_status == 0 )); then
-            service_project="$workspace/AmbilightService/AmbilightService"
-            test -s "$service_project/tizen_dotnet_project.yaml"
-            cp ambilight-service/TizenAmbilight.csproj "$service_project/TizenAmbilight.csproj"
-            cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
-            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
-            rm -f "$service_project/AmbilightService.csproj" "$service_project/AmbilightService_App.cs"
-
-            python3 - "$service_project/tizen_dotnet_project.yaml" <<'PY'
-          import sys
-          from pathlib import Path
-          project_path = Path(sys.argv[1])
-          project = project_path.read_text(encoding="utf-8")
-          project = project.replace("csproj_file: AmbilightService.csproj", "csproj_file: TizenAmbilight.csproj")
-          start = project.find("files:")
-          if start < 0:
-              raise SystemExit("Tizen Core .NET project metadata has no files list")
-          end = project.find("\ndeps:", start)
-          if end < 0:
-              raise SystemExit("Tizen Core .NET project metadata has no deps section")
-          project = project[:start] + "files:\n  - TizenAmbilight.csproj\n  - Program.cs\n  - VideoPlaneCapture.cs\n  - WledOutput.cs\n  - tizen-manifest.xml" + project[end:]
-          project_path.write_text(project, encoding="utf-8")
-          PY
-
-            if run_logged add-hybrid-dependency "$TIZEN_CORE_CLI" add-deps "$workspace/MoonlightWeb" --deps "../AmbilightService"; then
-              echo "=== Test 4: build the service directly with documented Tizen.NET signing properties ==="
-              author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
-              dist_key="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
-              if run_logged direct-dotnet-service-build dotnet build "$service_project/TizenAmbilight.csproj" --configuration Debug "-p:AuthorPath=$author_key" "-p:AuthorPass=123456" "-p:DistributorPath=$dist_key" "-p:DistributorPass=tizenpkcs12passfordsigner"; then
-                direct_build_status=0
-              else
-                direct_build_status=$?
-              fi
-              echo "Direct Tizen.NET build with explicit AuthorPass: $direct_build_status"
-
-              echo "=== Test 5: compile service without automatic TPK creation ==="
-              if run_logged dotnet-build-without-tpk dotnet build "$service_project/TizenAmbilight.csproj" --configuration Debug "-p:TizenCreateTpkOnBuild=false"; then
-                unsigned_build_status=0
-              else
-                unsigned_build_status=$?
-              fi
-              echo "Build without automatic TPK creation: $unsigned_build_status"
-
-              echo "=== Test 6: invoke TizenPackage explicitly with signing properties ==="
-              if (( unsigned_build_status == 0 )); then
-                if run_logged explicit-tpk-sign dotnet msbuild "$service_project/TizenAmbilight.csproj" -target:TizenPackage "-p:AuthorPath=$author_key" "-p:AuthorPass=123456" "-p:DistributorPath=$dist_key" "-p:DistributorPass=tizenpkcs12passfordsigner"; then
-                  explicit_sign_status=0
-                else
-                  explicit_sign_status=$?
-                fi
-              else
-                explicit_sign_status=125
-              fi
-              echo "Explicit TizenPackage signing: $explicit_sign_status"
-
-              echo "=== Test 7: inspect the installed MSBuild executable ==="
-              msbuild_path="$(command -v msbuild || true)"
-              echo "PATH_MSBUILD=${msbuild_path:-not-found}"
-              find "$TIZEN_STUDIO" /usr/share/dotnet -type f -name msbuild -o -name MSBuild.dll 2>/dev/null | head -n 30 | tee "$log_dir/msbuild-candidates.txt"
-
-              echo "=== Test 8: switch Tizen Core to its documented MSBuild backend ==="
-              if run_logged select-msbuild-backend "$TIZEN_CORE_CLI" set -D msbuild -m /usr/bin/msbuild; then
-                msbuild_select_status=0
-              else
-                msbuild_select_status=$?
-              fi
-              echo "MSBuild backend selection: $msbuild_select_status"
-
-              if (( msbuild_select_status == 0 )); then
-                echo "=== Test 9: build the complete hybrid workspace through Tizen Core/MSBuild ==="
-                if run_logged build-hybrid-workspace-msbuild "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
-                  build_status=0
-                else
-                  build_status=$?
-                fi
-              else
-                build_status=$msbuild_select_status
-                echo "Skipped hybrid build because Tizen Core rejected the MSBuild backend selection."
-              fi
-            else
-              build_status=$?
-              direct_build_status=125
-            fi
-          fi
-
-          echo "=== Generated files in the sequential workspace ==="
-          find "$workspace" -maxdepth 4 -type f -printf '%P\n' | sort | tee "$log_dir/sequential-files.txt"
-          echo "=== Generated files in the isolated workspace ==="
-          find "$isolated_workspace" -maxdepth 4 -type f -printf '%P\n' | sort | tee "$log_dir/isolated-files.txt"
-
-          echo "=== Recent Tizen SDK logs ==="
-          for root in "$RUNNER_TEMP/tizen-studio" "$HOME/.tizen" "$HOME/.config"; do
-            if [[ -d "$root" ]]; then
-              find "$root" -type f -iname '*.log' -mmin -30 -print 2>/dev/null
-            fi
-          done | while IFS= read -r log; do
-            echo "--- $log ---"
-            tail -n 300 "$log"
-          done
-
-          echo "=== RESULT ==="
-          echo "Web project creation: $web_status"
-          echo "Service after Web project in same workspace: $sequential_status"
-          echo "Service alone in fresh workspace: $isolated_status"
-          echo "Tizen Core hybrid build: $build_status"
-
-          if (( web_status != 0 || sequential_status != 0 || build_status != 0 )); then
-            echo "::error::Tizen Core project creation or hybrid build failed. See the command output and logs above."
+          mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+          if (( ${#service_pkgs[@]} != 1 )); then
+            echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
+            printf '%s\\n' "${service_pkgs[@]}"
             exit 1
           fi
+          service_tpk="${service_pkgs[0]}"
+          test -s "$service_tpk"
+          echo "Service TPK: $service_tpk"
+
+          echo "=== 3. Validate the embedded service manifest ==="
+          python3 - ambilight-service/tizen-manifest.xml <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          ns = "{http://tizen.org/ns/packages}"
+          service = root.find(f"{ns}service-application")
+          expected = {
+              "package": "MoonLightS",
+              "appid": "MoonLightS.MoonlightAmbilight",
+              "exec": "MoonlightAmbilight.dll",
+              "api-version": "9",
+          }
+          actual = {
+              "package": root.get("package"),
+              "appid": service.get("appid") if service is not None else None,
+              "exec": service.get("exec") if service is not None else None,
+              "api-version": service.get("api-version") if service is not None else None,
+          }
+          for key, value in expected.items():
+              if actual[key] != value:
+                  raise SystemExit(f"Invalid service manifest {key}: expected {value!r}, got {actual[key]!r}")
+          print("Service manifest verified:", actual)
+          PY
+
+          echo "=== 4. Package the hybrid WGT with tz pack ==="
+          "$TIZEN_CORE_CLI" pack --type wgt \
+            --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" \
+            --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" \
+            --out-path "$hybrid_wgt"
+          test -s "$hybrid_wgt"
+          unzip -tq "$hybrid_wgt"
+          echo "Hybrid package created: $hybrid_wgt"
+
+          echo "=== Verify the embedded service package ==="
+          python3 - "$hybrid_wgt" <<'PY'
+          import sys, zipfile
+          from pathlib import PurePosixPath
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = z.namelist()
+              matches = [n for n in names if n.lower().endswith(".tpk")]
+              if not matches:
+                  raise SystemExit("Hybrid WGT does not contain an embedded service TPK")
+              print("Embedded service package(s):", matches)
+          PY
 
       - name: Upload diagnostic logs
         if: always()
@@ -296,3 +177,4 @@ jobs:
           path: ${{ runner.temp }}/tizen-project-diagnostics/
           if-no-files-found: warn
           retention-days: 7
+
