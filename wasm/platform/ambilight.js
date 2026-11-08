@@ -121,6 +121,13 @@
         if (!available) throw new Error('Ambilight capture is not supported on this TV.');
         return serialize('start', { ip: ip, port: port, ledCount: ledCount });
       }).then(function(result) {
+        if (result.supported === false) {
+          supported = false;
+          initialized = true;
+          serviceStarted = false;
+          active = false;
+          throw new Error(result.error || 'Ambilight capture is not supported on this TV.');
+        }
         if (!result.ok) throw new Error(result.error || 'Ambilight capture could not be started.');
         serviceStarted = true;
         active = true;
