@@ -16,6 +16,7 @@ on:
       - "ports/**"
       - "wasm/**"
       - "ambilight-service/**"
+      - "scripts/validate-hybrid-wgt.py"
       - ".github/workflows/build-hybrid-wgt.yml"
 
 permissions:
@@ -618,6 +619,19 @@ jobs:
           cp "$HYBRID_WGT_STANDARD" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
           cp "$HYBRID_WGT_FORCEGM" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
           (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
+
+      - name: Audit original Moonlight payload and resource paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-hybrid-wgt.py \
+            --base-wgt "$RUNNER_TEMP/Moonlight-Web-Base.wgt" \
+            --hybrid-wgt "$HYBRID_WGT_STANDARD" \
+            --variant standard
+          python3 scripts/validate-hybrid-wgt.py \
+            --base-wgt "$RUNNER_TEMP/Moonlight-ForceGM-Web-Base.wgt" \
+            --hybrid-wgt "$HYBRID_WGT_FORCEGM" \
+            --variant ForceGM
 
       - name: Show packaging diagnostics on failure
         if: failure()
