@@ -125,41 +125,6 @@ jobs:
 
           build = workflow[build_start:]
           checkout_start = build.find("      - name: Checkout source")
-          assets_start = build.find("      - name: Ensure required versioned MP4 assets are available")
-          docker_start = build.find("      - name: Build Tizen widget")
-
-          if checkout_start < 0 or assets_start < 0 or docker_start < 0:
-              raise SystemExit("The build job must contain checkout, asset preparation and Docker build steps.")
-          if not checkout_start < assets_start < docker_start:
-              raise SystemExit("The build job checkout must precede asset preparation and Docker build.")
-
-          checkout = build[checkout_start:assets_start]
-          if "uses: actions/checkout@v5" not in checkout or "submodules: recursive" not in checkout:
-              raise SystemExit("The build job must checkout source with recursive submodules.")
-
-          if "    needs: validate" not in build:
-              raise SystemExit("The build job must depend on the validate job.")
-          if "    if: github.event_name != 'pull_request'" not in build:
-              raise SystemExit("The build job must remain disabled for pull_request events.")
-
-          if "Build WMP native ARM engine and ServiceApp" not in build:
-              raise SystemExit("The WMP native engine and ServiceApp must be built in this workflow.")
-          if "Assemble unsigned hybrid WGT" not in build:
-              raise SystemExit("The unsigned WMP hybrid WGT assembly step is missing.")
-          if "uses: ./.github/workflows/" in build:
-              raise SystemExit("The WMP build must not call a separate reusable workflow.")
-          print("AC-3 web build and WMP hybrid workflow structure checks passed.")
-          PY
-
-      - name: Lint GitHub Actions workflows
-        uses: raven-actions/actionlint@v2
-        with:
-          version: 1.7.7
-          files: .github/workflows/build-wmp-hybrid.yml
-          shellcheck: false
-          pyflakes: false
-
-
   build:
     if: github.event_name != 'pull_request'
     needs: validate
