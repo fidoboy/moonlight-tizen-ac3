@@ -204,11 +204,30 @@ jobs:
               fi
               echo "Explicit TizenPackage signing: $explicit_sign_status"
 
-              echo "=== Test 7: build the complete hybrid workspace through Tizen Core ==="
-              if run_logged build-hybrid-workspace "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
-                build_status=0
+              echo "=== Test 7: inspect the installed MSBuild executable ==="
+              msbuild_path="$(command -v msbuild || true)"
+              echo "PATH_MSBUILD=${msbuild_path:-not-found}"
+              find "$TIZEN_STUDIO" /usr/share/dotnet -type f -name msbuild -o -name MSBuild.dll 2>/dev/null | head -n 30 | tee "$log_dir/msbuild-candidates.txt"
+
+              echo "=== Test 8: switch Tizen Core to its documented MSBuild backend ==="
+              if run_logged select-msbuild-backend "$TIZEN_CORE_CLI" set -D msbuild; then
+                msbuild_select_status=0
               else
-                build_status=$?
+                msbuild_select_status=$?
+              fi
+              echo "MSBuild backend selection: $msbuild_select_status"
+
+              if (( msbuild_select_status == 0 )); then
+                run_logged inspect-msbuild-config "$TIZEN_CORE_CLI" get -D -m || true
+                echo "=== Test 9: build the complete hybrid workspace through Tizen Core/MSBuild ==="
+                if run_logged build-hybrid-workspace-msbuild "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
+                  build_status=0
+                else
+                  build_status=$?
+                fi
+              else
+                build_status=$msbuild_select_status
+                echo "Skipped hybrid build because Tizen Core rejected the MSBuild backend selection."
               fi
             else
               build_status=$?
