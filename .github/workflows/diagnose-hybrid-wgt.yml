@@ -85,6 +85,13 @@ jobs:
 
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
+
+          echo "=== Perfil registrado por Tizen CLI ==="
+          tizen security-profiles list
+
+          echo "=== Estructura del perfil (contraseñas ocultas) ==="
+          sed -E 's#(<password>).*?(</password>)#\1[REDACTED]\2#g' "$profiles"
+
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
       - name: Reproduce the hybrid packaging sequence
