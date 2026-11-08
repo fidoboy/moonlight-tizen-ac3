@@ -5,7 +5,11 @@ on:
   push:
     branches: ["1.2.4-pre"]
     paths:
-      - "ambilight-service/**"
+      - "ambilight-service/Program.cs"
+      - "ambilight-service/TizenAmbilight.csproj"
+      - "ambilight-service/VideoPlaneCapture.cs"
+      - "ambilight-service/WledOutput.cs"
+      - "ambilight-service/tizen-manifest.xml"
       - "wasm/platform/ambilight.js"
       - "wasm/index.html"
       - "wasm/platform/index.js"
@@ -24,7 +28,7 @@ concurrency:
 
 jobs:
   build-hybrid:
-    name: Build Samsung TV Web + native ServiceApp package
+    name: Build Samsung TV Web + .NET Tizen ServiceApplication
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -40,7 +44,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip
 
-      - name: Install Tizen Studio CLI
+      - name: Install Tizen SDK packaging tools
         shell: bash
         run: |
           set -euo pipefail
@@ -59,23 +63,36 @@ jobs:
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
 
-          # Use the baseline Tizen 9 ARM rootstrap. Do not install or target IoT Headed.
+          # Keep the legacy CLI only for certificate creation. The final hybrid
+          # package is assembled by Tizen Core CLI (tz), not the old build-app flow.
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,NativeToolchain-Gcc-9.2,TIZEN-9.0-NativeAppDevelopment-CLI"
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI"
 
+          core_cli="$sdk/tools/tizen-core/tz"
+          test -x "$core_cli"
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
+          echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+          echo "TIZEN_CORE_CLI=$core_cli" >> "$GITHUB_ENV"
 
-      - name: Verify Samsung-compatible ARM build target
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify Tizen Core and .NET build tools
         shell: bash
         run: |
           set -euo pipefail
-          tizen list rootstrap | tee "$RUNNER_TEMP/rootstraps.txt"
-          grep -Fq 'tizen-9.0-device.core' "$RUNNER_TEMP/rootstraps.txt"
-          tizen list native-project | tee "$RUNNER_TEMP/native-templates.txt"
-          grep -Eq 'tizen-9.0[[:space:]]+ServiceApp' "$RUNNER_TEMP/native-templates.txt"
+          test -x "$TIZEN_CORE_CLI"
+          "$TIZEN_CORE_CLI" --version
+          "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          dotnet --info
+          dotnet --list-sdks | grep -E '^8\.'
 
       - name: Create CI signing profile
         shell: bash
@@ -97,10 +114,15 @@ jobs:
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12" \
             -p "$CERT_PASSWORD"
           test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd||" "$profiles"
 
+          # Credentials are supplied interactively to tz pack below. Do not leave
+          # password-file paths or plaintext passwords in the temporary profile.
+          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+          sed -i "s|$distributor_pwd||" "$profiles"
+
+          "$TIZEN_CORE_CLI" set --profiles-path "$profiles"
+          echo "TIZEN_PROFILES=$profiles" >> "$GITHUB_ENV"
 
       - name: Ensure versioned MP4 splash assets are available
         shell: bash
@@ -176,125 +198,101 @@ jobs:
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           unzip -tq "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
 
-      - name: Prepare the hybrid Web and native projects
+      - name: Build the original .NET Tizen service
         shell: bash
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/MoonlightHybrid"
-          web="$root/MoonlightWeb"
-          service="$root/MoonlightAmbilightService"
-          mkdir -p "$root"
 
-          tizen list web-project > "$RUNNER_TEMP/web-templates.txt"
-          web_profile="$(awk '$1 ~ /^tizen-[0-9]+\.[0-9]+$/ && $2 == "WebBasicApplication" { print $1 }' \
-            "$RUNNER_TEMP/web-templates.txt" | sort -Vr | head -n 1)"
-          test -n "$web_profile"
+          # Keep the .NET service identity and version aligned with Moonlight's
+          # Web package. The Web app and service remain separate applications
+          # inside one package, with the same Tizen package ID.
+          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" ambilight-service/tizen-manifest.xml <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
 
-          tizen create web-project -p "$web_profile" -t WebBasicApplication -n MoonlightWeb -- "$root"
-          tizen create native-project -p tizen-9.0 -t ServiceApp -n MoonlightAmbilightService -- "$root"
-          test -d "$web" && test -d "$service"
+          with zipfile.ZipFile(sys.argv[1]) as package:
+              web = ET.fromstring(package.read("config.xml"))
 
-          python3 - "$RUNNER_TEMP/Moonlight-Web-Base.wgt" "$web" <<'PY'
-          import sys, zipfile
-          from pathlib import Path, PurePosixPath
-          source, destination = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
-          excluded_signatures = {"author-signature.xml", "signature1.xml", "signature2.xml"}
-          with zipfile.ZipFile(source) as archive:
-              for member in archive.infolist():
-                  name = PurePosixPath(member.filename)
-                  if name.is_absolute() or ".." in name.parts:
-                      raise SystemExit(f"Unsafe path in base WGT: {member.filename}")
-                  if not name.parts or name.name in excluded_signatures:
-                      continue
-                  target = (destination / Path(*name.parts)).resolve()
-                  if destination not in target.parents and target != destination:
-                      raise SystemExit(f"Base WGT path escapes Web project: {member.filename}")
-                  if member.is_dir():
-                      target.mkdir(parents=True, exist_ok=True)
-                  else:
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      target.write_bytes(archive.read(member))
-          PY
-
-          test -s "$web/config.xml"
-          test -s "$web/index.html"
-          test -s "$web/platform/ambilight.js"
-
-          python3 - "$web/.project" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          from pathlib import Path
-          path = Path(sys.argv[1])
-          if path.exists():
-              tree = ET.parse(path)
-              root = tree.getroot()
-          else:
-              root = ET.Element("projectDescription")
-              ET.SubElement(root, "name").text = "MoonlightWeb"
-              ET.SubElement(root, "comment")
-              ET.SubElement(root, "projects")
-              ET.SubElement(root, "buildSpec")
-              ET.SubElement(root, "natures")
-              tree = ET.ElementTree(root)
-          projects = root.find("projects")
-          if projects is None:
-              projects = ET.SubElement(root, "projects")
-          if not any((item.text or "").strip() == "MoonlightAmbilightService"
-                     for item in projects.findall("project")):
-              ET.SubElement(projects, "project").text = "MoonlightAmbilightService"
-          tree.write(path, encoding="UTF-8", xml_declaration=True)
-          PY
-
-          mkdir -p "$service/src"
-          cp ambilight-service/native/main.c "$service/src/main.c"
-          cp ambilight-service/native/tizen-manifest.xml "$service/tizen-manifest.xml"
-
-          python3 - "$web/config.xml" "$service/tizen-manifest.xml" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          web = ET.parse(sys.argv[1]).getroot()
-          tree = ET.parse(sys.argv[2])
-          native = tree.getroot()
-          web_app = next((node for node in web.iter() if node.tag.endswith("application")), None)
-          service_app = next((node for node in native.iter()
+          service_path = sys.argv[2]
+          tree = ET.parse(service_path)
+          manifest = tree.getroot()
+          web_app = next((node for node in web.iter()
+                          if node.tag.endswith("application")), None)
+          service_app = next((node for node in manifest.iter()
                               if node.tag.endswith("service-application")), None)
-          if web_app is None or web_app.attrib.get("id") != "MoonLightS.MoonlightWasm":
+
+          if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
               raise SystemExit("Moonlight Web application ID changed unexpectedly")
-          if web_app.attrib.get("package") != "MoonLightS":
-              raise SystemExit("Moonlight Web package ID is not MoonLightS")
-          if native.attrib.get("package") != web_app.attrib.get("package"):
-              raise SystemExit("Native and Web projects must share one package ID")
-          if service_app is None or service_app.attrib.get("appid") != "MoonLightS.MoonlightAmbilight":
-              raise SystemExit("Native Ambilight service application ID mismatch")
-          if service_app.attrib.get("exec") != "moonlight-ambilight":
-              raise SystemExit("Native service executable name mismatch")
-          native.set("version", web.attrib.get("version", "1.2.4"))
-          tree.write(sys.argv[2], encoding="UTF-8", xml_declaration=True)
+          if web_app.get("package") != "MoonLightS":
+              raise SystemExit("Moonlight Web package ID changed unexpectedly")
+          if manifest.get("package") != web_app.get("package"):
+              raise SystemExit("Web and .NET service package IDs must match")
+          if service_app is None:
+              raise SystemExit("The .NET ServiceApplication manifest is missing")
+          if service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
+              raise SystemExit("Ambilight service application ID mismatch")
+          if service_app.get("type") != "dotnet":
+              raise SystemExit("Ambilight must remain a .NET Tizen ServiceApplication")
+          if service_app.get("exec") != "MoonlightAmbilight.dll":
+              raise SystemExit("Ambilight .NET entry assembly mismatch")
+
+          manifest.set("version", web.get("version", "1.2.3"))
+          tree.write(service_path, encoding="UTF-8", xml_declaration=True)
+          print("Validated matching package ID and .NET service app ID; aligned package version.")
           PY
 
-          cat > "$service/project_def.prop" <<'PROP'
-          APPNAME = moonlight-ambilight
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj \
+            -restore -t:Rebuild -p:Configuration=Release -v:m
 
-          type = app
-          profile = tizen-9.0
+          mapfile -d '' service_packages < <(find ambilight-service/bin/Release -type f -name '*.tpk' -size +0c -print0)
+          if [[ ${#service_packages[@]} -ne 1 ]]; then
+            echo "::error::Expected one .NET Tizen TPK, found ${#service_packages[@]}."
+            find ambilight-service/bin -maxdepth 8 -type f -printf '%p\n' | sort || true
+            exit 1
+          fi
 
-          USER_SRCS = src/main.c
-          USER_DEFS =
-          USER_INC_DIRS = src
-          USER_OBJS =
-          USER_LIBS = appcore-agent capi-appfw-app-control dlog dl pthread m
-          USER_LFLAGS = -Wl,--no-undefined
-          USER_EDCS =
-          PROP
+          service_tpk="${service_packages[0]}"
+          unzip -tq "$service_tpk"
+          python3 - "$service_tpk" <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
+          from pathlib import PurePosixPath
 
-          echo "HYBRID_ROOT=$root" >> "$GITHUB_ENV"
+          path = sys.argv[1]
+          with zipfile.ZipFile(path) as package:
+              names = package.namelist()
+              manifests = [name for name in names
+                           if PurePosixPath(name).name == "tizen-manifest.xml"]
+              if len(manifests) != 1:
+                  raise SystemExit("The .NET TPK must contain exactly one tizen-manifest.xml")
+              manifest = ET.fromstring(package.read(manifests[0]))
+              app = next((node for node in manifest.iter()
+                          if node.tag.endswith("service-application")), None)
+              if manifest.get("package") != "MoonLightS":
+                  raise SystemExit("The .NET TPK package ID is not MoonLightS")
+              if app is None or app.get("appid") != "MoonLightS.MoonlightAmbilight":
+                  raise SystemExit("The .NET TPK service application ID is incorrect")
+              if app.get("type") != "dotnet" or app.get("exec") != "MoonlightAmbilight.dll":
+                  raise SystemExit("The TPK does not contain the expected .NET service declaration")
+              if not any(PurePosixPath(name).name == "MoonlightAmbilight.dll" for name in names):
+                  raise SystemExit("MoonlightAmbilight.dll is missing from the .NET TPK")
+              print("Validated the compiled .NET Tizen ServiceApplication TPK.")
+          PY
 
-      - name: Build and sign the hybrid Samsung TV WGT
+          echo "AMBILIGHT_SERVICE_TPK=$service_tpk" >> "$GITHUB_ENV"
+
+      - name: Package Web UI and .NET service as one hybrid WGT
         shell: bash
         env:
           AUTHOR_CERT_PASSWORD: moonlight-hybrid-ci
           DISTRIBUTOR_CERT_PASSWORD: tizenpkcs12passfordsigner
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/run-hybrid-build.exp" <<'EXPECT'
+          output="$RUNNER_TEMP/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt"
+
+          cat > "$RUNNER_TEMP/run-tizen-pack.exp" <<'EXPECT'
           set timeout 600
           log_user 1
           set author_password $env(AUTHOR_CERT_PASSWORD)
@@ -314,7 +312,7 @@ jobs:
               exp_continue -continue_timer
             }
             timeout {
-              puts stderr "Timed out waiting for Tizen hybrid build/signing."
+              puts stderr "Timed out waiting for Tizen hybrid packaging/signing."
               puts stderr $expect_out(buffer)
               exit 124
             }
@@ -326,39 +324,38 @@ jobs:
           if {$exit_status != 0} { exit $exit_status }
           if {[llength $result] > 4 && [lindex $result 4] != 0} { exit 126 }
           EXPECT
-          chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
+          chmod +x "$RUNNER_TEMP/run-tizen-pack.exp"
 
-          expect "$RUNNER_TEMP/run-hybrid-build.exp" \
-            tizen build-app \
-            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"tizen-9.0-device.core","platform":"tizen-9.0","arch":"arm"}],configs:[Release]' \
-            -b 'name:b1,targets:[MoonlightWeb,MoonlightAmbilightService],methods:[m1]' \
-            -p 'name:p1,targets:[b1]' \
-            -s MoonlightHybrid \
-            -- "$HYBRID_ROOT"
+          expect "$RUNNER_TEMP/run-tizen-pack.exp" \
+            "$TIZEN_CORE_CLI" pack \
+            --type wgt \
+            --sign-profile MoonlightHybrid \
+            --profiles-path "$TIZEN_PROFILES" \
+            --ref-pkgs "$AMBILIGHT_SERVICE_TPK" \
+            --base-pkg "$RUNNER_TEMP/Moonlight-Web-Base.wgt" \
+            --out-path "$output"
 
-      - name: Validate the single hybrid WGT
+          test -s "$output"
+          echo "HYBRID_WGT=$output" >> "$GITHUB_ENV"
+
+      - name: Validate the single hybrid WGT and AppControl contract
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -d '' packages < <(find "$HYBRID_ROOT" -type f -name '*.wgt' -size +0c -print0)
-          if [[ ${#packages[@]} -ne 1 ]]; then
-            echo "::error::Expected one hybrid WGT, found ${#packages[@]}."
-            find "$HYBRID_ROOT" -maxdepth 7 -type f -printf '%p\n' | sort
-            exit 1
-          fi
-
-          package="${packages[0]}"
+          package="$HYBRID_WGT"
           unzip -t "$package"
-          python3 - "$package" <<'PY'
-          import sys, zipfile, xml.etree.ElementTree as ET
+
+          python3 - "$package" wasm/platform/ambilight.js ambilight-service/Program.cs <<'PY'
+          import sys
+          import zipfile
+          import xml.etree.ElementTree as ET
           from pathlib import PurePosixPath
-          package = sys.argv[1]
-          with zipfile.ZipFile(package) as archive:
-              names = set(archive.namelist())
+
+          package_path, js_path, cs_path = sys.argv[1:]
+          with zipfile.ZipFile(package_path) as package:
+              names = set(package.namelist())
               required = {
-                  "config.xml",
                   "tizen-manifest.xml",
-                  "bin/moonlight-ambilight",
                   "res/wgt/config.xml",
                   "res/wgt/index.html",
                   "res/wgt/platform/ambilight.js",
@@ -368,34 +365,77 @@ jobs:
               missing = sorted(required - names)
               if missing:
                   raise SystemExit("Hybrid WGT is missing: " + ", ".join(missing))
+
               for name in names:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
                       raise SystemExit(f"Unsafe path in hybrid WGT: {name}")
 
-              web = ET.fromstring(archive.read("res/wgt/config.xml"))
-              web_app = next((node for node in web.iter() if node.tag.endswith("application")), None)
-              native = ET.fromstring(archive.read("tizen-manifest.xml"))
-              service_app = next((node for node in native.iter()
+              web = ET.fromstring(package.read("res/wgt/config.xml"))
+              web_app = next((node for node in web.iter()
+                              if node.tag.endswith("application")), None)
+              service = ET.fromstring(package.read("tizen-manifest.xml"))
+              service_app = next((node for node in service.iter()
                                   if node.tag.endswith("service-application")), None)
 
-              if web_app is None or web_app.attrib.get("id") != "MoonLightS.MoonlightWasm":
-                  raise SystemExit("Packaged Web application identity is invalid")
-              if web_app.attrib.get("package") != "MoonLightS":
+              if web_app is None or web_app.get("id") != "MoonLightS.MoonlightWasm":
+                  raise SystemExit("Packaged Moonlight Web application identity is invalid")
+              if web_app.get("package") != "MoonLightS":
                   raise SystemExit("Packaged Web package ID is invalid")
-              if native.attrib.get("package") != "MoonLightS":
-                  raise SystemExit("Packaged native package ID differs from Web package")
-              if service_app is None or service_app.attrib.get("appid") != "MoonLightS.MoonlightAmbilight":
+              if service.get("package") != "MoonLightS":
+                  raise SystemExit("Packaged .NET service package ID differs from Web package")
+              if service_app is None or service_app.get("appid") != "MoonLightS.MoonlightAmbilight":
                   raise SystemExit("Packaged Ambilight service application ID is invalid")
-              if service_app.attrib.get("exec") != "moonlight-ambilight":
-                  raise SystemExit("Packaged Ambilight executable identity is invalid")
-              print("Validated one signed hybrid WGT: Moonlight Web UI + native Ambilight ServiceApp.")
+              if service_app.get("type") != "dotnet" or service_app.get("exec") != "MoonlightAmbilight.dll":
+                  raise SystemExit("Packaged service is not the expected .NET Tizen application")
+
+              assemblies = [name for name in names
+                            if PurePosixPath(name).name == "MoonlightAmbilight.dll"]
+              if not assemblies:
+                  raise SystemExit("Packaged .NET service assembly is missing")
+
+          with open(js_path, encoding="utf-8") as file:
+              js = file.read()
+          with open(cs_path, encoding="utf-8") as file:
+              cs = file.read()
+
+          contract = [
+              "MoonLightS.MoonlightAmbilight",
+              "new tizen.ApplicationControlData('command'",
+              "new tizen.ApplicationControlData('wledIp'",
+              "new tizen.ApplicationControlData('wledPort'",
+              "new tizen.ApplicationControlData('ledCount'",
+          ]
+          for token in contract:
+              if token not in js:
+                  raise SystemExit("Web AppControl contract is missing: " + token)
+          for token in ['"command"', '"wledIp"', '"wledPort"', '"ledCount"', '"start"', '"stop"']:
+              if token not in cs:
+                  raise SystemExit("The .NET service does not handle AppControl field: " + token)
+
+          print("Validated one signed hybrid WGT: Moonlight Web/WASM + .NET Tizen service.")
+          print("Validated matching Web-to-.NET AppControl application ID and start/stop fields.")
           PY
 
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt"
           sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt" \
             > "$RUNNER_TEMP/hybrid-output/SHA256SUMS"
+
+      - name: Show Tizen CLI diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          echo "=== Tizen Core / Studio logs ==="
+          find "$RUNNER_TEMP" "$HOME" -type f \
+            \( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \) \
+            -print 2>/dev/null | while IFS= read -r log; do
+              echo "--- $log (last 300 lines) ---"
+              tail -n 300 "$log"
+            done
+          echo "=== .NET build outputs ==="
+          find ambilight-service/bin -maxdepth 8 -type f -printf '%p\n' 2>/dev/null | sort
 
       - name: Upload hybrid WGT
         uses: actions/upload-artifact@v4
