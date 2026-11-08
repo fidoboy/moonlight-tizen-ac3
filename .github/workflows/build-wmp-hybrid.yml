@@ -129,8 +129,11 @@ jobs:
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           test -s "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
-          docker cp "$container_id:/home/moonlight/tizen-studio-data/keystore/author/Moonlight.p12" "$RUNNER_TEMP/Moonlight-Author.p12"
-          test -s "$RUNNER_TEMP/Moonlight-Author.p12"
+          # Export the complete signing profile and author keystore used by the successful web build.
+          docker cp "$container_id:/home/moonlight/tizen-studio-data/profile" "$RUNNER_TEMP/Moonlight-Tizen-Profile"
+          docker cp "$container_id:/home/moonlight/tizen-studio-data/keystore/author" "$RUNNER_TEMP/Moonlight-Tizen-Author"
+          test -s "$RUNNER_TEMP/Moonlight-Tizen-Profile/profiles.xml"
+          test -s "$RUNNER_TEMP/Moonlight-Tizen-Author/Moonlight.p12"
 
       - name: Cache Tizen Studio SDK
         uses: actions/cache@v4
@@ -183,27 +186,34 @@ jobs:
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
 
-      - name: Create headless CI signing profile
+      - name: Restore original Tizen signing profile
         shell: bash
-        env:
-          CERT_PASSWORD: 123456
         run: |
           set -euo pipefail
-          author_p12="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
-          mkdir -p "$(dirname "$author_p12")"
-          test -s "$RUNNER_TEMP/Moonlight-Author.p12"
-          # The base Tizen build already uses this author certificate successfully.
-          # Avoid parsing its legacy PKCS#12 encryption with the runner OpenSSL.
-          cp "$RUNNER_TEMP/Moonlight-Author.p12" "$author_p12"
-          tizen security-profiles add \
-            -n Moonlight \
-            -a "$author_p12" \
-            -p "$CERT_PASSWORD"
-          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
-          test -s "$profiles"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
-          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+          source_profile="$RUNNER_TEMP/Moonlight-Tizen-Profile"
+          source_author="$RUNNER_TEMP/Moonlight-Tizen-Author"
+          destination_profile="$TIZEN_STUDIO_DATA_PATH/profile"
+          destination_author="$TIZEN_STUDIO_DATA_PATH/keystore/author"
+
+          test -s "$source_profile/profiles.xml"
+          test -s "$source_author/Moonlight.p12"
+          mkdir -p "$destination_profile" "$destination_author"
+
+          # Restore the exact profile XML and every author-keystore file.
+          cp -a "$source_profile/." "$destination_profile/"
+          cp -a "$source_author/." "$destination_author/"
+
+          # Relocate only absolute paths; retain the profile settings and
+          # password handling exactly as they were in the working container.
+          profiles="$destination_profile/profiles.xml"
+          sed -i \
+            -e "s|/home/moonlight/tizen-studio-data|$TIZEN_STUDIO_DATA_PATH|g" \
+            -e "s|/home/moonlight/tizen-studio|$TIZEN_STUDIO|g" \
+            "$profiles"
+
+          grep -q "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" "$profiles"
+          grep -q "$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" "$profiles"
+          echo "Original Moonlight signing profile restored; no new profile or certificate generated."
 
       - name: Prepare hybrid web and native projects
         shell: bash
