@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest package="com.moonlight.tizen.ambilight" version="1.0.0" api-version="6.5" xmlns="http://tizen.org/ns/packages">
+  <author>Moonlight Tizen</author>
+  <profile name="tv" />
+  <service-application appid="com.moonlight.tizen.ambilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="9" type="dotnet" on-boot="false" auto-restart="false">
+    <label>Moonlight Ambilight</label>
+    <icon>MoonlightAmbilight.png</icon>
+    <splash-screens />
+  </service-application>
+  <shortcut-list />
+  <privileges>
+    <privilege>http://tizen.org/privilege/internet</privilege>
+    <privilege>http://tizen.org/privilege/network.get</privilege>
+  </privileges>
+  <dependencies />
+  <provides-appdefined-privileges />
+</manifest>
