@@ -419,8 +419,8 @@ jobs:
           web_wgt="$RUNNER_TEMP/Moonlight-Web-Base.wgt"
           output="$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
 
-          # The native job already cross-compiles both ARM ELF files. This job
-          # only assembles the Tizen hybrid package; Apps2Samsung signs it for
+          # The native build above has cross-compiled both ARM ELF files.
+          # This step assembles the hybrid package without signing; Apps2Samsung signs it for
           # the selected TV immediately before installation.
           python3 - "$service_binary" "$manifest" "$web_wgt" "$engine" "$output" <<'PY'
           import stat, sys, zipfile
