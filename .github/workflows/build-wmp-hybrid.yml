@@ -489,7 +489,7 @@ jobs:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
               for name in ("bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml", "tizen-manifest.xml"):
-                  target = output / name.replace("/", "_")
+                  target = output / name
                   target.parent.mkdir(parents=True, exist_ok=True)
                   target.write_bytes(archive.read(name))
               config = ET.fromstring(archive.read("res/wgt/config.xml"))
