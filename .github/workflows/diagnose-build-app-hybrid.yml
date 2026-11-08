@@ -122,8 +122,13 @@ jobs:
             echo "=== detailed build-app help ==="
             tizen build-app -h
             echo
-            echo "=== build-app manual ==="
-            tizen manual build-app
+            echo "=== build-app manual (optional) ==="
+            if tizen manual build-app; then
+              echo "build-app manual is available."
+            else
+              manual_status=$?
+              echo "build-app manual is unavailable (exit $manual_status); continuing with CLI help output."
+            fi
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-help.txt"
           status=${PIPESTATUS[0]}
           if (( status != 0 )); then
