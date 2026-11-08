@@ -90,7 +90,7 @@ jobs:
             -n Moonlight \
             -a "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" \
             -p 123456 \
-            -x "$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+            -- "$TIZEN_STUDIO_DATA_PATH/profile"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
           sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
