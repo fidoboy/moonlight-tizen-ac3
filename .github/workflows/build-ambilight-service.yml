@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: moonlight-ambilight-hybrid-\${{ github.ref }}
@@ -102,6 +103,52 @@ jobs:
 
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+
+      - name: Ensure versioned MP4 splash assets are available
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          asset_file="moonlight-generated-videos-v1.zip"
+          asset_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/build-assets/$asset_file"
+          asset_path="$RUNNER_TEMP/$asset_file"
+          api_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
+          mkdir -p generated-videos
+
+          status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
+          if [[ "$status" == "404" ]]; then
+            dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
+              --request POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              -H 'Content-Type: application/json' \
+              --data '{"ref":"master"}' "$api_url")"
+            if [[ "$dispatch_status" != "204" ]]; then
+              cat "$RUNNER_TEMP/video-assets-dispatch.json" >&2 || true
+              echo "::error::Could not dispatch Generate video assets (HTTP $dispatch_status)." >&2
+              exit 1
+            fi
+            status="404"
+            for attempt in $(seq 1 120); do
+              sleep 10
+              status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
+              [[ "$status" == "200" ]] && break
+              if [[ "$status" != "404" && "$status" != "502" && "$status" != "503" && "$status" != "504" ]]; then
+                echo "::error::Unexpected HTTP $status while waiting for generated video assets." >&2
+                exit 1
+              fi
+            done
+          fi
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Could not retrieve generated video assets (HTTP $status)." >&2
+            exit 1
+          fi
+          unzip -tq "$asset_path"
+          unzip -oq "$asset_path" -d generated-videos
+          test -s generated-videos/launch-screen.mp4
+          test -s generated-videos/launch-screen-portrait.mp4
 
       - name: Build Moonlight Web application
         shell: bash
