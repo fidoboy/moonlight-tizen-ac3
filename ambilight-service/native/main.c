@@ -359,10 +359,11 @@ static int parse_int(const char *value, int fallback)
     return (int)parsed;
 }
 
-static void service_create(void *user_data)
+static bool service_create(void *user_data)
 {
     (void)user_data;
     dlog_print(DLOG_INFO, LOG_TAG, "Moonlight Ambilight service ready");
+    return true;
 }
 
 static void service_control(app_control_h control, void *user_data)
