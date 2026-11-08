@@ -307,9 +307,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          draft="$RUNNER_TEMP/Moonlight-Ambilight-Samsung-TV-Hybrid-Tizen65.wgt"
-          patched="$RUNNER_TEMP/Moonlight-Ambilight-Samsung-TV-Hybrid-Tizen55.wgt"
-          output="$RUNNER_TEMP/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt"
+          draft="$RUNNER_TEMP/Moonlight-Hybrid-Tizen65.wgt"
+          patched="$RUNNER_TEMP/Moonlight-Hybrid-Tizen55.wgt"
+          output="$RUNNER_TEMP/Moonlight-Hybrid.wgt"
 
           "$TIZEN_CORE_CLI" pack \
             --type wgt \
@@ -454,8 +454,8 @@ jobs:
           PY
 
           mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt"
-          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Ambilight-Samsung-TV-Hybrid.wgt" \
+          cp "$package" "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt"
+          sha256sum "$RUNNER_TEMP/hybrid-output/Moonlight-Hybrid.wgt" \
             > "$RUNNER_TEMP/hybrid-output/SHA256SUMS"
 
       - name: Show packaging diagnostics on failure
@@ -472,7 +472,7 @@ jobs:
       - name: Upload hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v4
         with:
-          name: Moonlight-Ambilight-Samsung-TV-Hybrid
+          name: Moonlight-Hybrid
           path: ${{ runner.temp }}/hybrid-output/
           if-no-files-found: error
           retention-days: 14
