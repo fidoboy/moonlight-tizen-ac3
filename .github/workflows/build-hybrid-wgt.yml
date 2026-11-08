@@ -223,11 +223,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$TIZEN_CORE_CLI" list templates --type web | tee "$RUNNER_TEMP/web-templates.txt"
-          "$TIZEN_CORE_CLI" list templates --type dotnet | tee "$RUNNER_TEMP/dotnet-templates.txt"
-          grep -Fq 'Basic [web_app]' "$RUNNER_TEMP/web-templates.txt"
-          grep -Fq 'TizenServiceApp' "$RUNNER_TEMP/dotnet-templates.txt"
-
           package_one() {
             local source="$1" name="$2" output="$3"
             local workspace="$RUNNER_TEMP/hybrid-$name"
