@@ -88,6 +88,13 @@ jobs:
           python3.8 --version
           python3.8 -c 'import sys; assert sys.version_info[:2] == (3, 8), sys.version'
 
+      - name: Save Python 3.8 Debian package cache
+        if: steps.python38-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/python38-debs
+          key: python38-debs-ubuntu-22.04-3.8.20-v1
+
       - name: Restore Tizen Studio SDK cache
         id: tizen-sdk-cache
         uses: actions/cache@v4
