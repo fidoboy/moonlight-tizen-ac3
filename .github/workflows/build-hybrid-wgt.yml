@@ -305,7 +305,25 @@ jobs:
             fi
           }
 
-          # Build the Tizen .NET service directly; avoid the broken tz build wrapper.
+          package_base_web() {
+            local source="$1" name="$2" base_wgt="$3"
+            local workspace="$RUNNER_TEMP/hybrid-$name"
+            local web="$workspace/$name"
+            mkdir -p "$workspace"
+            run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
+            test -d "$web"
+            cp -a "$source/." "$web/"
+            run_tz "pack-base-web-wgt-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$base_wgt"
+            test -s "$base_wgt"
+            unzip -tq "$base_wgt"
+          }
+
+          # 1. Create both base Web WGTs before compiling or packaging the service.
+          package_base_web "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
+          package_base_web "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt"
+
+          # 2. Compile the Tizen .NET service directly. Do not use "tz build":
+          # its hybrid wrapper passes dotnet as the MSBuild executable.
           find ambilight-service -type f -name '*.tpk' -delete
           dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Debug -v:m
 
@@ -317,19 +335,11 @@ jobs:
           fi
           service_tpk="${service_pkgs[0]}"
           test -s "$service_tpk"
+          echo "Service TPK: $service_tpk"
 
-          package_one() {
-            local source="$1" name="$2" output="$3"
-            local workspace="$RUNNER_TEMP/hybrid-$name"
-            local web="$workspace/$name"
-            local base_wgt="$RUNNER_TEMP/$name-base.wgt"
-            mkdir -p "$workspace"
-            run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
-            test -d "$web"
-            cp -a "$source/." "$web/"
-            run_tz "pack-base-web-wgt-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$base_wgt"
-            test -s "$base_wgt"
-            unzip -tq "$base_wgt"
+          package_hybrid() {
+            local source="$1" name="$2" base_wgt="$3" output="$4"
+            # 3. Merge the compiled service TPK into the corresponding base Web WGT.
             run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
@@ -355,8 +365,8 @@ jobs:
           PY
           }
 
-          package_one "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/Moonlight.wgt"
-          package_one "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
+          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
+          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
           cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
