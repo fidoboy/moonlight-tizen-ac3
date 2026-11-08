@@ -187,17 +187,9 @@ jobs:
           set -euo pipefail
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
 
-          # Tizen author keystores require a policy-compliant password. Generate
-          # 16 characters with upper/lowercase, digits and special characters.
           password="$(python3 - <<'PY'
-          import secrets
-          import string
-          groups = (
-              string.ascii_uppercase,
-              string.ascii_lowercase,
-              string.digits,
-              "!@#$%^&*()-_=+",
-          )
+          import secrets, string
+          groups = (string.ascii_uppercase, string.ascii_lowercase, string.digits, "!@#$%^&*()-_=+")
           chars = [secrets.choice(group) for group in groups]
           alphabet = "".join(groups)
           chars.extend(secrets.choice(alphabet) for _ in range(16 - len(chars)))
@@ -217,40 +209,95 @@ jobs:
           echo "TIZEN_CERT_PASSWORD=$password" >> "$GITHUB_ENV"
           export TIZEN_CERT_PASSWORD="$password"
 
+          echo "::group::1/7 Generate author certificate"
           tizen certificate -a MoonlightHybrid -f MoonlightHybrid -p "$TIZEN_CERT_PASSWORD"
           author_keystore="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12"
-          test -s "$author_keystore"
-          tizen security-profiles add \
-            -n MoonlightHybrid \
-            -a "$author_keystore" \
-            -p "$TIZEN_CERT_PASSWORD"
+          if [[ ! -s "$author_keystore" ]]; then
+            echo "::error::Tizen certificate command returned, but the author PKCS#12 file is missing or empty: $author_keystore" >&2
+            exit 1
+          fi
+          echo "Author PKCS#12 exists."
+          echo "::endgroup::"
 
+          echo "::group::2/7 Register signing profile"
+          tizen security-profiles add -n MoonlightHybrid -a "$author_keystore" -p "$TIZEN_CERT_PASSWORD"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
-          test -s "$profiles"
+          if [[ ! -s "$profiles" ]]; then
+            echo "::error::Tizen did not create a non-empty profiles.xml after registering the profile." >&2
+            exit 1
+          fi
+          echo "Signing profile registered."
+          echo "::endgroup::"
 
-          # Match the supported headless CI workaround used by the standard
-          # Moonlight packaging path: no GNOME keyring .pwd file for the author,
-          # and the SDK's bundled distributor password in profiles.xml.
+          echo "::group::3/7 Validate SDK distributor credentials"
           author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.pwd"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          test -s "$distributor_pwd"
+          distributor_keystore="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
+          if [[ ! -s "$distributor_pwd" ]]; then
+            echo "::error::SDK distributor password file is missing or empty: $distributor_pwd" >&2
+            exit 1
+          fi
+          if [[ ! -s "$distributor_keystore" ]]; then
+            echo "::error::SDK distributor PKCS#12 file is missing or empty: $distributor_keystore" >&2
+            exit 1
+          fi
+          echo "SDK distributor credentials are present."
+          echo "::endgroup::"
+
+          echo "::group::4/7 Normalize headless profile password references"
           sed -i \
             -e "s|$author_pwd||g" \
             -e "s|$distributor_pwd|tizenpkcs12passfordsigner|g" \
             "$profiles"
-
-          # Prove that the generated PKCS#12 can actually be opened with the
-          # password supplied to Tizen; do not print the password or key material.
-          openssl pkcs12 -in "$author_keystore" -passin env:TIZEN_CERT_PASSWORD -noout >/dev/null
-          grep -Fq "$author_keystore" "$profiles"
-          grep -Fq "tizen-distributor-signer.p12" "$profiles"
-          if grep -Fq "$author_pwd" "$profiles" || grep -Fq "$distributor_pwd" "$profiles"; then
-            echo "::error::Signing profile still contains an unresolved password-file reference." >&2
+          if grep -Fq "$author_pwd" "$profiles"; then
+            echo "::error::Author .pwd reference remains in profiles.xml after normalization." >&2
             exit 1
           fi
+          if grep -Fq "$distributor_pwd" "$profiles"; then
+            echo "::error::Distributor .pwd reference remains in profiles.xml after normalization." >&2
+            exit 1
+          fi
+          if ! grep -Fq "$author_keystore" "$profiles"; then
+            echo "::error::profiles.xml does not reference the generated author PKCS#12 file." >&2
+            exit 1
+          fi
+          if ! grep -Fq "tizen-distributor-signer.p12" "$profiles"; then
+            echo "::error::profiles.xml does not reference the SDK distributor PKCS#12 file." >&2
+            exit 1
+          fi
+          python3 - "$profiles" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          try:
+              ET.parse(sys.argv[1])
+          except Exception as exc:
+              raise SystemExit(f"profiles.xml is not well-formed XML: {exc}")
+          print("profiles.xml is well-formed and contains the expected keystore references.")
+          PY
+          echo "::endgroup::"
 
-          tizen cli-config "profiles.path=$profiles"
-          echo "Headless Tizen signing profile created and PKCS#12 password validated."
+          echo "::group::5/7 Validate author PKCS#12 password"
+          if ! openssl pkcs12 -in "$author_keystore" -passin env:TIZEN_CERT_PASSWORD -noout >/dev/null 2>&1; then
+            echo "::error::OpenSSL could not open the author PKCS#12 with the generated password." >&2
+            exit 1
+          fi
+          echo "Author PKCS#12 password accepted."
+          echo "::endgroup::"
+
+          echo "::group::6/7 Configure Tizen CLI profile path"
+          if ! tizen cli-config "profiles.path=$profiles"; then
+            echo "::error::Tizen CLI rejected the profiles.path configuration." >&2
+            exit 1
+          fi
+          echo "Tizen CLI profile path configured."
+          echo "::endgroup::"
+
+          echo "::group::7/7 Confirm profile is selectable"
+          if ! tizen security-profiles list | grep -Fq "MoonlightHybrid"; then
+            echo "::error::MoonlightHybrid is not listed by tizen security-profiles list." >&2
+            exit 1
+          fi
+          echo "Headless signing profile passed all validation checks."
+          echo "::endgroup::"
 
       - name: Prepare hybrid web and native projects
         shell: bash
@@ -440,11 +487,11 @@ jobs:
           set -euo pipefail
           diagnostics="$RUNNER_TEMP/tizen-cli-diagnostics"
           mkdir -p "$diagnostics"
-          log_dir="${TIZEN_STUDIO_DATA_PATH:-$RUNNER_TEMP/tizen-studio-data}/cli/logs"
 
-          if [[ -d "$log_dir" ]]; then
-            cp -a "$log_dir/." "$diagnostics/"
-          fi
+          # Tizen CLI logs can contain transient signing passwords. Never copy
+          # raw cli.log files into workflow artifacts.
+          printf '%s\\n' "Raw Tizen CLI logs intentionally excluded because they may contain credentials." \
+            > "$diagnostics/RAW-CLI-LOGS-EXCLUDED.txt"
 
           if [[ -n "${HYBRID_ROOT:-}" && -d "$HYBRID_ROOT/WmpService" ]]; then
             mkdir -p "$diagnostics/WmpService"
@@ -462,18 +509,7 @@ jobs:
               fi
             done
           fi
-
-          if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
-            find "$RUNNER_TEMP" "$GITHUB_WORKSPACE" -type f -path '*/cli/logs/cli.log' -print 2>/dev/null | while IFS= read -r log; do
-              destination="$diagnostics/$(echo "$log" | sed 's|/|_|g')"
-              cp "$log" "$destination"
-            done
-          fi
-
-          if [[ -z "$(find "$diagnostics" -type f -print -quit)" ]]; then
-            printf 'Tizen CLI log directory not found or empty: %s\n' "$log_dir" > "$diagnostics/LOG-NOT-FOUND.txt"
-          fi
-          find "$diagnostics" -maxdepth 1 -type f -printf '%f (%s bytes)\n' | sort
+          find "$diagnostics" -type f -printf '%P (%s bytes)\\n' | sort
 
       - name: Upload Tizen CLI diagnostics
         if: always()
