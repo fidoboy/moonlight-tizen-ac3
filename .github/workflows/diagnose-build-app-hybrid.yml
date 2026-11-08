@@ -32,7 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends software-properties-common expect unzip
+          sudo apt-get install -y --no-install-recommends \\
+            software-properties-common expect unzip \\
+            libxcb-icccm4 libkf5itemmodels5 bridge-utils libxcb-shape0 openvpn
           sudo add-apt-repository -y ppa:deadsnakes/ppa
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
@@ -46,19 +48,26 @@ jobs:
           sdk="$RUNNER_TEMP/tizen-studio"
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
-          # The Samsung TV SDK is an Extension SDK, not a baseline Tizen platform.
-          # Register its official repository explicitly before resolving TV package IDs.
-          "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories-before.txt"
-          tv_repo="https://sdf.samsungcloudcdn.com/Public/smart_tv_sdk/releases/samsung_tizen_studio_tv_sdk/stv_ext_public/TV"
-          if ! grep -Fq "$tv_repo" "$RUNNER_TEMP/tizen-extra-repositories-before.txt"; then
-            "$pm" extra --add -n "Samsung Tizen TV SDK" -r "$tv_repo"
-          fi
-          "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
-          grep -Fq "$tv_repo" "$RUNNER_TEMP/tizen-extra-repositories.txt"
+          # The installer already registers Samsung's TV Extension repository.
+          # Do not add another repository with the same display name.
+          "$pm" extra --list 2>&1 | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
+          grep -Fq "Samsung Tizen TV SDK" "$RUNNER_TEMP/tizen-extra-repositories.txt"
 
+          # Preserve the complete Package Manager output, including failures.
+          set +e
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV Extensions-9.0"
-          "$pm" show-pkgs --tree | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV Extensions-9.0" \
+            2>&1 | tee "$RUNNER_TEMP/tizen-package-install.txt"
+          install_status=${PIPESTATUS[0]}
+          set -e
+          echo "Package Manager install exit code: $install_status" \
+            | tee "$RUNNER_TEMP/tizen-package-install-status.txt"
+
+          "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+          if (( install_status != 0 )); then
+            echo "Package Manager installation failed; see tizen-package-install.txt."
+            exit "$install_status"
+          fi
           if ! awk '$1 == "i" && $2 == "TV" && $3 == "Extensions-9.0" { found=1 } END { exit !found }' \
             "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
             echo "TV Extensions-9.0 is not listed as installed by package-manager-cli."
