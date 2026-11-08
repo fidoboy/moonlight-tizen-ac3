@@ -13,6 +13,7 @@
 #undef LOG_TAG
 #define LOG_TAG "MoonlightAmbilightProbe"
 #define PROBE_PORT "AmbilightProbeControl"
+#define STATUS_PORT "AmbilightProbeStatus"
 #define PROBE_WEB_APP_ID "AmbiProbeX.AmbilightProbeWeb"
 #define PROBE_PROTOCOL "ambilight-probe/1"
 
@@ -44,6 +45,8 @@ typedef struct {
 } probe_api_t;
 
 static int g_port_id = -1;
+static int g_status_port_id = -1;
+static int g_probe_registration_error = 0;
 
 static void add_string(bundle *message, const char *key, const char *value)
 {
@@ -221,30 +224,54 @@ static void message_received(int local_port_id, const char *remote_app_id,
 
     (void)bundle_get_str(message, "protocol", &protocol);
     (void)bundle_get_str(message, "command", &command);
-    if (protocol == NULL || strcmp(protocol, PROBE_PROTOCOL) != 0 ||
-        command == NULL || strcmp(command, "probe") != 0) {
-        dlog_print(DLOG_WARN, LOG_TAG, "Rejected invalid probe command");
+    if (protocol == NULL || strcmp(protocol, PROBE_PROTOCOL) != 0 || command == NULL) {
+        dlog_print(DLOG_WARN, LOG_TAG, "Rejected invalid diagnostic command");
         return;
     }
 
     reply = bundle_create();
     if (reply == NULL) return;
-    run_probe(reply);
+
+    if (local_port_id == g_status_port_id && strcmp(command, "status") == 0) {
+        add_string(reply, "protocol", PROBE_PROTOCOL);
+        add_string(reply, "type", "service_status");
+        add_string(reply, "probe_port_registered", g_port_id >= 0 ? "true" : "false");
+        add_int(reply, "probe_port_error", g_probe_registration_error);
+    } else if (local_port_id == g_port_id && strcmp(command, "probe") == 0) {
+        run_probe(reply);
+    } else {
+        bundle_free(reply);
+        dlog_print(DLOG_WARN, LOG_TAG, "Rejected command for unexpected local MessagePort");
+        return;
+    }
+
     result = message_port_send_trusted_message(remote_app_id, remote_port, reply);
     bundle_free(reply);
     if (result != MESSAGE_PORT_ERROR_NONE)
-        dlog_print(DLOG_ERROR, LOG_TAG, "Could not send probe result: %d", result);
+        dlog_print(DLOG_ERROR, LOG_TAG, "Could not send diagnostic result: %d", result);
 }
 
 static bool service_create(void *data)
 {
     (void)data;
-    g_port_id = message_port_register_trusted_local_port(PROBE_PORT, message_received, NULL);
-    if (g_port_id < 0) {
-        dlog_print(DLOG_ERROR, LOG_TAG, "Could not register probe MessagePort: %d", g_port_id);
+
+    /* Keep a diagnostic channel alive even if the actual probe port fails. */
+    g_status_port_id = message_port_register_trusted_local_port(STATUS_PORT, message_received, NULL);
+    if (g_status_port_id < 0) {
+        dlog_print(DLOG_ERROR, LOG_TAG, "Could not register status MessagePort: %d", g_status_port_id);
         return false;
     }
-    dlog_print(DLOG_INFO, LOG_TAG, "Ambilight diagnostic service ready; port=%s", PROBE_PORT);
+
+    g_port_id = message_port_register_trusted_local_port(PROBE_PORT, message_received, NULL);
+    if (g_port_id < 0) {
+        g_probe_registration_error = g_port_id;
+        dlog_print(DLOG_ERROR, LOG_TAG, "Could not register probe MessagePort: %d", g_port_id);
+        dlog_print(DLOG_WARN, LOG_TAG, "Diagnostic status port remains available: %s", STATUS_PORT);
+        return true;
+    }
+
+    dlog_print(DLOG_INFO, LOG_TAG, "Ambilight diagnostic service ready; ports=%s,%s",
+               STATUS_PORT, PROBE_PORT);
     return true;
 }
 
@@ -254,6 +281,10 @@ static void service_terminate(void *data)
     if (g_port_id >= 0) {
         (void)message_port_unregister_trusted_local_port(g_port_id);
         g_port_id = -1;
+    }
+    if (g_status_port_id >= 0) {
+        (void)message_port_unregister_trusted_local_port(g_status_port_id);
+        g_status_port_id = -1;
     }
     dlog_print(DLOG_INFO, LOG_TAG, "Ambilight diagnostic service stopped");
 }
