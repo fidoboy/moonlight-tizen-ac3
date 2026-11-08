@@ -23,7 +23,7 @@ jobs:
     uses: ./.github/workflows/wmp-native-build.yml
 
   package-hybrid:
-    name: Assemble and sign hybrid WGT
+    name: Assemble unsigned hybrid WGT
     needs: build-native
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -145,12 +145,12 @@ jobs:
           # Hosted runners are fresh, so install only host packages that are
           # actually missing. Avoid refreshing APT and adding the PPA on every run.
           need_apt=false
-          if ! command -v expect >/dev/null 2>&1 || ! command -v add-apt-repository >/dev/null 2>&1; then
+          if ! command -v add-apt-repository >/dev/null 2>&1; then
             need_apt=true
           fi
           if [[ "$need_apt" == true ]]; then
             sudo apt-get update
-            sudo apt-get install -y --no-install-recommends expect software-properties-common
+            sudo apt-get install -y --no-install-recommends software-properties-common
           fi
 
           if ! command -v python3.8 >/dev/null 2>&1 || ! ldconfig -p 2>/dev/null | grep -q 'libpython3[.]8[.]so'; then
@@ -180,101 +180,6 @@ jobs:
           echo "$sdk/tools" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
-
-      - name: Create and validate headless Tizen signing profile
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH"
-
-          password="$(python3 - <<'PY'
-          import secrets, string
-          groups = (string.ascii_uppercase, string.ascii_lowercase, string.digits, "!@#$%^&*()-_=+")
-          chars = [secrets.choice(group) for group in groups]
-          alphabet = "".join(groups)
-          chars.extend(secrets.choice(alphabet) for _ in range(16 - len(chars)))
-          secrets.SystemRandom().shuffle(chars)
-          print("".join(chars))
-          PY
-          )"
-          if [[ ${#password} -lt 8 || ${#password} -gt 16 ]] ||
-             ! [[ "$password" =~ [A-Z] ]] ||
-             ! [[ "$password" =~ [a-z] ]] ||
-             ! [[ "$password" =~ [0-9] ]] ||
-             ! [[ "$password" =~ [^A-Za-z0-9] ]]; then
-            echo "::error::Generated Tizen certificate password does not meet the 8-16 character complexity policy." >&2
-            exit 1
-          fi
-          echo "::add-mask::$password"
-          echo "TIZEN_CERT_PASSWORD=$password" >> "$GITHUB_ENV"
-          export TIZEN_CERT_PASSWORD="$password"
-
-          echo "::group::1/7 Generate author certificate"
-          tizen certificate -a MoonlightHybrid -f MoonlightHybrid -p "$TIZEN_CERT_PASSWORD"
-          author_keystore="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12"
-          if [[ ! -s "$author_keystore" ]]; then
-            echo "::error::Tizen certificate command returned, but the author PKCS#12 file is missing or empty: $author_keystore" >&2
-            exit 1
-          fi
-          echo "Author PKCS#12 exists."
-          echo "::endgroup::"
-
-          echo "::group::2/7 Register signing profile"
-          tizen security-profiles add -n MoonlightHybrid -a "$author_keystore" -p "$TIZEN_CERT_PASSWORD"
-          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
-          if [[ ! -s "$profiles" ]]; then
-            echo "::error::Tizen did not create a non-empty profiles.xml after registering the profile." >&2
-            exit 1
-          fi
-          echo "Signing profile registered."
-          echo "::endgroup::"
-
-          echo "::group::3/5 Validate generated signing profile"
-          # Tizen's security-profiles command has already resolved the SDK's
-          # distributor certificate and password. Keep its profiles.xml intact:
-          # SDK installations do not necessarily ship a standalone distributor
-          # .pwd file, and rewriting credential references breaks signing.
-          if ! grep -Fq "$author_keystore" "$profiles"; then
-            echo "::error::profiles.xml does not reference the generated author PKCS#12 file." >&2
-            exit 1
-          fi
-          if ! grep -Fq "tizen-distributor-signer.p12" "$profiles"; then
-            echo "::error::profiles.xml does not reference the SDK distributor PKCS#12 file." >&2
-            exit 1
-          fi
-          python3 - "$profiles" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          try:
-              ET.parse(sys.argv[1])
-          except Exception as exc:
-              raise SystemExit(f"profiles.xml is not well-formed XML: {exc}")
-          print("Tizen-generated profiles.xml is valid; credential references were left unchanged.")
-          PY
-          echo "::endgroup::"
-
-          echo "::group::5/7 Validate author PKCS#12 password"
-          if ! openssl pkcs12 -in "$author_keystore" -passin env:TIZEN_CERT_PASSWORD -noout >/dev/null 2>&1; then
-            echo "::error::OpenSSL could not open the author PKCS#12 with the generated password." >&2
-            exit 1
-          fi
-          echo "Author PKCS#12 password accepted."
-          echo "::endgroup::"
-
-          echo "::group::6/7 Configure Tizen CLI profile path"
-          if ! tizen cli-config "profiles.path=$profiles"; then
-            echo "::error::Tizen CLI rejected the profiles.path configuration." >&2
-            exit 1
-          fi
-          echo "Tizen CLI profile path configured."
-          echo "::endgroup::"
-
-          echo "::group::7/7 Confirm profile is selectable"
-          if ! tizen security-profiles list | grep -Fq "MoonlightHybrid"; then
-            echo "::error::MoonlightHybrid is not listed by tizen security-profiles list." >&2
-            exit 1
-          fi
-          echo "Headless signing profile passed all validation checks."
-          echo "::endgroup::"
 
       - name: Prepare hybrid web and native projects
         shell: bash
@@ -392,67 +297,116 @@ jobs:
           tizen list rootstrap tizen-10.0-device.core | tee "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
           grep -q 'Native_API' "$RUNNER_TEMP/tizen-10-rootstrap-frameworks.txt"
 
-      - name: Build and sign the hybrid WGT
+      - name: Build native WMP service and assemble unsigned hybrid WGT
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/run-hybrid-build.exp" <<'EXPECT'
-          set timeout 60
-          log_user 1
-          spawn {*}$argv
-          expect {
-            -nocase -re {Author password:} {
-              send -- "$env(TIZEN_CERT_PASSWORD)\r"
-              exp_continue
-            }
-            -nocase -re {Save author password[^\r\n]*} {
-              send -- "n\r"
-              exp_continue
-            }
-            -nocase -re {Distributor1 password:} {
-              send -- "tizenpkcs12passfordsigner\r"
-              exp_continue
-            }
-            -nocase -re {Save distributor1 password[^\r\n]*} {
-              send -- "n\r"
-              exp_continue
-            }
-            timeout {
-              puts stderr "Timed out waiting for a recognized Tizen signing prompt."
-              close
-              wait
-              exit 124
-            }
-            eof
-          }
-          set child_status [wait]
-          set exit_status [lindex $child_status 3]
-          exit $exit_status
-          EXPECT
-          chmod +x "$RUNNER_TEMP/run-hybrid-build.exp"
-          expect "$RUNNER_TEMP/run-hybrid-build.exp" \
-            tizen build-app \
-            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"tizen-10.0-device.core","platform":"tizen-10.0","arch":"arm"}],configs:[Release]' \
-            -b 'name:b1,targets:[MoonlightWeb,WmpService],methods:[m1]' \
-            -p 'name:p1,targets:[b1]' \
-            -s MoonlightHybrid \
-            -- "$HYBRID_ROOT" 2>&1 | tee "$RUNNER_TEMP/hybrid-build.log"
+          service_project="$HYBRID_ROOT/WmpService"
+          web_project="$HYBRID_ROOT/MoonlightWeb"
+          native_output="$service_project/Release"
 
-          # Tizen CLI may still report package creation success after a signing
-          # exception. Do not accept its exit code alone as proof of signing.
-          if grep -Eiq 'CertificationException|Invalid password|Invaild password|BUILD FAILED' "$RUNNER_TEMP/hybrid-build.log"; then
-            echo "::error::Tizen reported a signing/build failure; refusing to publish the WGT." >&2
+          # Compile only. Tizen's package/build-app commands always invoke the
+          # signing subsystem, so they are deliberately not used in this CI.
+          tizen build-native \
+            -a arm \
+            -c gcc \
+            -C Release \
+            -r tizen-10.0-device.core \
+            -- "$service_project"
+
+          service_binary="$(find "$native_output" -type f -name wmp-service -print -quit)"
+          if [[ -z "$service_binary" ]]; then
+            echo "::error::Native build did not produce wmp-service under $native_output." >&2
+            find "$service_project" -maxdepth 4 -type f -print | sort >&2
             exit 1
           fi
 
-          hybrid_wgt="$(find "$HYBRID_ROOT" -type f -name '*.wgt' -size +0c -print -quit)"
-          test -n "$hybrid_wgt"
-          cp "$hybrid_wgt" "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
+          # A Tizen hybrid WGT is a ZIP with the native package directories
+          # (bin/lib/info) and the web application under res/wgt. Apps2Samsung
+          # adds the device-specific author/distributor signatures at install.
+          python3 - "$service_binary" "$service_project/tizen-manifest.xml" \
+            "$web_project" "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" \
+            "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" <<'PY'
+          import os, stat, sys, zipfile
+          from pathlib import Path, PurePosixPath
+          import xml.etree.ElementTree as ET
 
-      - name: Upload hybrid WGT candidate for inspection
+          binary, manifest, web_root, engine, output = map(Path, sys.argv[1:])
+          web_root = web_root.resolve()
+          for path in (binary, manifest, engine, web_root / "config.xml", web_root / "index.html"):
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"Required hybrid input is missing or empty: {path}")
+
+          tree = ET.parse(manifest)
+          root = tree.getroot()
+          if root.attrib.get("package") != "MoonLightS":
+              raise SystemExit("Native manifest package ID must be MoonLightS")
+          service = next((n for n in root.iter() if n.tag.endswith("service-application")), None)
+          if service is None or service.attrib.get("appid") != "MoonLightS.WmpService":
+              raise SystemExit("Native service application identity is invalid")
+          if service.attrib.get("exec") != "wmp-service":
+              raise SystemExit("Native service executable must be wmp-service")
+
+          entries = {}
+          entries["bin/wmp-service"] = binary
+          entries["lib/libmlengine.so"] = engine
+          entries["info/manifest.xml"] = manifest
+          # Retain the native source manifest at package root as well. The
+          # authoritative hybrid package metadata is info/manifest.xml.
+          entries["tizen-manifest.xml"] = manifest
+
+          excluded = {".project", ".tproject", ".cproject", ".settings"}
+          for path in web_root.rglob("*"):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(web_root)
+              if any(part in excluded for part in rel.parts):
+                  continue
+              if path.name in {"author-signature.xml", "signature1.xml", "signature2.xml"}:
+                  continue
+              name = (PurePosixPath("res/wgt") / PurePosixPath(rel.as_posix())).as_posix()
+              entries[name] = path
+
+          required = {
+              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml",
+              "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html",
+              "res/wgt/service/service.js", "res/wgt/moonlight-wasm.js",
+              "res/wgt/moonlight-wasm.wasm"
+          }
+          missing = sorted(required - entries.keys())
+          if missing:
+              raise SystemExit("Hybrid package inputs are missing: " + ", ".join(missing))
+
+          config = ET.parse(entries["res/wgt/config.xml"]).getroot()
+          web_app = next((n for n in config.iter() if n.tag.endswith("application")), None)
+          if web_app is None or web_app.attrib.get("id") != "MoonLightS.MoonlightWasm" or web_app.attrib.get("package") != "MoonLightS":
+              raise SystemExit("Web application identity does not match the native package")
+
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for name, source in sorted(entries.items()):
+                  info = zipfile.ZipInfo(name)
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  mode = 0o755 if name == "bin/wmp-service" else 0o644
+                  info.external_attr = (stat.S_IFREG | mode) << 16
+                  archive.writestr(info, source.read_bytes())
+
+          with zipfile.ZipFile(output) as archive:
+              bad = archive.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt ZIP entry: {bad}")
+              names = set(archive.namelist())
+              if any(Path(n).name in {"author-signature.xml", "signature1.xml", "signature2.xml"} for n in names):
+                  raise SystemExit("Unsigned CI artifact unexpectedly contains signature files")
+          print(f"Created unsigned hybrid WGT: {output} ({len(entries)} files)")
+          PY
+          test -s "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt"
+          sha256sum "$RUNNER_TEMP/Moonlight-WMP-Hybrid.wgt" | tee "$RUNNER_TEMP/Moonlight-WMP-Hybrid.sha256"
+
+      - name: Upload unsigned hybrid WGT candidate for inspection
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-WMP-Hybrid-candidate-${{ github.sha }}
+          name: Moonlight-WMP-Hybrid-unsigned-candidate-${{ github.sha }}
           path: ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
           if-no-files-found: error
           retention-days: 7
@@ -511,7 +465,7 @@ jobs:
           from pathlib import Path, PurePosixPath
           package, output = Path(sys.argv[1]), Path(sys.argv[2]).resolve()
           required = {
-              "bin/wmp-service", "lib/libmlengine.so", "config.xml", "tizen-manifest.xml",
+              "bin/wmp-service", "lib/libmlengine.so", "info/manifest.xml", "tizen-manifest.xml",
               "res/wgt/config.xml", "res/wgt/service/service.js", "res/wgt/index.html",
               "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
               "res/wgt/static/css/style.css", "res/wgt/static/locales/en-US.json"
@@ -525,24 +479,12 @@ jobs:
               missing = sorted(required - names)
               if missing: raise SystemExit("Missing WGT entries: " + ", ".join(missing))
 
-              # Tizen may place signature files in a subdirectory. Validate
-              # their basenames and non-empty contents rather than requiring
-              # them to be at the ZIP root.
-              signature_paths = {
-                  Path(entry.filename).name: entry
-                  for entry in entries
-                  if Path(entry.filename).name in {"author-signature.xml", "signature1.xml"}
-              }
-              missing_signatures = sorted(
-                  name for name in ("author-signature.xml", "signature1.xml")
-                  if name not in signature_paths
-              )
-              if missing_signatures:
-                  raise SystemExit("Missing WGT signature files: " + ", ".join(missing_signatures))
-              for name, entry in sorted(signature_paths.items()):
-                  if entry.is_dir() or entry.file_size == 0:
-                      raise SystemExit(f"Empty or invalid WGT signature: {entry.filename}")
-                  print(f"Verified signature entry: {entry.filename} ({entry.file_size} bytes)")
+              # CI intentionally emits an unsigned package. Apps2Samsung signs
+              # this WGT with the certificate belonging to the target TV.
+              signature_names = {"author-signature.xml", "signature1.xml", "signature2.xml"}
+              unexpected = sorted(n for n in names if Path(n).name in signature_names)
+              if unexpected:
+                  raise SystemExit("Unsigned WGT contains signature artefacts: " + ", ".join(unexpected))
               for name in names:
                   p = PurePosixPath(name)
                   if p.is_absolute() or ".." in p.parts: raise SystemExit(f"Unsafe WGT path: {name}")
@@ -560,7 +502,7 @@ jobs:
                   raise SystemExit("Native manifest package or service application is missing")
               if native.attrib.get("appid") != "MoonLightS.WmpService" or native.attrib.get("exec") != "wmp-service":
                   raise SystemExit("Native service identity is incorrect")
-              print(f"Hybrid WGT validated: {len(names)} entries; web app, native service and signatures are present.")
+              print(f"Unsigned hybrid WGT validated: {len(names)} entries; web app and native service are present.")
           PY
           file "$inspection/bin/wmp-service" "$inspection/lib/libmlengine.so"
           readelf -h "$inspection/bin/wmp-service" > "$inspection/wmp-service-elf-header.txt"
@@ -584,10 +526,10 @@ jobs:
           cp "$inspection/wmp-service-dynamic.txt" "$RUNNER_TEMP/"
           cp "$inspection/libmlengine-dynamic.txt" "$RUNNER_TEMP/"
 
-      - name: Upload signed hybrid WGT
+      - name: Upload unsigned hybrid WGT
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-WMP-Hybrid-${{ github.sha }}
+          name: Moonlight-WMP-Hybrid-unsigned-${{ github.sha }}
           path: |
             ${{ runner.temp }}/Moonlight-WMP-Hybrid.wgt
             ${{ runner.temp }}/Moonlight-WMP-Hybrid.sha256
