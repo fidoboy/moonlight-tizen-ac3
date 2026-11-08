@@ -23,4 +23,4 @@ The Web UI and service use package ID `MoonLightS`, with distinct application ID
 
 ## Capture compatibility
 
-The capture API uses the 32-bit Samsung TV ABI and the 960x540 NV12 plane layout. The capture library is a Samsung firmware component and may be absent on a model or firmware version. The startup probe detects the library and symbol; actual capture is exercised only when the user enables Ambilight during a stream. Any capture failure is isolated to Ambilight and must not affect Moonlight streaming.
+The capture implementation uses a specific 32-bit Samsung TV ABI and the 960x540 NV12 plane layout. It refuses to enter the native API from a 64-bit process because that pointer layout has not been validated there. The capture library is a Samsung firmware component and may also be absent on a model or firmware version. The startup probe checks the library, symbol and process ABI; actual video capture is exercised only when the user enables Ambilight during a stream. A failed check disables Ambilight only and must never prevent installation, startup, EMSS/WMP streaming or any other Moonlight feature.
