@@ -2129,7 +2129,7 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
+#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #ambilightBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
 #discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn, #selectHoldStreamMenuBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
@@ -2297,7 +2297,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#framePacingBtn:hover, #framePacingBtn:focus, #ambilightBtn:hover, #ambilightBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
 #discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #selectHoldStreamMenuBtn:hover, #selectHoldStreamMenuBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
