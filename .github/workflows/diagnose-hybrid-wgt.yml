@@ -69,13 +69,12 @@ jobs:
         run: |
           set -euo pipefail
           export TIZEN_STUDIO_DATA_PATH="$RUNNER_TEMP/tizen-studio-data"
+          rm -rf "$TIZEN_STUDIO_DATA_PATH"
           mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
+
           tizen certificate -a Moonlight -f Moonlight -p 123456
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
-          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd"
-          printf '%s\n' '123456' > "$author_pwd"
-          chmod 600 "$author_pwd"
-          openssl pkcs12 -legacy -in "$author_key" -passin "file:$author_pwd" -noout
+          openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -noout
 
           tizen security-profiles add \
             -n Moonlight \
@@ -85,13 +84,6 @@ jobs:
 
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           test -s "$profiles"
-
-          echo "=== Perfil registrado por Tizen CLI ==="
-          tizen security-profiles list
-
-          echo "=== Estructura del perfil (contraseñas ocultas) ==="
-          sed -E 's#(<password>).*?(</password>)#\1[REDACTED]\2#g' "$profiles"
-
           echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
       - name: Reproduce the hybrid packaging sequence
