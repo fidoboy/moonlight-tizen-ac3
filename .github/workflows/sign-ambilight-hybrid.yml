@@ -1,0 +1,25 @@
+name: Sign Moonlight Ambilight hybrid package
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Build workflow run ID containing Moonlight-Ambilight-Build-Inputs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download reusable build inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: Moonlight-Ambilight-Build-Inputs
+          path: build-inputs
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
