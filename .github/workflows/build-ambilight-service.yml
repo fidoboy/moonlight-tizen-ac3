@@ -100,7 +100,8 @@ jobs:
           CERT_PASSWORD: moonlight-hybrid-ci
         run: |
           set -euo pipefail
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
+          mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile" "$TIZEN_STUDIO_DATA_PATH/keystore/author"
+          author_cert="$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12"
           profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
           if [[ ! -s "$profiles" ]]; then
             printf '%s\n' '<?xml version="1.0" encoding="UTF-8" standalone="no"?>' \
@@ -113,12 +114,12 @@ jobs:
           "$TIZEN_CORE_CLI" cert \
             --name MoonlightHybrid \
             --password "$CERT_PASSWORD" \
-            --cert-file MoonlightHybrid
+            --cert-file "$author_cert"
 
           "$TIZEN_CORE_CLI" security-profiles add \
             --name MoonlightHybrid \
             --xml-path "$profiles" \
-            --author "$TIZEN_STUDIO_DATA_PATH/keystore/author/MoonlightHybrid.p12" \
+            --author "$author_cert" \
             --password "$CERT_PASSWORD"
           test -s "$profiles"
 
