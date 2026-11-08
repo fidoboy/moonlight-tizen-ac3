@@ -110,7 +110,8 @@ jobs:
           test -x "$TIZEN_CORE_CLI"
           "$TIZEN_CORE_CLI" --version
           "$TIZEN_CORE_CLI" pack --help | tee "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
+          "$TIZEN_CORE_CLI" add-deps --help | tee "$RUNNER_TEMP/tizen-core-add-deps-help.txt"
+          grep -Fq -- '--deps' "$RUNNER_TEMP/tizen-core-add-deps-help.txt"
           grep -Fq -- '--proj-dir' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--sign-profile' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--profiles-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
