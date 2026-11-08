@@ -15,7 +15,7 @@ The .NET service captures the decoded TV video plane through Samsung's `libvideo
 GitHub Actions workflow **Build Moonlight Samsung TV hybrid WGT** on branch `1.2.4-pre`:
 
 1. Builds Moonlight Web/WASM and obtains its base WGT.
-2. Builds `TizenAmbilight.csproj` with .NET 8 and `Tizen.NET.Sdk/1.1.9` targeting Tizen API 7 / Tizen 5.5.
+2. Builds `TizenAmbilight.csproj` with .NET 8 and `Tizen.NET.Sdk/1.1.9` targeting Tizen API 6 / Tizen 5.5 M2.
 3. Uses Tizen Core CLI to merge the Web WGT and .NET TPK into one signed hybrid WGT.
 4. Validates package/application identities, the .NET assembly, signatures and the Web-to-service AppControl fields.
 
