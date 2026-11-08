@@ -1,0 +1,38 @@
+name: Build Moonlight Ambilight TV service
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "1.2.4-pre" ]
+    paths:
+      - "ambilight-service/**"
+      - ".github/workflows/build-ambilight-service.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-tpk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build Samsung TV service TPK
+        run: |
+          dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Release -v:m
+      - name: Validate TPK
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find ambilight-service/bin/Release/tizen90 -maxdepth 1 -type f -name '*.tpk')
+          test "${#packages[@]}" -eq 1
+          test -s "${packages[0]}"
+          unzip -t "${packages[0]}"
+          echo "Built ${packages[0]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Moonlight-Ambilight-Samsung-TV-TPK
+          path: ambilight-service/bin/Release/tizen90/*.tpk
+          if-no-files-found: error
+          retention-days: 14
