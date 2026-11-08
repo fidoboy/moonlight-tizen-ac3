@@ -213,6 +213,10 @@ jobs:
 
           grep -q "$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12" "$profiles"
           grep -q "$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" "$profiles"
+
+          # Tizen CLI otherwise keeps using its default profile outside RUNNER_TEMP.
+          # Explicitly select the restored profile, as in established headless Tizen CI builds.
+          tizen cli-config "profiles.path=$profiles"
           echo "Original Moonlight signing profile restored; no new profile or certificate generated."
 
       - name: Prepare hybrid web and native projects
