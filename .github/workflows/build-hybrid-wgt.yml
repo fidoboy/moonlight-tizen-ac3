@@ -304,6 +304,7 @@ jobs:
             local workspace="$RUNNER_TEMP/hybrid-$name"
             local web="$workspace/$name"
             local service="$workspace/AmbilightService"
+            local service_project="$service/AmbilightService"
             mkdir -p "$workspace"
 
             # Record the templates actually registered in this CI SDK before
@@ -317,17 +318,17 @@ jobs:
             run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
             run_tz "create-dotnet-service-project-$name" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"
             test -d "$web"
-            test -s "$service/tizen_dotnet_project.yaml"
+            test -s "$service_project/tizen_dotnet_project.yaml"
             cp -a "$source/." "$web/"
 
             # Populate the SDK-scaffolded .NET service project with our sources.
             # Keep its Tizen Core project metadata, use the repository's real
             # project settings and service manifest, and remove the template entry point.
-            cp ambilight-service/TizenAmbilight.csproj "$service/TizenAmbilight.csproj"
-            cp ambilight-service/tizen-manifest.xml "$service/tizen-manifest.xml"
-            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service/"
-            rm -f "$service/AmbilightService.csproj" "$service/AmbilightService_App.cs"
-            python3 - "$web/config.xml" "$service/tizen-manifest.xml" "$service/tizen_dotnet_project.yaml" <<'PY'
+            cp ambilight-service/TizenAmbilight.csproj "$service_project/TizenAmbilight.csproj"
+            cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
+            cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
+            rm -f "$service_project/AmbilightService.csproj" "$service_project/AmbilightService_App.cs"
+            python3 - "$web/config.xml" "$service_project/tizen-manifest.xml" "$service_project/tizen_dotnet_project.yaml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
           from pathlib import Path
