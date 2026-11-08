@@ -87,6 +87,7 @@ jobs:
             exit "$install_status"
           fi
           required_tv_packages=(
+            TIZEN-10.0
             TV-SAMSUNG-Public
             TV-SAMSUNG-Public-WebAppDevelopment
             TV-SAMSUNG-Extension-Tools
