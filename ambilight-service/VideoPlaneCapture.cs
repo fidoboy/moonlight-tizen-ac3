@@ -119,6 +119,9 @@ namespace TizenAmbilight
         [DllImport("libdl.so.2", EntryPoint = "dlerror")]
         static extern IntPtr dlerror();
 
+        [DllImport("libdl.so.2", EntryPoint = "dlclose")]
+        static extern int dlclose(IntPtr handle);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         delegate int CaptureVideoMainFn(int reqW, int reqH, IntPtr param);
 
@@ -180,20 +183,20 @@ namespace TizenAmbilight
                     if (_lib == IntPtr.Zero)
                     {
                         _lib = dlopen("/usr/lib/" + LibName, RTLD_LAZY);
-                        if (_lib == IntPtr.Zero) return "dlopen " + LibName + " failed";
+                        if (_lib == IntPtr.Zero) return FailInitialization("dlopen " + LibName + " failed");
                     }
                 }
                 ResolvedPath = LibName;
 
                 IntPtr e1 = dlerror();
                 _fn = dlsym(_lib, Symbol);
-                if (_fn == IntPtr.Zero) return "dlsym " + Symbol + " failed";
+                if (_fn == IntPtr.Zero) return FailInitialization("dlsym " + Symbol + " failed");
 
                 _param = Marshal.AllocHGlobal(StructBytes);
                 _bufY = Marshal.AllocHGlobal(YBytes);
                 _bufC = Marshal.AllocHGlobal(CBytes);
                 if (_param == IntPtr.Zero || _bufY == IntPtr.Zero || _bufC == IntPtr.Zero)
-                    return "allocation failed";
+                    return FailInitialization("allocation failed");
 
                 for (int i = 0; i < StructBytes; i++) Marshal.WriteByte(_param, i, 0);
 
@@ -208,8 +211,14 @@ namespace TizenAmbilight
             }
             catch (Exception e)
             {
-                return e.GetType().Name + ": " + e.Message;
+                return FailInitialization(e.GetType().Name + ": " + e.Message);
             }
+        }
+
+        private static string FailInitialization(string error)
+        {
+            Shutdown();
+            return error;
         }
 
         /// <summary>Measure the chroma spread one color_format value produces. Returns -1 if the
@@ -699,10 +708,22 @@ namespace TizenAmbilight
 
         public static void Shutdown()
         {
+            // The service joins its capture worker before calling Shutdown, so no native
+            // capture call can still be using these buffers or the library handle.
+            _call = null;
+            _fn = IntPtr.Zero;
+
             foreach (IntPtr p in new IntPtr[] { _param, _bufY, _bufC })
                 if (p != IntPtr.Zero) { try { Marshal.FreeHGlobal(p); } catch { } }
             _param = _bufY = _bufC = IntPtr.Zero;
-            _call = null;
+
+            if (_lib != IntPtr.Zero)
+            {
+                try { dlclose(_lib); } catch { }
+                _lib = IntPtr.Zero;
+            }
+
+            ResolvedPath = "";
         }
     }
 }
