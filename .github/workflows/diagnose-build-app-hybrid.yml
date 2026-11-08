@@ -49,14 +49,21 @@ jobs:
           # The Samsung TV SDK is an Extension SDK, not a baseline Tizen platform.
           # Register its official repository explicitly before resolving TV package IDs.
           "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories-before.txt"
-          if ! grep -Fq "Samsung Tizen TV SDK" "$RUNNER_TEMP/tizen-extra-repositories-before.txt"; then
-            "$pm" extra --add -n "Samsung Tizen TV SDK" \
-              -r "https://sdf.samsungcloudcdn.com/Public/smart_tv_sdk/releases/samsung_tizen_studio_tv_sdk/stv_ext_public/TV"
+          tv_repo="https://sdf.samsungcloudcdn.com/Public/smart_tv_sdk/releases/samsung_tizen_studio_tv_sdk/stv_ext_public/TV"
+          if ! grep -Fq "$tv_repo" "$RUNNER_TEMP/tizen-extra-repositories-before.txt"; then
+            "$pm" extra --add -n "Samsung Tizen TV SDK" -r "$tv_repo"
           fi
           "$pm" extra --list | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
+          grep -Fq "$tv_repo" "$RUNNER_TEMP/tizen-extra-repositories.txt"
+
           "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources"
-          "$pm" show-pkgs | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+            "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TV Extensions-9.0"
+          "$pm" show-pkgs --tree | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+          if ! awk '$1 == "i" && $2 == "TV" && $3 == "Extensions-9.0" { found=1 } END { exit !found }' \
+            "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
+            echo "TV Extensions-9.0 is not listed as installed by package-manager-cli."
+            exit 1
+          fi
 
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
@@ -136,8 +143,12 @@ jobs:
           mkdir -p "$workspace"
           tizen list web-project 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"
           tizen list rootstrap 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"
-          if ! grep -Eqi "tv.*9\.0|9\.0.*tv" "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
-            echo "Samsung TV 9.0 rootstrap was not installed by the selected extension package."
+          if ! grep -Eqi 'tizen-9\.0-(device|emulator)' "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
+            echo "No Tizen 9.0 device/emulator rootstrap is installed; refusing to create the TV project."
+            exit 1
+          fi
+          if ! grep -Eqi 'tv-9\.0|TV.*9\.0|9\.0.*TV' "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"; then
+            echo "The TV 9.0 Web profile is not available; refusing to create the TV project."
             exit 1
           fi
           tizen create web-project -p tv-9.0 -t Basic -n MoonlightWeb -- "$workspace"
