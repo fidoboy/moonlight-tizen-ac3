@@ -148,6 +148,26 @@ jobs:
             isolated_status=$?
           fi
 
+          echo "=== Generated Tizen .NET project metadata (before modification) ==="
+          for project_yaml in \
+            "$workspace/AmbilightService/AmbilightService/tizen_dotnet_project.yaml" \
+            "$isolated_workspace/AmbilightService/AmbilightService/tizen_dotnet_project.yaml"; do
+            if [[ -s "$project_yaml" ]]; then
+              echo "--- $project_yaml ---"
+              cat "$project_yaml" | tee -a "$log_dir/generated-dotnet-project-yaml.log"
+            else
+              echo "Missing generated metadata: $project_yaml"
+            fi
+          done
+
+          echo "=== Tizen Core template/config references for .NET build selection ==="
+          core_root="$TIZEN_STUDIO/tools/tizen-core"
+          if [[ -d "$core_root" ]]; then
+            grep -RInE --include='*.yaml' --include='*.yml' --include='*.json' --include='*.config' --include='*.xml' \
+              'dotnet-build-tool|msbuild-path|build_tool|build-tool|csproj_file' "$core_root" \
+              2>&1 | tee "$log_dir/tizen-core-build-config-references.log" || true
+          fi
+
           build_status=125
           if (( web_status == 0 && sequential_status == 0 )); then
             service_project="$workspace/AmbilightService/AmbilightService"
