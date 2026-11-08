@@ -150,18 +150,28 @@ jobs:
           test -s generated-videos/launch-screen.mp4
           test -s generated-videos/launch-screen-portrait.mp4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Build Moonlight Web application
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-ambilight-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=false
+
+      - name: Extract base Web WGT
         shell: bash
         run: |
           set -euo pipefail
-          docker build \
-            --build-arg BUILD_TYPE=release \
-            --build-arg REPO_OWNER="${GITHUB_REPOSITORY%%/*}" \
-            --build-arg REPO_NAME="${GITHUB_REPOSITORY#*/}" \
-            --build-arg FORCE_GAME_MODE=false \
-            --tag "moonlight-ambilight-web:$GITHUB_SHA" \
-            .
-
           container_id="$(docker create "moonlight-ambilight-web:$GITHUB_SHA")"
           trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
           docker cp "$container_id:/home/moonlight/Moonlight.wgt" "$RUNNER_TEMP/Moonlight-Web-Base.wgt"
