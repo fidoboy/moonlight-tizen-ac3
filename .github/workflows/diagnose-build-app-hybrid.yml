@@ -187,7 +187,7 @@ jobs:
             echo "The TV 10.0 Web profile is not available; refusing to create the TV project."
             exit 1
           fi
-          tizen create web-project -p tv-samsung-10.0 -t Basic -n MoonlightWeb -- "$workspace"
+          tizen create web-project -p tv-samsung-10.0 -t BasicEmptyProject -n MoonlightWeb -- "$workspace"
           test -d "$workspace/MoonlightWeb"
           echo "BUILD_APP_WORKSPACE=$workspace" >> "$GITHUB_ENV"
           echo "WEB_PROJECT=$workspace/MoonlightWeb" >> "$GITHUB_ENV"
