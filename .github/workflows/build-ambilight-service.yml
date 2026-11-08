@@ -225,7 +225,7 @@ jobs:
           USER_DEFS =
           USER_INC_DIRS = src
           USER_OBJS =
-          USER_LIBS = appcore-agent dlog service-app app-control dl pthread m
+          USER_LIBS = capi-appfw-service-application capi-appfw-app-control dlog dl pthread m
           USER_LFLAGS = -Wl,--no-undefined
           USER_EDCS =
           PROP
