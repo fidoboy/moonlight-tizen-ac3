@@ -223,6 +223,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          run_tz() {
+            local label="$1"
+            shift
+            local log="$RUNNER_TEMP/tz-${label//[^A-Za-z0-9_-]/_}.log"
+            echo "::group::Tizen Core: $label"
+            set +e
+            "$@" 2>&1 | tee "$log"
+            local statuses=("${PIPESTATUS[@]}")
+            local command_status="${statuses[0]}"
+            set -e
+            echo "::endgroup::"
+            if (( command_status != 0 )); then
+              echo "::error::Tizen Core command failed with exit code $command_status: $*"
+              return "$command_status"
+            fi
+          }
+
           package_one() {
             local source="$1" name="$2" output="$3"
             local workspace="$RUNNER_TEMP/hybrid-$name"
@@ -230,11 +247,16 @@ jobs:
             local service="$workspace/AmbilightService"
             mkdir -p "$workspace"
 
+            # Record the templates actually registered in this CI SDK before
+            # asking Tizen Core to instantiate either project.
+            run_tz "list-web-templates-$name" "$TIZEN_CORE_CLI" list templates -t web
+            run_tz "list-dotnet-templates-$name" "$TIZEN_CORE_CLI" list templates -t dotnet
+
             # Scaffold both projects from their native Tizen Core templates.
             # Moonlight replaces only the Web payload; the generated Web project
             # metadata remains intact.
-            "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
-            "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"
+            run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
+            run_tz "create-dotnet-service-project-$name" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tizen-9.0 -w "$workspace"
             test -d "$web"
             test -s "$service/tizen_dotnet_project.yaml"
             cp -a "$source/." "$web/"
@@ -281,9 +303,9 @@ jobs:
               raise SystemExit("Tizen Core project metadata does not reference TizenAmbilight.csproj")
           PY
 
-            "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
-            "$TIZEN_CORE_CLI" build --proj-dir "$web"
-            "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
+            run_tz "add-hybrid-dependency-$name" "$TIZEN_CORE_CLI" add-deps "$web" --deps "../AmbilightService"
+            run_tz "build-hybrid-workspace-$name" "$TIZEN_CORE_CLI" build --proj-dir "$web"
+            run_tz "pack-hybrid-workspace-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
