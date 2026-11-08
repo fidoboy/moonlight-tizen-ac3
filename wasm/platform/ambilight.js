@@ -41,7 +41,6 @@
       return serialize('start', { ip: ip, port: port, ledCount: ledCount });
     },
     stop: function() {
-      if (!active) return pending.catch(function() {});
       return serialize('stop');
     },
     isActive: function() { return active; }
