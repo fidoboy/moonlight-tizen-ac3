@@ -101,7 +101,6 @@ jobs:
           sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd|123456|" "$profiles"
           distributor_pwd="$TIZEN_STUDIO_DATA_PATH/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
-          echo "TIZEN_PROFILES_PATH=$profiles" >> "$GITHUB_ENV"
 
       - name: Install .NET 8 SDK
         uses: actions/setup-dotnet@v4
@@ -118,8 +117,6 @@ jobs:
           "$TIZEN_CORE_CLI" add-deps --help | tee "$RUNNER_TEMP/tizen-core-add-deps-help.txt"
           grep -Fq -- '--deps' "$RUNNER_TEMP/tizen-core-add-deps-help.txt"
           grep -Fq -- '--proj-dir' "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--sign-profile' "$RUNNER_TEMP/tizen-core-pack-help.txt"
-          grep -Fq -- '--profiles-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--base-pkg' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--ref-pkgs' "$RUNNER_TEMP/tizen-core-pack-help.txt"
           grep -Fq -- '--out-path' "$RUNNER_TEMP/tizen-core-pack-help.txt"
@@ -284,7 +281,7 @@ jobs:
             test -s "$project/static/res/launch-screen-portrait.mp4"
           done
 
-      - name: Package and sign the Tizen Core hybrid workspaces
+      - name: Package the Tizen Core hybrid workspaces
         shell: bash
         run: |
           set -euo pipefail
@@ -313,7 +310,7 @@ jobs:
             run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
             test -d "$web"
             cp -a "$source/." "$web/"
-            run_tz "pack-base-web-wgt-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --out-path "$base_wgt"
+            run_tz "pack-base-web-wgt-$name" "$TIZEN_CORE_CLI" pack --proj-dir "$web" --type wgt --out-path "$base_wgt"
             test -s "$base_wgt"
             unzip -tq "$base_wgt"
           }
@@ -365,7 +362,7 @@ jobs:
           package_hybrid() {
             local source="$1" name="$2" base_wgt="$3" output="$4"
             # 3. Merge the compiled service TPK into the corresponding base Web WGT.
-            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --sign-profile Moonlight --profiles-path "$TIZEN_PROFILES_PATH" --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$output"
+            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$output"
             test -s "$output"
             unzip -tq "$output"
             python3 - "$source" "$output" <<'PY'
@@ -378,7 +375,7 @@ jobs:
               if not tpks:
                   raise SystemExit("Hybrid WGT does not contain the embedded service TPK")
               print("Embedded service TPK(s):", tpks)
-              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js", "author-signature.xml", "signature1.xml"}
+              required = {"config.xml", "tizen-manifest.xml", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js"}
               missing = sorted(required - names)
               if missing: raise SystemExit("Hybrid WGT missing: " + ", ".join(missing))
               for f in source.rglob("*"):
@@ -390,7 +387,7 @@ jobs:
               splash = next((n for n in config.iter() if n.tag.endswith("video_splash_screen")), None)
               if splash is None or splash.get("ready_when") != "custom":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
-              print("Hybrid WGT, signatures, Moonlight payload and video splash verified.")
+              print("Hybrid WGT, embedded service TPK, Moonlight payload and video splash verified.")
           PY
           }
 
