@@ -174,6 +174,16 @@ jobs:
           PY
 
             if run_logged add-hybrid-dependency "$TIZEN_CORE_CLI" add-deps "$workspace/MoonlightWeb" --deps "../AmbilightService"; then
+              echo "=== Test 4: build the service directly with documented Tizen.NET signing properties ==="
+              author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
+              dist_key="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
+              if run_logged direct-dotnet-service-build dotnet build "$service_project/TizenAmbilight.csproj" --configuration Debug "-p:AuthorPath=$author_key" "-p:AuthorPass=123456" "-p:DistributorPath=$dist_key" "-p:DistributorPass=tizenpkcs12passfordsigner"; then
+                direct_build_status=0
+              else
+                direct_build_status=$?
+              fi
+              echo "Direct Tizen.NET build with explicit AuthorPass: $direct_build_status"
+              echo "=== Test 5: build the complete hybrid workspace through Tizen Core ==="
               if run_logged build-hybrid-workspace "$TIZEN_CORE_CLI" build --proj-dir "$workspace/MoonlightWeb"; then
                 build_status=0
               else
@@ -181,6 +191,7 @@ jobs:
               fi
             else
               build_status=$?
+              direct_build_status=125
             fi
           fi
 
