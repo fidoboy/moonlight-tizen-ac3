@@ -23,7 +23,14 @@ const SyncFunctions = {
     return Module.startStream(...args.slice(0, 31), h264Level, selectHoldStreamMenu);
   },
   // no parameters
-  'stopRequest': (...args) => Module.stopStream(...args),
+  'stopRequest': (...args) => {
+    if (window.moonlightAmbilight) {
+      window.moonlightAmbilight.stop().catch(function(error) {
+        console.warn('[ambilight] Could not stop native service:', error);
+      });
+    }
+    return Module.stopStream(...args);
+  },
   // no parameters
   'cancelRequest': (...args) => Module.cancelRequest(...args),
   // no parameters
