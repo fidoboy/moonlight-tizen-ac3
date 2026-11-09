@@ -44,7 +44,8 @@ jobs:
           dotnet --list-sdks | grep -E '^8\.'
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
-          "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+          runuser -u tizen -- env HOME=/home/tizen TIZEN_STUDIO_DATA_PATH=/tmp/tizen-studio-data \
+            "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
           required_packages=(
             NativeCLI
             TIZEN-9.0-WebAppDevelopment-CLI
@@ -294,10 +295,17 @@ jobs:
         run: |
           set +e
           mkdir -p "$RUNNER_TEMP/build-app-diagnostics/produced"
-          find "$RUNNER_TEMP/build-app-workspace" "$GITHUB_WORKSPACE/ambilight-service" \
-            -type f \( -name '*.wgt' -o -name '*.tpk' \) -print -exec cp -n {} \
-            "$RUNNER_TEMP/build-app-diagnostics/produced/" \; 2>&1 \
-            | tee "$RUNNER_TEMP/build-app-diagnostics/produced-packages.txt"
+          search_paths=()
+          [[ -d "$RUNNER_TEMP/build-app-workspace" ]] && search_paths+=("$RUNNER_TEMP/build-app-workspace")
+          [[ -d "$GITHUB_WORKSPACE/ambilight-service" ]] && search_paths+=("$GITHUB_WORKSPACE/ambilight-service")
+          if (( ${#search_paths[@]} )); then
+            find "${search_paths[@]}" -type f \( -name '*.wgt' -o -name '*.tpk' \) \
+              -print -exec cp -n {} "$RUNNER_TEMP/build-app-diagnostics/produced/" \; 2>&1 \
+              | tee "$RUNNER_TEMP/build-app-diagnostics/produced-packages.txt"
+          else
+            echo "No build workspace or service directory was created." \
+              | tee "$RUNNER_TEMP/build-app-diagnostics/produced-packages.txt"
+          fi
           for pkg in "$RUNNER_TEMP/build-app-diagnostics/produced/"*.wgt; do
             [ -f "$pkg" ] || continue
             echo "=== ZIP validation: $pkg ==="
