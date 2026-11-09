@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdk="/opt/tizen-studio"
+          sdk="${TIZEN_STUDIO:?TIZEN_STUDIO must be set by the shared build image}"
           test -x "$sdk/tools/ide/bin/tizen"
           test -x "$sdk/tools/tizen-core/tz"
           dotnet --list-sdks | grep -E '^8\.'
@@ -242,7 +242,6 @@ jobs:
 
       - name: Test build-app with the prebuilt TPK declared as a package component
         id: prebuilt-target
-        if: always()
         continue-on-error: true
         shell: bash
         run: |
@@ -262,7 +261,7 @@ jobs:
           exit 0
 
       - name: Classify build-app hybrid packaging evidence
-        if: always()
+        if: always() && env.BUILD_APP_WORKSPACE != ''
         shell: bash
         run: |
           set -euo pipefail
