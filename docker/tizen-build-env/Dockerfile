@@ -17,11 +17,13 @@ RUN apt-get update \
     && curl --fail --location --retry 3 https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
+        acl \
         aria2 \
         binutils \
         bridge-utils \
         build-essential \
         ccache \
+        cpio \
         docker.io \
         cmake \
         expect \
@@ -31,7 +33,9 @@ RUN apt-get update \
         libkchart2 \
         libkf5itemmodels5 \
         libkf5kiowidgets5 \
+        libpixman-1-0 \
         libpython3.8 \
+        libxi6 \
         libsdl1.2debian \
         libv4l-0 \
         libxcb-icccm4 \
@@ -44,6 +48,7 @@ RUN apt-get update \
         python2 \
         python3 \
         python3.8 \
+        rpm2cpio \
         unzip \
         zip \
         xmlsec1 \
@@ -60,9 +65,7 @@ RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tm
 # The Tizen installer explicitly refuses to run as root. Install the SDK
 # as a dedicated unprivileged user; the runtime image remains root by default.
 # The Tizen installer requires the destination itself not to exist.
-# Give it write access to /opt, but let it create /home/tizen/tizen-studio.
-RUN useradd --create-home --uid 1001 --shell /bin/bash tizen \
-    && chown tizen:tizen /opt
+RUN useradd --create-home --uid 1001 --shell /bin/bash tizen
 USER tizen
 ENV HOME=/home/tizen
 
