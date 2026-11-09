@@ -1160,7 +1160,7 @@ function maybeReleaseNativeLaunchScreen() {
   // strip before laying it out and starting the splash-release sequence.
   getData('showConfigSummaryBar', function(previousValue) {
     var storedValue = previousValue && previousValue.showConfigSummaryBar;
-    applyConfigSummaryPosition(storedValue == null ? 'top' : storedValue);
+    applyConfigSummaryPosition(storedValue == null ? 'bottom' : storedValue);
     configSummaryPreferenceLoaded = true;
     // Load the selected palette before releasing the native splash so the original
     // colors are never briefly shown when a non-default theme was saved.
@@ -7252,7 +7252,7 @@ function normalizeConfigSummaryPosition(value) {
   if (value === 'top' || value === 'bottom' || value === 'hidden') return value;
   // Migrate the boolean preference used by previous versions.
   if (value === false || value === 'false' || value === 0) return 'hidden';
-  return 'top';
+  return 'bottom';
 }
 
 function applyConfigSummaryPosition(value) {
@@ -8231,11 +8231,15 @@ function restoreDefaultsSettingsValues() {
     });
   }
 
-  const defaultShowConfigSummaryBar = 'top';
+  const defaultShowConfigSummaryBar = 'bottom';
   applyConfigSummaryPosition(defaultShowConfigSummaryBar);
   storeData('showConfigSummaryBar', defaultShowConfigSummaryBar, null);
   configSummaryPreferenceLoaded = true;
   updateConfigSummaryBar();
+
+  const defaultSelectHoldStreamMenu = true;
+  document.querySelector('#selectHoldStreamMenuBtn').MaterialSwitch.on();
+  storeData('selectHoldStreamMenu', defaultSelectHoldStreamMenu, null);
 
   const defaultStreamTransitionBackground = true;
   streamTransitionBackgroundEnabled = defaultStreamTransitionBackground;
@@ -8586,7 +8590,7 @@ function loadDirectSmartHubStreamSettings() {
       optimizeGames: boolValue(stored.optimizeGames, false) ? 1 : 0,
       rumbleFeedback: boolValue(stored.rumbleFeedback, false) ? 1 : 0,
       mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
-      selectHoldStreamMenu: boolValue(stored.selectHoldStreamMenu, false) ? 1 : 0,
+      selectHoldStreamMenu: boolValue(stored.selectHoldStreamMenu, true) ? 1 : 0,
       flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
       flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
       opticalOutputEnabled: ac3Enabled,
@@ -8744,7 +8748,7 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load configuration summary bar position preference.');
   getData('showConfigSummaryBar', function(previousValue) {
     const storedValue = previousValue && previousValue.showConfigSummaryBar;
-    applyConfigSummaryPosition(storedValue == null ? 'top' : storedValue);
+    applyConfigSummaryPosition(storedValue == null ? 'bottom' : storedValue);
     configSummaryPreferenceLoaded = true;
     if (!_directSmartHubLaunch) {
       updateConfigSummaryBar();
@@ -8841,7 +8845,7 @@ function loadUserDataCb() {
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored Select hold stream menu preferences.');
   getData('selectHoldStreamMenu', function(previousValue) {
-    if (previousValue.selectHoldStreamMenu === true) {
+    if (previousValue.selectHoldStreamMenu !== false) {
       document.querySelector('#selectHoldStreamMenuBtn').MaterialSwitch.on();
     } else {
       document.querySelector('#selectHoldStreamMenuBtn').MaterialSwitch.off();
