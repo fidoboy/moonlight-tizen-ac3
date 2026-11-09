@@ -191,47 +191,140 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           out="$RUNNER_TEMP/build-app-diagnostics"
           workspace="$RUNNER_TEMP/tz-hybrid-workspace"
-          mkdir -p "$workspace"
+          mkdir -p "$workspace" "$out"
           web_project="$workspace/MoonlightWeb"
           service_project="$workspace/AmbilightService"
-          log="$out/tz-hybrid-minimal-test.txt"
-          exec > >(tee "$log") 2>&1
+          internal_logs="$out/tizen-core-internal-logs"
+          mkdir -p "$internal_logs"
+          marker="$out/tizen-core-diagnostic-start.marker"
+          touch "$marker"
+
+          capture_tizen_core_logs() {
+            local inventory="$out/tizen-core-internal-log-inventory.txt"
+            local candidates="$out/tizen-core-internal-log-candidates.txt"
+            : > "$inventory"
+            : > "$candidates"
+            local roots=()
+            for root in "$HOME" /home/tizen "$TIZEN_STUDIO/tools/tizen-core" \
+                        "$TIZEN_STUDIO_DATA_PATH" /tmp; do
+              [[ -d "$root" ]] && roots+=("$root")
+            done
+            printf '%s\n' "\${roots[@]}" | sort -u > "$out/tizen-core-log-search-roots.txt"
+
+            for root in "\${roots[@]}"; do
+              find "$root" -type f -newer "$marker" -size -20M -print 2>/dev/null \
+                >> "$inventory"
+            done
+            sort -u -o "$inventory" "$inventory"
+
+            while IFS= read -r file; do
+              [[ -f "$file" ]] || continue
+              case "$file" in
+                *[Ll][Oo][Gg]*|*[Tt][Rr][Aa][Cc][Ee]*|*.log|*.LOG|*.txt|*.json|*.out|*.err)
+                  printf '%s\n' "$file" >> "$candidates"
+                  ;;
+              esac
+            done < "$inventory"
+
+            if [[ -s "$candidates" ]]; then
+              while IFS= read -r file; do
+                [[ -f "$file" ]] || continue
+                cp --parents "$file" "$internal_logs/" 2>/dev/null || true
+              done < "$candidates"
+              tar -czf "$out/tizen-core-internal-logs.tar.gz" \
+                --absolute-names --files-from="$candidates" 2>"$out/tizen-core-log-archive-stderr.txt" || true
+            fi
+            {
+              echo "Search roots:"
+              cat "$out/tizen-core-log-search-roots.txt"
+              echo
+              echo "Files modified since diagnostic start:"
+              cat "$inventory"
+              echo
+              echo "Collected log-like files:"
+              cat "$candidates"
+            } > "$out/tizen-core-internal-log-report.txt"
+          }
+
+          run_tz_capture() {
+            local label="$1"
+            shift
+            local stdout_file="$out/\${label}-stdout.txt"
+            local stderr_file="$out/\${label}-stderr.txt"
+            local status_file="$out/\${label}-exit-code.txt"
+            local status
+
+            echo "=== Running Tizen Core command: $* ==="
+            timeout --signal=TERM --kill-after=15s 180s "$TIZEN_CORE_CLI" "$@" \
+              >"$stdout_file" 2>"$stderr_file"
+            status=$?
+            printf '%s\n' "$status" > "$status_file"
+            echo "Exit code: $status"
+            echo "--- stdout ($stdout_file) ---"
+            cat "$stdout_file"
+            echo "--- stderr ($stderr_file) ---"
+            cat "$stderr_file"
+            capture_tizen_core_logs
+            return "$status"
+          }
 
           echo "=== Create Basic_Empty Web project for tv-samsung-10.0 ==="
-          tz new -t Basic_Empty -n MoonlightWeb -T web -p tv-samsung-10.0 -w "$workspace"
+          if ! run_tz_capture "tz-new-web" new -t Basic_Empty -n MoonlightWeb -T web \
+              -p tv-samsung-10.0 -w "$workspace"; then
+            echo "Tizen Core Web project creation failed; see separated command output and internal logs."
+            exit 1
+          fi
           test -d "$web_project"
 
           echo "=== Create TizenServiceApp .NET project for tv-samsung-10.0 ==="
-          tz new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
+          if ! run_tz_capture "tz-new-dotnet-service" new -t TizenServiceApp \
+              -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"; then
+            echo "Tizen Core .NET service project creation failed; see separated stdout, stderr, exit code, and internal logs."
+            exit 1
+          fi
           test -d "$service_project"
           test -f "$service_project/tizen-manifest.xml"
-          grep -Eq 'service-application[^>]*type="dotnet"|type="dotnet"[^>]*service-application' "$service_project/tizen-manifest.xml"
+          grep -Eq 'service-application[^>]*type="dotnet"|type="dotnet"[^>]*service-application' \
+            "$service_project/tizen-manifest.xml"
 
           echo "=== Declare the .NET service as a dependency of the Web project ==="
-          tz add-deps "$web_project" -d ../AmbilightService
-          tz get -P -w "$web_project" 2>&1 | tee "$out/tz-hybrid-dependencies.txt"
+          if ! run_tz_capture "tz-add-deps" add-deps "$web_project" -d ../AmbilightService; then
+            exit 1
+          fi
+          "$TIZEN_CORE_CLI" get -P -w "$web_project" \
+            >"$out/tz-hybrid-dependencies-stdout.txt" \
+            2>"$out/tz-hybrid-dependencies-stderr.txt"
+          printf '%s\n' "$?" > "$out/tz-hybrid-dependencies-exit-code.txt"
 
           echo "=== Configure signing profile ==="
-          tz set -w "$web_project" -s Moonlight
-          tz set -w "$service_project" -s Moonlight
+          if ! run_tz_capture "tz-set-web-signing" set -w "$web_project" -s Moonlight; then
+            exit 1
+          fi
+          if ! run_tz_capture "tz-set-service-signing" set -w "$service_project" -s Moonlight; then
+            exit 1
+          fi
 
           echo "=== Build the hybrid project ==="
-          tz build -w "$web_project" -s Moonlight
+          if ! run_tz_capture "tz-build-hybrid" build -w "$web_project" -s Moonlight; then
+            exit 1
+          fi
 
           echo "=== Package the hybrid project as WGT ==="
-          tz pack -w "$web_project"
+          if ! run_tz_capture "tz-pack-hybrid" pack -w "$web_project"; then
+            exit 1
+          fi
 
           echo "=== Validate the generated WGT ==="
           mapfile -t wgts < <(find "$workspace" -type f -name '*.wgt' | sort)
-          if (( ${#wgts[@]} != 1 )); then
-            echo "Expected exactly one WGT, found ${#wgts[@]}."
-            printf '%s\n' "${wgts[@]}"
+          if (( \${#wgts[@]} != 1 )); then
+            echo "Expected exactly one WGT, found \${#wgts[@]}."
+            printf '%s\n' "\${wgts[@]}"
             exit 1
           fi
-          wgt="${wgts[0]}"
+          wgt="\${wgts[0]}"
           cp "$wgt" "$out/tz-hybrid-result.wgt"
           unzip -tq "$wgt"
           unzip -l "$wgt" | tee "$out/tz-hybrid-wgt-contents.txt"
@@ -251,12 +344,12 @@ jobs:
             echo "WGT has no identifiable .NET service component metadata."
             exit 1
           fi
-          if ! find "$out/tz-hybrid-wgt-extracted" -type f \( -name '*.dll' -o -name '*.runtimeconfig.json' \) | grep -q .; then
+          if ! find "$out/tz-hybrid-wgt-extracted" -type f \
+              \( -name '*.dll' -o -name '*.runtimeconfig.json' \) | grep -q .; then
             echo "WGT has no identifiable .NET service payload."
             exit 1
           fi
           echo "TIZEN_CORE_HYBRID_TEST=PASS" | tee "$out/tz-hybrid-result.txt"
-
       - name: Compile the existing .NET service TPK
         shell: bash
         run: |
