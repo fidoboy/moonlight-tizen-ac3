@@ -305,14 +305,7 @@ jobs:
           [[ -x "$jar_bin" ]] || jar_bin="$(command -v jar)"
           [[ -x "$javap_bin" ]] || javap_bin="$(command -v javap)"
           if [[ -n "$jar_bin" ]]; then
-            "$jar_bin" tf "$jar_path" | grep -E 'org/tizen/ncli/subcommands/build/buildapp/BuildAppCLICommand.class        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: tizen-build-app-hybrid-diagnostics-${{ github.sha }}
-          path: ${{ runner.temp }}/build-app-diagnostics/
-          if-no-files-found: warn
-          retention-days: 7
- \
+            "$jar_bin" tf "$jar_path" | grep -E 'org/tizen/ncli/subcommands/build/buildapp/BuildAppCLICommand.class$' \
               | tee -a "$out/build-app-class-entry.txt"
           fi
           if [[ -x "$javap_bin" ]]; then
