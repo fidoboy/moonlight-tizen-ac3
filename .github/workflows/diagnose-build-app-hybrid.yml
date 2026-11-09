@@ -100,6 +100,114 @@ jobs:
           } 2>&1 | tee "$out/tizen-core-cli-discovery.txt"
           echo "${PIPESTATUS[0]}" > "$out/tizen-core-cli-discovery-exit-code.txt"
 
+      - name: Capture Tizen Core command syntax and template definitions
+        shell: bash
+        run: |
+          set +e
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          mkdir -p "$out"
+          {
+            for command in new add-deps build pack; do
+              echo "=== tz $command --help ==="
+              tz "$command" --help
+              echo
+            done
+            echo "=== tz security-profiles list --help ==="
+            tz security-profiles list --help
+            echo
+            echo "=== tz list rootstraps ==="
+            tz list rootstraps
+            echo
+            echo "=== Installed template descriptor paths ==="
+            find "$TIZEN_STUDIO/tools/tizen-core/templates" -type f \\( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \\) -print 2>/dev/null | sort
+            echo
+            echo "=== TizenServiceApp template definitions ==="
+            service_template="$(find "$TIZEN_STUDIO/tools/tizen-core/templates/dotnet" -path '*/TizenServiceApp/template.yaml' -print -quit 2>/dev/null)"
+            if [[ -n "$service_template" ]]; then
+              cat "$service_template"
+              service_dir="$(dirname "$service_template")"
+              echo "=== tizen_dotnet_project.yaml ==="
+              cat "$service_dir/tizen_dotnet_project.yaml" 2>/dev/null
+            else
+              echo "TizenServiceApp template.yaml not found."
+            fi
+            echo
+            echo "=== Basic_Empty Web template definition ==="
+            find "$TIZEN_STUDIO/tools/tizen-core/templates" -path '*/Basic_Empty/template.yaml' -print -exec cat {} \\; 2>/dev/null
+          } 2>&1 | tee "$out/tizen-core-command-syntax-and-templates.txt"
+          echo "${PIPESTATUS[0]}" > "$out/tizen-core-command-syntax-exit-code.txt"
+
+      - name: Test minimal Web plus .NET service hybrid with Tizen Core
+        id: tz-hybrid
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          workspace="$RUNNER_TEMP/tz-hybrid-workspace"
+          mkdir -p "$workspace"
+          web_project="$workspace/MoonlightWeb"
+          service_project="$workspace/AmbilightService"
+          log="$out/tz-hybrid-minimal-test.txt"
+          exec > >(tee "$log") 2>&1
+
+          echo "=== Create Basic_Empty Web project for tv-samsung-10.0 ==="
+          tz new -t Basic_Empty -n MoonlightWeb -T web -p tv-samsung-10.0 -w "$workspace"
+          test -d "$web_project"
+
+          echo "=== Create TizenServiceApp .NET project for tv-samsung-10.0 ==="
+          tz new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
+          test -d "$service_project"
+          test -f "$service_project/tizen-manifest.xml"
+          grep -Eq 'service-application[^>]*type="dotnet"|type="dotnet"[^>]*service-application' "$service_project/tizen-manifest.xml"
+
+          echo "=== Declare the .NET service as a dependency of the Web project ==="
+          tz add-deps "$web_project" -d ../AmbilightService
+          tz get -P -w "$web_project" 2>&1 | tee "$out/tz-hybrid-dependencies.txt"
+
+          echo "=== Configure signing profile ==="
+          tz set -w "$web_project" -s Moonlight
+          tz set -w "$service_project" -s Moonlight
+
+          echo "=== Build the hybrid project ==="
+          tz build -w "$web_project"
+
+          echo "=== Package the hybrid project as WGT ==="
+          tz pack -w "$web_project" -t wgt -s Moonlight
+
+          echo "=== Validate the generated WGT ==="
+          mapfile -t wgts < <(find "$workspace" -type f -name '*.wgt' | sort)
+          if (( ${#wgts[@]} != 1 )); then
+            echo "Expected exactly one WGT, found ${#wgts[@]}."
+            printf '%s\\n' "${wgts[@]}"
+            exit 1
+          fi
+          wgt="${wgts[0]}"
+          cp "$wgt" "$out/tz-hybrid-result.wgt"
+          unzip -tq "$wgt"
+          unzip -l "$wgt" | tee "$out/tz-hybrid-wgt-contents.txt"
+          mkdir -p "$out/tz-hybrid-wgt-extracted"
+          unzip -q "$wgt" -d "$out/tz-hybrid-wgt-extracted"
+          find "$out/tz-hybrid-wgt-extracted" -type f -printf '%P\\n' | sort \\
+            | tee "$out/tz-hybrid-wgt-files.txt"
+
+          echo "=== Inspect service component metadata and .NET payload ==="
+          grep -RIlE 'service-application|dotnet|AmbilightService' "$out/tz-hybrid-wgt-extracted" \\
+            | tee "$out/tz-hybrid-service-metadata-files.txt" || true
+          find "$out/tz-hybrid-wgt-extracted" -type f \\
+            \\( -name '*.dll' -o -name '*.runtimeconfig.json' -o -name '*.deps.json' -o -name 'tizen-manifest.xml' \\) \\
+            -printf '%P\\n' | sort | tee "$out/tz-hybrid-service-payload-files.txt"
+
+          if ! grep -RqiE 'service-application|AmbilightService' "$out/tz-hybrid-wgt-extracted"; then
+            echo "WGT has no identifiable .NET service component metadata."
+            exit 1
+          fi
+          if ! find "$out/tz-hybrid-wgt-extracted" -type f \\( -name '*.dll' -o -name '*.runtimeconfig.json' \\) | grep -q .; then
+            echo "WGT has no identifiable .NET service payload."
+            exit 1
+          fi
+          echo "TIZEN_CORE_HYBRID_TEST=PASS" | tee "$out/tz-hybrid-result.txt"
+
       - name: Check build-app availability and save CLI help
         shell: bash
         run: |
