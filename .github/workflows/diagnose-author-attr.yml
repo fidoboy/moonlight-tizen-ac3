@@ -179,7 +179,7 @@ jobs:
           cat "$PROBE_OUT/tz-password-strings.txt"
           echo "tz pack: NOT RUN"
 
-      - name: Compare author-attr forms using the generated distributor attribute
+      - name: Compare encrypted author-attr with the .pwd path
         id: compare
         continue-on-error: true
         shell: bash
@@ -188,39 +188,29 @@ jobs:
           source_project="$(cat "$PROBE_OUT/probe-project-path.txt")"
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
           author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
-          author_password=123456
           distributor_key="$(sed -n 's/^distributor_key=//p' "$PROBE_OUT/probe-inputs.txt")"
-          profile_attrs="$PROBE_OUT/profile-password-attributes.txt"
 
-          # Use the exact author/distributor .pwd paths emitted by Tizen's own
-          # security-profiles command. A literal password is retained only as
-          # the negative control for author-attr.
-          distributor_attr=""
-          if [[ -s "$profile_attrs" ]]; then
-            distributor_attr="$(awk '
-              /^slot=1$/ { in_dist=1; next }
-              /^slot=/ { in_dist=0 }
-              in_dist && /^password_attr=/ {
-                sub(/^password_attr=/, "")
-                print
-                exit
-              }' "$profile_attrs")"
-          fi
+          # Tizen's inline password attribute is Base64(3DES-ECB-PKCS5Padding).
+          # These values were cross-checked against the Tizen CipherUtil format:
+          # author password 123456 -> HeifNwdU+kk=
+          # bundled distributor password -> Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k=
+          author_encrypted='HeifNwdU+kk='
+          distributor_encrypted='Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k='
 
           {
-            echo "author_attr_path_exists=$([[ -s "$author_pwd" ]] && echo yes || echo no)"
+            echo "author_pwd_path_exists=$([[ -s "$author_pwd" ]] && echo yes || echo no)"
             echo "distributor_key_exists=$([[ -s "$distributor_key" ]] && echo yes || echo no)"
-            echo "distributor_attr=$distributor_attr"
-            echo "distributor_attr_exists=$([[ -n "$distributor_attr" && -s "$distributor_attr" ]] && echo yes || echo no)"
+            echo "author_encrypted_attribute=$author_encrypted"
+            echo "distributor_encrypted_attribute=$distributor_encrypted"
           } > "$PROBE_OUT/attribute-validation.txt"
 
           run_probe() {
             local mode="$1"
             local author_attr="$2"
             local project_dir="$PROBE_WORKSPACE/$mode"
-            local project_file="$project_dir/$(basename "$source_project")"
             local log="$PROBE_OUT/$mode.log"
             local status_file="$PROBE_OUT/$mode-exit-code.txt"
+            local project_file
 
             mkdir -p "$project_dir"
             if ! cp -a "$(dirname "$source_project")/." "$project_dir/"; then
@@ -233,18 +223,17 @@ jobs:
             echo "=== Probe: $mode ==="
             {
               echo "author_attr_argument=$author_attr"
-              echo "distributor_attr_argument=$distributor_attr"
-              echo "distributor_key_argument=$distributor_key"
+              echo "distributor_attr_argument=$distributor_encrypted"
+              echo "author_key=$author_key"
+              echo "distributor_key=$distributor_key"
               echo "project_file=$project_file"
             } > "$PROBE_OUT/$mode-input.txt"
 
-            # Do not allow a failed command to abort the step or skip the
-            # other probe. Save stdout/stderr and the exact exit code.
             if timeout --signal=TERM --kill-after=10s 180s "$TIZEN_CORE_CLI" dotnet-build build \
               --author-key "$author_key" \
               --author-attr "$author_attr" \
               --dist-key "$distributor_key" \
-              --dist-attr "$distributor_attr" \
+              --dist-attr "$distributor_encrypted" \
               --target-path "$project_file" > "$log" 2>&1; then
               status=0
             else
@@ -256,27 +245,28 @@ jobs:
             return 0
           }
 
-          run_probe password-file-path "$author_pwd"
-          first_status=$?
-          run_probe literal-password "$author_password"
-          second_status=$?
+          # Candidate: encrypted inline attribute. Control: .pwd path.
+          run_probe encrypted-inline "$author_encrypted"
+          encrypted_function_status=$?
+          run_probe pwd-path-control "$author_pwd"
+          pwd_function_status=$?
 
-          file_status="$(cat "$PROBE_OUT/password-file-path-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
-          literal_status="$(cat "$PROBE_OUT/literal-password-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
+          encrypted_status="$(cat "$PROBE_OUT/encrypted-inline-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
+          pwd_status="$(cat "$PROBE_OUT/pwd-path-control-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
           {
-            echo "password-file-path exit code: $file_status"
-            echo "literal-password exit code: $literal_status"
-            echo "first run_probe status: $first_status"
-            echo "second run_probe status: $second_status"
-            if [[ "$file_status" == 0 ]]; then
-              echo "Assessment: author-attr .pwd path accepted and dotnet-build completed."
-            elif grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/password-file-path.log"; then
-              echo "Assessment: author-attr .pwd path was rejected while fetching the author password."
+            echo "encrypted-inline exit code: $encrypted_status"
+            echo "pwd-path-control exit code: $pwd_status"
+            echo "encrypted-inline function status: $encrypted_function_status"
+            echo "pwd-path-control function status: $pwd_function_status"
+            if [[ "$encrypted_status" == 0 ]]; then
+              echo "Assessment: encrypted inline author-attr and distributor-attr were accepted; dotnet-build completed."
+            elif grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/encrypted-inline.log"; then
+              echo "Assessment: encrypted inline author-attr was rejected by tz while fetching the author password."
             else
-              echo "Assessment: inspect password-file-path.log for the first downstream failure."
+              echo "Assessment: encrypted inline attributes passed the CLI password parser; inspect the log for any downstream signing failure."
             fi
-            if grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/literal-password.log"; then
-              echo "Literal control: plain-text password is not a valid password attribute."
+            if grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/pwd-path-control.log"; then
+              echo "Control: .pwd path was rejected as an inline encrypted attribute."
             fi
             echo "tz pack: NOT RUN"
           } | tee "$PROBE_OUT/assessment.txt"
