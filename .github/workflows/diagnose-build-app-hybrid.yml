@@ -20,6 +20,11 @@ jobs:
     if: github.ref == 'refs/heads/1.2.4-pre'
     runs-on: ubuntu-22.04
     timeout-minutes: 35
+    container:
+      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out Moonlight
         uses: actions/checkout@v4
@@ -27,118 +32,40 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 1
 
-      - name: Install system dependencies for Tizen Studio
+      - name: Configure shared Tizen build environment
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gettext
-
-          # libkchart2 is listed in Ubuntu 22.04 (Jammy) universe.
-          echo "=== APT policy: libkchart2 ==="
-          apt-cache policy libkchart2 | tee "$RUNNER_TEMP/libkchart2-policy.txt"
-          echo "=== APT search: libkchart packages ==="
-          apt-cache search '^libkchart' | tee "$RUNNER_TEMP/libkchart-search.txt"
-          libkchart_candidate="$(apt-cache policy libkchart2 | awk '/Candidate:/ { print $2; exit }')"
-          if [[ -z "$libkchart_candidate" || "$libkchart_candidate" == "(none)" ]]; then
-            echo "libkchart2 has no APT candidate on this Ubuntu runner."
-            echo "=== Configured Ubuntu repositories ==="
-            grep -RhsE '^(deb |Types:|URIs:|Suites:|Components:)' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true
-            exit 1
-          fi
-          echo "Installing libkchart2 candidate: $libkchart_candidate"
-          sudo apt-get install -y --no-install-recommends "libkchart2=$libkchart_candidate"
-
-          sudo apt-get install -y --no-install-recommends \
-            software-properties-common expect unzip \
-            libxcb-icccm4 libkf5itemmodels5 bridge-utils libxcb-shape0 openvpn \
-            libkf5kiowidgets5 libxcb-render-util0 libxcb-image0 libsdl1.2debian libv4l-0
-          sudo add-apt-repository -y ppa:deadsnakes/ppa
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
-
-      - name: Restore Tizen Studio 6.1 SDK cache
-        id: tizen-sdk-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/tizen-studio
-          key: tizen-studio-6.1-ubuntu-22.04-nativecli-tizen-10.0-samsung-tv-public-webapp-tools-resources-v1
-
-      - name: Install Tizen Studio and Samsung TV components on cache miss
-        if: steps.tizen-sdk-cache.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          installer="$RUNNER_TEMP/tizen-web-cli.bin"
-          curl --fail --location --retry 3 --output "$installer" \
-            https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
-          chmod +x "$installer"
-          "$installer" --accept-license "$RUNNER_TEMP/tizen-studio"
-
-          sdk="$RUNNER_TEMP/tizen-studio"
-          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
-          test -n "$pm"
-          # The installer already registers Samsung's TV Extension repository.
-          # Do not add another repository with the same display name.
-          "$pm" extra --list 2>&1 | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
-          grep -Fq "Samsung Tizen TV SDK" "$RUNNER_TEMP/tizen-extra-repositories.txt"
-
-          set +e
-          "$pm" install --accept-license --no-java-check \
-            "NativeCLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
-            2>&1 | tee "$RUNNER_TEMP/tizen-package-install.txt"
-          install_status=${PIPESTATUS[0]}
-          set -e
-          echo "Package Manager install exit code: $install_status" \
-            | tee "$RUNNER_TEMP/tizen-package-install-status.txt"
-          if (( install_status != 0 )); then
-            echo "Package Manager installation failed; see tizen-package-install.txt."
-            exit "$install_status"
-          fi
-
-      - name: Verify cached Tizen Studio and expose CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdk="$RUNNER_TEMP/tizen-studio"
-          test -d "$sdk"
+          sdk="/opt/tizen-studio"
+          test -x "$sdk/tools/ide/bin/tizen"
+          test -x "$sdk/tools/tizen-core/tz"
+          dotnet --list-sdks | grep -E '^8\\.'
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
           "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
-
-          required_tv_packages=(
+          required_packages=(
             NativeCLI
+            TIZEN-9.0-WebAppDevelopment-CLI
             TIZEN-10.0
             TV-SAMSUNG-Public
             TV-SAMSUNG-Public-WebAppDevelopment
             TV-SAMSUNG-Extension-Tools
             TV-SAMSUNG-Extension-Resources
           )
-          for package in "${required_tv_packages[@]}"; do
-            if ! awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' \
-              "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
-              echo "Required Tizen package is missing: $package"
-              exit 1
-            fi
+          for package in "${required_packages[@]}"; do
+            awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' \
+              "$RUNNER_TEMP/tizen-installed-package-catalog.txt" || {
+                echo "Required Tizen package missing from shared image: $package"
+                exit 1
+              }
           done
-
-          test -x "$sdk/tools/ide/bin/tizen"
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
+          echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
+          echo "TIZEN_CORE_CLI=$sdk/tools/tizen-core/tz" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
-          if [[ "${{ steps.tizen-sdk-cache.outputs.cache-hit }}" == "true" ]]; then
-            echo "Using restored Tizen Studio 6.1 SDK cache."
-          else
-            echo "Tizen Studio installation verified; SDK will be cached after this step."
-          fi
-
-      - name: Save verified Tizen Studio 6.1 SDK cache
-        if: steps.tizen-sdk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/tizen-studio
-          key: ${{ steps.tizen-sdk-cache.outputs.cache-primary-key }}
+          echo "Shared Tizen build environment verified."
 
       - name: Check build-app availability and save CLI help
         shell: bash
@@ -171,11 +98,6 @@ jobs:
           fi
           echo "build-app is available." \
             | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-availability.txt"
-
-      - name: Install .NET 8 SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
 
       - name: Create diagnostic signing profile
         shell: bash
