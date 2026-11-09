@@ -14,6 +14,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends software-properties-common ca-certificates curl wget gnupg \
     && add-apt-repository -y universe \
     && add-apt-repository -y ppa:deadsnakes/ppa \
+    && curl --fail --location --retry 3 https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         aria2 \
@@ -37,6 +38,7 @@ RUN apt-get update \
         libxcb-render-util0 \
         libxcb-shape0 \
         ninja-build \
+        nodejs \
         openvpn \
         python2 \
         python3 \
