@@ -7106,7 +7106,7 @@ function getDefaultAmbilightWledIp() {
 
   var octets = String(localIp || '').split('.');
   var validIPv4 = octets.length === 4 && octets.every(function(octet) {
-    return /^\\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
+    return /^\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
   });
   if (validIPv4 && octets[0] !== '0' && octets[0] !== '127' &&
       !(octets[0] === '169' && octets[1] === '254')) {
@@ -7120,7 +7120,7 @@ function setAmbilightWledIpValue(ip) {
   var value = String(ip || getDefaultAmbilightWledIp()).trim();
   var octets = value.split('.');
   var validIPv4 = octets.length === 4 && octets.every(function(octet) {
-    return /^\\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
+    return /^\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
   });
   if (!validIPv4) {
     value = getDefaultAmbilightWledIp();
