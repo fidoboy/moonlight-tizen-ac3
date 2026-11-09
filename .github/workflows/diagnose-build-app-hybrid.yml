@@ -67,7 +67,7 @@ jobs:
           echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_CORE_CLI=$sdk/tools/tizen-core/tz" >> "$GITHUB_ENV"
-          echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+          echo "TIZEN_STUDIO_DATA_PATH=/home/tizen/tizen-studio-data" >> "$GITHUB_ENV"
           echo "Shared Tizen build environment verified."
 
       - name: Check build-app availability and save CLI help
@@ -106,15 +106,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export TIZEN_STUDIO_DATA_PATH="$RUNNER_TEMP/tizen-studio-data"
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH/profile"
+          # Tizen CLI stores certificates under the tizen user's home, regardless
+          # of RUNNER_TEMP. Use the actual data directory reported by the CLI.
+          data_dir="/home/tizen/tizen-studio-data"
+          export TIZEN_STUDIO_DATA_PATH="$data_dir"
+          mkdir -p "$data_dir/profile"
           tizen certificate -a Moonlight -f Moonlight -p 123456
-          author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
+          author_key="$data_dir/keystore/author/Moonlight.p12"
+          test -f "$author_key"
           openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -info -noout
           tizen security-profiles add -n Moonlight -a "$author_key" -p 123456 \
-            -- "$TIZEN_STUDIO_DATA_PATH/profile"
-          profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
-          sed -i "s|$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.pwd||" "$profiles"
+            -- "$data_dir/profile"
+          profiles="$data_dir/profile/profiles.xml"
+          test -f "$profiles"
+          sed -i "s|$data_dir/keystore/author/Moonlight.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
           tizen cli-config "default.profiles.path=$profiles"
