@@ -171,7 +171,7 @@ jobs:
           data_dir="/home/tizen/tizen-studio-data"
           export TIZEN_STUDIO_DATA_PATH="$data_dir"
           mkdir -p "$data_dir/profile" "$RUNNER_TEMP/build-app-diagnostics"
-          author_password="$(printf '\\061\\062\\063\\064\\065\\066')"
+          author_password="$(printf '\061\062\063\064\065\066')"
           tizen certificate -a Moonlight -f Moonlight -p "$author_password"
           author_key="$data_dir/keystore/author/Moonlight.p12"
           author_pwd="$data_dir/keystore/author/Moonlight.pwd"
@@ -179,10 +179,10 @@ jobs:
           test -f "$author_pwd"
 
           echo "=== Author password file: exact bytes and visible contents ==="
-          printf 'Expected password: [%s]\\n' "$author_password"
+          printf 'Expected password: [%s]\n' "$author_password"
           printf 'Actual password:   ['
           cat "$author_pwd"
-          printf ']\\n'
+          printf ']\n'
           printf 'Byte count: '
           wc -c < "$author_pwd"
           printf 'Hex bytes: '
@@ -213,11 +213,11 @@ jobs:
           echo "=== Signing profile registered ==="
           tizen security-profiles list -x "$profiles"
           {
-            printf 'profile_name=Moonlight\\n'
-            printf 'profiles_xml=%s\\n' "$profiles"
-            printf 'author_key=%s\\n' "$author_key"
-            printf 'author_password_file=%s\\n' "$author_pwd"
-            printf 'expected_password=%s\\n' "$author_password"
+            printf 'profile_name=Moonlight\n'
+            printf 'profiles_xml=%s\n' "$profiles"
+            printf 'author_key=%s\n' "$author_key"
+            printf 'author_password_file=%s\n' "$author_pwd"
+            printf 'expected_password=%s\n' "$author_password"
           } | tee "$RUNNER_TEMP/build-app-diagnostics/signing-profile-preflight.txt"
 
       - name: Test minimal Web plus .NET service hybrid with Tizen Core
@@ -426,7 +426,7 @@ jobs:
             grep -F -- "Author cert : $author_key" "$out/tz-build-hybrid-stdout.txt"
           } 2>&1 | tee "$out/tz-build-signing-profile-verification.txt"
           profile_check_status=${PIPESTATUS[0]}
-          printf '%s\\n' "$profile_check_status" > "$out/tz-build-signing-profile-verification-exit-code.txt"
+          printf '%s\n' "$profile_check_status" > "$out/tz-build-signing-profile-verification-exit-code.txt"
           if (( profile_check_status != 0 )); then
             echo "tz build did not demonstrably use the expected Moonlight certificate/password paths."
             if (( build_status == 0 )); then build_status=1; fi
