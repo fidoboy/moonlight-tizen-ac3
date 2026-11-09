@@ -95,6 +95,22 @@ RUN installer=/tmp/tizen-web-cli.bin \
 
 USER root
 ENV HOME=/root
+
+# Install Samsung's official Tizen.NET workload for the .NET 8.0.400 SDK band.
+# Pin the installer source and manifest version so image rebuilds are reproducible.
+ARG SAMSUNG_TIZEN_NET_COMMIT=5294db5380c4e5fffdaaedcf1102d944096af926
+ARG SAMSUNG_TIZEN_WORKLOAD_MANIFEST_VERSION=10.0.120
+RUN curl --fail --location --retry 3 \
+        "https://raw.githubusercontent.com/Samsung/Tizen.NET/${SAMSUNG_TIZEN_NET_COMMIT}/workload/scripts/workload-install.sh" \
+        --output /tmp/workload-install.sh \
+    && chmod 0755 /tmp/workload-install.sh \
+    && /tmp/workload-install.sh --version "${SAMSUNG_TIZEN_WORKLOAD_MANIFEST_VERSION}" \
+        --dotnet-install-dir /usr/share/dotnet \
+    && rm -f /tmp/workload-install.sh \
+    && test -f /usr/share/dotnet/sdk-manifests/8.0.400/samsung.net.sdk.tizen/WorkloadManifest.json \
+    && test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref.API13 \
+    && /usr/share/dotnet/dotnet workload list | grep -i tizen
+
 RUN chmod -R a+rX /home/tizen/tizen-studio
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
