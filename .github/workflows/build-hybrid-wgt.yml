@@ -361,6 +361,7 @@ jobs:
           import sys
           import xml.etree.ElementTree as ET
           from pathlib import Path, PurePosixPath
+          from urllib.parse import unquote
           
           root = Path(sys.argv[1])
           expected_pkcs12 = {
@@ -425,13 +426,24 @@ jobs:
                   uri = reference.get("URI", "")
                   if not uri or uri.startswith("#"):
                       continue
-                  relative = PurePosixPath(uri)
-                  if relative.is_absolute() or ".." in relative.parts or len(relative.parts) != 1:
+                  decoded_uri = unquote(uri, errors="strict")
+                  relative = PurePosixPath(decoded_uri)
+                  if (
+                      relative.is_absolute()
+                      or "\\" in decoded_uri
+                      or "\x00" in decoded_uri
+                      or ".." in relative.parts
+                      or not relative.parts
+                  ):
                       raise SystemExit(f"{filename} contains an unsafe external reference: {uri}")
-                  target = root / relative.name
+                  target = (root / Path(*relative.parts)).resolve()
+                  try:
+                      target.relative_to(root.resolve())
+                  except ValueError:
+                      raise SystemExit(f"{filename} contains an external reference outside the package: {uri}")
                   if not target.is_file():
                       raise SystemExit(
-                          f"{filename} references missing package file: {uri}"
+                          f"{filename} references missing package file: {uri} (decoded as {decoded_uri})"
                       )
                   argv.extend([f"--url-map:{uri}", str(target)])
           
