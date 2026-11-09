@@ -300,7 +300,7 @@ jobs:
           cp "$jar_path" "$out/tizen-new-cli.jar"
           sha256sum "$jar_path" | tee "$out/tizen-new-cli.sha256"
           echo "=== JAR class entry ===" | tee "$out/build-app-class-entry.txt"
-          jar_bin="$(dirname "$TIZEN_STUDIO")/jdk/bin/jar"
+          jar_bin="$TIZEN_STUDIO/jdk/bin/jar"
           javap_bin="$TIZEN_STUDIO/jdk/bin/javap"
           [[ -x "$jar_bin" ]] || jar_bin="$(command -v jar)"
           [[ -x "$javap_bin" ]] || javap_bin="$(command -v javap)"
