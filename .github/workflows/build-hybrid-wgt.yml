@@ -242,6 +242,7 @@ jobs:
             # the base WGT that tz pack later embeds under res/wgt/.
             run_tz "set-web-build-type-$name" "$TIZEN_CORE_CLI" set -b Release -w "$web"
             grep -Fqx "build_type: Release" "$web/tizen_web_project.yaml"
+            mapfile -t generated_wgts < <(find "$web" -maxdepth 1 -type f -name '*.wgt' -print | sort)
             if (( ${#generated_wgts[@]} != 1 )); then
               echo "::error::Expected exactly one base Web WGT in $web; found ${#generated_wgts[@]}."
               printf '%s\\n' "${generated_wgts[@]}"
