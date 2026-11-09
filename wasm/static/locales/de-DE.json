@@ -279,7 +279,6 @@
   "Recv": "Empf.",
   "Dec": "Dek.",
   "Rend": "Rend.",
-
   "Invalid MAC address format": "Ungültiges MAC-Adressformat",
   "Invalid MAC address: default zero MAC address not allowed": "Ungültige MAC-Adresse: eine MAC-Adresse aus Nullen ist nicht zulässig",
   "Keyboard": "Tastatur",
@@ -616,5 +615,11 @@
   "— Stop the streaming session.": "— Streaming-Sitzung beenden.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Den Eingabemodus des IP-Adressfelds ändern und das Host-PC-Menü öffnen.",
   "— Toggle the performance statistics overlay.": "— Leistungsstatistik-Einblendung ein- oder ausblenden.",
-  "• No relevant changes found.": "• Keine relevanten Änderungen gefunden."
+  "• No relevant changes found.": "• Keine relevanten Änderungen gefunden.",
+  "Ambilight": "Ambilight",
+  "Checking Ambilight support...": "Ambilight-Unterstützung wird überprüft...",
+  "Enable Ambilight": "Ambilight aktivieren",
+  "WLED IP address": "WLED-IP-Adresse",
+  "Capture the Moonlight video plane and send live colors to your WLED device.": "Das Moonlight-Videobild erfassen und Live-Farben an dein WLED-Gerät senden.",
+  "Ambilight is not supported on this TV.": "Ambilight wird von diesem Fernseher nicht unterstützt."
 }
