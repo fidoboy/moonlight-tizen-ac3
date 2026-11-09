@@ -492,12 +492,12 @@ function closePopupMenu(id) {
 }
 
 // Handle the state of the IP address text input field
-function handleIpTextFieldState(enabled) {
+function handleIpTextFieldState(enabled, inputId) {
   const listener = document.getElementById('listener');
-  const textInput = document.getElementById('ipAddressTextInput');
+  const textInput = document.getElementById(inputId || 'ipAddressTextInput');
   // Check if the element exists before modifying
   if (!textInput) {
-    console.error('%c[navigation.js, handleIpTextFieldState]', 'color: gray;', 'Cannot find the IP address text input element!', textInput);
+    console.error('%c[navigation.js, handleIpTextFieldState]', 'color: gray;', 'Cannot find the IP address text input element:', inputId || 'ipAddressTextInput');
     return;
   }
   textInput.readOnly = !enabled;
@@ -520,7 +520,7 @@ function handleIpTextFieldState(enabled) {
 // Change the value of the IP address numeric field
 function changeIpNumericFieldValue(adjust) {
   const currentItem = elementId(this.view.current());
-  if (currentItem.startsWith('ipAddressField')) {
+  if (currentItem.startsWith('ipAddressField') || currentItem.startsWith('ambilightWledIpField')) {
     const digitElement = document.getElementById(currentItem);
     let currentValue = parseInt(digitElement.value, 10);
     currentValue = (currentValue + adjust + 256) % 256;
@@ -1473,26 +1473,66 @@ const Views = {
     },
   },
   BasicSettings: {
-    view: new ListView(() => [
-      'selectResolution',
-      'selectFramerate',
-      'selectBitrate',
-      'framePacingBtn'
-    ]),
+    view: new ListView(() => {
+      const items = [
+        'selectResolution',
+        'selectFramerate',
+        'selectBitrate',
+        'framePacingBtn',
+        'ambilightBtn'
+      ];
+      if ($('#ambilightSwitch').prop('checked')) {
+        if ($('#ipAddressFieldModeSwitch').prop('checked')) {
+          items.push('ambilightWledIpField1', 'ambilightWledIpField2',
+            'ambilightWledIpField3', 'ambilightWledIpField4');
+        } else {
+          items.push('ambilightWledIpTextInput');
+        }
+      }
+      return items;
+    }),
     up: function() {
-      this.view.prevOption();
-      focusElement(this.view.current());
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        changeIpNumericFieldValue.call(this, 1);
+      } else {
+        this.view.prevOption();
+        focusElement(this.view.current());
+      }
     },
     down: function() {
-      this.view.nextOption();
-      focusElement(this.view.current());
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        changeIpNumericFieldValue.call(this, -1);
+      } else {
+        this.view.nextOption();
+        focusElement(this.view.current());
+      }
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        this.view.prev();
+        focusElement(this.view.current());
+      }
+    },
+    right: function() {
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        this.view.next();
+        focusElement(this.view.current());
+      }
+    },
     accept: function() {
-      clickElement(this.view.current());
+      const currentItem = elementId(this.view.current());
+      if (currentItem === 'ambilightWledIpTextInput') {
+        handleIpTextFieldState(true, currentItem);
+      } else if (!currentItem.startsWith('ambilightWledIpField')) {
+        clickElement(this.view.current());
+      }
     },
     back: function() {
+      const currentItem = resolveElement(this.view.current());
+      if (currentItem && currentItem.id === 'ambilightWledIpTextInput' && !currentItem.readOnly) {
+        handleIpTextFieldState(false, currentItem.id);
+        return;
+      }
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
