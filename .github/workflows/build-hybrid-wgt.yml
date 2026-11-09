@@ -383,15 +383,37 @@ jobs:
           from pathlib import Path, PurePosixPath
           
           package_path, service_tpk_path, source_path = map(Path, sys.argv[1:])
-          with zipfile.ZipFile(package_path) as package:
+          with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path) as service:
               names = set(package.namelist())
-              tpks = [name for name in names if name.lower().endswith(".tpk")]
-              if not tpks:
-                  raise SystemExit("Final signed hybrid WGT does not contain the embedded service TPK")
-              if len(tpks) != 1:
-                  raise SystemExit(f"Expected one embedded service TPK, found {len(tpks)}")
-              if package.read(tpks[0]) != service_tpk_path.read_bytes():
-                  raise SystemExit("Signing changed or replaced the embedded service TPK")
+              service_names = set(service.namelist())
+              # Tizen Core's hybrid packer expands the referenced service TPK
+              # into the outer WGT; it does not retain a nested .tpk archive.
+              # Verify every service payload member byte-for-byte at its
+              # package-root path. The service manifest/signatures are metadata
+              # and are represented by the combined outer manifest/signatures.
+              service_metadata = {
+                  "tizen-manifest.xml", "author-signature.xml",
+                  "signature1.xml", "signature2.xml",
+              }
+              service_payload = {
+                  name for name in service_names
+                  if not name.endswith("/") and name not in service_metadata
+              }
+              missing_service = sorted(service_payload - names)
+              if missing_service:
+                  raise SystemExit(
+                      "Final hybrid WGT is missing expanded service TPK files: "
+                      + ", ".join(missing_service)
+                  )
+              changed_service = [
+                  name for name in sorted(service_payload)
+                  if package.read(name) != service.read(name)
+              ]
+              if changed_service:
+                  raise SystemExit(
+                      "Expanded service TPK payload changed during hybrid signing: "
+                      + ", ".join(changed_service)
+                  )
           
               required = {
                   "config.xml", "tizen-manifest.xml", "author-signature.xml",
@@ -450,7 +472,7 @@ jobs:
                   raise SystemExit("Moonlight video splash declaration was not preserved")
           
               print("Final signed hybrid WGT verified:")
-              print("  Embedded service TPK:", tpks)
+              print(f"  Expanded service TPK payload byte-for-byte preserved: {len(service_payload)} files.")
               print("  Author and distributor XML signatures are present and structurally valid.")
               print("  Moonlight Web payload, manifest and video splash are preserved.")
           PY
