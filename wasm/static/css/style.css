@@ -1919,7 +1919,7 @@ body[data-color-theme="black-orange"] #background-layer {
     width: max-content;
     min-width: calc(30vw - 94px);
     height: auto;
-    margin: 5px 25px 5px 25px;
+    margin: 25px 25px;
     font-weight: 600;
     text-align: left;
     overflow: visible;
@@ -1928,7 +1928,7 @@ body[data-color-theme="black-orange"] #background-layer {
     width: auto;
     box-sizing: border-box;
     color: var(--theme-text-secondary);
-    margin: 25px;
+    margin: 0 25px 25px;
     padding: 25px;
     border-bottom: 2px solid var(--theme-border);
     border-radius: 12px;
@@ -1944,6 +1944,9 @@ body[data-color-theme="black-orange"] #background-layer {
     background: var(--theme-accent-80);
     transform: scale(1.02);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+.settings-category:last-child {
+    margin-bottom: 0;
 }
 .settings-category.selected:hover, .settings-category.selected:focus {
     transform: scale(1.05);
