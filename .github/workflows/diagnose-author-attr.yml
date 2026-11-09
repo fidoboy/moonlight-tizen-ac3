@@ -93,7 +93,7 @@ jobs:
             echo "Expected exactly one generated .csproj."
             exit 1
           fi
-          cp "${projects[0]}" "$out/probe-project-path.txt"
+          printf '%s\n' "${projects[0]}" > "$out/probe-project-path.txt"
           echo "Probe setup completed."
 
       - name: Compare password-file path with literal author password
