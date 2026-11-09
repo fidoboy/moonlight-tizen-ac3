@@ -792,6 +792,7 @@ function attachListeners() {
   });
 
   initIpAddressFields();
+  initAmbilightWledIpFields();
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
@@ -812,7 +813,8 @@ function attachListeners() {
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
   $('#ambilightSwitch').on('click', saveAmbilightPreference);
-  $('#ambilightWledIp').on('change', saveAmbilightWledIp);
+  $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
+    .on('change', saveAmbilightWledIp);
   loadAmbilightPreferences();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
@@ -2046,6 +2048,7 @@ function handleIpAddressFieldMode() {
     ipAddressSelectFields.style.display = 'none';
     updateIpAddressInputValidationState();
   }
+  updateAmbilightWledIpInputMode();
 }
 
 // Populates the select IP address fields with options from a specified range
@@ -7023,6 +7026,7 @@ function saveIpAddressFieldMode() {
     const chosenIpAddressFieldMode = $('#ipAddressFieldModeSwitch').parent().hasClass('is-checked');
     console.log('%c[index.js, saveIpAddressFieldMode]', 'color: green;', 'Saving IP address field mode state: ' + chosenIpAddressFieldMode);
     storeData('ipAddressFieldMode', chosenIpAddressFieldMode, null);
+    updateAmbilightWledIpInputMode();
   }, 100);
 }
 
@@ -7089,12 +7093,83 @@ function initializeColorThemeSelector() {
 
 }
 
+function getDefaultAmbilightWledIp() {
+  var localIp = '';
+  try {
+    if (typeof webapis !== 'undefined' && webapis.network &&
+        typeof webapis.network.getIp === 'function') {
+      localIp = webapis.network.getIp();
+    }
+  } catch (error) {
+    console.warn('[ambilight] Could not detect the TV IPv4 address:', error);
+  }
+
+  var octets = String(localIp || '').split('.');
+  var validIPv4 = octets.length === 4 && octets.every(function(octet) {
+    return /^\\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
+  });
+  if (validIPv4 && octets[0] !== '0' && octets[0] !== '127' &&
+      !(octets[0] === '169' && octets[1] === '254')) {
+    octets[3] = Number(octets[3]) === 100 ? '101' : '100';
+    return octets.join('.');
+  }
+  return '192.168.0.100';
+}
+
+function setAmbilightWledIpValue(ip) {
+  var value = String(ip || getDefaultAmbilightWledIp()).trim();
+  var octets = value.split('.');
+  var validIPv4 = octets.length === 4 && octets.every(function(octet) {
+    return /^\\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255;
+  });
+  if (!validIPv4) {
+    value = getDefaultAmbilightWledIp();
+    octets = value.split('.');
+  }
+
+  var textInput = document.getElementById('ambilightWledIpTextInput');
+  if (textInput) textInput.value = value;
+  octets.forEach(function(octet, index) {
+    var field = document.getElementById('ambilightWledIpField' + (index + 1));
+    if (field) field.value = String(Number(octet));
+  });
+  return value;
+}
+
+function initAmbilightWledIpFields() {
+  var defaultOctets = getDefaultAmbilightWledIp().split('.').map(Number);
+  defaultOctets.forEach(function(value, index) {
+    var field = document.getElementById('ambilightWledIpField' + (index + 1));
+    if (field) populateSelectFields(field, 0, 255, value);
+  });
+  setAmbilightWledIpValue(defaultOctets.join('.'));
+  updateAmbilightWledIpInputMode();
+}
+
+function getAmbilightWledIpValue() {
+  if ($('#ipAddressFieldModeSwitch').prop('checked')) {
+    return [1, 2, 3, 4].map(function(index) {
+      return $('#ambilightWledIpField' + index).val();
+    }).join('.');
+  }
+  return String($('#ambilightWledIpTextInput').val() || '').trim();
+}
+
+function updateAmbilightWledIpInputMode() {
+  var useIPv4Fields = $('#ipAddressFieldModeSwitch').prop('checked') === true;
+  var inputField = document.getElementById('ambilightWledIpInputField');
+  var selectFields = document.getElementById('ambilightWledIpSelectFields');
+  if (inputField) inputField.style.display = useIPv4Fields ? 'none' : 'block';
+  if (selectFields) selectFields.style.display = useIPv4Fields ? 'block' : 'none';
+}
+
 function updateAmbilightSettingsVisibility() {
   var toggle = document.getElementById('ambilightSwitch');
   var ipContainer = document.getElementById('ambilightWledIpContainer');
   if (ipContainer) {
     ipContainer.style.display = toggle && toggle.checked ? 'block' : 'none';
   }
+  updateAmbilightWledIpInputMode();
 }
 
 function updateAmbilightAvailability(supported) {
@@ -7174,8 +7249,11 @@ function loadAmbilightPreferences() {
   });
 
   getData('ambilightWledIp', function(data) {
-    var input = document.getElementById('ambilightWledIp');
-    if (input && data && typeof data.ambilightWledIp === 'string') input.value = data.ambilightWledIp;
+    var savedIp = data && typeof data.ambilightWledIp === 'string'
+      ? data.ambilightWledIp
+      : getDefaultAmbilightWledIp();
+    setAmbilightWledIpValue(savedIp);
+    updateAmbilightWledIpInputMode();
   });
 }
 
@@ -7203,7 +7281,7 @@ function saveAmbilightPreference() {
 }
 
 function saveAmbilightWledIp() {
-  var ip = String($('#ambilightWledIp').val() || '').trim();
+  var ip = getAmbilightWledIpValue();
   storeData('ambilightWledIp', ip, null);
 
   if (ambilightSupportState === 'supported' &&
