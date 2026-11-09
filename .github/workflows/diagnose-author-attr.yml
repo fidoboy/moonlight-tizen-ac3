@@ -1,6 +1,10 @@
 name: Diagnose Tizen dotnet-build author-attr semantics
 
 on:
+  push:
+    branches: ["1.2.4-pre"]
+    paths:
+      - ".github/workflows/diagnose-author-attr.yml"
   workflow_dispatch:
 
 permissions:
