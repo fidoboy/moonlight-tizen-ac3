@@ -279,7 +279,6 @@
   "Recv": "Reç.",
   "Dec": "Déc.",
   "Rend": "Aff.",
-
   "Invalid MAC address format": "Format d’adresse MAC invalide",
   "Invalid MAC address: default zero MAC address not allowed": "Adresse MAC invalide : l’adresse composée uniquement de zéros est interdite",
   "Keyboard": "Clavier",
@@ -616,5 +615,11 @@
   "— Stop the streaming session.": "— Arrêter la session de diffusion.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Changer le mode du champ d’adresse IP et ouvrir le menu du PC hôte.",
   "— Toggle the performance statistics overlay.": "— Afficher ou masquer les statistiques de performances.",
-  "• No relevant changes found.": "• Aucun changement pertinent trouvé."
+  "• No relevant changes found.": "• Aucun changement pertinent trouvé.",
+  "Ambilight": "Ambilight",
+  "Checking Ambilight support...": "Vérification de la compatibilité avec Ambilight...",
+  "Enable Ambilight": "Activer Ambilight",
+  "WLED IP address": "Adresse IP WLED",
+  "Capture the Moonlight video plane and send live colors to your WLED device.": "Capturer l’image vidéo de Moonlight et envoyer des couleurs en temps réel à votre appareil WLED.",
+  "Ambilight is not supported on this TV.": "Ambilight n’est pas pris en charge sur ce téléviseur."
 }
