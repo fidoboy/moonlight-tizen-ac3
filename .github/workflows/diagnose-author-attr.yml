@@ -190,6 +190,7 @@ jobs:
           author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
           author_password=123456
           profile_attrs="$PROBE_OUT/profile-password-attributes.txt"
+          distributor_key="$(awk '/^slot=1$/ { found=1; next } /^slot=/ { found=0 } found && /^key=/ { sub(/^key=/, ""); print; exit }' "$PROBE_OUT/profile-password-attributes.txt")"
 
           # The distributor password argument must be the exact password attribute
           # written by tz security-profiles add, not the raw PKCS#12 password.
