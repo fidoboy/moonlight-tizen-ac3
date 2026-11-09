@@ -1496,7 +1496,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from BasicSettings view
@@ -1647,7 +1647,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InterfaceSettings view
@@ -1782,7 +1782,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from HostSettings view
@@ -1824,7 +1824,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InputSettings view
@@ -1874,7 +1874,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AudioSettings view
@@ -2034,7 +2034,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from VideoSettings view
@@ -2160,7 +2160,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AdvancedSettings view
@@ -2202,7 +2202,7 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AboutSettings view
