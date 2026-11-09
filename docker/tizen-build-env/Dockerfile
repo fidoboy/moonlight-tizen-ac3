@@ -89,6 +89,7 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && rm -f "$installer" /tmp/tizen-extra-repositories.txt /tmp/tizen-installed-packages.txt
 
 USER root
+ENV HOME=/root
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
 # Profiles, certificates and user data must be created per workflow execution.
