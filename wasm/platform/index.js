@@ -7254,10 +7254,11 @@ function loadAmbilightPreferences() {
   });
 
   getData('ambilightWledIp', function(data) {
-    var savedIp = data && typeof data.ambilightWledIp === 'string'
-      ? data.ambilightWledIp
-      : getDefaultAmbilightWledIp();
+    var hasSavedIp = data && typeof data.ambilightWledIp === 'string' &&
+      data.ambilightWledIp.trim().length > 0;
+    var savedIp = hasSavedIp ? data.ambilightWledIp : getDefaultAmbilightWledIp();
     setAmbilightWledIpValue(savedIp);
+    if (!hasSavedIp) storeData('ambilightWledIp', savedIp, null);
     updateAmbilightWledIpInputMode();
   });
 }
