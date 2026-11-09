@@ -502,7 +502,7 @@ jobs:
               config = ET.fromstring(package.read("res/wgt/config.xml"))
               splash = next((node for node in config.iter()
                              if node.tag.endswith("video_splash_screen")), None)
-              if splash is None or splash.get("ready_when") != "custom":
+              if splash is None or splash.get("ready_when") != "video-finished":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
 
               for asset in (
