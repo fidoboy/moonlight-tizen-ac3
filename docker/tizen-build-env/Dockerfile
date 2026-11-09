@@ -2,9 +2,9 @@ FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC \
-    TIZEN_STUDIO=/opt/tizen-studio \
+    TIZEN_STUDIO=/home/tizen/tizen-studio \
     DOTNET_ROOT=/usr/share/dotnet \
-    PATH=/opt/tizen-studio/tools/ide/bin:/opt/tizen-studio/tools:/opt/tizen-studio/tools/tizen-core:/usr/share/dotnet:${PATH}
+    PATH=/home/tizen/tizen-studio/tools/ide/bin:/home/tizen/tizen-studio/tools:/home/tizen/tizen-studio/tools/tizen-core:/usr/share/dotnet:${PATH}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -60,7 +60,7 @@ RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tm
 # The Tizen installer explicitly refuses to run as root. Install the SDK
 # as a dedicated unprivileged user; the runtime image remains root by default.
 # The Tizen installer requires the destination itself not to exist.
-# Give it write access to /opt, but let it create /opt/tizen-studio.
+# Give it write access to /opt, but let it create /home/tizen/tizen-studio.
 RUN useradd --create-home --uid 1001 --shell /bin/bash tizen \
     && chown tizen:tizen /opt
 USER tizen
@@ -73,7 +73,7 @@ RUN installer=/tmp/tizen-web-cli.bin \
         https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin \
         --output "$installer" \
     && chmod +x "$installer" \
-    && rm -rf "$TIZEN_STUDIO" \
+    && test ! -e "$TIZEN_STUDIO" \
     && "$installer" --accept-license "$TIZEN_STUDIO" \
     && pm="$(find "$TIZEN_STUDIO" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)" \
     && test -n "$pm" \
@@ -92,7 +92,7 @@ RUN installer=/tmp/tizen-web-cli.bin \
 
 USER root
 ENV HOME=/root
-RUN chmod -R a+rX /opt/tizen-studio
+RUN chmod -R a+rX /home/tizen/tizen-studio
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
 # Profiles, certificates and user data must be created per workflow execution.
