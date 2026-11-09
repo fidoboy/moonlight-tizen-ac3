@@ -242,7 +242,7 @@ jobs:
               echo "SDK common Validator.xml not found."
             fi
           } 2>&1 | tee "$out/package-validator-diagnostics.txt"
-          find "$WEB_PROJECT" -maxdepth 3 -type f \\( -name '*.xml' -o -name '*.json' -o -name '*.project' \\) -print \\
+          find "$WEB_PROJECT" -maxdepth 3 -type f \( -name '*.xml' -o -name '*.json' -o -name '*.project' \) -print \
             | sort | tee "$out/web-project-descriptors.txt"
           while IFS= read -r descriptor; do
             [[ -f "$descriptor" ]] || continue
