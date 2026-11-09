@@ -327,8 +327,16 @@
                 </label>
               </div>
               <div id="ambilightWledIpContainer" style="display: none;">
-                <label for="ambilightWledIp" data-i18n="WLED IP address">WLED IP address</label>
-                <input type="text" id="ambilightWledIp" class="mdl-textfield__input" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off">
+                <label data-i18n="WLED IP address">WLED IP address</label>
+                <div id="ambilightWledIpInputField" class="mdl-textfield mdl-js-textfield">
+                  <input type="text" id="ambilightWledIpTextInput" class="mdl-textfield__input" maxlength="15" inputmode="decimal" placeholder="192.168.0.100" autocomplete="off" readonly>
+                </div>
+                <div id="ambilightWledIpSelectFields" class="select-option-field" style="display: none;">
+                  <select id="ambilightWledIpField1" class="ip-address-select-field" name="ambilightWledIpField1" tabindex="-1"></select>
+                  <select id="ambilightWledIpField2" class="ip-address-select-field" name="ambilightWledIpField2" tabindex="-1"></select>
+                  <select id="ambilightWledIpField3" class="ip-address-select-field" name="ambilightWledIpField3" tabindex="-1"></select>
+                  <select id="ambilightWledIpField4" class="ip-address-select-field" name="ambilightWledIpField4" tabindex="-1"></select>
+                </div>
               </div>
             </div>
           </div>
