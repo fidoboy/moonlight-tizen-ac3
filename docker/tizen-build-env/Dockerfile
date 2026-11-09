@@ -73,7 +73,6 @@ RUN installer=/tmp/tizen-web-cli.bin \
         https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin \
         --output "$installer" \
     && chmod +x "$installer" \
-    # Tizen CLI installer requires a non-existent destination; remove any stale path. \
     && rm -rf "$TIZEN_STUDIO" \
     && "$installer" --accept-license "$TIZEN_STUDIO" \
     && pm="$(find "$TIZEN_STUDIO" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)" \
