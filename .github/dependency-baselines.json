@@ -42,6 +42,16 @@
       "baseline_sha": "f32e415aea6797d261d6b470dcf8bf18727341c2",
       "baseline_label": "Reviewed upstream through f32e415 (2026-06-06; vendored Tizen subset)",
       "note": "MEDIUM RISK: the vendored subset has local Tizen-specific changes, including IPv6/HTTP handling, and this SHA is an approximate monitoring reference—not an exact snapshot pin. Inspect relevant changes within libgamestream, compare affected files, and port selectively while preserving local behavior; never overwrite the directory wholesale."
+    },
+    {
+      "id": "tizen-ambilight",
+      "name": "TizenAmbilight (Ambilight service)",
+      "owner": "RitwickVerma",
+      "repo": "TizenAmbilight",
+      "branch": "master",
+      "baseline_sha": "ccb646600286a02150aa353db261ca3753a44a9e",
+      "baseline_label": "Monitoring baseline established 2026-11-09; GitHub mirror master HEAD (2026-10-25)",
+      "note": "HIGH RISK: our ambilight-service is a Moonlight/AppControl-specific adaptation of this project, not a drop-in copy. The upstream GitLab project (https://gitlab.com/ritwick7/TizenAmbilight) is mirrored to GitHub master. Review upstream changes selectively, especially VideoPlaneCapture.cs, WledOutput.cs, Program.cs and related capture/processing modules. Preserve our AppControl lifecycle, Moonlight integration, Tizen target/packaging, 32-bit constraints and local validation. Never replace the service directory or individual files wholesale; port only verified fixes and update this monitoring baseline only after review."
     }
   ]
 }
