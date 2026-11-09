@@ -16,6 +16,7 @@ on:
       - "ports/**"
       - "wasm/**"
       - "ambilight-service/**"
+      - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/validate-hybrid-wgt.py"
 
 permissions:
