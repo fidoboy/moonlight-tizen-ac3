@@ -137,6 +137,55 @@ jobs:
           } 2>&1 | tee "$out/tizen-core-command-syntax-and-templates.txt"
           echo "${PIPESTATUS[0]}" > "$out/tizen-core-command-syntax-exit-code.txt"
 
+      - name: Check build-app availability and save CLI help
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/build-app-diagnostics"
+          {
+            echo "=== Tizen CLI version ==="
+            tizen version
+            echo
+            echo "=== build-app help ==="
+            tizen build-app --help
+            echo
+            echo "=== detailed build-app help ==="
+            tizen build-app -h
+            echo
+          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-help.txt"
+          status=${PIPESTATUS[0]}
+          if (( status != 0 )); then
+            echo "Tizen CLI does not expose a working build-app command (exit $status)." \
+              | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-availability.txt"
+            exit "$status"
+          fi
+          echo "build-app is available." \
+            | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-availability.txt"
+
+      - name: Create diagnostic signing profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tizen CLI stores certificates under the tizen user's home, regardless
+          # of RUNNER_TEMP. Use the actual data directory reported by the CLI.
+          data_dir="/home/tizen/tizen-studio-data"
+          export TIZEN_STUDIO_DATA_PATH="$data_dir"
+          mkdir -p "$data_dir/profile"
+          tizen certificate -a Moonlight -f Moonlight -p 123456
+          author_key="$data_dir/keystore/author/Moonlight.p12"
+          test -f "$author_key"
+          openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -info -noout
+          tizen security-profiles add -n Moonlight -a "$author_key" -p 123456 \
+            -- "$data_dir/profile"
+          profiles="$data_dir/profile/profiles.xml"
+          test -f "$profiles"
+          sed -i "s|$data_dir/keystore/author/Moonlight.pwd||" "$profiles"
+          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
+          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+          tizen cli-config "default.profiles.path=$profiles"
+          echo "=== Signing profile registered ==="
+          tizen security-profiles list
+
       - name: Test minimal Web plus .NET service hybrid with Tizen Core
         id: tz-hybrid
         continue-on-error: true
@@ -207,55 +256,6 @@ jobs:
             exit 1
           fi
           echo "TIZEN_CORE_HYBRID_TEST=PASS" | tee "$out/tz-hybrid-result.txt"
-
-      - name: Check build-app availability and save CLI help
-        shell: bash
-        run: |
-          set -uo pipefail
-          mkdir -p "$RUNNER_TEMP/build-app-diagnostics"
-          {
-            echo "=== Tizen CLI version ==="
-            tizen version
-            echo
-            echo "=== build-app help ==="
-            tizen build-app --help
-            echo
-            echo "=== detailed build-app help ==="
-            tizen build-app -h
-            echo
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-help.txt"
-          status=${PIPESTATUS[0]}
-          if (( status != 0 )); then
-            echo "Tizen CLI does not expose a working build-app command (exit $status)." \
-              | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-availability.txt"
-            exit "$status"
-          fi
-          echo "build-app is available." \
-            | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-availability.txt"
-
-      - name: Create diagnostic signing profile
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Tizen CLI stores certificates under the tizen user's home, regardless
-          # of RUNNER_TEMP. Use the actual data directory reported by the CLI.
-          data_dir="/home/tizen/tizen-studio-data"
-          export TIZEN_STUDIO_DATA_PATH="$data_dir"
-          mkdir -p "$data_dir/profile"
-          tizen certificate -a Moonlight -f Moonlight -p 123456
-          author_key="$data_dir/keystore/author/Moonlight.p12"
-          test -f "$author_key"
-          openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -info -noout
-          tizen security-profiles add -n Moonlight -a "$author_key" -p 123456 \
-            -- "$data_dir/profile"
-          profiles="$data_dir/profile/profiles.xml"
-          test -f "$profiles"
-          sed -i "s|$data_dir/keystore/author/Moonlight.pwd||" "$profiles"
-          distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
-          tizen cli-config "default.profiles.path=$profiles"
-          echo "=== Signing profile registered ==="
-          tizen security-profiles list
 
       - name: Compile the existing .NET service TPK
         shell: bash
