@@ -380,7 +380,7 @@ jobs:
               timeout --signal=TERM --kill-after=10s 60s "$TIZEN_CORE_CLI" add-deps . -d "$dependency_path"
             ) >"$stdout_file" 2>"$stderr_file"
             status=$?
-            printf '%s\\n' "$status" > "$status_file"
+            echo "$status" > "$status_file"
             {
               echo "Candidate: $candidate"
               echo "Dependency argument: $dependency_path"
