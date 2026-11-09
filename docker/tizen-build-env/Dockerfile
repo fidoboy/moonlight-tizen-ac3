@@ -22,6 +22,7 @@ RUN apt-get update \
         bridge-utils \
         build-essential \
         ccache \
+        docker.io \
         cmake \
         expect \
         file \
