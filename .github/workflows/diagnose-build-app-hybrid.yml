@@ -381,19 +381,19 @@ jobs:
           # mounted into the job container at /__w/_temp and uploaded below.
           echo "=== Capture the complete workspace tree after tz build ==="
           {
-            printf 'Workspace: %s\\n' "$workspace"
-            find "$workspace" -printf '%y %p %s bytes\\n' | sort
+            printf 'Workspace: %s\n' "$workspace"
+            find "$workspace" -printf '%y %p %s bytes\n' | sort
           } | tee "$out/tz-workspace-tree-after-build.txt"
 
           echo "=== Inventory generated build outputs ==="
-          find "$workspace" -type f \\
-            \\( -name '*.dll' -o -name '*.pdb' -o -name '*.deps.json' \\
-               -o -name '*.runtimeconfig.json' -o -name '*.tpk' -o -name '*.wgt' \\
-               -o -name '*.ninja' -o -name 'build.ninja' \\) \\
-            -printf '%p %s bytes\\n' | sort \\
+          find "$workspace" -type f \
+            \( -name '*.dll' -o -name '*.pdb' -o -name '*.deps.json' \
+               -o -name '*.runtimeconfig.json' -o -name '*.tpk' -o -name '*.wgt' \
+               -o -name '*.ninja' -o -name 'build.ninja' \) \
+            -printf '%p %s bytes\n' | sort \
             | tee "$out/tz-build-generated-artifacts.txt"
-          find "$workspace" -type d \\( -name bin -o -name obj -o -name Build \\) \\
-            -printf '%p\\n' | sort \\
+          find "$workspace" -type d \( -name bin -o -name obj -o -name Build \) \
+            -printf '%p\n' | sort \
             | tee "$out/tz-build-output-directories.txt"
 
           echo "=== Record build-only outcome ==="
