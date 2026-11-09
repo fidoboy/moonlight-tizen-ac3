@@ -1917,6 +1917,7 @@ body[data-color-theme="black-orange"] #background-layer {
     flex-direction: column;
     align-items: stretch;
     width: max-content;
+    min-width: calc(30vw - 94px);
     height: auto;
     margin: 5px 25px 5px 25px;
     font-weight: 600;
