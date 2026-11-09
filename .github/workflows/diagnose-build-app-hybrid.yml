@@ -119,7 +119,7 @@ jobs:
             tz list rootstraps
             echo
             echo "=== Installed template descriptor paths ==="
-            find "$TIZEN_STUDIO/tools/tizen-core/templates" -type f \\( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \\) -print 2>/dev/null | sort
+            find "$TIZEN_STUDIO/tools/tizen-core/templates" -type f \( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \) -print 2>/dev/null | sort
             echo
             echo "=== TizenServiceApp template definitions ==="
             service_template="$(find "$TIZEN_STUDIO/tools/tizen-core/templates/dotnet" -path '*/TizenServiceApp/template.yaml' -print -quit 2>/dev/null)"
@@ -133,7 +133,7 @@ jobs:
             fi
             echo
             echo "=== Basic_Empty Web template definition ==="
-            find "$TIZEN_STUDIO/tools/tizen-core/templates" -path '*/Basic_Empty/template.yaml' -print -exec cat {} \\; 2>/dev/null
+            find "$TIZEN_STUDIO/tools/tizen-core/templates" -path '*/Basic_Empty/template.yaml' -print -exec cat {} \; 2>/dev/null
           } 2>&1 | tee "$out/tizen-core-command-syntax-and-templates.txt"
           echo "${PIPESTATUS[0]}" > "$out/tizen-core-command-syntax-exit-code.txt"
 
@@ -228,7 +228,7 @@ jobs:
           mapfile -t wgts < <(find "$workspace" -type f -name '*.wgt' | sort)
           if (( ${#wgts[@]} != 1 )); then
             echo "Expected exactly one WGT, found ${#wgts[@]}."
-            printf '%s\\n' "${wgts[@]}"
+            printf '%s\n' "${wgts[@]}"
             exit 1
           fi
           wgt="${wgts[0]}"
@@ -237,21 +237,21 @@ jobs:
           unzip -l "$wgt" | tee "$out/tz-hybrid-wgt-contents.txt"
           mkdir -p "$out/tz-hybrid-wgt-extracted"
           unzip -q "$wgt" -d "$out/tz-hybrid-wgt-extracted"
-          find "$out/tz-hybrid-wgt-extracted" -type f -printf '%P\\n' | sort \\
+          find "$out/tz-hybrid-wgt-extracted" -type f -printf '%P\n' | sort \
             | tee "$out/tz-hybrid-wgt-files.txt"
 
           echo "=== Inspect service component metadata and .NET payload ==="
-          grep -RIlE 'service-application|dotnet|AmbilightService' "$out/tz-hybrid-wgt-extracted" \\
+          grep -RIlE 'service-application|dotnet|AmbilightService' "$out/tz-hybrid-wgt-extracted" \
             | tee "$out/tz-hybrid-service-metadata-files.txt" || true
-          find "$out/tz-hybrid-wgt-extracted" -type f \\
-            \\( -name '*.dll' -o -name '*.runtimeconfig.json' -o -name '*.deps.json' -o -name 'tizen-manifest.xml' \\) \\
-            -printf '%P\\n' | sort | tee "$out/tz-hybrid-service-payload-files.txt"
+          find "$out/tz-hybrid-wgt-extracted" -type f \
+            \( -name '*.dll' -o -name '*.runtimeconfig.json' -o -name '*.deps.json' -o -name 'tizen-manifest.xml' \) \
+            -printf '%P\n' | sort | tee "$out/tz-hybrid-service-payload-files.txt"
 
           if ! grep -RqiE 'service-application|AmbilightService' "$out/tz-hybrid-wgt-extracted"; then
             echo "WGT has no identifiable .NET service component metadata."
             exit 1
           fi
-          if ! find "$out/tz-hybrid-wgt-extracted" -type f \\( -name '*.dll' -o -name '*.runtimeconfig.json' \\) | grep -q .; then
+          if ! find "$out/tz-hybrid-wgt-extracted" -type f \( -name '*.dll' -o -name '*.runtimeconfig.json' \) | grep -q .; then
             echo "WGT has no identifiable .NET service payload."
             exit 1
           fi
