@@ -1523,7 +1523,7 @@ const Views = {
       const currentItem = elementId(this.view.current());
       if (currentItem === 'ambilightWledIpTextInput') {
         handleIpTextFieldState(true, currentItem);
-      } else if (!currentItem.startsWith('ambilightWledIpField')) {
+      } else {
         clickElement(this.view.current());
       }
     },
