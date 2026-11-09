@@ -2,11 +2,6 @@ name: Diagnose Hybrid WGT Project Creation
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["1.2.4-pre"]
-    paths:
-      - ".github/workflows/diagnose-hybrid-wgt.yml"
-      - ".github/workflows/build-hybrid-wgt.yml"
 
 permissions:
   contents: read
