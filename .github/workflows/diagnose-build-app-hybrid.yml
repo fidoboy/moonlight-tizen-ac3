@@ -207,26 +207,22 @@ jobs:
           test -f "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
 
-          # Tizen Core's password attributes are inline Base64-encoded
-          # 3DES-ECB-PKCS5 values, not plaintext and not arbitrary .pwd paths.
-          # These ciphertexts were verified by an isolated dotnet-build probe.
           author_encrypted='HeifNwdU+kk='
           distributor_encrypted='Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k='
-          sed -i \
-            -e "s|$author_pwd|$author_encrypted|" \
-            -e "s|$distributor_pwd|$distributor_encrypted|" \
-            "$profiles"
+          # security-profiles add writes inline password attributes, so replace
+          # those attributes by profile-item distributor index (not .pwd paths).
+          sed -i -E '/distributor="0"/ s|password="[^"]*"|password="'$author_encrypted'"|' "$profiles"
+          sed -i -E '/distributor="1"/ s|password="[^"]*"|password="'$distributor_encrypted'"|' "$profiles"
 
-          echo "=== Exact profiles.xml contents ==="
-          cat "$profiles"
+          echo "=== Verify the exact profile attributes without printing credentials ==="
           grep -Fq "$author_key" "$profiles"
-          grep -Fq "$author_encrypted" "$profiles"
-          grep -Fq "$distributor_encrypted" "$profiles"
+          grep -Fq "password=\"$author_encrypted\"" "$profiles"
+          grep -Fq "password=\"$distributor_encrypted\"" "$profiles"
           if grep -Fq '.pwd' "$profiles"; then
             echo "Unexpected .pwd path remains in the diagnostic signing profile."
             exit 1
           fi
-          echo "profiles.xml contains the expected author certificate and both verified encrypted password attributes."
+          echo "profiles.xml contains the expected certificate and both encrypted password attributes."
 
           echo "=== Tizen CLI profile listing using this exact profiles.xml ==="
           tizen cli-config "profiles.path=$profiles"
