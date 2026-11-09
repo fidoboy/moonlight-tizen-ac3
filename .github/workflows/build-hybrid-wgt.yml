@@ -156,285 +156,297 @@ jobs:
           done
 
       - name: Package the Tizen Core hybrid workspaces
-        shell: bash
         run: |
           set -euo pipefail
-          run_tz() {
-            local label="$1"
-            shift
-            local log="$RUNNER_TEMP/tz-${label//[^A-Za-z0-9_-]/_}.log"
-            echo "::group::Tizen Core: $label"
-            set +e
-            "$@" 2>&1 | tee "$log"
-            local statuses=("${PIPESTATUS[@]}")
-            local command_status="${statuses[0]}"
-            set -e
-            echo "::endgroup::"
-            if (( command_status != 0 )); then
-              echo "::error::Tizen Core command failed with exit code $command_status: $*"
-              return "$command_status"
-            fi
-          }
-
-          cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
-          set timeout -1
-          log_user 1
-          spawn {*}$argv
-          expect {
-            -re {Author password:} { send -- "123456\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
-            eof
-          }
-          set status [wait]
-          exit [lindex $status 3]
-          EXPECT
-          chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
-
-          package_base_web() {
-            local source="$1" name="$2" base_wgt="$3"
-            local workspace="$RUNNER_TEMP/hybrid-$name"
-            local web="$workspace/$name"
-            mkdir -p "$workspace"
-            run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tizen-9.0 -w "$workspace"
-            test -d "$web"
-            cp -a "$source/." "$web/"
-            # Use the proven AC3 signing path instead of tz pack, which implicitly
-            # attempts to decrypt and sign with the author PKCS#12 certificate.
-            run_tz "sign-base-web-wgt-$name" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$web"
-            test -s "$web/$name.wgt"
-            cp "$web/$name.wgt" "$base_wgt"
-            test -s "$base_wgt"
-            unzip -tq "$base_wgt"
-          }
-
-          # 1. Create both base Web WGTs before compiling or packaging the service.
-          package_base_web "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
-          package_base_web "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt"
-
-          # 2. Compile the Tizen .NET service directly. Do not use "tz build":
-          # its hybrid wrapper passes dotnet as the MSBuild executable.
-          find ambilight-service -type f -name '*.tpk' -delete
-          dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Release -v:m
-
-          # Verify the embedded service identity and its API 9 requirement.
-          python3 - ambilight-service/tizen-manifest.xml <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          ns = "{http://tizen.org/ns/packages}"
-          service = root.find(f"{ns}service-application")
-          expected = {
-              "package": "MoonLightS",
-              "appid": "MoonLightS.MoonlightAmbilight",
-              "exec": "MoonlightAmbilight.dll",
-              "api-version": "9",
-          }
-          actual = {
-              "package": root.get("package"),
-              "appid": service.get("appid") if service is not None else None,
-              "exec": service.get("exec") if service is not None else None,
-              "api-version": service.get("api-version") if service is not None else None,
-          }
-          for key, value in expected.items():
-              if actual[key] != value:
-                  raise SystemExit(f"Invalid service manifest {key}: expected {value!r}, got {actual[key]!r}")
-          print("Service manifest verified:", actual)
-          PY
-
-          mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
-          if (( ${#service_pkgs[@]} != 1 )); then
-            echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
-            printf '%s\n' "${service_pkgs[@]}"
-            exit 1
-          fi
-          service_tpk="${service_pkgs[0]}"
-          test -s "$service_tpk"
-          echo "Service TPK: $service_tpk"
-
-          package_hybrid() {
-            local source="$1" name="$2" base_wgt="$3" output="$4"
-            local draft="$RUNNER_TEMP/$name-unsigned.wgt"
-            local project="$RUNNER_TEMP/$name-final-project"
-
-            # 1. Assemble the hybrid WGT without asking Tizen Core to sign it.
-            run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$draft"
-            test -s "$draft"
-            unzip -tq "$draft"
-
-            # 2. Expand the assembled package so the standard Tizen CLI can sign
-            #    the complete hybrid payload, including the embedded service TPK.
-            rm -rf "$project"
-            mkdir -p "$project"
-            unzip -q "$draft" -d "$project"
-
-            # 3. Keep the Web installation floor at Tizen 5.5 while preserving
-            #    the embedded .NET service's original Tizen API 9 requirement.
-            python3 - "$project/tizen-manifest.xml" <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-
-          path = sys.argv[1]
-          ET.register_namespace("", "http://tizen.org/ns/packages")
-          tree = ET.parse(path)
-          root = tree.getroot()
-          service_app = next((node for node in root.iter()
-                              if node.tag.endswith("service-application")), None)
-          if service_app is None:
-              raise SystemExit("Hybrid manifest has no embedded service application")
-          if service_app.get("api-version") != "9":
-              raise SystemExit("Embedded service API 9 requirement changed unexpectedly")
-          root.set("api-version", "5.5")
-          tree.write(path, encoding="UTF-8", xml_declaration=True)
-          print("Hybrid manifest floor set to Tizen 5.5; service remains API 9.")
-          PY
-
-            # 4. Sign the already assembled hybrid project with the standard
-            #    Tizen package command. Prompts match the AC3 Dockerfile.
-            cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
-          set timeout -1
-          log_user 1
-          spawn {*}$argv
-          expect {
-            -re {Author password:} { send -- "123456\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
-            eof
-          }
-          set status [wait]
-          exit [lindex $status 3]
-          EXPECT
-            chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
-            expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$project"
-
-            test -s "$project/Moonlight.wgt"
-            cp "$project/Moonlight.wgt" "$output"
-            unzip -tq "$output"
-
-            # Verify the XML signatures cryptographically using the certificates
-            # embedded in each signature, including all referenced package digests.
-            local signature_check="$RUNNER_TEMP/$name-signature-check"
-            rm -rf "$signature_check"
-            mkdir -p "$signature_check"
-            unzip -q "$output" -d "$signature_check"
-            python3 - "$signature_check" <<'PY'
-          import subprocess
-          import sys
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          root = Path(sys.argv[1])
-          ns = "{http://www.w3.org/2000/09/xmldsig#}"
-          for filename in ("author-signature.xml", "signature1.xml"):
-              signature = root / filename
-              tree = ET.parse(signature)
-              cert = tree.find(".//" + ns + "X509Certificate")
-              if cert is None or not (cert.text or "").strip():
-                  raise SystemExit(f"{filename} has no embedded signing certificate")
-              encoded = "".join(cert.text.split())
-              pem = root / (filename + ".pem")
-              pem.write_text(
-                  "-----BEGIN CERTIFICATE-----\n" +
-                  "\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
-                  "\n-----END CERTIFICATE-----\n",
-                  encoding="ascii",
-              )
-              subprocess.run(
-                  [
-                      "xmlsec1", "--verify", "--pubkey-cert-pem", str(pem),
-                      "--enabled-reference-uris", "empty,same-doc,local", str(signature),
-                  ],
-                  cwd=root,
-                  check=True,
-              )
-              print(f"Cryptographically verified {filename}")
-          PY
-
-            # 5. Validate the final signed WGT, not the unsigned tz pack output.
-            python3 - "$output" "$service_tpk" "$source" <<'PY'
-          import sys
-          import zipfile
-          import xml.etree.ElementTree as ET
-          from pathlib import Path, PurePosixPath
-
-          package_path, service_tpk_path, source_path = map(Path, sys.argv[1:])
-          with zipfile.ZipFile(package_path) as package:
-              names = set(package.namelist())
-              tpks = [name for name in names if name.lower().endswith(".tpk")]
-              if not tpks:
-                  raise SystemExit("Final signed hybrid WGT does not contain the embedded service TPK")
-              if len(tpks) != 1:
-                  raise SystemExit(f"Expected one embedded service TPK, found {len(tpks)}")
-              if package.read(tpks[0]) != service_tpk_path.read_bytes():
-                  raise SystemExit("Signing changed or replaced the embedded service TPK")
-
-              required = {
-                  "config.xml", "tizen-manifest.xml", "author-signature.xml",
-                  "signature1.xml", "res/wgt/config.xml", "res/wgt/index.html",
-                  "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
-                  "res/wgt/service/service.js",
-              }
-              missing = sorted(required - names)
-              if missing:
-                  raise SystemExit("Final signed hybrid WGT missing: " + ", ".join(missing))
-
-              ds = "{http://www.w3.org/2000/09/xmldsig#}"
-              for signature_name in ("author-signature.xml", "signature1.xml"):
-                  try:
-                      signature_root = ET.fromstring(package.read(signature_name))
-                  except ET.ParseError as exc:
-                      raise SystemExit(f"Invalid {signature_name}: {exc}")
-                  signatures = list(signature_root.iter(ds + "Signature"))
-                  if not signatures:
-                      raise SystemExit(f"{signature_name} contains no XML Digital Signature")
-                  for signature in signatures:
-                      value = signature.find(".//" + ds + "SignatureValue")
-                      refs = signature.findall(".//" + ds + "Reference")
-                      if value is None or not (value.text or "").strip():
-                          raise SystemExit(f"{signature_name} has an empty SignatureValue")
-                      if not refs or any(
-                          ref.find(ds + "DigestValue") is None or
-                          not (ref.find(ds + "DigestValue").text or "").strip()
-                          for ref in refs
-                      ):
-                          raise SystemExit(f"{signature_name} has missing reference digests")
-
-              manifest = ET.fromstring(package.read("tizen-manifest.xml"))
-              service_app = next((node for node in manifest.iter()
-                                  if node.tag.endswith("service-application")), None)
-              if manifest.get("api-version") != "5.5":
-                  raise SystemExit("Final hybrid package minimum must remain Tizen 5.5")
-              if service_app is None or service_app.get("api-version") != "9":
-                  raise SystemExit("Final hybrid package changed the embedded service API 9 target")
-
-              for name in names:
-                  path = PurePosixPath(name)
-                  if path.is_absolute() or ".." in path.parts:
-                      raise SystemExit(f"Unsafe path in final hybrid WGT: {name}")
-
-              for item in source_path.rglob("*"):
-                  if item.is_file():
-                      member = "res/wgt/" + item.relative_to(source_path).as_posix()
-                      if member not in names or package.read(member) != item.read_bytes():
-                          raise SystemExit("Moonlight Web payload changed or missing after signing: " + member)
-
-              config = ET.fromstring(package.read("res/wgt/config.xml"))
-              splash = next((node for node in config.iter()
-                             if node.tag.endswith("video_splash_screen")), None)
-              if splash is None or splash.get("ready_when") != "custom":
-                  raise SystemExit("Moonlight video splash declaration was not preserved")
-
-              print("Final signed hybrid WGT verified:")
-              print("  Embedded service TPK:", tpks)
-              print("  Author and distributor XML signatures are present and structurally valid.")
-              print("  Moonlight Web payload, manifest and video splash are preserved.")
-          PY
-          }
-
-          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
-          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
-          mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
-          cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
-          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v2"
+          docker run --rm --user root \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e RUNNER_TEMP=/runner-temp \
+            -e GITHUB_SHA="$GITHUB_SHA" \
+            "$image" bash -s <<'PACKAGE'
+  
+  set -euo pipefail
+  run_tz() {
+    local label="$1"
+    shift
+    local log="$RUNNER_TEMP/tz-${label//[^A-Za-z0-9_-]/_}.log"
+    echo "::group::Tizen Core: $label"
+    set +e
+    "$@" 2>&1 | tee "$log"
+    local statuses=("${PIPESTATUS[@]}")
+    local command_status="${statuses[0]}"
+    set -e
+    echo "::endgroup::"
+    if (( command_status != 0 )); then
+      echo "::error::Tizen Core command failed with exit code $command_status: $*"
+      return "$command_status"
+    fi
+  }
+  
+  cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
+  set timeout -1
+  log_user 1
+  spawn {*}$argv
+  expect {
+    -re {Author password:} { send -- "123456\r"; exp_continue }
+    "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
+    eof
+  }
+  set status [wait]
+  exit [lindex $status 3]
+  EXPECT
+  chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
+  
+  package_base_web() {
+    local source="$1" name="$2" base_wgt="$3"
+    local workspace="$RUNNER_TEMP/hybrid-$name"
+    local web="$workspace/$name"
+    mkdir -p "$workspace"
+    run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
+    test -d "$web"
+    cp -a "$source/." "$web/"
+    # Use the proven AC3 signing path instead of tz pack, which implicitly
+    # attempts to decrypt and sign with the author PKCS#12 certificate.
+    run_tz "sign-base-web-wgt-$name" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$web"
+    test -s "$web/$name.wgt"
+    cp "$web/$name.wgt" "$base_wgt"
+    test -s "$base_wgt"
+    unzip -tq "$base_wgt"
+  }
+  
+  # 1. Create both base Web WGTs before compiling or packaging the service.
+  package_base_web "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
+  package_base_web "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt"
+  
+  # 2. Compile the Tizen .NET service directly. Do not use "tz build":
+  # its hybrid wrapper passes dotnet as the MSBuild executable.
+  find ambilight-service -type f -name '*.tpk' -delete
+  dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Release -v:m
+  
+  # Verify the embedded service identity and its API 9 requirement.
+  python3 - ambilight-service/tizen-manifest.xml <<'PY'
+  import sys
+  import xml.etree.ElementTree as ET
+  root = ET.parse(sys.argv[1]).getroot()
+  ns = "{http://tizen.org/ns/packages}"
+  service = root.find(f"{ns}service-application")
+  expected = {
+      "package": "MoonLightS",
+      "appid": "MoonLightS.MoonlightAmbilight",
+      "exec": "MoonlightAmbilight.dll",
+      "api-version": "13",
+  }
+  actual = {
+      "package": root.get("package"),
+      "appid": service.get("appid") if service is not None else None,
+      "exec": service.get("exec") if service is not None else None,
+      "api-version": service.get("api-version") if service is not None else None,
+  }
+  for key, value in expected.items():
+      if actual[key] != value:
+          raise SystemExit(f"Invalid service manifest {key}: expected {value!r}, got {actual[key]!r}")
+  print("Service manifest verified:", actual)
+  PY
+  
+  mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+  if (( ${#service_pkgs[@]} != 1 )); then
+    echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
+    printf '%s\n' "${service_pkgs[@]}"
+    exit 1
+  fi
+  service_tpk="${service_pkgs[0]}"
+  test -s "$service_tpk"
+  echo "Service TPK: $service_tpk"
+  
+  package_hybrid() {
+    local source="$1" name="$2" base_wgt="$3" output="$4"
+    local draft="$RUNNER_TEMP/$name-unsigned.wgt"
+    local project="$RUNNER_TEMP/$name-final-project"
+  
+    # 1. Assemble the hybrid WGT without asking Tizen Core to sign it.
+    run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk" --base-pkg "$base_wgt" --out-path "$draft"
+    test -s "$draft"
+    unzip -tq "$draft"
+  
+    # 2. Expand the assembled package so the standard Tizen CLI can sign
+    #    the complete hybrid payload, including the embedded service TPK.
+    rm -rf "$project"
+    mkdir -p "$project"
+    unzip -q "$draft" -d "$project"
+  
+    # 3. Keep the Web installation floor at Tizen 5.5 while preserving
+    #    the embedded .NET service's original Tizen 10 API 13 requirement.
+    python3 - "$project/tizen-manifest.xml" <<'PY'
+  import sys
+  import xml.etree.ElementTree as ET
+  
+  path = sys.argv[1]
+  ET.register_namespace("", "http://tizen.org/ns/packages")
+  tree = ET.parse(path)
+  root = tree.getroot()
+  service_app = next((node for node in root.iter()
+                      if node.tag.endswith("service-application")), None)
+  if service_app is None:
+      raise SystemExit("Hybrid manifest has no embedded service application")
+  if service_app.get("api-version") != "13":
+      raise SystemExit("Embedded service API 13 requirement changed unexpectedly")
+  root.set("api-version", "5.5")
+  tree.write(path, encoding="UTF-8", xml_declaration=True)
+  print("Hybrid manifest floor set to Tizen 5.5; service remains API 9.")
+  PY
+  
+    # 4. Sign the already assembled hybrid project with the standard
+    #    Tizen package command. Prompts match the AC3 Dockerfile.
+    cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
+  set timeout -1
+  log_user 1
+  spawn {*}$argv
+  expect {
+    -re {Author password:} { send -- "123456\r"; exp_continue }
+    "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
+    eof
+  }
+  set status [wait]
+  exit [lindex $status 3]
+  EXPECT
+    chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
+    expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$project"
+  
+    test -s "$project/Moonlight.wgt"
+    cp "$project/Moonlight.wgt" "$output"
+    unzip -tq "$output"
+  
+    # Verify the XML signatures cryptographically using the certificates
+    # embedded in each signature, including all referenced package digests.
+    local signature_check="$RUNNER_TEMP/$name-signature-check"
+    rm -rf "$signature_check"
+    mkdir -p "$signature_check"
+    unzip -q "$output" -d "$signature_check"
+    python3 - "$signature_check" <<'PY'
+  import subprocess
+  import sys
+  import xml.etree.ElementTree as ET
+  from pathlib import Path
+  
+  root = Path(sys.argv[1])
+  ns = "{http://www.w3.org/2000/09/xmldsig#}"
+  for filename in ("author-signature.xml", "signature1.xml"):
+      signature = root / filename
+      tree = ET.parse(signature)
+      cert = tree.find(".//" + ns + "X509Certificate")
+      if cert is None or not (cert.text or "").strip():
+          raise SystemExit(f"{filename} has no embedded signing certificate")
+      encoded = "".join(cert.text.split())
+      pem = root / (filename + ".pem")
+      pem.write_text(
+          "-----BEGIN CERTIFICATE-----\n" +
+          "\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+          "\n-----END CERTIFICATE-----\n",
+          encoding="ascii",
+      )
+      subprocess.run(
+          [
+              "xmlsec1", "--verify", "--pubkey-cert-pem", str(pem),
+              "--enabled-reference-uris", "empty,same-doc,local", str(signature),
+          ],
+          cwd=root,
+          check=True,
+      )
+      print(f"Cryptographically verified {filename}")
+  PY
+  
+    # 5. Validate the final signed WGT, not the unsigned tz pack output.
+    python3 - "$output" "$service_tpk" "$source" <<'PY'
+  import sys
+  import zipfile
+  import xml.etree.ElementTree as ET
+  from pathlib import Path, PurePosixPath
+  
+  package_path, service_tpk_path, source_path = map(Path, sys.argv[1:])
+  with zipfile.ZipFile(package_path) as package:
+      names = set(package.namelist())
+      tpks = [name for name in names if name.lower().endswith(".tpk")]
+      if not tpks:
+          raise SystemExit("Final signed hybrid WGT does not contain the embedded service TPK")
+      if len(tpks) != 1:
+          raise SystemExit(f"Expected one embedded service TPK, found {len(tpks)}")
+      if package.read(tpks[0]) != service_tpk_path.read_bytes():
+          raise SystemExit("Signing changed or replaced the embedded service TPK")
+  
+      required = {
+          "config.xml", "tizen-manifest.xml", "author-signature.xml",
+          "signature1.xml", "res/wgt/config.xml", "res/wgt/index.html",
+          "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
+          "res/wgt/service/service.js",
+      }
+      missing = sorted(required - names)
+      if missing:
+          raise SystemExit("Final signed hybrid WGT missing: " + ", ".join(missing))
+  
+      ds = "{http://www.w3.org/2000/09/xmldsig#}"
+      for signature_name in ("author-signature.xml", "signature1.xml"):
+          try:
+              signature_root = ET.fromstring(package.read(signature_name))
+          except ET.ParseError as exc:
+              raise SystemExit(f"Invalid {signature_name}: {exc}")
+          signatures = list(signature_root.iter(ds + "Signature"))
+          if not signatures:
+              raise SystemExit(f"{signature_name} contains no XML Digital Signature")
+          for signature in signatures:
+              value = signature.find(".//" + ds + "SignatureValue")
+              refs = signature.findall(".//" + ds + "Reference")
+              if value is None or not (value.text or "").strip():
+                  raise SystemExit(f"{signature_name} has an empty SignatureValue")
+              if not refs or any(
+                  ref.find(ds + "DigestValue") is None or
+                  not (ref.find(ds + "DigestValue").text or "").strip()
+                  for ref in refs
+              ):
+                  raise SystemExit(f"{signature_name} has missing reference digests")
+  
+      manifest = ET.fromstring(package.read("tizen-manifest.xml"))
+      service_app = next((node for node in manifest.iter()
+                          if node.tag.endswith("service-application")), None)
+      if manifest.get("api-version") != "5.5":
+          raise SystemExit("Final hybrid package minimum must remain Tizen 5.5")
+      if service_app is None or service_app.get("api-version") != "13":
+          raise SystemExit("Final hybrid package changed the embedded service API 13 target")
+  
+      for name in names:
+          path = PurePosixPath(name)
+          if path.is_absolute() or ".." in path.parts:
+              raise SystemExit(f"Unsafe path in final hybrid WGT: {name}")
+  
+      for item in source_path.rglob("*"):
+          if item.is_file():
+              member = "res/wgt/" + item.relative_to(source_path).as_posix()
+              if member not in names or package.read(member) != item.read_bytes():
+                  raise SystemExit("Moonlight Web payload changed or missing after signing: " + member)
+  
+      config = ET.fromstring(package.read("res/wgt/config.xml"))
+      splash = next((node for node in config.iter()
+                     if node.tag.endswith("video_splash_screen")), None)
+      if splash is None or splash.get("ready_when") != "custom":
+          raise SystemExit("Moonlight video splash declaration was not preserved")
+  
+      print("Final signed hybrid WGT verified:")
+      print("  Embedded service TPK:", tpks)
+      print("  Author and distributor XML signatures are present and structurally valid.")
+      print("  Moonlight Web payload, manifest and video splash are preserved.")
+  PY
+  }
+  
+  package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
+  package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
+  mkdir -p "$RUNNER_TEMP/hybrid-output"
+  cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
+  cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
+  (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
+  
+  
+  PACKAGE
 
       - name: Show packaging diagnostics on failure
         if: failure()
