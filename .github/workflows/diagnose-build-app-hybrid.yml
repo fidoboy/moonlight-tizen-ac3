@@ -282,6 +282,50 @@ jobs:
             unzip -l "$pkg" 2>&1 | tee -a "$RUNNER_TEMP/build-app-diagnostics/package-validation.txt"
           done
 
+      - name: Disassemble Tizen build-app implementation
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          mkdir -p "$out"
+          jar_path="$(find "$TIZEN_STUDIO" -type f -name 'tizen-new-cli.jar' -print -quit 2>/dev/null)"
+          if [[ -z "$jar_path" ]]; then
+            echo "tizen-new-cli.jar not found under $TIZEN_STUDIO" | tee "$out/tizen-new-cli-location.txt"
+            find "$TIZEN_STUDIO" -type f -name '*.jar' -path '*lib-ncli*' -print 2>/dev/null \
+              | tee "$out/ncli-jars.txt"
+            exit 0
+          fi
+          echo "$jar_path" | tee "$out/tizen-new-cli-location.txt"
+          cp "$jar_path" "$out/tizen-new-cli.jar"
+          sha256sum "$jar_path" | tee "$out/tizen-new-cli.sha256"
+          echo "=== JAR class entry ===" | tee "$out/build-app-class-entry.txt"
+          jar_bin="$(dirname "$TIZEN_STUDIO")/jdk/bin/jar"
+          javap_bin="$TIZEN_STUDIO/jdk/bin/javap"
+          [[ -x "$jar_bin" ]] || jar_bin="$(command -v jar)"
+          [[ -x "$javap_bin" ]] || javap_bin="$(command -v javap)"
+          if [[ -n "$jar_bin" ]]; then
+            "$jar_bin" tf "$jar_path" | grep -E 'org/tizen/ncli/subcommands/build/buildapp/BuildAppCLICommand.class        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tizen-build-app-hybrid-diagnostics-${{ github.sha }}
+          path: ${{ runner.temp }}/build-app-diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
+ \
+              | tee -a "$out/build-app-class-entry.txt"
+          fi
+          if [[ -x "$javap_bin" ]]; then
+            "$javap_bin" -classpath "$jar_path" -p -c -l \
+              org.tizen.ncli.subcommands.build.buildapp.BuildAppCLICommand \
+              > "$out/BuildAppCLICommand.javap.txt" 2>&1
+            echo "javap exit code: $?" | tee "$out/javap-status.txt"
+            grep -n -A180 -B25 'bindMethodToProject' "$out/BuildAppCLICommand.javap.txt" \
+              > "$out/bindMethodToProject-excerpt.txt"
+          else
+            echo "javap not found; bundled JDK path: $TIZEN_STUDIO/jdk/bin/javap" \
+              | tee "$out/javap-status.txt"
+          fi
       - name: Upload build-app diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v6
