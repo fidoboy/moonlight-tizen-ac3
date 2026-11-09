@@ -371,35 +371,43 @@ jobs:
           grep -Fq '  - ../AmbilightService/AmbilightService' "$web_project/tizen_web_project.yaml"
 
           echo "=== Build the Web project and its .NET dependency (no packaging) ==="
-          if ! run_tz_capture "tz-build-hybrid" build -w "$web_project" -s Moonlight; then
-            echo "Tizen Core build failed; tz pack was not invoked."
-            exit 1
+          if run_tz_capture "tz-build-hybrid" build -w "$web_project" -s Moonlight; then
+            build_status=0
+          else
+            build_status=$?
           fi
 
+          # Capture the workspace even when tz build fails. RUNNER_TEMP is
+          # mounted into the job container at /__w/_temp and uploaded below.
           echo "=== Capture the complete workspace tree after tz build ==="
           {
-            printf 'Workspace: %s\n' "$workspace"
-            find "$workspace" -printf '%y %p %s bytes\n' | sort
+            printf 'Workspace: %s\\n' "$workspace"
+            find "$workspace" -printf '%y %p %s bytes\\n' | sort
           } | tee "$out/tz-workspace-tree-after-build.txt"
 
           echo "=== Inventory generated build outputs ==="
-          find "$workspace" -type f \
-            \( -name '*.dll' -o -name '*.pdb' -o -name '*.deps.json' \
-               -o -name '*.runtimeconfig.json' -o -name '*.tpk' -o -name '*.wgt' \
-               -o -name '*.ninja' -o -name 'build.ninja' \) \
-            -printf '%p %s bytes\n' | sort \
+          find "$workspace" -type f \\
+            \\( -name '*.dll' -o -name '*.pdb' -o -name '*.deps.json' \\
+               -o -name '*.runtimeconfig.json' -o -name '*.tpk' -o -name '*.wgt' \\
+               -o -name '*.ninja' -o -name 'build.ninja' \\) \\
+            -printf '%p %s bytes\\n' | sort \\
             | tee "$out/tz-build-generated-artifacts.txt"
-          find "$workspace" -type d \( -name bin -o -name obj -o -name Build \) \
-            -printf '%p\n' | sort \
+          find "$workspace" -type d \\( -name bin -o -name obj -o -name Build \\) \\
+            -printf '%p\\n' | sort \\
             | tee "$out/tz-build-output-directories.txt"
 
           echo "=== Record build-only outcome ==="
           {
             echo "Dependency: ../AmbilightService/AmbilightService"
             echo "tz add-deps exit code: $(cat "$out/tz-add-deps-exit-code.txt")"
-            echo "tz build exit code: $(cat "$out/tz-build-hybrid-exit-code.txt")"
+            echo "tz build exit code: $build_status"
             echo "tz pack: NOT RUN"
           } | tee "$out/tz-build-only-assessment.txt"
+
+          if (( build_status != 0 )); then
+            echo "Tizen Core build failed; tz pack was not invoked."
+            exit "$build_status"
+          fi
           echo "Tizen Core build-only diagnostic completed. tz pack remains blocked."
           exit 0
 
