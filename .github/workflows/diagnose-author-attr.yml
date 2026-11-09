@@ -189,202 +189,12 @@ jobs:
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
           author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
           author_password=123456
-name: Diagnose Tizen dotnet-build author-attr semantics
-
-on:
-  push:
-    branches: ["1.2.4-pre"]
-    paths:
-      - ".github/workflows/diagnose-author-attr.yml"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  packages: read
-
-concurrency:
-  group: diagnose-author-attr-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  probe:
-    if: github.ref == 'refs/heads/1.2.4-pre'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 20
-    container:
-      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v2
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Check out Moonlight
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 1
-
-      - name: Prepare isolated Tizen .NET signing probe
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdk="${TIZEN_STUDIO:?TIZEN_STUDIO must be set by the shared build image}"
-          test -x "$sdk/tools/tizen-core/tz"
-          test -x "$sdk/tools/ide/bin/tizen"
-          export TIZEN_STUDIO_DATA_PATH=/home/tizen/tizen-studio-data
-          mkdir -p "$TIZEN_STUDIO_DATA_PATH/keystore/author"
-          out="$RUNNER_TEMP/author-attr-probe"
-          workspace="$RUNNER_TEMP/author-attr-workspace"
-          mkdir -p "$out" "$workspace"
-          echo "$sdk/tools/tizen-core" >> "$GITHUB_PATH"
-          echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
-          echo "$sdk/tools" >> "$GITHUB_PATH"
-          echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
-          echo "TIZEN_CORE_CLI=$sdk/tools/tizen-core/tz" >> "$GITHUB_ENV"
-          echo "TIZEN_STUDIO_DATA_PATH=$TIZEN_STUDIO_DATA_PATH" >> "$GITHUB_ENV"
-          echo "PROBE_OUT=$out" >> "$GITHUB_ENV"
-          echo "PROBE_WORKSPACE=$workspace" >> "$GITHUB_ENV"
-
-          echo "=== Verify CLI version and dotnet-build syntax ==="
-          tz --version
-          tz dotnet-build build --help 2>&1 | tee "$out/dotnet-build-help.txt"
-
-          echo "=== Generate a disposable author certificate ==="
-          author_password=123456
-          tizen certificate -a AuthorAttrProbe -f AuthorAttrProbe -p "$author_password"
-          author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
-          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
-          test -s "$author_key"
-          printf '%s' "$author_password" > "$author_pwd"
-          openssl pkcs12 -legacy -in "$author_key" -passin "file:$author_pwd" -info -noout \
-            > "$out/author-pkcs12-validation.txt" 2>&1
-          printf 'author_password=%s\n' "$author_password" | tee "$out/probe-inputs.txt"
-          printf 'author_key=%s\n' "$author_key" | tee -a "$out/probe-inputs.txt"
-          printf 'author_pwd=%s\n' "$author_pwd" | tee -a "$out/probe-inputs.txt"
-          printf 'password_file_bytes=' | tee -a "$out/probe-inputs.txt"
-          wc -c < "$author_pwd" | tee -a "$out/probe-inputs.txt"
-          printf 'password_file_hex=' | tee -a "$out/probe-inputs.txt"
-          od -An -v -tx1 "$author_pwd" | tee -a "$out/probe-inputs.txt"
-
-          echo "=== Select and validate the SDK public distributor certificate ==="
-          distributor_key="$sdk/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
-          test -s "$distributor_key"
-          openssl pkcs12 -legacy -in "$distributor_key" \
-            -passin pass:tizenpkcs12passfordsigner -info -noout \
-            > "$out/distributor-pkcs12-validation.txt" 2>&1
-          printf 'distributor_key=%s\n' "$distributor_key" | tee -a "$out/probe-inputs.txt"
-          printf 'distributor_password=tizenpkcs12passfordsigner\n' | tee -a "$out/probe-inputs.txt"
-
-          echo "=== Generate a minimal TizenServiceApp project ==="
-          tz new -t TizenServiceApp -n AttrProbeService -T dotnet \
-            -p tv-samsung-10.0 -w "$workspace" \
-            > "$out/tz-new-stdout.txt" 2> "$out/tz-new-stderr.txt"
-          find "$workspace" -type f -name '*.csproj' -print | tee "$out/generated-csproj-paths.txt"
-          mapfile -t projects < <(find "$workspace" -type f -name '*.csproj' -print)
-          if (( ${#projects[@]} != 1 )); then
-            echo "Expected exactly one generated .csproj."
-            exit 1
-          fi
-          printf '%s\n' "${projects[0]}" > "$out/probe-project-path.txt"
-          echo "Probe setup completed."
-
-      - name: Create a real Tizen signing-profile password attribute
-        id: profile
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
-          distributor_key="$(sed -n 's/^distributor_key=//p' "$PROBE_OUT/probe-inputs.txt")"
-          author_password=123456
-          distributor_password=tizenpkcs12passfordsigner
-          profiles_xml="$PROBE_OUT/probe-profiles.xml"
-
-          echo "=== Tizen Core security-profiles add help ==="
-          "$TIZEN_CORE_CLI" security-profiles add --help > "$PROBE_OUT/security-profiles-add-help.txt" 2>&1
-          help_status=$?
-          printf '%s\n' "$help_status" > "$PROBE_OUT/security-profiles-add-help-exit-code.txt"
-          cat "$PROBE_OUT/security-profiles-add-help.txt"
-
-          echo "=== Create an isolated profile so tz generates its native password attributes ==="
-          "$TIZEN_CORE_CLI" security-profiles add \
-            -n AttrProbeProfile \
-            -x "$profiles_xml" \
-            -a "$author_key" -p "$author_password" \
-            -d "$distributor_key" -P "$distributor_password" \
-            > "$PROBE_OUT/security-profiles-add.log" 2>&1
-          profile_status=$?
-          printf '%s\n' "$profile_status" > "$PROBE_OUT/security-profiles-add-exit-code.txt"
-          cat "$PROBE_OUT/security-profiles-add.log"
-          if [[ -s "$profiles_xml" ]]; then
-            echo "=== Generated profile XML (disposable credentials only) ==="
-            cat "$profiles_xml"
-            python3 - "$profiles_xml" "$PROBE_OUT/profile-password-attributes.txt" <<'PY'
-          import sys
-          import xml.etree.ElementTree as ET
-          xml_path, output_path = sys.argv[1:3]
-          root = ET.parse(xml_path).getroot()
-          rows = []
-          for element in root.iter():
-              attrs = element.attrib
-              slot = attrs.get("distributor")
-              if slot in ("0", "1", "2"):
-                  rows.append((slot, attrs.get("key", ""), attrs.get("password", "")))
-          with open(output_path, "w", encoding="utf-8") as out:
-              for slot, key, password in rows:
-                  out.write(f"slot={slot}\nkey={key}\npassword_attr={password}\n")
-          if not rows:
-              raise SystemExit("No profileitem entries with distributor slots 0/1/2 found")
-          PY
-            attr_status=$?
-            printf '%s\n' "$attr_status" > "$PROBE_OUT/profile-password-attributes-exit-code.txt"
-            if [[ -s "$PROBE_OUT/profile-password-attributes.txt" ]]; then
-              echo "=== Profile password attribute metadata ==="
-              while IFS= read -r line; do
-                case "$line" in
-                  password_attr=*)
-                    value="${line#password_attr=}"
-                    if [[ "$value" == *.pwd ]]; then
-                      printf 'password_attr_kind=credential-store-path\n'
-                    else
-                      printf 'password_attr_kind=inline-encrypted-value\n'
-                      printf 'password_attr_length=%s\n' "${#value}"
-                    fi
-                    ;;
-                  slot=*) echo "$line" ;;
-                  key=*) echo "$line" ;;
-                esac
-              done < "$PROBE_OUT/profile-password-attributes.txt"
-            fi
-          else
-            echo "Tizen Core did not create the isolated profiles.xml."
-            printf '1\n' > "$PROBE_OUT/profile-password-attributes-exit-code.txt"
-          fi
-
-          echo "=== Inspect SDK distributor password sidecars and CLI password-related strings ==="
-          find "$(dirname "$distributor_key")" -maxdepth 2 -type f \
-            \( -name '*.pwd' -o -name '*distributor*' \) -printf '%p %s bytes\n' \
-            > "$PROBE_OUT/distributor-sdk-files.txt" 2>&1
-          cat "$PROBE_OUT/distributor-sdk-files.txt"
-          strings "$TIZEN_CORE_CLI" | grep -iE 'password|decrypt|crypt|dist-attr|author-attr' \
-            > "$PROBE_OUT/tz-password-strings.txt" || true
-          cat "$PROBE_OUT/tz-password-strings.txt"
-          echo "tz pack: NOT RUN"
-
-      - name: Compare author-attr forms using the generated distributor attribute
-        id: compare
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          source_project="$(cat "$PROBE_OUT/probe-project-path.txt")"
-          author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
-          author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
-          author_password=123456
           distributor_key="$(sed -n 's/^distributor_key=//p' "$PROBE_OUT/probe-inputs.txt")"
           profile_attrs="$PROBE_OUT/profile-password-attributes.txt"
 
-          # Profile slot 1 is distributor: its password attribute is the
-          # generated .pwd path. Pass it together with the same certificate path.
+          # Use the exact author/distributor .pwd paths emitted by Tizen's own
+          # security-profiles command. A literal password is retained only as
+          # the negative control for author-attr.
           distributor_attr=""
           if [[ -s "$profile_attrs" ]]; then
             distributor_attr="$(awk '
@@ -396,13 +206,13 @@ jobs:
                 exit
               }' "$profile_attrs")"
           fi
-          printf 'distributor_attr_kind=%s\n' \
-            "$([[ "$distributor_attr" == *.pwd ]] && echo credential-store-path || echo inline-encrypted-value)" \
-            > "$PROBE_OUT/distributor-attr-input.txt"
-          printf 'distributor_attr_length=%s\n' "${#distributor_attr}" >> "$PROBE_OUT/distributor-attr-input.txt"
-          if [[ -z "$distributor_attr" ]]; then
-            echo "No distributor password attribute was extracted; both author probes will still run with an empty attribute to capture independent CLI diagnostics."
-          fi
+
+          {
+            echo "author_attr_path_exists=$([[ -s "$author_pwd" ]] && echo yes || echo no)"
+            echo "distributor_key_exists=$([[ -s "$distributor_key" ]] && echo yes || echo no)"
+            echo "distributor_attr=$distributor_attr"
+            echo "distributor_attr_exists=$([[ -n "$distributor_attr" && -s "$distributor_attr" ]] && echo yes || echo no)"
+          } > "$PROBE_OUT/attribute-validation.txt"
 
           run_probe() {
             local mode="$1"
@@ -413,20 +223,23 @@ jobs:
             local status_file="$PROBE_OUT/$mode-exit-code.txt"
 
             mkdir -p "$project_dir"
-            cp -a "$(dirname "$source_project")/." "$project_dir/"
+            if ! cp -a "$(dirname "$source_project")/." "$project_dir/"; then
+              echo "Could not prepare isolated project for $mode" > "$log"
+              printf '125\n' > "$status_file"
+              return 0
+            fi
             project_file="$project_dir/$(basename "$source_project")"
 
             echo "=== Probe: $mode ==="
-            printf 'author_attr_argument=%s\n' "$author_attr" > "$PROBE_OUT/$mode-input.txt"
-            printf 'distributor_attr_kind=%s\n' \
-              "$([[ "$distributor_attr" == *.pwd ]] && echo credential-store-path || echo inline-encrypted-value)" \
-              >> "$PROBE_OUT/$mode-input.txt"
-            printf 'command=tz dotnet-build build --author-key <author.p12> --author-attr <author-attr> --dist-key <distributor.p12> --dist-attr <generated-profile-attribute> --target-path <project.csproj>\n' \
-              >> "$PROBE_OUT/$mode-input.txt"
+            {
+              echo "author_attr_argument=$author_attr"
+              echo "distributor_attr_argument=$distributor_attr"
+              echo "distributor_key_argument=$distributor_key"
+              echo "project_file=$project_file"
+            } > "$PROBE_OUT/$mode-input.txt"
 
-            # GitHub's bash runner enables errexit. Put the invocation in an if
-            # condition so a non-zero result is captured and cannot skip the
-            # second independent probe.
+            # Do not allow a failed command to abort the step or skip the
+            # other probe. Save stdout/stderr and the exact exit code.
             if timeout --signal=TERM --kill-after=10s 180s "$TIZEN_CORE_CLI" dotnet-build build \
               --author-key "$author_key" \
               --author-attr "$author_attr" \
@@ -444,26 +257,26 @@ jobs:
           }
 
           run_probe password-file-path "$author_pwd"
-          first_function_status=$?
-          printf '%s\n' "$first_function_status" > "$PROBE_OUT/password-file-path-function-exit-code.txt"
-
+          first_status=$?
           run_probe literal-password "$author_password"
-          second_function_status=$?
-          printf '%s\n' "$second_function_status" > "$PROBE_OUT/literal-password-function-exit-code.txt"
+          second_status=$?
 
           file_status="$(cat "$PROBE_OUT/password-file-path-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
           literal_status="$(cat "$PROBE_OUT/literal-password-exit-code.txt" 2>/dev/null || echo NOT_RUN)"
           {
             echo "password-file-path exit code: $file_status"
             echo "literal-password exit code: $literal_status"
-            echo "first function status: $first_function_status"
-            echo "second function status: $second_function_status"
-            if [[ "$file_status" == 0 && "$literal_status" == 0 ]]; then
-              echo "Assessment: both author-attr forms completed successfully using the distributor attribute generated by tz security-profiles add."
-            elif [[ "$file_status" != NOT_RUN && "$literal_status" != NOT_RUN ]]; then
-              echo "Assessment: both author-attr invocations ran independently; use their separate logs to distinguish accepted format from any remaining signing failure."
+            echo "first run_probe status: $first_status"
+            echo "second run_probe status: $second_status"
+            if [[ "$file_status" == 0 ]]; then
+              echo "Assessment: author-attr .pwd path accepted and dotnet-build completed."
+            elif grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/password-file-path.log"; then
+              echo "Assessment: author-attr .pwd path was rejected while fetching the author password."
             else
-              echo "Assessment: one or both probes did not run; inspect the per-invocation status and setup logs."
+              echo "Assessment: inspect password-file-path.log for the first downstream failure."
+            fi
+            if grep -qiE 'failed while fetching author password|wrong crypted size' "$PROBE_OUT/literal-password.log"; then
+              echo "Literal control: plain-text password is not a valid password attribute."
             fi
             echo "tz pack: NOT RUN"
           } | tee "$PROBE_OUT/assessment.txt"
