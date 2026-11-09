@@ -90,6 +90,7 @@ RUN installer=/tmp/tizen-web-cli.bin \
 
 USER root
 ENV HOME=/root
+RUN chmod -R a+rX /opt/tizen-studio
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
 # Profiles, certificates and user data must be created per workflow execution.
