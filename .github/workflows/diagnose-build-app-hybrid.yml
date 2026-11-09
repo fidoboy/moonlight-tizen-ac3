@@ -40,7 +40,7 @@ jobs:
           sdk="/opt/tizen-studio"
           test -x "$sdk/tools/ide/bin/tizen"
           test -x "$sdk/tools/tizen-core/tz"
-          dotnet --list-sdks | grep -E '^8\\.'
+          dotnet --list-sdks | grep -E '^8\.'
           pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
           test -n "$pm"
           "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
