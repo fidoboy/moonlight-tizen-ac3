@@ -85,13 +85,6 @@ jobs:
             echo "=== detailed build-app help ==="
             tizen build-app -h
             echo
-            echo "=== build-app manual (optional) ==="
-            if tizen manual build-app; then
-              echo "build-app manual is available."
-            else
-              manual_status=$?
-              echo "build-app manual is unavailable (exit $manual_status); continuing with CLI help output."
-            fi
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-help.txt"
           status=${PIPESTATUS[0]}
           if (( status != 0 )); then
@@ -233,18 +226,34 @@ jobs:
           set -uo pipefail
           workspace="$BUILD_APP_WORKSPACE"
           rm -f "$workspace"/*.wgt "$workspace"/*.tpk
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          attempt_log="$out/service-project-build-app-attempt.txt"
           {
             echo "=== build-app with Web UI and .NET service project as separate build targets ==="
             echo "The service project directory is a sibling of MoonlightWeb."
             echo "No TPK is copied into the Web UI project."
-            tizen build-app \
-              -b "name:MoonlightBuild,targets:[MoonlightWeb,MoonlightAmbilight]" \
-              -p "name:MoonlightHybrid,targets:[MoonlightBuild]" \
-              -s Moonlight -- "$workspace"
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/service-project-build-app-attempt.txt"
+          } | tee "$attempt_log"
+          set +e
+          tizen build-app \
+            -b "name:MoonlightBuild,targets:[MoonlightWeb,MoonlightAmbilight]" \
+            -p "name:MoonlightHybrid,targets:[MoonlightBuild]" \
+            -s Moonlight -- "$workspace" 2>&1 | tee -a "$attempt_log"
           status=${PIPESTATUS[0]}
-          echo "$status" > "$RUNNER_TEMP/build-app-diagnostics/service-project-build-app-exit-code.txt"
-          echo "Service-project build-app exit code: $status"
+          set -e
+          echo "$status" > "$out/service-project-build-app-exit-code.txt"
+          echo "Service-project build-app exit code: $status" | tee -a "$attempt_log"
+          cli_log_found=false
+          for cli_log in /home/tizen/tizen-studio-data/cli/logs/cli.log "$PWD/tizen-studio-data/cli/logs/cli.log"; do
+            if [[ -f "$cli_log" ]]; then
+              cp "$cli_log" "$out/service-project-cli.log"
+              echo "Captured Tizen CLI log from: $cli_log" > "$out/service-project-cli-log-location.txt"
+              cli_log_found=true
+              break
+            fi
+          done
+          if [[ "$cli_log_found" == false ]]; then
+            echo "Tizen CLI log not found in either expected location." > "$out/service-project-cli-log-location.txt"
+          fi
           exit 0
 
       - name: Test build-app with the prebuilt TPK declared as a package component
@@ -255,16 +264,32 @@ jobs:
           set -uo pipefail
           workspace="$BUILD_APP_WORKSPACE"
           rm -f "$workspace"/*.wgt
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          attempt_log="$out/prebuilt-tpk-build-app-attempt.txt"
           {
             echo "=== build-app with Web project and prebuilt TPK as separate package targets ==="
             echo "The TPK is at workspace root, outside MoonlightWeb."
-            tizen build-app \
-              -p "name:MoonlightHybridPrebuilt,targets:[MoonlightWeb,MoonlightAmbilight-prebuilt.tpk]" \
-              -s Moonlight -- "$workspace"
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-build-app-attempt.txt"
+          } | tee "$attempt_log"
+          set +e
+          tizen build-app \
+            -p "name:MoonlightHybridPrebuilt,targets:[MoonlightWeb,MoonlightAmbilight-prebuilt.tpk]" \
+            -s Moonlight -- "$workspace" 2>&1 | tee -a "$attempt_log"
           status=${PIPESTATUS[0]}
-          echo "$status" > "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-build-app-exit-code.txt"
-          echo "Prebuilt-TPK build-app exit code: $status"
+          set -e
+          echo "$status" > "$out/prebuilt-tpk-build-app-exit-code.txt"
+          echo "Prebuilt-TPK build-app exit code: $status" | tee -a "$attempt_log"
+          cli_log_found=false
+          for cli_log in /home/tizen/tizen-studio-data/cli/logs/cli.log "$PWD/tizen-studio-data/cli/logs/cli.log"; do
+            if [[ -f "$cli_log" ]]; then
+              cp "$cli_log" "$out/prebuilt-tpk-cli.log"
+              echo "Captured Tizen CLI log from: $cli_log" > "$out/prebuilt-tpk-cli-log-location.txt"
+              cli_log_found=true
+              break
+            fi
+          done
+          if [[ "$cli_log_found" == false ]]; then
+            echo "Tizen CLI log not found in either expected location." > "$out/prebuilt-tpk-cli-log-location.txt"
+          fi
           exit 0
 
       - name: Classify build-app hybrid packaging evidence
