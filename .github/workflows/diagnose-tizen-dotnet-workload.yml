@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/diagnose-tizen-dotnet-workload.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -21,7 +22,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     container:
-      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1
+      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -180,7 +181,7 @@ jobs:
           } > "$out/dotnet-sdk-selection-hints.txt" 2>&1
 
           {
-            echo "Image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1"
+            echo "Image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v2"
             echo "Build CLI path configured by Tizen Core is recorded in tz-get-dotnet-path.stdout.txt."
             echo "Build CLI SDK and workload state is recorded in dotnet-info and dotnet-workload-list files."
             echo "Target TFM: net8.0-tizen10.0"
