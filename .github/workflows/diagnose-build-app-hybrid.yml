@@ -203,15 +203,27 @@ jobs:
           echo "BUILD_APP_WORKSPACE=$workspace" >> "$GITHUB_ENV"
           echo "WEB_PROJECT=$workspace/MoonlightWeb" >> "$GITHUB_ENV"
 
-      - name: Stage the prebuilt service TPK as Web package content
+      - name: Stage the service project and its prebuilt TPK as separate workspace targets
         shell: bash
         run: |
           set -euo pipefail
-          staged_tpk="$WEB_PROJECT/MoonlightAmbilight-prebuilt.tpk"
-          install -m 0644 "$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk" "$staged_tpk"
-          cmp "$SERVICE_TPK" "$staged_tpk"
-          echo "Staged service TPK as package content: $staged_tpk"
-          sha256sum "$SERVICE_TPK" "$staged_tpk" | tee "$RUNNER_TEMP/build-app-diagnostics/staged-tpk-sha256.txt"
+          # Keep the .NET service project as a sibling of the Web UI project.
+          # The prebuilt TPK is also kept at workspace root, never under MoonlightWeb.
+          service_project="$BUILD_APP_WORKSPACE/MoonlightAmbilight"
+          mkdir -p "$service_project"
+          cp ambilight-service/TizenAmbilight.csproj "$service_project/"
+          cp ambilight-service/tizen-manifest.xml "$service_project/"
+          cp "$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk" \
+            "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
+          test -f "$service_project/TizenAmbilight.csproj"
+          test -f "$service_project/tizen-manifest.xml"
+          test -f "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
+          echo "Service project directory: $service_project"
+          echo "Prebuilt service package: $BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
+          sha256sum "$SERVICE_TPK" "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk" \
+            | tee "$RUNNER_TEMP/build-app-diagnostics/separate-service-target-sha256.txt"
+          find "$BUILD_APP_WORKSPACE" -maxdepth 2 -type f -printf '%P\\n' \
+            | sort | tee "$RUNNER_TEMP/build-app-diagnostics/workspace-targets.txt"
 
       - name: Capture the package validator used by build-app
         shell: bash
@@ -250,43 +262,75 @@ jobs:
             sed -n '1,240p' "$descriptor" >> "$out/web-project-descriptor-content.txt"
           done < "$out/web-project-descriptors.txt"
 
-      - name: Build the WGT from the recognized Web project only
-        id: web-only
+      - name: Test build-app with the .NET service project declared as a sibling target
+        id: project-target
         continue-on-error: true
         shell: bash
         run: |
           set -uo pipefail
           workspace="$BUILD_APP_WORKSPACE"
+          rm -f "$workspace"/*.wgt "$workspace"/*.tpk
           {
-            echo "=== build-app with one recognized Web project ==="
-            echo "The .NET service was compiled separately with dotnet msbuild."
-            echo "The resulting TPK is staged inside MoonlightWeb as package content."
-            echo "No .NET project directory and no .tpk path are passed as build targets."
+            echo "=== build-app with Web UI and .NET service project as separate build targets ==="
+            echo "The service project directory is a sibling of MoonlightWeb."
+            echo "No TPK is copied into the Web UI project."
             tizen build-app \
-              -b "name:MoonlightBuild,targets:[MoonlightWeb]" \
+              -b "name:MoonlightBuild,targets:[MoonlightWeb,MoonlightAmbilight]" \
               -p "name:MoonlightHybrid,targets:[MoonlightBuild]" \
               -s Moonlight -- "$workspace"
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-attempt.txt"
+          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/service-project-build-app-attempt.txt"
           status=${PIPESTATUS[0]}
-          echo "Web-only build-app exit code: $status" | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-exit-code.txt"
-          attempt_log="$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-attempt.txt"
-          if (( status != 0 )); then
-            echo "FAIL: build-app exited with status $status." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
-          elif grep -Fq "Wrong package type." "$attempt_log"; then
-            echo "FAIL: build-app reported Wrong package type despite its zero exit status." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
-          elif find "$workspace" -type f -name '*.wgt' -print -quit | grep -q .; then
-            echo "PASS: build-app produced a WGT; package contents will be inspected in the next step." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
-          else
-            echo "FAIL: build-app returned zero but produced no WGT." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
-          fi
-          cli_log="$TIZEN_STUDIO_DATA_PATH/cli/logs/cli.log"
-          if [[ -f "$cli_log" ]]; then
-            cp "$cli_log" "$RUNNER_TEMP/build-app-diagnostics/cli-log-after-web-only-build-app.txt"
-            echo "Captured CLI log from: $cli_log" | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
-          else
-            echo "CLI log not found: $cli_log" | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
-          fi
+          echo "$status" > "$RUNNER_TEMP/build-app-diagnostics/service-project-build-app-exit-code.txt"
+          echo "Service-project build-app exit code: $status"
           exit 0
+
+      - name: Test build-app with the prebuilt TPK declared as a package component
+        id: prebuilt-target
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          workspace="$BUILD_APP_WORKSPACE"
+          rm -f "$workspace"/*.wgt
+          {
+            echo "=== build-app with Web project and prebuilt TPK as separate package targets ==="
+            echo "The TPK is at workspace root, outside MoonlightWeb."
+            tizen build-app \
+              -p "name:MoonlightHybridPrebuilt,targets:[MoonlightWeb,MoonlightAmbilight-prebuilt.tpk]" \
+              -s Moonlight -- "$workspace"
+          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-build-app-attempt.txt"
+          status=${PIPESTATUS[0]}
+          echo "$status" > "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-build-app-exit-code.txt"
+          echo "Prebuilt-TPK build-app exit code: $status"
+          exit 0
+
+      - name: Classify build-app hybrid packaging evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          workspace="$BUILD_APP_WORKSPACE"
+          project_log="$out/service-project-build-app-attempt.txt"
+          tpk_log="$out/prebuilt-tpk-build-app-attempt.txt"
+          project_status="$(cat "$out/service-project-build-app-exit-code.txt" 2>/dev/null || echo unavailable)"
+          tpk_status="$(cat "$out/prebuilt-tpk-build-app-exit-code.txt" 2>/dev/null || echo unavailable)"
+          {
+            echo "Service project target exit code: $project_status"
+            echo "Prebuilt TPK package target exit code: $tpk_status"
+            if [[ "$project_status" == 0 ]] && ! grep -Fq "Wrong package type." "$project_log"; then
+              echo "Service-project target was accepted by build-app."
+            else
+              echo "Service-project target was not accepted as a valid build-app component."
+            fi
+            if [[ "$tpk_status" == 0 ]] && ! grep -Fq "Wrong package type." "$tpk_log"; then
+              echo "Prebuilt TPK target was accepted by build-app."
+            else
+              echo "Prebuilt TPK target was not accepted as a valid build-app package component."
+            fi
+            echo "A successful command alone is not sufficient: the resulting WGT must have the documented hybrid package structure and contain the service payload as a native component."
+          } | tee "$out/build-app-hybrid-target-assessment.txt"
 
       - name: Inspect any produced hybrid package
         if: always()
