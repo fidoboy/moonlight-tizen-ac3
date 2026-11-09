@@ -205,7 +205,7 @@ jobs:
           test -d "$web_project"
 
           echo "=== Create TizenServiceApp .NET project for tv-samsung-10.0 ==="
-          tz new -t TizenServiceApp -n AmbilightService -T dotnet_app -p tv-samsung-10.0 -w "$workspace"
+          tz new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
           test -d "$service_project"
           test -f "$service_project/tizen-manifest.xml"
           grep -Eq 'service-application[^>]*type="dotnet"|type="dotnet"[^>]*service-application' "$service_project/tizen-manifest.xml"
