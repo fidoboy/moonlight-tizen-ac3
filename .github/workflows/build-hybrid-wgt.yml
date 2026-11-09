@@ -375,7 +375,7 @@ jobs:
           def extract_signing_certificate(p12, password, output):
               subprocess.run(
                   [
-                      "openssl", "pkcs12", "-in", str(p12), "-clcerts",
+                      "openssl", "pkcs12", "-legacy", "-in", str(p12), "-clcerts",
                       "-nokeys", "-passin", "pass:" + password,
                       "-out", str(output),
                   ],
