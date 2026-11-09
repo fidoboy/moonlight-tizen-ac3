@@ -194,8 +194,8 @@ jobs:
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            -re {Author password:} { send -- "123456\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
             eof
           }
           set status [wait]
