@@ -11,7 +11,6 @@ on:
 permissions:
   contents: read
   packages: write
-  actions: write
 
 concurrency:
   group: tizen-build-env-image
@@ -49,7 +48,7 @@ jobs:
           cache-from: type=gha,scope=tizen-build-env
           cache-to: type=gha,mode=max,scope=tizen-build-env
 
-      - name: Trigger hybrid diagnostic with the published image
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run diagnose-build-app-hybrid.yml --ref "${GITHUB_REF_NAME}"
+  diagnose:
+    needs: publish
+    uses: ./.github/workflows/diagnose-build-app-hybrid.yml
+    secrets: inherit
