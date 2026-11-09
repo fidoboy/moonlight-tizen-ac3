@@ -108,7 +108,8 @@ RUN curl --fail --location --retry 3 \
         --dotnet-install-dir /usr/share/dotnet \
     && rm -f /tmp/workload-install.sh \
     && test -f /usr/share/dotnet/sdk-manifests/8.0.400/samsung.net.sdk.tizen/WorkloadManifest.json \
-    && test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref.API13 \
+    && test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120 \
+    && test -d /usr/share/dotnet/packs/Samsung.NETCore.App.Runtime.tizen/10.0.120 \
     && /usr/share/dotnet/dotnet workload list | grep -i tizen
 
 RUN chmod -R a+rX /home/tizen/tizen-studio
