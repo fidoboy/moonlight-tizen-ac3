@@ -401,6 +401,53 @@ jobs:
             done
           } > "$out/tizen-core-project-resolution-sources.txt"
 
+          echo "=== Inspect installed dotnet-build argument handling and Samsung MSBuild targets ==="
+          {
+            echo "=== tz dotnet-build build --help ==="
+            "$TIZEN_CORE_CLI" dotnet-build build --help 2>&1 || true
+            echo
+            echo "=== Installed Samsung Tizen SDK packaging target around signing ==="
+            packaging_targets="/usr/share/dotnet/packs/Samsung.Tizen.Sdk/10.0.120/targets/Samsung.Tizen.Sdk.Packaging.targets"
+            test -f "$packaging_targets"
+            nl -ba "$packaging_targets" | sed -n '1,120p;500,575p'
+            echo
+            echo "=== Relevant properties and signing targets across installed SDK targets ==="
+            grep -RniE 'TizenCreateTpkOnBuild|AuthorPass|AuthorPath|_TizenTpkSign|TizenPackageDependsOn|TizenPrepareCertificate' \
+              /usr/share/dotnet/packs/Samsung.Tizen.Sdk/10.0.120/targets 2>/dev/null | head -n 500
+          } > "$out/installed-dotnet-build-and-packaging-targets.txt" 2>&1
+
+          echo "=== Compile .NET service without creating or signing a TPK ==="
+          service_csproj="${service_csprojs[0]}"
+          if [[ -z "$service_csproj" || ! -f "$service_csproj" ]]; then
+            echo "Generated service csproj not found."
+            exit 1
+          fi
+          if dotnet build "$service_csproj" --configuration Debug \
+              -p:TizenCreateTpkOnBuild=false \
+              >"$out/dotnet-service-compile-only-stdout.txt" \
+              2>"$out/dotnet-service-compile-only-stderr.txt"; then
+            printf '0\n' > "$out/dotnet-service-compile-only-exit-code.txt"
+          else
+            status=$?
+            printf '%s\n' "$status" > "$out/dotnet-service-compile-only-exit-code.txt"
+          fi
+          cat "$out/dotnet-service-compile-only-stdout.txt"
+          cat "$out/dotnet-service-compile-only-stderr.txt"
+          service_dll="$(dirname "$service_csproj")/bin/Debug/net8.0-tizen10.0/$(basename "$service_csproj" .csproj).dll"
+          if [[ -f "$service_dll" ]]; then
+            echo "Compile-only assembly exists: $service_dll" | tee "$out/dotnet-service-compile-only-artifact.txt"
+          else
+            echo "Compile-only assembly missing: $service_dll" | tee "$out/dotnet-service-compile-only-artifact.txt"
+          fi
+
+          echo "=== Build the standalone Web project before adding the .NET dependency ==="
+          if run_tz_capture "tz-build-web-standalone" build -w "$web_project" -s Moonlight; then
+            printf '0\n' > "$out/tz-build-web-standalone-assessment.txt"
+          else
+            status=$?
+            printf '%s\n' "$status" > "$out/tz-build-web-standalone-assessment.txt"
+          fi
+
           echo "=== Declare the real .NET project as the Web dependency ==="
           if ! run_tz_capture "tz-add-deps" add-deps "$web_project" -d ../AmbilightService/AmbilightService; then
             exit 1
