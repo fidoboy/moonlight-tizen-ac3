@@ -18,6 +18,7 @@ on:
       - "ambilight-service/**"
       - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/validate-hybrid-wgt.py"
+      - "scripts/verify-tizen-xmlsig.py"
 
 permissions:
   contents: read
@@ -362,107 +363,15 @@ jobs:
             cp "$signature_check/signature1.xml" "$signature_diagnostics/"
             cp "$output" "$signature_diagnostics/signed-hybrid.wgt"
 
-            python3 - "$signature_check" \
-              "/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12" \
-              "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" <<'PY'
-          import base64
-          import subprocess
-          import sys
-          import xml.etree.ElementTree as ET
-          from pathlib import Path, PurePosixPath
-          from urllib.parse import unquote
-          
-          root = Path(sys.argv[1])
-          expected_pkcs12 = {
-              "author-signature.xml": (Path(sys.argv[2]), "123456"),
-              "signature1.xml": (
-                  Path(sys.argv[3]),
-                  "tizenpkcs12passfordsigner",
-              ),
-          }
-          ns = "{http://www.w3.org/2000/09/xmldsig#}"
-          
-          def extract_signing_certificate(p12, password, output):
-              subprocess.run(
-                  [
-                      "openssl", "pkcs12", "-legacy", "-in", str(p12), "-clcerts",
-                      "-nokeys", "-passin", "pass:" + password,
-                      "-out", str(output),
-                  ],
-                  check=True,
-                  stdout=subprocess.PIPE,
-                  stderr=subprocess.PIPE,
-              )
-              result = subprocess.run(
-                  ["openssl", "x509", "-in", str(output), "-outform", "DER"],
-                  check=True,
-                  stdout=subprocess.PIPE,
-              )
-              return result.stdout
-          
-          for filename, (p12, password) in expected_pkcs12.items():
-              signature = root / filename
-              tree = ET.parse(signature)
-              cert = tree.find(".//" + ns + "X509Certificate")
-              if cert is None or not (cert.text or "").strip():
-                  raise SystemExit(f"{filename} has no embedded signing certificate")
-          
-              embedded_der = base64.b64decode("".join(cert.text.split()), validate=True)
-              expected_pem = root / (filename + ".expected.pem")
-              expected_der = extract_signing_certificate(p12, password, expected_pem)
-              if embedded_der != expected_der:
-                  raise SystemExit(
-                      f"{filename} certificate does not match the configured signing certificate"
-                  )
-          
-              pem = root / (filename + ".pem")
-              pem.write_text(
-                  "-----BEGIN CERTIFICATE-----\n" +
-                  "\n".join(
-                      base64.b64encode(embedded_der).decode("ascii")[i:i + 64]
-                      for i in range(0, len(base64.b64encode(embedded_der)), 64)
-                  ) +
-                  "\n-----END CERTIFICATE-----\n",
-                  encoding="ascii",
-              )
-          
-              argv = [
-                  "xmlsec1", "--verify", "--insecure",
-                  "--pubkey-cert-pem", str(pem),
-                  "--enabled-reference-uris", "empty,same-doc,local",
-              ]
-              for reference in tree.findall(".//" + ns + "Reference"):
-                  uri = reference.get("URI", "")
-                  if not uri or uri.startswith("#"):
-                      continue
-                  decoded_uri = unquote(uri, errors="strict")
-                  relative = PurePosixPath(decoded_uri)
-                  if (
-                      relative.is_absolute()
-                      or "\\" in decoded_uri
-                      or "\x00" in decoded_uri
-                      or ".." in relative.parts
-                      or not relative.parts
-                  ):
-                      raise SystemExit(f"{filename} contains an unsafe external reference: {uri}")
-                  target = (root / Path(*relative.parts)).resolve()
-                  try:
-                      target.relative_to(root.resolve())
-                  except ValueError:
-                      raise SystemExit(f"{filename} contains an external reference outside the package: {uri}")
-                  if not target.is_file():
-                      raise SystemExit(
-                          f"{filename} references missing package file: {uri} (decoded as {decoded_uri})"
-                      )
-                  argv.extend([f"--url-map:{uri}", str(target)])
-          
-              argv.append(str(signature))
-              subprocess.run(argv, cwd=root, check=True)
-              print(
-                  f"Cryptographically verified {filename}; "
-                  "embedded certificate matches configured signer."
-              )
-          PY
+            author_certificate="$RUNNER_TEMP/author-signing-certificate.pem"
+            distributor_certificate="$RUNNER_TEMP/distributor-signing-certificate.pem"
+            openssl pkcs12 -legacy -in "/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12" \
+              -clcerts -nokeys -passin pass:123456 -out "$author_certificate"
+            distributor_password="$(printf '%s' 'dGl6ZW5wa2NzMTJwYXNzZm9yZHNpZ25lcg==' | base64 -d)"
+            openssl pkcs12 -legacy -in "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" \
+              -clcerts -nokeys -passin "pass:$distributor_password" -out "$distributor_certificate"
+            python3 scripts/verify-tizen-xmlsig.py "$signature_check" \
+              "$author_certificate" "$distributor_certificate"
           
             # 5. Validate the final signed WGT, not the unsigned tz pack output.
             python3 - "$output" "$service_tpk" "$source" <<'PY'
