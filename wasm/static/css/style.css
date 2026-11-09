@@ -1913,6 +1913,9 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: visible;
 }
 .settings-categories {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     width: max-content;
     height: auto;
     margin: 5px 25px 5px 25px;
@@ -1921,7 +1924,7 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: visible;
 }
 .settings-category {
-    width: max-content;
+    width: auto;
     box-sizing: border-box;
     color: var(--theme-text-secondary);
     margin: 25px;
