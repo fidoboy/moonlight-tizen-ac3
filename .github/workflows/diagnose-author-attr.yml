@@ -125,7 +125,6 @@ jobs:
           printf '%s\n' "$profile_status" > "$PROBE_OUT/security-profiles-add-exit-code.txt"
           cat "$PROBE_OUT/security-profiles-add.log"
           if [[ -s "$profiles_xml" ]]; then
-            cp "$profiles_xml" "$PROBE_OUT/probe-profiles.xml"
             echo "=== Generated profile XML (disposable credentials only) ==="
             cat "$profiles_xml"
             python3 - "$profiles_xml" "$PROBE_OUT/profile-password-attributes.txt" <<'PY'
