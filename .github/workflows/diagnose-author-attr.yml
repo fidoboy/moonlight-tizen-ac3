@@ -74,14 +74,12 @@ jobs:
           printf 'password_file_hex=' | tee -a "$out/probe-inputs.txt"
           od -An -v -tx1 "$author_pwd" | tee -a "$out/probe-inputs.txt"
 
-          echo "=== Locate the SDK distributor certificate ==="
-          mapfile -t distributor_keys < <(find "$sdk" -type f -name tizen-distributor-signer.p12 -print)
-          if (( ${#distributor_keys[@]} != 1 )); then
-            printf 'Expected exactly one distributor certificate; found %s\n' "${#distributor_keys[@]}"
-            printf '%s\n' "${distributor_keys[@]}"
-            exit 1
-          fi
-          distributor_key="${distributor_keys[0]}"
+          echo "=== Select and validate the SDK public distributor certificate ==="
+          distributor_key="$sdk/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12"
+          test -s "$distributor_key"
+          openssl pkcs12 -legacy -in "$distributor_key" \
+            -passin pass:tizenpkcs12passfordsigner -info -noout \
+            > "$out/distributor-pkcs12-validation.txt" 2>&1
           printf 'distributor_key=%s\n' "$distributor_key" | tee -a "$out/probe-inputs.txt"
           printf 'distributor_password=tizenpkcs12passfordsigner\n' | tee -a "$out/probe-inputs.txt"
 
