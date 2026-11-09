@@ -1912,7 +1912,8 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: hidden;
 }
 .settings-categories {
-    width: auto;
+    width: max-content;
+    min-width: 100%;
     height: auto;
     margin: 5px 25px 5px 25px;
     font-weight: 600;
@@ -1920,6 +1921,9 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: hidden;
 }
 .settings-category {
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
     color: var(--theme-text-secondary);
     margin: 25px;
     padding: 25px;
