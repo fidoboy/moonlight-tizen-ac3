@@ -44,7 +44,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip xmlsec1
+          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip build-essential libxml2-dev pkg-config
 
       - name: Verify the pinned Tizen build image
         shell: bash
