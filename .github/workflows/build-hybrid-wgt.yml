@@ -185,81 +185,103 @@ jobs:
     fi
   }
   
+  TIZEN_CORE_CLI="/home/tizen/tizen-studio/tools/tizen-core/tz"
+  export TIZEN_STUDIO_DATA_PATH="/tmp/tizen-studio-data"
+  mkdir -p "$TIZEN_STUDIO_DATA_PATH"
+
   cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
   set timeout -1
   log_user 1
   spawn {*}$argv
   expect {
-    -re {Author password:} { send -- "123456\r"; exp_continue }
-    "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
+    -re {Author password:} { send -- "123456\\r"; exp_continue }
+    "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
     eof
   }
   set status [wait]
   exit [lindex $status 3]
   EXPECT
   chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
-  
+
+  run_tz "create-signing-certificate" tizen certificate -a Moonlight -f Moonlight -p 123456
+  author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
+  openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -noout
+  run_tz "register-signing-profile" tizen security-profiles add -n Moonlight -a "$author_key" -p 123456 -- "$TIZEN_STUDIO_DATA_PATH/profile"
+  profiles="$TIZEN_STUDIO_DATA_PATH/profile/profiles.xml"
+  test -s "$profiles"
+  author_encrypted='HeifNwdU+kk='
+  distributor_encrypted='Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k='
+  sed -i -E '/distributor="0"/ s|password="[^"]*"|password="'$author_encrypted'"|' "$profiles"
+  sed -i -E '/distributor="1"/ s|password="[^"]*"|password="'$distributor_encrypted'"|' "$profiles"
+  grep -Fq 'name="Moonlight"' "$profiles"
+  grep -Fq "$author_key" "$profiles"
+  awk -v expected="$author_encrypted" '/distributor="0"/ && index($0, "password=\"" expected "\"") { found=1 } END { exit !found }' "$profiles"
+  awk -v expected="$distributor_encrypted" '/distributor="1"/ && index($0, "password=\"" expected "\"") { found=1 } END { exit !found }' "$profiles"
+  ! grep -Fq '.pwd' "$profiles"
+  run_tz "select-signing-profile" tizen cli-config "profiles.path=$profiles"
+  run_tz "list-signing-profile" tizen security-profiles list -n Moonlight
+
+  workspace="$RUNNER_TEMP/tz-production-workspace"
+  web_standard="$workspace/MoonlightWeb"
+  web_forcegm="$workspace/MoonlightForceGM"
+  service_project="$workspace/AmbilightService/AmbilightService"
+  mkdir -p "$workspace"
+
   package_base_web() {
     local source="$1" name="$2" base_wgt="$3"
-    local workspace="$RUNNER_TEMP/hybrid-$name"
     local web="$workspace/$name"
-    mkdir -p "$workspace"
-    run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
+    run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
     test -d "$web"
     cp -a "$source/." "$web/"
-    # Use the proven AC3 signing path instead of tz pack, which implicitly
-    # attempts to decrypt and sign with the author PKCS#12 certificate.
     run_tz "sign-base-web-wgt-$name" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$web"
     test -s "$web/$name.wgt"
     cp "$web/$name.wgt" "$base_wgt"
-    test -s "$base_wgt"
     unzip -tq "$base_wgt"
   }
-  
-  # 1. Create both base Web WGTs before compiling or packaging the service.
+
   package_base_web "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
   package_base_web "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt"
-  
-  # 2. Compile the Tizen .NET service directly. Do not use "tz build":
-  # its hybrid wrapper passes dotnet as the MSBuild executable.
-  find ambilight-service -type f -name '*.tpk' -delete
-  dotnet msbuild ambilight-service/TizenAmbilight.csproj -restore -t:Rebuild -p:Configuration=Release -v:m
-  
-  # Verify the embedded service identity and its API 9 requirement.
-  python3 - ambilight-service/tizen-manifest.xml <<'PY'
-  import sys
-  import xml.etree.ElementTree as ET
-  root = ET.parse(sys.argv[1]).getroot()
-  ns = "{http://tizen.org/ns/packages}"
-  service = root.find(f"{ns}service-application")
-  expected = {
-      "package": "MoonLightS",
-      "appid": "MoonLightS.MoonlightAmbilight",
-      "exec": "MoonlightAmbilight.dll",
-      "api-version": "13",
-  }
-  actual = {
-      "package": root.get("package"),
-      "appid": service.get("appid") if service is not None else None,
-      "exec": service.get("exec") if service is not None else None,
-      "api-version": service.get("api-version") if service is not None else None,
-  }
-  for key, value in expected.items():
-      if actual[key] != value:
-          raise SystemExit(f"Invalid service manifest {key}: expected {value!r}, got {actual[key]!r}")
-  print("Service manifest verified:", actual)
-  PY
-  
-  mapfile -t service_pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+
+  run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
+  test -d "$service_project"
+  rm -f "$service_project/AmbilightService_App.cs"
+  cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
+  cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
+  cp ambilight-service/TizenAmbilight.csproj "$service_project/AmbilightService.csproj"
+  cat > "$service_project/tizen_dotnet_project.yaml" <<'YAML'
+  csproj_file: AmbilightService.csproj
+  profile: tv-samsung
+  api_version: "10.0"
+  build_type: Release
+  signing_profile: Moonlight
+  files:
+    - AmbilightService.csproj
+    - Program.cs
+    - VideoPlaneCapture.cs
+    - WledOutput.cs
+    - tizen-manifest.xml
+    - shared/res/AmbilightService.png
+  deps: []
+  YAML
+
+  run_tz "build-web-standard-standalone" "$TIZEN_CORE_CLI" build -w "$web_standard" -s Moonlight -b Release
+  run_tz "build-web-forcegm-standalone" "$TIZEN_CORE_CLI" build -w "$web_forcegm" -s Moonlight -b Release
+  run_tz "add-service-dependency-standard" "$TIZEN_CORE_CLI" add-deps "$web_standard" -d ../AmbilightService/AmbilightService
+  run_tz "add-service-dependency-forcegm" "$TIZEN_CORE_CLI" add-deps "$web_forcegm" -d ../AmbilightService/AmbilightService
+  run_tz "build-hybrid-standard" "$TIZEN_CORE_CLI" build -w "$web_standard" -s Moonlight -b Release
+  run_tz "build-hybrid-forcegm" "$TIZEN_CORE_CLI" build -w "$web_forcegm" -s Moonlight -b Release
+
+  mapfile -t service_pkgs < <(find "$service_project/bin/Release/net8.0-tizen10.0" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
   if (( ${#service_pkgs[@]} != 1 )); then
-    echo "::error::Expected exactly one service TPK; found ${#service_pkgs[@]}."
-    printf '%s\n' "${service_pkgs[@]}"
+    echo "::error::Expected exactly one Tizen 10 service TPK; found ${#service_pkgs[@]}."
+    printf '%s\\n' "${service_pkgs[@]}"
     exit 1
   fi
   service_tpk="${service_pkgs[0]}"
   test -s "$service_tpk"
   echo "Service TPK: $service_tpk"
-  
+  unzip -tq "$service_tpk"
+
   package_hybrid() {
     local source="$1" name="$2" base_wgt="$3" output="$4"
     local draft="$RUNNER_TEMP/$name-unsigned.wgt"
@@ -294,7 +316,7 @@ jobs:
       raise SystemExit("Embedded service API 13 requirement changed unexpectedly")
   root.set("api-version", "5.5")
   tree.write(path, encoding="UTF-8", xml_declaration=True)
-  print("Hybrid manifest floor set to Tizen 5.5; service remains API 9.")
+  print("Hybrid manifest floor set to Tizen 5.5; embedded service remains Tizen 10 API 13.")
   PY
   
     # 4. Sign the already assembled hybrid project with the standard
