@@ -353,37 +353,94 @@ jobs:
             rm -rf "$signature_check"
             mkdir -p "$signature_check"
             unzip -q "$output" -d "$signature_check"
-            python3 - "$signature_check" <<'PY'
+            python3 - "$signature_check" \
+              "/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12" \
+              "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" <<'PY'
+          import base64
           import subprocess
           import sys
           import xml.etree.ElementTree as ET
-          from pathlib import Path
+          from pathlib import Path, PurePosixPath
           
           root = Path(sys.argv[1])
+          expected_pkcs12 = {
+              "author-signature.xml": (Path(sys.argv[2]), "123456"),
+              "signature1.xml": (
+                  Path(sys.argv[3]),
+                  "tizenpkcs12passfordsigner",
+              ),
+          }
           ns = "{http://www.w3.org/2000/09/xmldsig#}"
-          for filename in ("author-signature.xml", "signature1.xml"):
+          
+          def extract_signing_certificate(p12, password, output):
+              subprocess.run(
+                  [
+                      "openssl", "pkcs12", "-in", str(p12), "-clcerts",
+                      "-nokeys", "-passin", "pass:" + password,
+                      "-out", str(output),
+                  ],
+                  check=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              result = subprocess.run(
+                  ["openssl", "x509", "-in", str(output), "-outform", "DER"],
+                  check=True,
+                  stdout=subprocess.PIPE,
+              )
+              return result.stdout
+          
+          for filename, (p12, password) in expected_pkcs12.items():
               signature = root / filename
               tree = ET.parse(signature)
               cert = tree.find(".//" + ns + "X509Certificate")
               if cert is None or not (cert.text or "").strip():
                   raise SystemExit(f"{filename} has no embedded signing certificate")
-              encoded = "".join(cert.text.split())
+          
+              embedded_der = base64.b64decode("".join(cert.text.split()), validate=True)
+              expected_pem = root / (filename + ".expected.pem")
+              expected_der = extract_signing_certificate(p12, password, expected_pem)
+              if embedded_der != expected_der:
+                  raise SystemExit(
+                      f"{filename} certificate does not match the configured signing certificate"
+                  )
+          
               pem = root / (filename + ".pem")
               pem.write_text(
                   "-----BEGIN CERTIFICATE-----\n" +
-                  "\n".join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+                  "\n".join(
+                      base64.b64encode(embedded_der).decode("ascii")[i:i + 64]
+                      for i in range(0, len(base64.b64encode(embedded_der)), 64)
+                  ) +
                   "\n-----END CERTIFICATE-----\n",
                   encoding="ascii",
               )
-              subprocess.run(
-                  [
-                      "xmlsec1", "--verify", "--pubkey-cert-pem", str(pem),
-                      "--enabled-reference-uris", "empty,same-doc,local", str(signature),
-                  ],
-                  cwd=root,
-                  check=True,
+          
+              argv = [
+                  "xmlsec1", "--verify", "--insecure",
+                  "--pubkey-cert-pem", str(pem),
+                  "--enabled-reference-uris", "empty,same-doc,local",
+              ]
+              for reference in tree.findall(".//" + ns + "Reference"):
+                  uri = reference.get("URI", "")
+                  if not uri or uri.startswith("#"):
+                      continue
+                  relative = PurePosixPath(uri)
+                  if relative.is_absolute() or ".." in relative.parts or len(relative.parts) != 1:
+                      raise SystemExit(f"{filename} contains an unsafe external reference: {uri}")
+                  target = root / relative.name
+                  if not target.is_file():
+                      raise SystemExit(
+                          f"{filename} references missing package file: {uri}"
+                      )
+                  argv.extend([f"--url-map:{uri}", str(target)])
+          
+              argv.append(str(signature))
+              subprocess.run(argv, cwd=root, check=True)
+              print(
+                  f"Cryptographically verified {filename}; "
+                  "embedded certificate matches configured signer."
               )
-              print(f"Cryptographically verified {filename}")
           PY
           
             # 5. Validate the final signed WGT, not the unsigned tz pack output.
