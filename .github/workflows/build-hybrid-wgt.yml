@@ -110,6 +110,8 @@ jobs:
 
       - name: Build Moonlight Web files (standard)
         uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           push: false
@@ -125,6 +127,8 @@ jobs:
 
       - name: Build Moonlight Web files (ForceGM)
         uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           push: false
