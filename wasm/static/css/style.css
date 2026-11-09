@@ -1252,6 +1252,34 @@ body[data-color-theme="black-orange"] #background-layer {
 .ip-address-select-field.hovered, .ip-address-select-field:hover {
     box-shadow: 0 0 1px 2px var(--theme-accent);
 }
+
+/* Keep the Ambilight address editor consistent with the Add Host MDL fields. */
+#ambilightWledIpContainer {
+    margin-top: 15px;
+}
+#ambilightWledIpInputField {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+}
+#ambilightWledIpInputField .mdl-textfield__label,
+#ambilightWledIpSelectFields .mdl-textfield__label {
+    top: -12px;
+}
+#ambilightWledIpTextInput {
+    width: 100%;
+    height: 38px;
+    box-sizing: border-box;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
+}
+#ambilightWledIpSelectFields {
+    display: none;
+    width: 100%;
+    padding: 22px 0 0;
+    box-sizing: border-box;
+}
 #supportQrCode {
     width: 50%;
     height: 50%;
