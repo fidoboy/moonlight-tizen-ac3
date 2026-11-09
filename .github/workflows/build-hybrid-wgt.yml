@@ -187,7 +187,7 @@ jobs:
           }
           
           TIZEN_CORE_CLI="/home/tizen/tizen-studio/tools/tizen-core/tz"
-          export TIZEN_STUDIO_DATA_PATH="/tmp/tizen-studio-data"
+          export TIZEN_STUDIO_DATA_PATH="/home/tizen/tizen-studio-data"
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
         
           cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
