@@ -59,9 +59,9 @@ RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tm
 
 # The Tizen installer explicitly refuses to run as root. Install the SDK
 # as a dedicated unprivileged user; the runtime image remains root by default.
+# The Tizen installer requires the destination itself not to exist.
+# Give it write access to /opt, but let it create /opt/tizen-studio.
 RUN useradd --create-home --uid 1001 --shell /bin/bash tizen \
-    # The Tizen installer requires the destination itself not to exist. Give the
-    # installer write access to /opt, but let it create /opt/tizen-studio.
     && chown tizen:tizen /opt
 USER tizen
 ENV HOME=/home/tizen
