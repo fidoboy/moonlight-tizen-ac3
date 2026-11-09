@@ -12,6 +12,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Changed
 - **Performance statistics overlay:** Adjusted the overlay presentation to make it more compact, consolidating the frame-rate metrics into a single line and separating the additional metrics with a subtle divider.
+- **Settings section navigation:** Kept the right-hand pane and its controls visible while navigating between settings sections, dimming the pane during the transition instead of hiding it.
 
 ## v1.2.3
 
