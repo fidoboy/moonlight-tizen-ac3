@@ -206,13 +206,27 @@ jobs:
           profiles="$data_dir/profile/profiles.xml"
           test -f "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
-          sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+
+          # Tizen Core's password attributes are inline Base64-encoded
+          # 3DES-ECB-PKCS5 values, not plaintext and not arbitrary .pwd paths.
+          # These ciphertexts were verified by an isolated dotnet-build probe.
+          author_encrypted='HeifNwdU+kk='
+          distributor_encrypted='Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k='
+          sed -i \
+            -e "s|$author_pwd|$author_encrypted|" \
+            -e "s|$distributor_pwd|$distributor_encrypted|" \
+            "$profiles"
 
           echo "=== Exact profiles.xml contents ==="
           cat "$profiles"
           grep -Fq "$author_key" "$profiles"
-          grep -Fq "$author_pwd" "$profiles"
-          echo "profiles.xml contains both expected author certificate and password-file paths."
+          grep -Fq "$author_encrypted" "$profiles"
+          grep -Fq "$distributor_encrypted" "$profiles"
+          if grep -Fq '.pwd' "$profiles"; then
+            echo "Unexpected .pwd path remains in the diagnostic signing profile."
+            exit 1
+          fi
+          echo "profiles.xml contains the expected author certificate and both verified encrypted password attributes."
 
           echo "=== Tizen CLI profile listing using this exact profiles.xml ==="
           tizen cli-config "profiles.path=$profiles"
@@ -472,9 +486,11 @@ jobs:
             echo "Requested Tizen Core signing profile: Moonlight"
             echo "Requested profiles.xml: /home/tizen/tizen-studio-data/profile/profiles.xml"
             echo "Expected author certificate: $author_key"
-            echo "Expected author password file: $author_pwd"
+            echo "Expected encrypted author attribute: HeifNwdU+kk="
+            echo "Expected encrypted distributor attribute: Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k="
             echo "=== Actual dotnet-build command emitted by tz build ==="
-            grep -F -- "--author-key $author_key --author-attr $author_pwd" "$out/tz-build-hybrid-stdout.txt"
+            grep -F -- "--author-key $author_key --author-attr HeifNwdU+kk=" "$out/tz-build-hybrid-stdout.txt"
+            grep -F -- "--dist-key" "$out/tz-build-hybrid-stdout.txt" | grep -F -- "--dist-attr Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k="
             echo "=== Actual certificate selected by the Tizen .NET SDK ==="
             grep -F -- "Author cert : $author_key" "$out/tz-build-hybrid-stdout.txt"
           } 2>&1 | tee "$out/tz-build-signing-profile-verification.txt"
