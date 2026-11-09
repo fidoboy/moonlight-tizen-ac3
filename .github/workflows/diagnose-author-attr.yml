@@ -380,9 +380,11 @@ jobs:
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.p12"
           author_pwd="$TIZEN_STUDIO_DATA_PATH/keystore/author/AuthorAttrProbe.pwd"
           author_password=123456
+          distributor_key="$(sed -n 's/^distributor_key=//p' "$PROBE_OUT/probe-inputs.txt")"
+          profile_attrs="$PROBE_OUT/profile-password-attributes.txt"
 
-          # The distributor password argument must be the exact password attribute
-          # written by tz security-profiles add, not the raw PKCS#12 password.
+          # Profile slot 1 is distributor: its password attribute is the
+          # generated .pwd path. Pass it together with the same certificate path.
           distributor_attr=""
           if [[ -s "$profile_attrs" ]]; then
             distributor_attr="$(awk '
