@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: tizen-build-env-image
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
