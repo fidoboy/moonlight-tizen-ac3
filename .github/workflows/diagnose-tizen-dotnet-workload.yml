@@ -1,0 +1,202 @@
+name: Diagnose Samsung Tizen .NET workload
+
+on:
+  push:
+    branches: ["1.2.4-pre"]
+    paths:
+      - ".github/workflows/diagnose-tizen-dotnet-workload.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: diagnose-tizen-dotnet-workload-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/1.2.4-pre'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    container:
+      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Inspect .NET and Samsung Tizen workload in a clean workspace
+        shell: bash
+        run: |
+          set +e
+          out="/__w/_temp/tizen-dotnet-workload-diagnostics"
+          mkdir -p "$out"
+          workspace="$(mktemp -d /tmp/tizen-dotnet-workspace.XXXXXX)"
+          sdk="${TIZEN_STUDIO:-}"
+          dotnet_bin="/usr/share/dotnet/dotnet"
+          core=""
+          [[ -n "$sdk" ]] && core="$sdk/tools/tizen-core/tz"
+
+          {
+            echo "=== Run identity and container ==="
+            date -u
+            id
+            whoami
+            printf 'HOME=%s\nPATH=%s\nTIZEN_STUDIO=%s\nDOTNET_ROOT=%s\nDOTNET_CLI_HOME=%s\n' \
+              "$HOME" "$PATH" "$sdk" "${DOTNET_ROOT:-}" "${DOTNET_CLI_HOME:-}"
+            cat /etc/os-release 2>/dev/null
+            echo
+            echo "=== Clean temporary workspace ==="
+            echo "workspace=$workspace"
+            find "$workspace" -mindepth 1 -maxdepth 2 -printf '%y %p\n'
+            echo "workspace_file_count=$(find "$workspace" -type f | wc -l)"
+          } > "$out/container-and-workspace.txt" 2>&1
+
+          capture() {
+            name="$1"
+            shift
+            "$@" > "$out/$name.stdout.txt" 2> "$out/$name.stderr.txt"
+            status=$?
+            printf '%s\n' "$status" > "$out/$name.exit-code.txt"
+            echo "$name exit=$status"
+          }
+
+          echo "=== Dotnet executable resolution ==="
+          {
+            type -a dotnet 2>&1
+            command -v dotnet 2>&1
+            readlink -f "$(command -v dotnet)" 2>&1
+            ls -l /usr/share/dotnet/dotnet 2>&1
+            file /usr/share/dotnet/dotnet 2>&1
+            sha256sum /usr/share/dotnet/dotnet 2>&1
+          } > "$out/dotnet-path-resolution.txt" 2>&1
+
+          echo "=== .NET SDK state (job identity, explicit build executable) ==="
+          capture dotnet-info "$dotnet_bin" --info
+          capture dotnet-list-sdks "$dotnet_bin" --list-sdks
+          capture dotnet-list-runtimes "$dotnet_bin" --list-runtimes
+          capture dotnet-workload-list "$dotnet_bin" workload list
+          capture dotnet-workload-search-tizen "$dotnet_bin" workload search tizen
+
+          echo "=== .NET SDK state as tizen user ==="
+          if id tizen >/dev/null 2>&1; then
+            runuser -u tizen -- env HOME=/home/tizen DOTNET_ROOT=/usr/share/dotnet \
+              "$dotnet_bin" --info > "$out/tizen-user-dotnet-info.stdout.txt" 2> "$out/tizen-user-dotnet-info.stderr.txt"
+            printf '%s\n' "$?" > "$out/tizen-user-dotnet-info.exit-code.txt"
+            runuser -u tizen -- env HOME=/home/tizen DOTNET_ROOT=/usr/share/dotnet \
+              "$dotnet_bin" workload list > "$out/tizen-user-workload-list.stdout.txt" 2> "$out/tizen-user-workload-list.stderr.txt"
+            printf '%s\n' "$?" > "$out/tizen-user-workload-list.exit-code.txt"
+          else
+            echo "tizen user does not exist" > "$out/tizen-user-dotnet-info.stdout.txt"
+          fi
+
+          echo "=== Tizen Core configuration ==="
+          if [[ -x "$core" ]]; then
+            capture tz-version "$core" --version
+            capture tz-get-help "$core" get --help
+            capture tz-get-dotnet-path "$core" get -d
+            capture tz-get-dotnet-build-tool "$core" get -D
+            if id tizen >/dev/null 2>&1; then
+              runuser -u tizen -- env HOME=/home/tizen TIZEN_STUDIO="$sdk" \
+                "$core" get -d > "$out/tizen-user-tz-get-dotnet-path.stdout.txt" 2> "$out/tizen-user-tz-get-dotnet-path.stderr.txt"
+              printf '%s\n' "$?" > "$out/tizen-user-tz-get-dotnet-path.exit-code.txt"
+              runuser -u tizen -- env HOME=/home/tizen TIZEN_STUDIO="$sdk" \
+                "$core" get -D > "$out/tizen-user-tz-get-dotnet-build-tool.stdout.txt" 2> "$out/tizen-user-tz-get-dotnet-build-tool.stderr.txt"
+              printf '%s\n' "$?" > "$out/tizen-user-tz-get-dotnet-build-tool.exit-code.txt"
+            fi
+          else
+            echo "Tizen Core CLI not found at $core" > "$out/tizen-core-config.stderr.txt"
+          fi
+
+          echo "=== Samsung workload manifests and API reference packs ==="
+          {
+            for root in /usr/share/dotnet/sdk-manifests /usr/local/share/dotnet/sdk-manifests \
+                        /usr/lib/dotnet/sdk-manifests /home/tizen/.dotnet/sdk-manifests; do
+              [[ -d "$root" ]] || continue
+              find "$root" -type f -path '*/samsung.net.sdk.tizen/WorkloadManifest.json' -print
+            done
+          } | sort -u > "$out/samsung-workload-manifest-paths.txt"
+
+          python3 - "$out/samsung-workload-manifest-paths.txt" "$out/samsung-workload-manifest-analysis.txt" <<'PY'
+          import json, pathlib, sys
+          paths = pathlib.Path(sys.argv[1]).read_text().splitlines()
+          out = []
+          if not paths:
+              out.append("No samsung.net.sdk.tizen/WorkloadManifest.json found in standard SDK manifest roots.")
+          for raw in paths:
+              p = pathlib.Path(raw)
+              out.append(f"=== {p} ===")
+              try:
+                  data = json.loads(p.read_text())
+                  out.append(f"manifest_version={data.get('version')}")
+                  packs = data.get("packs", {})
+                  refs = sorted(k for k in packs if k.startswith("Samsung.Tizen.Ref.API"))
+                  out.append("api_reference_packs=" + (", ".join(refs) if refs else "(none)"))
+                  out.append("API13_present=" + str("Samsung.Tizen.Ref.API13" in packs))
+                  workloads = data.get("workloads", {})
+                  out.append("tizen_workload_present=" + str("tizen" in workloads))
+                  if "tizen" in workloads:
+                      out.append("tizen_workload_packs=" + repr(workloads["tizen"].get("packs", [])))
+              except Exception as exc:
+                  out.append(f"manifest_parse_error={exc}")
+          pathlib.Path(sys.argv[2]).write_text("\n".join(out) + "\n")
+          PY
+
+          {
+            for root in /usr/share/dotnet/packs /usr/local/share/dotnet/packs /usr/lib/dotnet/packs \
+                        /home/tizen/.nuget/packages /root/.nuget/packages /home/moonlight/.nuget/packages; do
+              [[ -d "$root" ]] || continue
+              find "$root" -maxdepth 5 \( -iname '*tizen*' -o -iname '*samsung*' \) -print 2>/dev/null
+            done
+          } | sort -u > "$out/tizen-and-samsung-dotnet-packs.txt"
+
+          echo "=== Tizen Studio DOTNET-related components ==="
+          if [[ -d "$sdk" ]]; then
+            find "$sdk/tools" -maxdepth 6 \( -iname '*dotnet*' -o -iname '*tizen.net*' -o -iname '*workload*' \) \
+              -printf '%y %p\n' 2>/dev/null | sort > "$out/tizen-studio-dotnet-components.txt"
+            pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit 2>/dev/null)"
+            if [[ -n "$pm" ]]; then
+              runuser -u tizen -- env HOME=/home/tizen TIZEN_STUDIO_DATA_PATH=/tmp/tizen-studio-data \
+                "$pm" show-pkgs --tree > "$out/tizen-studio-installed-packages.stdout.txt" \
+                2> "$out/tizen-studio-installed-packages.stderr.txt"
+              printf '%s\n' "$?" > "$out/tizen-studio-installed-packages.exit-code.txt"
+            fi
+          else
+            echo "TIZEN_STUDIO is unset or its directory is missing." > "$out/tizen-studio-dotnet-components.txt"
+          fi
+
+          echo "=== SDK selection hints ==="
+          {
+            for f in /global.json /usr/share/dotnet/global.json /home/tizen/global.json \
+                     /home/moonlight/global.json /__w/moonlight-tizen-ac3/moonlight-tizen-ac3/global.json; do
+              if [[ -f "$f" ]]; then
+                echo "===== $f ====="
+                cat "$f"
+              fi
+            done
+            echo "=== dotnet-related environment ==="
+            env | sort | grep -E '^(DOTNET|MSBuild|NUGET|TIZEN)' || true
+          } > "$out/dotnet-sdk-selection-hints.txt" 2>&1
+
+          {
+            echo "Image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1"
+            echo "Build CLI path configured by Tizen Core is recorded in tz-get-dotnet-path.stdout.txt."
+            echo "Build CLI SDK and workload state is recorded in dotnet-info and dotnet-workload-list files."
+            echo "Target TFM: net8.0-tizen10.0"
+            echo "Required Samsung reference pack: Samsung.Tizen.Ref.API13"
+            echo "Workspace created empty: $workspace"
+            echo "No project build, tz build, tz add-deps, tz pack, certificate operation, or workload installation was run."
+          } > "$out/diagnostic-summary.txt"
+
+          echo "=== Diagnostic files ==="
+          find "$out" -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+
+      - name: Upload .NET and Tizen workload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tizen-dotnet-workload-diagnostics-${{ github.sha }}
+          path: /__w/_temp/tizen-dotnet-workload-diagnostics/
+          if-no-files-found: error
+          retention-days: 7
