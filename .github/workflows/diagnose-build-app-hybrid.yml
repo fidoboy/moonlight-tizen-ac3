@@ -361,369 +361,54 @@ jobs:
             done
           } > "$out/tizen-core-project-resolution-sources.txt"
 
-          echo "=== Empirically test add-deps with isolated copies of each candidate service root ==="
-          for candidate in outer inner; do
-            test_workspace="$RUNNER_TEMP/tz-add-deps-$candidate"
-            rm -rf "$test_workspace"
-            cp -a "$workspace/." "$test_workspace/"
-            test_web="$test_workspace/MoonlightWeb"
-            if [[ "$candidate" == outer ]]; then
-              dependency_path="../AmbilightService"
-            else
-              dependency_path="../AmbilightService/AmbilightService"
-            fi
-            stdout_file="$out/tz-add-deps-$candidate-stdout.txt"
-            stderr_file="$out/tz-add-deps-$candidate-stderr.txt"
-            status_file="$out/tz-add-deps-$candidate-exit-code.txt"
-            (
-              cd "$test_web"
-              timeout --signal=TERM --kill-after=10s 60s "$TIZEN_CORE_CLI" add-deps . -d "$dependency_path"
-            ) >"$stdout_file" 2>"$stderr_file"
-            status=$?
-            echo "$status" > "$status_file"
-            {
-              echo "Candidate: $candidate"
-              echo "Dependency argument: $dependency_path"
-              echo "Exit code: $status"
-              echo "--- stdout ---"
-              cat "$stdout_file"
-              echo "--- stderr ---"
-              cat "$stderr_file"
-              echo "--- resulting Web descriptor ---"
-              sed -n '1,260p' "$test_web/tizen_web_project.yaml"
-            } > "$out/tz-add-deps-$candidate-assessment.txt"
-          done
-
-          echo "Discovery-only run: stopping before build, set, or pack. add-deps was tested only against disposable workspace copies; the real workspace remains untouched."
-          exit 1
-
-          echo "=== Declare the .NET service as a dependency of the Web project ==="
-          if ! run_tz_capture "tz-add-deps" add-deps "$web_project" -d ../AmbilightService; then
-            exit 1
-          fi
-          "$TIZEN_CORE_CLI" get -P -w "$web_project" \
-            >"$out/tz-hybrid-dependencies-stdout.txt" \
-            2>"$out/tz-hybrid-dependencies-stderr.txt"
-          printf '%s\n' "$?" > "$out/tz-hybrid-dependencies-exit-code.txt"
-
-          echo "=== Configure signing profile ==="
-          if ! run_tz_capture "tz-set-web-signing" set -w "$web_project" -s Moonlight; then
-            exit 1
-          fi
-          if ! run_tz_capture "tz-set-service-signing" set -w "$service_project" -s Moonlight; then
+          echo "=== Declare the real .NET project as the Web dependency ==="
+          if ! run_tz_capture "tz-add-deps" add-deps "$web_project" -d ../AmbilightService/AmbilightService; then
             exit 1
           fi
 
-          echo "=== Build the hybrid project ==="
+          echo "=== Verify the normalized Web dependency descriptor ==="
+          sed -n '1,260p' "$web_project/tizen_web_project.yaml" \
+            | tee "$out/tz-web-descriptor-after-add-deps.txt"
+          grep -Fq '  - ../AmbilightService/AmbilightService' "$web_project/tizen_web_project.yaml"
+
+          echo "=== Build the Web project and its .NET dependency (no packaging) ==="
           if ! run_tz_capture "tz-build-hybrid" build -w "$web_project" -s Moonlight; then
+            echo "Tizen Core build failed; tz pack was not invoked."
             exit 1
           fi
 
-          echo "=== Package the hybrid project as WGT ==="
-          if ! run_tz_capture "tz-pack-hybrid" pack -w "$web_project"; then
-            exit 1
-          fi
-
-          echo "=== Validate the generated WGT ==="
-          mapfile -t wgts < <(find "$workspace" -type f -name '*.wgt' | sort)
-          if (( \${#wgts[@]} != 1 )); then
-            echo "Expected exactly one WGT, found \${#wgts[@]}."
-            printf '%s\n' "${wgts[@]}"
-            exit 1
-          fi
-          wgt="${wgts[0]}"
-          cp "$wgt" "$out/tz-hybrid-result.wgt"
-          unzip -tq "$wgt"
-          unzip -l "$wgt" | tee "$out/tz-hybrid-wgt-contents.txt"
-          mkdir -p "$out/tz-hybrid-wgt-extracted"
-          unzip -q "$wgt" -d "$out/tz-hybrid-wgt-extracted"
-          find "$out/tz-hybrid-wgt-extracted" -type f -printf '%P\n' | sort \
-            | tee "$out/tz-hybrid-wgt-files.txt"
-
-          echo "=== Inspect service component metadata and .NET payload ==="
-          grep -RIlE 'service-application|dotnet|AmbilightService' "$out/tz-hybrid-wgt-extracted" \
-            | tee "$out/tz-hybrid-service-metadata-files.txt" || true
-          find "$out/tz-hybrid-wgt-extracted" -type f \
-            \( -name '*.dll' -o -name '*.runtimeconfig.json' -o -name '*.deps.json' -o -name 'tizen-manifest.xml' \) \
-            -printf '%P\n' | sort | tee "$out/tz-hybrid-service-payload-files.txt"
-
-          if ! grep -RqiE 'service-application|AmbilightService' "$out/tz-hybrid-wgt-extracted"; then
-            echo "WGT has no identifiable .NET service component metadata."
-            exit 1
-          fi
-          if ! find "$out/tz-hybrid-wgt-extracted" -type f \
-              \( -name '*.dll' -o -name '*.runtimeconfig.json' \) | grep -q .; then
-            echo "WGT has no identifiable .NET service payload."
-            exit 1
-          fi
-          echo "TIZEN_CORE_HYBRID_TEST=PASS" | tee "$out/tz-hybrid-result.txt"
-      - name: Compile the existing .NET service TPK
-        shell: bash
-        run: |
-          set -euo pipefail
-          find ambilight-service -type f -name '*.tpk' -delete
-          dotnet msbuild ambilight-service/TizenAmbilight.csproj \
-            -restore -t:Rebuild -p:Configuration=Release -v:m
-          mapfile -t pkgs < <(find ambilight-service -type f -name '*.tpk' -not -path '*/obj/*' | sort)
-          if (( ${#pkgs[@]} != 1 )); then
-            echo "Expected one service TPK, found ${#pkgs[@]}."
-            printf '%s\n' "${pkgs[@]}"
-            exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/build-app-diagnostics"
-          cp "${pkgs[0]}" "$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk"
-          echo "SERVICE_TPK=${pkgs[0]}" >> "$GITHUB_ENV"
-          unzip -tq "${pkgs[0]}"
-          unzip -p "${pkgs[0]}" tizen-manifest.xml \
-            > "$RUNNER_TEMP/build-app-diagnostics/service-tizen-manifest.xml"
-
-      - name: Create a minimal Web project and inspect available rootstraps
-        shell: bash
-        run: |
-          set -euo pipefail
-          workspace="$RUNNER_TEMP/build-app-workspace"
-          mkdir -p "$workspace"
-          tizen list web-project 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"
-          tizen list rootstrap 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"
-          if ! grep -Eqi 'tizen-10\.0-(device|emulator)' "$RUNNER_TEMP/build-app-diagnostics/rootstraps.txt"; then
-            echo "No Tizen 10.0 device/emulator rootstrap is installed. The prebuilt-TPK packaging test is independent; native source build will be reported as unavailable."
-          fi
-          if ! grep -Eqi 'tv-10\.0|TV.*10\.0|10\.0.*TV' "$RUNNER_TEMP/build-app-diagnostics/web-project-templates.txt"; then
-            echo "The TV 10.0 Web profile is not available; refusing to create the TV project."
-            exit 1
-          fi
-          tizen create web-project -p tv-samsung-10.0 -t BasicEmptyProject -n MoonlightWeb -- "$workspace"
-          test -d "$workspace/MoonlightWeb"
-          echo "BUILD_APP_WORKSPACE=$workspace" >> "$GITHUB_ENV"
-          echo "WEB_PROJECT=$workspace/MoonlightWeb" >> "$GITHUB_ENV"
-
-      - name: Stage the service project and its prebuilt TPK as separate workspace targets
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Keep the .NET service project as a sibling of the Web UI project.
-          # The prebuilt TPK is also kept at workspace root, never under MoonlightWeb.
-          service_project="$BUILD_APP_WORKSPACE/MoonlightAmbilight"
-          mkdir -p "$service_project"
-          cp ambilight-service/TizenAmbilight.csproj "$service_project/"
-          cp ambilight-service/tizen-manifest.xml "$service_project/"
-          cp "$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk" \
-            "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
-          test -f "$service_project/TizenAmbilight.csproj"
-          test -f "$service_project/tizen-manifest.xml"
-          test -f "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
-          echo "Service project directory: $service_project"
-          echo "Prebuilt service package: $BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk"
-          sha256sum "$SERVICE_TPK" "$BUILD_APP_WORKSPACE/MoonlightAmbilight-prebuilt.tpk" \
-            | tee "$RUNNER_TEMP/build-app-diagnostics/separate-service-target-sha256.txt"
-          find "$BUILD_APP_WORKSPACE" -maxdepth 2 -type f -printf '%P\\n' \
-            | sort | tee "$RUNNER_TEMP/build-app-diagnostics/workspace-targets.txt"
-
-      - name: Capture the package validator used by build-app
-        shell: bash
-        run: |
-          set -euo pipefail
-          out="$RUNNER_TEMP/build-app-diagnostics"
-          mkdir -p "$out"
-          common_validator="$TIZEN_STUDIO/tools/ide/resources/common/Build/Validator.xml"
-          project_validator="$BUILD_APP_WORKSPACE/Build/Validator.xml"
+          echo "=== Capture the complete workspace tree after tz build ==="
           {
-            echo "=== Validator candidates ==="
-            echo "Common: $common_validator"
-            echo "Project: $project_validator"
-            echo
-            if [[ -f "$project_validator" ]]; then
-              echo "=== Workspace Build/Validator.xml ==="
-              cp "$project_validator" "$out/workspace-Validator.xml"
-              cat "$project_validator"
-            else
-              echo "No workspace Build/Validator.xml; build-app should fall back to the SDK validator."
-            fi
-            echo
-            if [[ -f "$common_validator" ]]; then
-              echo "=== SDK common Build/Validator.xml ==="
-              cp "$common_validator" "$out/sdk-common-Validator.xml"
-              cat "$common_validator"
-            else
-              echo "SDK common Validator.xml not found."
-            fi
-          } 2>&1 | tee "$out/package-validator-diagnostics.txt"
-          find "$WEB_PROJECT" -maxdepth 3 -type f \( -name '*.xml' -o -name '*.json' -o -name '*.project' \) -print \
-            | sort | tee "$out/web-project-descriptors.txt"
-          while IFS= read -r descriptor; do
-            [[ -f "$descriptor" ]] || continue
-            echo "=== $descriptor ===" >> "$out/web-project-descriptor-content.txt"
-            sed -n '1,240p' "$descriptor" >> "$out/web-project-descriptor-content.txt"
-          done < "$out/web-project-descriptors.txt"
+            printf 'Workspace: %s\n' "$workspace"
+            find "$workspace" -printf '%y %p %s bytes\n' | sort
+          } | tee "$out/tz-workspace-tree-after-build.txt"
 
-      - name: Test build-app with the .NET service project declared as a sibling target
-        id: project-target
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -uo pipefail
-          workspace="$BUILD_APP_WORKSPACE"
-          rm -f "$workspace"/*.wgt "$workspace"/*.tpk
-          out="$RUNNER_TEMP/build-app-diagnostics"
-          attempt_log="$out/service-project-build-app-attempt.txt"
+          echo "=== Inventory generated build outputs ==="
+          find "$workspace" -type f \
+            \( -name '*.dll' -o -name '*.pdb' -o -name '*.deps.json' \
+               -o -name '*.runtimeconfig.json' -o -name '*.tpk' -o -name '*.wgt' \
+               -o -name '*.ninja' -o -name 'build.ninja' \) \
+            -printf '%p %s bytes\n' | sort \
+            | tee "$out/tz-build-generated-artifacts.txt"
+          find "$workspace" -type d \( -name bin -o -name obj -o -name Build \) \
+            -printf '%p\n' | sort \
+            | tee "$out/tz-build-output-directories.txt"
+
+          echo "=== Record build-only outcome ==="
           {
-            echo "=== build-app with Web UI and .NET service project as separate build targets ==="
-            echo "The service project directory is a sibling of MoonlightWeb."
-            echo "No TPK is copied into the Web UI project."
-          } | tee "$attempt_log"
-          set +e
-          tizen build-app \
-            -b "name:MoonlightBuild,targets:[MoonlightWeb,MoonlightAmbilight]" \
-            -p "name:MoonlightHybrid,targets:[MoonlightBuild]" \
-            -s Moonlight -- "$workspace" 2>&1 | tee -a "$attempt_log"
-          status=${PIPESTATUS[0]}
-          set -e
-          echo "$status" > "$out/service-project-build-app-exit-code.txt"
-          echo "Service-project build-app exit code: $status" | tee -a "$attempt_log"
-          cli_log_found=false
-          for cli_log in /home/tizen/tizen-studio-data/cli/logs/cli.log "$PWD/tizen-studio-data/cli/logs/cli.log"; do
-            if [[ -f "$cli_log" ]]; then
-              cp "$cli_log" "$out/service-project-cli.log"
-              echo "Captured Tizen CLI log from: $cli_log" > "$out/service-project-cli-log-location.txt"
-              cli_log_found=true
-              break
-            fi
-          done
-          if [[ "$cli_log_found" == false ]]; then
-            echo "Tizen CLI log not found in either expected location." > "$out/service-project-cli-log-location.txt"
-          fi
+            echo "Dependency: ../AmbilightService/AmbilightService"
+            echo "tz add-deps exit code: $(cat "$out/tz-add-deps-exit-code.txt")"
+            echo "tz build exit code: $(cat "$out/tz-build-hybrid-exit-code.txt")"
+            echo "tz pack: NOT RUN"
+          } | tee "$out/tz-build-only-assessment.txt"
+          echo "Tizen Core build-only diagnostic completed. tz pack remains blocked."
           exit 0
 
-      - name: Test build-app with the prebuilt TPK declared as a package component
-        id: prebuilt-target
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -uo pipefail
-          workspace="$BUILD_APP_WORKSPACE"
-          rm -f "$workspace"/*.wgt
-          out="$RUNNER_TEMP/build-app-diagnostics"
-          attempt_log="$out/prebuilt-tpk-build-app-attempt.txt"
-          {
-            echo "=== build-app with Web project and prebuilt TPK as separate package targets ==="
-            echo "The TPK is at workspace root, outside MoonlightWeb."
-          } | tee "$attempt_log"
-          set +e
-          tizen build-app \
-            -p "name:MoonlightHybridPrebuilt,targets:[MoonlightWeb,MoonlightAmbilight-prebuilt.tpk]" \
-            -s Moonlight -- "$workspace" 2>&1 | tee -a "$attempt_log"
-          status=${PIPESTATUS[0]}
-          set -e
-          echo "$status" > "$out/prebuilt-tpk-build-app-exit-code.txt"
-          echo "Prebuilt-TPK build-app exit code: $status" | tee -a "$attempt_log"
-          cli_log_found=false
-          for cli_log in /home/tizen/tizen-studio-data/cli/logs/cli.log "$PWD/tizen-studio-data/cli/logs/cli.log"; do
-            if [[ -f "$cli_log" ]]; then
-              cp "$cli_log" "$out/prebuilt-tpk-cli.log"
-              echo "Captured Tizen CLI log from: $cli_log" > "$out/prebuilt-tpk-cli-log-location.txt"
-              cli_log_found=true
-              break
-            fi
-          done
-          if [[ "$cli_log_found" == false ]]; then
-            echo "Tizen CLI log not found in either expected location." > "$out/prebuilt-tpk-cli-log-location.txt"
-          fi
-          exit 0
-
-      - name: Classify build-app hybrid packaging evidence
-        if: always() && env.BUILD_APP_WORKSPACE != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          out="$RUNNER_TEMP/build-app-diagnostics"
-          workspace="$BUILD_APP_WORKSPACE"
-          project_log="$out/service-project-build-app-attempt.txt"
-          tpk_log="$out/prebuilt-tpk-build-app-attempt.txt"
-          project_status="$(cat "$out/service-project-build-app-exit-code.txt" 2>/dev/null || echo unavailable)"
-          tpk_status="$(cat "$out/prebuilt-tpk-build-app-exit-code.txt" 2>/dev/null || echo unavailable)"
-          {
-            echo "Service project target exit code: $project_status"
-            echo "Prebuilt TPK package target exit code: $tpk_status"
-            if [[ "$project_status" == 0 ]] && ! grep -Fq "Wrong package type." "$project_log"; then
-              echo "Service-project target was accepted by build-app."
-            else
-              echo "Service-project target was not accepted as a valid build-app component."
-            fi
-            if [[ "$tpk_status" == 0 ]] && ! grep -Fq "Wrong package type." "$tpk_log"; then
-              echo "Prebuilt TPK target was accepted by build-app."
-            else
-              echo "Prebuilt TPK target was not accepted as a valid build-app package component."
-            fi
-            echo "A successful command alone is not sufficient: the resulting WGT must have the documented hybrid package structure and contain the service payload as a native component."
-          } | tee "$out/build-app-hybrid-target-assessment.txt"
-
-      - name: Inspect any produced hybrid package
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          mkdir -p "$RUNNER_TEMP/build-app-diagnostics/produced"
-          search_paths=()
-          [[ -d "$RUNNER_TEMP/build-app-workspace" ]] && search_paths+=("$RUNNER_TEMP/build-app-workspace")
-          [[ -d "$GITHUB_WORKSPACE/ambilight-service" ]] && search_paths+=("$GITHUB_WORKSPACE/ambilight-service")
-          if (( ${#search_paths[@]} )); then
-            find "${search_paths[@]}" -type f \( -name '*.wgt' -o -name '*.tpk' \) \
-              -print -exec cp -n {} "$RUNNER_TEMP/build-app-diagnostics/produced/" \; 2>&1 \
-              | tee "$RUNNER_TEMP/build-app-diagnostics/produced-packages.txt"
-          else
-            echo "No build workspace or service directory was created." \
-              | tee "$RUNNER_TEMP/build-app-diagnostics/produced-packages.txt"
-          fi
-          for pkg in "$RUNNER_TEMP/build-app-diagnostics/produced/"*.wgt; do
-            [ -f "$pkg" ] || continue
-            echo "=== ZIP validation: $pkg ==="
-            unzip -t "$pkg" 2>&1 | tee -a "$RUNNER_TEMP/build-app-diagnostics/package-validation.txt"
-            echo "=== Entries: $pkg ==="
-            unzip -l "$pkg" 2>&1 | tee -a "$RUNNER_TEMP/build-app-diagnostics/package-validation.txt"
-          done
-
-      - name: Disassemble Tizen build-app implementation
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          out="$RUNNER_TEMP/build-app-diagnostics"
-          mkdir -p "$out"
-          jar_path="$(find "$TIZEN_STUDIO" -type f -name 'tizen-new-cli.jar' -print -quit 2>/dev/null)"
-          if [[ -z "$jar_path" ]]; then
-            echo "tizen-new-cli.jar not found under $TIZEN_STUDIO" | tee "$out/tizen-new-cli-location.txt"
-            find "$TIZEN_STUDIO" -type f -name '*.jar' -path '*lib-ncli*' -print 2>/dev/null \
-              | tee "$out/ncli-jars.txt"
-            exit 0
-          fi
-          echo "$jar_path" | tee "$out/tizen-new-cli-location.txt"
-          cp "$jar_path" "$out/tizen-new-cli.jar"
-          sha256sum "$jar_path" | tee "$out/tizen-new-cli.sha256"
-          echo "=== JAR class entry ===" | tee "$out/build-app-class-entry.txt"
-          jar_bin="$TIZEN_STUDIO/jdk/bin/jar"
-          javap_bin="$TIZEN_STUDIO/jdk/bin/javap"
-          [[ -x "$jar_bin" ]] || jar_bin="$(command -v jar)"
-          [[ -x "$javap_bin" ]] || javap_bin="$(command -v javap)"
-          if [[ -n "$jar_bin" ]]; then
-            "$jar_bin" tf "$jar_path" | grep -E 'org/tizen/ncli/subcommands/build/buildapp/BuildAppCLICommand.class$' \
-              | tee -a "$out/build-app-class-entry.txt"
-          fi
-          if [[ -x "$javap_bin" ]]; then
-            "$javap_bin" -classpath "$jar_path" -p -c -l \
-              org.tizen.ncli.subcommands.build.buildapp.BuildAppCLICommand \
-              > "$out/BuildAppCLICommand.javap.txt" 2>&1
-            echo "javap exit code: $?" | tee "$out/javap-status.txt"
-            grep -n -A180 -B25 'bindMethodToProject' "$out/BuildAppCLICommand.javap.txt" \
-              > "$out/bindMethodToProject-excerpt.txt"
-          else
-            echo "javap not found; bundled JDK path: $TIZEN_STUDIO/jdk/bin/javap" \
-              | tee "$out/javap-status.txt"
-          fi
-      - name: Upload build-app diagnostic artifacts
+      - name: Upload Tizen Core build-only diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: tizen-build-app-hybrid-diagnostics-${{ github.sha }}
-          path: ${{ runner.temp }}/build-app-diagnostics/
+          name: tizen-core-build-only-\${{ github.sha }}
+          path: \${{ runner.temp }}/build-app-diagnostics/
           if-no-files-found: warn
           retention-days: 7
