@@ -171,19 +171,54 @@ jobs:
           data_dir="/home/tizen/tizen-studio-data"
           export TIZEN_STUDIO_DATA_PATH="$data_dir"
           mkdir -p "$data_dir/profile"
-          tizen certificate -a Moonlight -f Moonlight -p 123456
+          author_password="$(printf '\\061\\062\\063\\064\\065\\066')"
+          tizen certificate -a Moonlight -f Moonlight -p "$author_password"
           author_key="$data_dir/keystore/author/Moonlight.p12"
+          author_pwd="$data_dir/keystore/author/Moonlight.pwd"
           test -f "$author_key"
-          openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -info -noout
-          tizen security-profiles add -n Moonlight -a "$author_key" -p 123456 \
+          test -f "$author_pwd"
+
+          echo "=== Author password file: exact bytes and visible contents ==="
+          printf 'Expected password: [%s]\\n' "$author_password"
+          printf 'Actual password:   ['
+          cat "$author_pwd"
+          printf ']\\n'
+          printf 'Byte count: '
+          wc -c < "$author_pwd"
+          printf 'Hex bytes: '
+          od -An -v -tx1 "$author_pwd"
+          printf '%s' "$author_password" > "$RUNNER_TEMP/expected-Moonlight.pwd"
+          cmp "$RUNNER_TEMP/expected-Moonlight.pwd" "$author_pwd"
+          echo "Moonlight.pwd matches the expected bytes exactly (no newline)."
+
+          echo "=== OpenSSL verification using the password file itself ==="
+          openssl pkcs12 -legacy -in "$author_key" -passin "file:$author_pwd" -info -noout
+
+          tizen security-profiles add -n Moonlight -a "$author_key" -p "$author_password" \
             -- "$data_dir/profile"
           profiles="$data_dir/profile/profiles.xml"
           test -f "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
+
+          echo "=== Exact profiles.xml contents ==="
+          cat "$profiles"
+          grep -Fq "$author_key" "$profiles"
+          grep -Fq "$author_pwd" "$profiles"
+          echo "profiles.xml contains both expected author certificate and password-file paths."
+
+          echo "=== Tizen CLI profile listing using this exact profiles.xml ==="
+          tizen security-profiles list -x "$profiles"
           tizen cli-config "default.profiles.path=$profiles"
           echo "=== Signing profile registered ==="
-          tizen security-profiles list
+          tizen security-profiles list -x "$profiles"
+          {
+            printf 'profile_name=Moonlight\\n'
+            printf 'profiles_xml=%s\\n' "$profiles"
+            printf 'author_key=%s\\n' "$author_key"
+            printf 'author_password_file=%s\\n' "$author_pwd"
+            printf 'expected_password=%s\\n' "$author_password"
+          } | tee "$RUNNER_TEMP/build-app-diagnostics/signing-profile-preflight.txt"
 
       - name: Test minimal Web plus .NET service hybrid with Tizen Core
         id: tz-hybrid
