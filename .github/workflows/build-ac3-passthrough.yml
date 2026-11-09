@@ -7,6 +7,7 @@ on:
     paths:
       - 'CMakeLists.txt'
       - 'Dockerfile'
+      - 'Dockerfile.webapp'
       - '.dockerignore'
       - 'res/**'
       - 'h264bitstream/**'
@@ -21,6 +22,7 @@ on:
     paths:
       - 'CMakeLists.txt'
       - 'Dockerfile'
+      - 'Dockerfile.webapp'
       - '.dockerignore'
       - 'res/**'
       - 'h264bitstream/**'
@@ -132,6 +134,9 @@ jobs:
           checkout = build[checkout_start:assets_start]
           if "uses: actions/checkout@v5" not in checkout or "submodules: recursive" not in checkout:
               raise SystemExit("The build job must checkout source with recursive submodules.")
+
+          if "file: ./Dockerfile.webapp" not in build:
+              raise SystemExit("The standalone build must use Dockerfile.webapp.")
 
           if "    needs: validate" not in build:
               raise SystemExit("The build job must depend on the validate job.")
@@ -250,6 +255,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: ./Dockerfile.webapp
           push: false
           load: true
           tags: moonlight-tizen-ci:${{ matrix.variant }}
