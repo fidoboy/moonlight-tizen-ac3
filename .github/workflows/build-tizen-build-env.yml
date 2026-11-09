@@ -48,3 +48,6 @@ jobs:
           cache-from: type=gha,scope=tizen-build-env
           cache-to: type=gha,mode=max,scope=tizen-build-env
 
+  verify-workload:
+    needs: publish
+    uses: ./.github/workflows/diagnose-tizen-dotnet-workload.yml
