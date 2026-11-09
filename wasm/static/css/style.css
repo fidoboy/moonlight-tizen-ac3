@@ -1902,8 +1902,10 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: hidden;
 }
 #settings-left-pane {
-    flex: 0 0 35%;
-    max-width: 35%;
+    flex: 0 1 auto;
+    width: max-content;
+    min-width: 30%;
+    max-width: 40%;
     min-height: 0;
     box-sizing: border-box;
     padding: 20px;
