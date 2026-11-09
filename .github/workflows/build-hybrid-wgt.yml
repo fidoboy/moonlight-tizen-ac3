@@ -353,6 +353,15 @@ jobs:
             rm -rf "$signature_check"
             mkdir -p "$signature_check"
             unzip -q "$output" -d "$signature_check"
+
+            # Preserve the exact Tizen-generated XMLDSig documents and signed
+            # package for diagnosis, even when the cryptographic verifier fails.
+            local signature_diagnostics="$RUNNER_TEMP/hybrid-signature-diagnostics/$name"
+            mkdir -p "$signature_diagnostics"
+            cp "$signature_check/author-signature.xml" "$signature_diagnostics/"
+            cp "$signature_check/signature1.xml" "$signature_diagnostics/"
+            cp "$output" "$signature_diagnostics/signed-hybrid.wgt"
+
             python3 - "$signature_check" \
               "/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12" \
               "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" <<'PY'
@@ -557,6 +566,15 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
+      - name: Upload Tizen XMLDSig diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Hybrid-XMLDSig-Diagnostics-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-signature-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload standard hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
