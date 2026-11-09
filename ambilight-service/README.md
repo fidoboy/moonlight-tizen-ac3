@@ -24,3 +24,7 @@ The Web UI and service use package ID `MoonLightS`, with distinct application ID
 ## Capture compatibility
 
 The capture implementation uses a specific 32-bit Samsung TV ABI and the 960x540 NV12 plane layout. It refuses to enter the native API from a 64-bit process because that pointer layout has not been validated there. The capture library is a Samsung firmware component and may also be absent on a model or firmware version. On supported platform versions the service startup probe checks the library, symbol and process ABI; actual video capture is exercised only when the user enables Ambilight during a stream. A failed check disables Ambilight only and must never prevent installation, startup, EMSS/WMP streaming or any other Moonlight feature.
+
+## Diagnostic workflow
+
+The separate **Diagnose Tizen build-app hybrid support** workflow verifies the shared Tizen build image, rebuilds this service TPK, and tests whether Tizen `build-app` accepts the service project or a prebuilt TPK as a hybrid package component. It is a packaging investigation only; it does not produce or publish a production WGT.
