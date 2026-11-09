@@ -1965,6 +1965,7 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 #settings-right-pane.settings-pane-dimmed {
     opacity: 0.38;
+    overflow-y: hidden;
 }
 /* Add dropdown/focus safety space only when the settings content genuinely overflows. */
 #settings-right-pane.has-effective-scroll {
