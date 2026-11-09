@@ -300,6 +300,35 @@ jobs:
           find "$workspace" -type d -printf '%p\n' | sort \
             | tee "$out/tz-workspace-directories-after-dotnet-new.txt"
 
+          echo "=== Capture generated Web and .NET project descriptors ==="
+          while IFS= read -r descriptor; do
+            [[ -f "$descriptor" ]] || continue
+            {
+              echo "===== $descriptor ====="
+              sed -n '1,260p' "$descriptor"
+              echo
+            } >> "$out/tz-generated-project-descriptor-contents.txt"
+          done < <(find "$workspace" -type f \
+            \( -name 'tizen_web_project.yaml' -o -name 'tizen_dotnet_project.yaml' \
+               -o -name 'tizen-manifest.xml' -o -name '.project' -o -name '.tproject' \
+               -o -name '*.sln' -o -name '*.csproj' \) -print | sort)
+
+          echo "=== Inspect Tizen Core executable and installed implementation files ==="
+          {
+            echo "CLI: $TIZEN_CORE_CLI"
+            readlink -f "$TIZEN_CORE_CLI"
+            file "$TIZEN_CORE_CLI"
+            sha256sum "$TIZEN_CORE_CLI"
+            echo
+            echo "=== Tizen Core package files ==="
+            find "$(dirname "$TIZEN_CORE_CLI")" -maxdepth 4 -type f -printf '%p\n' | sort
+            echo
+            echo "=== add-deps / descriptor / project-root strings in CLI ==="
+            strings "$TIZEN_CORE_CLI" 2>/dev/null \
+              | grep -iE -C 3 'add-deps|tizen_dotnet_project|tizen_web_project|project.?type|dotnet_app|\.csproj|\.sln|manifest|dependency|deps' \
+              | head -n 1200 || true
+          } > "$out/tizen-core-executable-inspection.txt" 2>&1
+
           mapfile -t service_csprojs < <(find "$workspace" -type f -name '*.csproj' -print | sort)
           mapfile -t service_manifests < <(find "$workspace" -type f -name 'tizen-manifest.xml' -print | sort)
           {
