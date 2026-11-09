@@ -96,7 +96,7 @@ jobs:
             tz list profiles
             echo
             echo "=== Installed Tizen Core templates ==="
-            find "$TIZEN_STUDIO/tools/tizen-core" -maxdepth 5 -type f \\( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \\) -print 2>/dev/null | sort
+            find "$TIZEN_STUDIO/tools/tizen-core" -maxdepth 5 -type f \( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \) -print 2>/dev/null | sort
           } 2>&1 | tee "$out/tizen-core-cli-discovery.txt"
           echo "${PIPESTATUS[0]}" > "$out/tizen-core-cli-discovery-exit-code.txt"
 
