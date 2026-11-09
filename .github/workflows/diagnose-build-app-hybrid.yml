@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     container:
-      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v1
+      image: ghcr.io/fidoboy/moonlight-tizen-build-env:6.1-v2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
