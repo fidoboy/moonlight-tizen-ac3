@@ -621,5 +621,7 @@
   "Enable Ambilight": "Включить Ambilight",
   "WLED IP address": "IP-адрес WLED",
   "Capture the Moonlight video plane and send live colors to your WLED device.": "Захватывать видеопоток Moonlight и передавать цвета в реальном времени на устройство WLED.",
-  "Ambilight is not supported on this TV.": "Этот телевизор не поддерживает Ambilight."
+  "Ambilight is not supported on this TV.": "Этот телевизор не поддерживает Ambilight.",
+  "Show Ambilight settings": "Показать настройки Ambilight",
+  "Preview only. The Ambilight service is unavailable on this TV.": "Только предварительный просмотр настроек. Служба Ambilight недоступна на этом телевизоре."
 }
