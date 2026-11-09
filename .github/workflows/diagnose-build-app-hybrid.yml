@@ -175,7 +175,14 @@ jobs:
           tizen certificate -a Moonlight -f Moonlight -p "$author_password"
           author_key="$data_dir/keystore/author/Moonlight.p12"
           author_pwd="$data_dir/keystore/author/Moonlight.pwd"
+          echo "=== Files created by tizen certificate ==="
+          find "$data_dir/keystore/author" -maxdepth 1 -type f -printf '%f (%s bytes)\\n' | sort
           test -f "$author_key"
+
+          # Tizen certificate creates the PKCS#12 container, but this CLI
+          # does not necessarily persist its password as a .pwd sidecar.
+          # Create the exact password-file input expected by Tizen Core.
+          printf '%s' "$author_password" > "$author_pwd"
           test -f "$author_pwd"
 
           echo "=== Author password file: exact bytes and visible contents ==="
