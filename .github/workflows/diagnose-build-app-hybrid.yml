@@ -203,64 +203,41 @@ jobs:
           echo "BUILD_APP_WORKSPACE=$workspace" >> "$GITHUB_ENV"
           echo "WEB_PROJECT=$workspace/MoonlightWeb" >> "$GITHUB_ENV"
 
-      - name: Test whether build-app accepts the prebuilt service TPK
-        id: prebuilt
+      - name: Stage the prebuilt service TPK as Web package content
+        shell: bash
+        run: |
+          set -euo pipefail
+          staged_tpk="$WEB_PROJECT/MoonlightAmbilight-prebuilt.tpk"
+          install -m 0644 "$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk" "$staged_tpk"
+          cmp "$SERVICE_TPK" "$staged_tpk"
+          echo "Staged service TPK as package content: $staged_tpk"
+          sha256sum "$SERVICE_TPK" "$staged_tpk" | tee "$RUNNER_TEMP/build-app-diagnostics/staged-tpk-sha256.txt"
+
+      - name: Build the WGT from the recognized Web project only
+        id: web-only
         continue-on-error: true
         shell: bash
         run: |
           set -uo pipefail
           workspace="$BUILD_APP_WORKSPACE"
-          service_tpk="$RUNNER_TEMP/build-app-diagnostics/MoonlightAmbilight-prebuilt.tpk"
           {
-            echo "=== build-app with Web project plus prebuilt .tpk as package targets ==="
+            echo "=== build-app with one recognized Web project ==="
+            echo "The .NET service was compiled separately with dotnet msbuild."
+            echo "The resulting TPK is staged inside MoonlightWeb as package content."
+            echo "No .NET project directory and no .tpk path are passed as build targets."
             tizen build-app \
-              -p "name:MoonlightHybridPrebuilt,type:.wgt,targets:[MoonlightWeb,$service_tpk]" \
+              -b "name:MoonlightBuild,targets:[MoonlightWeb]" \
+              -p "name:MoonlightHybrid,type:.wgt,targets:[MoonlightBuild]" \
               -s Moonlight -- "$workspace"
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-attempt.txt"
+          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-attempt.txt"
           status=${PIPESTATUS[0]}
-          echo "Prebuilt TPK target attempt exit code: $status" \
-            | tee "$RUNNER_TEMP/build-app-diagnostics/prebuilt-tpk-exit-code.txt"
-          exit 0
-
-      - name: Test whether build-app requires the .NET source project
-        id: source
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -uo pipefail
-          # Prevent build-app's non-zero exit from skipping CLI log collection.
-          set +e
-          workspace="$BUILD_APP_WORKSPACE"
-          cp -a "$GITHUB_WORKSPACE/ambilight-service" "$workspace/ambilight-service"
-          {
-            echo "=== build-app with explicit build target and .NET project directory ==="
-            echo "Working directory: $workspace"
-            echo "Projects: MoonlightWeb, ambilight-service"
-            echo "Command follows the documented build-app structure: build targets -> package targets."
-            tizen build-app \
-              -b "name:MoonlightBuild,targets:[MoonlightWeb,ambilight-service]" \
-              -p "name:MoonlightHybridSource,type:.wgt,targets:[MoonlightBuild]" \
-              -s Moonlight -- "$workspace"
-          } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/dotnet-source-attempt.txt"
-          status=${PIPESTATUS[0]}
-          echo "Source project target attempt exit code: $status" \
-            | tee "$RUNNER_TEMP/build-app-diagnostics/dotnet-source-exit-code.txt"
-
-          # Preserve the CLI's internal log immediately: later Tizen commands may overwrite it.
+          echo "Web-only build-app exit code: $status" | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-exit-code.txt"
           cli_log="$TIZEN_STUDIO_DATA_PATH/cli/logs/cli.log"
           if [[ -f "$cli_log" ]]; then
-            cp "$cli_log" "$RUNNER_TEMP/build-app-diagnostics/cli-log-after-source-build-app.txt"
-            echo "Captured CLI log from: $cli_log" \
-              | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
+            cp "$cli_log" "$RUNNER_TEMP/build-app-diagnostics/cli-log-after-web-only-build-app.txt"
+            echo "Captured CLI log from: $cli_log" | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
           else
-            echo "Expected CLI log not found: $cli_log" \
-              | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
-            for log_root in "$TIZEN_STUDIO_DATA_PATH" "$TIZEN_STUDIO" "$HOME/.tizen"; do
-              if [[ -d "$log_root" ]]; then
-                find "$log_root" -type f -name 'cli.log' -print 2>/dev/null \
-                  | tee -a "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
-              fi
-            done
+            echo "CLI log not found: $cli_log" | tee "$RUNNER_TEMP/build-app-diagnostics/cli-log-location.txt"
           fi
           exit 0
 
