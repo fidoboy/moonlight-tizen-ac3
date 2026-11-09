@@ -1,7 +1,7 @@
-<Project Sdk="Tizen.NET.Sdk/1.1.9">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>tizen90</TargetFramework>
+    <TargetFramework>net8.0-tizen10.0</TargetFramework>
     <RootNamespace>MoonlightAmbilight</RootNamespace>
     <AssemblyName>MoonlightAmbilight</AssemblyName>
     <NoWarn>$(NoWarn);CS0649</NoWarn>
