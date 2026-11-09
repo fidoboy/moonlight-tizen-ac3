@@ -14,7 +14,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends software-properties-common ca-certificates curl wget gnupg \
     && add-apt-repository -y universe \
     && add-apt-repository -y ppa:deadsnakes/ppa \
-    && curl --fail --location --retry 3 https://deb.nodesource.com/setup_20.x | bash - \
+    && curl --fail --location --retry 3 https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         aria2 \
@@ -54,7 +54,7 @@ RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tm
     && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \
     && ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet \
     && rm -f /tmp/dotnet-install.sh \
-    && dotnet --list-sdks | grep -E '^8\\.'
+    && dotnet --list-sdks | grep -E '^8\.'
 
 # Install Tizen Studio 6.1 and the union of packages needed by diagnostic
 # (Tizen 10 / Samsung TV) and production (Tizen Core / Tizen 9 Web CLI).
