@@ -7093,8 +7093,7 @@ function updateAmbilightSettingsVisibility() {
   var toggle = document.getElementById('ambilightSwitch');
   var ipContainer = document.getElementById('ambilightWledIpContainer');
   if (ipContainer) {
-    ipContainer.style.display =
-      ambilightSupportState === 'supported' && toggle && toggle.checked ? 'block' : 'none';
+    ipContainer.style.display = toggle && toggle.checked ? 'block' : 'none';
   }
 }
 
@@ -7104,34 +7103,36 @@ function updateAmbilightAvailability(supported) {
   var toggle = document.getElementById('ambilightSwitch');
   var switchLabel = document.getElementById('ambilightBtn');
   var description = document.getElementById('ambilightDescription');
+  var switchText = switchLabel && switchLabel.querySelector('.mdl-switch__label');
 
   if (description) {
     description.textContent = supported
       ? t('Capture the Moonlight video plane and send live colors to your WLED device.')
-      : t('Ambilight is not supported on this TV.');
+      : t('Preview only. The Ambilight service is unavailable on this TV.');
+  }
+
+  if (switchText) {
+    switchText.textContent = t(supported ? 'Enable Ambilight' : 'Show Ambilight settings');
   }
 
   if (toggle) {
     if (!supported) {
+      // On unsupported TVs this is a UI-only preview switch, never a real preference.
       toggle.checked = false;
       if (switchLabel && switchLabel.MaterialSwitch) {
         switchLabel.MaterialSwitch.off();
       }
     }
-    toggle.disabled = !supported;
+    toggle.disabled = false;
     if (switchLabel && switchLabel.MaterialSwitch) {
-      if (supported) switchLabel.MaterialSwitch.enable();
-      else switchLabel.MaterialSwitch.disable();
+      switchLabel.MaterialSwitch.enable();
     }
     syncDisabledSwitchAppearance(toggle);
   }
 
-  if (supported) {
-    // Restore the user's preference only after the hardware probe succeeds.
-    loadAmbilightPreferences();
-  } else {
-    updateAmbilightSettingsVisibility();
-  }
+  // Always load the WLED address. The enabled preference is restored only on
+  // supported TVs; unsupported TVs use the switch solely to reveal the UI.
+  loadAmbilightPreferences();
 }
 
 function initializeAmbilightSupport() {
@@ -7166,8 +7167,7 @@ function loadAmbilightPreferences() {
       var label = document.getElementById('ambilightBtn');
       if (label && label.MaterialSwitch) {
         enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
-        if (ambilightSupportState === 'supported') label.MaterialSwitch.enable();
-        else label.MaterialSwitch.disable();
+        label.MaterialSwitch.enable();
       }
     }
     updateAmbilightSettingsVisibility();
@@ -7182,7 +7182,9 @@ function loadAmbilightPreferences() {
 function saveAmbilightPreference() {
   window.setTimeout(function() {
     if (ambilightSupportState !== 'supported') {
-      updateAmbilightAvailability(false);
+      // Preview mode only reveals the remaining controls. It must not persist
+      // an enabled preference or contact the optional native service.
+      updateAmbilightSettingsVisibility();
       return;
     }
 
