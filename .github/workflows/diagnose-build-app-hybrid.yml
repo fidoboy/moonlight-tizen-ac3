@@ -417,7 +417,7 @@ jobs:
           } > "$out/installed-dotnet-build-and-packaging-targets.txt" 2>&1
 
           echo "=== Compile .NET service without creating or signing a TPK ==="
-          service_csproj="${service_csprojs[0]}"
+          service_csproj="${service_csprojs[0]:-}"
           if [[ -z "$service_csproj" || ! -f "$service_csproj" ]]; then
             echo "Generated service csproj not found."
             exit 1
