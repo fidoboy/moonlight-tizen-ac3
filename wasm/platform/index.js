@@ -3800,10 +3800,11 @@ function showSettings() {
   // Stop every ambient background before the Settings loading/transition screen is shown.
   updateAmbientBackgroundActivation(false);
 
-  // Restore the Settings screen to its initial category and clear any previously
-  // selected category or visible options before entering it again.
-  Views.Settings.view.reset();
-  resetSettingsView();
+  // Restore the last visited category while keeping focus in the left navigation.
+  const categories = Array.from(document.querySelectorAll('.settings-category'));
+  const rememberedIndex = categories.findIndex(item => item.dataset.category === lastSettingsCategory);
+  Views.Settings.view.index = rememberedIndex >= 0 ? rememberedIndex : 0;
+  showSettingsOverview(lastSettingsCategory);
   const settingsPane = document.getElementById('settings-right-pane');
   if (settingsPane) {
     settingsPane.scrollTop = 0;
@@ -3857,17 +3858,35 @@ function showSettings() {
   }, 500);
 }
 
-// Reset the current settings view by clearing the selection and hiding the right pane
+// The last category remains visible while the left navigation has focus.
+let lastSettingsCategory = 'basicSettings';
+
+// Reset the current settings view by clearing the selection and hiding the right pane.
 function resetSettingsView() {
-  // Hide all settings options from the right pane
   document.querySelectorAll('.settings-options').forEach(function(settingsOption) {
     settingsOption.style.display = 'none';
   });
 
-  // Remove the 'selected' class from all settings categories
   document.querySelectorAll('.settings-category').forEach(function(settingsCategory) {
     settingsCategory.classList.remove('selected');
   });
+}
+
+// Return to the category overview without discarding the last visited category.
+function showSettingsOverview(category) {
+  const targetCategory = category || lastSettingsCategory;
+  resetSettingsView();
+
+  const targetPaneOptions = document.getElementById(targetCategory);
+  if (targetPaneOptions) {
+    targetPaneOptions.style.display = 'block';
+  }
+
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.classList.add('settings-pane-dimmed');
+    settingsPane.classList.remove('has-effective-scroll');
+  }
 }
 
 // Navigate to the provided settings view by pushing the target view and set the focus to the setting
@@ -3888,7 +3907,14 @@ function navigateSettingsView(view) {
 
 // Handle category selection, display appropriate options, and navigate to the provided settings pane
 function handleSettingsView(category) {
-  // Reset the current settings view before navigating to the next settings view
+  // Remember the selected category and restore full opacity for option navigation.
+  lastSettingsCategory = category;
+  const settingsPane = document.getElementById('settings-right-pane');
+  if (settingsPane) {
+    settingsPane.classList.remove('settings-pane-dimmed');
+  }
+
+  // Reset the current settings view before navigating to the next settings view.
   resetSettingsView();
 
   // Show appropriate settings options in the target pane based on the selected settings category
