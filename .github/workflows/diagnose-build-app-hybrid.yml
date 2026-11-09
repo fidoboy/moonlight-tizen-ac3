@@ -213,6 +213,43 @@ jobs:
           echo "Staged service TPK as package content: $staged_tpk"
           sha256sum "$SERVICE_TPK" "$staged_tpk" | tee "$RUNNER_TEMP/build-app-diagnostics/staged-tpk-sha256.txt"
 
+      - name: Capture the package validator used by build-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          mkdir -p "$out"
+          common_validator="$TIZEN_STUDIO/tools/ide/resources/common/Build/Validator.xml"
+          project_validator="$BUILD_APP_WORKSPACE/Build/Validator.xml"
+          {
+            echo "=== Validator candidates ==="
+            echo "Common: $common_validator"
+            echo "Project: $project_validator"
+            echo
+            if [[ -f "$project_validator" ]]; then
+              echo "=== Workspace Build/Validator.xml ==="
+              cp "$project_validator" "$out/workspace-Validator.xml"
+              cat "$project_validator"
+            else
+              echo "No workspace Build/Validator.xml; build-app should fall back to the SDK validator."
+            fi
+            echo
+            if [[ -f "$common_validator" ]]; then
+              echo "=== SDK common Build/Validator.xml ==="
+              cp "$common_validator" "$out/sdk-common-Validator.xml"
+              cat "$common_validator"
+            else
+              echo "SDK common Validator.xml not found."
+            fi
+          } 2>&1 | tee "$out/package-validator-diagnostics.txt"
+          find "$WEB_PROJECT" -maxdepth 3 -type f \\( -name '*.xml' -o -name '*.json' -o -name '*.project' \\) -print \\
+            | sort | tee "$out/web-project-descriptors.txt"
+          while IFS= read -r descriptor; do
+            [[ -f "$descriptor" ]] || continue
+            echo "=== $descriptor ===" >> "$out/web-project-descriptor-content.txt"
+            sed -n '1,240p' "$descriptor" >> "$out/web-project-descriptor-content.txt"
+          done < "$out/web-project-descriptors.txt"
+
       - name: Build the WGT from the recognized Web project only
         id: web-only
         continue-on-error: true
@@ -227,11 +264,21 @@ jobs:
             echo "No .NET project directory and no .tpk path are passed as build targets."
             tizen build-app \
               -b "name:MoonlightBuild,targets:[MoonlightWeb]" \
-              -p "name:MoonlightHybrid,type:.wgt,targets:[MoonlightBuild]" \
+              -p "name:MoonlightHybrid,targets:[MoonlightBuild]" \
               -s Moonlight -- "$workspace"
           } 2>&1 | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-attempt.txt"
           status=${PIPESTATUS[0]}
           echo "Web-only build-app exit code: $status" | tee "$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-exit-code.txt"
+          attempt_log="$RUNNER_TEMP/build-app-diagnostics/web-only-build-app-attempt.txt"
+          if (( status != 0 )); then
+            echo "FAIL: build-app exited with status $status." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
+          elif grep -Fq "Wrong package type." "$attempt_log"; then
+            echo "FAIL: build-app reported Wrong package type despite its zero exit status." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
+          elif find "$workspace" -type f -name '*.wgt' -print -quit | grep -q .; then
+            echo "PASS: build-app produced a WGT; package contents will be inspected in the next step." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
+          else
+            echo "FAIL: build-app returned zero but produced no WGT." | tee "$RUNNER_TEMP/build-app-diagnostics/build-app-diagnostic-status.txt"
+          fi
           cli_log="$TIZEN_STUDIO_DATA_PATH/cli/logs/cli.log"
           if [[ -f "$cli_log" ]]; then
             cp "$cli_log" "$RUNNER_TEMP/build-app-diagnostics/cli-log-after-web-only-build-app.txt"
