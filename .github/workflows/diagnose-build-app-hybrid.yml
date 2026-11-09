@@ -179,7 +179,6 @@ jobs:
             -- "$data_dir/profile"
           profiles="$data_dir/profile/profiles.xml"
           test -f "$profiles"
-          sed -i "s|$data_dir/keystore/author/Moonlight.pwd||" "$profiles"
           distributor_pwd="$TIZEN_STUDIO/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd"
           sed -i "s|$distributor_pwd|tizenpkcs12passfordsigner|" "$profiles"
           tizen cli-config "default.profiles.path=$profiles"
