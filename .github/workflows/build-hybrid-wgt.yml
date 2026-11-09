@@ -19,6 +19,7 @@ on:
       - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/validate-hybrid-wgt.py"
       - "scripts/verify-tizen-xmlsig.py"
+      - "scripts/xml-c14n.c"
 
 permissions:
   contents: read
@@ -160,6 +161,7 @@ jobs:
       - name: Package the Tizen Core hybrid workspaces
         run: |
           set -euo pipefail
+          cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v2"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
@@ -371,7 +373,7 @@ jobs:
             openssl pkcs12 -legacy -in "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" \
               -clcerts -nokeys -passin "pass:$distributor_password" -out "$distributor_certificate"
             python3 scripts/verify-tizen-xmlsig.py "$signature_check" \
-              "$author_certificate" "$distributor_certificate"
+              "$author_certificate" "$distributor_certificate" /runner-temp/xml-c14n
           
             # 5. Validate the final signed WGT, not the unsigned tz pack output.
             python3 - "$output" "$service_tpk" "$source" <<'PY'
