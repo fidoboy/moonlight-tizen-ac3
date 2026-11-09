@@ -57,6 +57,14 @@ RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tm
     && rm -f /tmp/dotnet-install.sh \
     && dotnet --list-sdks | grep -E '^8\.'
 
+# The Tizen installer explicitly refuses to run as root. Install the SDK
+# as a dedicated unprivileged user; the runtime image remains root by default.
+RUN useradd --create-home --uid 1001 --shell /bin/bash tizen \
+    && mkdir -p "$TIZEN_STUDIO" \
+    && chown -R tizen:tizen "$TIZEN_STUDIO"
+USER tizen
+ENV HOME=/home/tizen
+
 # Install Tizen Studio 6.1 and the union of packages needed by diagnostic
 # (Tizen 10 / Samsung TV) and production (Tizen Core / Tizen 9 Web CLI).
 RUN installer=/tmp/tizen-web-cli.bin \
@@ -79,6 +87,8 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && test -x "$TIZEN_STUDIO/tools/ide/bin/tizen" \
     && test -x "$TIZEN_STUDIO/tools/tizen-core/tz" \
     && rm -f "$installer" /tmp/tizen-extra-repositories.txt /tmp/tizen-installed-packages.txt
+
+USER root
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
 # Profiles, certificates and user data must be created per workflow execution.
