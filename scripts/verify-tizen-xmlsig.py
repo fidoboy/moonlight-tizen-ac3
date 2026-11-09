@@ -12,7 +12,6 @@ import hmac
 import re
 import subprocess
 import sys
-import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote_to_bytes, urlsplit
@@ -37,89 +36,8 @@ PROP_XPATH = (
     "//*[@Id='prop']/descendant-or-self::*/namespace::*"
 )
 
-# libxml2 implements the XML Canonicalization 1.1 algorithm used by Tizen's
-# #prop reference. lxml/libxml2's public Python API exposes C14N 1.0 only.
-C14N_HELPER_SOURCE = r"""
-#include <libxml/parser.h>
-#include <libxml/xpath.h>
-#include <libxml/c14n.h>
-#include <stdio.h>
-#include <string.h>
-
-int main(int argc, char **argv) {
-    if (argc != 4) {
-        fprintf(stderr, "usage: xml-c14n <xml-file> <xpath> <mode>\\n");
-        return 2;
-    }
-    int mode;
-    if (strcmp(argv[3], "exclusive") == 0)
-        mode = XML_C14N_EXCLUSIVE_1_0;
-    else if (strcmp(argv[3], "c14n11") == 0)
-        mode = XML_C14N_1_1;
-    else {
-        fprintf(stderr, "unsupported canonicalization mode: %s\\n", argv[3]);
-        return 2;
-    }
-
-    xmlInitParser();
-    xmlDocPtr doc = xmlReadFile(argv[1], NULL,
-        XML_PARSE_NONET | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
-    if (doc == NULL) {
-        fprintf(stderr, "could not parse XML document\\n");
-        return 3;
-    }
-    xmlXPathContextPtr context = xmlXPathNewContext(doc);
-    xmlXPathObjectPtr selected = context == NULL ? NULL :
-        xmlXPathEvalExpression((const xmlChar *)argv[2], context);
-    if (selected == NULL || selected->type != XPATH_NODESET ||
-        selected->nodesetval == NULL) {
-        fprintf(stderr, "XPath did not select an XML node set\\n");
-        if (selected != NULL) xmlXPathFreeObject(selected);
-        if (context != NULL) xmlXPathFreeContext(context);
-        xmlFreeDoc(doc);
-        return 4;
-    }
-
-    xmlChar *canonical = NULL;
-    int length = xmlC14NDocDumpMemory(doc, selected->nodesetval, mode,
-                                      NULL, 0, &canonical);
-    if (length < 0 || canonical == NULL) {
-        fprintf(stderr, "XML canonicalization failed\\n");
-        if (canonical != NULL) xmlFree(canonical);
-        xmlXPathFreeObject(selected);
-        xmlXPathFreeContext(context);
-        xmlFreeDoc(doc);
-        return 5;
-    }
-    int result = fwrite(canonical, 1, (size_t)length, stdout) == (size_t)length
-        ? 0 : 6;
-    xmlFree(canonical);
-    xmlXPathFreeObject(selected);
-    xmlXPathFreeContext(context);
-    xmlFreeDoc(doc);
-    xmlCleanupParser();
-    return result;
-}
-"""
-
-
 def fail(message):
     raise SystemExit(message)
-
-
-def build_c14n_helper(output_dir):
-    source = output_dir / "xml-c14n.c"
-    binary = output_dir / "xml-c14n"
-    source.write_text(C14N_HELPER_SOURCE, encoding="utf-8")
-    flags = subprocess.run(
-        ["pkg-config", "--cflags", "--libs", "libxml-2.0"],
-        check=True, text=True, stdout=subprocess.PIPE,
-    ).stdout.split()
-    subprocess.run(
-        ["cc", "-O2", "-Wall", "-Wextra", str(source), "-o", str(binary), *flags],
-        check=True,
-    )
-    return binary
 
 
 def canonicalize(helper, signature_path, xpath, mode):
@@ -277,15 +195,16 @@ def verify_one(package_root, filename, expected_certificate, helper):
 
 
 def main():
-    if len(sys.argv) != 4:
-        fail("usage: verify-tizen-xmlsig.py <extracted-wgt-dir> <author-cert.pem> <distributor-cert.pem>")
+    if len(sys.argv) != 5:
+        fail("usage: verify-tizen-xmlsig.py <extracted-wgt-dir> <author-cert.pem> <distributor-cert.pem> <xml-c14n-helper>")
     package_root = Path(sys.argv[1]).resolve()
+    helper = Path(sys.argv[4]).resolve()
     if not package_root.is_dir():
         fail(f"package extraction directory does not exist: {package_root}")
-    with tempfile.TemporaryDirectory(prefix="tizen-xmlsig-") as temporary:
-        helper = build_c14n_helper(Path(temporary))
-        verify_one(package_root, "author-signature.xml", Path(sys.argv[2]).resolve(), helper)
-        verify_one(package_root, "signature1.xml", Path(sys.argv[3]).resolve(), helper)
+    if not helper.is_file():
+        fail(f"XML canonicalization helper does not exist: {helper}")
+    verify_one(package_root, "author-signature.xml", Path(sys.argv[2]).resolve(), helper)
+    verify_one(package_root, "signature1.xml", Path(sys.argv[3]).resolve(), helper)
 
 
 if __name__ == "__main__":
