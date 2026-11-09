@@ -250,7 +250,7 @@ jobs:
             rm -rf "$base_project"
             mkdir -p "$base_project"
             cp -a "$web/." "$base_project/"
-            rm -f "$base_project/tizen_web_project.yaml" "$base_project/css/style.css"
+            rm -f "$base_project/tizen_web_project.yaml" "$base_project/css/style.css" "$base_project/main.js"
             rmdir "$base_project/css" 2>/dev/null || true
             run_tz "sign-base-web-wgt-$name" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$base_project"
             mapfile -t generated_wgts < <(find "$base_project" -maxdepth 1 -type f -name '*.wgt' -print | sort)
@@ -263,7 +263,8 @@ jobs:
             cp "${generated_wgts[0]}" "$base_wgt"
             unzip -tq "$base_wgt"
             if unzip -Z1 "$base_wgt" | grep -Fxq 'tizen_web_project.yaml' ||
-               unzip -Z1 "$base_wgt" | grep -Fxq 'css/style.css'; then
+               unzip -Z1 "$base_wgt" | grep -Fxq 'css/style.css' ||
+               unzip -Z1 "$base_wgt" | grep -Fxq 'main.js'; then
               echo "::error::Unused Basic_Empty template files remain in base WGT $name."
               exit 1
             fi
