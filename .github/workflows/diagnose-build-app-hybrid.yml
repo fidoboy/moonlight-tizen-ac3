@@ -70,6 +70,36 @@ jobs:
           echo "TIZEN_STUDIO_DATA_PATH=/home/tizen/tizen-studio-data" >> "$GITHUB_ENV"
           echo "Shared Tizen build environment verified."
 
+      - name: Inspect Tizen Core CLI templates and profile support
+        shell: bash
+        run: |
+          set +e
+          out="$RUNNER_TEMP/build-app-diagnostics"
+          mkdir -p "$out"
+          {
+            echo "=== Tizen Core CLI version ==="
+            tz --version
+            echo
+            echo "=== Tizen Core CLI root help ==="
+            tz --help
+            echo
+            echo "=== Template listing help ==="
+            tz list templates --help
+            echo
+            echo "=== Available .NET templates ==="
+            tz list templates -t dotnet
+            echo
+            echo "=== Available Web templates ==="
+            tz list templates -t web
+            echo
+            echo "=== Available profiles (if supported) ==="
+            tz list profiles
+            echo
+            echo "=== Installed Tizen Core templates ==="
+            find "$TIZEN_STUDIO/tools/tizen-core" -maxdepth 5 -type f \\( -name 'template.yaml' -o -name 'tizen_dotnet_project.yaml' \\) -print 2>/dev/null | sort
+          } 2>&1 | tee "$out/tizen-core-cli-discovery.txt"
+          echo "${PIPESTATUS[0]}" > "$out/tizen-core-cli-discovery-exit-code.txt"
+
       - name: Check build-app availability and save CLI help
         shell: bash
         run: |
