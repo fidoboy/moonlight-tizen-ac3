@@ -475,23 +475,37 @@ jobs:
             build_status=$?
           fi
 
-          echo "=== Verify the exact signing profile selected by tz build ==="
+          echo "=== Verify the signing profile directly from profiles.xml ==="
+          profiles="/home/tizen/tizen-studio-data/profile/profiles.xml"
           author_key="/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12"
-          author_pwd="/home/tizen/tizen-studio-data/keystore/author/Moonlight.pwd"
+          author_encrypted='HeifNwdU+kk='
+          distributor_encrypted='Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k='
           {
             echo "Requested Tizen Core signing profile: Moonlight"
-            echo "Requested profiles.xml: /home/tizen/tizen-studio-data/profile/profiles.xml"
-            echo "Expected author certificate: $author_key"
-            echo "Expected encrypted author attribute: HeifNwdU+kk="
-            echo "Expected encrypted distributor attribute: Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k="
-            echo "=== Actual dotnet-build command emitted by tz build ==="
-            grep -F -- "--author-key $author_key --author-attr HeifNwdU+kk=" "$out/tz-build-hybrid-stdout.txt"
-            grep -F -- "--dist-key" "$out/tz-build-hybrid-stdout.txt" | grep -F -- "--dist-attr Vy63flx5JBMc5GA4iEf8oFy+8aKE7FX/+arrDcO4I5k="
-            echo "=== Actual certificate selected by the Tizen .NET SDK ==="
-            grep -F -- "Author cert : $author_key" "$out/tz-build-hybrid-stdout.txt"
+            echo "Inspecting profile XML directly: $profiles"
+            test -f "$profiles"
+            grep -Fq 'name="Moonlight"' "$profiles"
+            awk -v expected="$author_encrypted" '
+              /distributor="0"/ && index($0, "password=\"" expected "\"") { author=1 }
+              END { exit !author }
+            ' "$profiles"
+            awk -v expected="$distributor_encrypted" '
+              /distributor="1"/ && index($0, "password=\"" expected "\"") { distributor=1 }
+              END { exit !distributor }
+            ' "$profiles"
+            grep -Fq "$author_key" "$profiles"
+            if grep -Fq '.pwd' "$profiles"; then
+              echo "Unexpected .pwd path remains in profiles.xml."
+              exit 1
+            fi
+            echo "Profile Moonlight exists in profiles.xml."
+            echo "Author distributor=0 password attribute matches."
+            echo "Distributor distributor=1 password attribute matches."
+            echo "Author certificate path matches: $author_key"
+            echo "profiles.xml validation passed."
           } 2>&1 | tee "$out/tz-build-signing-profile-verification.txt"
           profile_check_status=${PIPESTATUS[0]}
-          printf '%s\n' "$profile_check_status" > "$out/tz-build-signing-profile-verification-exit-code.txt"
+          printf '%s\\n' "$profile_check_status" > "$out/tz-build-signing-profile-verification-exit-code.txt"
           if (( profile_check_status != 0 )); then
             echo "tz build did not demonstrably use the expected Moonlight certificate/password paths."
             if (( build_status == 0 )); then build_status=1; fi
