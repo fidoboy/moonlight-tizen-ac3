@@ -215,10 +215,9 @@ jobs:
           echo "profiles.xml contains both expected author certificate and password-file paths."
 
           echo "=== Tizen CLI profile listing using this exact profiles.xml ==="
-          tizen security-profiles list -x "$profiles"
-          tizen cli-config "default.profiles.path=$profiles"
+          tizen cli-config "profiles.path=$profiles"
           echo "=== Signing profile registered ==="
-          tizen security-profiles list -x "$profiles"
+          tizen security-profiles list -n Moonlight
           {
             printf 'profile_name=Moonlight\n'
             printf 'profiles_xml=%s\n' "$profiles"
