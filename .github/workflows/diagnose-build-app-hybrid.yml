@@ -408,7 +408,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: tizen-core-build-only-\${{ github.sha }}
-          path: \${{ runner.temp }}/build-app-diagnostics/
+          name: tizen-core-build-only-${{ github.sha }}
+          path: /__w/_temp/build-app-diagnostics/
           if-no-files-found: warn
           retention-days: 7
