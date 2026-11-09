@@ -339,7 +339,62 @@ jobs:
             printf '%s\n' "${service_manifests[@]}"
           } | tee "$out/tz-dotnet-service-project-location.txt"
 
-          echo "Discovery-only run: stopping before add-deps, build, or pack. The actual project layout must be reviewed before those stages are enabled."
+          echo "=== Capture Tizen Core build and workspace rules ==="
+          core_root="$(dirname "$TIZEN_CORE_CLI")"
+          {
+            for relative in \
+              build/workspace.gni \
+              build/hybrid_pack.gni \
+              build/dotnet/project.gni \
+              build/dotnet/dotnetbuild.gni \
+              templates/build/dotnet_proj_build.gn \
+              templates/build/args.gn \
+              templates/config/tizen_dotnet_project.yaml \
+              templates/dotnet/TizenServiceApp/template.yaml \
+              templates/dotnet/TizenServiceApp/tizen_dotnet_project.yaml; do
+              file="$core_root/$relative"
+              if [[ -f "$file" ]]; then
+                echo "===== $relative ====="
+                sed -n '1,320p' "$file"
+                echo
+              fi
+            done
+          } > "$out/tizen-core-project-resolution-sources.txt"
+
+          echo "=== Empirically test add-deps with isolated copies of each candidate service root ==="
+          for candidate in outer inner; do
+            test_workspace="$RUNNER_TEMP/tz-add-deps-$candidate"
+            rm -rf "$test_workspace"
+            cp -a "$workspace/." "$test_workspace/"
+            test_web="$test_workspace/MoonlightWeb"
+            if [[ "$candidate" == outer ]]; then
+              dependency_path="../AmbilightService"
+            else
+              dependency_path="../AmbilightService/AmbilightService"
+            fi
+            stdout_file="$out/tz-add-deps-$candidate-stdout.txt"
+            stderr_file="$out/tz-add-deps-$candidate-stderr.txt"
+            status_file="$out/tz-add-deps-$candidate-exit-code.txt"
+            (
+              cd "$test_web"
+              timeout --signal=TERM --kill-after=10s 60s "$TIZEN_CORE_CLI" add-deps . -d "$dependency_path"
+            ) >"$stdout_file" 2>"$stderr_file"
+            status=$?
+            printf '%s\\n' "$status" > "$status_file"
+            {
+              echo "Candidate: $candidate"
+              echo "Dependency argument: $dependency_path"
+              echo "Exit code: $status"
+              echo "--- stdout ---"
+              cat "$stdout_file"
+              echo "--- stderr ---"
+              cat "$stderr_file"
+              echo "--- resulting Web descriptor ---"
+              sed -n '1,260p' "$test_web/tizen_web_project.yaml"
+            } > "$out/tz-add-deps-$candidate-assessment.txt"
+          done
+
+          echo "Discovery-only run: stopping before build, set, or pack. add-deps was tested only against disposable workspace copies; the real workspace remains untouched."
           exit 1
 
           echo "=== Declare the .NET service as a dependency of the Web project ==="
