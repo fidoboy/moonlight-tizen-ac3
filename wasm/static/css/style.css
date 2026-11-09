@@ -1905,7 +1905,7 @@ body[data-color-theme="black-orange"] #background-layer {
     flex: 0 1 auto;
     width: max-content;
     min-width: 30%;
-    max-width: 40%;
+    max-width: none;
     min-height: 0;
     box-sizing: border-box;
     padding: 20px;
