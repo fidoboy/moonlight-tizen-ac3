@@ -27,7 +27,7 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 1
 
-      - name: Install Tizen CLI and hybrid build components
+      - name: Install system dependencies for Tizen Studio
         shell: bash
         run: |
           set -euo pipefail
@@ -35,7 +35,6 @@ jobs:
           sudo apt-get install -y --no-install-recommends gettext
 
           # libkchart2 is listed in Ubuntu 22.04 (Jammy) universe.
-          # Verify that this runner has a candidate before asking apt to install it.
           echo "=== APT policy: libkchart2 ==="
           apt-cache policy libkchart2 | tee "$RUNNER_TEMP/libkchart2-policy.txt"
           echo "=== APT search: libkchart packages ==="
@@ -58,6 +57,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3.8 libpython3.8
 
+      - name: Restore Tizen Studio 6.1 SDK cache
+        id: tizen-sdk-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/tizen-studio
+          key: tizen-studio-6.1-ubuntu-22.04-nativecli-tizen-10.0-samsung-tv-public-webapp-tools-resources-v1
+
+      - name: Install Tizen Studio and Samsung TV components on cache miss
+        if: steps.tizen-sdk-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
           installer="$RUNNER_TEMP/tizen-web-cli.bin"
           curl --fail --location --retry 3 --output "$installer" \
             https://download.tizen.org/sdk/Installer/tizen-studio_6.1/web-cli_Tizen_Studio_6.1_ubuntu-64.bin
@@ -72,7 +83,6 @@ jobs:
           "$pm" extra --list 2>&1 | tee "$RUNNER_TEMP/tizen-extra-repositories.txt"
           grep -Fq "Samsung Tizen TV SDK" "$RUNNER_TEMP/tizen-extra-repositories.txt"
 
-          # Preserve the complete Package Manager output, including failures.
           set +e
           "$pm" install --accept-license --no-java-check \
             "NativeCLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
@@ -81,13 +91,23 @@ jobs:
           set -e
           echo "Package Manager install exit code: $install_status" \
             | tee "$RUNNER_TEMP/tizen-package-install-status.txt"
-
-          "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
           if (( install_status != 0 )); then
             echo "Package Manager installation failed; see tizen-package-install.txt."
             exit "$install_status"
           fi
+
+      - name: Verify cached Tizen Studio and expose CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$RUNNER_TEMP/tizen-studio"
+          test -d "$sdk"
+          pm="$(find "$sdk" -type f -name 'package-manager-cli*' -perm -u+x -print -quit)"
+          test -n "$pm"
+          "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
+
           required_tv_packages=(
+            NativeCLI
             TIZEN-10.0
             TV-SAMSUNG-Public
             TV-SAMSUNG-Public-WebAppDevelopment
@@ -97,15 +117,28 @@ jobs:
           for package in "${required_tv_packages[@]}"; do
             if ! awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' \
               "$RUNNER_TEMP/tizen-installed-package-catalog.txt"; then
-              echo "Required Samsung TV package is not installed: $package"
+              echo "Required Tizen package is missing: $package"
               exit 1
             fi
           done
 
+          test -x "$sdk/tools/ide/bin/tizen"
           echo "$sdk/tools/ide/bin" >> "$GITHUB_PATH"
           echo "$sdk/tools" >> "$GITHUB_PATH"
           echo "TIZEN_STUDIO=$sdk" >> "$GITHUB_ENV"
           echo "TIZEN_STUDIO_DATA_PATH=$RUNNER_TEMP/tizen-studio-data" >> "$GITHUB_ENV"
+          if [[ "${{ steps.tizen-sdk-cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "Using restored Tizen Studio 6.1 SDK cache."
+          else
+            echo "Tizen Studio installation verified; SDK will be cached after this step."
+          fi
+
+      - name: Save verified Tizen Studio 6.1 SDK cache
+        if: steps.tizen-sdk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/tizen-studio
+          key: ${{ steps.tizen-sdk-cache.outputs.cache-primary-key }}
 
       - name: Check build-app availability and save CLI help
         shell: bash
