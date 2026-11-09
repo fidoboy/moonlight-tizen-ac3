@@ -7128,7 +7128,12 @@ function setAmbilightWledIpValue(ip) {
   }
 
   var textInput = document.getElementById('ambilightWledIpTextInput');
-  if (textInput) textInput.value = value;
+  if (textInput) {
+    textInput.value = value;
+    if (textInput.parentElement) {
+      textInput.parentElement.classList.toggle('is-dirty', !!value);
+    }
+  }
   octets.forEach(function(octet, index) {
     var field = document.getElementById('ambilightWledIpField' + (index + 1));
     if (field) field.value = String(Number(octet));
