@@ -157,3 +157,31 @@ RUN chmod -R a+rX /home/tizen/tizen-studio
 # Profiles, certificates and user data must be created per workflow execution.
 ENV TIZEN_STUDIO_DATA_PATH=/tmp/tizen-studio-data
 WORKDIR /workspace
+
+# Validate the complete shared toolchain inside the image build. Keeping these
+# checks here avoids pulling/extracting this large image on the limited Actions
+# runner filesystem after it has already been pushed to GHCR.
+RUN set -euo pipefail \
+    && tz --version \
+    && /usr/share/dotnet/dotnet --list-sdks | grep -E '^8\\.' \
+    && test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120 \
+    && test -x /home/tizen/tizen-studio/tools/ide/bin/tizen \
+    && if [[ -f /opt/emscripten-release-bundle/emsdk/emsdk_env.sh ]]; then \
+         source /opt/emscripten-release-bundle/emsdk/emsdk_env.sh; \
+       else \
+         eval "$(/opt/emscripten-release-bundle/emsdk/emsdk construct_env)"; \
+       fi \
+    && emcc --version \
+    && cmake --version \
+    && ninja --version \
+    && rsvg-convert --version \
+    && for tool in arm-linux-gnueabi-gcc arm-linux-gnueabi-ar arm-linux-gnueabi-ranlib arm-linux-gnueabi-objdump; do \
+         test -n "$(find /opt/wmp-tizen-deps/toolchain -type f -name "$tool" -perm -u+x -print -quit)"; \
+       done \
+    && test -n "$(find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name service_app.h -print -quit)" \
+    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
+    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
+    && test -d /opt/wmp-backport-deps/openssl111 \
+    && test -d /opt/wmp-backport-deps/curl759 \
+    && bsdtar --version \
+    && rpm2cpio --help >/dev/null
