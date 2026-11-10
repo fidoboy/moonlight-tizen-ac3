@@ -331,22 +331,26 @@ jobs:
             mkdir -p "$project"
             unzip -q "$draft" -d "$project"
 
-            # The hybrid package's outer config.xml resolves its video splash
-            # resources from the package root, not from res/wgt/. Keep the
-            # original Web WGT assets in res/wgt/ and add the required outer
-            # copies at the paths declared by that config.xml.
-            mkdir -p "$project/static/res"
-            for asset in \
-              launch-screen.mp4 \
-              launch-screen-portrait.mp4 \
-              launch-screen.png \
-              launch-screen-portrait.png; do
-              source="$project/res/wgt/static/res/$asset"
-              target="$project/static/res/$asset"
-              test -s "$source"
-              cp "$source" "$target"
-              cmp -s "$source" "$target"
-            done
+            # Keep splash assets only in Moonlight's original Web location.
+            # Point the outer hybrid manifest at the embedded Web resources.
+            python3 - "$project/config.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          path = sys.argv[1]
+          tree = ET.parse(path)
+          root = tree.getroot()
+          changed = 0
+          for node in root.iter():
+              for attribute in ("video", "background_image", "image"):
+                  value = node.get(attribute)
+                  if value and value.startswith("static/res/"):
+                      node.set(attribute, "res/wgt/" + value)
+                      changed += 1
+          if not changed:
+              raise SystemExit("Outer config.xml contains no package-root splash resource paths to relocate")
+          tree.write(path, encoding="UTF-8", xml_declaration=True)
+          print(f"Redirected {changed} outer splash resource reference(s) to res/wgt/static/res/.")
+          PY
           
             # 3. Keep the Web installation floor at Tizen 5.5 while preserving
             #    the embedded .NET service's original Tizen 10 API 13 requirement.
@@ -536,6 +540,13 @@ jobs:
           
           
           PACKAGE
+
+      - name: Audit standard and ForceGM hybrid WGT contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-hybrid-wgt.py --base-wgt "$RUNNER_TEMP/MoonlightWeb-base.wgt" --hybrid-wgt "$RUNNER_TEMP/hybrid-output/Moonlight.wgt" --variant standard
+          python3 scripts/validate-hybrid-wgt.py --base-wgt "$RUNNER_TEMP/MoonlightForceGM-base.wgt" --hybrid-wgt "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt" --variant ForceGM
 
       - name: Show packaging diagnostics on failure
         if: failure()
