@@ -47,6 +47,7 @@ int ml_engine_start_session_v2(const char *, int, int, int, int, const char *,
                                 int, const char *, const char *, const char *,
                                 int, const char *, int, const char *, int);
 int ml_engine_get_stats(ml_engine_stats *);
+int ml_engine_get_active_audio_codec(void);
 int ml_engine_last_error(char *, int);
 #endif
 EOF
