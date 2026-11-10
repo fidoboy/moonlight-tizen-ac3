@@ -71,4 +71,14 @@ jobs:
             test -d /opt/wmp-backport-deps/curl759
             bsdtar --version
             rpm2cpio --help >/dev/null
+            for tool in arm-linux-gnueabi-gcc arm-linux-gnueabi-ar arm-linux-gnueabi-ranlib arm-linux-gnueabi-objdump; do
+              test -x "/opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/$tool"
+            done
+            test -f /opt/wmp-tizen-deps/sysroot/usr/include/appcore-agent/service_app.h
+            find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q .
+            find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q .
+            test -d /opt/wmp-backport-deps/openssl111
+            test -d /opt/wmp-backport-deps/curl759
+            bsdtar --version
+            rpm2cpio --help >/dev/null
           '
