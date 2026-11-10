@@ -16,11 +16,6 @@ function getSelectedStreamingEngine() {
     : null;
 }
 
-function isWmpTransportSelected() {
-  return window._activeStreamingEngine === 'WMP' ||
-    (!window._activeStreamingEngine && getSelectedStreamingEngine() === 'WMP');
-}
-
 function startWmpSession(args) {
   if (!window.WmpTransport || typeof window.WmpTransport.startStream !== 'function') {
     pendingStreamApiMessage = 'WMP native transport is unavailable.';
