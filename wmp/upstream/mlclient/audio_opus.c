@@ -28,6 +28,12 @@ static uint64_t s_pts_ns;
 static int s_dolby;
 static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
+static volatile int s_audio_codec_candidate;
+static volatile int s_audio_codec_active;
+
+int AudEsplus_GetActiveAudioCodec(void) {
+    return __atomic_load_n(&s_audio_codec_active, __ATOMIC_ACQUIRE);
+}
 
 void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
@@ -75,6 +81,8 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     (void)context;
     (void)flags;
     s_pts_ns = 0;
+    __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     s_dolby = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
     s_dolby_mime = LiIsEac3AudioNegotiated()
         ? WMP_ESPLUS_AUDIO_MIME_EAC3 : WMP_ESPLUS_AUDIO_MIME_AC3;
@@ -148,6 +156,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
              config->sampleRate, config->channelCount,
              config->samplesPerFrame, s_opushead_len);
     }
+    __atomic_store_n(&s_audio_codec_candidate,
+                     s_dolby ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3 : 2) : 1,
+                     __ATOMIC_RELEASE);
     return 0;
 }
 
@@ -157,6 +168,8 @@ static void ar_cleanup(void)
 {
     s_dolby = 0;
     s_pts_ns = 0;
+    __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
 
 static void ar_decodePlay(char *data, int len)
@@ -177,7 +190,15 @@ static void ar_decodePlay(char *data, int len)
             packet.pts_ns = s_pts_ns;
             packet.duration_ns = duration_ns;
             result = esplus_submit(&packet);
-            if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+                __atomic_store_n(&s_audio_codec_active,
+                                 __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
+                                 __ATOMIC_RELEASE);
+            }
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
+    }
+    if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
                 result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
                 result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
