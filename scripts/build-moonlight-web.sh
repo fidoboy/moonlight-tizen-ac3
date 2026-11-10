@@ -9,8 +9,12 @@ REPO_NAME="${REPO_NAME:-moonlight-tizen-ac3}"
 DEBUG_MODE=false
 OFFICIAL_RELEASE=false
 LOG_SHOW_PRIVATE_DATA=false
-test -f "$EMSDK/emsdk_env.sh"
-source "$EMSDK/emsdk_env.sh"
+if [[ -f "$EMSDK/emsdk_env.sh" ]]; then
+  source "$EMSDK/emsdk_env.sh"
+else
+  test -x "$EMSDK/emsdk"
+  eval "$(EMSDK_BASH=1 "$EMSDK/emsdk" construct_env)"
+fi
 command -v emcc >/dev/null
 command -v cmake >/dev/null
 command -v ninja >/dev/null
