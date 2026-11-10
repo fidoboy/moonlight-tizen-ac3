@@ -9,6 +9,15 @@ REPO_NAME="${REPO_NAME:-moonlight-tizen-ac3}"
 DEBUG_MODE=false
 OFFICIAL_RELEASE=false
 LOG_SHOW_PRIVATE_DATA=false
+mkdir -p "$HOME"
+export EM_CONFIG="${EM_CONFIG:-$HOME/.emscripten}"
+
+if [[ ! -s "$EM_CONFIG" ]]; then
+  test -x "$EMSDK/emsdk"
+  echo "Emscripten config is missing at $EM_CONFIG; regenerating it from the preinstalled latest-fastcomp SDK."
+  EMSDK_BASH=1 "$EMSDK/emsdk" activate latest-fastcomp
+fi
+
 if [[ -f "$EMSDK/emsdk_env.sh" ]]; then
   source "$EMSDK/emsdk_env.sh"
 else
