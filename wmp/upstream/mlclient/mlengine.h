@@ -77,6 +77,8 @@ typedef struct ml_engine_stats {
   int32_t  recovery_state;
 } ml_engine_stats;
 int ml_engine_get_stats(ml_engine_stats *out);
+/* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */
+int ml_engine_get_active_audio_codec(void);
 
 /* Same as ml_engine_start_session(), plus the encoder color configuration:
  * full_range != 0 selects the full color range, 0 the limited range.
