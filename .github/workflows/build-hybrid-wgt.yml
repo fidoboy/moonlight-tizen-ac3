@@ -454,22 +454,26 @@ jobs:
           root = tree.getroot()
           service_apps = [node for node in root.iter()
                           if node.tag.endswith("service-application")]
-          if len(service_apps) != 1 or service_apps[0].get("api-version") != "13":
-              raise SystemExit("Hybrid manifest must contain exactly the original Tizen 10 API 13 Ambilight service")
+          ambilight_apps = [node for node in service_apps
+                            if node.get("appid") == "MoonLightS.MoonlightAmbilight"]
+          if len(ambilight_apps) != 1 or ambilight_apps[0].get("api-version") != "13":
+              found = [(node.get("appid"), node.get("api-version")) for node in service_apps]
+              raise SystemExit(f"Hybrid manifest must retain exactly one Tizen 10 API 13 Ambilight service; found {found!r}")
           with zipfile.ZipFile(wmp_tpk_path) as package:
               wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
           wmp_apps = [node for node in wmp_root.iter()
                       if node.tag.endswith("service-application")]
           if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != "MoonWMP001.WmpService":
               raise SystemExit("WMP TPK must contain exactly its expected service application")
-          existing_ids = {node.get("appid") for node in root.iter()
-                          if node.tag.endswith("service-application")}
-          if wmp_apps[0].get("appid") in existing_ids:
-              raise SystemExit("WMP service application is already present in the hybrid manifest")
-          root.append(wmp_apps[0])
+          existing_wmp_apps = [node for node in service_apps
+                               if node.get("appid") == "MoonWMP001.WmpService"]
+          if len(existing_wmp_apps) > 1:
+              raise SystemExit("Hybrid manifest contains duplicate WMP service applications")
+          if not existing_wmp_apps:
+              root.append(wmp_apps[0])
           root.set("api-version", "5.5")
           tree.write(hybrid_path, encoding="UTF-8", xml_declaration=True)
-          print("Hybrid manifest now declares Ambilight and WMP services; Web floor remains Tizen 5.5.")
+          print("Hybrid manifest retains Ambilight and declares exactly one WMP service; Web floor remains Tizen 5.5.")
           PY
           
             # 4. Sign the already assembled hybrid project with the standard
