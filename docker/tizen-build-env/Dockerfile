@@ -35,6 +35,11 @@ RUN apt-get update \
         libkf5kiowidgets5 \
         libpixman-1-0 \
         libpython3.8 \
+        libarchive-tools \
+        librsvg2-bin \
+        fonts-dejavu-core \
+        libxml2-dev \
+        openssl \
         libxi6 \
         libsdl1.2debian \
         libv4l-0 \
@@ -95,6 +100,21 @@ RUN installer=/tmp/tizen-web-cli.bin \
 
 USER root
 ENV HOME=/root
+
+# Samsung's pinned Emscripten 1.39.4.7 SDK is part of the shared image.
+# Moonlight Web is built directly in this image; no secondary project Dockerfile.
+RUN mkdir -p /opt \
+    && aria2c -x 5 -s 5 -o /tmp/emscripten-1.39.4.7-linux64.zip \
+        https://developer.samsung.com/smarttv/file/a5013a65-af11-4b59-844f-2d34f14d19a9 \
+    && unzip -q /tmp/emscripten-1.39.4.7-linux64.zip -d /opt \
+    && sed -i 's|https://www.openssl.org/source/old/1.1.1/openssl-|https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1d/openssl-|g' \
+        /opt/emscripten-release-bundle/emsdk/fastcomp/emscripten/tools/ports/tizen/ssl.py \
+        /opt/emscripten-release-bundle/emsdk/fastcomp/emscripten/tools/ports/tizen/crypto.py \
+    && cd /opt/emscripten-release-bundle/emsdk \
+    && ./emsdk activate latest-fastcomp \
+    && rm -f /tmp/emscripten-1.39.4.7-linux64.zip \
+    && test -f fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake
+
 
 # Install Samsung's official Tizen.NET workload for the .NET 8.0.400 SDK band.
 # Pin the installer source and manifest version so image rebuilds are reproducible.
