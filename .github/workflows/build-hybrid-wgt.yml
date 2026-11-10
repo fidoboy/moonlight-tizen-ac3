@@ -8,8 +8,6 @@ on:
       - "CMakeLists.txt"
       - "Dockerfile"
       - ".dockerignore"
-      - "docker/tizen-build-env/Dockerfile"
-      - ".github/workflows/build-tizen-build-env.yml"
       - "res/**"
       - "h264bitstream/**"
       - "libgamestream/**"
@@ -22,8 +20,6 @@ on:
       - "tests/wmp_transport_test.js"
       - ".github/workflows/build-hybrid-wgt.yml"
       - ".github/workflows/wmp-native-build.yml"
-      - "scripts/build-moonlight-web.sh"
-      - "scripts/build-wmp-native.sh"
       - "scripts/validate-hybrid-wgt.py"
       - "scripts/verify-tizen-xmlsig.py"
       - "scripts/xml-c14n.c"
@@ -31,26 +27,20 @@ on:
 permissions:
   contents: read
   actions: write
-  packages: write
 
 concurrency:
   group: hybrid-wgt-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-env:
-    name: Build the shared Tizen environment
-    uses: ./.github/workflows/build-tizen-build-env.yml
-
   build-wmp-native:
-    needs: build-env
     name: Build WMP native ARM engine and service
     uses: ./.github/workflows/wmp-native-build.yml
     with:
       source_ref: ${{ github.ref_name }}
 
   build-hybrid:
-    needs: [build-env, build-wmp-native]
+    needs: build-wmp-native
     if: github.ref == 'refs/heads/1.2.4-pre'
     name: Build and package standard and ForceGM hybrid WGTs
     runs-on: ubuntu-22.04
@@ -63,39 +53,34 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip build-essential libxml2-dev
+
       - name: Verify the pinned Tizen build image
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
           docker pull "$image"
           docker run --rm "$image" tz --version
           docker run --rm "$image" dotnet --list-sdks | grep -E '^8\.'
           docker run --rm "$image" test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120
           docker run --rm "$image" test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
-          docker run --rm "$image" bash -lc 'source /opt/emscripten-release-bundle/emsdk/emsdk_env.sh && emcc --version'
 
-      - name: Download and unpack splash assets inside the shared image
+      - name: Ensure versioned MP4 splash assets are available
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
-          docker run --rm -i \
-            -v "$GITHUB_WORKSPACE:/workspace" \
-            -v "$RUNNER_TEMP:/runner-temp" \
-            -e GH_TOKEN="$GH_TOKEN" \
-            -e GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
-            -e RUNNER_TEMP=/runner-temp \
-            -w /workspace \
-            "$image" bash -s <<'ASSETS'
           set -euo pipefail
           asset_file="moonlight-generated-videos-v1.zip"
           asset_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/build-assets/$asset_file"
           asset_path="$RUNNER_TEMP/$asset_file"
           api_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
           mkdir -p generated-videos
+
           status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
           if [[ "$status" == "404" ]]; then
             dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
@@ -129,20 +114,63 @@ jobs:
           unzip -oq "$asset_path" -d generated-videos
           test -s generated-videos/launch-screen.mp4
           test -s generated-videos/launch-screen-portrait.mp4
-          ASSETS
-      - name: Build Moonlight Web standard and ForceGM inside the shared image
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Moonlight Web files (standard)
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-hybrid-web-standard:${{ github.sha }}
+          cache-from: type=gha,scope=moonlight-web-standard
+          cache-to: type=gha,mode=max,scope=moonlight-web-standard
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=false
+
+      - name: Build Moonlight Web files (ForceGM)
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+        with:
+          context: .
+          push: false
+          load: true
+          tags: moonlight-hybrid-web-forcegm:${{ github.sha }}
+          cache-from: type=gha,scope=moonlight-web-forcegm
+          cache-to: type=gha,mode=max,scope=moonlight-web-forcegm
+          build-args: |
+            BUILD_TYPE=release
+            REPO_OWNER=${{ github.repository_owner }}
+            REPO_NAME=${{ github.event.repository.name }}
+            FORCE_GAME_MODE=true
+
+      - name: Extract unsigned Moonlight Web files
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/workspace" \
-            -v "$RUNNER_TEMP:/runner-temp" \
-            -e RUNNER_TEMP=/runner-temp \
-            -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
-            -e REPO_NAME="$GITHUB_REPOSITORY" \
-            -w /workspace \
-            "$image" bash scripts/build-moonlight-web.sh /runner-temp
+          standard_container="$(docker create "moonlight-hybrid-web-standard:$GITHUB_SHA")"
+          forcegm_container="$(docker create "moonlight-hybrid-web-forcegm:$GITHUB_SHA")"
+          trap 'docker rm -f "$standard_container" "$forcegm_container" >/dev/null 2>&1 || true' EXIT
+
+          docker cp "$standard_container:/home/moonlight/build/widget" "$RUNNER_TEMP/web-standard"
+          docker cp "$forcegm_container:/home/moonlight/build/widget" "$RUNNER_TEMP/web-forcegm"
+          for project in "$RUNNER_TEMP/web-standard" "$RUNNER_TEMP/web-forcegm"; do
+            test -s "$project/config.xml"
+            test -s "$project/index.html"
+            test -s "$project/moonlight-wasm.js"
+            test -s "$project/moonlight-wasm.wasm"
+            test -s "$project/service/service.js"
+            test -s "$project/static/res/launch-screen.mp4"
+            test -s "$project/static/res/launch-screen-portrait.mp4"
+          done
 
       - name: Download WMP native build artifacts
         uses: actions/download-artifact@v6
@@ -150,10 +178,22 @@ jobs:
           name: wmp-native-arm
           path: ${{ runner.temp }}/wmp-native
 
+      - name: Validate WMP native build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
+          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore_wl2.so.1"
+          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore.so.1"
+          file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
+          file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+
       - name: Package the Tizen Core hybrid workspaces
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
@@ -163,11 +203,6 @@ jobs:
             "$image" bash -s <<'PACKAGE'
           
           set -euo pipefail
-          test -s "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so"
-          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore_wl2.so.1"
-          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore.so.1"
-          file "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so"
-          cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           run_tz() {
             local label="$1"
             shift
@@ -312,7 +347,7 @@ jobs:
           test -d "$wmp_project"
           mkdir -p "$wmp_project/src" "$wmp_project/lib"
           cp wmp/service/src/main.c wmp/service/src/wmp_esplus_abi.h wmp/upstream/mlclient/mlengine.h "$wmp_project/src/"
-          cp "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so" "$wmp_project/lib/libmlengine.so"
+          cp "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" "$wmp_project/lib/libmlengine.so"
           cp wmp/service/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
 
           python3 - "$web_standard/config.xml" "$wmp_project/tizen-manifest.xml" <<'PY'
@@ -655,20 +690,12 @@ jobs:
           
           PACKAGE
 
-      - name: Audit standard and ForceGM hybrid WGT contents inside the shared image
+      - name: Audit standard and ForceGM hybrid WGT contents
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/workspace" \
-            -v "$RUNNER_TEMP:/runner-temp" \
-            -w /workspace \
-            "$image" bash -lc '
-              set -euo pipefail
-              python3 scripts/validate-hybrid-wgt.py --base-wgt /runner-temp/MoonlightWeb-base.wgt --hybrid-wgt /runner-temp/hybrid-output/Moonlight.wgt --variant standard
-              python3 scripts/validate-hybrid-wgt.py --base-wgt /runner-temp/MoonlightForceGM-base.wgt --hybrid-wgt /runner-temp/hybrid-output/Moonlight-ForceGM.wgt --variant ForceGM
-            '
+          python3 scripts/validate-hybrid-wgt.py --base-wgt "$RUNNER_TEMP/MoonlightWeb-base.wgt" --hybrid-wgt "$RUNNER_TEMP/hybrid-output/Moonlight.wgt" --variant standard
+          python3 scripts/validate-hybrid-wgt.py --base-wgt "$RUNNER_TEMP/MoonlightForceGM-base.wgt" --hybrid-wgt "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt" --variant ForceGM
 
       - name: Show packaging diagnostics on failure
         if: failure()
