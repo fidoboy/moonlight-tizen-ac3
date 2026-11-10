@@ -17,6 +17,7 @@ on:
       - "wasm/**"
       - "ambilight-service/**"
       - ".github/workflows/build-hybrid-wgt.yml"
+      - "scripts/build-moonlight-web.sh"
       - "scripts/validate-hybrid-wgt.py"
       - "scripts/verify-tizen-xmlsig.py"
       - "scripts/xml-c14n.c"
