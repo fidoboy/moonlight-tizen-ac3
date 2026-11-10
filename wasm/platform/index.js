@@ -766,12 +766,15 @@ function attachListeners() {
   }
   changeUiModeForWasmLoad();
 
-  // Register loadSystemInfo to run when language is initialized, and every time it changes
+  // Refresh dynamic Ambilight status after translations are applied.
+  // Its description is state-driven and must not be overwritten by data-i18n.
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
     window.i18n.onRefresh(loadSystemInfo);
+    window.i18n.onRefresh(updateAmbilightDescription);
   } else {
     // Fallback if i18n is not present
     loadSystemInfo();
+    updateAmbilightDescription();
   }
 
   const i18nInitPromise = (window.i18n && typeof window.i18n.init === 'function')
@@ -7177,19 +7180,27 @@ function updateAmbilightSettingsVisibility() {
   updateAmbilightWledIpInputMode();
 }
 
+function updateAmbilightDescription() {
+  var description = document.getElementById('ambilightDescription');
+  if (!description) return;
+
+  if (ambilightSupportState === 'checking') {
+    description.textContent = t('Checking Ambilight support...');
+  } else if (ambilightSupportState === 'supported') {
+    description.textContent = t('Capture the Moonlight video plane and send live colors to your WLED device.');
+  } else {
+    description.textContent = '';
+  }
+}
+
 function updateAmbilightAvailability(supported) {
   ambilightSupportState = supported ? 'supported' : 'unsupported';
 
   var toggle = document.getElementById('ambilightSwitch');
   var switchLabel = document.getElementById('ambilightBtn');
-  var description = document.getElementById('ambilightDescription');
   var switchText = switchLabel && switchLabel.querySelector('.mdl-switch__label');
 
-  if (description) {
-    description.textContent = supported
-      ? t('Capture the Moonlight video plane and send live colors to your WLED device.')
-      : '';
-  }
+  updateAmbilightDescription();
 
   if (switchText && supported) {
     switchText.textContent = t('Enable Ambilight');
