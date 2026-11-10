@@ -73,18 +73,27 @@ jobs:
           docker run --rm "$image" test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
           docker run --rm "$image" bash -lc 'source /opt/emscripten-release-bundle/emsdk/emsdk_env.sh && emcc --version'
 
-      - name: Ensure versioned MP4 splash assets are available
+      - name: Download and unpack splash assets inside the shared image
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          docker run --rm -i \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -e GH_TOKEN="$GH_TOKEN" \
+            -e GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
+            -e RUNNER_TEMP=/runner-temp \
+            -w /workspace \
+            "$image" bash -s <<'ASSETS'
           set -euo pipefail
           asset_file="moonlight-generated-videos-v1.zip"
           asset_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/build-assets/$asset_file"
           asset_path="$RUNNER_TEMP/$asset_file"
           api_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/generate-video-assets.yml/dispatches"
           mkdir -p generated-videos
-
           status="$(curl --silent --show-error --location --output "$asset_path" --write-out '%{http_code}' "$asset_url")"
           if [[ "$status" == "404" ]]; then
             dispatch_status="$(curl --silent --show-error --output "$RUNNER_TEMP/video-assets-dispatch.json" --write-out '%{http_code}' \
@@ -118,7 +127,7 @@ jobs:
           unzip -oq "$asset_path" -d generated-videos
           test -s generated-videos/launch-screen.mp4
           test -s generated-videos/launch-screen-portrait.mp4
-
+          ASSETS
       - name: Build Moonlight Web standard and ForceGM inside the shared image
         shell: bash
         run: |
@@ -139,21 +148,10 @@ jobs:
           name: wmp-native-arm
           path: ${{ runner.temp }}/wmp-native
 
-      - name: Validate WMP native build artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
-          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore_wl2.so.1"
-          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore.so.1"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
-
       - name: Package the Tizen Core hybrid workspaces
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
@@ -163,6 +161,12 @@ jobs:
             "$image" bash -s <<'PACKAGE'
           
           set -euo pipefail
+          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
+          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore_wl2.so.1"
+          test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore.so.1"
+          file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
+          file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
           cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           run_tz() {
             local label="$1"
