@@ -438,25 +438,38 @@ jobs:
               cmp -s "$source" "$target"
             done
           
-            # 3. Keep the Web installation floor at Tizen 5.5 while preserving
-            #    the embedded .NET service's original Tizen 10 API 13 requirement.
-            python3 - "$project/tizen-manifest.xml" <<'PY'
+            # 3. Keep the Web installation floor at Tizen 5.5 and explicitly
+            #    merge both service-application declarations into the outer manifest.
+            #    Tizen Core embeds the referenced TPK payloads, but does not merge
+            #    every referenced service application into this manifest.
+            python3 - "$project/tizen-manifest.xml" "$wmp_tpk" <<'PY'
           import sys
+          import zipfile
           import xml.etree.ElementTree as ET
           
-          path = sys.argv[1]
-          ET.register_namespace("", "http://tizen.org/ns/packages")
-          tree = ET.parse(path)
+          hybrid_path, wmp_tpk_path = sys.argv[1:]
+          namespace = "http://tizen.org/ns/packages"
+          ET.register_namespace("", namespace)
+          tree = ET.parse(hybrid_path)
           root = tree.getroot()
-          service_app = next((node for node in root.iter()
-                              if node.tag.endswith("service-application")), None)
-          if service_app is None:
-              raise SystemExit("Hybrid manifest has no embedded service application")
-          if service_app.get("api-version") != "13":
-              raise SystemExit("Embedded service API 13 requirement changed unexpectedly")
+          service_apps = [node for node in root.iter()
+                          if node.tag.endswith("service-application")]
+          if len(service_apps) != 1 or service_apps[0].get("api-version") != "13":
+              raise SystemExit("Hybrid manifest must contain exactly the original Tizen 10 API 13 Ambilight service")
+          with zipfile.ZipFile(wmp_tpk_path) as package:
+              wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
+          wmp_apps = [node for node in wmp_root.iter()
+                      if node.tag.endswith("service-application")]
+          if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != "MoonWMP001.WmpService":
+              raise SystemExit("WMP TPK must contain exactly its expected service application")
+          existing_ids = {node.get("appid") for node in root.iter()
+                          if node.tag.endswith("service-application")}
+          if wmp_apps[0].get("appid") in existing_ids:
+              raise SystemExit("WMP service application is already present in the hybrid manifest")
+          root.append(wmp_apps[0])
           root.set("api-version", "5.5")
-          tree.write(path, encoding="UTF-8", xml_declaration=True)
-          print("Hybrid manifest floor set to Tizen 5.5; embedded service remains Tizen 10 API 13.")
+          tree.write(hybrid_path, encoding="UTF-8", xml_declaration=True)
+          print("Hybrid manifest now declares Ambilight and WMP services; Web floor remains Tizen 5.5.")
           PY
           
             # 4. Sign the already assembled hybrid project with the standard
