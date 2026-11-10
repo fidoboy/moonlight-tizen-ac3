@@ -1475,11 +1475,11 @@ const Views = {
   BasicSettings: {
     view: new ListView(() => {
       const items = [
-        'selectStreamingEngine',
         'selectResolution',
         'selectFramerate',
         'selectBitrate',
         'framePacingBtn',
+        'selectStreamingEngine',
         'ambilightBtn'
       ];
       if ($('#ambilightSwitch').prop('checked')) {
