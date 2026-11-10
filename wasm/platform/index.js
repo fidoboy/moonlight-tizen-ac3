@@ -7188,30 +7188,27 @@ function updateAmbilightAvailability(supported) {
   if (description) {
     description.textContent = supported
       ? t('Capture the Moonlight video plane and send live colors to your WLED device.')
-      : t('Preview only. The Ambilight service is unavailable on this TV.');
+      : '';
   }
 
-  if (switchText) {
-    switchText.textContent = t(supported ? 'Enable Ambilight' : 'Show Ambilight settings');
+  if (switchText && supported) {
+    switchText.textContent = t('Enable Ambilight');
   }
 
   if (toggle) {
     if (!supported) {
-      // On unsupported TVs this is a UI-only preview switch, never a real preference.
       toggle.checked = false;
       if (switchLabel && switchLabel.MaterialSwitch) {
         switchLabel.MaterialSwitch.off();
+        switchLabel.MaterialSwitch.disable();
       }
-    }
-    toggle.disabled = false;
-    if (switchLabel && switchLabel.MaterialSwitch) {
+    } else if (switchLabel && switchLabel.MaterialSwitch) {
       switchLabel.MaterialSwitch.enable();
     }
+    toggle.disabled = !supported;
     syncDisabledSwitchAppearance(toggle);
   }
 
-  // Always load the WLED address. The enabled preference is restored only on
-  // supported TVs; unsupported TVs use the switch solely to reveal the UI.
   loadAmbilightPreferences();
 }
 
@@ -7247,8 +7244,13 @@ function loadAmbilightPreferences() {
       var label = document.getElementById('ambilightBtn');
       if (label && label.MaterialSwitch) {
         enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
-        label.MaterialSwitch.enable();
+        if (ambilightSupportState === 'supported') {
+          label.MaterialSwitch.enable();
+        } else {
+          label.MaterialSwitch.disable();
+        }
       }
+      toggle.disabled = ambilightSupportState !== 'supported';
     }
     updateAmbilightSettingsVisibility();
   });
