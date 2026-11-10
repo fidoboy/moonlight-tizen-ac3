@@ -322,6 +322,34 @@ def main():
                 for name in hybrid_entries if name.startswith(WEB_PREFIX)
             }
             web_checks, inner_config_checks = audit_web_payload(web_files, label)
+
+            require(
+                "bin/wmp-service" in hybrid_entries and "lib/libmlengine.so" in hybrid_entries,
+                f"{label}: missing the WMP native service executable or engine library",
+            )
+            manifest = ET.fromstring(hybrid.read("tizen-manifest.xml"))
+            service_apps = {
+                node.get("appid"): node for node in manifest.iter()
+                if node.tag.split("}")[-1] == "service-application"
+            }
+            expected_services = {
+                "MoonLightS.MoonlightAmbilight",
+                "MoonLightS.WmpService",
+            }
+            require(
+                expected_services <= set(service_apps),
+                f"{label}: missing one or more independent auxiliary services",
+            )
+            for appid in expected_services:
+                app = service_apps[appid]
+                require(
+                    app.get("on-boot") == "false" and app.get("auto-restart") == "false",
+                    f"{label}: {appid} must remain opt-in and must not auto-start",
+                )
+            require(
+                service_apps["MoonLightS.MoonlightAmbilight"].get("api-version") == "13",
+                f"{label}: Ambilight service API 13 requirement changed",
+            )
             outer_checks = audit_outer_package(
                 {name: hybrid.read(name) for name in hybrid_entries}, label
             )
