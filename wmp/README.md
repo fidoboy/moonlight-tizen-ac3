@@ -49,9 +49,10 @@ frames advance the audio timestamp without submitting an empty packet.
 No Opus decoder or PCM conversion is used for this path.
 
 If the host does not offer Dolby, or does not confirm the requested codec,
-the existing OpusHead registration and Opus packet path remain in use. The
-host-side Common C negotiation and WMP sink are therefore optional additions;
-EMSS and its existing Dolby path are unchanged.
+the existing OpusHead registration and Opus packet path remain in use. Common C
+requests Dolby only when the host offers it and confirms the selection; the WMP
+renderer advertises this capability, while EMSS and its existing Dolby path
+remain unchanged.
 
 The host-side sink test covers AC-3, E-AC-3, lost-frame timestamp advancement
 and Opus fallback. This does not replace cross-compilation or playback tests
