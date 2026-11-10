@@ -38,6 +38,25 @@ Replies carry `protocol`, `id`, `type=response`, `status` and JSON
 
 MessagePort is control-plane only; it is not used to transport encoded audio/video packets.
 
+## Audio formats
+
+The WMP audio renderer advertises the optional AC-3/E-AC-3 capability to
+Moonlight Common C. It uses Dolby only after the RTSP handshake explicitly
+confirms the selected codec; the sink then registers the matching ESPlus audio
+MIME and submits the original compressed frames directly. Dolby packets use
+the negotiated channel count, 48 kHz and a 32 ms packet duration. Missing
+frames advance the audio timestamp without submitting an empty packet.
+No Opus decoder or PCM conversion is used for this path.
+
+If the host does not offer Dolby, or does not confirm the requested codec,
+the existing OpusHead registration and Opus packet path remain in use. The
+host-side Common C negotiation and WMP sink are therefore optional additions;
+EMSS and its existing Dolby path are unchanged.
+
+The host-side sink test covers AC-3, E-AC-3, lost-frame timestamp advancement
+and Opus fallback. This does not replace cross-compilation or playback tests
+on a Samsung TV.
+
 ## Native ServiceApp build
 
 Build `libmlengine.so` first with the upstream engine script, then link the
