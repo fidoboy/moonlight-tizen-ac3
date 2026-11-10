@@ -625,5 +625,6 @@
   "Ambilight is not supported on this TV.": "Este televisor no es compatible con Ambilight.",
   "Show Ambilight settings": "Mostrar ajustes de Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Solo vista previa de los ajustes. El servicio Ambilight no está disponible en este televisor.",
-  "Streaming engine": "Motor de retransmisión"
+  "Streaming engine": "Motor de retransmisión",
+  "Streaming engine:": "Motor de retransmisión:"
 }
