@@ -19,6 +19,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         acl \
         aria2 \
+        autoconf \
+        automake \
         binutils \
         bridge-utils \
         build-essential \
@@ -39,7 +41,9 @@ RUN apt-get update \
         librsvg2-bin \
         fonts-dejavu-core \
         libxml2-dev \
+        libtool \
         openssl \
+        pkg-config \
         libxi6 \
         libsdl1.2debian \
         libv4l-0 \
@@ -183,5 +187,8 @@ RUN set -euo pipefail \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
     && test -d /opt/wmp-backport-deps/openssl111 \
     && test -d /opt/wmp-backport-deps/curl759 \
+    && for tool in autoconf automake autoreconf libtoolize pkg-config; do command -v "$tool" >/dev/null; done \
+    && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc \
+    && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump \
     && bsdtar --version \
     && rpm2cpio --help >/dev/null
