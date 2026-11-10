@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns="http://tizen.org/ns/packages"
           api-version="5.5"
-          package="MoonLightS"
+          package="MoonWMP001"
           version="0.1.0">
     <label>Moonlight WMP service</label>
     <description>Experimental native ESPlus playback service for Moonlight</description>
-    <service-application appid="MoonLightS.WmpService"
+    <service-application appid="MoonWMP001.WmpService"
                         exec="wmp-service"
                         nodisplay="true"
                         on-boot="false"
