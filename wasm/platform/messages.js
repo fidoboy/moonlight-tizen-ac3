@@ -55,7 +55,10 @@ const SyncFunctions = {
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
   fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
   'startRequest': (...args) => {
-    if (isWmpTransportSelected()) {
+    // Capture the engine actually selected for this session, independently of later UI preference changes.
+    const activeStreamingEngine = isWmpTransportSelected() ? 'WMP' : 'EMSS';
+    window._activeStreamingEngine = activeStreamingEngine;
+    if (activeStreamingEngine === 'WMP') {
       startWmpSession(args);
       return {type: 'resolve', ret: null};
     }
@@ -280,9 +283,24 @@ function ensurePerformanceStatsOverlayElements() {
   var canvas = container.querySelector('#performance-stats-graph');
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
   var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
-  if (!textElement || !canvas || !hostCanvas || !encryptionStatus) {
+  var engineStatus = container.querySelector('#performanceStatsEngineStatus');
+  if (!textElement || !canvas || !hostCanvas || !encryptionStatus || !engineStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
+
+    engineStatus = document.createElement('div');
+    engineStatus.id = 'performanceStatsEngineStatus';
+    engineStatus.className = 'performance-stats-row performance-stats-engine';
+
+    var engineLabel = document.createElement('span');
+    engineLabel.className = 'performance-stats-label';
+    engineLabel.textContent = t('Streaming engine:');
+
+    var engineValue = document.createElement('span');
+    engineValue.className = 'performance-stats-value';
+    engineValue.id = 'performanceStatsEngineValue';
+    engineStatus.appendChild(engineLabel);
+    engineStatus.appendChild(engineValue);
 
     textElement = document.createElement('div');
     textElement.className = 'performance-stats-text';
@@ -322,10 +340,16 @@ function ensurePerformanceStatsOverlayElements() {
 
     encryptionStatus.appendChild(encryptionIcon);
     encryptionStatus.appendChild(encryptionMessage);
+    container.appendChild(engineStatus);
     container.appendChild(textElement);
     container.appendChild(canvas);
     container.appendChild(hostCanvas);
     container.appendChild(encryptionStatus);
+  }
+
+  var engineValueElement = engineStatus.querySelector('#performanceStatsEngineValue');
+  if (engineValueElement) {
+    engineValueElement.textContent = window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS';
   }
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
@@ -336,7 +360,7 @@ function ensurePerformanceStatsOverlayElements() {
     renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
   }
 
-  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus, engineStatus: engineStatus };
 }
 
 function getPerformanceStatsGraphColor(sample) {
