@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
           docker pull "$image"
           docker run --rm "$image" bash -lc '
             set -euo pipefail
@@ -115,7 +115,7 @@ jobs:
             echo "::error::Could not retrieve generated video assets (HTTP $status)." >&2
             exit 1
           fi
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
           docker run --rm --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
@@ -128,12 +128,12 @@ jobs:
               test -s /workspace/generated-videos/launch-screen-portrait.mp4
             '
 
-      - name: Build Moonlight Web files (standard and ForceGM) inside shared v3 image
+      - name: Build Moonlight Web files (standard and ForceGM) inside shared v4 image
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/moonlight-home"
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
           docker run --rm --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
@@ -164,7 +164,7 @@ jobs:
       - name: Package the Tizen Core hybrid workspaces
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
