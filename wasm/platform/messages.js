@@ -393,9 +393,9 @@ window.refreshPerformanceStatsEngineStatus = function() {
   if (!elements) return;
   var engineValue = elements.engineStatus.querySelector('#performanceStatsEngineValue');
   if (engineValue) engineValue.textContent = window._activeStreamingEngineConfirmed
-    ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS') : t('Pending');
+    ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS') : '';
   var audioValue = elements.audioStatus.querySelector('#performanceStatsAudioValue');
-  if (audioValue) audioValue.textContent = window._wmpActiveAudioCodec || t('Waiting for audio');
+  if (audioValue) audioValue.textContent = window._wmpActiveAudioCodec || '—';
 };
 
 function getPerformanceStatsGraphColor(sample) {
