@@ -60,6 +60,25 @@ RUN apt-get update \
     && ln -sf /usr/bin/python2 /usr/local/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
+# WMP's native Tizen ARM build inputs are part of this image, not a
+# separately provisioned build environment. Keep the GCC 6.2 cross-toolchain,
+# Tizen 5.5 ARM sysroot and framework headers/libraries under one stable path.
+COPY wmp/upstream/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
+RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh \
+    && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
+    && mkdir -p /opt/wmp-backport-deps \
+    && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
+    && git clone --depth 1 --branch curl-7_59_0 https://github.com/curl/curl.git /opt/wmp-backport-deps/curl759 \
+    && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc \
+    && test -f /opt/wmp-tizen-deps/sysroot/usr/include/appcore-agent/service_app.h \
+    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
+    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
+    && test -d /opt/wmp-backport-deps/openssl111 \
+    && test -d /opt/wmp-backport-deps/curl759
+
+ENV WMP_DEPS=/opt/wmp-tizen-deps \
+    WMP_BACKPORT_DEPS=/opt/wmp-backport-deps
+
 # .NET 8 is needed to build the Tizen service TPK in both workflows.
 RUN curl --fail --location --retry 3 https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
     && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \
