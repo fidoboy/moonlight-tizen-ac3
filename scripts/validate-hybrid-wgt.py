@@ -255,22 +255,31 @@ def audit_outer_package(files, label):
     require({"vss_default", "vss_landscape", "vss_portrait"} <= profiles,
             f"{label}: outer config.xml is missing a splash profile")
 
-    # The outer package configuration resolves its launch-screen resources
-    # from the hybrid package root, while the embedded Web WGT retains its
-    # original copies and relative references beneath res/wgt.
-    for name in (
+    # The outer hybrid manifest must resolve its splash resources from the
+    # original Moonlight Web payload; no duplicate package-root copies exist.
+    splash_references = [
+        value for value, source in references
+        if any(source.endswith("@" + attribute) for attribute in ("video", "background_image", "image"))
+    ]
+    expected = {
+        "res/wgt/static/res/launch-screen.mp4",
+        "res/wgt/static/res/launch-screen-portrait.mp4",
+        "res/wgt/static/res/launch-screen.png",
+        "res/wgt/static/res/launch-screen-portrait.png",
+    }
+    require(expected <= set(splash_references),
+            f"{label}: outer config.xml does not reference all Moonlight splash assets under res/wgt/static/res")
+    for name in expected:
+        require(name in available and files[name],
+                f"{label}: missing or empty embedded splash resource {name}")
+    forbidden = {
         "static/res/launch-screen.mp4",
         "static/res/launch-screen-portrait.mp4",
         "static/res/launch-screen.png",
         "static/res/launch-screen-portrait.png",
-    ):
-        nested = "res/wgt/" + name
-        require(name in available and files[name],
-                f"{label}: missing or empty package-root splash resource {name}")
-        require(nested in available and files[nested],
-                f"{label}: missing or empty original Web splash resource {nested}")
-        require(files[name] == files[nested],
-                f"{label}: package-root splash copy differs from {nested}")
+    }
+    require(not (forbidden & available),
+            f"{label}: duplicate package-root splash assets are present")
     return len(references)
 
 def main():
