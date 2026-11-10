@@ -624,5 +624,6 @@
   "Capture the Moonlight video plane and send live colors to your WLED device.": "Das Moonlight-Videobild erfassen und Live-Farben an dein WLED-Gerät senden.",
   "Ambilight is not supported on this TV.": "Ambilight wird von diesem Fernseher nicht unterstützt.",
   "Show Ambilight settings": "Ambilight-Einstellungen anzeigen",
-  "Preview only. The Ambilight service is unavailable on this TV.": "Nur Vorschau der Einstellungen. Der Ambilight-Dienst ist auf diesem Fernseher nicht verfügbar."
+  "Preview only. The Ambilight service is unavailable on this TV.": "Nur Vorschau der Einstellungen. Der Ambilight-Dienst ist auf diesem Fernseher nicht verfügbar.",
+  "Streaming engine:": "Streaming-Engine:"
 }
