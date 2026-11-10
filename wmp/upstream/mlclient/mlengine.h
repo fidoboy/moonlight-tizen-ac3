@@ -54,6 +54,10 @@ void ml_engine_free(void *p);
 typedef void (*ml_engine_log_cb)(const char *line);
 void ml_engine_set_log_cb(ml_engine_log_cb cb);
 
+/* Select whether the WMP audio renderer may advertise optional AC-3/E-AC-3
+ * passthrough during the next session's RTSP negotiation. */
+void ml_engine_set_dolby_passthrough_enabled(int enabled);
+
 /* Live playback statistics (UI overlay, pkg/ui/PROTOCOL.md `mlstats`). The caller
  * sets struct_size = sizeof(ml_engine_stats); the engine fills the struct and
  * returns 0, or GS_INVALID when out is NULL or struct_size is too small. The
