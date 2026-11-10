@@ -6,9 +6,18 @@ EMSDK="${EMSDK:-/opt/emscripten-release-bundle/emsdk}"
 BUILD_TYPE="${BUILD_TYPE:-release}"
 REPO_OWNER="${REPO_OWNER:-fidoboy}"
 REPO_NAME="${REPO_NAME:-moonlight-tizen-ac3}"
-DEBUG_MODE=false
+DEBUG_MODE="${DEBUG_MODE:-false}"
 OFFICIAL_RELEASE=false
-LOG_SHOW_PRIVATE_DATA=false
+LOG_SHOW_PRIVATE_DATA="${LOG_SHOW_PRIVATE_DATA:-false}"
+
+if [[ "$DEBUG_MODE" != "true" && "$DEBUG_MODE" != "false" ]]; then
+  echo "DEBUG_MODE must be true or false." >&2
+  exit 1
+fi
+if [[ "$LOG_SHOW_PRIVATE_DATA" != "true" && "$LOG_SHOW_PRIVATE_DATA" != "false" ]]; then
+  echo "LOG_SHOW_PRIVATE_DATA must be true or false." >&2
+  exit 1
+fi
 mkdir -p "$HOME"
 export EM_CONFIG="${EM_CONFIG:-$HOME/.emscripten}"
 
