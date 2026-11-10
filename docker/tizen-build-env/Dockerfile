@@ -184,7 +184,7 @@ RUN set -euo pipefail \
 # runner filesystem after it has already been pushed to GHCR.
 RUN set -euo pipefail \
     && tz --version \
-    && /usr/share/dotnet/dotnet --list-sdks | grep -E '^8\\.' \
+    && /usr/share/dotnet/dotnet --list-sdks | grep -E '^8\.' \
     && test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120 \
     && test -x /home/tizen/tizen-studio/tools/ide/bin/tizen \
     && if [[ -f /opt/emscripten-release-bundle/emsdk/emsdk_env.sh ]]; then \
