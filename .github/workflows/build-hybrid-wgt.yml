@@ -353,9 +353,70 @@ jobs:
           fi
           service_tpk="${service_pkgs[0]}"
           test -s "$service_tpk"
-          echo "Service TPK: $service_tpk"
+          echo "Ambilight service TPK: $service_tpk"
           unzip -tq "$service_tpk"
-        
+
+          wmp_project="$RUNNER_TEMP/WmpServicePackage"
+          mkdir -p "$wmp_project/bin" "$wmp_project/lib"
+          install -m 0755 "$RUNNER_TEMP/wmp-service/bin/wmp-service" "$wmp_project/bin/wmp-service"
+          install -m 0644 "$RUNNER_TEMP/wmp-service/lib/libmlengine.so" "$wmp_project/lib/libmlengine.so"
+          cp wmp/service/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
+          python3 - "$wmp_project/tizen-manifest.xml" "$web_standard/config.xml" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          manifest_path, config_path = sys.argv[1:]
+          ET.register_namespace("", "http://tizen.org/ns/packages")
+          tree = ET.parse(manifest_path)
+          manifest = tree.getroot()
+          config = ET.parse(config_path).getroot()
+          version = config.get("version")
+          if not version:
+              raise SystemExit("Moonlight config.xml has no package version")
+          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
+              raise SystemExit("WMP manifest package/API floor changed")
+          apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
+          if len(apps) != 1:
+              raise SystemExit("WMP manifest must contain exactly one service application")
+          expected = {"appid":"MoonLightS.WmpService","exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+          for key, value in expected.items():
+              if apps[0].get(key) != value:
+                  raise SystemExit(f"WMP manifest {key} must be {value!r}")
+          manifest.set("version", version)
+          tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
+          print(f"WMP package manifest validated; version synchronized to {version}.")
+          PY
+          run_tz "package-wmp-native-service" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t tpk -S off -- "$wmp_project"
+          mapfile -t wmp_pkgs < <(find "$wmp_project" -maxdepth 1 -type f -name '*.tpk' -print | sort)
+          if (( ${#wmp_pkgs[@]} != 1 )); then
+            echo "::error::Expected exactly one WMP native service TPK; found ${#wmp_pkgs[@]}."
+            printf '%s\\n' "${wmp_pkgs[@]}"
+            exit 1
+          fi
+          wmp_tpk="${wmp_pkgs[0]}"
+          test -s "$wmp_tpk"
+          unzip -tq "$wmp_tpk"
+          python3 - "$wmp_tpk" <<'PY'
+          import sys, zipfile
+          import xml.etree.ElementTree as ET
+          with zipfile.ZipFile(sys.argv[1]) as package:
+              names = set(package.namelist())
+              required = {"bin/wmp-service", "lib/libmlengine.so", "tizen-manifest.xml"}
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit("WMP TPK is missing: " + ", ".join(missing))
+              if not package.read("bin/wmp-service") or not package.read("lib/libmlengine.so"):
+                  raise SystemExit("WMP TPK contains an empty native binary")
+              manifest = ET.fromstring(package.read("tizen-manifest.xml"))
+              app = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
+              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
+                  raise SystemExit("WMP TPK root package identity/API floor changed")
+              if app is None or app.get("appid") != "MoonLightS.WmpService":
+                  raise SystemExit("WMP TPK service application identity changed")
+          print("WMP TPK payload and manifest verified.")
+          PY
+          echo "WMP service TPK: $wmp_tpk"
+
           package_hybrid() {
             local source="$1" name="$2" base_wgt="$3" output="$4"
             local draft="$RUNNER_TEMP/$name-unsigned.wgt"
