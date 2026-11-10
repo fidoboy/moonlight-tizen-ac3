@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v2"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
           docker pull "$image"
           docker run --rm "$image" tz --version
           docker run --rm "$image" dotnet --list-sdks | grep -E '^8\.'
@@ -166,7 +166,7 @@ jobs:
         run: |
           set -euo pipefail
           cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v2"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$RUNNER_TEMP:/runner-temp" \
