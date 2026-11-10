@@ -60,7 +60,13 @@ jobs:
             dotnet --list-sdks | grep -E "^8\\."
             test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120
             test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
-            source /opt/emscripten-release-bundle/emsdk/emsdk_env.sh
+            emsdk="/opt/emscripten-release-bundle/emsdk"
+            if [[ -f "$emsdk/emsdk_env.sh" ]]; then
+              source "$emsdk/emsdk_env.sh"
+            else
+              test -x "$emsdk/emsdk"
+              eval "$(EMSDK_BASH=1 "$emsdk/emsdk" construct_env)"
+            fi
             emcc --version
             cmake --version
             ninja --version
