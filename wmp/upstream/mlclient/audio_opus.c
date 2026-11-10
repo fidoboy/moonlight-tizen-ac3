@@ -195,10 +195,7 @@ static void ar_decodePlay(char *data, int len)
                                  __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
                                  __ATOMIC_RELEASE);
             }
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
-        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
-    }
-    if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
+            if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
                 result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
                 result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
@@ -220,6 +217,9 @@ static void ar_decodePlay(char *data, int len)
     packet.duration_ns = duration_ns;
 
     result = esplus_submit(&packet);
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
+    }
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
         result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
         result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
