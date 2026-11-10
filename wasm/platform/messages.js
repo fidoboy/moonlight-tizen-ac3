@@ -1,11 +1,24 @@
 /* eslint-disable */
 
-function isWmpTransportSelected() {
+function getSelectedStreamingEngine() {
   if (window._directSmartHubLaunch) {
-    return !!(window._directSmartHubStreamSettings &&
-      window._directSmartHubStreamSettings.streamingEngine === 'WMP');
+    var directSettings = window._directSmartHubStreamSettings;
+    return directSettings &&
+      (directSettings.streamingEngine === 'WMP' || directSettings.streamingEngine === 'EMSS')
+      ? directSettings.streamingEngine
+      : null;
   }
-  return typeof isWmpEngineSelected === 'function' && isWmpEngineSelected();
+
+  var engineButton = document.getElementById('selectStreamingEngine');
+  var selectedEngine = engineButton && engineButton.getAttribute('data-value');
+  return selectedEngine === 'WMP' || selectedEngine === 'EMSS'
+    ? selectedEngine
+    : null;
+}
+
+function isWmpTransportSelected() {
+  return window._activeStreamingEngine === 'WMP' ||
+    (!window._activeStreamingEngine && getSelectedStreamingEngine() === 'WMP');
 }
 
 function startWmpSession(args) {
@@ -55,11 +68,17 @@ const SyncFunctions = {
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
   fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
   'startRequest': (...args) => {
-    // Capture the engine actually selected for this session, independently of later UI preference changes.
-    const activeStreamingEngine = isWmpTransportSelected() ? 'WMP' : 'EMSS';
+    // Use only the explicitly selected engine. An unknown/unavailable preference
+    // must fail closed; it must never be interpreted as permission to use EMSS.
+    const activeStreamingEngine = getSelectedStreamingEngine();
     window._activeStreamingEngine = activeStreamingEngine;
     window._activeStreamingEngineConfirmed = false;
     window._wmpActiveAudioCodec = null;
+    if (!activeStreamingEngine) {
+      pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or WMP and try again.';
+      handleMessage('streamTerminated: -1');
+      return {type: 'resolve', ret: null};
+    }
     if (activeStreamingEngine === 'WMP') {
       startWmpSession(args);
       return {type: 'resolve', ret: null};
@@ -83,11 +102,15 @@ const SyncFunctions = {
         console.warn('[ambilight] Could not stop native service:', error);
       });
     }
-    if (isWmpTransportSelected()) {
+    // Stop the engine captured when this session started, not a preference that
+    // may have been changed while the stream was running.
+    if (window._activeStreamingEngine === 'WMP') {
       if (window.WmpTransport && typeof window.WmpTransport.stopStream === 'function') {
         window.WmpTransport.stopStream().catch(function(error) {
           console.warn('[messages.js, stopRequest]', 'WMP stop request failed:', error);
         });
+      } else {
+        console.error('[messages.js, stopRequest] WMP was active but its transport is unavailable.');
       }
       return {type: 'resolve', ret: null};
     }
