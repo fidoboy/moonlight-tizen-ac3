@@ -40,8 +40,9 @@
     if (message.protocol !== PROTOCOL) return;
 
     if (message.type === 'event') {
-      if (message.event && /^wmpAudioCodec: (OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
-        global._wmpActiveAudioCodec = String(message.event).slice('wmpAudioCodec: '.length);
+      if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
+        var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
+        global._wmpActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
         if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
           global.refreshPerformanceStatsEngineStatus();
         }
