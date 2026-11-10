@@ -352,7 +352,29 @@ jobs:
           tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
           print(f"WMP package manifest validated; version synchronized to {version}.")
           PY
-          run_tz "package-wmp-native-service" expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t tpk -S off -- "$wmp_project"
+          # Build an unsigned TPK archive from the prebuilt ServiceApp payload,
+          # then let Tizen Core repackage and sign it using the active profile.
+          unsigned_wmp_tpk="$RUNNER_TEMP/WmpService-unsigned.tpk"
+          python3 - "$wmp_project" "$unsigned_wmp_tpk" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          source, output = map(Path, sys.argv[1:])
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as package:
+              for item in sorted(source.rglob("*")):
+                  if item.is_file() and item.suffix != ".tpk":
+                      package.write(item, item.relative_to(source).as_posix())
+          with zipfile.ZipFile(output) as package:
+              bad = package.testzip()
+              if bad:
+                  raise SystemExit(f"Invalid unsigned WMP TPK member: {bad}")
+              required = {"tizen-manifest.xml", "bin/wmp-service", "lib/libmlengine.so"}
+              missing = required - set(package.namelist())
+              if missing:
+                  raise SystemExit("Unsigned WMP TPK is missing: " + ", ".join(sorted(missing)))
+          PY
+          run_tz "sign-wmp-native-service-tpk" "$TIZEN_CORE_CLI" pack -t tpk -s Moonlight -b "$unsigned_wmp_tpk" -o "$wmp_project/MoonLightS.tpk"
           mapfile -t wmp_pkgs < <(find "$wmp_project" -maxdepth 1 -type f -name '*.tpk' -print | sort)
           if (( ${#wmp_pkgs[@]} != 1 )); then
             echo "::error::Expected exactly one WMP native service TPK; found ${#wmp_pkgs[@]}."
