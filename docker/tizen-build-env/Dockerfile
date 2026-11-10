@@ -208,4 +208,4 @@ RUN set -euo pipefail \
     && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc \
     && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump \
     && bsdtar --version \
-    && rpm2cpio --help >/dev/null
+    && command -v rpm2cpio >/dev/null
