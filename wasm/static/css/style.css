@@ -1831,6 +1831,10 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: 1.3;
 }
 
+#performance-stats .performance-stats-engine {
+    margin-bottom: 4px;
+}
+
 #performance-stats .performance-stats-separator {
     width: 80%;
     height: 0;
