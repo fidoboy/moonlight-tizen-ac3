@@ -47,6 +47,7 @@ typedef struct {
     int codec_mode;
     int hdr;
     int full_range;
+    int optical_output_enabled;
 } wmp_start_request_t;
 
 static wmp_esplus_api_t g_esplus;
@@ -267,7 +268,8 @@ static bool parse_start_request(
         !parse_int_argument(message, "rikeyid", &request->rikeyid) ||
         !parse_int_argument(message, "codecMode", &request->codec_mode) ||
         !parse_bool_argument(message, "hdr", &request->hdr) ||
-        !parse_bool_argument(message, "fullRange", &request->full_range))
+        !parse_bool_argument(message, "fullRange", &request->full_range) ||
+        !parse_bool_argument(message, "opticalOutputEnabled", &request->optical_output_enabled))
         return false;
 
     if (request->width <= 0 || request->height <= 0 ||
@@ -302,6 +304,7 @@ static void *session_worker(void *context)
         pthread_cond_wait(&g_session_condition, &g_session_mutex);
     pthread_mutex_unlock(&g_session_mutex);
 
+    ml_engine_set_dolby_passthrough_enabled(request->optical_output_enabled);
     result = ml_engine_start_session_v2(
         request->host,
         request->width,
