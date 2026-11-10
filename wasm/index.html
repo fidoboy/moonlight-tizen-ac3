@@ -259,6 +259,16 @@
         <div id="settings-right-pane">
           <div id="basicSettings" class="settings-options">
             <div class="setting-option">
+              <label data-i18n="Streaming engine">Streaming engine</label>
+              <div id="streamingEngineMenu">
+                <button type="button" id="selectStreamingEngine" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="EMSS">EMSS</button>
+              </div>
+              <ul class="streamingEngineMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectStreamingEngine">
+                <li class="mdl-menu__item" data-value="EMSS">EMSS</li>
+                <li class="mdl-menu__item" data-value="WMP">WMP nativo</li>
+              </ul>
+            </div>
+            <div class="setting-option">
               <label data-i18n="Video resolution">Video resolution</label>
               <span class="mdl-list__item-text-body" data-i18n="- Increase to improve image clarity or decrease for better performance on lower-end devices and slower networks.">
                 - Increase to improve image clarity or decrease for better performance on lower-end devices and slower networks.

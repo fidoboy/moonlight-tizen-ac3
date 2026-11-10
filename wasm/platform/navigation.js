@@ -1475,6 +1475,7 @@ const Views = {
   BasicSettings: {
     view: new ListView(() => {
       const items = [
+        'selectStreamingEngine',
         'selectResolution',
         'selectFramerate',
         'selectBitrate',
@@ -1548,6 +1549,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  SelectStreamingEngineMenu: {
+    isActive: () => isPopupMenuActive('streamingEngineMenu'),
+    view: new ListView(() => document.querySelector('.streamingEngineMenu').children),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectStreamingEngine'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectStreamingEngine');
+      closeActiveVisibleMenu();
+      focusElement('selectStreamingEngine');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectStreamingEngine');
     },
     leave: function() {
       unmark(this.view.current());

@@ -813,6 +813,7 @@ function attachListeners() {
     if (!this.hidden && !this.disabled) saveResolution.call(this);
   });
   $('.videoFramerateMenu li').on('click', saveFramerate);
+  $('.streamingEngineMenu li').on('click', saveStreamingEngine);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
   $('#framePacingSwitch').on('click', saveFramePacing);
@@ -872,6 +873,7 @@ function attachListeners() {
     });
   }
 
+  registerMenu('selectStreamingEngine', Views.SelectStreamingEngineMenu);
   registerMenu('selectResolution', Views.SelectResolutionMenu);
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('selectBitrate', Views.SelectBitrateMenu);
@@ -6833,6 +6835,14 @@ function cacheHostAppList(host, appList) {
   savePreviewApps();
 }
 
+function saveStreamingEngine() {
+  var chosenEngine = $(this).data('value');
+  if (chosenEngine !== 'EMSS' && chosenEngine !== 'WMP') return;
+  $('#selectStreamingEngine').text($(this).text())
+    .attr('data-value', chosenEngine).data('value', chosenEngine);
+  storeData('streamingEngine', chosenEngine, null);
+}
+
 function saveResolution() {
   var chosenResolution = $(this).data('value');
   $('#selectResolution').text($(this).text()).attr('data-value', chosenResolution).data('value', chosenResolution);
@@ -8303,6 +8313,9 @@ function savePerformanceStats() {
 
 // Reset all settings to their default state and save the value data
 function restoreDefaultsSettingsValues() {
+  $('#selectStreamingEngine').text('EMSS').attr('data-value', 'EMSS').data('value', 'EMSS');
+  storeData('streamingEngine', 'EMSS', null);
+
   const defaultResolution = '1280:720';
   $('#selectResolution').text('1280 x 720 (720p)').attr('data-value', defaultResolution).data('value', defaultResolution);
   storeData('resolution', defaultResolution, null);
@@ -8739,6 +8752,18 @@ function loadUserData() {
 }
 
 function loadUserDataCb() {
+  getData('streamingEngine', function(previousValue) {
+    var engine = previousValue && previousValue.streamingEngine;
+    if (engine !== 'EMSS' && engine !== 'WMP') engine = 'EMSS';
+    var option = $('.streamingEngineMenu li').filter(function() {
+      return $(this).data('value') === engine;
+    }).first();
+    if (option.length) {
+      $('#selectStreamingEngine').text(option.text())
+        .attr('data-value', engine).data('value', engine);
+    }
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored automatic update check preference.');
   getData('discoverNewHostsAtStartup', function(previousValue) {
     const storedValue = previousValue.discoverNewHostsAtStartup;
