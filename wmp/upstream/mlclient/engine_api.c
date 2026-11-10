@@ -21,6 +21,9 @@
 extern int  ml_cert_init(const char *dir);
 extern void VidEsplus_FillCallbacks(PDECODER_RENDERER_CALLBACKS cb);
 extern void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS cb);  /* audio_opus.c */
+extern void AudEsplus_SetDolbyPassthroughEnabled(int enabled);      /* audio_opus.c */
+
+static int g_dolby_passthrough_enabled;
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
 extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned short httpsPort,
@@ -33,6 +36,11 @@ static char g_host[256];         /* si.address is held by moonlight-common-c for
                                     session, so the host string must outlive the call */
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
+
+void ml_engine_set_dolby_passthrough_enabled(int enabled) {
+  g_dolby_passthrough_enabled = enabled != 0;
+  MLT("Dolby passthrough preference %s", g_dolby_passthrough_enabled ? "enabled" : "disabled");
+}
 
 void ml_engine_set_log_cb(ml_engine_log_cb cb) {
   ml_log_cb = cb;
@@ -85,6 +93,7 @@ static void cl_stageComplete(int stage) { (void)stage; MLT("stage %d (%s) comple
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
+  AudEsplus_SetDolbyPassthroughEnabled(g_dolby_passthrough_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
   AUDIO_RENDERER_CALLBACKS   ar; AudEsplus_FillCallbacks(&ar);
   CONNECTION_LISTENER_CALLBACKS cl;
