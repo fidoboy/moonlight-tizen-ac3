@@ -16,6 +16,8 @@ on:
       - "ports/**"
       - "wasm/**"
       - "ambilight-service/**"
+      - "wmp/**"
+      - "tests/wmp_transport_test.js"
       - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/build-moonlight-web.sh"
       - "scripts/validate-hybrid-wgt.py"
