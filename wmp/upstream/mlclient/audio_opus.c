@@ -26,7 +26,13 @@ static int s_sample_rate = 48000;
 static int s_samples_per_frame = 240;
 static uint64_t s_pts_ns;
 static int s_dolby;
+static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
+
+void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
+{
+    s_dolby_passthrough_enabled = enabled != 0;
+}
 
 /* RFC 7845 OpusHead. Returns its encoded length. */
 static int build_opushead(uint8_t *out, const POPUS_MULTISTREAM_CONFIGURATION config)
@@ -210,6 +216,7 @@ void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
     callbacks->stop = ar_stop;
     callbacks->cleanup = ar_cleanup;
     callbacks->decodeAndPlaySample = ar_decodePlay;
-    callbacks->capabilities = CAPABILITY_DIRECT_SUBMIT |
-                              CAPABILITY_SUPPORTS_AC3_PASSTHROUGH;
+    callbacks->capabilities = CAPABILITY_DIRECT_SUBMIT;
+    if (s_dolby_passthrough_enabled)
+        callbacks->capabilities |= CAPABILITY_SUPPORTS_AC3_PASSTHROUGH;
 }
