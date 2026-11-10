@@ -58,6 +58,8 @@ const SyncFunctions = {
     // Capture the engine actually selected for this session, independently of later UI preference changes.
     const activeStreamingEngine = isWmpTransportSelected() ? 'WMP' : 'EMSS';
     window._activeStreamingEngine = activeStreamingEngine;
+    window._activeStreamingEngineConfirmed = false;
+    window._wmpActiveAudioCodec = null;
     if (activeStreamingEngine === 'WMP') {
       startWmpSession(args);
       return {type: 'resolve', ret: null};
@@ -284,7 +286,7 @@ function ensurePerformanceStatsOverlayElements() {
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
   var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
   var engineStatus = container.querySelector('#performanceStatsEngineStatus');
-  if (!textElement || !canvas || !hostCanvas || !encryptionStatus || !engineStatus) {
+  if (!textElement || !canvas || !hostCanvas || !encryptionStatus || !engineStatus || !audioStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
 
@@ -301,6 +303,18 @@ function ensurePerformanceStatsOverlayElements() {
     engineValue.id = 'performanceStatsEngineValue';
     engineStatus.appendChild(engineLabel);
     engineStatus.appendChild(engineValue);
+
+    audioStatus = document.createElement('div');
+    audioStatus.id = 'performanceStatsAudioStatus';
+    audioStatus.className = 'performance-stats-row performance-stats-audio';
+    var audioLabel = document.createElement('span');
+    audioLabel.className = 'performance-stats-label';
+    audioLabel.textContent = t('Audio stream:');
+    var audioValue = document.createElement('span');
+    audioValue.className = 'performance-stats-value';
+    audioValue.id = 'performanceStatsAudioValue';
+    audioStatus.appendChild(audioLabel);
+    audioStatus.appendChild(audioValue);
 
     textElement = document.createElement('div');
     textElement.className = 'performance-stats-text';
@@ -341,6 +355,7 @@ function ensurePerformanceStatsOverlayElements() {
     encryptionStatus.appendChild(encryptionIcon);
     encryptionStatus.appendChild(encryptionMessage);
     container.appendChild(engineStatus);
+    container.appendChild(audioStatus);
     container.appendChild(textElement);
     container.appendChild(canvas);
     container.appendChild(hostCanvas);
@@ -349,7 +364,16 @@ function ensurePerformanceStatsOverlayElements() {
 
   var engineValueElement = engineStatus.querySelector('#performanceStatsEngineValue');
   if (engineValueElement) {
-    engineValueElement.textContent = window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS';
+    engineValueElement.textContent = window._activeStreamingEngineConfirmed
+      ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS')
+      : t('Pending');
+  }
+  var audioValueElement = audioStatus.querySelector('#performanceStatsAudioValue');
+  if (audioValueElement) {
+    audioStatus.style.display = window._activeStreamingEngine === 'WMP' ? '' : 'none';
+    audioValueElement.textContent = window._activeStreamingEngine === 'WMP'
+      ? (window._wmpActiveAudioCodec || t('Waiting for audio'))
+      : '';
   }
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
@@ -360,8 +384,18 @@ function ensurePerformanceStatsOverlayElements() {
     renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
   }
 
-  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus, engineStatus: engineStatus };
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus, engineStatus: engineStatus, audioStatus: audioStatus };
 }
+
+window.refreshPerformanceStatsEngineStatus = function() {
+  var elements = ensurePerformanceStatsOverlayElements();
+  if (!elements) return;
+  var engineValue = elements.engineStatus.querySelector('#performanceStatsEngineValue');
+  if (engineValue) engineValue.textContent = window._activeStreamingEngineConfirmed
+    ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS') : t('Pending');
+  var audioValue = elements.audioStatus.querySelector('#performanceStatsAudioValue');
+  if (audioValue) audioValue.textContent = window._wmpActiveAudioCodec || t('Waiting for audio');
+};
 
 function getPerformanceStatsGraphColor(sample) {
   if (sample.droppedFrames > 0 || sample.rtt >= 20 || sample.variance >= 50) {
@@ -900,6 +934,8 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    window._activeStreamingEngineConfirmed = false;
+    window._wmpActiveAudioCodec = null;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
@@ -1353,6 +1389,8 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
+    window._activeStreamingEngineConfirmed = true;
+    if (typeof window.refreshPerformanceStatsEngineStatus === 'function') window.refreshPerformanceStatsEngineStatus();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
