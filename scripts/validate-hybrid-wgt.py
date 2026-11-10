@@ -5,7 +5,9 @@ import hashlib
 import json
 import posixpath
 import re
+import subprocess
 import sys
+import tempfile
 import urllib.parse
 import zipfile
 import xml.etree.ElementTree as ET
@@ -282,6 +284,51 @@ def audit_outer_package(files, label):
             f"{label}: duplicate package-root splash assets are present")
     return len(references)
 
+def audit_wmp_elf(archive, label):
+    """Verify the final packaged WMP executable and engine are ARM and linked correctly."""
+    with tempfile.TemporaryDirectory(prefix="moonlight-wmp-audit-") as temporary:
+        root = Path(temporary)
+        service = root / "wmp-service"
+        engine = root / "libmlengine.so"
+        service.write_bytes(archive.read("bin/wmp-service"))
+        engine.write_bytes(archive.read("lib/libmlengine.so"))
+
+        def readelf(*arguments):
+            try:
+                result = subprocess.run(
+                    ["readelf", *arguments],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except (OSError, subprocess.CalledProcessError) as exc:
+                raise AuditError(f"{label}: readelf failed: {exc}") from exc
+            return result.stdout
+
+        for name, binary in (("WMP service", service), ("WMP engine", engine)):
+            header = readelf("-h", str(binary))
+            require(
+                any(line.lstrip().startswith("Machine:") and "ARM" in line
+                    for line in header.splitlines()),
+                f"{label}: {name} is not an ARM ELF binary",
+            )
+
+        service_dynamic = readelf("-d", str(service))
+        engine_dynamic = readelf("-d", str(engine))
+        require(
+            "Shared library: [libmlengine.so]" in service_dynamic,
+            f"{label}: WMP service does not dynamically link libmlengine.so",
+        )
+        require(
+            "Library runpath: [$ORIGIN/../lib]" in service_dynamic,
+            f"{label}: WMP service is missing the relative $ORIGIN/../lib RUNPATH",
+        )
+        require(
+            not re.search(r"NEEDED.*libesplusplayer", engine_dynamic),
+            f"{label}: libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED",
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-wgt", required=True)
@@ -350,6 +397,7 @@ def main():
                 service_apps["MoonLightS.MoonlightAmbilight"].get("api-version") == "13",
                 f"{label}: Ambilight service API 13 requirement changed",
             )
+            audit_wmp_elf(hybrid, label)
             outer_checks = audit_outer_package(
                 {name: hybrid.read(name) for name in hybrid_entries}, label
             )
