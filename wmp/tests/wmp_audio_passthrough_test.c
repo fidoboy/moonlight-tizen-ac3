@@ -61,8 +61,13 @@ int main(void)
     opus.samplesPerFrame = 480;
     for (int i = 0; i < 6; ++i) opus.mapping[i] = (unsigned char)i;
 
+    AudEsplus_SetDolbyPassthroughEnabled(0);
     AudEsplus_FillCallbacks(&callbacks);
     assert((callbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) != 0);
+    assert((callbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) == 0);
+
+    AudEsplus_SetDolbyPassthroughEnabled(1);
+    AudEsplus_FillCallbacks(&callbacks);
     assert((callbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0);
 
     /* E-AC-3: register the compressed MIME and submit untouched 32 ms frames. */
