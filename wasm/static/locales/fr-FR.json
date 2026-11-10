@@ -625,5 +625,6 @@
   "Ambilight is not supported on this TV.": "Ambilight n’est pas pris en charge sur ce téléviseur.",
   "Show Ambilight settings": "Afficher les paramètres Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Aperçu des paramètres uniquement. Le service Ambilight n’est pas disponible sur ce téléviseur.",
-  "Streaming engine:": "Moteur de streaming :"
+  "Streaming engine:": "Moteur de streaming :",
+  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS est le moteur de streaming éprouvé et devrait fonctionner sur tous les téléviseurs Tizen pris en charge. WMP utilise le moteur de lecture natif expérimental de Tizen et peut ne pas fonctionner sur tous les téléviseurs."
 }
