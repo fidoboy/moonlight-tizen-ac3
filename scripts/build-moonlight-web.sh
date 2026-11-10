@@ -34,7 +34,7 @@ if [[ "$OFFICIAL_RELEASE" != "true" ]]; then
 fi
 node --check "$index_js"
 build_dir="$ROOT/build-moonlight-web"
-rm -rf "$build_dir" "$OUT"
+rm -rf "$build_dir" "$OUT/web-standard" "$OUT/web-forcegm"
 mkdir -p "$OUT"
 cmake -DCMAKE_TOOLCHAIN_FILE="$EMSDK/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
