@@ -44,11 +44,6 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends expect python3 binutils file unzip zip build-essential libxml2-dev
-
       - name: Verify the pinned Tizen build image
         shell: bash
         run: |
@@ -73,6 +68,10 @@ jobs:
             ninja --version
             rsvg-convert --version
             node --version
+            for tool in expect python3 readelf file unzip zip cc openssl; do
+              command -v "$tool" >/dev/null || { echo "Missing container tool: $tool" >&2; exit 1; }
+            done
+            test -f /usr/include/libxml2/libxml/c14n.h
           '
 
       - name: Ensure versioned MP4 splash assets are available
@@ -116,10 +115,18 @@ jobs:
             echo "::error::Could not retrieve generated video assets (HTTP $status)." >&2
             exit 1
           fi
-          unzip -tq "$asset_path"
-          unzip -oq "$asset_path" -d generated-videos
-          test -s generated-videos/launch-screen.mp4
-          test -s generated-videos/launch-screen-portrait.mp4
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            "$image" bash -lc '
+              set -euo pipefail
+              unzip -tq "/runner-temp/moonlight-generated-videos-v1.zip"
+              unzip -oq "/runner-temp/moonlight-generated-videos-v1.zip" -d /workspace/generated-videos
+              test -s /workspace/generated-videos/launch-screen.mp4
+              test -s /workspace/generated-videos/launch-screen-portrait.mp4
+            '
 
       - name: Build Moonlight Web files (standard and ForceGM) inside shared v3 image
         shell: bash
@@ -157,7 +164,6 @@ jobs:
       - name: Package the Tizen Core hybrid workspaces
         run: |
           set -euo pipefail
-          cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v3"
           docker run --rm -i --user root \
             -v "$GITHUB_WORKSPACE:/workspace" \
@@ -168,6 +174,7 @@ jobs:
             "$image" bash -s <<'PACKAGE'
           
           set -euo pipefail
+          cc -O2 -Wall -Wextra -I/usr/include/libxml2 /workspace/scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           run_tz() {
             local label="$1"
             shift
