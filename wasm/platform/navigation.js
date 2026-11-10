@@ -360,6 +360,12 @@ function elementId(target) {
 }
 
 // Safely add focus to an element
+// Reset the independently scrollable settings pane whenever navigation returns to the category list.
+function resetSettingsRightPaneScroll() {
+  const settingsPane = resolveElement('settings-right-pane');
+  if (settingsPane) settingsPane.scrollTop = 0;
+}
+
 function focusElement(target) {
   const element = resolveElement(target);
   const listener = document.getElementById('listener');
@@ -1538,6 +1544,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from BasicSettings view
@@ -1719,6 +1726,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InterfaceSettings view
@@ -1854,6 +1862,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from HostSettings view
@@ -1896,6 +1905,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InputSettings view
@@ -1946,6 +1956,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AudioSettings view
@@ -2106,6 +2117,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from VideoSettings view
@@ -2232,6 +2244,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AdvancedSettings view
@@ -2274,6 +2287,7 @@ const Views = {
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
       showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AboutSettings view
