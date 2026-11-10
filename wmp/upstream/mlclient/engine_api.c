@@ -22,6 +22,7 @@ extern int  ml_cert_init(const char *dir);
 extern void VidEsplus_FillCallbacks(PDECODER_RENDERER_CALLBACKS cb);
 extern void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS cb);  /* audio_opus.c */
 extern void AudEsplus_SetDolbyPassthroughEnabled(int enabled);      /* audio_opus.c */
+extern int AudEsplus_GetActiveAudioCodec(void);
 
 static int g_dolby_passthrough_enabled;
 extern int  input_init(void);                                      /* input_evdev.c */
@@ -176,6 +177,10 @@ int ml_engine_start(const char *host, int appId, const char *pin,
   if (start_connection() != 0) return 1;
   MLT("ml_engine_start -> 0");
   return 0;
+}
+
+int ml_engine_get_active_audio_codec(void) {
+  return AudEsplus_GetActiveAudioCodec();
 }
 
 int ml_engine_get_stats(ml_engine_stats *out) {
