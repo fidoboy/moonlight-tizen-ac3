@@ -42,6 +42,7 @@ typedef struct ml_engine_stats {
 int ml_engine_running(void);
 void ml_engine_wait(void);
 void ml_engine_stop(void);
+void ml_engine_set_dolby_passthrough_enabled(int enabled);
 int ml_engine_start_session_v2(const char *, int, int, int, int, const char *,
                                 int, const char *, const char *, const char *,
                                 int, const char *, int, const char *, int);
