@@ -16,6 +16,8 @@ on:
       - "ports/**"
       - "wasm/**"
       - "ambilight-service/**"
+      - "wmp/**"
+      - "tests/wmp_transport_test.js"
       - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/validate-hybrid-wgt.py"
       - "scripts/verify-tizen-xmlsig.py"
