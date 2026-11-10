@@ -2169,14 +2169,14 @@ body[data-color-theme="black-orange"] #background-layer {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
+#selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
 #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #ambilightBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
+#selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #ambilightBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
 #discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn, #selectHoldStreamMenuBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
@@ -2302,7 +2302,7 @@ body[data-color-theme="black-orange"] #background-layer {
     float: right;
     margin: 5px 28px 5px 28px;
 }
-#videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
+#streamingEngineMenu > #selectStreamingEngine, #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
 #ambientBackgroundMenu > #selectAmbientBackground, #configSummaryPositionMenu > #selectConfigSummaryPosition, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
 #configSummaryPositionMenu > #selectConfigSummaryPosition, #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
@@ -2342,7 +2342,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
 #continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
-#selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
+#selectStreamingEngine:hover, #selectStreamingEngine:focus, #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #ambilightBtn:hover, #ambilightBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
