@@ -83,9 +83,9 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
     && "$pm" install --accept-license --no-java-check \
-        "NativeCLI,TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+        "NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI,TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
-    && for package in NativeCLI TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0 TV-SAMSUNG-Public TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
+    && for package in NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 IOT-Headed-6.0-NativeAppDevelopment-CLI TIZEN-10.0-NativeAppDevelopment-CLI TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0 TV-SAMSUNG-Public TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \
        done \
