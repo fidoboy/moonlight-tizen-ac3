@@ -788,6 +788,10 @@ function attachListeners() {
       window.i18n.populateLanguageMenu(saveLanguagePreference);
     }
 
+    // Start the optional Ambilight capability probe only after the locale is ready,
+    // so its checking and result descriptions are rendered in the selected language.
+    initializeAmbilightSupport();
+
     // Keep Tizen's native splash visible while the app initializes. The localized loading
     // message will be shown as a bottom snackbar when the persisted host list is ready.
     isStartupLocaleReady = true;
@@ -9955,10 +9959,6 @@ function initializeConfigSummaryBar() {
 }
 
 function onWindowLoad() {
-  // Launch the service and probe capture support in parallel with normal Moonlight startup.
-  // Failure disables only Ambilight; it never blocks the streaming client.
-  initializeAmbilightSupport();
-
   var isForceGMVariant = checkForceGMVariant();
   var buildVer = getBuildVersion(appInfo.version);
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
