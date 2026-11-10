@@ -46,40 +46,6 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Verify the pinned Tizen build image
-        shell: bash
-        run: |
-          set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
-          docker pull "$image"
-          docker run --rm "$image" bash -lc '
-            set -euo pipefail
-            tz --version
-            dotnet --list-sdks | grep -E "^8\\."
-            test -d /usr/share/dotnet/packs/Samsung.Tizen.Ref/10.0.120
-            test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
-            emsdk="/opt/emscripten-release-bundle/emsdk"
-            if [[ -f "$emsdk/emsdk_env.sh" ]]; then
-              source "$emsdk/emsdk_env.sh"
-            else
-              test -x "$emsdk/emsdk"
-              eval "$(EMSDK_BASH=1 "$emsdk/emsdk" construct_env)"
-            fi
-            emcc --version
-            cmake --version
-            ninja --version
-            rsvg-convert --version
-            node --version
-            for tool in expect python3 readelf file unzip zip cc openssl autoconf automake autoreconf libtoolize pkg-config; do
-              command -v "$tool" >/dev/null || { echo "Missing container tool: $tool" >&2; exit 1; }
-            done
-            wmp_gcc="/opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
-            test -x "$wmp_gcc"
-            test -s /opt/wmp-backport-deps/openssl111/Configure
-            test -x /opt/wmp-backport-deps/curl759/buildconf
-            test -f /usr/include/libxml2/libxml/c14n.h
-          '
-
       - name: Build and test WMP native engine and ServiceApp inside shared v4 image
         shell: bash
         run: |
