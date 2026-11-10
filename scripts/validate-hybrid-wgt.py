@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit a Tizen hybrid WGT against its original Moonlight Web WGT."""
+"""Audit a Tizen hybrid WGT against its original Moonlight Web WGT and embedded services."""
 import argparse
 import hashlib
 import json
