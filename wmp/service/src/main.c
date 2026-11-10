@@ -297,6 +297,7 @@ static void *session_worker(void *context)
     int termination_code;
     bool stop_requested;
     bool video_ready = false;
+    int last_audio_codec = -1;
     struct timespec delay = { 0, 200000000L };
 
     pthread_mutex_lock(&g_session_mutex);
@@ -374,6 +375,20 @@ static void *session_worker(void *context)
 
         memset(&stats, 0, sizeof(stats));
         stats.struct_size = (int32_t)sizeof(stats);
+        {
+            int audio_codec = ml_engine_get_active_audio_codec();
+            if (audio_codec != last_audio_codec) {
+                const char *codec_name = audio_codec == 3 ? "E-AC-3" :
+                                         audio_codec == 2 ? "AC-3" :
+                                         audio_codec == 1 ? "OPUS" : NULL;
+                if (codec_name != NULL) {
+                    char audio_event[64];
+                    snprintf(audio_event, sizeof(audio_event), "wmpAudioCodec: %s", codec_name);
+                    send_event(request->remote_app_id, request->remote_port, audio_event, NULL);
+                }
+                last_audio_codec = audio_codec;
+            }
+        }
         if (!video_ready && ml_engine_get_stats(&stats) == 0 &&
             stats.submitted > 0) {
             video_ready = true;
