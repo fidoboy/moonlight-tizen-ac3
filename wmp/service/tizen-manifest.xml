@@ -8,6 +8,8 @@
     <service-application appid="MoonLightS.WmpService"
                         exec="wmp-service"
                         nodisplay="true"
+                        on-boot="false"
+                        auto-restart="false"
                         multiple="false"
                         type="capp"
                         taskmanage="false">
