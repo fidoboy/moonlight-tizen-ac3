@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages"
+          api-version="5.5"
+          package="MoonLightS"
+          version="0.1.0">
+    <label>Moonlight WMP service</label>
+    <description>Experimental native ESPlus playback service for Moonlight</description>
+    <service-application appid="MoonLightS.WmpService"
+                        exec="wmp-service"
+                        nodisplay="true"
+                        multiple="false"
+                        type="capp"
+                        taskmanage="false">
+        <label>Moonlight WMP service</label>
+        <background-category value="background-network"/>
+    </service-application>
+    <privileges>
+        <privilege>http://tizen.org/privilege/internet</privilege>
+        <privilege>http://tizen.org/privilege/network.get</privilege>
+        <privilege>http://developer.samsung.com/privilege/esplay</privilege>
+    </privileges>
+</manifest>

@@ -2,7 +2,18 @@ name: WMP native ARM build
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Moonlight branch or tag containing the WMP service sources"
+        required: true
+        default: 1.2.4-pre
+        type: string
   workflow_call:
+    inputs:
+      source_ref:
+        description: "Moonlight branch or tag containing the WMP service sources"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,10 +29,10 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - name: Check out wmp_mode and submodules
+      - name: Check out WMP service sources and submodules
         uses: actions/checkout@v4
         with:
-          ref: wmp_mode
+          ref: ${{ inputs.source_ref }}
           submodules: recursive
           fetch-depth: 1
 

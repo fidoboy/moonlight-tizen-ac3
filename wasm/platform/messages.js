@@ -1,5 +1,49 @@
 /* eslint-disable */
 
+function isWmpTransportSelected() {
+  if (window._directSmartHubLaunch) {
+    return !!(window._directSmartHubStreamSettings &&
+      window._directSmartHubStreamSettings.streamingEngine === 'WMP');
+  }
+  return typeof isWmpEngineSelected === 'function' && isWmpEngineSelected();
+}
+
+function startWmpSession(args) {
+  if (!window.WmpTransport || typeof window.WmpTransport.startStream !== 'function') {
+    pendingStreamApiMessage = 'WMP native transport is unavailable.';
+    handleMessage('streamTerminated: -1');
+    return;
+  }
+
+  var parameters = {
+    host: args[0],
+    w: args[2],
+    h: args[3],
+    fps: args[4],
+    bitrate: args[5],
+    rikey: args[6],
+    rikeyid: args[7],
+    appVer: args[8],
+    gfeVer: args[9],
+    rtspUrl: args[10],
+    codecMode: args[11],
+    audioConfig: args[19],
+    videoCodec: args[25],
+    hdr: args[26],
+    fullRange: args[27]
+  };
+
+  window.WmpTransport.startStream(parameters).catch(function(error) {
+    pendingStreamApiMessage = error && error.message
+      ? error.message
+      : String(error);
+    if (error && error.code !== undefined) {
+      pendingStreamApiMessage += ' (code ' + error.code + ')';
+    }
+    handleMessage('streamTerminated: -1');
+  });
+}
+
 const SyncFunctions = {
   // no parameters
   'makeCert': (...args) => Module.makeCert(...args),
@@ -10,6 +54,10 @@ const SyncFunctions = {
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
   fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
   'startRequest': (...args) => {
+    if (isWmpTransportSelected()) {
+      startWmpSession(args);
+      return {type: 'resolve', ret: null};
+    }
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
     const rawH264Level = args[33];
@@ -28,6 +76,14 @@ const SyncFunctions = {
       window.moonlightAmbilight.stop().catch(function(error) {
         console.warn('[ambilight] Could not stop native service:', error);
       });
+    }
+    if (isWmpTransportSelected()) {
+      if (window.WmpTransport && typeof window.WmpTransport.stopStream === 'function') {
+        window.WmpTransport.stopStream().catch(function(error) {
+          console.warn('[messages.js, stopRequest]', 'WMP stop request failed:', error);
+        });
+      }
+      return {type: 'resolve', ret: null};
     }
     return Module.stopStream(...args);
   },
