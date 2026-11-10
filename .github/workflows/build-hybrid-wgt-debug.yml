@@ -8,7 +8,7 @@ on:
         required: false
         type: boolean
         default: false
-  push:
+  # Deliberately manual-only: debug builds must never run on production pushes.
     branches: ["1.2.4-pre"]
     paths:
       - "CMakeLists.txt"
@@ -157,10 +157,10 @@ jobs:
             -e HOME=/runner-temp/moonlight-home \
             -e EMSDK=/opt/emscripten-release-bundle/emsdk \
             -e BUILD_TYPE=release \
-            -e DEBUG_MODE=true \
-            -e LOG_SHOW_PRIVATE_DATA="${{ inputs.show_private_data }}" \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
+            -e DEBUG_MODE=true \
+            -e LOG_SHOW_PRIVATE_DATA=${{ inputs.show_private_data }} \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
 
       - name: Extract unsigned Moonlight Web files
