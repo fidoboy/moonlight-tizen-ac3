@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   build:
-    name: Cross-build Tizen ARM engine and ServiceApp
+    name: Cross-build Tizen ARM engine
     runs-on: ubuntu-22.04
     timeout-minutes: 90
 
@@ -68,7 +68,5 @@ jobs:
           retention-days: 14
           path: |
             engine-build/libmlengine.so
-            wmp/build/service/bin/wmp-service
-            wmp/build/service/lib/libmlengine.so
             build-report/
             wmp-tv-libs/

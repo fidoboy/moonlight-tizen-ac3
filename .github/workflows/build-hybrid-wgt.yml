@@ -163,12 +163,10 @@ jobs:
             "$image" bash -s <<'PACKAGE'
           
           set -euo pipefail
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          test -s "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+          test -s "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so"
           test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore_wl2.so.1"
           test -s "$RUNNER_TEMP/wmp-native/wmp-tv-libs/usr/lib/libecore.so.1"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/bin/wmp-service"
-          file "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so"
+          file "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so"
           cc -O2 -Wall -Wextra -I/usr/include/libxml2 scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           run_tz() {
             local label="$1"
@@ -314,7 +312,7 @@ jobs:
           test -d "$wmp_project"
           mkdir -p "$wmp_project/src" "$wmp_project/lib"
           cp wmp/service/src/main.c wmp/service/src/wmp_esplus_abi.h wmp/upstream/mlclient/mlengine.h "$wmp_project/src/"
-          cp "$RUNNER_TEMP/wmp-native/wmp/build/service/lib/libmlengine.so" "$wmp_project/lib/libmlengine.so"
+          cp "$RUNNER_TEMP/wmp-native/engine-build/libmlengine.so" "$wmp_project/lib/libmlengine.so"
           cp wmp/service/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
 
           python3 - "$web_standard/config.xml" "$wmp_project/tizen-manifest.xml" <<'PY'

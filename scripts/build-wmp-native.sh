@@ -71,21 +71,14 @@ echo "== Build Moonlight core, GameStream and private crypto dependencies"
 bash wmp/upstream/build/build-deps-lib.sh
 echo "== Build ARM libmlengine.so"
 BUILD_VARIANT=release bash wmp/upstream/mlclient/build-engine-so.sh
-echo "== Link ARM WMP ServiceApp executable"
-bash wmp/service/build-wmp-service.sh
 echo "== Verify ARM ELF files and runtime metadata"
 mkdir -p "$ROOT/build-report"
 readelf -h "$ENGINE_OUT/libmlengine.so" > "$ROOT/build-report/libmlengine-elf-header.txt"
 readelf -d "$ENGINE_OUT/libmlengine.so" > "$ROOT/build-report/libmlengine-dynamic.txt"
-readelf -h wmp/build/service/bin/wmp-service > "$ROOT/build-report/wmp-service-elf-header.txt"
-readelf -d wmp/build/service/bin/wmp-service > "$ROOT/build-report/wmp-service-dynamic.txt"
-file "$ENGINE_OUT/libmlengine.so" wmp/build/service/bin/wmp-service | tee "$ROOT/build-report/file.txt"
+file "$ENGINE_OUT/libmlengine.so" | tee "$ROOT/build-report/file.txt"
 grep -q 'Machine:.*ARM' "$ROOT/build-report/libmlengine-elf-header.txt"
-grep -q 'Machine:.*ARM' "$ROOT/build-report/wmp-service-elf-header.txt"
-grep -q 'Shared library: \[libmlengine.so\]' "$ROOT/build-report/wmp-service-dynamic.txt"
-grep -q 'Library runpath: \[\$ORIGIN/../lib\]' "$ROOT/build-report/wmp-service-dynamic.txt"
 if grep -q 'NEEDED.*libesplusplayer' "$ROOT/build-report/libmlengine-dynamic.txt"; then
   echo "libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED." >&2
   exit 1
 fi
-echo "Both WMP ARM outputs verified; ESPlus remains runtime-loaded."
+echo "WMP ARM engine verified; ESPlus remains runtime-loaded. The ServiceApp executable is compiled once by Tizen build-app during TPK packaging."
