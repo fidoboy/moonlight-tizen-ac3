@@ -19,8 +19,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         acl \
         aria2 \
-        autoconf \
-        automake \
         binutils \
         bridge-utils \
         build-essential \
@@ -41,9 +39,7 @@ RUN apt-get update \
         librsvg2-bin \
         fonts-dejavu-core \
         libxml2-dev \
-        libtool \
         openssl \
-        pkg-config \
         libxi6 \
         libsdl1.2debian \
         libv4l-0 \
@@ -73,19 +69,7 @@ RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh \
     && mkdir -p /opt/wmp-backport-deps \
     && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
     && git clone --depth 1 --branch curl-7_59_0 https://github.com/curl/curl.git /opt/wmp-backport-deps/curl759 \
-    && tool_root=/opt/wmp-tizen-deps/toolchain \
-    && tool_bin="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin" \
-    && mkdir -p "$tool_bin" \
-    && for tool in gcc ar ranlib objdump; do \
-         tool_source="$(find "$tool_root" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"; \
-         test -n "$tool_source" || { echo "Missing Tizen ARM tool: $tool" >&2; exit 1; }; \
-         tool_target="$tool_bin/arm-linux-gnueabi-$tool"; \
-         if [[ "$tool_source" != "$tool_target" ]]; then ln -sfn "$tool_source" "$tool_target"; fi; \
-       done \
-    && test -x "$tool_bin/arm-linux-gnueabi-gcc" \
-    && test -x "$tool_bin/arm-linux-gnueabi-ar" \
-    && test -x "$tool_bin/arm-linux-gnueabi-ranlib" \
-    && test -x "$tool_bin/arm-linux-gnueabi-objdump" \
+    && find /opt/wmp-tizen-deps/toolchain -type f -name arm-linux-gnueabi-gcc -perm -u+x -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name service_app.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
@@ -173,6 +157,27 @@ RUN chmod -R a+rX /home/tizen/tizen-studio
 # Profiles, certificates and user data must be created per workflow execution.
 ENV TIZEN_STUDIO_DATA_PATH=/tmp/tizen-studio-data
 WORKDIR /workspace
+
+# Install the autotools needed by cURL's source-tree buildconf without
+# invalidating the earlier Tizen Studio and Emscripten image layers.
+# Normalize the GCC 6.2 archive layout to the paths used by the WMP build scripts.
+RUN set -euo pipefail \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends autoconf automake libtool pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && tool_root=/opt/wmp-tizen-deps/toolchain \
+    && tool_bin="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin" \
+    && mkdir -p "$tool_bin" \
+    && for tool in gcc ar ranlib objdump; do \
+         tool_source="$(find "$tool_root" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"; \
+         test -n "$tool_source" \
+         && tool_target="$tool_bin/arm-linux-gnueabi-$tool" \
+         && { [[ "$tool_source" == "$tool_target" ]] || ln -sfn "$tool_source" "$tool_target"; }; \
+       done \
+    && test -x "$tool_bin/arm-linux-gnueabi-gcc" \
+    && test -x "$tool_bin/arm-linux-gnueabi-ar" \
+    && test -x "$tool_bin/arm-linux-gnueabi-ranlib" \
+    && test -x "$tool_bin/arm-linux-gnueabi-objdump"
 
 # Validate the complete shared toolchain inside the image build. Keeping these
 # checks here avoids pulling/extracting this large image on the limited Actions
