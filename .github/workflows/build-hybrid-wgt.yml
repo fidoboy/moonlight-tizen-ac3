@@ -393,10 +393,10 @@ jobs:
               r'(<option[^>]*superClass="sbi[.]gnu[.]cpp[.]linker[.]option[.]frameworks_lflags[.]core"[^>]*>).*?(</option>)',
               re.DOTALL)
           sysroot = "$" + "{SBI_SYSROOT}"
-          flags = "\\n".join([
+          flags = "\n".join([
               '                                    <listOptionValue builtIn="false" value="-Wl,-z,relro,--as-needed"/>',
               '                                    <listOptionValue builtIn="false" value="--sysroot=&quot;' + sysroot + '&quot;"/>'])
-          content, n = options.subn(lambda m: m.group(1) + "\\n" + flags + "\\n                                " + m.group(2), content)
+          content, n = options.subn(lambda m: m.group(1) + "\n" + flags + "\n                                " + m.group(2), content)
           if n != 2: raise SystemExit(f"Expected 2 linker configurations, found {n}")
           selectors = re.compile(
               r'<option[^>]*superClass="sbi[.]gnu[.](?:c|cpp)[.]compiler[.]option"[^>]*>.*?</option>',
@@ -419,32 +419,34 @@ jobs:
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\\r"; exp_continue }
-            -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
+            -re {Author password:} { send -- "123456\r"; exp_continue }
+            -re {Distributor1 password:} { send -- "tizenpkcs12passfordsigner\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
             eof
           }
           set status [wait]
           exit [lindex $status 3]
           EXPECT
           chmod 600 "$wmp_expect"
-          run_tz "build-wmp-service-tpk" expect "$wmp_expect" tizen build-app \\
-            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \\
-            -b 'name:b1,targets:[WmpService],methods:[m1]' \\
-            -p 'name:p1,targets:[b1]' \\
-            -s Moonlight \\
+          run_tz "build-wmp-service-tpk" expect "$wmp_expect" tizen build-app \
+            -m 'name:m1,compiler:gcc,rootstraps:[{"name":"iot-headed-6.0-device.core","platform":"iot-headed-6.0","arch":"arm"}],configs:[Release]' \
+            -b 'name:b1,targets:[WmpService],methods:[m1]' \
+            -p 'name:p1,targets:[b1]' \
+            -s Moonlight \
             -- "$workspace"
 
           mapfile -t wmp_pkgs < <(find "$wmp_project" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#wmp_pkgs[@]} != 1 )); then
             echo "::error::Expected exactly one WMP service TPK; found ${#wmp_pkgs[@]}."
-            printf '%s\\n' "${wmp_pkgs[@]}"
+            printf '%s\n' "${wmp_pkgs[@]}"
             exit 1
           fi
           wmp_tpk="${wmp_pkgs[0]}"
           test -s "$wmp_tpk"
           echo "WMP service TPK: $wmp_tpk"
           unzip -tq "$wmp_tpk"
+          unzip -Z1 "$wmp_tpk" | grep -Fxq 'bin/wmp-service'
+          unzip -Z1 "$wmp_tpk" | grep -Fxq 'lib/libmlengine.so'
         
           package_hybrid() {
             local source="$1" name="$2" base_wgt="$3" output="$4"
@@ -500,12 +502,19 @@ jobs:
           ET.register_namespace("", "http://tizen.org/ns/packages")
           tree = ET.parse(path)
           root = tree.getroot()
-          service_app = next((node for node in root.iter()
-                              if node.tag.endswith("service-application")), None)
-          if service_app is None:
-              raise SystemExit("Hybrid manifest has no embedded service application")
-          if service_app.get("api-version") != "13":
-              raise SystemExit("Embedded service API 13 requirement changed unexpectedly")
+          service_apps = {
+              node.get("appid"): node for node in root.iter()
+              if node.tag.endswith("service-application")
+          }
+          ambilight = service_apps.get("MoonLightS.MoonlightAmbilight")
+          wmp = service_apps.get("MoonLightS.WmpService")
+          if ambilight is None or wmp is None:
+              raise SystemExit("Hybrid manifest must contain both Ambilight and WMP services")
+          if ambilight.get("api-version") != "13":
+              raise SystemExit("Embedded Ambilight service API 13 requirement changed unexpectedly")
+          for app in (ambilight, wmp):
+              if app.get("on-boot") != "false" or app.get("auto-restart") != "false":
+                  raise SystemExit("Auxiliary services must remain opt-in and must not auto-start")
           root.set("api-version", "5.5")
           tree.write(path, encoding="UTF-8", xml_declaration=True)
           print("Hybrid manifest floor set to Tizen 5.5; embedded service remains Tizen 10 API 13.")
