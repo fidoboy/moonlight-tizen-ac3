@@ -41,9 +41,9 @@ jobs:
         run: |
           set -euo pipefail
           node tests/wmp_transport_test.js
-          cc -std=c99 -Wall -Wextra -Werror \\
-            -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src \\
-            wmp/tests/wmp_audio_passthrough_test.c \\
+          cc -std=c99 -Wall -Wextra -Werror \
+            -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src \
+            wmp/tests/wmp_audio_passthrough_test.c \
             -o "$RUNNER_TEMP/wmp-audio-passthrough-test"
           "$RUNNER_TEMP/wmp-audio-passthrough-test"
           bash wmp/tests/wmp_service_syntax_test.sh
