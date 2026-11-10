@@ -286,6 +286,7 @@ function ensurePerformanceStatsOverlayElements() {
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
   var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
   var engineStatus = container.querySelector('#performanceStatsEngineStatus');
+  var audioStatus = container.querySelector('#performanceStatsAudioStatus');
   if (!textElement || !canvas || !hostCanvas || !encryptionStatus || !engineStatus || !audioStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
@@ -366,13 +367,13 @@ function ensurePerformanceStatsOverlayElements() {
   if (engineValueElement) {
     engineValueElement.textContent = window._activeStreamingEngineConfirmed
       ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS')
-      : t('Pending');
+      : '';
   }
   var audioValueElement = audioStatus.querySelector('#performanceStatsAudioValue');
   if (audioValueElement) {
     audioStatus.style.display = window._activeStreamingEngine === 'WMP' ? '' : 'none';
     audioValueElement.textContent = window._activeStreamingEngine === 'WMP'
-      ? (window._wmpActiveAudioCodec || t('Waiting for audio'))
+      ? (window._wmpActiveAudioCodec || '—')
       : '';
   }
 
