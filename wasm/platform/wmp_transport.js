@@ -40,6 +40,13 @@
     if (message.protocol !== PROTOCOL) return;
 
     if (message.type === 'event') {
+      if (message.event && /^wmpAudioCodec: (OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
+        global._wmpActiveAudioCodec = String(message.event).slice('wmpAudioCodec: '.length);
+        if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
+          global.refreshPerformanceStatsEngineStatus();
+        }
+        return;
+      }
       if (message.detail) global.pendingStreamApiMessage = String(message.detail);
       if (typeof global.handleMessage === 'function' && message.event) {
         global.handleMessage(String(message.event));
