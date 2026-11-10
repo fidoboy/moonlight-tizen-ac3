@@ -73,7 +73,19 @@ RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh \
     && mkdir -p /opt/wmp-backport-deps \
     && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
     && git clone --depth 1 --branch curl-7_59_0 https://github.com/curl/curl.git /opt/wmp-backport-deps/curl759 \
-    && find /opt/wmp-tizen-deps/toolchain -type f -name arm-linux-gnueabi-gcc -perm -u+x -print -quit | grep -q . \
+    && tool_root=/opt/wmp-tizen-deps/toolchain \
+    && tool_bin="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin" \
+    && mkdir -p "$tool_bin" \
+    && for tool in gcc ar ranlib objdump; do \
+         tool_source="$(find "$tool_root" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"; \
+         test -n "$tool_source" || { echo "Missing Tizen ARM tool: $tool" >&2; exit 1; }; \
+         tool_target="$tool_bin/arm-linux-gnueabi-$tool"; \
+         if [[ "$tool_source" != "$tool_target" ]]; then ln -sfn "$tool_source" "$tool_target"; fi; \
+       done \
+    && test -x "$tool_bin/arm-linux-gnueabi-gcc" \
+    && test -x "$tool_bin/arm-linux-gnueabi-ar" \
+    && test -x "$tool_bin/arm-linux-gnueabi-ranlib" \
+    && test -x "$tool_bin/arm-linux-gnueabi-objdump" \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name service_app.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
