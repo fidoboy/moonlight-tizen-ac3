@@ -22,6 +22,8 @@ on:
       - "tests/wmp_transport_test.js"
       - ".github/workflows/build-hybrid-wgt.yml"
       - ".github/workflows/wmp-native-build.yml"
+      - "scripts/build-moonlight-web.sh"
+      - "scripts/build-wmp-native.sh"
       - "scripts/validate-hybrid-wgt.py"
       - "scripts/verify-tizen-xmlsig.py"
       - "scripts/xml-c14n.c"
