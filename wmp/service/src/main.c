@@ -380,7 +380,7 @@ static void *session_worker(void *context)
             if (audio_codec != last_audio_codec) {
                 const char *codec_name = audio_codec == 3 ? "E-AC-3" :
                                          audio_codec == 2 ? "AC-3" :
-                                         audio_codec == 1 ? "OPUS" : NULL;
+                                         audio_codec == 1 ? "OPUS" : "PENDING";
                 if (codec_name != NULL) {
                     char audio_event[64];
                     snprintf(audio_event, sizeof(audio_event), "wmpAudioCodec: %s", codec_name);
