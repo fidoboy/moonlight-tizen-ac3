@@ -28,6 +28,7 @@ function startWmpSession(args) {
     rtspUrl: args[10],
     codecMode: args[11],
     audioConfig: args[19],
+    opticalOutputEnabled: !!args[20],
     videoCodec: args[25],
     hdr: args[26],
     fullRange: args[27]
