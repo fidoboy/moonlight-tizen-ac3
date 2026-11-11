@@ -7,6 +7,7 @@ const vm = require('vm');
 
 const pendingMessages = [];
 const debugEntries = [];
+const infoEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const expectedServiceAppId = 'MoonLightS.WmpService';
 assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'WMP ServiceApp appid must match the transport');
@@ -41,7 +42,9 @@ const remotePort = {
         ? {accepted: true}
         : request.command === 'stop_session'
           ? {stopped: true}
-          : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
+          : request.command === 'get_logs'
+            ? {count: 2, logs: ['native stage RTSP complete', 'video submit #1 status=ok']}
+            : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
     const nativeResponse = nextNativeResponse || {status: 'ok', payload};
     nextNativeResponse = null;
     Promise.resolve().then(() => {
@@ -59,7 +62,10 @@ const remotePort = {
 const handledEvents = [];
 const window = {
   DEBUG_MODE: true,
-  console: { debug(...args) { debugEntries.push(args); } },
+  console: {
+    debug(...args) { debugEntries.push(args); },
+    info(...args) { infoEntries.push(args); }
+  },
   handleMessage(message) {
     handledEvents.push(message);
   },
@@ -167,9 +173,22 @@ vm.runInNewContext(source, {
   assert.ok(!debugOutput.includes('rtsp://host/session'), 'Debug log must not include the RTSP URL');
   const stop = await window.WmpTransport.stopStream();
   assert.strictEqual(stop.payload.stopped, true);
+  const logs = await window.WmpTransport.getLogs();
+  assert.strictEqual(logs.payload.count, 2);
+  assert.deepStrictEqual(logs.payload.logs, [
+    'native stage RTSP complete', 'video submit #1 status=ok'
+  ]);
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpDiagnosticReady'}
+  ]);
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
+    'Debug builds must print the native diagnostic log after session teardown');
   assert.deepStrictEqual(
     pendingMessages.map(message => message.command),
-    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session']
+    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session', 'get_logs', 'get_logs']
   );
 
   messageListener([
