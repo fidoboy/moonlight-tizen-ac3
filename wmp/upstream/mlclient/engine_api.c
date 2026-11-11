@@ -230,6 +230,20 @@ static int hexval(char c) {
   return -1;
 }
 
+/* Invalid start parameters are failed commands and must replace stale diagnostics. */
+static int invalid_settings(int width, int height, int fps, int bitrate_kbps, const char *why) {
+  mldiag_cfg cfg = {
+    .width = width,
+    .height = height,
+    .fps = fps,
+    .bitrate_kbps = bitrate_kbps
+  };
+  mldiag_reset(&cfg);
+  mldiag_fail(GS_INVALID, 0, "settings", 0, 0, 0, 0, 0, 0, 0, 0);
+  MLT("ml_engine_start_session -> GS_INVALID (%s)", why);
+  return GS_INVALID;
+}
+
 static int start_session_impl(const char *host, int width, int height, int fps, int bitrate_kbps,
                               const char *rikey_hex, int rikeyid, const char *app_version,
                               const char *gfe_version, const char *rtsp_url,
@@ -243,11 +257,13 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
-  if (!host || !rikey_hex || strlen(rikey_hex) != 32) { MLT("ml_engine_start_session -> GS_INVALID"); return GS_INVALID; }
+  if (!host || !rikey_hex || strlen(rikey_hex) != 32)
+    return invalid_settings(width, height, fps, bitrate_kbps, "host or rikey length");
   unsigned char key[16];
   for (int i = 0; i < 16; i++) {
     int hi = hexval(rikey_hex[i * 2]), lo = hexval(rikey_hex[i * 2 + 1]);
-    if (hi < 0 || lo < 0) { MLT("ml_engine_start_session -> GS_INVALID (rikey hex)"); return GS_INVALID; }
+    if (hi < 0 || lo < 0)
+      return invalid_settings(width, height, fps, bitrate_kbps, "rikey hex");
     key[i] = (unsigned char)(hi << 4 | lo);
   }
   if (!width)  width = 1920;
@@ -257,8 +273,7 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   /* validate at the ABI boundary: bad values return an error the host can report */
   if (width < 320 || width > 7680 || height < 240 || height > 4320 || fps < 10 || fps > 240 ||
       bitrate_kbps < 500 || bitrate_kbps > 500000 || !*host) {
-    MLT("ml_engine_start_session -> GS_INVALID (bad stream settings)");
-    return GS_INVALID;
+    return invalid_settings(width, height, fps, bitrate_kbps, "bad stream settings");
   }
   snprintf(g_sess_host, sizeof g_sess_host, "%s", host);
   snprintf(g_sess_appver, sizeof g_sess_appver, "%s", app_version ? app_version : "");
