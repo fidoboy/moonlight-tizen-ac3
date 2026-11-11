@@ -107,7 +107,8 @@ RUN installer=/tmp/tizen-web-cli.bin \
        done \
     && test -x "$TIZEN_STUDIO/tools/ide/bin/tizen" \
     && test -x "$TIZEN_STUDIO/tools/tizen-core/tz" \
-    && rm -f "$installer" /tmp/tizen-extra-repositories.txt /tmp/tizen-installed-packages.txt
+    && rm -f "$installer" /tmp/tizen-extra-repositories.txt /tmp/tizen-installed-packages.txt \
+    && chmod -R a+rX "$TIZEN_STUDIO"
 
 USER root
 ENV HOME=/root
@@ -143,7 +144,6 @@ RUN curl --fail --location --retry 3 \
     && test -d /usr/share/dotnet/packs/Samsung.NETCore.App.Runtime.tizen/10.0.120 \
     && /usr/share/dotnet/dotnet workload list | grep -i tizen
 
-RUN chmod -R a+rX /home/tizen/tizen-studio
 
 # Tizen Studio and package-manager files are shared and immutable at runtime.
 # Profiles, certificates and user data must be created per workflow execution.
