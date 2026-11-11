@@ -114,6 +114,7 @@ static void *s_disp, *s_win;
 static int s_ecore;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int s_prepared, s_prepare_ok, s_started;
+static int s_start_tried;   /* start() is attempted once, even when prepare reports ok=0 */
 
 esplus_stats_t esplus_stats;
 esplus_cfg_t esplus_cfg;
@@ -340,6 +341,7 @@ int esplus_create_open(void)
     load_cfg();
     memset(&esplus_stats, 0, sizeof(esplus_stats));
     s_prepared = s_prepare_ok = s_started = 0;
+    s_start_tried = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
     s_fps_t0 = 0;
     s_corr_us = 0;
@@ -528,9 +530,13 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     static int last_raw = 4;
 
     pthread_mutex_lock(&s_lock);
-    if (s_prepared && s_prepare_ok && !s_started) {
-        s_started = 1;
+    if (s_prepared && !s_start_tried) {
+        /* ESPlus may report prepare_async_done(ok=0) after showing the first frame.
+         * The reference engine still calls start() once in that case; skipping it
+         * can leave a black picture while packet submission appears successful. */
+        s_start_tried = 1;
         started = wmp_esplus_adapter_start(&s_adapter);
+        s_started = started.status == WMP_ESPLUS_CALL_SUCCESS;
         PLOG("start status=%d raw=%d\n", (int)started.status, started.raw_status);
         MLT("esplus_start -> status=%d raw=%d", (int)started.status, started.raw_status);
         mldiag_player("start", started.raw_status);
@@ -573,6 +579,7 @@ void esplus_close(void)
         s_pl = NULL;
     }
     s_prepared = s_prepare_ok = s_started = 0;
+    s_start_tried = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
     s_fps_t0 = 0;
     s_corr_us = 0; s_corr_ms = 0; s_tick_prev_ms = 0;
