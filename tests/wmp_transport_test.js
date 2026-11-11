@@ -169,7 +169,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(stop.payload.stopped, true);
   assert.deepStrictEqual(
     pendingMessages.map(message => message.command),
-    ['ping', 'get_status', 'start_session', 'stop_session']
+    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session']
   );
 
   messageListener([
