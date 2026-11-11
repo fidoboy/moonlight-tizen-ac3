@@ -259,6 +259,11 @@ var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
 var pendingMediaPipelineStopRequested = false;
 
+function logStreamTerminationRecovery(stage, details) {
+  if (typeof DEBUG_MODE === 'undefined' || !DEBUG_MODE) return;
+  console.debug('[stream/recovery]', stage, details || '');
+}
+
 function stopStreamAfterMediaPipelineError() {
   if (pendingMediaPipelineStopRequested || !isInGame ||
       window._streamStartupFailureHandled || window._manualStreamStopRequested) return;
@@ -1141,6 +1146,8 @@ function handleMessage(msg) {
       return;
     }
 
+    logStreamTerminationRecovery('termination received', {errorCode: errorCode, engine: window._activeStreamingEngine || null});
+
     // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
     // This also prevents the manual Quit App action from racing the recovery request.
     window._streamTerminationRecoveryInProgress = true;
@@ -1233,6 +1240,7 @@ function handleMessage(msg) {
       resolveLocalAudioRestoration = resolve;
     });
     var restoreLocalAudioAfterTransitionAppears = function() {
+      logStreamTerminationRecovery('closing transition visible');
       if (window._directSmartHubLaunch) {
         resolveLocalAudioRestoration();
         return;
@@ -1379,6 +1387,7 @@ function handleMessage(msg) {
     // shortly before the transition starts fading out, avoiding a flash of the page
     // background behind the animated starfield.
     var beginRecoveryAfterTransition = function() {
+      logStreamTerminationRecovery('closing transition hidden; Apps UI shown');
       if (hasStreamError) {
         // The transition is now fully hidden and the Apps interface is visible.
         // Keep the error modal open until the user acknowledges it; refresh the
@@ -1397,6 +1406,7 @@ function handleMessage(msg) {
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');
         if (errorQuitButton) errorQuitButton.disabled = false;
+        logStreamTerminationRecovery('opening shared stream error dialog', {errorCode: errorCode, hasApiMessage: !!streamErrorApiMessage});
         warningDialog(t('Error'), streamErrorDialogMessage, function() {
           refreshHostAndReturnToApps();
         }, true, 'OK', {
@@ -1426,6 +1436,7 @@ function handleMessage(msg) {
     };
 
     var hideTransitionAndBeginRecovery = function() {
+      logStreamTerminationRecovery('Apps UI fade completed; hiding closing transition');
       // showAppsMode has completed its UI fade and all app-list recovery work.
       // Restart ambient animation now, immediately before the transition fades out.
       if (typeof updateAmbientBackgroundActivation === 'function') {
@@ -1441,6 +1452,7 @@ function handleMessage(msg) {
     };
 
     var showAppsUiBeforeTransitionCloses = function() {
+      logStreamTerminationRecovery('restoring Apps UI');
       // showAppsMode completes the normal UI fade before invoking its callback.
       // Starting the transition fade there leaves only a brief overlap between layers.
       showAppsMode(true, hideTransitionAndBeginRecovery, true);
@@ -1449,6 +1461,7 @@ function handleMessage(msg) {
     // Do not continue recovery or reveal the Apps UI until the local audio engine
     // has been recreated and click.mp3 has been decoded.
     localAudioRestoration.then(function() {
+      logStreamTerminationRecovery('local audio restoration released');
       var remainingTransitionMs = streamTerminationMinimumVisibleMs -
         (Date.now() - streamTerminationTransitionShownAt);
       if (remainingTransitionMs > 0) {
