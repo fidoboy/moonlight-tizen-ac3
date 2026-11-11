@@ -125,8 +125,8 @@
     if (message.type !== 'response') return;
 
     var id = String(message.id || '');
-    var request = pending[id];
-    if (!request) {
+    var pendingRequest = pending[id];
+    if (!pendingRequest) {
       debugLog('ignored response without a pending request', {
         id: id,
         status: message.status || null
@@ -147,31 +147,31 @@
     } catch (error) {
       debugLog('native response contained invalid JSON', {
         id: id,
-        command: request.command,
+        command: pendingRequest.command,
         error: errorDetails(error),
         rawPayloadLength: String(message.payload || '').length
       });
-      request.reject(makeError('native service returned invalid JSON'));
+      pendingRequest.reject(makeError('native service returned invalid JSON'));
       return;
     }
 
     debugLog('native response received', {
       id: id,
-      command: request.command,
+      command: pendingRequest.command,
       status: response.status,
-      elapsedMs: Date.now() - request.startedAt,
+      elapsedMs: Date.now() - pendingRequest.startedAt,
       payload: response.payload
     });
 
     if (response.status === 'ok') {
-      request.resolve(response);
+      pendingRequest.resolve(response);
     } else {
       var errorMessage = response.payload.error || 'native command failed';
       if (response.payload.field) errorMessage += ': ' + String(response.payload.field);
       var error = makeError(errorMessage);
       if (response.payload.code !== undefined) error.code = Number(response.payload.code);
       error.nativePayload = response.payload;
-      request.reject(error);
+      pendingRequest.reject(error);
     }
   }
 
