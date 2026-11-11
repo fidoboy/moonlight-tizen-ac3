@@ -110,9 +110,20 @@ def main():
         fail("Ambilight TPK service must declare the background-network category")
 
     wmp_key = normalized_appid(WMP_APPID)
+    # Tizen Core may synthesize the WMP appid from the executable path
+    # when expanding the referenced WMP TPK into the hybrid manifest.
+    # Accept only that exact generated alias paired with the canonical exec;
+    # all other non-Ambilight service declarations remain unexpected.
+    generated_wmp_appid = "MoonLightS./usr/apps/MoonLightS/bin/wmp-service"
+    generated_wmp_exec = "/usr/apps/MoonLightS/bin/wmp-service"
     unexpected = [
         node.get("appid") for node in service_apps
-        if node is not ambilight and normalized_appid(node.get("appid")) != wmp_key
+        if node is not ambilight
+        and normalized_appid(node.get("appid")) != wmp_key
+        and not (
+            node.get("appid") == generated_wmp_appid
+            and node.get("exec") == generated_wmp_exec
+        )
     ]
     if unexpected:
         fail(f"Hybrid manifest contains unexpected service applications: {unexpected!r}")
