@@ -181,7 +181,7 @@ RUN set -euo pipefail \
     && test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a \
     && test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a \
     && grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' /opt/wmp-backport-deps/arm-static/include/openssl/opensslv.h \
-    && grep -q 'LIBCURL_VERSION "7.59.0"' /opt/wmp-backport-deps/arm-static/include/curl/curlver.h \
+    && grep -Eiq 'LIBCURL_VERSION_NUM[[:space:]]+0x073b00' /opt/wmp-backport-deps/arm-static/include/curl/curlver.h \
     && rm -rf /opt/wmp-backport-deps/openssl111 /opt/wmp-backport-deps/curl759 /opt/wmp-build
 # Validate the complete shared toolchain inside the image build. Keeping these
 # checks here avoids pulling/extracting this large image on the limited Actions
