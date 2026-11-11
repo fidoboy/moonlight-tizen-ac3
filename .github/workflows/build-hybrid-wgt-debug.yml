@@ -386,7 +386,7 @@ jobs:
             find "$wmp_build_dir" -maxdepth 4 -type f -print
             exit 1
           fi
-          rm -rf "$wmp_project/bin/res"
+          rm -rf "$wmp_project/bin/res" "$wmp_project/bin/tpkroot"
           cp wmp/dotnet-host/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
           python3 - "$wmp_project/tizen-manifest.xml" "$web_standard/config.xml" <<'PY'
           import sys
