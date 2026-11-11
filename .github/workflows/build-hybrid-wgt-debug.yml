@@ -721,12 +721,12 @@ jobs:
           PY
           }
           
-          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
-          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
+          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
+          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
-          cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
-          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
+          cp "$RUNNER_TEMP/Moonlight-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-Debug.wgt"
+          cp "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM-Debug.wgt"
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt Moonlight-ForceGM-Debug.wgt > SHA256SUMS)
           
           
           PACKAGE
@@ -745,15 +745,15 @@ jobs:
       - name: Upload standard hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-${{ github.sha }}
-          path: ${{ runner.temp }}/hybrid-output/Moonlight.wgt
+          name: Moonlight-Debug-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-Debug.wgt
           if-no-files-found: error
           retention-days: 14
 
       - name: Upload ForceGM hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-ForceGM-${{ github.sha }}
-          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM.wgt
+          name: Moonlight-ForceGM-Debug-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM-Debug.wgt
           if-no-files-found: error
           retention-days: 14
