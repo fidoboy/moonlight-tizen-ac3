@@ -11,13 +11,13 @@ node tests/wmp_transport_test.js
 cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src \
   wmp/tests/wmp_audio_passthrough_test.c -o "$RUNNER_TEMP/wmp-audio-passthrough-test"
 "$RUNNER_TEMP/wmp-audio-passthrough-test"
-bash wmp/tests/wmp_service_syntax_test.sh
 bash wmp/tests/wmp_esplus_abi_test.sh
 export MLT="$ROOT"
 export DEPS="$ROOT/tizen-deps"
 export BPD="$ROOT/backport-deps"
 export DEPSBUILD="$ROOT/deps-build"
 export ENGINE_OUT="$ROOT/engine-build"
+export OUT="$ENGINE_OUT"
 export SYSROOT="$DEPS/sysroot"
 echo "== Prepare Tizen IoT Headed runtime libraries from the image SDK"
 sdk=/home/tizen/tizen-studio
@@ -81,4 +81,9 @@ if grep -q 'NEEDED.*libesplusplayer' "$ROOT/build-report/libmlengine-dynamic.txt
   echo "libmlengine.so must load ESPlus from TV firmware, not DT_NEEDED." >&2
   exit 1
 fi
-echo "WMP ARM engine verified; ESPlus remains runtime-loaded. The ServiceApp executable is compiled once by Tizen build-app during TPK packaging."
+mkdir -p "$ROOT/wmp/dotnet-host/lib"
+cp "$ENGINE_OUT/libmlengine.so" "$ROOT/wmp/dotnet-host/lib/libmlengine.so"
+echo "== Compile the managed WMP .NET host for the pinned tizen80 target"
+dotnet build "$ROOT/wmp/dotnet-host/MoonlightHost.csproj" --configuration Release --verbosity minimal
+test -s "$ROOT/wmp/dotnet-host/bin/Release/tizen80/MoonlightHost.dll"
+echo "WMP ARM engine and .NET host verified. The C ESPlus adapter sources are linked into libmlengine.so; no C ServiceApp is built."
