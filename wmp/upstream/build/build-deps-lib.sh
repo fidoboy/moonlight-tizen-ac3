@@ -40,7 +40,7 @@ if [[ -s "$CRYPTO_PREFIX/lib/libcrypto.a" &&
       -f "$CRYPTO_PREFIX/include/openssl/opensslv.h" &&
       -f "$CRYPTO_PREFIX/include/curl/curlver.h" ]] &&
    grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' "$CRYPTO_PREFIX/include/openssl/opensslv.h" &&
-   grep -q 'LIBCURL_VERSION "7.59.0"' "$CRYPTO_PREFIX/include/curl/curlver.h"; then
+   grep -Eiq 'LIBCURL_VERSION_NUM[[:space:]]+0x073b00' "$CRYPTO_PREFIX/include/curl/curlver.h"; then
   echo "Reusing cached static ARM OpenSSL 1.1.1d + cURL 7.59.0 libraries."
 else
   if [[ -s "$BPD/openssl111/Configure" && -x "$BPD/curl759/buildconf" ]]; then
