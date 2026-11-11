@@ -55,10 +55,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
           restore-keys: |
-            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-
-            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
+            moonlight-web-ccache-${{ runner.os }}-
 
 
       - name: Build and test WMP native engine and ServiceApp inside shared v4 image
@@ -113,6 +113,12 @@ jobs:
               readelf -h /runner-temp/wmp-engine-build/libmlengine.so | grep -F "Machine:" | grep -F "ARM"
               echo "WMP native engine and ServiceApp cross-build completed."
             '
+      - name: Restore compiler cache ownership after WMP build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+
       - name: Ensure versioned MP4 splash assets are available
         shell: bash
         env:
