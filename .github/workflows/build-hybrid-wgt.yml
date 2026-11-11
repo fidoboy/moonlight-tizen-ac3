@@ -559,6 +559,8 @@ jobs:
                               info.external_attr = (stat.S_IFREG | 0o755) << 16
                           repaired.writestr(info, data)
               os.replace(temporary_path, package_path)
+              # mkstemp creates mode 0600; make the signed artifact readable by the runner.
+              os.chmod(package_path, 0o644)
           finally:
               temporary_path.unlink(missing_ok=True)
           PY
