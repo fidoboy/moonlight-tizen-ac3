@@ -75,10 +75,10 @@ jobs:
               ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
               CCACHE_BIN=/runner-temp/wmp-ccache-bin
               mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
-              cat > "$CCACHE_BIN/arm-linux-gnueabi-gcc" <<'CCACHE_WRAPPER'
-              #!/bin/sh
-              exec ccache "$WMP_ARM_REAL_GCC" "$@"
-              CCACHE_WRAPPER
+              printf '%s\n' \
+                '#!/bin/sh' \
+                'exec ccache "$WMP_ARM_REAL_GCC" "$@"' \
+                > "$CCACHE_BIN/arm-linux-gnueabi-gcc"
               chmod 0755 "$CCACHE_BIN/arm-linux-gnueabi-gcc"
               ln -sf arm-linux-gnueabi-gcc "$CCACHE_BIN/gcc"
               export WMP_ARM_REAL_GCC="$ARM_GCC"
