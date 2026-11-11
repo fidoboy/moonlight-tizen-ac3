@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages"
+          api-version="8"
+          package="org.moonlight.host"
+          version="0.1.0">
+    <profile name="tv"/>
+    <ui-application appid="org.moonlight.host.app"
+                    exec="MoonlightHost.dll"
+                    type="dotnet"
+                    multiple="false"
+                    nodisplay="true"
+                    taskmanage="false"
+                    launch_mode="single">
+        <label>Moonlight WMP host</label>
+        <icon>icon.png</icon>
+        <metadata key="http://samsung.com/tv/metadata/background.execution.support" value="true"/>
+        <background-category value="background-network"/>
+    </ui-application>
+    <privileges>
+        <privilege>http://tizen.org/privilege/internet</privilege>
+        <privilege>http://tizen.org/privilege/network.get</privilege>
+        <privilege>http://developer.samsung.com/privilege/esplay</privilege>
+    </privileges>
+</manifest>
