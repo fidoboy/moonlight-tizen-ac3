@@ -80,6 +80,19 @@ def main():
             fail("Ambilight TPK is missing bin/MoonlightAmbilight.dll")
         if not package.read("bin/MoonlightAmbilight.dll"):
             fail("Ambilight TPK contains an empty MoonlightAmbilight.dll")
+    if ambilight_root.get("package") != "MoonLightS" or ambilight_root.get("api-version") != "10.0":
+        fail("Ambilight TPK package identity/API target changed")
+    ambilight_privileges = {
+        (node.text or "").strip()
+        for node in ambilight_root.iter()
+        if local_name(node) == "privilege"
+    }
+    required_ambilight_privileges = {
+        "http://tizen.org/privilege/internet",
+        "http://tizen.org/privilege/network.get",
+    }
+    if not required_ambilight_privileges <= ambilight_privileges:
+        fail("Ambilight TPK is missing required network privileges")
     ambilight_tpk_apps = [
         node for node in ambilight_root.iter()
         if local_name(node) == "service-application"
