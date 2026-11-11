@@ -21,6 +21,7 @@ on:
       - ".github/workflows/build-hybrid-wgt.yml"
       - "scripts/build-moonlight-web.sh"
       - "scripts/validate-hybrid-wgt.py"
+      - "scripts/normalize-hybrid-manifest.py"
       - "scripts/verify-tizen-xmlsig.py"
       - "scripts/xml-c14n.c"
 
