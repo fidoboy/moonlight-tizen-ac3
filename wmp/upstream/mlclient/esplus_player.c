@@ -301,6 +301,7 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
     (void)stream;
     (void)context;
+    PLOG("callback ready_to_prepare stream=%d\\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
 }
 static void on_error(uint32_t error, void *context)
@@ -573,6 +574,13 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         mldiag_player("start", started.raw_status);
     }
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
+        (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
+         result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
+        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\\n",
+             s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
+             (int)result.status, result.raw_status, s_prepared, s_started);
+    }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO)
         ++s_video_tries;
     mldiag_submit(packet && packet->type == WMP_ESPLUS_STREAM_VIDEO,
