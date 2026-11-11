@@ -13,6 +13,18 @@ namespace MoonlightWmpHost
             base.OnCreate();
             Log.Info("WMP .NET host process started");
 
+            try
+            {
+                // Publish the trusted port before the ELF loader runs. The
+                // WebApp can connect immediately and observe initialization
+                // status instead of racing the service's startup work.
+                HostProtocol.Start();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP control port initialization failed: " + ex);
+            }
+
             string probeState = "library_missing";
             string family = "none";
             string loadError = null;
@@ -52,17 +64,8 @@ namespace MoonlightWmpHost
                 Log.Error("WMP engine initialization failed: " + ex);
             }
 
-            // Always expose the control port, even when the engine or ESPlus
-            // runtime is unavailable, so the WebApp can obtain a useful status.
-            try
-            {
-                HostProtocol.Start(_engine, probeState, family, loadError);
-                Log.Info("WMP .NET service control port initialized");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("WMP control port initialization failed: " + ex);
-            }
+            // Publish the result after the status port is already listening.
+            HostProtocol.UpdateEngine(_engine, probeState, family, loadError);
         }
 
         protected override void OnTerminate()
