@@ -627,6 +627,11 @@ jobs:
               for key, value in expected_ambilight.items():
                   if ambilight_app.get(key) != value:
                       raise SystemExit(f"Final Ambilight service manifest {key} must be {value!r}")
+              if not any(
+                  node.tag.endswith("background-category") and node.get("value") == "background-network"
+                  for node in ambilight_app
+              ):
+                  raise SystemExit("Final Ambilight service is missing background-network capability")
               if "bin/MoonlightAmbilight.dll" not in names or not package.read("bin/MoonlightAmbilight.dll"):
                   raise SystemExit("Final WGT is missing the Ambilight service assembly")
               wmp_app = service_apps["MoonLightS.WmpService"]
