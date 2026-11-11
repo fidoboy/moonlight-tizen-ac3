@@ -123,6 +123,26 @@ def main():
     for key, value in expected_wmp.items():
         if canonical_wmp.get(key) != value:
             fail(f"WMP TPK service {key} must be {value!r}")
+    if not any(
+        local_name(node) == "background-category"
+        and node.get("value") == "background-network"
+        for node in canonical_wmp
+    ):
+        fail("WMP TPK service must declare the background-network category")
+
+    required_privileges = {
+        "http://tizen.org/privilege/internet",
+        "http://tizen.org/privilege/network.get",
+        "http://developer.samsung.com/privilege/esplay",
+    }
+    declared_privileges = {
+        (node.text or "").strip()
+        for node in root.iter()
+        if local_name(node) == "privilege"
+    }
+    missing_privileges = sorted(required_privileges - declared_privileges)
+    if missing_privileges:
+        fail("Hybrid manifest is missing required service privileges: " + ", ".join(missing_privileges))
 
     # Tizen Core derives MoonLightS.wmp-service from the referenced TPK name.
     # Remove every equivalent generated alias, then insert the canonical appid
