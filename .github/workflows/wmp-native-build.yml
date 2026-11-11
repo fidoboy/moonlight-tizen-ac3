@@ -38,7 +38,7 @@ jobs:
 
       - name: Pull Tizen build image from GHCR
         shell: bash
-        run: docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+        run: docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
 
       - name: Test and build WMP entirely inside the shared image
         shell: bash
@@ -49,7 +49,7 @@ jobs:
             -v "$RUNNER_TEMP:/runner-temp" \
             -e RUNNER_TEMP=/runner-temp \
             -w /workspace \
-            ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4 \
+            ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5 \
             bash scripts/build-wmp-native.sh
 
       - name: Upload Tizen SDK library diagnostics
