@@ -8,7 +8,7 @@
 set -e
 MLT=${MLT:?}; DEPS=${DEPS:?}; BPD=${BPD:?}; DEPSBUILD=${DEPSBUILD:?}
 HERE=$(cd "$(dirname "$0")" && pwd)
-GCC=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc
+GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
