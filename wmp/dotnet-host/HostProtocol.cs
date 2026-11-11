@@ -439,9 +439,15 @@ namespace MoonlightWmpHost
             int lastAudioCodec = -1;
             string diagnostic = null;
             int terminationCode = 0;
+            DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
 
             try
             {
+                Log.Info("WMP session starting: video=" + request.VideoCodec + " " +
+                    request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
+                    request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
+                    request.Fps.ToString(CultureInfo.InvariantCulture) +
+                    "; audio renderer is VIDEO-ONLY diagnostic");
                 _engine.SetDolbyPassthrough(request.OpticalOutputEnabled);
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
@@ -450,6 +456,8 @@ namespace MoonlightWmpHost
                     request.CodecMode, request.VideoCodec, request.Hdr,
                     request.AudioConfig, request.FullRange);
 
+                Log.Info("WMP native StartSessionV2 returned " +
+                    result.ToString(CultureInfo.InvariantCulture));
                 if (result != 0)
                 {
                     _engine.Stop();
@@ -481,15 +489,28 @@ namespace MoonlightWmpHost
                         lastAudioCodec = audioCodec;
                     }
 
-                    if (!videoReady)
+                    EngineApi.Stats stats = new EngineApi.Stats();
+                    stats.StructSize = Marshal.SizeOf(typeof(EngineApi.Stats));
+                    int statsResult = _engine.GetStats(ref stats);
+                    if (!videoReady && statsResult == 0 && stats.Submitted > 0)
                     {
-                        EngineApi.Stats stats = new EngineApi.Stats();
-                        stats.StructSize = Marshal.SizeOf(typeof(EngineApi.Stats));
-                        if (_engine.GetStats(ref stats) == 0 && stats.Submitted > 0)
-                        {
-                            videoReady = true;
-                            Event(appId, remotePort, "displayVideo", null);
-                        }
+                        videoReady = true;
+                        Log.Info("WMP first video submission observed: submitted=" +
+                            stats.Submitted.ToString(CultureInfo.InvariantCulture));
+                        Event(appId, remotePort, "displayVideo", null);
+                    }
+                    if (DateTime.UtcNow >= nextDiagnosticLog)
+                    {
+                        Log.Info("WMP video diagnostic: stats_rc=" +
+                            statsResult.ToString(CultureInfo.InvariantCulture) +
+                            ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown"));
+                        nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
                     }
 
                     Thread.Sleep(200);
