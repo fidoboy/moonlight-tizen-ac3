@@ -582,6 +582,7 @@ namespace MoonlightWmpHost
                     request.CodecMode, request.VideoCodec, request.Hdr,
                     request.AudioConfig, request.FullRange);
 
+                RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP native StartSessionV2 returned " +
                     result.ToString(CultureInfo.InvariantCulture));
                 if (result != 0)
@@ -631,6 +632,8 @@ namespace MoonlightWmpHost
                             statsResult.ToString(CultureInfo.InvariantCulture) +
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", playing_ms=" + (statsResult == 0 ? stats.PlayingMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", depth_ms=" + (statsResult == 0 ? stats.DepthMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
@@ -652,6 +655,8 @@ namespace MoonlightWmpHost
                 }
 
                 terminationCode = _engine.ReadLastError(out diagnostic);
+                RecordDiagnostic("host session ended: code=" + terminationCode.ToString(CultureInfo.InvariantCulture) +
+                    (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
                 _engine.Stop();
                 Event(appId, remotePort, "streamTerminated: " +
                     terminationCode.ToString(CultureInfo.InvariantCulture), diagnostic);
@@ -659,6 +664,7 @@ namespace MoonlightWmpHost
             catch (Exception ex)
             {
                 try { _engine.Stop(); } catch { }
+                RecordDiagnostic("host worker exception: " + ex.GetType().Name + ": " + ex.Message);
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP host session worker failed: " + ex.Message);
                 Log.Error("session worker failed: " + ex);
