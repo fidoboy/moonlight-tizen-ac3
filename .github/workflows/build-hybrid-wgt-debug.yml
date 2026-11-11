@@ -32,6 +32,19 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - name: Prepare persistent ccache directory
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+
+      - name: Restore and save Moonlight Web compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh') }}
+          restore-keys: |
+            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-
+            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-
+
       - name: Build and test WMP native engine and ServiceApp inside shared v4 image
         shell: bash
         run: |
@@ -135,6 +148,7 @@ jobs:
             -v "$RUNNER_TEMP:/runner-temp" \
             -w /workspace \
             -e HOME=/runner-temp/moonlight-home \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
             -e EMSDK=/opt/emscripten-release-bundle/emsdk \
             -e BUILD_TYPE=release \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
