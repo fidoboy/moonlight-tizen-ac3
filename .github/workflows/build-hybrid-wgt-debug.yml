@@ -36,12 +36,13 @@ jobs:
         shell: bash
         run: mkdir -p "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
-      - name: Restore and save Moonlight Web compiler cache
-        uses: actions/cache@v4
+      - name: Restore Moonlight Web compiler cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
             moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
             moonlight-web-ccache-${{ runner.os }}-
 
@@ -99,6 +100,7 @@ jobs:
               echo "WMP native engine and ServiceApp cross-build completed."
             '
       - name: Restore compiler cache ownership after WMP build
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -177,6 +179,21 @@ jobs:
             -e DEBUG_MODE=true \
             -e LOG_SHOW_PRIVATE_DATA=${{ inputs.show_private_data }} \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
+
+      - name: Prepare compiler cache ownership for saving
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/moonlight-home/.cache/ccache" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+          fi
+
+      - name: Save Moonlight Web compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Extract unsigned Moonlight Web files
         shell: bash
