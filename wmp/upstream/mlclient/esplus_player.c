@@ -264,8 +264,7 @@ static void *sampler(void *arg)
 static void sampler_start(void)
 {
     pthread_condattr_t attr;
-    if (s_smp_run || esplus_cfg.depth_poll_ms < 50 ||
-        !wmp_esplus_adapter_has_playing_time(&s_adapter))
+    if (s_smp_run || esplus_cfg.depth_poll_ms < 50)
         return;
     pthread_condattr_init(&attr);
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
@@ -614,6 +613,9 @@ void esplus_close(void)
     }
     s_prepared = s_prepare_ok = s_started = 0;
     s_start_tried = 0;
+    s_prepare_called = 0;
+    s_idr_t0 = s_idr_last = 0;
+    s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
     s_fps_t0 = 0;
     s_corr_us = 0; s_corr_ms = 0; s_tick_prev_ms = 0;
