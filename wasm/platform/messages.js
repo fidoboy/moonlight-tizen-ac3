@@ -42,12 +42,35 @@ function startWmpSession(args) {
     fullRange: args[27]
   };
 
+  if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+    console.debug('[wmp] Moonlight is requesting native stream startup', {
+      hostProvided: !!parameters.host,
+      resolution: parameters.w && parameters.h ? parameters.w + 'x' + parameters.h : null,
+      fps: parameters.fps,
+      bitrateKbps: parameters.bitrate,
+      codecMode: parameters.codecMode,
+      audioConfig: parameters.audioConfig,
+      opticalOutputEnabled: parameters.opticalOutputEnabled,
+      videoCodec: parameters.videoCodec,
+      hdr: !!parameters.hdr,
+      fullRange: !!parameters.fullRange
+    });
+  }
+
   window.WmpTransport.startStream(parameters).catch(function(error) {
     pendingStreamApiMessage = error && error.message
       ? error.message
       : String(error);
     if (error && error.code !== undefined) {
       pendingStreamApiMessage += ' (code ' + error.code + ')';
+    }
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.debug('[wmp] Native stream startup request failed', {
+        name: error && error.name || null,
+        message: pendingStreamApiMessage,
+        code: error && error.code !== undefined ? error.code : null,
+        nativePayload: error && error.nativePayload || null
+      });
     }
     handleMessage('streamTerminated: -1');
   });
@@ -987,6 +1010,19 @@ function handleMessage(msg) {
     pendingMediaPipelineApiMessage = null;
     pendingVideoTrackCloseErrorMessage = null;
     pendingVideoTrackCloseApiMessage = null;
+
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.debug('[stream] Stream termination diagnostics', {
+        streamingEngine: window._activeStreamingEngine || null,
+        errorCode: errorCode,
+        manualStopRequested: window._manualStreamStopRequested === true,
+        streamApiMessage: streamApiMessage,
+        streamDialogMessage: streamDialogMessage,
+        mediaPipelineApiMessage: streamMediaPipelineApiMessage,
+        videoTrackCloseApiMessage: streamVideoTrackCloseApiMessage,
+        h264TrackRejection: streamH264TrackRejectionMessage
+      });
+    }
 
     // A startup watchdog already owns the visible error and recovery/exit sequence.
     // Ignore the native stop acknowledgement to prevent a second UI transition.

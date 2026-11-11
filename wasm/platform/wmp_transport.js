@@ -8,7 +8,8 @@
 (function(global) {
   'use strict';
 
-  var SERVICE_APP_ID = 'MoonLightS.WmpService';
+  // Must match the service-application appid in wmp/service/tizen-manifest.xml.
+  var SERVICE_APP_ID = 'MoonWMP001.WmpService';
   var CONTROL_PORT = 'MoonlightWmpControl';
   var REPLY_PORT = 'MoonlightWmpReply';
   var PROTOCOL = 'moonlight-wmp/1';
@@ -19,6 +20,43 @@
   var connectPromise = null;
   var nextRequestId = 0;
   var pending = Object.create(null);
+
+  function debugLog(stage, details) {
+    // The runtime log policy also filters console.debug, but keep this guard
+    // here so WMP diagnostics can never leak into a non-Debug build.
+    if (global.DEBUG_MODE !== true ||
+        !global.console ||
+        typeof global.console.debug !== 'function') return;
+    try {
+      global.console.debug('[wmp]', stage, details === undefined ? '' : details);
+    } catch (error) {}
+  }
+
+  function errorDetails(error) {
+    if (!error) return {message: String(error)};
+    return {
+      name: error.name || null,
+      message: error.message || String(error),
+      code: error.code !== undefined ? error.code : null,
+      domain: error.domain !== undefined ? error.domain : null
+    };
+  }
+
+  function summarizePayload(command, payload) {
+    if (!payload || typeof payload !== 'object' || command !== 'start_session') return {};
+    return {
+      hostProvided: !!payload.host,
+      resolution: payload.w && payload.h ? String(payload.w) + 'x' + String(payload.h) : null,
+      fps: payload.fps,
+      bitrateKbps: payload.bitrate,
+      codecMode: payload.codecMode,
+      audioConfig: payload.audioConfig,
+      opticalOutputEnabled: !!payload.opticalOutputEnabled,
+      videoCodec: payload.videoCodec,
+      hdr: !!payload.hdr,
+      fullRange: !!payload.fullRange
+    };
+  }
 
   function makeError(message) {
     return new Error('WMP transport: ' + message);
@@ -37,9 +75,18 @@
 
   function handleMessage(items) {
     var message = readMessage(items);
-    if (message.protocol !== PROTOCOL) return;
+    if (message.protocol !== PROTOCOL) {
+      debugLog('ignored MessagePort message with unexpected protocol', {
+        receivedProtocol: message.protocol || null
+      });
+      return;
+    }
 
     if (message.type === 'event') {
+      debugLog('native event received', {
+        event: message.event || null,
+        detail: message.detail || null
+      });
       if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
         var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
         global._wmpActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
@@ -58,7 +105,13 @@
 
     var id = String(message.id || '');
     var request = pending[id];
-    if (!request) return;
+    if (!request) {
+      debugLog('ignored response without a pending request', {
+        id: id,
+        status: message.status || null
+      });
+      return;
+    }
 
     delete pending[id];
 
@@ -71,21 +124,52 @@
     try {
       response.payload = JSON.parse(String(message.payload || '{}'));
     } catch (error) {
+      debugLog('native response contained invalid JSON', {
+        id: id,
+        command: request.command,
+        error: errorDetails(error),
+        rawPayloadLength: String(message.payload || '').length
+      });
       request.reject(makeError('native service returned invalid JSON'));
       return;
     }
+
+    debugLog('native response received', {
+      id: id,
+      command: request.command,
+      status: response.status,
+      elapsedMs: Date.now() - request.startedAt,
+      payload: response.payload
+    });
 
     if (response.status === 'ok') {
       request.resolve(response);
     } else {
       var error = makeError(response.payload.error || 'native command failed');
       if (response.payload.code !== undefined) error.code = Number(response.payload.code);
+      error.nativePayload = response.payload;
       request.reject(error);
     }
   }
 
   function connect() {
-    if (connectPromise) return connectPromise;
+    if (connectPromise) {
+      debugLog('reusing in-progress WMP service connection', {
+        serviceAppId: SERVICE_APP_ID
+      });
+      return connectPromise;
+    }
+
+    var connectStartedAt = Date.now();
+    debugLog('connecting to WMP native service', {
+      serviceAppId: SERVICE_APP_ID,
+      controlPort: CONTROL_PORT,
+      replyPort: REPLY_PORT,
+      tizenAvailable: !!global.tizen,
+      messagePortApiAvailable: !!(global.tizen && global.tizen.messageport),
+      applicationLaunchApiAvailable: !!(global.tizen && global.tizen.application &&
+        typeof global.tizen.application.launch === 'function')
+    });
 
     connectPromise = new Promise(function(resolve, reject) {
       try {
@@ -96,14 +180,35 @@
           throw makeError('required Tizen APIs are unavailable');
         }
 
+        debugLog('requesting trusted local reply MessagePort', {replyPort: REPLY_PORT});
         localPort = tizen.messageport.requestTrustedLocalMessagePort(REPLY_PORT);
+        debugLog('trusted local reply MessagePort acquired', {
+          replyPort: REPLY_PORT,
+          portAvailable: !!localPort
+        });
         listenerId = localPort.addMessagePortListener(handleMessage);
+        debugLog('local MessagePort listener registered', {listenerId: listenerId});
 
+        debugLog('launching WMP ServiceApp', {serviceAppId: SERVICE_APP_ID});
         tizen.application.launch(SERVICE_APP_ID, function() {
+          debugLog('WMP ServiceApp launch callback succeeded', {
+            serviceAppId: SERVICE_APP_ID,
+            elapsedMs: Date.now() - connectStartedAt
+          });
           try {
+            debugLog('requesting trusted remote control MessagePort', {
+              serviceAppId: SERVICE_APP_ID,
+              controlPort: CONTROL_PORT
+            });
             remotePort = tizen.messageport.requestTrustedRemoteMessagePort(
               SERVICE_APP_ID, CONTROL_PORT
             );
+            debugLog('remote control MessagePort acquired', {
+              serviceAppId: SERVICE_APP_ID,
+              controlPort: CONTROL_PORT,
+              portAvailable: !!remotePort,
+              trusted: !!(remotePort && remotePort.isTrusted)
+            });
             if (!remotePort || remotePort.isTrusted !== true) {
               close();
               throw makeError('native control port is not trusted');
@@ -114,15 +219,32 @@
               trusted: !!remotePort.isTrusted
             });
           } catch (error) {
+            debugLog('could not open trusted remote control MessagePort', {
+              serviceAppId: SERVICE_APP_ID,
+              controlPort: CONTROL_PORT,
+              elapsedMs: Date.now() - connectStartedAt,
+              error: errorDetails(error)
+            });
             close();
-            reject(makeError('native control port is unavailable: ' + error.message));
+            reject(makeError('native control port is unavailable: ' +
+              (error && error.message ? error.message : String(error))));
           }
         }, function(error) {
+          debugLog('WMP ServiceApp launch failed', {
+            serviceAppId: SERVICE_APP_ID,
+            elapsedMs: Date.now() - connectStartedAt,
+            error: errorDetails(error)
+          });
           close();
           reject(makeError('could not launch native service: ' +
             (error && error.message ? error.message : String(error))));
         });
       } catch (error) {
+        debugLog('WMP service connection setup failed synchronously', {
+          serviceAppId: SERVICE_APP_ID,
+          elapsedMs: Date.now() - connectStartedAt,
+          error: errorDetails(error)
+        });
         connectPromise = null;
         reject(error && error.message && error.message.indexOf('WMP transport:') === 0
           ? error
@@ -142,17 +264,37 @@
     try {
       serializedPayload = JSON.stringify(payload === undefined ? {} : payload);
     } catch (error) {
+      debugLog('request payload serialization failed', {
+        command: command,
+        error: errorDetails(error)
+      });
       return Promise.reject(makeError('payload is not JSON serializable'));
     }
 
     if (serializedPayload.length > 2048) {
+      debugLog('request rejected because payload is too large', {
+        command: command,
+        payloadLength: serializedPayload.length,
+        maximumLength: 2048
+      });
       return Promise.reject(makeError('control payload exceeds 2048 characters'));
     }
+
+    debugLog('native command queued', {
+      command: command,
+      payloadLength: serializedPayload.length,
+      parameters: summarizePayload(command, payload)
+    });
 
     return connect().then(function() {
       return new Promise(function(resolve, reject) {
         var id = String(++nextRequestId);
-        pending[id] = {resolve: resolve, reject: reject};
+        pending[id] = {
+          resolve: resolve,
+          reject: reject,
+          command: command,
+          startedAt: Date.now()
+        };
 
         try {
           var items = [
@@ -169,20 +311,48 @@
               items.push({key: 'arg_' + key, value: String(value)});
             });
           }
+          debugLog('sending native command over MessagePort', {
+            id: id,
+            command: command,
+            itemCount: items.length
+          });
           remotePort.sendMessage(items, localPort);
         } catch (error) {
           delete pending[id];
+          debugLog('native command send failed', {
+            id: id,
+            command: command,
+            error: errorDetails(error)
+          });
           reject(makeError('could not send command: ' + error.message));
         }
       });
+    }).catch(function(error) {
+      debugLog('native command failed before receiving a response', {
+        command: command,
+        error: errorDetails(error)
+      });
+      throw error;
     });
   }
 
   function close() {
+    var pendingCount = Object.keys(pending).length;
+    debugLog('closing WMP transport', {
+      localPortAvailable: !!localPort,
+      remotePortAvailable: !!remotePort,
+      listenerRegistered: listenerId !== null,
+      pendingRequests: pendingCount
+    });
     if (localPort && listenerId !== null) {
       try {
         localPort.removeMessagePortListener(listenerId);
-      } catch (error) {}
+      } catch (error) {
+        debugLog('failed to remove local MessagePort listener', {
+          listenerId: listenerId,
+          error: errorDetails(error)
+        });
+      }
     }
     localPort = null;
     remotePort = null;

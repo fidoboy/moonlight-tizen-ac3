@@ -6,6 +6,10 @@ const path = require('path');
 const vm = require('vm');
 
 const pendingMessages = [];
+const debugEntries = [];
+const manifest = fs.readFileSync(path.join(__dirname, '../wmp/service/tizen-manifest.xml'), 'utf8');
+const expectedServiceAppId = 'MoonWMP001.WmpService';
+assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'WMP ServiceApp appid must match the transport');
 let messageListener = null;
 let listenerRemoved = false;
 let launchedAppId = null;
@@ -49,6 +53,8 @@ const remotePort = {
 
 const handledEvents = [];
 const window = {
+  DEBUG_MODE: true,
+  console: { debug(...args) { debugEntries.push(args); } },
   handleMessage(message) {
     handledEvents.push(message);
   },
@@ -59,7 +65,7 @@ const window = {
         return localPort;
       },
       requestTrustedRemoteMessagePort(appId, portName) {
-        assert.strictEqual(appId, 'MoonLightS.WmpService');
+        assert.strictEqual(appId, expectedServiceAppId);
         assert.strictEqual(portName, 'MoonlightWmpControl');
         return remotePort;
       }
@@ -91,7 +97,7 @@ vm.runInNewContext(source, {
 (async function() {
   const connection = await window.WmpTransport.connect();
   assert.strictEqual(connection.trusted, true);
-  assert.strictEqual(launchedAppId, 'MoonLightS.WmpService');
+  assert.strictEqual(launchedAppId, expectedServiceAppId);
 
   const ping = await window.WmpTransport.ping();
   assert.strictEqual(ping.payload.pong, true);
@@ -125,7 +131,13 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
   assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
   assert.strictEqual(startMessage.arg_videoCodec, 'H264');
-
+  const debugOutput = JSON.stringify(debugEntries);
+  assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
+  assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
+  assert.ok(debugOutput.includes('native response received'), 'Debug log must record native responses');
+  assert.ok(debugOutput.includes('1920x1080'), 'Debug log must include stream dimensions');
+  assert.ok(!debugOutput.includes('00112233445566778899aabbccddeeff'), 'Debug log must not include the session key');
+  assert.ok(!debugOutput.includes('rtsp://host/session'), 'Debug log must not include the RTSP URL');
   const stop = await window.WmpTransport.stopStream();
   assert.strictEqual(stop.payload.stopped, true);
   assert.deepStrictEqual(
@@ -151,6 +163,14 @@ vm.runInNewContext(source, {
 
   window.WmpTransport.close();
   assert.strictEqual(listenerRemoved, true);
+  const debugEntryCount = debugEntries.length;
+
+  // Diagnostic output must be completely suppressed outside Debug builds.
+  window.DEBUG_MODE = false;
+  await window.WmpTransport.connect();
+  await window.WmpTransport.ping();
+  assert.strictEqual(debugEntries.length, debugEntryCount, 'WMP diagnostics must be Debug-only');
+  window.WmpTransport.close();
   console.log('WMP trusted MessagePort bridge tests passed.');
 })().catch(error => {
   console.error(error);
