@@ -1,4 +1,4 @@
-name: WMP native ARM build
+name: WMP engine and .NET host build
 
 on:
   workflow_dispatch:
@@ -24,21 +24,57 @@ concurrency:
 
 jobs:
   build:
-    name: Cross-build Tizen ARM engine
+    name: Build ARM engine and managed WMP host
     runs-on: ubuntu-22.04
     timeout-minutes: 90
 
     steps:
-      - name: Check out WMP service sources and submodules
+      - name: Check out WMP engine and .NET host sources
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.source_ref }}
           submodules: recursive
           fetch-depth: 1
 
-      - name: Pull the shared Tizen build image
+      - name: Prepare Docker build image cache directory
         shell: bash
-        run: docker pull ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4
+        run: mkdir -p "$RUNNER_TEMP/docker-image-cache"
+
+      - name: Restore shared Tizen build image cache
+        id: tizen-image-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
+
+      - name: Load cached Tizen image or fall back to GHCR
+        id: tizen-image
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.tizen-image-cache.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          image_tar="$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar"
+          if [[ "$CACHE_HIT" == "true" && -s "$image_tar" ]]; then
+            if docker load --input "$image_tar"; then
+              docker image inspect "$image" >/dev/null
+              exit 0
+            fi
+            echo "::warning::Cached Docker image could not be loaded; falling back to GHCR."
+            rm -f "$image_tar"
+          fi
+          docker pull "$image"
+          docker save --output "$image_tar" "$image"
+          echo "save-cache=true" >> "$GITHUB_OUTPUT"
+
+      - name: Save Tizen build image cache
+        if: steps.tizen-image.outputs.save-cache == 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
 
       - name: Test and build WMP entirely inside the shared image
         shell: bash
