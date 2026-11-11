@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Tizen.Applications;
@@ -26,6 +27,10 @@ namespace MoonlightWmpHost
         private static string _esplusState = "unknown";
         private static string _esplusFamily = "none";
         private static string _loadError;
+        private static readonly Queue<string> StageMessages = new Queue<string>();
+        private static bool _stageDispatchScheduled;
+        private static string _stageAppId;
+        private static string _stageRemotePort;
 
         private sealed class StartRequest
         {
@@ -59,6 +64,7 @@ namespace MoonlightWmpHost
         internal static void UpdateEngine(
             EngineApi engine, string esplusState, string esplusFamily, string loadError)
         {
+            if (engine != null) engine.EnableStageCallbacks();
             lock (Gate)
             {
                 _engine = engine;
@@ -226,6 +232,59 @@ namespace MoonlightWmpHost
             Send(message, appId, remotePort);
         }
 
+        // Called from Moonlight Common C's native connection callback. Keep this
+        // callback short: queue the UI notification and let one managed worker send
+        // ordered MessagePort events outside the native networking thread.
+        internal static void NativeStageStarting(int stage, string name)
+        {
+            try
+            {
+                if (String.IsNullOrEmpty(name)) return;
+                lock (Gate)
+                {
+                    if (!_workerActive || _stopRequested ||
+                        String.IsNullOrEmpty(_stageAppId) || String.IsNullOrEmpty(_stageRemotePort))
+                        return;
+
+                    StageMessages.Enqueue("ProgressMsg: Starting " + name + "...");
+                    if (!_stageDispatchScheduled)
+                    {
+                        _stageDispatchScheduled = true;
+                        if (!ThreadPool.QueueUserWorkItem(DrainStageMessages))
+                            _stageDispatchScheduled = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never allow a managed exception to cross the native callback ABI.
+                Log.Error("WMP stage callback failed: " + ex.Message);
+            }
+        }
+
+        private static void DrainStageMessages(object state)
+        {
+            while (true)
+            {
+                string message;
+                string appId;
+                string remotePort;
+                lock (Gate)
+                {
+                    if (StageMessages.Count == 0)
+                    {
+                        _stageDispatchScheduled = false;
+                        return;
+                    }
+                    message = StageMessages.Dequeue();
+                    appId = _stageAppId;
+                    remotePort = _stageRemotePort;
+                }
+                if (!String.IsNullOrEmpty(appId) && !String.IsNullOrEmpty(remotePort))
+                    Event(appId, remotePort, message, null);
+            }
+        }
+
         private static void OnMessage(object sender, MessageReceivedEventArgs e)
         {
             try
@@ -391,6 +450,9 @@ namespace MoonlightWmpHost
 
                 _workerActive = true;
                 _stopRequested = false;
+                _stageAppId = appId;
+                _stageRemotePort = remotePort;
+                StageMessages.Clear();
                 worker = new Thread(delegate() { RunSession(request, appId, remotePort); });
                 worker.IsBackground = true;
                 _worker = worker;
@@ -400,7 +462,12 @@ namespace MoonlightWmpHost
             try { worker.Start(); }
             catch (Exception ex)
             {
-                lock (Gate) { _workerActive = false; _worker = null; }
+                lock (Gate)
+                {
+                    _workerActive = false; _worker = null;
+                    _stageAppId = null; _stageRemotePort = null;
+                    StageMessages.Clear();
+                }
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP worker start failed: " + ex.Message);
             }
@@ -535,6 +602,9 @@ namespace MoonlightWmpHost
                     _workerActive = false;
                     _worker = null;
                     _stopRequested = false;
+                    _stageAppId = null;
+                    _stageRemotePort = null;
+                    StageMessages.Clear();
                 }
             }
         }
