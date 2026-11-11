@@ -6,7 +6,7 @@
     <label>Moonlight WMP service</label>
     <description>Experimental native ESPlus playback service for Moonlight</description>
     <service-application appid="MoonLightS.WmpService"
-                        exec="wmp-service"
+                        exec="/usr/apps/MoonLightS/bin/wmp-service"
                         nodisplay="true"
                         on-boot="false"
                         auto-restart="false"
