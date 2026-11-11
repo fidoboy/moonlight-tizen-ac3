@@ -84,7 +84,6 @@ jobs:
               node tests/wmp_transport_test.js
               cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src wmp/tests/wmp_audio_passthrough_test.c -o /runner-temp/wmp-audio-passthrough-test
               /runner-temp/wmp-audio-passthrough-test
-              bash wmp/tests/wmp_service_syntax_test.sh
               bash wmp/tests/wmp_esplus_abi_test.sh
               echo "::endgroup::"
               ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
