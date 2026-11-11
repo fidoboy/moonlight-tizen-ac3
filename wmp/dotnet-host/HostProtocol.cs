@@ -176,7 +176,6 @@ namespace MoonlightWmpHost
             else if (value.Height <= 0) invalidField = "h";
             else if (value.Fps <= 0) invalidField = "fps";
             else if (value.Bitrate <= 0) invalidField = "bitrate";
-            else if (value.RikeyId < 0) invalidField = "rikeyid";
             else if (value.CodecMode < 0) invalidField = "codecMode";
             else if (value.VideoCodec != "H264" && value.VideoCodec != "HEVC" &&
                      value.VideoCodec != "AV1") invalidField = "videoCodec";
@@ -309,9 +308,46 @@ namespace MoonlightWmpHost
             Respond(appId, remotePort, id, "ok", payload);
         }
 
+        private static string DiagnosticArgument(Bundle bundle, string name, bool sensitive)
+        {
+            string value = Arg(bundle, name);
+            if (value == null) return "<missing>";
+            if (sensitive) return "<redacted>";
+            return value.Replace("\r", "\\r").Replace("\n", "\\n");
+        }
+
+        private static void LogStartArguments(Bundle bundle)
+        {
+            int debugMode;
+            if (!TryBool(Arg(bundle, "debugMode"), out debugMode) || debugMode == 0)
+                return;
+
+            // DEBUG_MODE diagnostics deliberately redact host addresses and session secrets.
+            Log.Info("WMP start_session arguments (DEBUG_MODE): " +
+                "host=" + DiagnosticArgument(bundle, "host", true) +
+                ", w=" + DiagnosticArgument(bundle, "w", false) +
+                ", h=" + DiagnosticArgument(bundle, "h", false) +
+                ", fps=" + DiagnosticArgument(bundle, "fps", false) +
+                ", bitrate=" + DiagnosticArgument(bundle, "bitrate", false) +
+                ", rikey=" + DiagnosticArgument(bundle, "rikey", true) +
+                ", rikeyid=" + DiagnosticArgument(bundle, "rikeyid", false) +
+                ", appVer=" + DiagnosticArgument(bundle, "appVer", false) +
+                ", gfeVer=" + DiagnosticArgument(bundle, "gfeVer", false) +
+                ", rtspUrl=" + DiagnosticArgument(bundle, "rtspUrl", true) +
+                ", videoCodec=" + DiagnosticArgument(bundle, "videoCodec", false) +
+                ", audioConfig=" + DiagnosticArgument(bundle, "audioConfig", false) +
+                ", codecMode=" + DiagnosticArgument(bundle, "codecMode", false) +
+                ", hdr=" + DiagnosticArgument(bundle, "hdr", false) +
+                ", fullRange=" + DiagnosticArgument(bundle, "fullRange", false) +
+                ", opticalOutputEnabled=" + DiagnosticArgument(bundle, "opticalOutputEnabled", false) +
+                ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false));
+        }
+
         private static void StartSession(Bundle bundle, string appId,
                                          string remotePort, string id)
         {
+            LogStartArguments(bundle);
+
             if (!_ready)
             {
                 Respond(appId, remotePort, id, "error",
