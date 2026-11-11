@@ -99,6 +99,11 @@ namespace MoonlightWmpHost
         private readonly EsplusNameFn _esplusProbeResultName;
         private readonly EsplusNameFn _esplusFamilyName;
         private readonly EsplusCloseFn _esplusClose;
+        private EsplusApi _esplusApi;
+        private bool _esplusProbed;
+        private int _esplusProbeResult;
+        private string _esplusFamily = String.Empty;
+        private string _esplusReport = String.Empty;
 
         // resolve must resolve symbols from the loaded libmlengine image, including
         // symbols in the manually mapped ELF image. No direct DllImport is used.
@@ -129,14 +134,34 @@ namespace MoonlightWmpHost
 
         internal string ProbeEsplus(out string family, out string report)
         {
-            var api = new EsplusApi();
-            var bytes = new byte[2048];
-            int result = _esplusProbe(ref api, bytes, (uint)bytes.Length);
-            report = ReadUtf8(bytes);
-            family = PtrString(_esplusFamilyName(api.SelectedFamily));
-            string state = PtrString(_esplusProbeResultName(result));
-            _esplusClose(ref api);
-            return state;
+            // Keep the dlopen handle alive for the entire host process. The
+            // engine's ESPlus adapter resolves and calls these exports during
+            // playback; closing the handle immediately after probing would
+            // invalidate the native player's function pointers.
+            if (!_esplusProbed)
+            {
+                var bytes = new byte[2048];
+                _esplusProbeResult = _esplusProbe(
+                    ref _esplusApi, bytes, (uint)bytes.Length);
+                _esplusReport = ReadUtf8(bytes);
+                _esplusFamily = PtrString(
+                    _esplusFamilyName(_esplusApi.SelectedFamily));
+                _esplusProbed = true;
+            }
+
+            family = _esplusFamily;
+            report = _esplusReport;
+            return PtrString(_esplusProbeResultName(_esplusProbeResult));
+        }
+
+        internal void CloseEsplus()
+        {
+            if (!_esplusProbed)
+                return;
+
+            // Called only after ml_engine_stop() has completed.
+            _esplusClose(ref _esplusApi);
+            _esplusProbed = false;
         }
 
         internal int ReadLastError(out string diagnostic)
