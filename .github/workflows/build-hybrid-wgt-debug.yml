@@ -470,7 +470,7 @@ jobs:
             #    merge both service-application declarations into the outer manifest.
             #    Tizen Core embeds the referenced TPK payloads, but does not merge
             #    every referenced service application into this manifest.
-            python3 scripts/normalize-hybrid-manifest.py "$project/tizen-manifest.xml" "$wmp_tpk"
+            python3 scripts/normalize-hybrid-manifest.py "$project/tizen-manifest.xml" "$service_tpk" "$wmp_tpk"
           
             # 4. Sign the already assembled hybrid project with the standard
             #    Tizen package command. Prompts match the AC3 Dockerfile.
