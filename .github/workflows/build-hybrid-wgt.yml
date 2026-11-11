@@ -2,28 +2,6 @@ name: Build Hybrid WGT (CI)
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["1.2.4-pre"]
-    paths:
-      - "CMakeLists.txt"
-      - "Dockerfile"
-      - ".dockerignore"
-      - "res/**"
-      - "h264bitstream/**"
-      - "libgamestream/**"
-      - "moonlight-common-c/**"
-      - "opus/**"
-      - "ports/**"
-      - "wasm/**"
-      - "ambilight-service/**"
-      - "wmp/**"
-      - "tests/wmp_transport_test.js"
-      - ".github/workflows/build-hybrid-wgt.yml"
-      - "scripts/build-moonlight-web.sh"
-      - "scripts/validate-hybrid-wgt.py"
-      - "scripts/normalize-hybrid-manifest.py"
-      - "scripts/verify-tizen-xmlsig.py"
-      - "scripts/xml-c14n.c"
 
 permissions:
   contents: read
@@ -32,7 +10,7 @@ permissions:
 
 concurrency:
   group: hybrid-wgt-package-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-hybrid:
