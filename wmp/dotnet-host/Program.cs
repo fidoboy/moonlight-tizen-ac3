@@ -13,6 +13,10 @@ namespace MoonlightWmpHost
             base.OnCreate();
             Log.Info("WMP .NET host process started");
 
+            string probeState = "library_missing";
+            string family = "none";
+            string loadError = null;
+
             try
             {
                 string assemblyDirectory = Path.GetDirectoryName(
@@ -35,18 +39,29 @@ namespace MoonlightWmpHost
                     ManualLoader.Load(File.ReadAllBytes(enginePath));
                 _engine = new EngineApi(image.Resolve);
 
-                string family;
                 string report;
-                string probeState = _engine.ProbeEsplus(out family, out report);
+                probeState = _engine.ProbeEsplus(out family, out report);
                 Log.Info("ESPlus probe: " + probeState + ", family=" + family);
                 if (!String.IsNullOrEmpty(report))
                     Log.Info(report);
-                HostProtocol.Start(_engine, probeState, family);
-                Log.Info("WMP engine image, ESPlus probe and trusted control port initialized");
             }
             catch (Exception ex)
             {
-                Log.Error("WMP host initialization failed: " + ex);
+                _engine = null;
+                loadError = ex.GetType().Name + ": " + ex.Message;
+                Log.Error("WMP engine initialization failed: " + ex);
+            }
+
+            // Always expose the control port, even when the engine or ESPlus
+            // runtime is unavailable, so the WebApp can obtain a useful status.
+            try
+            {
+                HostProtocol.Start(_engine, probeState, family, loadError);
+                Log.Info("WMP .NET service control port initialized");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP control port initialization failed: " + ex);
             }
         }
 
