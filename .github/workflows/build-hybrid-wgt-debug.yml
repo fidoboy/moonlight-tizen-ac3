@@ -367,7 +367,7 @@ jobs:
           apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
           if len(apps) != 1:
               raise SystemExit("WMP manifest must contain exactly one service application")
-          expected = {"appid":"MoonLightS.WmpService","exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+          expected = {"appid":"MoonLightS.WmpService","exec":"/usr/apps/MoonLightS/bin/wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
           for key, value in expected.items():
               if apps[0].get(key) != value:
                   raise SystemExit(f"WMP manifest {key} must be {value!r}")
@@ -424,6 +424,11 @@ jobs:
                   raise SystemExit("WMP TPK root package identity/API floor changed")
               if app is None or app.get("appid") != "MoonLightS.WmpService":
                   raise SystemExit("WMP TPK service application identity changed")
+              if app.get("exec") != "/usr/apps/MoonLightS/bin/wmp-service":
+                  raise SystemExit("WMP TPK service executable path is invalid")
+              executable = package.getinfo("bin/wmp-service")
+              if ((executable.external_attr >> 16) & 0o111) == 0:
+                  raise SystemExit("WMP TPK service executable lost its executable permission")
           print("WMP TPK payload and manifest verified.")
           PY
           echo "WMP service TPK: $wmp_tpk"
@@ -633,7 +638,10 @@ jobs:
               wmp_app = service_apps.get("MoonLightS.WmpService")
               if wmp_app is None:
                   raise SystemExit("Final hybrid package is missing the WMP service application")
-              expected_wmp = {"exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+              expected_wmp = {"exec":"/usr/apps/MoonLightS/bin/wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+              executable = package.getinfo("bin/wmp-service")
+              if ((executable.external_attr >> 16) & 0o111) == 0:
+                  raise SystemExit("Final WGT WMP executable lost its executable permission")
               for key, value in expected_wmp.items():
                   if wmp_app.get(key) != value:
                       raise SystemExit(f"Final WMP service manifest {key} must be {value!r}")
