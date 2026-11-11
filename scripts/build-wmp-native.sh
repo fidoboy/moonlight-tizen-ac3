@@ -39,6 +39,12 @@ ln -sfn "$objdump" "$expected/arm-linux-gnueabi-objdump"
 ln -sfn "$ar" "$expected/arm-linux-gnueabi-ar"
 "$expected/arm-linux-gnueabi-gcc" --version
 "$expected/arm-linux-gnueabi-objdump" --version | head -1
+echo "== Verify prebuilt static ARM crypto dependencies from the image"
+test -s "$BPD/arm-static/lib/libcrypto.a"
+test -s "$BPD/arm-static/lib/libssl.a"
+test -s "$BPD/arm-static/lib/libcurl.a"
+grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' "$BPD/arm-static/include/openssl/opensslv.h"
+grep -q 'LIBCURL_VERSION "7.59.0"' "$BPD/arm-static/include/curl/curlver.h"
 echo "== Build Moonlight core and GameStream against prebuilt static crypto dependencies"
 bash wmp/upstream/build/build-deps-lib.sh
 echo "== Build ARM libmlengine.so"
