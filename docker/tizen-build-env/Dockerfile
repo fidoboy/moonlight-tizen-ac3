@@ -13,21 +13,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update \
     && apt-get install -y --no-install-recommends software-properties-common ca-certificates curl wget gnupg \
     && add-apt-repository -y universe \
-    && deadsnakes_key=/tmp/deadsnakes-ppa.asc \
-    && deadsnakes_fingerprint=F23C5A6CF475977595C89F51BA6932366A755776 \
-    && curl --fail --silent --show-error --location --retry 3 \
-        --proto '=https' --tlsv1.2 \
-        "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${deadsnakes_fingerprint}" \
-        --output "$deadsnakes_key" \
-    && gpg --batch --show-keys --with-colons "$deadsnakes_key" \
-        | awk -F: -v expected="$deadsnakes_fingerprint" '$1 == "fpr" && $10 == expected { found=1 } END { exit !found }' \
-    && install -d -m 0755 /usr/share/keyrings \
-    && gpg --batch --yes --dearmor \
-        --output /usr/share/keyrings/deadsnakes-ppa.gpg "$deadsnakes_key" \
-    && rm -f "$deadsnakes_key" \
-    && printf '%s\\n' \
-        'deb [signed-by=/usr/share/keyrings/deadsnakes-ppa.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main' \
-        > /etc/apt/sources.list.d/deadsnakes-ppa.list \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
     && curl --fail --location --retry 3 https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
