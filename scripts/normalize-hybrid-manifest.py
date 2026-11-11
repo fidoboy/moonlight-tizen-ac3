@@ -37,10 +37,10 @@ def set_root_text(root, name, value):
 
 
 def main():
-    if len(sys.argv) != 3:
-        fail("Usage: normalize-hybrid-manifest.py HYBRID_MANIFEST WMP_TPK")
+    if len(sys.argv) != 4:
+        fail("Usage: normalize-hybrid-manifest.py HYBRID_MANIFEST AMBILIGHT_TPK WMP_TPK")
 
-    hybrid_manifest, wmp_tpk = sys.argv[1:]
+    hybrid_manifest, ambilight_tpk, wmp_tpk = sys.argv[1:]
     ET.register_namespace("", NAMESPACE)
     tree = ET.parse(hybrid_manifest)
     root = tree.getroot()
@@ -64,6 +64,23 @@ def main():
     for key, value in expected_ambilight.items():
         if ambilight.get(key) != value:
             fail(f"Ambilight service {key} must be {value!r}")
+
+    # Validate the actual Ambilight TPK as well as the outer manifest.
+    with zipfile.ZipFile(ambilight_tpk) as package:
+        ambilight_root = ET.fromstring(package.read("tizen-manifest.xml"))
+        if "bin/MoonlightAmbilight.dll" not in package.namelist():
+            fail("Ambilight TPK is missing bin/MoonlightAmbilight.dll")
+        if not package.read("bin/MoonlightAmbilight.dll"):
+            fail("Ambilight TPK contains an empty MoonlightAmbilight.dll")
+    ambilight_tpk_apps = [
+        node for node in ambilight_root.iter()
+        if local_name(node) == "service-application"
+    ]
+    if len(ambilight_tpk_apps) != 1 or ambilight_tpk_apps[0].get("appid") != AMBILIGHT_APPID:
+        fail("Ambilight TPK must contain exactly one canonical MoonLightS.MoonlightAmbilight application")
+    for key, value in expected_ambilight.items():
+        if ambilight_tpk_apps[0].get(key) != value:
+            fail(f"Ambilight TPK service {key} must be {value!r}")
 
     wmp_key = normalized_appid(WMP_APPID)
     unexpected = [
