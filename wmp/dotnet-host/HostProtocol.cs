@@ -610,6 +610,7 @@ namespace MoonlightWmpHost
             int terminationCode = 0;
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
             DateTime nextStatsMessage = DateTime.UtcNow;
+            uint lastReportedPlayerErrors = 0;
 
             try
             {
@@ -682,6 +683,16 @@ namespace MoonlightWmpHost
                         Log.Info("WMP first video submission observed: submitted=" +
                             stats.Submitted.ToString(CultureInfo.InvariantCulture));
                         Event(appId, remotePort, "displayVideo", null);
+                    }
+                    if (statsResult == 0 && stats.Errors > lastReportedPlayerErrors)
+                    {
+                        lastReportedPlayerErrors = stats.Errors;
+                        string playerError = "ESPlus player error 0x" +
+                            stats.LastError.ToString("X", CultureInfo.InvariantCulture);
+                        RecordDiagnostic("player error callback observed: " + playerError +
+                            ", total=" + stats.Errors.ToString(CultureInfo.InvariantCulture));
+                        Event(appId, remotePort, "wmpPlayerError: " +
+                            stats.LastError.ToString(CultureInfo.InvariantCulture), playerError);
                     }
                     if (StatsAreEnabled() && DateTime.UtcNow >= nextStatsMessage)
                     {
