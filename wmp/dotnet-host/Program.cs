@@ -74,7 +74,6 @@ namespace MoonlightWmpHost
                 if (_engine != null)
                 {
                     _engine.Stop();
-                    _engine.CloseEsplus();
                 }
             }
             catch (Exception ex)
