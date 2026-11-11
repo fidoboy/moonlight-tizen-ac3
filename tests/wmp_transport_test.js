@@ -15,6 +15,7 @@ let listenerRemoved = false;
 let launchedAppId = null;
 let remotePortNotReadyAttempts = 0;
 let remotePortRequests = 0;
+let nextNativeResponse = null;
 
 const localPort = {
   addMessagePortListener(callback) {
@@ -41,13 +42,15 @@ const remotePort = {
         : request.command === 'stop_session'
           ? {stopped: true}
           : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
+    const nativeResponse = nextNativeResponse || {status: 'ok', payload};
+    nextNativeResponse = null;
     Promise.resolve().then(() => {
       messageListener([
         {key: 'protocol', value: request.protocol},
         {key: 'id', value: request.id},
         {key: 'type', value: 'response'},
-        {key: 'status', value: 'ok'},
-        {key: 'payload', value: JSON.stringify(payload)}
+        {key: 'status', value: nativeResponse.status},
+        {key: 'payload', value: JSON.stringify(nativeResponse.payload)}
       ]);
     });
   }
@@ -133,6 +136,7 @@ vm.runInNewContext(source, {
     rtspUrl: 'rtsp://host/session',
     codecMode: 1,
     audioConfig: '51Surround',
+    opticalOutputEnabled: true,
     videoCodec: 'H264',
     hdr: false,
     fullRange: false
@@ -143,6 +147,17 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
   assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
   assert.strictEqual(startMessage.arg_videoCodec, 'H264');
+  assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
+
+  // Native ParseStart diagnostics must reach the caller with the rejected field.
+  nextNativeResponse = {
+    status: 'error',
+    payload: {error: 'invalid_start_arguments', field: 'opticalOutputEnabled'}
+  };
+  await assert.rejects(
+    window.WmpTransport.startStream({host: '192.168.0.10'}),
+    /invalid_start_arguments: opticalOutputEnabled/
+  );
   const debugOutput = JSON.stringify(debugEntries);
   assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
   assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
