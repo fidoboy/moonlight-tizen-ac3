@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef WMP_ENABLE_UDP_DIAGNOSTICS
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 #include "mlengine.h"
 #include "wmp_esplus_abi.h"
@@ -28,6 +33,61 @@
 #define WMP_RTSP_CAPACITY 512
 #define WMP_PORT_CAPACITY 128
 #define WMP_REQUEST_CAPACITY 64
+
+#ifdef WMP_ENABLE_UDP_DIAGNOSTICS
+#define WMP_DIAGNOSTIC_HOST "192.168.0.10"
+#define WMP_DIAGNOSTIC_PORT 43127
+
+static int g_diagnostic_socket = -1;
+
+static void send_udp_diagnostic(const char *event, int result, bool has_result)
+{
+    struct sockaddr_in destination;
+    char message[192];
+    int length;
+    ssize_t sent;
+
+    if (event == NULL)
+        return;
+
+    if (g_diagnostic_socket < 0) {
+        g_diagnostic_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (g_diagnostic_socket < 0) {
+            dlog_print(DLOG_ERROR, LOG_TAG,
+                       "WMP UDP diagnostic socket creation failed: errno=%d", errno);
+            return;
+        }
+    }
+
+    memset(&destination, 0, sizeof(destination));
+    destination.sin_family = AF_INET;
+    destination.sin_port = htons(WMP_DIAGNOSTIC_PORT);
+    if (inet_pton(AF_INET, WMP_DIAGNOSTIC_HOST, &destination.sin_addr) != 1) {
+        dlog_print(DLOG_ERROR, LOG_TAG, "WMP UDP diagnostic destination is invalid");
+        return;
+    }
+
+    if (has_result)
+        length = snprintf(message, sizeof(message), "event=%s;result=%d", event, result);
+    else
+        length = snprintf(message, sizeof(message), "event=%s", event);
+
+    if (length < 0 || (size_t)length >= sizeof(message))
+        return;
+
+    sent = sendto(g_diagnostic_socket, message, (size_t)length, 0,
+                  (struct sockaddr *)&destination, sizeof(destination));
+    if (sent < 0 || sent != length) {
+        dlog_print(DLOG_WARN, LOG_TAG,
+                   "WMP UDP diagnostic send failed: event=%s errno=%d sent=%ld",
+                   event, errno, (long)sent);
+    } else {
+        dlog_print(DLOG_INFO, LOG_TAG, "WMP UDP diagnostic sent: %s", event);
+    }
+}
+#else
+#define send_udp_diagnostic(event, result, has_result) ((void)0)
+#endif
 
 typedef struct {
     char host[WMP_HOST_CAPACITY];
@@ -684,6 +744,7 @@ static bool service_create(void *data)
 
     (void)data;
     dlog_print(DLOG_INFO, LOG_TAG, "WMP service_create callback entered");
+    send_udp_diagnostic("service_create_entered", 0, false);
     send_startup_diagnostic("service_create_entered", 0, false);
     memset(&g_esplus, 0, sizeof(g_esplus));
     memset(report, 0, sizeof(report));
@@ -694,6 +755,7 @@ static bool service_create(void *data)
                "WMP control port registration result: %d",
                registration_result);
     g_control_port_id = registration_result;
+    send_udp_diagnostic("control_port_registration_result", registration_result, true);
     send_startup_diagnostic("control_port_registration_result", registration_result, true);
     if (g_control_port_id < 0) {
         dlog_print(DLOG_ERROR, LOG_TAG,
@@ -704,12 +766,14 @@ static bool service_create(void *data)
 
     g_esplus_probe_result = wmp_esplus_probe(
         &g_esplus, report, sizeof(report));
+    send_udp_diagnostic("esplus_probe_result", (int)g_esplus_probe_result, true);
 
     pthread_mutex_lock(&g_session_mutex);
     g_service_ready = true;
     pthread_mutex_unlock(&g_session_mutex);
 
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service started");
+    send_udp_diagnostic("service_started", 0, false);
     send_startup_diagnostic("service_started", 0, false);
     dlog_print(DLOG_INFO, LOG_TAG, "WMP control port registered: %s",
                WMP_CONTROL_PORT);
@@ -734,6 +798,8 @@ static void service_terminate(void *data)
     bool worker_active;
 
     (void)data;
+
+    send_udp_diagnostic("service_terminate_entered", 0, false);
 
     pthread_mutex_lock(&g_session_mutex);
     g_service_ready = false;
@@ -781,9 +847,12 @@ int main(int argc, char *argv[])
     callbacks.app_control = service_control;
 
     {
-        int result = service_app_main(argc, argv, &callbacks, NULL);
+        int result;
+        send_udp_diagnostic("main_entered", 0, false);
+        result = service_app_main(argc, argv, &callbacks, NULL);
         dlog_print(DLOG_INFO, LOG_TAG,
                    "WMP service_app_main returned: %d", result);
+        send_udp_diagnostic("service_app_main_returned", result, true);
         send_startup_diagnostic("service_app_main_returned", result, true);
         return result;
     }
