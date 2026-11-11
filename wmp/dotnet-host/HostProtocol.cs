@@ -25,6 +25,7 @@ namespace MoonlightWmpHost
         private static bool _ready;
         private static string _esplusState = "unknown";
         private static string _esplusFamily = "none";
+        private static string _loadError;
 
         private sealed class StartRequest
         {
@@ -46,12 +47,12 @@ namespace MoonlightWmpHost
             internal int OpticalOutputEnabled;
         }
 
-        internal static void Start(EngineApi engine, string esplusState, string esplusFamily)
+        internal static void Start(EngineApi engine, string esplusState, string esplusFamily, string loadError)
         {
-            if (engine == null) throw new ArgumentNullException("engine");
             _engine = engine;
             _esplusState = esplusState ?? "unknown";
             _esplusFamily = esplusFamily ?? "none";
+            _loadError = loadError;
 
             _port = new MessagePort(ControlPortName, true);
             _port.MessageReceived += OnMessage;
@@ -283,7 +284,8 @@ namespace MoonlightWmpHost
                 "\",\"running\":" + (running ? "true" : "false") +
                 ",\"libraryLoaded\":" + (_engine != null ? "true" : "false") +
                 ",\"esplus\":" + JsonQuote(_esplusState) +
-                ",\"streamApi\":" + JsonQuote(_esplusFamily) + "}";
+                ",\"streamApi\":" + JsonQuote(_esplusFamily) +
+                ",\"loadError\":" + JsonQuote(_loadError) + "}";
             Respond(appId, remotePort, id, "ok", payload);
         }
 
@@ -294,6 +296,12 @@ namespace MoonlightWmpHost
             {
                 Respond(appId, remotePort, id, "error",
                     "{\"error\":\"service_not_ready\"}");
+                return;
+            }
+            if (_engine == null)
+            {
+                Respond(appId, remotePort, id, "error",
+                    "{\"error\":\"engine_unavailable\",\"detail\":" + JsonQuote(_loadError) + "}");
                 return;
             }
             if (_esplusState != "symbols_detected")
@@ -353,7 +361,7 @@ namespace MoonlightWmpHost
                 return;
             }
 
-            try { _engine.Stop(); }
+            try { if (_engine != null) _engine.Stop(); }
             catch (Exception ex) { Log.Error("idempotent engine stop failed: " + ex.Message); }
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
