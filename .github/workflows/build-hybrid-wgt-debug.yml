@@ -514,8 +514,44 @@ jobs:
           
             test -s "$project/Moonlight.wgt"
             cp "$project/Moonlight.wgt" "$output"
+
+            # Tizen CLI's final ZIP writer drops Unix executable bits. Restore
+            # the WMP launcher mode in the ZIP central directory after signing.
+            # XML signatures cover member contents, not ZIP metadata; no payload
+            # bytes or signed file contents are changed by this metadata repair.
+            python3 - "$output" <<'PY'
+          import os
+          import stat
+          import sys
+          import tempfile
+          import zipfile
+          from pathlib import Path
+
+          package_path = Path(sys.argv[1])
+          fd, temporary_name = tempfile.mkstemp(
+              prefix=package_path.stem + "-modefix-",
+              suffix=".wgt",
+              dir=package_path.parent,
+          )
+          os.close(fd)
+          temporary_path = Path(temporary_name)
+          try:
+              with zipfile.ZipFile(package_path, "r") as source:
+                  with zipfile.ZipFile(temporary_path, "w") as repaired:
+                      repaired.comment = source.comment
+                      for info in source.infolist():
+                          data = source.read(info.filename)
+                          if info.filename == "bin/wmp-service":
+                              info.create_system = 3
+                              info.external_attr = (stat.S_IFREG | 0o755) << 16
+                          repaired.writestr(info, data)
+              os.replace(temporary_path, package_path)
+          finally:
+              temporary_path.unlink(missing_ok=True)
+          PY
+
             unzip -tq "$output"
-          
+
             # Verify the XML signatures cryptographically using the certificates
             # embedded in each signature, including all referenced package digests.
             local signature_check="$RUNNER_TEMP/$name-signature-check"
