@@ -171,6 +171,29 @@ vm.runInNewContext(source, {
   await window.WmpTransport.ping();
   assert.strictEqual(debugEntries.length, debugEntryCount, 'WMP diagnostics must be Debug-only');
   window.WmpTransport.close();
+
+  // A Tizen launch failure must retain the native error details in Debug logs.
+  window.DEBUG_MODE = true;
+  window.tizen.application.launch = function(appId, success, failure) {
+    launchedAppId = appId;
+    failure({
+      name: 'NotFoundError',
+      message: 'Application not found',
+      code: 404,
+      domain: 'TizenApplication'
+    });
+  };
+  const failureLogStart = debugEntries.length;
+  await assert.rejects(
+    window.WmpTransport.connect(),
+    /could not launch native service: Application not found/
+  );
+  const launchFailureLog = JSON.stringify(debugEntries.slice(failureLogStart));
+  assert.ok(launchFailureLog.includes('WMP ServiceApp launch failed'));
+  assert.ok(launchFailureLog.includes('NotFoundError'));
+  assert.ok(launchFailureLog.includes('Application not found'));
+  assert.ok(launchFailureLog.includes(expectedServiceAppId));
+
   console.log('WMP trusted MessagePort bridge tests passed.');
 })().catch(error => {
   console.error(error);
