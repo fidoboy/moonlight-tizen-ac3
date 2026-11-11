@@ -66,6 +66,12 @@ def main():
     for key, value in expected_ambilight.items():
         if ambilight.get(key) != value:
             fail(f"Ambilight service {key} must be {value!r}")
+    if not any(
+        local_name(node) == "background-category"
+        and node.get("value") == "background-network"
+        for node in ambilight
+    ):
+        fail("Ambilight service must declare the background-network category")
 
     # Validate the actual Ambilight TPK as well as the outer manifest.
     with zipfile.ZipFile(ambilight_tpk) as package:
@@ -83,6 +89,12 @@ def main():
     for key, value in expected_ambilight.items():
         if ambilight_tpk_apps[0].get(key) != value:
             fail(f"Ambilight TPK service {key} must be {value!r}")
+    if not any(
+        local_name(node) == "background-category"
+        and node.get("value") == "background-network"
+        for node in ambilight_tpk_apps[0]
+    ):
+        fail("Ambilight TPK service must declare the background-network category")
 
     wmp_key = normalized_appid(WMP_APPID)
     unexpected = [
