@@ -457,15 +457,43 @@ namespace MoonlightWmpHost
         private static void SendStatus(string appId, string remotePort, string id)
         {
             bool running = false;
-            try { running = _engine != null && _engine.Running() != 0; }
-            catch { }
-            string payload = "{\"service\":\"" + (_ready ? "ready" : "stopping") +
-                "\",\"engine\":\"" + (_engine != null ? "libmlengine" : "unavailable") +
-                "\",\"running\":" + (running ? "true" : "false") +
-                ",\"libraryLoaded\":" + (_engine != null ? "true" : "false") +
-                ",\"esplus\":" + JsonQuote(_esplusState) +
-                ",\"streamApi\":" + JsonQuote(_esplusFamily) +
-                ",\"loadError\":" + JsonQuote(_loadError) + "}";
+            int statsResult = -1;
+            int lastErrorCode = 0;
+            var stats = new EngineApi.Stats();
+            stats.StructSize = Marshal.SizeOf(typeof(EngineApi.Stats));
+            string lastErrorDiagnostic;
+            try
+            {
+                if (_engine != null)
+                {
+                    running = _engine.Running() != 0;
+                    statsResult = _engine.GetStats(ref stats);
+                    lastErrorCode = _engine.ReadLastError(out lastErrorDiagnostic);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP status snapshot failed: " + ex.Message);
+            }
+
+            string payload = "{\\"service\\":" + JsonQuote(_ready ? "ready" : "stopping") +
+                ",\\"engine\\":" + JsonQuote(_engine != null ? "libmlengine" : "unavailable") +
+                ",\\"sessionState\\":" + JsonQuote(running ? "running" : "idle") +
+                ",\\"running\\":" + (running ? "true" : "false") +
+                ",\\"libraryLoaded\\":" + (_engine != null ? "true" : "false") +
+                ",\\"esplus\\":" + JsonQuote(_esplusState) +
+                ",\\"streamApi\\":" + JsonQuote(_esplusFamily) +
+                ",\\"loadError\\":" + JsonQuote(_loadError) +
+                ",\\"statsAvailable\\":" + (statsResult == 0 ? "true" : "false") +
+                ",\\"submitted\\":" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"fpsSubmitted\\":" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"depthMs\\":" + (statsResult == 0 ? stats.DepthMs.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"playingMs\\":" + (statsResult == 0 ? stats.PlayingMs.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"playerErrors\\":" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"lastPlayerError\\":" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"underruns\\":" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"overruns\\":" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "0") +
+                ",\\"lastErrorCode\\":" + lastErrorCode.ToString(CultureInfo.InvariantCulture) + "}";
             Respond(appId, remotePort, id, "ok", payload);
         }
 
