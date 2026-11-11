@@ -375,10 +375,22 @@ jobs:
           unzip -tq "$service_tpk"
 
           wmp_project="$RUNNER_TEMP/WmpServicePackage"
-          mkdir -p "$wmp_project/bin" "$wmp_project/lib"
-          install -m 0755 "$RUNNER_TEMP/wmp-service/bin/wmp-service" "$wmp_project/bin/wmp-service"
-          install -m 0644 "$RUNNER_TEMP/wmp-service/lib/libmlengine.so" "$wmp_project/lib/libmlengine.so"
-          cp wmp/service/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
+          wmp_build_dir="$GITHUB_WORKSPACE/wmp/dotnet-host/bin/Release/tizen80"
+          test -s "$wmp_build_dir/MoonlightHost.dll"
+          mkdir -p "$wmp_project/bin" "$wmp_project/res/lib"
+          cp -a "$wmp_build_dir/." "$wmp_project/bin/"
+          find "$wmp_project/bin" -type f -name '*.tpk' -delete
+          if [[ -s "$wmp_build_dir/res/lib/libmlengine.so" ]]; then
+            cp "$wmp_build_dir/res/lib/libmlengine.so" "$wmp_project/res/lib/libmlengine.so"
+          elif [[ -s "$GITHUB_WORKSPACE/wmp/dotnet-host/lib/libmlengine.so" ]]; then
+            cp "$GITHUB_WORKSPACE/wmp/dotnet-host/lib/libmlengine.so" "$wmp_project/res/lib/libmlengine.so"
+          else
+            echo "::error::The managed WMP build did not retain res/lib/libmlengine.so."
+            find "$wmp_build_dir" -maxdepth 4 -type f -print
+            exit 1
+          fi
+          rm -rf "$wmp_project/bin/res"
+          cp wmp/dotnet-host/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
           python3 - "$wmp_project/tizen-manifest.xml" "$web_standard/config.xml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
