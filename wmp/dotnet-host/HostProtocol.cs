@@ -655,6 +655,7 @@ namespace MoonlightWmpHost
                     _stageRemotePort = null;
                     StageMessages.Clear();
                 }
+                Event(appId, remotePort, "wmpDiagnosticReady", null);
             }
         }
     }
