@@ -11,7 +11,9 @@
  * Temporary WMP video-only diagnostic renderer.
  * Set WMP_VIDEO_ONLY_DIAGNOSTIC to 0 below to restore ESPlus audio submission.
  */
+#ifndef WMP_VIDEO_ONLY_DIAGNOSTIC
 #define WMP_VIDEO_ONLY_DIAGNOSTIC 1
+#endif
 
 #if WMP_VIDEO_ONLY_DIAGNOSTIC
 #include <stdio.h>
