@@ -489,11 +489,11 @@ jobs:
               launch-screen-portrait.mp4 \
               launch-screen.png \
               launch-screen-portrait.png; do
-              source="$project/res/wgt/static/res/$asset"
+              asset_source="$project/res/wgt/static/res/$asset"
               target="$project/static/res/$asset"
-              test -s "$source"
-              cp "$source" "$target"
-              cmp -s "$source" "$target"
+              test -s "$asset_source"
+              cp "$asset_source" "$target"
+              cmp -s "$asset_source" "$target"
             done
           
             # 3. Keep the Web installation floor at Tizen 5.5 and explicitly
