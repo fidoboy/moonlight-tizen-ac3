@@ -403,12 +403,12 @@ jobs:
           version = config.get("version")
           if not version:
               raise SystemExit("Moonlight config.xml has no package version")
-          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
-              raise SystemExit("WMP manifest package/API floor changed")
+          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
+              raise SystemExit("WMP .NET package must target Tizen 6.0 / API 8")
           apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
           if len(apps) != 1:
               raise SystemExit("WMP manifest must contain exactly one service application")
-          expected = {"appid":"MoonLightS.WmpService","exec":"/usr/apps/MoonLightS/bin/wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+          expected = {"appid":"MoonLightS.WmpService","exec":"MoonlightHost.dll","api-version":"8","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"dotnet","taskmanage":"false"}
           for key, value in expected.items():
               if apps[0].get(key) != value:
                   raise SystemExit(f"WMP manifest {key} must be {value!r}")
