@@ -115,9 +115,10 @@
           code: playerErrorCode,
           detail: message.detail || null
         });
-        if (typeof global.handleMessage === 'function') {
-          global.handleMessage('WarningMsg: The TV media player reported an error.');
-        }
+        // A fatal player error is followed by streamTerminated from the native
+        // host. Do not show the transient connection-warning overlay here:
+        // the shared stream-termination path owns the closing transition and
+        // the final error dialog for both WMP and EMSS.
         return;
       }
       if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
