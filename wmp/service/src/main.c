@@ -19,6 +19,7 @@
 #undef LOG_TAG
 #define LOG_TAG "MoonlightWmp"
 #define WMP_CONTROL_PORT "MoonlightWmpControl"
+#define WMP_REPLY_PORT "MoonlightWmpReply"
 #define WMP_PROTOCOL "moonlight-wmp/1"
 #define MOONLIGHT_WEB_APP_ID "MoonLightS.MoonlightWasm"
 
@@ -63,6 +64,48 @@ static bool g_session_starting;
 static bool g_session_start_acknowledged;
 static bool g_session_stop_requested;
 static bool g_session_stop_in_progress;
+
+static void send_startup_diagnostic(const char *stage, int result, bool has_result)
+{
+    bundle *message;
+    char detail[160];
+    int send_result;
+
+    if (stage == NULL)
+        return;
+
+    message = bundle_create();
+    if (message == NULL) {
+        dlog_print(DLOG_ERROR, LOG_TAG,
+                   "Could not allocate startup diagnostic bundle");
+        return;
+    }
+
+    if (has_result) {
+        snprintf(detail, sizeof(detail), "stage=%s;result=%d", stage, result);
+    } else {
+        snprintf(detail, sizeof(detail), "stage=%s", stage);
+    }
+
+    bundle_add_str(message, "protocol", WMP_PROTOCOL);
+    bundle_add_str(message, "type", "event");
+    bundle_add_str(message, "event", "wmpDiagnostic");
+    bundle_add_str(message, "detail", detail);
+
+    /*
+     * The web app creates its trusted reply port before launching this
+     * ServiceApp. Send lifecycle diagnostics through that already-open
+     * channel, independently of the control port being diagnosed.
+     */
+    send_result = message_port_send_trusted_message(
+        MOONLIGHT_WEB_APP_ID, WMP_REPLY_PORT, message);
+    bundle_free(message);
+
+    dlog_print(send_result == MESSAGE_PORT_ERROR_NONE ? DLOG_INFO : DLOG_WARN,
+               LOG_TAG,
+               "WMP startup diagnostic delivery: stage=%s result=%d",
+               stage, send_result);
+}
 
 static bool service_is_ready(void)
 {
@@ -641,6 +684,7 @@ static bool service_create(void *data)
 
     (void)data;
     dlog_print(DLOG_INFO, LOG_TAG, "WMP service_create callback entered");
+    send_startup_diagnostic("service_create_entered", 0, false);
     memset(&g_esplus, 0, sizeof(g_esplus));
     memset(report, 0, sizeof(report));
 
@@ -650,6 +694,7 @@ static bool service_create(void *data)
                "WMP control port registration result: %d",
                registration_result);
     g_control_port_id = registration_result;
+    send_startup_diagnostic("control_port_registration_result", registration_result, true);
     if (g_control_port_id < 0) {
         dlog_print(DLOG_ERROR, LOG_TAG,
                    "Could not register trusted WMP control port: %d",
@@ -665,6 +710,7 @@ static bool service_create(void *data)
     pthread_mutex_unlock(&g_session_mutex);
 
     dlog_print(DLOG_INFO, LOG_TAG, "WMP native service started");
+    send_startup_diagnostic("service_started", 0, false);
     dlog_print(DLOG_INFO, LOG_TAG, "WMP control port registered: %s",
                WMP_CONTROL_PORT);
     dlog_print(DLOG_INFO, LOG_TAG, "WMP engine linked: libmlengine");
@@ -738,6 +784,7 @@ int main(int argc, char *argv[])
         int result = service_app_main(argc, argv, &callbacks, NULL);
         dlog_print(DLOG_INFO, LOG_TAG,
                    "WMP service_app_main returned: %d", result);
+        send_startup_diagnostic("service_app_main_returned", result, true);
         return result;
     }
 }
