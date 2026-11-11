@@ -44,17 +44,15 @@ function startWmpSession(args) {
   };
 
   if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+    var diagnosticParameters = {};
+    Object.keys(parameters).forEach(function(name) {
+      // Keep the debug log useful without exposing addresses or session secrets.
+      diagnosticParameters[name] = name === 'host' || name === 'rikey' || name === 'rtspUrl'
+        ? '<redacted>'
+        : parameters[name];
+    });
     console.debug('[wmp] Moonlight is requesting native stream startup', {
-      hostProvided: !!parameters.host,
-      resolution: parameters.w && parameters.h ? parameters.w + 'x' + parameters.h : null,
-      fps: parameters.fps,
-      bitrateKbps: parameters.bitrate,
-      codecMode: parameters.codecMode,
-      audioConfig: parameters.audioConfig,
-      opticalOutputEnabled: parameters.opticalOutputEnabled,
-      videoCodec: parameters.videoCodec,
-      hdr: !!parameters.hdr,
-      fullRange: !!parameters.fullRange
+      parameters: diagnosticParameters
     });
   }
 
