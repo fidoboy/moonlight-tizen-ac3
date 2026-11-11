@@ -1075,7 +1075,7 @@ function handleMessage(msg) {
           directClosingMessage = t('The TV rejected the H.264 video configuration.');
           break;
         case -300:
-          directClosingMessage = t('The TV media player reported a fatal playback error.');
+          directClosingMessage = t('The TV media player reported an error.');
           break;
         default:
           directClosingMessage = t('Connection to %1$s lost.', directHostName);
@@ -1194,7 +1194,7 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The TV rejected the H.264 video configuration.');
           break;
         case -300:
-          transitionStatusMessage = t('The TV media player reported a fatal playback error.');
+          transitionStatusMessage = t('The TV media player reported an error.');
           break;
         default:
           transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
