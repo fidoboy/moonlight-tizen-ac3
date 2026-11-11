@@ -264,7 +264,7 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
                               int server_codec_mode_support, const char *video_codec, int hdr,
                               const char *audio_config, int full_range) {
   MLT("ml_engine_start_session host=%s %dx%d@%d %dkbps rikey=%s rikeyid=%d appver=%s gfever=%s rtsp=%s scm=%d codec=%s hdr=%d audio=%s full_range=%d",
-      host ? host : "(null)", width, height, fps, bitrate_kbps, rikey_hex ? "(set)" : "(null)",
+      host ? "(configured)" : "(null)", width, height, fps, bitrate_kbps, rikey_hex ? "(set)" : "(null)",
       rikeyid, app_version ? app_version : "(null)", gfe_version ? gfe_version : "(null)",
       rtsp_url ? "(set)" : "(null)", server_codec_mode_support, video_codec ? video_codec : "(null)",
       hdr, audio_config ? audio_config : "(null)", full_range);
