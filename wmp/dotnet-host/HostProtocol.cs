@@ -242,22 +242,26 @@ namespace MoonlightWmpHost
             try
             {
                 if (line == IntPtr.Zero) return;
-                string value = Marshal.PtrToStringAnsi(line);
-                if (String.IsNullOrEmpty(value)) return;
-                if (value.Length > DiagnosticLogLineLimit)
-                    value = value.Substring(0, DiagnosticLogLineLimit) + " [truncated]";
-                lock (Gate)
-                {
-                    while (DiagnosticLogs.Count >= DiagnosticLogCapacity)
-                        DiagnosticLogs.Dequeue();
-                    DiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
-                        CultureInfo.InvariantCulture) + " " + value);
-                }
+                RecordDiagnostic(Marshal.PtrToStringAnsi(line));
             }
             catch (Exception ex)
             {
                 // Never allow managed exceptions to cross the native callback ABI.
                 Log.Error("WMP native log callback failed: " + ex.Message);
+            }
+        }
+
+        private static void RecordDiagnostic(string value)
+        {
+            if (String.IsNullOrEmpty(value)) return;
+            if (value.Length > DiagnosticLogLineLimit)
+                value = value.Substring(0, DiagnosticLogLineLimit) + " [truncated]";
+            lock (Gate)
+            {
+                while (DiagnosticLogs.Count >= DiagnosticLogCapacity)
+                    DiagnosticLogs.Dequeue();
+                DiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
+                    CultureInfo.InvariantCulture) + " " + value);
             }
         }
 
@@ -502,6 +506,7 @@ namespace MoonlightWmpHost
                 _stageAppId = appId;
                 _stageRemotePort = remotePort;
                 StageMessages.Clear();
+                DiagnosticLogs.Clear();
                 worker = new Thread(delegate() { RunSession(request, appId, remotePort); });
                 worker.IsBackground = true;
                 _worker = worker;
@@ -559,6 +564,11 @@ namespace MoonlightWmpHost
 
             try
             {
+                RecordDiagnostic("host session starting: video=" + request.VideoCodec + " " +
+                    request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
+                    request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
+                    request.Fps.ToString(CultureInfo.InvariantCulture) +
+                    "; bitrateKbps=" + request.Bitrate.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP session starting: video=" + request.VideoCodec + " " +
                     request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
@@ -617,6 +627,15 @@ namespace MoonlightWmpHost
                     }
                     if (DateTime.UtcNow >= nextDiagnosticLog)
                     {
+                        RecordDiagnostic("host video stats: stats_rc=" +
+                            statsResult.ToString(CultureInfo.InvariantCulture) +
+                            ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown"));
                         Log.Info("WMP video diagnostic: stats_rc=" +
                             statsResult.ToString(CultureInfo.InvariantCulture) +
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
