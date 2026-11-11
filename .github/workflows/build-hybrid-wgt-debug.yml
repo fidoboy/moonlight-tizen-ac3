@@ -488,23 +488,6 @@ jobs:
             test -s "$project/bin/MoonlightHost.dll"
             test -s "$project/res/lib/libmlengine.so"
 
-            # The hybrid package's outer config.xml resolves its video splash
-            # resources from the package root, not from res/wgt/. Keep the
-            # original Web WGT assets in res/wgt/ and add the required outer
-            # copies at the paths declared by that config.xml.
-            mkdir -p "$project/static/res"
-            for asset in \
-              launch-screen.mp4 \
-              launch-screen-portrait.mp4 \
-              launch-screen.png \
-              launch-screen-portrait.png; do
-              asset_source="$project/res/wgt/static/res/$asset"
-              target="$project/static/res/$asset"
-              test -s "$asset_source"
-              cp "$asset_source" "$target"
-              cmp -s "$asset_source" "$target"
-            done
-          
             # 3. Keep the Web installation floor at Tizen 5.5 and explicitly
             #    merge both service-application declarations into the outer manifest.
             #    Tizen Core embeds the referenced TPK payloads, but does not merge
@@ -603,10 +586,6 @@ jobs:
                   "res/wgt/config.xml", "res/wgt/index.html",
                   "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
                   "res/wgt/service/service.js",
-                  "static/res/launch-screen.mp4",
-                  "static/res/launch-screen-portrait.mp4",
-                  "static/res/launch-screen.png",
-                  "static/res/launch-screen-portrait.png",
               }
               missing = sorted(required - names)
               if missing:
@@ -734,18 +713,6 @@ jobs:
               if splash is None or splash.get("ready_when") != "video-finished":
                   raise SystemExit("Moonlight video splash declaration was not preserved")
 
-              for asset in (
-                  "launch-screen.mp4",
-                  "launch-screen-portrait.mp4",
-                  "launch-screen.png",
-                  "launch-screen-portrait.png",
-              ):
-                  outer = "static/res/" + asset
-                  inner = "res/wgt/static/res/" + asset
-                  if package.read(outer) != package.read(inner):
-                      raise SystemExit(
-                          "Outer hybrid splash resource differs from embedded Web copy: " + asset
-                      )
           
               print("Final signed hybrid WGT verified:")
               print(f"  Expanded Ambilight and WMP TPK payloads byte-for-byte preserved: {embedded_service_count} files.")
