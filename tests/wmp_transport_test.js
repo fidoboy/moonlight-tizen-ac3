@@ -205,10 +205,21 @@ vm.runInNewContext(source, {
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpPlayerError: 8193'},
+    {key: 'detail', value: 'ESPlus player error 0x2001'}
+  ]);
+  assert.deepStrictEqual(handledEvents, [
+    'StatMsg: ', 'displayVideo', 'WarningMsg: The TV media player reported an error.'
+  ]);
+  assert.strictEqual(window.pendingStreamApiMessage, 'ESPlus player error 0x2001');
+
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
     {key: 'event', value: 'streamTerminated: -1'},
     {key: 'detail', value: 'WMP engine start failed (code -101)'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
+  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'WarningMsg: The TV media player reported an error.', 'streamTerminated: -1']);
   assert.strictEqual(window.pendingStreamApiMessage, 'WMP engine start failed (code -101)');
 
   window.WmpTransport.close();
