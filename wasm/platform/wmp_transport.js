@@ -9,7 +9,7 @@
   'use strict';
 
   // Must match the service-application appid in wmp/service/tizen-manifest.xml.
-  var SERVICE_APP_ID = 'MoonWMP001.WmpService';
+  var SERVICE_APP_ID = 'MoonLightS.WmpService';
   var CONTROL_PORT = 'MoonlightWmpControl';
   var REPLY_PORT = 'MoonlightWmpReply';
   var PROTOCOL = 'moonlight-wmp/1';
