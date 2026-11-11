@@ -8,7 +8,7 @@ set -euo pipefail
 : "${BPD:?Set BPD to the fetched backport-deps directory}"
 
 TOOLBIN="$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
-GCC="$TOOLBIN/arm-linux-gnueabi-gcc"
+GCC="${WMP_ARM_CC:-$TOOLBIN/arm-linux-gnueabi-gcc}"
 AR="$TOOLBIN/arm-linux-gnueabi-ar"
 RANLIB="$TOOLBIN/arm-linux-gnueabi-ranlib"
 CROSS=arm-linux-gnueabi-
@@ -19,7 +19,7 @@ JOBS="${JOBS:-2}"
 for tool in "$GCC" "$AR" "$RANLIB"; do
   [[ -x "$tool" ]] || { echo "Missing ARM toolchain executable: $tool" >&2; exit 1; }
 done
-export PATH="$TOOLBIN:$PATH"
+export PATH="$(dirname "$GCC"):$TOOLBIN:$PATH"
 export CC=gcc
 export AR=ar
 export RANLIB=ranlib
