@@ -43,8 +43,14 @@ if [[ -s "$CRYPTO_PREFIX/lib/libcrypto.a" &&
    grep -q 'LIBCURL_VERSION "7.59.0"' "$CRYPTO_PREFIX/include/curl/curlver.h"; then
   echo "Reusing cached static ARM OpenSSL 1.1.1d + cURL 7.59.0 libraries."
 else
-  echo "Static ARM crypto/network cache miss; building pinned dependencies."
-  bash "$HERE/build-static-crypto.sh"
+  if [[ -s "$BPD/openssl111/Configure" && -x "$BPD/curl759/buildconf" ]]; then
+    echo "Static ARM crypto cache miss; building pinned dependencies from available sources."
+    bash "$HERE/build-static-crypto.sh"
+  else
+    echo "ERROR: prebuilt ARM OpenSSL/cURL libraries are missing or invalid, and source trees are unavailable." >&2
+    echo "Rebuild the GHCR Tizen build image to restore /opt/wmp-backport-deps/arm-static." >&2
+    exit 1
+  fi
 fi
 cat > "$OUT/shim/emscripten.h" <<'EOF'
 #include <stdio.h>
