@@ -178,6 +178,8 @@ vm.runInNewContext(source, {
   assert.deepStrictEqual(logs.payload.logs, [
     'native stage RTSP complete', 'video submit #1 status=ok'
   ]);
+  const statsToggle = await window.WmpTransport.toggleStats();
+  assert.strictEqual(statsToggle.payload.enabled, true);
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
@@ -188,7 +190,7 @@ vm.runInNewContext(source, {
     'Debug builds must print the native diagnostic log after session teardown');
   assert.deepStrictEqual(
     pendingMessages.map(message => message.command),
-    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session', 'get_logs', 'get_logs']
+    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session', 'get_logs', 'toggle_stats', 'get_logs']
   );
 
   messageListener([
