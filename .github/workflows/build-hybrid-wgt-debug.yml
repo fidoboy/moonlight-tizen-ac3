@@ -47,6 +47,41 @@ jobs:
             moonlight-web-ccache-${{ runner.os }}-
 
 
+      - name: Prepare Docker build image cache directory
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/docker-image-cache"
+
+      - name: Restore shared Tizen build image cache
+        id: tizen-image-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+
+      - name: Load cached Tizen build image
+        if: steps.tizen-image-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker load --input "$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar"
+
+      - name: Pull Tizen build image from GHCR when cache is unavailable
+        if: steps.tizen-image-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          docker pull "$image"
+          docker save "$image" --output "$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar"
+
+      - name: Save Tizen build image cache
+        if: steps.tizen-image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+
       - name: Build WMP engine and .NET ServiceApp inside shared v4 image
         shell: bash
         run: |
