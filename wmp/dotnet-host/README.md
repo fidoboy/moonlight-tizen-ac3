@@ -19,6 +19,14 @@ The host target must remain `tizen80` as required by this project. Do not
 copy the reference project's `tizen40` target or the unrelated Ambilight
 `net8.0-tizen10.0` target.
 
+`tizen80` is the legacy Tizen .NET target for API Level 8 (Tizen 6.0 M2),
+not a synonym for Tizen 8.0 and not compatible with the Tizen 5.5 API floor.
+The WebApp and current C ServiceApp may continue to support Tizen 5.5, but
+this .NET host target has a Tizen 6.0 minimum. Keep that distinction explicit
+in package metadata and release notes; do not claim that the .NET host runs on
+Tizen 5.5. The host's TFM must not be silently changed to a modern
+`net8.0-tizen10.0` target.
+
 ## Compatibility boundary
 
 The host must preserve the existing WebApp protocol and must not introduce a
