@@ -20,11 +20,9 @@ RUN apt-get update \
         acl \
         aria2 \
         binutils \
-        bridge-utils \
         build-essential \
         ccache \
         cpio \
-        docker.io \
         cmake \
         expect \
         file \
@@ -41,15 +39,12 @@ RUN apt-get update \
         libxml2-dev \
         openssl \
         libxi6 \
-        libsdl1.2debian \
-        libv4l-0 \
         libxcb-icccm4 \
         libxcb-image0 \
         libxcb-render-util0 \
         libxcb-shape0 \
         ninja-build \
         nodejs \
-        openvpn \
         python2 \
         python3 \
         python3.8 \
@@ -64,7 +59,8 @@ RUN apt-get update \
 # separately provisioned build environment. Keep the GCC 6.2 cross-toolchain,
 # Tizen 5.5 ARM sysroot and framework headers/libraries under one stable path.
 COPY wmp/upstream/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
-RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh \
+COPY wmp/upstream/build/build-static-crypto.sh /opt/wmp-build/build-static-crypto.sh
+RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-build/build-static-crypto.sh \
     && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
     && mkdir -p /opt/wmp-backport-deps \
     && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
@@ -107,9 +103,9 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
     && "$pm" install --accept-license --no-java-check \
-        "NativeCLI,NativeToolchain-Gcc-9.2,NativeToolchain-Gcc-14.2,IOT-Headed-6.0-NativeAppDevelopment-CLI,TIZEN-10.0-NativeAppDevelopment-CLI,TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+        "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
-    && for package in NativeCLI NativeToolchain-Gcc-9.2 NativeToolchain-Gcc-14.2 IOT-Headed-6.0-NativeAppDevelopment-CLI TIZEN-10.0-NativeAppDevelopment-CLI TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0 TV-SAMSUNG-Public TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
+    && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0 TV-SAMSUNG-Public TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \
        done \
@@ -177,8 +173,14 @@ RUN set -euo pipefail \
     && test -x "$tool_bin/arm-linux-gnueabi-gcc" \
     && test -x "$tool_bin/arm-linux-gnueabi-ar" \
     && test -x "$tool_bin/arm-linux-gnueabi-ranlib" \
-    && test -x "$tool_bin/arm-linux-gnueabi-objdump"
-
+    && test -x "$tool_bin/arm-linux-gnueabi-objdump" \
+    && WMP_ARM_CC="$tool_bin/arm-linux-gnueabi-gcc" DEPS=/opt/wmp-tizen-deps BPD=/opt/wmp-backport-deps JOBS=2 bash /opt/wmp-build/build-static-crypto.sh \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libcrypto.a \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a \
+    && grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' /opt/wmp-backport-deps/arm-static/include/openssl/opensslv.h \
+    && grep -q 'LIBCURL_VERSION "7.59.0"' /opt/wmp-backport-deps/arm-static/include/curl/curlver.h \
+    && rm -rf /opt/wmp-backport-deps/openssl111 /opt/wmp-backport-deps/curl759 /opt/wmp-build
 # Validate the complete shared toolchain inside the image build. Keeping these
 # checks here avoids pulling/extracting this large image on the limited Actions
 # runner filesystem after it has already been pushed to GHCR.
