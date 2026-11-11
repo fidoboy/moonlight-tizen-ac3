@@ -470,39 +470,7 @@ jobs:
             #    merge both service-application declarations into the outer manifest.
             #    Tizen Core embeds the referenced TPK payloads, but does not merge
             #    every referenced service application into this manifest.
-            python3 - "$project/tizen-manifest.xml" "$wmp_tpk" <<'PY'
-          import sys
-          import zipfile
-          import xml.etree.ElementTree as ET
-          
-          hybrid_path, wmp_tpk_path = sys.argv[1:]
-          namespace = "http://tizen.org/ns/packages"
-          ET.register_namespace("", namespace)
-          tree = ET.parse(hybrid_path)
-          root = tree.getroot()
-          service_apps = [node for node in root.iter()
-                          if node.tag.endswith("service-application")]
-          ambilight_apps = [node for node in service_apps
-                            if node.get("appid") == "MoonLightS.MoonlightAmbilight"]
-          if len(ambilight_apps) != 1 or ambilight_apps[0].get("api-version") != "13":
-              found = [(node.get("appid"), node.get("api-version")) for node in service_apps]
-              raise SystemExit(f"Hybrid manifest must retain exactly one Tizen 10 API 13 Ambilight service; found {found!r}")
-          with zipfile.ZipFile(wmp_tpk_path) as package:
-              wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
-          wmp_apps = [node for node in wmp_root.iter()
-                      if node.tag.endswith("service-application")]
-          if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != "MoonLightS.WmpService":
-              raise SystemExit("WMP TPK must contain exactly its expected service application")
-          existing_wmp_apps = [node for node in service_apps
-                               if node.get("appid") == "MoonLightS.WmpService"]
-          if len(existing_wmp_apps) > 1:
-              raise SystemExit("Hybrid manifest contains duplicate WMP service applications")
-          if not existing_wmp_apps:
-              root.append(wmp_apps[0])
-          root.set("api-version", "5.5")
-          tree.write(hybrid_path, encoding="UTF-8", xml_declaration=True)
-          print("Hybrid manifest retains Ambilight and declares exactly one WMP service; Web floor remains Tizen 5.5.")
-          PY
+            python3 scripts/normalize-hybrid-manifest.py "$project/tizen-manifest.xml" "$wmp_tpk"
           
             # 4. Sign the already assembled hybrid project with the standard
             #    Tizen package command. Prompts match the AC3 Dockerfile.
@@ -626,26 +594,56 @@ jobs:
                           raise SystemExit(f"{signature_name} has missing reference digests")
           
               manifest = ET.fromstring(package.read("tizen-manifest.xml"))
-              service_apps = {
-                  node.get("appid"): node for node in manifest.iter()
+              service_app_nodes = [
+                  node for node in manifest.iter()
                   if node.tag.endswith("service-application")
+              ]
+              service_app_ids = [node.get("appid") for node in service_app_nodes]
+              expected_service_ids = {
+                  "MoonLightS.MoonlightAmbilight",
+                  "MoonLightS.WmpService",
               }
-              if manifest.get("api-version") != "5.5":
-                  raise SystemExit("Final hybrid package minimum must remain Tizen 5.5")
-              ambilight_app = service_apps.get("MoonLightS.MoonlightAmbilight")
-              if ambilight_app is None or ambilight_app.get("api-version") != "13":
-                  raise SystemExit("Final hybrid package changed the Ambilight service API 13 target")
-              wmp_app = service_apps.get("MoonLightS.WmpService")
-              if wmp_app is None:
-                  raise SystemExit("Final hybrid package is missing the WMP service application")
-              expected_wmp = {"exec":"/usr/apps/MoonLightS/bin/wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+              if len(service_app_nodes) != 2 or set(service_app_ids) != expected_service_ids:
+                  raise SystemExit(
+                      "Final hybrid manifest must declare exactly one Ambilight and one WMP service; "
+                      f"found {service_app_ids!r}"
+                  )
+              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
+                  raise SystemExit("Final hybrid package identity/API floor changed")
+              root_metadata = {
+                  "label": "Moonlight Tizen Services",
+                  "author": "Moonlight Tizen",
+                  "description": "Native Moonlight Tizen services: WMP playback and Ambilight.",
+              }
+              for tag, expected in root_metadata.items():
+                  node = manifest.find("{http://tizen.org/ns/packages}" + tag)
+                  if node is None or (node.text or "").strip() != expected:
+                      raise SystemExit(f"Final hybrid package {tag} must be {expected!r}")
+              service_apps = {node.get("appid"): node for node in service_app_nodes}
+              ambilight_app = service_apps["MoonLightS.MoonlightAmbilight"]
+              expected_ambilight = {
+                  "api-version": "13", "exec": "MoonlightAmbilight.dll",
+                  "type": "dotnet", "nodisplay": "true", "on-boot": "false",
+                  "auto-restart": "false", "multiple": "false", "taskmanage": "false",
+              }
+              for key, value in expected_ambilight.items():
+                  if ambilight_app.get(key) != value:
+                      raise SystemExit(f"Final Ambilight service manifest {key} must be {value!r}")
+              if "bin/MoonlightAmbilight.dll" not in names or not package.read("bin/MoonlightAmbilight.dll"):
+                  raise SystemExit("Final WGT is missing the Ambilight service assembly")
+              wmp_app = service_apps["MoonLightS.WmpService"]
+              expected_wmp = {
+                  "exec": "/usr/apps/MoonLightS/bin/wmp-service", "nodisplay": "true",
+                  "on-boot": "false", "auto-restart": "false", "multiple": "false",
+                  "type": "capp", "taskmanage": "false",
+              }
               executable = package.getinfo("bin/wmp-service")
               if ((executable.external_attr >> 16) & 0o111) == 0:
                   raise SystemExit("Final WGT WMP executable lost its executable permission")
               for key, value in expected_wmp.items():
                   if wmp_app.get(key) != value:
                       raise SystemExit(f"Final WMP service manifest {key} must be {value!r}")
-          
+              
               for name in names:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
