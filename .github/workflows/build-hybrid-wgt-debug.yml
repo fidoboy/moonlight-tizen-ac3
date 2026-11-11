@@ -466,6 +466,12 @@ jobs:
             mkdir -p "$project"
             unzip -q "$draft" -d "$project"
 
+            # Tizen Core may drop Unix mode bits while assembling referenced service packages.
+            # Restore the WMP launcher permission before the final WGT is signed.
+            test -s "$project/bin/wmp-service"
+            chmod 0755 "$project/bin/wmp-service"
+            test -x "$project/bin/wmp-service"
+
             # The hybrid package's outer config.xml resolves its video splash
             # resources from the package root, not from res/wgt/. Keep the
             # original Web WGT assets in res/wgt/ and add the required outer
