@@ -57,6 +57,13 @@ const remotePort = {
         {key: 'status', value: nativeResponse.status},
         {key: 'payload', value: JSON.stringify(nativeResponse.payload)}
       ]);
+      if (request.command === 'toggle_stats') {
+        messageListener([
+          {key: 'protocol', value: request.protocol},
+          {key: 'type', value: 'event'},
+          {key: 'event', value: 'StatMsg: '}
+        ]);
+      }
     });
   }
 };
