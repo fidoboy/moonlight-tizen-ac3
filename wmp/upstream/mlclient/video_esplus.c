@@ -129,6 +129,7 @@ static int VidDecSetup(int videoFormat, int width, int height,
                        int redrawRate, void *context, int drFlags)
 {
     int rc = VidDecSetup_(videoFormat, width, height, redrawRate, context, drFlags);
+    if (rc != 0) esplus_close();   /* Common C skips cleanup when setup fails. */
     mldiag_video_setup(videoFormat, width, height, redrawRate, rc);
     return rc;
 }
