@@ -60,6 +60,12 @@ namespace MoonlightWmpHost
         internal delegate void SetStageCallbackFn(StageCallbackFn callback);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void LogCallbackFn(IntPtr line);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SetLogCallbackFn(LogCallbackFn callback);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int RunningFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -94,11 +100,14 @@ namespace MoonlightWmpHost
         private delegate void EsplusCloseFn(ref EsplusApi api);
 
         private static readonly StageCallbackFn NativeStageCallback = HostProtocol.NativeStageStarting;
+        private static readonly LogCallbackFn NativeLogCallback = HostProtocol.NativeLogLine;
         private readonly SetStageCallbackFn _setStageCallback;
+        private readonly SetLogCallbackFn _setLogCallback;
 
         internal void EnableStageCallbacks()
         {
             _setStageCallback(NativeStageCallback);
+            _setLogCallback(NativeLogCallback);
         }
 
         internal readonly RunningFn Running;
@@ -126,6 +135,7 @@ namespace MoonlightWmpHost
             if (resolve == null) throw new ArgumentNullException("resolve");
 
             _setStageCallback = Bind<SetStageCallbackFn>(resolve, "ml_engine_set_stage_cb");
+            _setLogCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_log_cb");
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
             Stop = Bind<StopFn>(resolve, "ml_engine_stop");
             SetDolbyPassthrough = Bind<SetDolbyPassthroughFn>(
