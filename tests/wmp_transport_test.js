@@ -216,8 +216,8 @@ vm.runInNewContext(source, {
     {key: 'detail', value: 'ESPlus player error 0x2001'}
   ]);
   assert.deepStrictEqual(handledEvents, [
-    'StatMsg: ', 'displayVideo', 'WarningMsg: The TV media player reported an error.'
-  ]);
+    'StatMsg: ', 'displayVideo'
+  ], 'fatal WMP player errors must not show a transient warning; stream termination owns the shared error dialog');
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlus player error 0x2001');
 
   messageListener([
@@ -226,7 +226,7 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'streamTerminated: -1'},
     {key: 'detail', value: 'WMP engine start failed (code -101)'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'WarningMsg: The TV media player reported an error.', 'streamTerminated: -1']);
+  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
   assert.strictEqual(window.pendingStreamApiMessage, 'WMP engine start failed (code -101)');
 
   window.WmpTransport.close();
