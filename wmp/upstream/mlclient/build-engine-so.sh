@@ -45,8 +45,8 @@ done
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
   -lcurl -lssl -lcrypto -ldl -lpthread $DBGLIB
 
-# The ServiceApp has its own entry point and is linked separately by
-# wmp/service/build-wmp-service.sh. This script builds only libmlengine.so.
+# The managed WMP ServiceApplication loads this shared engine image through
+# ManualLoader. No native C ServiceApp executable is built or packaged.
 echo "built: $(file "$OUT/libmlengine.so" | cut -d, -f1-3)"
 
 miss=""
