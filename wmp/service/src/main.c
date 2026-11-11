@@ -637,12 +637,19 @@ static bool service_create(void *data)
 {
     char report[2048];
 
+    int registration_result;
+
     (void)data;
+    dlog_print(DLOG_INFO, LOG_TAG, "WMP service_create callback entered");
     memset(&g_esplus, 0, sizeof(g_esplus));
     memset(report, 0, sizeof(report));
 
-    g_control_port_id = message_port_register_trusted_local_port(
+    registration_result = message_port_register_trusted_local_port(
         WMP_CONTROL_PORT, message_port_received, NULL);
+    dlog_print(DLOG_INFO, LOG_TAG,
+               "WMP control port registration result: %d",
+               registration_result);
+    g_control_port_id = registration_result;
     if (g_control_port_id < 0) {
         dlog_print(DLOG_ERROR, LOG_TAG,
                    "Could not register trusted WMP control port: %d",
@@ -727,5 +734,10 @@ int main(int argc, char *argv[])
     callbacks.terminate = service_terminate;
     callbacks.app_control = service_control;
 
-    return service_app_main(argc, argv, &callbacks, NULL);
+    {
+        int result = service_app_main(argc, argv, &callbacks, NULL);
+        dlog_print(DLOG_INFO, LOG_TAG,
+                   "WMP service_app_main returned: %d", result);
+        return result;
+    }
 }
