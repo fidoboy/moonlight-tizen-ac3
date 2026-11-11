@@ -85,6 +85,10 @@ namespace MoonlightWmpHost
 
             if (_port != null)
             {
+                try { _port.StopListening(); }
+                catch (Exception ex) { Log.Error("control port stop failed: " + ex.Message); }
+                try { _port.Dispose(); }
+                catch (Exception ex) { Log.Error("control port dispose failed: " + ex.Message); }
                 _port = null;
             }
         }
@@ -182,7 +186,7 @@ namespace MoonlightWmpHost
         {
             if (_port == null || String.IsNullOrEmpty(appId) ||
                 String.IsNullOrEmpty(remotePort)) return;
-            try { _port.Send(message, appId, remotePort); }
+            try { _port.Send(message, appId, remotePort, true); }
             catch (Exception ex) { Log.Error("trusted MessagePort send failed: " + ex.Message); }
         }
 
@@ -213,7 +217,7 @@ namespace MoonlightWmpHost
             try
             {
                 if (e == null || e.Remote == null ||
-                    e.Remote.AppId != WebAppId)
+                    e.Remote.Trusted != true || e.Remote.AppId != WebAppId)
                 {
                     Log.Error("rejected untrusted or unexpected WMP MessagePort sender");
                     return;
