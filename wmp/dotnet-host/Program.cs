@@ -4,7 +4,7 @@ using Tizen.Applications;
 
 namespace MoonlightWmpHost
 {
-    internal sealed class App : CoreUIApplication
+    internal sealed class App : ServiceApplication
     {
         private static EngineApi _engine;
 
