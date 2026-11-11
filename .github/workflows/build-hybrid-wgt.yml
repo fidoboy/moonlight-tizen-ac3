@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh') }}
+          key: moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
           restore-keys: |
             moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-
             moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-
@@ -72,6 +72,7 @@ jobs:
             -w /workspace \
             -e WMP_DEPS=/opt/wmp-tizen-deps \
             -e WMP_BACKPORT_DEPS=/runner-temp/wmp-backport-deps \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
             "$image" bash -lc '
               set -euo pipefail
               for tool in autoconf automake autoreconf libtoolize pkg-config; do command -v "$tool" >/dev/null; done
