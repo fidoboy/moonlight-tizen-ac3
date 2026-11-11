@@ -200,7 +200,7 @@ vm.runInNewContext(source, {
     {key: 'type', value: 'event'},
     {key: 'event', value: 'displayVideo'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['displayVideo']);
+  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo']);
 
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
@@ -208,7 +208,7 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'streamTerminated: -1'},
     {key: 'detail', value: 'WMP engine start failed (code -101)'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['displayVideo', 'streamTerminated: -1']);
+  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
   assert.strictEqual(window.pendingStreamApiMessage, 'WMP engine start failed (code -101)');
 
   window.WmpTransport.close();
