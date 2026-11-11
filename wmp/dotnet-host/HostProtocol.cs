@@ -418,7 +418,7 @@ namespace MoonlightWmpHost
                 enabled = _statsEnabled;
             }
             Respond(appId, remotePort, id, "ok",
-                "{\\"enabled\\":" + (enabled ? "true" : "false") + "}");
+                "{\"enabled\":" + (enabled ? "true" : "false") + "}");
             Event(appId, remotePort, enabled ? "StatMsg: " : "NoStatMsg: ", null);
         }
 
@@ -434,17 +434,17 @@ namespace MoonlightWmpHost
                 .Append(request.Width.ToString(CultureInfo.InvariantCulture)).Append('x')
                 .Append(request.Height.ToString(CultureInfo.InvariantCulture)).Append(' ')
                 .Append(request.Fps.ToString("0.00", CultureInfo.InvariantCulture))
-                .Append(" FPS (Codec: ").Append(request.VideoCodec).Append(")\\n");
+                .Append(" FPS (Codec: ").Append(request.VideoCodec).Append(")\n");
             text.Append("Native player: ")
                 .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
-                .Append(stats.DepthMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\\n");
+                .Append(stats.DepthMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\n");
             text.Append("Frames submitted: ")
                 .Append(stats.Submitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" · late drops: ").Append(stats.DroppedLate.ToString(CultureInfo.InvariantCulture))
-                .Append(" · queue drops: ").Append(stats.DroppedFull.ToString(CultureInfo.InvariantCulture)).Append("\\n");
+                .Append(" · queue drops: ").Append(stats.DroppedFull.ToString(CultureInfo.InvariantCulture)).Append("\n");
             text.Append("Playback time: ")
-                .Append(stats.PlayingMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\\n");
+                .Append(stats.PlayingMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\n");
             text.Append("Player errors: ").Append(stats.Errors.ToString(CultureInfo.InvariantCulture))
                 .Append(" (last: 0x").Append(stats.LastError.ToString("X", CultureInfo.InvariantCulture))
                 .Append(") · underruns: ").Append(stats.Underruns.ToString(CultureInfo.InvariantCulture))
