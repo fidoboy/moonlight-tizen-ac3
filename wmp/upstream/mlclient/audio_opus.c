@@ -7,6 +7,93 @@
  * Dolby frames are submitted directly to ESPlus without decoding or PCM
  * conversion. Hosts that do not negotiate Dolby continue to use Opus.
  */
+/*
+ * Temporary WMP video-only diagnostic renderer.
+ * Set WMP_VIDEO_ONLY_DIAGNOSTIC to 0 below to restore ESPlus audio submission.
+ */
+#define WMP_VIDEO_ONLY_DIAGNOSTIC 1
+
+#if WMP_VIDEO_ONLY_DIAGNOSTIC
+#include <stdio.h>
+#include "Limelight.h"
+#include "mltrace.h"
+
+static unsigned s_discarded_audio_packets;
+static unsigned long long s_discarded_audio_bytes;
+
+static int ar_video_only_init(int audioConfig,
+                              const POPUS_MULTISTREAM_CONFIGURATION config,
+                              void *context, int flags)
+{
+    (void)context;
+    (void)flags;
+    s_discarded_audio_packets = 0;
+    s_discarded_audio_bytes = 0;
+    fprintf(stderr,
+            "[audio] VIDEO-ONLY diagnostic active: audio renderer initialized; "
+            "audioConfig=0x%x rate=%d channels=%d; no ESPlus audio track will be created\n",
+            audioConfig, config ? config->sampleRate : 0,
+            config ? config->channelCount : 0);
+    MLT("VIDEO-ONLY audio init cfg=0x%x rate=%d channels=%d; ESPlus audio disabled",
+        audioConfig, config ? config->sampleRate : 0,
+        config ? config->channelCount : 0);
+    return 0;
+}
+
+static void ar_video_only_start(void)
+{
+    fprintf(stderr, "[audio] VIDEO-ONLY audio renderer start (output intentionally discarded)\n");
+    MLT("VIDEO-ONLY audio renderer start");
+}
+
+static void ar_video_only_stop(void)
+{
+    fprintf(stderr, "[audio] VIDEO-ONLY audio renderer stop; discarded packets=%u bytes=%llu\n",
+            s_discarded_audio_packets, s_discarded_audio_bytes);
+    MLT("VIDEO-ONLY audio stop packets=%u bytes=%llu",
+        s_discarded_audio_packets, s_discarded_audio_bytes);
+}
+
+static void ar_video_only_cleanup(void)
+{
+    ar_video_only_stop();
+    MLT("VIDEO-ONLY audio renderer cleanup");
+}
+
+static void ar_video_only_discard(char *data, int len)
+{
+    if (!data || len <= 0) return;
+    ++s_discarded_audio_packets;
+    s_discarded_audio_bytes += (unsigned)len;
+    if (s_discarded_audio_packets <= 3 || s_discarded_audio_packets % 300 == 0) {
+        fprintf(stderr, "[audio] VIDEO-ONLY discarded audio packet #%u (%d bytes)\n",
+                s_discarded_audio_packets, len);
+        MLT("VIDEO-ONLY discarded audio packet #%u (%d bytes)",
+            s_discarded_audio_packets, len);
+    }
+}
+
+int AudEsplus_GetActiveAudioCodec(void) { return 0; }
+void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
+{
+    (void)enabled;
+    fprintf(stderr, "[audio] VIDEO-ONLY: AC-3/E-AC-3 passthrough capability disabled\n");
+}
+
+void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
+{
+    LiInitializeAudioCallbacks(callbacks);
+    callbacks->init = ar_video_only_init;
+    callbacks->start = ar_video_only_start;
+    callbacks->stop = ar_video_only_stop;
+    callbacks->cleanup = ar_video_only_cleanup;
+    callbacks->decodeAndPlaySample = ar_video_only_discard;
+    callbacks->capabilities = CAPABILITY_DIRECT_SUBMIT;
+    fprintf(stderr, "[audio] VIDEO-ONLY callbacks installed; ESPlus audio path bypassed\n");
+    MLT("VIDEO-ONLY audio callbacks installed");
+}
+
+#else
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -241,3 +328,5 @@ void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
     if (s_dolby_passthrough_enabled)
         callbacks->capabilities |= CAPABILITY_SUPPORTS_AC3_PASSTHROUGH;
 }
+
+#endif /* WMP_VIDEO_ONLY_DIAGNOSTIC */
