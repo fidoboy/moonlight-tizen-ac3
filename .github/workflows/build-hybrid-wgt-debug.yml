@@ -341,12 +341,12 @@ jobs:
           version = config.get("version")
           if not version:
               raise SystemExit("Moonlight config.xml has no package version")
-          if manifest.get("package") != "MoonWMP001" or manifest.get("api-version") != "5.5":
+          if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
               raise SystemExit("WMP manifest package/API floor changed")
           apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
           if len(apps) != 1:
               raise SystemExit("WMP manifest must contain exactly one service application")
-          expected = {"appid":"MoonWMP001.WmpService","exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
+          expected = {"appid":"MoonLightS.WmpService","exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
           for key, value in expected.items():
               if apps[0].get(key) != value:
                   raise SystemExit(f"WMP manifest {key} must be {value!r}")
@@ -399,9 +399,9 @@ jobs:
                   raise SystemExit("WMP TPK contains an empty native binary")
               manifest = ET.fromstring(package.read("tizen-manifest.xml"))
               app = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
-              if manifest.get("package") != "MoonWMP001" or manifest.get("api-version") != "5.5":
+              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
                   raise SystemExit("WMP TPK root package identity/API floor changed")
-              if app is None or app.get("appid") != "MoonWMP001.WmpService":
+              if app is None or app.get("appid") != "MoonLightS.WmpService":
                   raise SystemExit("WMP TPK service application identity changed")
           print("WMP TPK payload and manifest verified.")
           PY
@@ -465,10 +465,10 @@ jobs:
               wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
           wmp_apps = [node for node in wmp_root.iter()
                       if node.tag.endswith("service-application")]
-          if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != "MoonWMP001.WmpService":
+          if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != "MoonLightS.WmpService":
               raise SystemExit("WMP TPK must contain exactly its expected service application")
           existing_wmp_apps = [node for node in service_apps
-                               if node.get("appid") == "MoonWMP001.WmpService"]
+                               if node.get("appid") == "MoonLightS.WmpService"]
           if len(existing_wmp_apps) > 1:
               raise SystemExit("Hybrid manifest contains duplicate WMP service applications")
           if not existing_wmp_apps:
@@ -609,7 +609,7 @@ jobs:
               ambilight_app = service_apps.get("MoonLightS.MoonlightAmbilight")
               if ambilight_app is None or ambilight_app.get("api-version") != "13":
                   raise SystemExit("Final hybrid package changed the Ambilight service API 13 target")
-              wmp_app = service_apps.get("MoonWMP001.WmpService")
+              wmp_app = service_apps.get("MoonLightS.WmpService")
               if wmp_app is None:
                   raise SystemExit("Final hybrid package is missing the WMP service application")
               expected_wmp = {"exec":"wmp-service","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"capp","taskmanage":"false"}
