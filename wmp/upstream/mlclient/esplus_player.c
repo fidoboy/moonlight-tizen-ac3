@@ -237,6 +237,7 @@ void esplus_sample_tick(uint64_t now_ms)
     ++s_tick_seq;
     pthread_mutex_unlock(&s_lock);
     if (request_idr) LiRequestIdrFrame();
+}
 
 static void *sampler(void *arg)
 {
