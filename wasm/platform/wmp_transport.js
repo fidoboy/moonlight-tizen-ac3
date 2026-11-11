@@ -151,7 +151,9 @@
     if (response.status === 'ok') {
       request.resolve(response);
     } else {
-      var error = makeError(response.payload.error || 'native command failed');
+      var errorMessage = response.payload.error || 'native command failed';
+      if (response.payload.field) errorMessage += ': ' + String(response.payload.field);
+      var error = makeError(errorMessage);
       if (response.payload.code !== undefined) error.code = Number(response.payload.code);
       error.nativePayload = response.payload;
       request.reject(error);
