@@ -51,7 +51,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
     (void)context;
     (void)drFlags;
-    VLOG("setup begin fmt=0x%x %dx%d@%d\\n", videoFormat, width, height, redrawRate);
+    VLOG("setup begin fmt=0x%x %dx%d@%d\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
 
@@ -65,11 +65,15 @@ static int VidDecSetup_(int videoFormat, int width, int height,
         return -1;
     }
 
+    VLOG("selected ESPlus video mime=%d; opening native player\n", (int)mime);
     if (!esplus_create_open()) {
+        VLOG("setup failed: esplus_create_open returned false\n");
         MLT("video setup -> -1 (player)");
         return -1;
     }
+    VLOG("creating video window for stream %dx%d\n", width, height);
     result = esplus_set_window(width, height);
+    VLOG("video window result=%d\n", result);
     mldiag_player("win", result);
     if (result != 0) {
         MLT("video setup -> -1 (window)");
@@ -91,7 +95,10 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     info.frame_rate = (uint32_t)s_fps;
     info.interlaced = 0;
 
+    VLOG("registering video stream mime=%d size=%ux%u fps=%u\n",
+         (int)mime, info.width, info.height, info.frame_rate);
     result = esplus_set_video_info(&info);
+    VLOG("video stream registration result=%d\n", result);
     MLT("video stream registration mime=%d -> %d", (int)mime, result);
     if (result != 0) {
         VLOG("video stream registration failed: %d\n", result);
@@ -104,7 +111,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
 static void VidDecStart(void)
 {
-    VLOG("decoder start: requesting ESPlus prepare\\n");
+    VLOG("decoder start: requesting ESPlus prepare\n");
     MLT("video start");
     s_base_pts_us = 0;
     s_have_base = 0;
@@ -115,7 +122,7 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     {
         int prepare_rc = esplus_prepare();
-        VLOG("ESPlus prepare request returned %d\\n", prepare_rc);
+        VLOG("ESPlus prepare request returned %d\n", prepare_rc);
     }
 }
 
@@ -123,7 +130,7 @@ static void VidDecStop(void) {}
 
 static void VidDecCleanup(void)
 {
-    VLOG("video renderer cleanup\\n");
+    VLOG("video renderer cleanup\n");
     MLT("video cleanup");
     esplus_close();
     free(s_scratch);
@@ -136,7 +143,7 @@ static int VidDecSetup(int videoFormat, int width, int height,
 {
     int rc = VidDecSetup_(videoFormat, width, height, redrawRate, context, drFlags);
     if (rc != 0) esplus_close();   /* Common C skips cleanup when setup fails. */
-    VLOG("setup complete rc=%d\\n", rc);
+    VLOG("setup complete rc=%d\n", rc);
     mldiag_video_setup(videoFormat, width, height, redrawRate, rc);
     return rc;
 }
@@ -153,7 +160,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
     ++video_units;
     if (du->frameType == FRAME_TYPE_IDR) ++video_idrs;
     if (video_units <= 10 || video_units % 60 == 0 || du->frameType == FRAME_TYPE_IDR) {
-        VLOG("decode unit #%u type=%s bytes=%d pts_us=%llu idr_count=%u\\n",
+        VLOG("decode unit #%u type=%s bytes=%d pts_us=%llu idr_count=%u\n",
              video_units, du->frameType == FRAME_TYPE_IDR ? "IDR" : "frame",
              du->fullLength, (unsigned long long)du->presentationTimeUs, video_idrs);
     }
