@@ -83,6 +83,21 @@
     }
 
     if (message.type === 'event') {
+      if (message.event === 'wmpDiagnosticReady') {
+        if (global.DEBUG_MODE === true) {
+          request('get_logs').then(function(response) {
+            var logs = response && response.payload && Array.isArray(response.payload.logs)
+              ? response.payload.logs : [];
+            if (global.console && typeof global.console.info === 'function') {
+              global.console.info('[wmp] native diagnostic log (' + logs.length + ' lines)');
+              logs.forEach(function(line) { global.console.info('[wmp/native]', line); });
+            }
+          }).catch(function(error) {
+            debugLog('could not retrieve native diagnostic log', errorDetails(error));
+          });
+        }
+        return;
+      }
       if (message.event === 'wmpDiagnostic') {
         debugLog('native service lifecycle diagnostic received', {
           detail: message.detail || null
@@ -419,6 +434,7 @@
     request: request,
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
+    getLogs: function() { return request('get_logs'); },
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) { return request('start_session', parameters); },
     stopStream: function() { return request('stop_session'); },
