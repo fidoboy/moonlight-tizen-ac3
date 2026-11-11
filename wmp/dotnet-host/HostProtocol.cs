@@ -47,18 +47,29 @@ namespace MoonlightWmpHost
             internal int OpticalOutputEnabled;
         }
 
-        internal static void Start(EngineApi engine, string esplusState, string esplusFamily, string loadError)
+        internal static void Start()
         {
-            _engine = engine;
-            _esplusState = esplusState ?? "unknown";
-            _esplusFamily = esplusFamily ?? "none";
-            _loadError = loadError;
-
+            _ready = false;
             _port = new MessagePort(ControlPortName, true);
             _port.MessageReceived += OnMessage;
             _port.Listen();
-            _ready = true;
             Log.Info("Trusted WMP control port listening: " + ControlPortName);
+        }
+
+        internal static void UpdateEngine(
+            EngineApi engine, string esplusState, string esplusFamily, string loadError)
+        {
+            lock (Gate)
+            {
+                _engine = engine;
+                _esplusState = esplusState ?? "unknown";
+                _esplusFamily = esplusFamily ?? "none";
+                _loadError = loadError;
+                _ready = true;
+            }
+            Log.Info("WMP engine status published: " +
+                (engine != null ? "loaded" : "unavailable") +
+                ", ESPlus=" + _esplusState + ", family=" + _esplusFamily);
         }
 
         internal static void Shutdown()
@@ -254,7 +265,8 @@ namespace MoonlightWmpHost
                 {
                     case "ping":
                         Respond(appId, remotePort, id, "ok",
-                            "{\"pong\":true,\"service\":\"ready\"}");
+                            "{\"pong\":true,\"service\":" +
+                            JsonQuote(_ready ? "ready" : "initializing") + "}");
                         return;
                     case "get_status":
                     case "probe_esplus":
