@@ -35,6 +35,7 @@ function startWmpSession(args) {
     gfeVer: args[9],
     rtspUrl: args[10],
     codecMode: args[11],
+    debugMode: typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true,
     audioConfig: args[19],
     opticalOutputEnabled: !!args[20],
     videoCodec: args[25],
