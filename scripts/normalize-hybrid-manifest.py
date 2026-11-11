@@ -7,6 +7,9 @@ import xml.etree.ElementTree as ET
 
 NAMESPACE = "http://tizen.org/ns/packages"
 WMP_APPID = "MoonLightS.WmpService"
+# Tizen Core derives this temporary identity from the .NET assembly name.
+# It is replaced below with the canonical app declaration from the signed WMP TPK.
+WMP_GENERATED_APPID = "MoonLightS.MoonlightHost"
 AMBILIGHT_APPID = "MoonLightS.MoonlightAmbilight"
 
 
@@ -109,11 +112,14 @@ def main():
     ):
         fail("Ambilight TPK service must declare the background-network category")
 
-    wmp_key = normalized_appid(WMP_APPID)
+    wmp_keys = {
+        normalized_appid(WMP_APPID),
+        normalized_appid(WMP_GENERATED_APPID),
+    }
     unexpected = [
         node.get("appid") for node in service_apps
         if node is not ambilight
-        and normalized_appid(node.get("appid")) != wmp_key
+        and normalized_appid(node.get("appid")) not in wmp_keys
     ]
     if unexpected:
         fail(f"Hybrid manifest contains unexpected service applications: {unexpected!r}")
@@ -164,10 +170,11 @@ def main():
     if missing_privileges:
         fail("Hybrid manifest is missing required service privileges: " + ", ".join(missing_privileges))
 
-    # Replace any expanded WMP declaration with the canonical service
-    # declaration from the signed .NET TPK exactly once.
+    # Replace Tizen Core's temporary .NET assembly-derived declaration,
+    # or any expanded WMP declaration, with the canonical service declaration
+    # from the signed .NET TPK exactly once.
     for node in service_apps:
-        if normalized_appid(node.get("appid")) == wmp_key:
+        if normalized_appid(node.get("appid")) in wmp_keys:
             root.remove(node)
 
     # Service applications belong before shortcut-list, privileges and the
