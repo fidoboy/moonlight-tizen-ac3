@@ -100,7 +100,7 @@ namespace MoonlightWmpHost
         private readonly EsplusNameFn _esplusFamilyName;
         private readonly EsplusCloseFn _esplusClose;
         private EsplusApi _esplusApi;
-        private bool _esplusProbed;
+        private bool _esplusProbeCached;
         private int _esplusProbeResult;
         private string _esplusFamily = String.Empty;
         private string _esplusReport = String.Empty;
@@ -134,34 +134,30 @@ namespace MoonlightWmpHost
 
         internal string ProbeEsplus(out string family, out string report)
         {
-            // Keep the dlopen handle alive for the entire host process. The
-            // engine's ESPlus adapter resolves and calls these exports during
-            // playback; closing the handle immediately after probing would
-            // invalidate the native player's function pointers.
-            if (!_esplusProbed)
+            // This probe is for service status only. The streaming engine
+            // performs its own probe and owns a separate ESPlus handle during
+            // playback, so release this temporary discovery handle immediately.
+            if (!_esplusProbeCached)
             {
                 var bytes = new byte[2048];
-                _esplusProbeResult = _esplusProbe(
-                    ref _esplusApi, bytes, (uint)bytes.Length);
-                _esplusReport = ReadUtf8(bytes);
-                _esplusFamily = PtrString(
-                    _esplusFamilyName(_esplusApi.SelectedFamily));
-                _esplusProbed = true;
+                try
+                {
+                    _esplusProbeResult = _esplusProbe(
+                        ref _esplusApi, bytes, (uint)bytes.Length);
+                    _esplusReport = ReadUtf8(bytes);
+                    _esplusFamily = PtrString(
+                        _esplusFamilyName(_esplusApi.SelectedFamily));
+                }
+                finally
+                {
+                    _esplusClose(ref _esplusApi);
+                }
+                _esplusProbeCached = true;
             }
 
             family = _esplusFamily;
             report = _esplusReport;
             return PtrString(_esplusProbeResultName(_esplusProbeResult));
-        }
-
-        internal void CloseEsplus()
-        {
-            if (!_esplusProbed)
-                return;
-
-            // Called only after ml_engine_stop() has completed.
-            _esplusClose(ref _esplusApi);
-            _esplusProbed = false;
         }
 
         internal int ReadLastError(out string diagnostic)
