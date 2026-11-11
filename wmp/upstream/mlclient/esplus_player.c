@@ -294,14 +294,14 @@ static void on_prepared(bool ok, void *context)
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
     mldiag_player("pdone", ok ? 1 : 0);
-    PLOG("prepare_async_done=%d\n", ok ? 1 : 0);
+    PLOG("callback prepare_async_done=%d\n", ok ? 1 : 0);
     MLT("cb prepare_async_done ok=%d", ok ? 1 : 0);
 }
 static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
     (void)stream;
     (void)context;
-    PLOG("callback ready_to_prepare stream=%d\\n", (int)stream);
+    PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
 }
 static void on_error(uint32_t error, void *context)
@@ -320,7 +320,9 @@ static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e sta
     else if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
         __atomic_fetch_add(&esplus_stats.overruns, 1, __ATOMIC_RELAXED);
     if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
-        PLOG("OVERRUN stream=%d\n", (int)stream);
+        PLOG("buffer overrun stream=%d\n", (int)stream);
+    else if (status == WMP_ESPLUS_BUFFER_STATUS_UNDERRUN)
+        PLOG("buffer underrun stream=%d\n", (int)stream);
 }
 static void on_seek_done(void *context) { (void)context; MLT("cb seek_done"); }
 static void on_eos(void *context) { (void)context; MLT("cb eos"); }
@@ -350,10 +352,14 @@ int esplus_create_open(void)
     memset(&s_adapter, 0, sizeof(s_adapter));
     memset(report, 0, sizeof(report));
     probe = wmp_esplus_probe(&s_api, report, sizeof(report));
+    PLOG("ESPlus probe=%s family=%s: %s\n",
+         wmp_esplus_probe_result_name(probe),
+         wmp_esplus_family_name(s_api.selected_family), report);
     MLT("ESPlus probe=%s family=%s: %s",
         wmp_esplus_probe_result_name(probe),
         wmp_esplus_family_name(s_api.selected_family), report);
     if (probe != WMP_ESPLUS_PROBE_OK) {
+        PLOG("ESPlus probe failed; native player will not be created\n");
         wmp_esplus_close(&s_api);
         pthread_mutex_unlock(&s_lock);
         return 0;
@@ -541,7 +547,10 @@ int esplus_prepare(void)
     s_idr_n = 0;
     s_video_tries = 0;
     pthread_mutex_unlock(&s_lock);
+    PLOG("calling ESPlus prepare_async\n");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
+    PLOG("ESPlus prepare_async returned status=%d raw=%d\n",
+         (int)result.status, result.raw_status);
     MLT("esplus_prepare prepare_async -> status=%d raw=%d",
         (int)result.status, result.raw_status);
     mldiag_player("prep", result.raw_status);
@@ -569,7 +578,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         s_start_tried = 1;
         started = wmp_esplus_adapter_start(&s_adapter);
         s_started = started.status == WMP_ESPLUS_CALL_SUCCESS;
-        PLOG("start status=%d raw=%d\n", (int)started.status, started.raw_status);
+        PLOG("ESPlus start returned status=%d raw=%d (prepare callback=%d)\n",
+             (int)started.status, started.raw_status, s_prepare_ok);
         MLT("esplus_start -> status=%d raw=%d", (int)started.status, started.raw_status);
         mldiag_player("start", started.raw_status);
     }
