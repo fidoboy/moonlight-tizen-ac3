@@ -118,12 +118,36 @@ def main():
     for node in service_apps:
         if normalized_appid(node.get("appid")) == wmp_key:
             root.remove(node)
-    root.append(canonical_wmp)
+
+    # Service applications belong before shortcut-list, privileges and the
+    # remaining package-level sections. Insert WMP directly after Ambilight.
+    existing_service_positions = [
+        index for index, node in enumerate(list(root))
+        if local_name(node) == "service-application"
+    ]
+    if not existing_service_positions:
+        fail("Hybrid manifest lost the Ambilight service while normalizing WMP")
+    root.insert(max(existing_service_positions) + 1, canonical_wmp)
 
     final_apps = [node for node in root.iter() if local_name(node) == "service-application"]
     final_ids = [node.get("appid") for node in final_apps]
     if len(final_apps) != 2 or set(final_ids) != {AMBILIGHT_APPID, WMP_APPID}:
         fail(f"Final hybrid manifest must declare exactly Ambilight and WMP; found {final_ids!r}")
+
+    root_children = list(root)
+    service_positions = [
+        index for index, node in enumerate(root_children)
+        if local_name(node) == "service-application"
+    ]
+    trailing_positions = [
+        index for index, node in enumerate(root_children)
+        if local_name(node) in {
+            "shortcut-list", "privileges", "dependencies",
+            "provides-appdefined-privileges",
+        }
+    ]
+    if trailing_positions and max(service_positions) >= min(trailing_positions):
+        fail("Service applications must precede shortcut-list, privileges and package dependencies")
 
     set_root_text(root, "label", "Moonlight Tizen Services")
     set_root_text(root, "author", "Moonlight Tizen")
