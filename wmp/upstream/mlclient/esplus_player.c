@@ -459,11 +459,13 @@ static void *win_create_main(void *arg)
         getenv("WAYLAND_DISPLAY") ? getenv("WAYLAND_DISPLAY") : "(unset)");
     {
         int n = ecore_wl2_init();
-        MLT("ecore_wl2_init -> %d", n);
+        PLOG("ecore_wl2_init -> %d\n", n);
+    MLT("ecore_wl2_init -> %d", n);
         if (n <= 0) { r->rc = -1; return NULL; }
     }
     s_ecore = 1;
     s_disp = ecore_wl2_display_connect(NULL);
+    PLOG("ecore_wl2_display_connect -> %p\n", s_disp);
     MLT("ecore_wl2_display_connect -> %p", s_disp);
     if (!s_disp) { PLOG("display_connect failed\n"); r->rc = -1; return NULL; }
 
@@ -473,10 +475,12 @@ static void *win_create_main(void *arg)
         src = sw > 0 && sh > 0 ? "api" : "api 0x0, fallback";
     }
     if (sw <= 0 || sh <= 0) { sw = 1920; sh = 1080; }
+    PLOG("window geometry screen=%dx%d (%s), stream=%dx%d\n", sw, sh, src, r->w, r->h);
     MLT("win: screen %dx%d (%s; stream %dx%d)", sw, sh, src, r->w, r->h);
     (void)src;
 
     s_win = ecore_wl2_window_new(s_disp, NULL, 0, 0, sw, sh);
+    PLOG("ecore_wl2_window_new -> %p\n", s_win);
     MLT("ecore_wl2_window_new -> %p", s_win);
     if (!s_win) { PLOG("window_new failed\n"); r->rc = -1; return NULL; }
     ecore_wl2_window_alpha_set(s_win, 1);
@@ -486,6 +490,8 @@ static void *win_create_main(void *arg)
 
     display_result = wmp_esplus_adapter_set_ecore_display(
         &s_adapter, 1 /* OVERLAY */, s_win, 0, 0, sw, sh);
+    PLOG("ESPlus set_ecore_display status=%d raw=%d\n",
+         (int)display_result.status, display_result.raw_status);
     MLT("esplusplayer_set_ecore_display(OVERLAY) -> status=%d raw=%d",
         (int)display_result.status, display_result.raw_status);
     if (display_result.status != WMP_ESPLUS_CALL_SUCCESS) {
@@ -495,6 +501,8 @@ static void *win_create_main(void *arg)
     }
 
     mode_result = wmp_esplus_adapter_set_display_mode(&s_adapter, 0 /* LETTER_BOX */);
+    PLOG("ESPlus set_display_mode status=%d raw=%d\n",
+         (int)mode_result.status, mode_result.raw_status);
     MLT("esplusplayer_set_display_mode(LETTER_BOX) -> status=%d raw=%d",
         (int)mode_result.status, mode_result.raw_status);
     (void)mode_result;
@@ -587,7 +595,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
          result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
-        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\\n",
+        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\n",
              s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
              (int)result.status, result.raw_status, s_prepared, s_started);
     }
