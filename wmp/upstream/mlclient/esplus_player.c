@@ -105,7 +105,7 @@ static void ecore_runtime_unload(void)
     s_ecore_wl2_lib = s_ecore_lib = NULL;
 }
 
-#define PLOG(...) fprintf(stderr, "[esplus] " __VA_ARGS__)
+#define PLOG(...) do { fprintf(stderr, "[esplus] " __VA_ARGS__); MLT("esplus: " __VA_ARGS__); } while (0)
 
 static wmp_esplus_api_t s_api;
 static wmp_esplus_adapter_t s_adapter;
