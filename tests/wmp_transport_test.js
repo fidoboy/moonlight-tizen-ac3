@@ -188,12 +188,12 @@ vm.runInNewContext(source, {
   window.DEBUG_MODE = true;
   window.tizen.application.launch = function(appId, success, failure) {
     launchedAppId = appId;
-    failure({
+    Promise.resolve().then(() => failure({
       name: 'NotFoundError',
       message: 'Application not found',
       code: 404,
       domain: 'TizenApplication'
-    });
+    }));
   };
   const failureLogStart = debugEntries.length;
   await assert.rejects(
