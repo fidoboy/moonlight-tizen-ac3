@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="EngineApi.cs" />
     <None Include="../../res/icon.png" Link="icon.png" />
     <None Include="lib/libmlengine.so" Link="res/lib/libmlengine.so"
           CopyToOutputDirectory="PreserveNewest"
