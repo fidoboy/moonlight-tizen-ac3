@@ -433,15 +433,15 @@ jobs:
               bad = package.testzip()
               if bad:
                   raise SystemExit(f"Invalid unsigned WMP TPK member: {bad}")
-              required = {"tizen-manifest.xml", "bin/wmp-service", "lib/libmlengine.so"}
+              required = {"tizen-manifest.xml", "bin/MoonlightHost.dll", "res/lib/libmlengine.so"}
               missing = required - set(package.namelist())
               if missing:
                   raise SystemExit("Unsigned WMP TPK is missing: " + ", ".join(sorted(missing)))
           PY
-          run_tz "sign-wmp-native-service-tpk" "$TIZEN_CORE_CLI" pack -t tpk -s Moonlight -b "$unsigned_wmp_tpk" -o "$wmp_project/MoonLightS.tpk"
+          run_tz "sign-wmp-dotnet-service-tpk" "$TIZEN_CORE_CLI" pack -t tpk -s Moonlight -b "$unsigned_wmp_tpk" -o "$wmp_project/MoonLightS.tpk"
           mapfile -t wmp_pkgs < <(find "$wmp_project" -maxdepth 1 -type f -name '*.tpk' -print | sort)
           if (( ${#wmp_pkgs[@]} != 1 )); then
-            echo "::error::Expected exactly one WMP native service TPK; found ${#wmp_pkgs[@]}."
+            echo "::error::Expected exactly one WMP .NET service TPK; found ${#wmp_pkgs[@]}."
             printf '%s\\n' "${wmp_pkgs[@]}"
             exit 1
           fi
@@ -453,24 +453,21 @@ jobs:
           import xml.etree.ElementTree as ET
           with zipfile.ZipFile(sys.argv[1]) as package:
               names = set(package.namelist())
-              required = {"bin/wmp-service", "lib/libmlengine.so", "tizen-manifest.xml"}
+              required = {"bin/MoonlightHost.dll", "res/lib/libmlengine.so", "tizen-manifest.xml"}
               missing = sorted(required - names)
               if missing:
                   raise SystemExit("WMP TPK is missing: " + ", ".join(missing))
-              if not package.read("bin/wmp-service") or not package.read("lib/libmlengine.so"):
-                  raise SystemExit("WMP TPK contains an empty native binary")
+              if not package.read("bin/MoonlightHost.dll") or not package.read("res/lib/libmlengine.so"):
+                  raise SystemExit("WMP TPK contains an empty managed host or engine library")
               manifest = ET.fromstring(package.read("tizen-manifest.xml"))
               app = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
-              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
-                  raise SystemExit("WMP TPK root package identity/API floor changed")
+              if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
+                  raise SystemExit("WMP TPK must target Tizen 6.0 / API 8")
               if app is None or app.get("appid") != "MoonLightS.WmpService":
                   raise SystemExit("WMP TPK service application identity changed")
-              if app.get("exec") != "/usr/apps/MoonLightS/bin/wmp-service":
-                  raise SystemExit("WMP TPK service executable path is invalid")
-              executable = package.getinfo("bin/wmp-service")
-              if ((executable.external_attr >> 16) & 0o111) == 0:
-                  raise SystemExit("WMP TPK service executable lost its executable permission")
-          print("WMP TPK payload and manifest verified.")
+              if app.get("exec") != "MoonlightHost.dll" or app.get("type") != "dotnet" or app.get("api-version") != "8":
+                  raise SystemExit("WMP TPK service must be the Tizen API 8 .NET host")
+          print("WMP .NET service TPK payload and manifest verified.")
           PY
           echo "WMP service TPK: $wmp_tpk"
 
