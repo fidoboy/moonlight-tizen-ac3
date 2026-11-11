@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
 
-      - name: Build WMP engine and .NET ServiceApp inside shared v4 image
+      - name: Build WMP engine and .NET ServiceApp inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
@@ -175,7 +175,7 @@ jobs:
               test -s /workspace/generated-videos/launch-screen-portrait.mp4
             '
 
-      - name: Build Moonlight Web files (standard and ForceGM) inside shared v4 image
+      - name: Build Moonlight Web files (standard and ForceGM) inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
