@@ -40,10 +40,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
           restore-keys: |
-            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-${{ github.ref_name }}-
-            moonlight-web-ccache-${{ github.workflow }}-${{ runner.os }}-
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
+            moonlight-web-ccache-${{ runner.os }}-
+
 
       - name: Build and test WMP native engine and ServiceApp inside shared v4 image
         shell: bash
@@ -70,23 +71,16 @@ jobs:
               bash wmp/tests/wmp_service_syntax_test.sh
               bash wmp/tests/wmp_esplus_abi_test.sh
               echo "::endgroup::"
-              # Route every ARM GCC invocation through the existing persistent ccache.
-              # The compiler itself remains the pinned GCC 6.2 binary from the image.
               ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+              ARM_GCC_DIR="$(dirname "$ARM_GCC")"
               CCACHE_BIN=/runner-temp/wmp-ccache-bin
               mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
-              printf '%s\n' \
-                '#!/bin/sh' \
-                'exec ccache "$WMP_ARM_REAL_GCC" "$@"' \
-                > "$CCACHE_BIN/arm-linux-gnueabi-gcc"
-              chmod 0755 "$CCACHE_BIN/arm-linux-gnueabi-gcc"
-              ln -sf arm-linux-gnueabi-gcc "$CCACHE_BIN/gcc"
-              export WMP_ARM_REAL_GCC="$ARM_GCC"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/arm-linux-gnueabi-gcc"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/gcc"
               export CCACHE_COMPILERCHECK=content
               export CCACHE_BASEDIR=/workspace
-              export PATH="$CCACHE_BIN:$PATH"
+              export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
               ccache --version
-
               mkdir -p "$WMP_BACKPORT_DEPS"
               cp -a /opt/wmp-backport-deps/openssl111 "$WMP_BACKPORT_DEPS/"
               cp -a /opt/wmp-backport-deps/curl759 "$WMP_BACKPORT_DEPS/"
@@ -104,6 +98,12 @@ jobs:
               readelf -h /runner-temp/wmp-engine-build/libmlengine.so | grep -F "Machine:" | grep -F "ARM"
               echo "WMP native engine and ServiceApp cross-build completed."
             '
+      - name: Restore compiler cache ownership after WMP build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+
       - name: Ensure versioned MP4 splash assets are available
         shell: bash
         env:
@@ -625,9 +625,14 @@ jobs:
               service_apps = {node.get("appid"): node for node in service_app_nodes}
               ambilight_app = service_apps["MoonLightS.MoonlightAmbilight"]
               expected_ambilight = {
-                  "api-version": "13", "exec": "MoonlightAmbilight.dll",
-                  "type": "dotnet", "nodisplay": "true", "on-boot": "false",
-                  "auto-restart": "false", "multiple": "false", "taskmanage": "false",
+                  "api-version": "13",
+                  "exec": "MoonlightAmbilight.dll",
+                  "type": "dotnet",
+                  "nodisplay": "true",
+                  "on-boot": "false",
+                  "auto-restart": "false",
+                  "multiple": "false",
+                  "taskmanage": "false",
               }
               for key, value in expected_ambilight.items():
                   if ambilight_app.get(key) != value:
@@ -641,9 +646,13 @@ jobs:
                   raise SystemExit("Final WGT is missing the Ambilight service assembly")
               wmp_app = service_apps["MoonLightS.WmpService"]
               expected_wmp = {
-                  "exec": "/usr/apps/MoonLightS/bin/wmp-service", "nodisplay": "true",
-                  "on-boot": "false", "auto-restart": "false", "multiple": "false",
-                  "type": "capp", "taskmanage": "false",
+                  "exec": "/usr/apps/MoonLightS/bin/wmp-service",
+                  "nodisplay": "true",
+                  "on-boot": "false",
+                  "auto-restart": "false",
+                  "multiple": "false",
+                  "type": "capp",
+                  "taskmanage": "false",
               }
               executable = package.getinfo("bin/wmp-service")
               if ((executable.external_attr >> 16) & 0o111) == 0:
@@ -667,7 +676,7 @@ jobs:
               }
               if not required_privileges <= declared_privileges:
                   raise SystemExit("Final hybrid manifest is missing required WMP/ESPlus privileges")
-              
+          
               for name in names:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
@@ -705,12 +714,12 @@ jobs:
           PY
           }
           
-          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
-          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt"
+          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
+          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$RUNNER_TEMP/Moonlight-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-Debug.wgt"
-          cp "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM-Debug.wgt"
-          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt Moonlight-ForceGM-Debug.wgt > SHA256SUMS)
+          cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
+          cp "$RUNNER_TEMP/Moonlight-ForceGM.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM.wgt"
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt Moonlight-ForceGM.wgt > SHA256SUMS)
           
           
           PACKAGE
@@ -726,18 +735,18 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard Debug hybrid WGT for Apps2Samsung
+      - name: Upload standard hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-Debug
-          path: ${{ runner.temp }}/hybrid-output/Moonlight-Debug.wgt
+          name: Moonlight-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight.wgt
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload ForceGM Debug hybrid WGT for Apps2Samsung
+      - name: Upload ForceGM hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-ForceGM-Debug
-          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM-Debug.wgt
+          name: Moonlight-ForceGM-${{ github.sha }}
+          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM.wgt
           if-no-files-found: error
           retention-days: 14
