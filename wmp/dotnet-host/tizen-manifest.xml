@@ -4,19 +4,18 @@
           package="MoonLightS"
           version="0.1.0">
     <profile name="tv"/>
-    <service-application appid="MoonLightS.WmpService"
+    <ui-application appid="MoonLightS.WmpService"
                         exec="MoonlightHost.dll"
                         type="dotnet"
                         api-version="8"
                         multiple="false"
                         nodisplay="true"
                         taskmanage="false"
-                        on-boot="false"
-                        auto-restart="false">
+                        launch_mode="single">
         <label>Moonlight WMP service</label>
         <metadata key="http://samsung.com/tv/metadata/background.execution.support" value="true"/>
         <background-category value="background-network"/>
-    </service-application>
+    </ui-application>
     <privileges>
         <privilege>http://tizen.org/privilege/internet</privilege>
         <privilege>http://tizen.org/privilege/network.get</privilege>
