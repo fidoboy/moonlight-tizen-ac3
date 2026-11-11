@@ -136,7 +136,17 @@ const SyncFunctions = {
   // no parameters
   'cancelRequest': (...args) => Module.cancelRequest(...args),
   // no parameters
-  'toggleStats': (...args) => Module.toggleStats(...args),
+  'toggleStats': (...args) => {
+    if (window._activeStreamingEngine === 'WMP') {
+      if (window.WmpTransport && typeof window.WmpTransport.toggleStats === 'function') {
+        window.WmpTransport.toggleStats().catch(function(error) {
+          console.warn('[messages.js, toggleStats] WMP statistics toggle failed:', error);
+        });
+      }
+      return {type: 'resolve', ret: null};
+    }
+    return Module.toggleStats(...args);
+  },
 };
 
 const AsyncFunctions = {
