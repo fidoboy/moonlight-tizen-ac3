@@ -11,7 +11,7 @@ SYSROOT="${SYSROOT:-$DEPS/sysroot}"
 TV_LIBS="${TV_LIBS:-$DEPS/tv-libs/usr/lib}"
 ENGINE_SO="${ENGINE_SO:-$REPO_ROOT/engine-build/libmlengine.so}"
 OUT="${SERVICE_OUT:-$WMP_ROOT/build/service}"
-GCC="${CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}"
+GCC="${CC:-${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}}"
 READELF="${READELF:-$(command -v arm-linux-gnueabi-readelf || command -v readelf)}"
 
 if [[ ! -x "$GCC" ]]; then
