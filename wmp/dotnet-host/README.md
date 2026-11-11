@@ -1,86 +1,71 @@
-# WMP .NET host port
+# WMP .NET service
 
-This directory is the staged port of the background host used by
-`WMP/moonlight-tizen50`. It is deliberately not part of the hybrid package
-yet: the existing native ServiceApp remains the active WMP implementation
-until this host implements the complete `moonlight-wmp/1` contract and passes
-the same engine/audio tests.
+This is the managed WMP auxiliary service for the Moonlight Tizen hybrid
+installation. The final user installation remains one hybrid WGT containing
+the WebApp and exactly two auxiliary .NET services: WMP and Ambilight.
 
-## Target application model
+Tizen Core may use intermediate service TPKs while assembling/signing the
+hybrid WGT. Those are build inputs, not separately distributed installation
+packages. Do not copy the upstream repository's standalone WGT + TPK delivery
+model.
 
-The final host is a separate Tizen .NET **UI application without a window**
-(`ui-application`, `type="dotnet"`, `nodisplay="true"`). The WebApp launches
-it on demand with `tizen.application.launch()`. It is not a
-`service-application` and must not be started at boot. Keep the background
-execution metadata and `background-network` category from the reference
-implementation.
+## Application model
 
-The host target must remain `tizen80` as required by this project. Do not
-copy the reference project's `tizen40` target or the unrelated Ambilight
-`net8.0-tizen10.0` target.
+WMP is a Tizen **ServiceApplication** (`service-application`, `type="dotnet"`,
+`nodisplay="true"`), launched on demand by the existing WebApp app ID
+`MoonLightS.WmpService`. It is not a UI application. Its trusted local
+MessagePort is `MoonlightWmpControl`; the WebApp receives replies/events on
+its trusted local port `MoonlightWmpReply`.
 
-`tizen80` is the legacy Tizen .NET target for API Level 8 (Tizen 6.0 M2),
-not a synonym for Tizen 8.0 and not compatible with the Tizen 5.5 API floor.
-The WebApp and current C ServiceApp may continue to support Tizen 5.5, but
-this .NET host target has a Tizen 6.0 minimum. Keep that distinction explicit
-in package metadata and release notes; do not claim that the .NET host runs on
-Tizen 5.5. The host's TFM must not be silently changed to a modern
-`net8.0-tizen10.0` target.
+The target remains `tizen80` (API Level 8, Tizen 6.0 M2). The WMP service
+therefore requires Tizen 6.0 or later. The outer WebApp package can retain its
+5.5 manifest floor, but the complete hybrid installation's practical minimum
+is Tizen 6.0 because of this .NET service. Do not claim full hybrid
+compatibility with Tizen 5.5 and do not silently change the host to
+`net8.0-tizen10.0`.
 
 ## Compatibility boundary
 
-The host must preserve the existing WebApp protocol and must not introduce a
-second, incompatible MessagePort protocol:
+The host preserves the existing `moonlight-wmp/1` MessagePort contract:
 
-- protocol: `moonlight-wmp/1`
+- control port: `MoonlightWmpControl`
 - WebApp reply port: `MoonlightWmpReply`
-- host control port: `MoonlightWmpControl`
 - commands: `ping`, `get_status`, `probe_esplus`, `start_session`,
   `stop_session`
-- replies and events retain the current `protocol`, `id`, `type`,
-  `status`, `payload`, `event` and `detail` fields.
+- message fields: `protocol`, `id`, `command`, `payload`, `arg_*`
+- responses/events retain `protocol`, `id`, `type`, `status`, `payload`,
+  `event`, and `detail`.
 
-The `start_session` payload remains the existing C service contract:
+The `start_session` payload remains:
 `host`, `rikey`, `appVer`, `gfeVer`, `rtspUrl`, `videoCodec`,
 `audioConfig`, `w`, `h`, `fps`, `bitrate`, `rikeyid`, `codecMode`,
 `hdr`, `fullRange`, and `opticalOutputEnabled`.
 
 ## Engine and audio invariants
 
-- Load the same packaged `libmlengine.so`; do not fork the engine.
-- Keep `Moonlight Common C` authoritative for session state and termination.
-  The host may serialize engine lifecycle calls and forward status/events, but
-  must not add an independent session watchdog or infer a disconnect in JS.
-- Preserve the call to
-  `ml_engine_set_dolby_passthrough_enabled(opticalOutputEnabled)` before
+- Load the same ARM32 `libmlengine.so`; do not fork Moonlight Common C.
+- Moonlight Common C remains authoritative for session state and termination.
+  The host serializes engine lifecycle calls and forwards events; it does not
+  add an independent session watchdog or move disconnect decisions to JS.
+- Call `ml_engine_set_dolby_passthrough_enabled(opticalOutputEnabled)` before
   `ml_engine_start_session_v2()`.
-- Preserve active audio codec reporting: `PENDING`, `OPUS`, `AC-3`,
-  `E-AC-3`; do not collapse AC-3 and E-AC-3 into a generic Dolby state.
-- Preserve the `displayVideo` first-submitted-frame event and
+- Preserve distinct codec reports: `PENDING`, `OPUS`, `AC-3`, and `E-AC-3`.
+- Preserve `displayVideo` after the first submitted video frame and
   `streamTerminated: <termination_code>` with the engine diagnostic.
-- Keep the current C ServiceApp until the .NET host has passed launch,
-  trusted-port, engine-start/stop, video-ready, codec-negotiation, and
-  host-initiated disconnect tests on the TV.
 
 ## ESPlus ABI selection
 
-The existing native adapter remains the sole authority for ESPlus ABI
-selection and calls. It selects exactly one complete stream-registration
-family:
+The native adapter in `wmp/service/src/wmp_esplus_abi.*` and
+`wmp/service/src/wmp_esplus_adapter.*` remains the only authority for ESPlus
+symbol discovery and typed calls. It selects exactly one complete family:
+SET (`set_video_stream_info` + `set_audio_stream_info`) or ADD
+(`add_video_stream_info` + `add_audio_stream_info`). C# does not duplicate
+proprietary signatures or make family-selection decisions.
 
-- SET: `set_video_stream_info` + `set_audio_stream_info`
-- ADD: `add_video_stream_info` + `add_audio_stream_info`
+## Integration gate
 
-Never mix the two families, infer the generation from display symbols, or
-reimplement the proprietary function signatures in C#. The host's
-`probe_esplus` response must obtain its result from a native interface that
-uses `wmp_esplus_probe()` and the typed adapter. A managed duplicate probe
-is not an acceptable replacement.
-
-## Migration gate
-
-Only after the .NET host and its separate TPK are built and verified should a
-later commit change the WebApp launch target and hybrid package dependency.
-That switch must be atomic from the user's perspective: EMSS remains the
-default backend, WMP starts only when explicitly selected, and the old C
-ServiceApp remains available until TV validation confirms parity.
+The .NET service must be compiled and included in the hybrid WGT. Then verify
+on the TV: service launch, trusted MessagePorts, engine load, ESPlus probe,
+engine start/stop, first video event, AC-3/E-AC-3 negotiation, and
+host-initiated disconnect. EMSS remains integrated in WASM and is not changed.
+The native service entry point is not part of the target architecture.
