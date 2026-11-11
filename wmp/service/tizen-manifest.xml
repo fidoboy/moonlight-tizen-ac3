@@ -3,9 +3,9 @@
           api-version="5.5"
           package="MoonLightS"
           version="0.1.0">
-    <label>Moonlight Tizen Services</label>
+    <label>Moonlight WMP service</label>
     <author>Moonlight Tizen</author>
-    <description>Native Moonlight Tizen services: WMP playback and Ambilight.</description>
+    <description>Native ESPlus playback service for Moonlight Tizen.</description>
     <service-application appid="MoonLightS.WmpService"
                         exec="/usr/apps/MoonLightS/bin/wmp-service"
                         nodisplay="true"
