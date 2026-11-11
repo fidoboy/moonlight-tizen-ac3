@@ -996,12 +996,17 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 /* Keep the navigation guide and dynamic warnings within the viewport as well. */
 #navGuideDialog,
-#warningDialog {
+#warningDialog[open] {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     max-height: 70vh;
     overflow: hidden;
+}
+
+/* A closed native dialog must not remain in the layout after its fade-out. */
+#warningDialog:not([open]) {
+    display: none;
 }
 #navGuideDialog > .mdl-dialog__title,
 #navGuideDialog > .mdl-dialog__actions,
