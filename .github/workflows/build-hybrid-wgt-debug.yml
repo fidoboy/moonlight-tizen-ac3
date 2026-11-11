@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
-          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
 
       - name: Load cached Tizen build image
         if: steps.tizen-image-cache.outputs.cache-hit == 'true'
@@ -80,7 +80,7 @@ jobs:
         continue-on-error: true
         with:
           path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
-          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
 
       - name: Build WMP engine and .NET ServiceApp inside shared v4 image
         shell: bash
