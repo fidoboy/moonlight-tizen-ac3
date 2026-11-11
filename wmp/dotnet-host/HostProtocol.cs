@@ -457,6 +457,8 @@ namespace MoonlightWmpHost
         private static void SendStatus(string appId, string remotePort, string id)
         {
             bool running = false;
+            bool workerActive;
+            lock (Gate) workerActive = _workerActive;
             int statsResult = -1;
             int lastErrorCode = 0;
             var stats = new EngineApi.Stats();
@@ -478,7 +480,7 @@ namespace MoonlightWmpHost
 
             string payload = "{\"service\":" + JsonQuote(_ready ? "ready" : "stopping") +
                 ",\"engine\":" + JsonQuote(_engine != null ? "libmlengine" : "unavailable") +
-                ",\"sessionState\":" + JsonQuote(running ? "running" : "idle") +
+                ",\"sessionState\":" + JsonQuote(running ? "running" : workerActive ? "connecting" : "idle") +
                 ",\"running\":" + (running ? "true" : "false") +
                 ",\"libraryLoaded\":" + (_engine != null ? "true" : "false") +
                 ",\"esplus\":" + JsonQuote(_esplusState) +
