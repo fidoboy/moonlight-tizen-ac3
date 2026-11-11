@@ -46,6 +46,9 @@ jobs:
           context: .
           file: docker/tizen-build-env/Dockerfile
           push: true
+          # apt and the other build-time downloads must use the runner's
+          # working network namespace rather than BuildKit's isolated RUN network.
+          network: host
           tags: |
             ghcr.io/${{ github.repository_owner }}/moonlight-tizen-build-env:6.1-v5
             ghcr.io/${{ github.repository_owner }}/moonlight-tizen-build-env:sha-${{ github.sha }}
