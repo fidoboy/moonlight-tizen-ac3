@@ -13,6 +13,8 @@ assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'WMP Servic
 let messageListener = null;
 let listenerRemoved = false;
 let launchedAppId = null;
+let remotePortNotReadyAttempts = 0;
+let remotePortRequests = 0;
 
 const localPort = {
   addMessagePortListener(callback) {
@@ -58,6 +60,7 @@ const window = {
   handleMessage(message) {
     handledEvents.push(message);
   },
+  setTimeout,
   tizen: {
     messageport: {
       requestTrustedLocalMessagePort(name) {
@@ -67,6 +70,13 @@ const window = {
       requestTrustedRemoteMessagePort(appId, portName) {
         assert.strictEqual(appId, expectedServiceAppId);
         assert.strictEqual(portName, 'MoonlightWmpControl');
+        remotePortRequests++;
+        if (remotePortNotReadyAttempts > 0) {
+          remotePortNotReadyAttempts--;
+          const error = new Error('The port of the target application is not found');
+          error.name = 'NotFoundError';
+          throw error;
+        }
         return remotePort;
       }
     },
@@ -95,7 +105,9 @@ vm.runInNewContext(source, {
 });
 
 (async function() {
+  remotePortNotReadyAttempts = 3;
   const connection = await window.WmpTransport.connect();
+  assert.strictEqual(remotePortRequests, 4, 'WMP transport must retry while the ServiceApp registers its port');
   assert.strictEqual(connection.trusted, true);
   assert.strictEqual(launchedAppId, expectedServiceAppId);
 
@@ -193,6 +205,23 @@ vm.runInNewContext(source, {
   assert.ok(launchFailureLog.includes('NotFoundError'));
   assert.ok(launchFailureLog.includes('Application not found'));
   assert.ok(launchFailureLog.includes(expectedServiceAppId));
+
+  // A missing native port must fail after a bounded number of retries.
+  window.tizen.application.launch = function(appId, success) {
+    launchedAppId = appId;
+    success();
+  };
+  remotePortNotReadyAttempts = 100;
+  const retryStart = remotePortRequests;
+  await assert.rejects(
+    window.WmpTransport.connect(),
+    /native control port is unavailable/
+  );
+  assert.strictEqual(
+    remotePortRequests - retryStart,
+    30,
+    'WMP transport must stop retrying after the configured attempt limit'
+  );
 
   console.log('WMP trusted MessagePort bridge tests passed.');
 })().catch(error => {

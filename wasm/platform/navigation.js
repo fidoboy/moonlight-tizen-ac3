@@ -2878,6 +2878,10 @@ const Navigation = (function() {
       // Some modal dialogs must be immediately operable from the remote/gamepad,
       // even when the previous view had already lost navigation focus.
       if (restoreNavigationFocus) {
+        // A previous streaming transition may have stopped Navigation entirely.
+        // Restoring focus alone is insufficient because runOp() ignores input while
+        // State is stopped. Re-enable input before entering this modal view.
+        State.start();
         hasFocus = true;
       }
       viewStack.push(view);

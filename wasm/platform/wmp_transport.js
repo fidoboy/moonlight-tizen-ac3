@@ -195,40 +195,81 @@
             serviceAppId: SERVICE_APP_ID,
             elapsedMs: Date.now() - connectStartedAt
           });
-          try {
-            debugLog('requesting trusted remote control MessagePort', {
-              serviceAppId: SERVICE_APP_ID,
-              controlPort: CONTROL_PORT
-            });
-            remotePort = tizen.messageport.requestTrustedRemoteMessagePort(
-              SERVICE_APP_ID, CONTROL_PORT
-            );
-            debugLog('remote control MessagePort acquired', {
-              serviceAppId: SERVICE_APP_ID,
-              controlPort: CONTROL_PORT,
-              portAvailable: !!remotePort,
-              trusted: !!(remotePort && remotePort.isTrusted)
-            });
-            if (!remotePort || remotePort.isTrusted !== true) {
+          var remotePortAttempt = 0;
+          var maxRemotePortAttempts = 30;
+          var remotePortRetryDelayMs = 100;
+
+          function openRemoteControlPort(lastError) {
+            remotePortAttempt++;
+            try {
+              debugLog('requesting trusted remote control MessagePort', {
+                serviceAppId: SERVICE_APP_ID,
+                controlPort: CONTROL_PORT,
+                attempt: remotePortAttempt,
+                maxAttempts: maxRemotePortAttempts
+              });
+              var candidatePort = tizen.messageport.requestTrustedRemoteMessagePort(
+                SERVICE_APP_ID, CONTROL_PORT
+              );
+              if (!candidatePort) {
+                var unavailableError = new Error('trusted remote control port is not available yet');
+                unavailableError.portNotReady = true;
+                throw unavailableError;
+              }
+              if (candidatePort.isTrusted !== true) {
+                throw makeError('native control port is not trusted');
+              }
+
+              remotePort = candidatePort;
+              debugLog('remote control MessagePort acquired', {
+                serviceAppId: SERVICE_APP_ID,
+                controlPort: CONTROL_PORT,
+                portAvailable: true,
+                trusted: true,
+                attempts: remotePortAttempt,
+                elapsedMs: Date.now() - connectStartedAt
+              });
+              resolve({
+                serviceAppId: SERVICE_APP_ID,
+                controlPort: CONTROL_PORT,
+                trusted: true
+              });
+            } catch (error) {
+              var errorMessage = error && error.message ? error.message : String(error);
+              var portNotReady = !!(error && error.portNotReady) ||
+                !!(error && error.name === 'NotFoundError') ||
+                /port.{0,80}not found|not found.{0,80}port/i.test(errorMessage);
+
+              if (portNotReady && remotePortAttempt < maxRemotePortAttempts) {
+                debugLog('trusted remote control MessagePort is not registered yet; retrying', {
+                  serviceAppId: SERVICE_APP_ID,
+                  controlPort: CONTROL_PORT,
+                  attempt: remotePortAttempt,
+                  maxAttempts: maxRemotePortAttempts,
+                  retryInMs: remotePortRetryDelayMs,
+                  elapsedMs: Date.now() - connectStartedAt,
+                  error: errorDetails(error)
+                });
+                global.setTimeout(function() {
+                  openRemoteControlPort(error);
+                }, remotePortRetryDelayMs);
+                return;
+              }
+
+              debugLog('could not open trusted remote control MessagePort', {
+                serviceAppId: SERVICE_APP_ID,
+                controlPort: CONTROL_PORT,
+                attempts: remotePortAttempt,
+                elapsedMs: Date.now() - connectStartedAt,
+                previousError: lastError ? errorDetails(lastError) : null,
+                error: errorDetails(error)
+              });
               close();
-              throw makeError('native control port is not trusted');
+              reject(makeError('native control port is unavailable: ' + errorMessage));
             }
-            resolve({
-              serviceAppId: SERVICE_APP_ID,
-              controlPort: CONTROL_PORT,
-              trusted: !!remotePort.isTrusted
-            });
-          } catch (error) {
-            debugLog('could not open trusted remote control MessagePort', {
-              serviceAppId: SERVICE_APP_ID,
-              controlPort: CONTROL_PORT,
-              elapsedMs: Date.now() - connectStartedAt,
-              error: errorDetails(error)
-            });
-            close();
-            reject(makeError('native control port is unavailable: ' +
-              (error && error.message ? error.message : String(error))));
           }
+
+          openRemoteControlPort(null);
         }, function(error) {
           debugLog('WMP ServiceApp launch failed', {
             serviceAppId: SERVICE_APP_ID,
