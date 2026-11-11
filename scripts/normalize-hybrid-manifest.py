@@ -110,20 +110,10 @@ def main():
         fail("Ambilight TPK service must declare the background-network category")
 
     wmp_key = normalized_appid(WMP_APPID)
-    # Tizen Core may synthesize the WMP appid from the executable path
-    # when expanding the referenced WMP TPK into the hybrid manifest.
-    # Accept only that exact generated alias paired with the canonical exec;
-    # all other non-Ambilight service declarations remain unexpected.
-    generated_wmp_appid = "MoonLightS./usr/apps/MoonLightS/bin/wmp-service"
-    generated_wmp_exec = "/usr/apps/MoonLightS/bin/wmp-service"
     unexpected = [
         node.get("appid") for node in service_apps
         if node is not ambilight
         and normalized_appid(node.get("appid")) != wmp_key
-        and not (
-            node.get("appid") == generated_wmp_appid
-            and node.get("exec") == generated_wmp_exec
-        )
     ]
     if unexpected:
         fail(f"Hybrid manifest contains unexpected service applications: {unexpected!r}")
@@ -135,13 +125,21 @@ def main():
         fail("WMP TPK must contain exactly one canonical MoonLightS.WmpService application")
 
     canonical_wmp = wmp_apps[0]
+    if wmp_root.get("package") != "MoonLightS" or wmp_root.get("api-version") != "6.0":
+        fail("WMP .NET TPK must target Tizen 6.0 / API 8")
+    with zipfile.ZipFile(wmp_tpk) as package:
+        if "bin/MoonlightHost.dll" not in package.namelist():
+            fail("WMP .NET TPK is missing bin/MoonlightHost.dll")
+        if "res/lib/libmlengine.so" not in package.namelist():
+            fail("WMP .NET TPK is missing res/lib/libmlengine.so")
     expected_wmp = {
-        "exec": "/usr/apps/MoonLightS/bin/wmp-service",
+        "exec": "MoonlightHost.dll",
+        "api-version": "8",
         "nodisplay": "true",
         "on-boot": "false",
         "auto-restart": "false",
         "multiple": "false",
-        "type": "capp",
+        "type": "dotnet",
         "taskmanage": "false",
     }
     for key, value in expected_wmp.items():
@@ -168,16 +166,10 @@ def main():
     if missing_privileges:
         fail("Hybrid manifest is missing required service privileges: " + ", ".join(missing_privileges))
 
-    # Tizen Core may expand the WMP TPK into the outer manifest using
-    # either its canonical appid or a path-derived appid. Remove both forms
-    # before inserting the canonical declaration from the TPK exactly once.
+    # Replace any expanded WMP declaration with the canonical service
+    # declaration from the signed .NET TPK exactly once.
     for node in service_apps:
-        is_canonical_wmp = normalized_appid(node.get("appid")) == wmp_key
-        is_generated_wmp_alias = (
-            node.get("appid") == generated_wmp_appid
-            and node.get("exec") == generated_wmp_exec
-        )
-        if is_canonical_wmp or is_generated_wmp_alias:
+        if normalized_appid(node.get("appid")) == wmp_key:
             root.remove(node)
 
     # Service applications belong before shortcut-list, privileges and the
