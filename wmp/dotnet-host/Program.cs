@@ -37,7 +37,7 @@ namespace MoonlightWmpHost
                 {
                     Path.Combine(assemblyDirectory, "res", "lib", "libmlengine.so"),
                     Path.Combine(assemblyDirectory, "..", "lib", "libmlengine.so"),
-                    Path.Combine(Tizen.Applications.DirectoryInfo.Resource, "lib", "libmlengine.so")
+                    Path.Combine(Application.Current.DirectoryInfo.Resource, "lib", "libmlengine.so")
                 };
 
                 string enginePath = Array.Find(candidates, File.Exists);
