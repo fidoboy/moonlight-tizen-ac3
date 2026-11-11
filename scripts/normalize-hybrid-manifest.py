@@ -168,11 +168,16 @@ def main():
     if missing_privileges:
         fail("Hybrid manifest is missing required service privileges: " + ", ".join(missing_privileges))
 
-    # Tizen Core derives MoonLightS.wmp-service from the referenced TPK name.
-    # Remove every equivalent generated alias, then insert the canonical appid
-    # from the WMP TPK exactly once. This avoids two competing launch targets.
+    # Tizen Core may expand the WMP TPK into the outer manifest using
+    # either its canonical appid or a path-derived appid. Remove both forms
+    # before inserting the canonical declaration from the TPK exactly once.
     for node in service_apps:
-        if normalized_appid(node.get("appid")) == wmp_key:
+        is_canonical_wmp = normalized_appid(node.get("appid")) == wmp_key
+        is_generated_wmp_alias = (
+            node.get("appid") == generated_wmp_appid
+            and node.get("exec") == generated_wmp_exec
+        )
+        if is_canonical_wmp or is_generated_wmp_alias:
             root.remove(node)
 
     # Service applications belong before shortcut-list, privileges and the
