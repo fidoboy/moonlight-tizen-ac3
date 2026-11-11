@@ -338,7 +338,7 @@ namespace MoonlightWmpHost
                 // Log only the rejected field name; never expose session secrets.
                 Log.Error("invalid_start_arguments: " + invalidField);
                 Respond(appId, remotePort, id, "error",
-                    "{\\"error\\":\\"invalid_start_arguments\\",\\"field\\":" +
+                    "{\"error\":\"invalid_start_arguments\",\"field\":" +
                     JsonQuote(invalidField) + "}");
                 return;
             }
