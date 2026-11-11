@@ -120,9 +120,9 @@ def main():
 
     with zipfile.ZipFile(wmp_tpk) as package:
         wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
-    wmp_apps = [node for node in wmp_root.iter() if local_name(node) == "ui-application"]
+    wmp_apps = [node for node in wmp_root.iter() if local_name(node) == "service-application"]
     if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != WMP_APPID:
-        fail("WMP TPK must contain exactly one canonical MoonLightS.WmpService ui-application")
+        fail("WMP TPK must contain exactly one canonical MoonLightS.WmpService application")
 
     canonical_wmp = wmp_apps[0]
     if wmp_root.get("package") != "MoonLightS" or wmp_root.get("api-version") != "6.0":
@@ -136,20 +136,19 @@ def main():
         "exec": "MoonlightHost.dll",
         "api-version": "8",
         "nodisplay": "true",
-        "launch_mode": "single",
         "multiple": "false",
         "type": "dotnet",
         "taskmanage": "false",
     }
     for key, value in expected_wmp.items():
         if canonical_wmp.get(key) != value:
-            fail(f"WMP TPK ui-application {key} must be {value!r}")
+            fail(f"WMP TPK service {key} must be {value!r}")
     if not any(
         local_name(node) == "background-category"
         and node.get("value") == "background-network"
         for node in canonical_wmp
     ):
-        fail("WMP TPK ui-application must declare the background-network category")
+        fail("WMP TPK service must declare the background-network category")
 
     required_privileges = {
         "http://tizen.org/privilege/internet",
@@ -165,40 +164,31 @@ def main():
     if missing_privileges:
         fail("Hybrid manifest is missing required service privileges: " + ", ".join(missing_privileges))
 
-    # Keep Ambilight as the .NET service-application and WMP as the
-    # headless .NET ui-application. Remove any stale WMP declaration from
-    # either application family before inserting the canonical TPK entry.
-    for node in list(root.iter()):
-        if local_name(node) in {"service-application", "ui-application"} and normalized_appid(node.get("appid")) == wmp_key:
-            parent = next((candidate for candidate in root.iter() if node in list(candidate)), None)
-            if parent is not None:
-                parent.remove(node)
+    # Replace any expanded WMP declaration with the canonical service
+    # declaration from the signed .NET TPK exactly once.
+    for node in service_apps:
+        if normalized_appid(node.get("appid")) == wmp_key:
+            root.remove(node)
 
-    # Auxiliary applications must precede package-level sections.
-    root_children = list(root)
-    ambilight_position = next(
-        (index for index, node in enumerate(root_children) if node is ambilight),
-        None,
-    )
-    if ambilight_position is None:
+    # Service applications belong before shortcut-list, privileges and the
+    # remaining package-level sections. Insert WMP directly after Ambilight.
+    existing_service_positions = [
+        index for index, node in enumerate(list(root))
+        if local_name(node) == "service-application"
+    ]
+    if not existing_service_positions:
         fail("Hybrid manifest lost the Ambilight service while normalizing WMP")
-    root.insert(ambilight_position + 1, canonical_wmp)
+    root.insert(max(existing_service_positions) + 1, canonical_wmp)
 
-    final_service_apps = [node for node in root.iter() if local_name(node) == "service-application"]
-    final_ui_apps = [node for node in root.iter() if local_name(node) == "ui-application"]
-    final_service_ids = [node.get("appid") for node in final_service_apps]
-    final_ui_ids = [node.get("appid") for node in final_ui_apps]
-    if final_service_ids != [AMBILIGHT_APPID] or final_ui_ids != [WMP_APPID]:
-        fail(
-            "Final hybrid manifest must declare Ambilight as the sole service-application "
-            f"and WMP as the sole ui-application; found services={final_service_ids!r}, "
-            f"ui_apps={final_ui_ids!r}"
-        )
+    final_apps = [node for node in root.iter() if local_name(node) == "service-application"]
+    final_ids = [node.get("appid") for node in final_apps]
+    if len(final_apps) != 2 or set(final_ids) != {AMBILIGHT_APPID, WMP_APPID}:
+        fail(f"Final hybrid manifest must declare exactly Ambilight and WMP; found {final_ids!r}")
 
     root_children = list(root)
     service_positions = [
         index for index, node in enumerate(root_children)
-        if local_name(node) in {"service-application", "ui-application"}
+        if local_name(node) == "service-application"
     ]
     trailing_positions = [
         index for index, node in enumerate(root_children)
@@ -219,7 +209,7 @@ def main():
     )
 
     tree.write(hybrid_manifest, encoding="UTF-8", xml_declaration=True)
-    print("Hybrid manifest normalized: exactly one Ambilight service-application and one WMP ui-application are declared.")
+    print("Hybrid manifest normalized: package metadata is accurate and exactly two services are declared.")
 
 
 if __name__ == "__main__":
