@@ -63,14 +63,10 @@ COPY wmp/upstream/build/build-static-crypto.sh /opt/wmp-build/build-static-crypt
 RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-build/build-static-crypto.sh \
     && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
     && mkdir -p /opt/wmp-backport-deps \
-    && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
-    && git clone --depth 1 --branch curl-7_59_0 https://github.com/curl/curl.git /opt/wmp-backport-deps/curl759 \
     && find /opt/wmp-tizen-deps/toolchain -type f -name arm-linux-gnueabi-gcc -perm -u+x -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name service_app.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
-    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
-    && test -d /opt/wmp-backport-deps/openssl111 \
-    && test -d /opt/wmp-backport-deps/curl759
+    && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q .
 
 ENV WMP_DEPS=/opt/wmp-tizen-deps \
     WMP_BACKPORT_DEPS=/opt/wmp-backport-deps
@@ -174,6 +170,8 @@ RUN set -euo pipefail \
     && test -x "$tool_bin/arm-linux-gnueabi-ar" \
     && test -x "$tool_bin/arm-linux-gnueabi-ranlib" \
     && test -x "$tool_bin/arm-linux-gnueabi-objdump" \
+    && git clone --depth 1 --branch OpenSSL_1_1_1d https://github.com/openssl/openssl.git /opt/wmp-backport-deps/openssl111 \
+    && git clone --depth 1 --branch curl-7_59_0 https://github.com/curl/curl.git /opt/wmp-backport-deps/curl759 \
     && WMP_ARM_CC="$tool_bin/arm-linux-gnueabi-gcc" DEPS=/opt/wmp-tizen-deps BPD=/opt/wmp-backport-deps JOBS=2 bash /opt/wmp-build/build-static-crypto.sh \
     && test -s /opt/wmp-backport-deps/arm-static/lib/libcrypto.a \
     && test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a \
