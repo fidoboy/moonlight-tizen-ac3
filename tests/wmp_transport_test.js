@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const pendingMessages = [];
 const debugEntries = [];
-const manifest = fs.readFileSync(path.join(__dirname, '../wmp/service/tizen-manifest.xml'), 'utf8');
+const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const expectedServiceAppId = 'MoonLightS.WmpService';
 assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'WMP ServiceApp appid must match the transport');
 let messageListener = null;
