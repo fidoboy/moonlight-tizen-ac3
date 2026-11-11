@@ -619,6 +619,9 @@ jobs:
                   node = manifest.find("{http://tizen.org/ns/packages}" + tag)
                   if node is None or (node.text or "").strip() != expected:
                       raise SystemExit(f"Final hybrid package {tag} must be {expected!r}")
+              web_config = ET.parse(source_path / "config.xml").getroot()
+              if manifest.get("version") != web_config.get("version"):
+                  raise SystemExit("Final hybrid package version differs from the embedded Moonlight Web version")
               service_apps = {node.get("appid"): node for node in service_app_nodes}
               ambilight_app = service_apps["MoonLightS.MoonlightAmbilight"]
               expected_ambilight = {
@@ -648,6 +651,22 @@ jobs:
               for key, value in expected_wmp.items():
                   if wmp_app.get(key) != value:
                       raise SystemExit(f"Final WMP service manifest {key} must be {value!r}")
+              if not any(
+                  node.tag.endswith("background-category") and node.get("value") == "background-network"
+                  for node in wmp_app
+              ):
+                  raise SystemExit("Final WMP service is missing background-network capability")
+              required_privileges = {
+                  "http://tizen.org/privilege/internet",
+                  "http://tizen.org/privilege/network.get",
+                  "http://developer.samsung.com/privilege/esplay",
+              }
+              declared_privileges = {
+                  (node.text or "").strip() for node in manifest.iter()
+                  if node.tag.endswith("privilege")
+              }
+              if not required_privileges <= declared_privileges:
+                  raise SystemExit("Final hybrid manifest is missing required WMP/ESPlus privileges")
               
               for name in names:
                   path = PurePosixPath(name)
