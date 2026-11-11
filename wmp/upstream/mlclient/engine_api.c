@@ -37,6 +37,11 @@ static char g_host[256];         /* si.address is held by moonlight-common-c for
                                     session, so the host string must outlive the call */
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
+static ml_engine_stage_cb g_stage_cb;
+
+void ml_engine_set_stage_cb(ml_engine_stage_cb cb) {
+  __atomic_store_n(&g_stage_cb, cb, __ATOMIC_RELEASE);
+}
 
 void ml_engine_set_dolby_passthrough_enabled(int enabled) {
   g_dolby_passthrough_enabled = enabled != 0;
@@ -89,8 +94,11 @@ static void cl_logMessage(const char *format, ...) {
 }
 
 static void cl_stageStarting(int stage) {
-  fprintf(stderr, "[ml] stage %d (%s) starting\n", stage, LiGetStageName(stage));
-  MLT("stage %d (%s) starting", stage, LiGetStageName(stage));
+  const char *name = LiGetStageName(stage);
+  ml_engine_stage_cb cb = __atomic_load_n(&g_stage_cb, __ATOMIC_ACQUIRE);
+  if (cb) cb(stage, name ? name : "connection");
+  fprintf(stderr, "[ml] stage %d (%s) starting\n", stage, name ? name : "unknown");
+  MLT("stage %d (%s) starting", stage, name ? name : "unknown");
 }
 static void cl_stageComplete(int stage) {
   fprintf(stderr, "[ml] stage %d (%s) complete\n", stage, LiGetStageName(stage));
