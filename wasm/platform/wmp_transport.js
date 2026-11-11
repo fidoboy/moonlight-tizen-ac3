@@ -435,6 +435,7 @@
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
     getLogs: function() { return request('get_logs'); },
+    toggleStats: function() { return request('toggle_stats'); },
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) { return request('start_session', parameters); },
     stopStream: function() { return request('stop_session'); },
