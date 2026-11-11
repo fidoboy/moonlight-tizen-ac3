@@ -204,8 +204,11 @@ RUN set -euo pipefail \
     && test -n "$(find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name service_app.h -print -quit)" \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name message_port.h -print -quit | grep -q . \
     && find /opt/wmp-tizen-deps/sysroot/usr/include -type f -name dlog.h -print -quit | grep -q . \
-    && test -d /opt/wmp-backport-deps/openssl111 \
-    && test -d /opt/wmp-backport-deps/curl759 \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libcrypto.a \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a \
+    && test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a \
+    && test -f /opt/wmp-backport-deps/arm-static/include/openssl/opensslv.h \
+    && test -f /opt/wmp-backport-deps/arm-static/include/curl/curlver.h \
     && for tool in autoconf automake autoreconf libtoolize pkg-config; do command -v "$tool" >/dev/null; done \
     && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc \
     && test -x /opt/wmp-tizen-deps/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump \
