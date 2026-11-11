@@ -27,7 +27,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace MoonlightHost
+namespace MoonlightWmpHost
 {
     internal static class ManualLoader
     {
