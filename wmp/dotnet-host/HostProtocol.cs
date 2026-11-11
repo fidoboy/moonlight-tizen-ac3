@@ -28,6 +28,9 @@ namespace MoonlightWmpHost
         private static string _esplusFamily = "none";
         private static string _loadError;
         private static readonly Queue<string> StageMessages = new Queue<string>();
+        private static readonly Queue<string> DiagnosticLogs = new Queue<string>();
+        private const int DiagnosticLogCapacity = 256;
+        private const int DiagnosticLogLineLimit = 384;
         private static bool _stageDispatchScheduled;
         private static string _stageAppId;
         private static string _stageRemotePort;
@@ -232,6 +235,49 @@ namespace MoonlightWmpHost
             Send(message, appId, remotePort);
         }
 
+        // Native MLT_TRACE lines are copied into a bounded in-memory ring.
+        // No file I/O or MessagePort send occurs on the native callback thread.
+        internal static void NativeLogLine(IntPtr line)
+        {
+            try
+            {
+                if (line == IntPtr.Zero) return;
+                string value = Marshal.PtrToStringAnsi(line);
+                if (String.IsNullOrEmpty(value)) return;
+                if (value.Length > DiagnosticLogLineLimit)
+                    value = value.Substring(0, DiagnosticLogLineLimit) + " [truncated]";
+                lock (Gate)
+                {
+                    while (DiagnosticLogs.Count >= DiagnosticLogCapacity)
+                        DiagnosticLogs.Dequeue();
+                    DiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
+                        CultureInfo.InvariantCulture) + " " + value);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never allow managed exceptions to cross the native callback ABI.
+                Log.Error("WMP native log callback failed: " + ex.Message);
+            }
+        }
+
+        private static void SendDiagnosticLogs(string appId, string remotePort, string id)
+        {
+            string[] snapshot;
+            lock (Gate) snapshot = DiagnosticLogs.ToArray();
+            const int maxLines = 64;
+            int start = Math.Max(0, snapshot.Length - maxLines);
+            var json = new System.Text.StringBuilder(256 + (snapshot.Length - start) * 128);
+            json.Append("{\\"count\\":").Append(snapshot.Length).Append(",\\"logs\\":[");
+            for (int i = start; i < snapshot.Length; i++)
+            {
+                if (i > start) json.Append(',');
+                json.Append(JsonQuote(snapshot[i]));
+            }
+            json.Append("]}");
+            Respond(appId, remotePort, id, "ok", json.ToString());
+        }
+
         // Called from Moonlight Common C's native connection callback. Keep this
         // callback short: queue the UI notification and let one managed worker send
         // ordered MessagePort events outside the native networking thread.
@@ -333,6 +379,9 @@ namespace MoonlightWmpHost
                     case "get_status":
                     case "probe_esplus":
                         SendStatus(appId, remotePort, id);
+                        return;
+                    case "get_logs":
+                        SendDiagnosticLogs(appId, remotePort, id);
                         return;
                     case "start_session":
                         StartSession(bundle, appId, remotePort, id);
