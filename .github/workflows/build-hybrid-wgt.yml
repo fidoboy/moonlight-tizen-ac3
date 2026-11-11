@@ -71,31 +71,39 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
-          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
 
-      - name: Load cached Tizen build image
-        if: steps.tizen-image-cache.outputs.cache-hit == 'true'
+      - name: Load cached Tizen image or fall back to GHCR
+        id: tizen-image
         shell: bash
-        run: |
-          set -euo pipefail
-          docker load --input "$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar"
-
-      - name: Pull Tizen build image from GHCR when cache is unavailable
-        if: steps.tizen-image-cache.outputs.cache-hit != 'true'
-        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.tizen-image-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v4"
+          image_tar="$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar"
+          if [[ "$CACHE_HIT" == "true" && -s "$image_tar" ]]; then
+            echo "Restoring Tizen build image from GitHub Actions cache."
+            if docker load --input "$image_tar"; then
+              docker image inspect "$image" >/dev/null
+              exit 0
+            fi
+            echo "::warning::Cached Docker image could not be loaded; falling back to GHCR."
+            rm -f "$image_tar"
+          else
+            echo "Tizen build image cache miss; falling back to GHCR."
+          fi
           docker pull "$image"
-          docker save --output "$RUNNER_TEMP/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar" "$image"
+          docker save --output "$image_tar" "$image"
+          echo "save-cache=true" >> "$GITHUB_OUTPUT"
 
       - name: Save Tizen build image cache
-        if: steps.tizen-image-cache.outputs.cache-hit != 'true'
+        if: steps.tizen-image.outputs.save-cache == 'true'
         uses: actions/cache/save@v4
         continue-on-error: true
         with:
           path: ${{ runner.temp }}/docker-image-cache/moonlight-tizen-build-env-6.1-v4.tar
-          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v1
+          key: moonlight-docker-image-${{ runner.os }}-6.1-v4-v2
 
       - name: Build WMP engine and .NET ServiceApp inside shared v4 image
         shell: bash
