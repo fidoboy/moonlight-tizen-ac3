@@ -62,7 +62,7 @@ jobs:
             moonlight-web-ccache-${{ runner.os }}-
 
 
-      - name: Build and test WMP native engine and ServiceApp inside shared v4 image
+      - name: Build WMP engine and .NET ServiceApp inside shared v4 image
         shell: bash
         run: |
           set -euo pipefail
