@@ -23,6 +23,7 @@ namespace MoonlightWmpHost
         private static Thread _worker;
         private static bool _workerActive;
         private static bool _stopRequested;
+        private static bool _statsEnabled;
         private static bool _ready;
         private static string _esplusState = "unknown";
         private static string _esplusFamily = "none";
@@ -387,6 +388,9 @@ namespace MoonlightWmpHost
                     case "get_logs":
                         SendDiagnosticLogs(appId, remotePort, id);
                         return;
+                    case "toggle_stats":
+                        ToggleStats(appId, remotePort, id);
+                        return;
                     case "start_session":
                         StartSession(bundle, appId, remotePort, id);
                         return;
@@ -403,6 +407,49 @@ namespace MoonlightWmpHost
             {
                 Log.Error("WMP MessagePort request failed: " + ex);
             }
+        }
+
+        private static void ToggleStats(string appId, string remotePort, string id)
+        {
+            bool enabled;
+            lock (Gate)
+            {
+                _statsEnabled = !_statsEnabled;
+                enabled = _statsEnabled;
+            }
+            Respond(appId, remotePort, id, "ok",
+                "{\\"enabled\\":" + (enabled ? "true" : "false") + "}");
+            Event(appId, remotePort, enabled ? "StatMsg: " : "NoStatMsg: ", null);
+        }
+
+        private static bool StatsAreEnabled()
+        {
+            lock (Gate) return _statsEnabled;
+        }
+
+        private static string FormatStats(StartRequest request, EngineApi.Stats stats)
+        {
+            var text = new System.Text.StringBuilder(512);
+            text.Append("Video stream: ")
+                .Append(request.Width.ToString(CultureInfo.InvariantCulture)).Append('x')
+                .Append(request.Height.ToString(CultureInfo.InvariantCulture)).Append(' ')
+                .Append(request.Fps.ToString("0.00", CultureInfo.InvariantCulture))
+                .Append(" FPS (Codec: ").Append(request.VideoCodec).Append(")\\n");
+            text.Append("Native player: ")
+                .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
+                .Append(" FPS submitted · queue depth: ")
+                .Append(stats.DepthMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\\n");
+            text.Append("Frames submitted: ")
+                .Append(stats.Submitted.ToString(CultureInfo.InvariantCulture))
+                .Append(" · late drops: ").Append(stats.DroppedLate.ToString(CultureInfo.InvariantCulture))
+                .Append(" · queue drops: ").Append(stats.DroppedFull.ToString(CultureInfo.InvariantCulture)).Append("\\n");
+            text.Append("Playback time: ")
+                .Append(stats.PlayingMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\\n");
+            text.Append("Player errors: ").Append(stats.Errors.ToString(CultureInfo.InvariantCulture))
+                .Append(" (last: 0x").Append(stats.LastError.ToString("X", CultureInfo.InvariantCulture))
+                .Append(") · underruns: ").Append(stats.Underruns.ToString(CultureInfo.InvariantCulture))
+                .Append(" · overruns: ").Append(stats.Overruns.ToString(CultureInfo.InvariantCulture));
+            return text.ToString();
         }
 
         private static void SendStatus(string appId, string remotePort, string id)
@@ -503,6 +550,7 @@ namespace MoonlightWmpHost
 
                 _workerActive = true;
                 _stopRequested = false;
+                _statsEnabled = false;
                 _stageAppId = appId;
                 _stageRemotePort = remotePort;
                 StageMessages.Clear();
@@ -561,6 +609,7 @@ namespace MoonlightWmpHost
             string diagnostic = null;
             int terminationCode = 0;
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
+            DateTime nextStatsMessage = DateTime.UtcNow;
 
             try
             {
@@ -587,9 +636,17 @@ namespace MoonlightWmpHost
                     result.ToString(CultureInfo.InvariantCulture));
                 if (result != 0)
                 {
+                    int nativeCode = _engine.ReadLastError(out diagnostic);
+                    if (nativeCode == 0) nativeCode = result;
+                    RecordDiagnostic("native startup failure: code=" +
+                        nativeCode.ToString(CultureInfo.InvariantCulture) +
+                        (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
                     _engine.Stop();
-                    Event(appId, remotePort, "streamTerminated: -1",
-                        "WMP engine start failed (code " + result.ToString(CultureInfo.InvariantCulture) + ")");
+                    Event(appId, remotePort, "streamTerminated: " +
+                        nativeCode.ToString(CultureInfo.InvariantCulture),
+                        String.IsNullOrEmpty(diagnostic)
+                            ? "WMP engine start failed (code " + nativeCode.ToString(CultureInfo.InvariantCulture) + ")"
+                            : diagnostic);
                     return;
                 }
 
@@ -626,6 +683,13 @@ namespace MoonlightWmpHost
                             stats.Submitted.ToString(CultureInfo.InvariantCulture));
                         Event(appId, remotePort, "displayVideo", null);
                     }
+                    if (StatsAreEnabled() && DateTime.UtcNow >= nextStatsMessage)
+                    {
+                        if (statsResult == 0)
+                            Event(appId, remotePort, "StatMsg: " + FormatStats(request, stats), null);
+                        nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
+                    }
+
                     if (DateTime.UtcNow >= nextDiagnosticLog)
                     {
                         RecordDiagnostic("host video stats: stats_rc=" +
@@ -676,6 +740,7 @@ namespace MoonlightWmpHost
                     _workerActive = false;
                     _worker = null;
                     _stopRequested = false;
+                    _statsEnabled = false;
                     _stageAppId = null;
                     _stageRemotePort = null;
                     StageMessages.Clear();
