@@ -219,7 +219,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
     if (video_units <= 10 || video_units % 60 == 0 ||
         result.status != WMP_ESPLUS_SUBMIT_SUCCESS) {
-        VLOG("video submit #%u result status=%d raw=%d size=%u pts_ns=%llu\\n",
+        VLOG("video submit #%u result status=%d raw=%d size=%u pts_ns=%llu\n",
              video_units, (int)result.status, result.raw_status,
              packet.size, (unsigned long long)packet.pts_ns);
     }
