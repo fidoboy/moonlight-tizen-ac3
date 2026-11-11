@@ -51,6 +51,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
     (void)context;
     (void)drFlags;
+    VLOG("setup begin fmt=0x%x %dx%d@%d\\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
 
@@ -103,6 +104,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
 static void VidDecStart(void)
 {
+    VLOG("decoder start: requesting ESPlus prepare\\n");
     MLT("video start");
     s_base_pts_us = 0;
     s_have_base = 0;
@@ -111,13 +113,17 @@ static void VidDecStart(void)
     s_prev_pts_ms = 0;
     s_have_prev = 0;
     s_skip_seq = esplus_sample_seq() - 1;
-    (void)esplus_prepare();
+    {
+        int prepare_rc = esplus_prepare();
+        VLOG("ESPlus prepare request returned %d\\n", prepare_rc);
+    }
 }
 
 static void VidDecStop(void) {}
 
 static void VidDecCleanup(void)
 {
+    VLOG("video renderer cleanup\\n");
     MLT("video cleanup");
     esplus_close();
     free(s_scratch);
@@ -130,6 +136,7 @@ static int VidDecSetup(int videoFormat, int width, int height,
 {
     int rc = VidDecSetup_(videoFormat, width, height, redrawRate, context, drFlags);
     if (rc != 0) esplus_close();   /* Common C skips cleanup when setup fails. */
+    VLOG("setup complete rc=%d\\n", rc);
     mldiag_video_setup(videoFormat, width, height, redrawRate, rc);
     return rc;
 }
@@ -141,6 +148,15 @@ static int VidDecSubmit(PDECODE_UNIT du)
     size_t offset = 0;
     int64_t pts_ms;
 
+    static unsigned video_units;
+    static unsigned video_idrs;
+    ++video_units;
+    if (du->frameType == FRAME_TYPE_IDR) ++video_idrs;
+    if (video_units <= 10 || video_units % 60 == 0 || du->frameType == FRAME_TYPE_IDR) {
+        VLOG("decode unit #%u type=%s bytes=%d pts_us=%llu idr_count=%u\\n",
+             video_units, du->frameType == FRAME_TYPE_IDR ? "IDR" : "frame",
+             du->fullLength, (unsigned long long)du->presentationTimeUs, video_idrs);
+    }
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
 
     /* Optional latency frame shedding; it does not control player/session state. */
@@ -193,6 +209,12 @@ static int VidDecSubmit(PDECODE_UNIT du)
     for (int i = 0; result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE && i < 3; ++i) {
         usleep(2000);
         result = esplus_submit(&packet);
+    }
+    if (video_units <= 10 || video_units % 60 == 0 ||
+        result.status != WMP_ESPLUS_SUBMIT_SUCCESS) {
+        VLOG("video submit #%u result status=%d raw=%d size=%u pts_ns=%llu\\n",
+             video_units, (int)result.status, result.raw_status,
+             packet.size, (unsigned long long)packet.pts_ns);
     }
     if (result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE) {
         __atomic_fetch_add(&esplus_stats.dropped_full, 1, __ATOMIC_RELAXED);
