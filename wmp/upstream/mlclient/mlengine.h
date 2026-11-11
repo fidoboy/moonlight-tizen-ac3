@@ -54,6 +54,10 @@ void ml_engine_free(void *p);
 typedef void (*ml_engine_log_cb)(const char *line);
 void ml_engine_set_log_cb(ml_engine_log_cb cb);
 
+/* Live Common C connection-stage notifications, delivered on the native callback thread. */
+typedef void (*ml_engine_stage_cb)(int stage, const char *name);
+void ml_engine_set_stage_cb(ml_engine_stage_cb cb);
+
 /* Select whether the WMP audio renderer may advertise optional AC-3/E-AC-3
  * passthrough during the next session's RTSP negotiation. */
 void ml_engine_set_dolby_passthrough_enabled(int enabled);
