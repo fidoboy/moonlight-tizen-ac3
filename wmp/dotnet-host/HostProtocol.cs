@@ -144,9 +144,10 @@ namespace MoonlightWmpHost
             return true;
         }
 
-        private static bool ParseStart(Bundle bundle, out StartRequest request)
+        private static bool ParseStart(Bundle bundle, out StartRequest request, out string invalidField)
         {
             request = null;
+            invalidField = null;
             var value = new StartRequest();
             value.Host = Arg(bundle, "host");
             value.Rikey = Arg(bundle, "rikey");
@@ -156,30 +157,33 @@ namespace MoonlightWmpHost
             value.VideoCodec = Arg(bundle, "videoCodec");
             value.AudioConfig = Arg(bundle, "audioConfig");
 
-            if (String.IsNullOrEmpty(value.Host) ||
-                !IsHexKey(value.Rikey) ||
-                String.IsNullOrEmpty(value.RtspUrl) ||
-                String.IsNullOrEmpty(value.VideoCodec) ||
-                String.IsNullOrEmpty(value.AudioConfig) ||
-                !TryInt(Arg(bundle, "w"), out value.Width) ||
-                !TryInt(Arg(bundle, "h"), out value.Height) ||
-                !TryInt(Arg(bundle, "fps"), out value.Fps) ||
-                !TryInt(Arg(bundle, "bitrate"), out value.Bitrate) ||
-                !TryInt(Arg(bundle, "rikeyid"), out value.RikeyId) ||
-                !TryInt(Arg(bundle, "codecMode"), out value.CodecMode) ||
-                !TryBool(Arg(bundle, "hdr"), out value.Hdr) ||
-                !TryBool(Arg(bundle, "fullRange"), out value.FullRange) ||
-                !TryBool(Arg(bundle, "opticalOutputEnabled"), out value.OpticalOutputEnabled))
-                return false;
+            if (String.IsNullOrEmpty(value.Host)) invalidField = "host";
+            else if (!IsHexKey(value.Rikey)) invalidField = "rikey";
+            else if (String.IsNullOrEmpty(value.RtspUrl)) invalidField = "rtspUrl";
+            else if (String.IsNullOrEmpty(value.VideoCodec)) invalidField = "videoCodec";
+            else if (String.IsNullOrEmpty(value.AudioConfig)) invalidField = "audioConfig";
+            else if (!TryInt(Arg(bundle, "w"), out value.Width)) invalidField = "w";
+            else if (!TryInt(Arg(bundle, "h"), out value.Height)) invalidField = "h";
+            else if (!TryInt(Arg(bundle, "fps"), out value.Fps)) invalidField = "fps";
+            else if (!TryInt(Arg(bundle, "bitrate"), out value.Bitrate)) invalidField = "bitrate";
+            else if (!TryInt(Arg(bundle, "rikeyid"), out value.RikeyId)) invalidField = "rikeyid";
+            else if (!TryInt(Arg(bundle, "codecMode"), out value.CodecMode)) invalidField = "codecMode";
+            else if (!TryBool(Arg(bundle, "hdr"), out value.Hdr)) invalidField = "hdr";
+            else if (!TryBool(Arg(bundle, "fullRange"), out value.FullRange)) invalidField = "fullRange";
+            else if (!TryBool(Arg(bundle, "opticalOutputEnabled"), out value.OpticalOutputEnabled))
+                invalidField = "opticalOutputEnabled";
+            else if (value.Width <= 0) invalidField = "w";
+            else if (value.Height <= 0) invalidField = "h";
+            else if (value.Fps <= 0) invalidField = "fps";
+            else if (value.Bitrate <= 0) invalidField = "bitrate";
+            else if (value.RikeyId < 0) invalidField = "rikeyid";
+            else if (value.CodecMode < 0) invalidField = "codecMode";
+            else if (value.VideoCodec != "H264" && value.VideoCodec != "HEVC" &&
+                     value.VideoCodec != "AV1") invalidField = "videoCodec";
+            else if (value.AudioConfig != "Stereo" && value.AudioConfig != "51Surround" &&
+                     value.AudioConfig != "71Surround") invalidField = "audioConfig";
 
-            if (value.Width <= 0 || value.Height <= 0 || value.Fps <= 0 ||
-                value.Bitrate <= 0 || value.RikeyId < 0 || value.CodecMode < 0 ||
-                (value.VideoCodec != "H264" && value.VideoCodec != "HEVC" &&
-                 value.VideoCodec != "AV1") ||
-                (value.AudioConfig != "Stereo" && value.AudioConfig != "51Surround" &&
-                 value.AudioConfig != "71Surround"))
-                return false;
-
+            if (invalidField != null) return false;
             request = value;
             return true;
         }
@@ -328,10 +332,14 @@ namespace MoonlightWmpHost
             }
 
             StartRequest request;
-            if (!ParseStart(bundle, out request))
+            string invalidField;
+            if (!ParseStart(bundle, out request, out invalidField))
             {
+                // Log only the rejected field name; never expose session secrets.
+                Log.Error("invalid_start_arguments: " + invalidField);
                 Respond(appId, remotePort, id, "error",
-                    "{\"error\":\"invalid_start_arguments\"}");
+                    "{\\"error\\":\\"invalid_start_arguments\\",\\"field\\":" +
+                    JsonQuote(invalidField) + "}");
                 return;
             }
 
