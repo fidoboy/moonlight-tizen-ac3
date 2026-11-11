@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
   actions: write
 
 concurrency:
@@ -61,6 +62,14 @@ jobs:
             moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
             moonlight-web-ccache-${{ runner.os }}-
 
+
+      - name: Log in to GitHub Container Registry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
       - name: Pull Tizen build image from GHCR
         shell: bash
