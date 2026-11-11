@@ -4566,9 +4566,11 @@ function warningDialog(title, message, onClose, plainText, buttonLabel, streamEr
   $('#closeWarning').on('click', function() {
     console.log('%c[index.js, warningDialog]', 'color: green;', 'Closing app dialog and returning.');
     fadeOutUiElement(warningDialogOverlay);
-    closeUiDialog(warningDialog);
+    closeUiDialog(warningDialog, function() {
+      // Keep the single-button width throughout the dialog fade-out.
+      warningDialog.classList.remove('single-button');
+    });
     isDialogOpen = false;
-    warningDialog.classList.remove('single-button');
     $('#closeWarning').attr('data-i18n', 'Close').text(t('Close'));
     Navigation.pop();
     Navigation.switch();
