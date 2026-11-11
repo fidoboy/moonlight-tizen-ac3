@@ -31,8 +31,21 @@ done
 
 OUT=${OUT:-./deps-build}; mkdir -p "$OUT/obj" "$OUT/gs" "$OUT/shim"
 
-# Build private PIC archives before compiling Moonlight against their headers.
-bash "$HERE/build-static-crypto.sh"
+# Reuse the pinned static ARM stack when the workflow cache has restored it.
+# Rebuild only on a cache miss or when the cached headers/archives do not match
+# the exact OpenSSL and cURL versions required by this engine.
+if [[ -s "$CRYPTO_PREFIX/lib/libcrypto.a" &&
+      -s "$CRYPTO_PREFIX/lib/libssl.a" &&
+      -s "$CRYPTO_PREFIX/lib/libcurl.a" &&
+      -f "$CRYPTO_PREFIX/include/openssl/opensslv.h" &&
+      -f "$CRYPTO_PREFIX/include/curl/curlver.h" ]] &&
+   grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' "$CRYPTO_PREFIX/include/openssl/opensslv.h" &&
+   grep -q 'LIBCURL_VERSION "7.59.0"' "$CRYPTO_PREFIX/include/curl/curlver.h"; then
+  echo "Reusing cached static ARM OpenSSL 1.1.1d + cURL 7.59.0 libraries."
+else
+  echo "Static ARM crypto/network cache miss; building pinned dependencies."
+  bash "$HERE/build-static-crypto.sh"
+fi
 cat > "$OUT/shim/emscripten.h" <<'EOF'
 #include <stdio.h>
 #define EM_LOG_CONSOLE 1
