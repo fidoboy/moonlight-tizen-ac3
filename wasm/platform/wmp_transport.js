@@ -83,6 +83,12 @@
     }
 
     if (message.type === 'event') {
+      if (message.event === 'wmpDiagnostic') {
+        debugLog('native service lifecycle diagnostic received', {
+          detail: message.detail || null
+        });
+        return;
+      }
       debugLog('native event received', {
         event: message.event || null,
         detail: message.detail || null
