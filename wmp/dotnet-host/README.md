@@ -4,16 +4,18 @@ This is the managed WMP auxiliary service for the Moonlight Tizen hybrid
 installation. The final user installation remains one hybrid WGT containing
 the WebApp and exactly two auxiliary .NET services: WMP and Ambilight.
 
-Tizen Core may use intermediate service TPKs while assembling/signing the
+Tizen Core may use an intermediate TPK while assembling/signing the
 hybrid WGT. Those are build inputs, not separately distributed installation
 packages. Do not copy the upstream repository's standalone WGT + TPK delivery
 model.
 
 ## Application model
 
-WMP is a Tizen **ServiceApplication** (`service-application`, `type="dotnet"`,
-`nodisplay="true"`), launched on demand by the existing WebApp app ID
-`MoonLightS.WmpService`. It is not a UI application. Its trusted local
+WMP is a headless Tizen **UI application** (`ui-application`, `type="dotnet"`,
+`nodisplay="true"`, `launch_mode="single"`), launched on demand by the WebApp
+using the app ID `MoonLightS.WmpService`. It is not a `service-application`.
+This matches the upstream .NET host launch model; do not package it using the
+former native C ServiceApp declaration. Its trusted local
 MessagePort is `MoonlightWmpControl`; the WebApp receives replies/events on
 its trusted local port `MoonlightWmpReply`.
 
@@ -65,7 +67,7 @@ proprietary signatures or make family-selection decisions.
 ## Integration gate
 
 The .NET service must be compiled and included in the hybrid WGT. Then verify
-on the TV: service launch, trusted MessagePorts, engine load, ESPlus probe,
+on the TV: headless app launch, trusted MessagePorts, engine load, ESPlus probe,
 engine start/stop, first video event, AC-3/E-AC-3 negotiation, and
 host-initiated disconnect. EMSS remains integrated in WASM and is not changed.
 The native service entry point is not part of the target architecture.
