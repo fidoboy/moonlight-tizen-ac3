@@ -51,6 +51,9 @@ cp "$ENGINE_SO" "$OUT/lib/libmlengine.so"
 
 ARCH=(-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp)
 COMMON=(--sysroot="$SYSROOT" "${ARCH[@]}" -std=gnu11 -O2 -Wall -Wextra -Werror)
+if [[ "${WMP_UDP_DIAGNOSTICS:-0}" == "1" ]]; then
+    COMMON+=(-DWMP_ENABLE_UDP_DIAGNOSTICS=1)
+fi
 INCLUDES=(
     -I"$SYSROOT/usr/include"
     -I"$(dirname "$DLOG_HEADER")"
