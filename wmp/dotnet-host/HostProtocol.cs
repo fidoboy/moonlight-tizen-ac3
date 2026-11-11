@@ -432,9 +432,11 @@ namespace MoonlightWmpHost
             var text = new System.Text.StringBuilder(512);
             text.Append("Video stream: ")
                 .Append(request.Width.ToString(CultureInfo.InvariantCulture)).Append('x')
-                .Append(request.Height.ToString(CultureInfo.InvariantCulture)).Append(' ')
-                .Append(request.Fps.ToString("0.00", CultureInfo.InvariantCulture))
-                .Append(" FPS (Codec: ").Append(request.VideoCodec).Append(")\n");
+                .Append(request.Height.ToString(CultureInfo.InvariantCulture))
+                .Append(" (Codec: ").Append(request.VideoCodec).Append(")\n");
+            text.Append("Target frame rate: ")
+                .Append(request.Fps.ToString(CultureInfo.InvariantCulture)).Append(" FPS\n");
+            text.Append("Audio stream: disabled (video-only diagnostic)\n");
             text.Append("Native player: ")
                 .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
