@@ -23,10 +23,12 @@ def normalized_appid(value):
 
 
 def set_root_text(root, name, value):
-    tag = f"{{{NAMESPACE}}}{name}"
-    node = root.find(tag)
+    matches = [child for child in list(root) if local_name(child) == name]
+    node = matches[0] if matches else None
+    for duplicate in matches[1:]:
+        root.remove(duplicate)
     if node is None:
-        node = ET.Element(tag)
+        node = ET.Element(f"{{{NAMESPACE}}}{name}")
         # Keep package identity metadata together before service declarations.
         insert_at = 0
         for child in list(root):
