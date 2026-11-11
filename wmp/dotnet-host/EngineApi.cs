@@ -69,7 +69,7 @@ namespace MoonlightWmpHost
         internal delegate int GetStatsFn(ref Stats stats);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal delegate int LastErrorFn(byte[] buffer, int capacity);
+        internal delegate int LastErrorFn([Out] byte[] buffer, int capacity);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         internal delegate int StartSessionV2Fn(
@@ -79,7 +79,7 @@ namespace MoonlightWmpHost
             string audioConfig, int fullRange);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int EsplusProbeFn(ref EsplusApi api, byte[] report, uint capacity);
+        private delegate int EsplusProbeFn(ref EsplusApi api, [Out] byte[] report, uint capacity);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate IntPtr EsplusNameFn(int value);
