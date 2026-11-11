@@ -33,6 +33,10 @@ RUN apt-get update \
         libkf5kiowidgets5 \
         libpixman-1-0 \
         libpython3.8 \
+        libsdl1.2debian \
+        libv4l-0 \
+        bridge-utils \
+        openvpn \
         libarchive-tools \
         librsvg2-bin \
         fonts-dejavu-core \
