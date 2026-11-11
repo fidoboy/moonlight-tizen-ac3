@@ -108,6 +108,18 @@
         event: message.event || null,
         detail: message.detail || null
       });
+      if (message.event && /^wmpPlayerError: /.test(String(message.event))) {
+        var playerErrorCode = String(message.event).slice('wmpPlayerError: '.length);
+        global.pendingStreamApiMessage = message.detail || ('ESPlus player error ' + playerErrorCode);
+        debugLog('native player error reported', {
+          code: playerErrorCode,
+          detail: message.detail || null
+        });
+        if (typeof global.handleMessage === 'function') {
+          global.handleMessage('WarningMsg: The TV media player reported an error.');
+        }
+        return;
+      }
       if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
         var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
         global._wmpActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
