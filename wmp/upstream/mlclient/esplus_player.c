@@ -114,7 +114,15 @@ static void *s_disp, *s_win;
 static int s_ecore;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int s_prepared, s_prepare_ok, s_started;
-static int s_start_tried;   /* start() is attempted once, even when prepare reports ok=0 */
+static int s_start_tried;
+static volatile int s_prepare_called;
+static uint64_t s_idr_t0, s_idr_last;
+static unsigned s_idr_n, s_video_tries;
+#define IDR_FIRST_MS 300
+#define IDR_EVERY_MS 500
+#define IDR_MAX 10
+
+extern void LiRequestIdrFrame(void);   /* start() is attempted once, even when prepare reports ok=0 */
 
 esplus_stats_t esplus_stats;
 esplus_cfg_t esplus_cfg;
@@ -193,6 +201,7 @@ uint64_t esplus_mono_ms(void)
 void esplus_sample_tick(uint64_t now_ms)
 {
     uint64_t play;
+    int request_idr = 0;
     pthread_mutex_lock(&s_lock);
     if (s_pl && s_started &&
         wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
@@ -213,9 +222,21 @@ void esplus_sample_tick(uint64_t now_ms)
             esplus_stats.depth_ms, esplus_stats.audio_depth_ms,
             esplus_stats.fps_submitted, esplus_stats.submitted);
     }
+    /* Retry the initial IDR request while no video packet has reached the player.
+     * This only asks the host for a keyframe; it never changes session state. */
+    if (s_pl && s_prepare_called && s_video_tries == 0 && s_idr_n < IDR_MAX) {
+        if (!s_idr_t0) s_idr_t0 = now_ms;
+        else if (now_ms - s_idr_t0 >= IDR_FIRST_MS &&
+                 (!s_idr_last || now_ms - s_idr_last >= IDR_EVERY_MS)) {
+            s_idr_last = now_ms;
+            ++s_idr_n;
+            request_idr = 1;
+            MLT("no video packet yet: IDR request retry #%u", s_idr_n);
+        }
+    }
     ++s_tick_seq;
     pthread_mutex_unlock(&s_lock);
-}
+    if (request_idr) LiRequestIdrFrame();
 
 static void *sampler(void *arg)
 {
@@ -342,6 +363,9 @@ int esplus_create_open(void)
     memset(&esplus_stats, 0, sizeof(esplus_stats));
     s_prepared = s_prepare_ok = s_started = 0;
     s_start_tried = 0;
+    s_prepare_called = 0;
+    s_idr_t0 = s_idr_last = 0;
+    s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
     s_fps_t0 = 0;
     s_corr_us = 0;
@@ -509,7 +533,15 @@ int esplus_set_window(int width, int height)
 
 int esplus_prepare(void)
 {
-    wmp_esplus_call_result_t result = wmp_esplus_adapter_prepare_async(&s_adapter);
+    wmp_esplus_call_result_t result;
+    pthread_mutex_lock(&s_lock);
+    s_prepare_called = 1;
+    s_idr_t0 = esplus_mono_ms();
+    s_idr_last = 0;
+    s_idr_n = 0;
+    s_video_tries = 0;
+    pthread_mutex_unlock(&s_lock);
+    result = wmp_esplus_adapter_prepare_async(&s_adapter);
     MLT("esplus_prepare prepare_async -> status=%d raw=%d",
         (int)result.status, result.raw_status);
     mldiag_player("prep", result.raw_status);
@@ -542,6 +574,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         mldiag_player("start", started.raw_status);
     }
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO)
+        ++s_video_tries;
     mldiag_submit(packet && packet->type == WMP_ESPLUS_STREAM_VIDEO,
                   result.status == WMP_ESPLUS_SUBMIT_SUCCESS, result.raw_status);
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS && packet) {
