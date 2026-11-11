@@ -41,7 +41,8 @@ namespace MoonlightWmpHost
                 Log.Info("ESPlus probe: " + probeState + ", family=" + family);
                 if (!String.IsNullOrEmpty(report))
                     Log.Info(report);
-                Log.Info("WMP engine image and managed ABI bindings initialized");
+                HostProtocol.Start(_engine, probeState, family);
+                Log.Info("WMP engine image, ESPlus probe and trusted control port initialized");
             }
             catch (Exception ex)
             {
@@ -54,6 +55,7 @@ namespace MoonlightWmpHost
             Log.Info("WMP .NET host process terminating");
             try
             {
+                HostProtocol.Shutdown();
                 if (_engine != null)
                 {
                     _engine.Stop();
