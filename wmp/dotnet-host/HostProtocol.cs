@@ -272,7 +272,7 @@ namespace MoonlightWmpHost
             const int maxLines = 64;
             int start = Math.Max(0, snapshot.Length - maxLines);
             var json = new System.Text.StringBuilder(256 + (snapshot.Length - start) * 128);
-            json.Append("{\\"count\\":").Append(snapshot.Length).Append(",\\"logs\\":[");
+            json.Append("{\"count\":").Append(snapshot.Length).Append(",\"logs\":[");
             for (int i = start; i < snapshot.Length; i++)
             {
                 if (i > start) json.Append(',');
