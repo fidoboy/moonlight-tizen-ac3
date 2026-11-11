@@ -15,7 +15,7 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
-#define VLOG(...) fprintf(stderr, "[video] " __VA_ARGS__)
+#define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
 static int s_fps;
 static uint8_t *s_scratch;
