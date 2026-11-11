@@ -103,11 +103,16 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
     && "$pm" install --accept-license --no-java-check \
-        "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0,TV-SAMSUNG-Public,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+        "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
-    && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0 TV-SAMSUNG-Public TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
+    && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \
+       done \
+    && for package in TIZEN-10.0 TIZEN-10.0-Emulator TIZEN-10.0-NativeAppDevelopment TIZEN-10.0-NativeAppDevelopment-CLI TV-SAMSUNG-Public TV-SAMSUNG-Public-Emulator; do \
+         if awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt; then \
+           echo "Unexpected Tizen package installed: $package" >&2; exit 1; \
+         fi; \
        done \
     && test -x "$TIZEN_STUDIO/tools/ide/bin/tizen" \
     && test -x "$TIZEN_STUDIO/tools/tizen-core/tz" \
