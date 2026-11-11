@@ -88,8 +88,14 @@ static void cl_logMessage(const char *format, ...) {
   MLT("cc: %s", format);
 }
 
-static void cl_stageStarting(int stage) { (void)stage; MLT("stage %d (%s) starting", stage, LiGetStageName(stage)); }
-static void cl_stageComplete(int stage) { (void)stage; MLT("stage %d (%s) complete", stage, LiGetStageName(stage)); }
+static void cl_stageStarting(int stage) {
+  fprintf(stderr, "[ml] stage %d (%s) starting\n", stage, LiGetStageName(stage));
+  MLT("stage %d (%s) starting", stage, LiGetStageName(stage));
+}
+static void cl_stageComplete(int stage) {
+  fprintf(stderr, "[ml] stage %d (%s) complete\n", stage, LiGetStageName(stage));
+  MLT("stage %d (%s) complete", stage, LiGetStageName(stage));
+}
 
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
