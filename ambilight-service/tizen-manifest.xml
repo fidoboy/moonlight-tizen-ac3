@@ -6,6 +6,7 @@
   <profile name="tv" />
   <service-application appid="MoonLightS.MoonlightAmbilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="13" type="dotnet" on-boot="false" auto-restart="false">
     <label>Moonlight Ambilight</label>
+    <background-category value="background-network" />
     <splash-screens />
   </service-application>
   <shortcut-list />
