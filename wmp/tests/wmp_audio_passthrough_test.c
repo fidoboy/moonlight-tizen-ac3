@@ -5,8 +5,7 @@
 #include "Limelight.h"
 #include "esplus_player.h"
 
-/* Exercise the normal audio implementation; production diagnostic builds default to video-only. */
-#define WMP_VIDEO_ONLY_DIAGNOSTIC 0
+/* Exercise the production ESPlus audio implementation. */
 #include "../upstream/mlclient/audio_opus.c"
 
 static int g_ac3;
