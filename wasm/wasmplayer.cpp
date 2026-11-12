@@ -1,5 +1,7 @@
 #include "moonlight_wasm.hpp"
 
+#include <cmath>
+
 #include <condition_variable>
 #include <chrono>
 #include <functional>
