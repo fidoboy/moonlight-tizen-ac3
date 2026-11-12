@@ -9992,6 +9992,7 @@ function createConfigSummaryBar() {
     { label: 'Optimal bitrate', id: 'summaryOptimalBitrate', toggle: true, icon: 'static/res/ic_summary_optimal_bitrate.svg' },
     { label: 'HDR', id: 'summaryHdr', toggle: true, icon: 'static/res/ic_summary_hdr.svg' },
     { label: 'Codec', id: 'summaryCodec', icon: 'static/res/ic_summary_codec.svg' },
+    { label: 'Playback engine', id: 'summaryPlaybackEngine', icon: 'static/res/ic_summary_engine.svg' },
     { label: 'Dolby', id: 'summaryDolby', toggle: true, icon: 'static/res/ic_dolby_double_d.svg' },
     { label: 'Audio', id: 'summaryAudio', icon: 'static/res/ic_summary_audio.svg' },
     { label: 'Game mode summary', id: 'summaryGameMode', toggle: true, icon: 'static/res/ic_summary_gamepad.svg' }
@@ -10000,6 +10001,7 @@ function createConfigSummaryBar() {
   items.forEach(function(entry) {
     var item = document.createElement('div');
     item.className = 'config-summary-item';
+    item.setAttribute('data-summary-id', entry.id);
 
     if (entry.icon) {
       var icon = document.createElement('img');
@@ -10132,11 +10134,14 @@ function updateConfigSummaryBar() {
     var displayH264Level = /^Auto$/i.test(h264Level) ? 'auto' : 'L' + h264Level.replace(/_/g, '.');
     codec = 'H264 (' + displayH264Level + ')';
   }
+  var audioDisabled = isAudioOutputDisabled();
   var audioValue = textFor('#selectAudio', 'Stereo');
-  var audio = isAudioOutputDisabled() ? 'off' :
+  var audio = audioDisabled ? 'off' :
     (audioValue === '51Surround' ? '5.1' :
       (audioValue === '71Surround' ? '7.1' :
         (/stereo/i.test(audioValue) ? 'Stereo' : audioValue)));
+  var playbackEngine = textFor('#selectStreamingEngine', 'EMSS').toUpperCase();
+  if (playbackEngine !== 'WMP') playbackEngine = 'EMSS';
 
   function setSummaryText(selector, value) {
     var output = document.querySelector(selector);
@@ -10147,10 +10152,13 @@ function updateConfigSummaryBar() {
   setSummaryText('#summaryFps', fps);
   setSummaryText('#summaryBitrate', bitrate);
   setSummaryText('#summaryCodec', codec);
+  setSummaryText('#summaryPlaybackEngine', playbackEngine);
   setSummaryText('#summaryAudio', audio);
+  var dolbySummaryItem = bar.querySelector('[data-summary-id="summaryDolby"]');
+  if (dolbySummaryItem) dolbySummaryItem.style.display = audioDisabled ? 'none' : '';
   toggleFor('#optimizeBitrateSwitch', '#summaryOptimalBitrate');
   toggleFor('#hdrModeSwitch', '#summaryHdr');
-  toggleFor('#ac3AudioModeSwitch', '#summaryDolby');
+  if (!audioDisabled) toggleFor('#ac3AudioModeSwitch', '#summaryDolby');
   toggleFor('#gameModeSwitch', '#summaryGameMode');
 }
 
