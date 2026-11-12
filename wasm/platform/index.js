@@ -7978,16 +7978,25 @@ function setDolbySelectorValue(buttonSelector, menuSelector, value) {
 
 function updateDolbyAudioAdvancedSettings() {
   const audioEnabled = !isAudioOutputDisabled();
+  const engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
   const dolbyEnabled = audioEnabled && $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  // These controls configure the EMSS Dolby track. WMP/ESPlusPlayer does not
+  // currently consume either setting, so never expose them for that engine.
+  const emssDolbyEnabled = engine === 'EMSS' && dolbyEnabled;
   const is51Selected = $('#selectAudio').data('value') === '51Surround';
-  const layoutEnabled = dolbyEnabled && is51Selected;
+  const layoutEnabled = emssDolbyEnabled && is51Selected;
+
+  $('#dolbyChannelLayoutOption').toggle(emssDolbyEnabled);
   $('#selectDolbyChannelLayout')
     .prop('disabled', !layoutEnabled)
     .toggleClass('mdl-button--disabled', !layoutEnabled)
     .attr('aria-disabled', layoutEnabled ? 'false' : 'true')
     .attr('tabindex', layoutEnabled ? '0' : '-1');
-  setAudioButtonEnabled('#selectDolbyDecodingMode', dolbyEnabled);
-  $('#dolbyDecodingModeOption').toggle(dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported);
+
+  const decodingModeVisible = emssDolbyEnabled &&
+    dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported;
+  $('#dolbyDecodingModeOption').toggle(decodingModeVisible);
+  setAudioButtonEnabled('#selectDolbyDecodingMode', decodingModeVisible);
 }
 
 function initializeDolbyDecodingModeSupport(attempt) {
