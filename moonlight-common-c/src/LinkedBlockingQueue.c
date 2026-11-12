@@ -62,21 +62,21 @@ void LbqSignalQueueShutdown(PLINKED_BLOCKING_QUEUE queueHead) {
     PltLockMutex(&queueHead->mutex);
     queueHead->shutdown = true;
     PltUnlockMutex(&queueHead->mutex);
-    PltSignalConditionVariable(&queueHead->cond);
+    PltBroadcastConditionVariable(&queueHead->cond);
 }
 
 void LbqSignalQueueDrain(PLINKED_BLOCKING_QUEUE queueHead) {
     PltLockMutex(&queueHead->mutex);
     queueHead->draining = true;
     PltUnlockMutex(&queueHead->mutex);
-    PltSignalConditionVariable(&queueHead->cond);
+    PltBroadcastConditionVariable(&queueHead->cond);
 }
 
 void LbqSignalQueueUserWake(PLINKED_BLOCKING_QUEUE queueHead) {
     PltLockMutex(&queueHead->mutex);
     queueHead->pendingUserWake = true;
     PltUnlockMutex(&queueHead->mutex);
-    PltSignalConditionVariable(&queueHead->cond);
+    PltBroadcastConditionVariable(&queueHead->cond);
 }
 
 int LbqGetItemCount(PLINKED_BLOCKING_QUEUE queueHead) {
@@ -85,8 +85,6 @@ int LbqGetItemCount(PLINKED_BLOCKING_QUEUE queueHead) {
 }
 
 int LbqOfferQueueItem(PLINKED_BLOCKING_QUEUE queueHead, void* data, PLINKED_BLOCKING_QUEUE_ENTRY entry) {
-    bool wasEmpty;
-    
     entry->flink = NULL;
     entry->data = data;
 
@@ -102,8 +100,7 @@ int LbqOfferQueueItem(PLINKED_BLOCKING_QUEUE queueHead, void* data, PLINKED_BLOC
         return LBQ_BOUND_EXCEEDED;
     }
 
-    wasEmpty = queueHead->head == NULL;
-    if (wasEmpty) {
+    if (queueHead->head == NULL) {
         LC_ASSERT(queueHead->currentSize == 0);
         LC_ASSERT(queueHead->tail == NULL);
         queueHead->head = entry;
@@ -123,11 +120,7 @@ int LbqOfferQueueItem(PLINKED_BLOCKING_QUEUE queueHead, void* data, PLINKED_BLOC
 
     PltUnlockMutex(&queueHead->mutex);
 
-    if (wasEmpty) {
-        // Only call PltSignalConditionVariable() when transitioning from
-        // empty -> non-empty to avoid a useless syscall for each new entry.
-        PltSignalConditionVariable(&queueHead->cond);
-    }
+    PltSignalConditionVariable(&queueHead->cond);
 
     return LBQ_SUCCESS;
 }
