@@ -327,7 +327,7 @@ function resetPerformanceStatsGraph() {
 }
 
 // Reveal the overlay only after its text and first graph sample are ready,
-// and at least one second has elapsed since the initial statistics message.
+// and at least one second has elapsed since the startup transition was fully hidden.
 function onPerformanceStatsStreamTransitionHidden() {
   if (performanceStatsStreamTerminated) return;
 
