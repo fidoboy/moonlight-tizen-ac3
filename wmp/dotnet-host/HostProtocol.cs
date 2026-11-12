@@ -782,6 +782,9 @@ namespace MoonlightWmpHost
                         RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
                         Log.Info("WMP stream diagnostic: " + streamStatsDiagnostic);
                         Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
+                        // Refresh the native ring buffer after each lifecycle snapshot so
+                        // callbacks emitted after startup (prepare_async_done/start) are visible.
+                        Event(appId, remotePort, "wmpDiagnosticReady", null);
                         nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
                     }
 
