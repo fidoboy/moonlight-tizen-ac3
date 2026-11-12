@@ -35,6 +35,8 @@ namespace MoonlightWmpHost
         private static readonly Queue<string> NativeDiagnosticLogs = new Queue<string>();
         private const int NativeDiagnosticLogCapacity = 100;
         private const int NativeDiagnosticLogLineLimit = 512;
+        private static long _nativeDiagnosticLogSequence;
+        private static long _nativeDiagnosticLogSentSequence;
         private static bool _stageDispatchScheduled;
         private static string _stageAppId;
         private static string _stageRemotePort;
@@ -282,6 +284,7 @@ namespace MoonlightWmpHost
                     NativeDiagnosticLogs.Dequeue();
                 NativeDiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
                     CultureInfo.InvariantCulture) + " " + value);
+                _nativeDiagnosticLogSequence++;
             }
         }
 
@@ -293,6 +296,7 @@ namespace MoonlightWmpHost
             {
                 nativeSnapshot = NativeDiagnosticLogs.ToArray();
                 hostSnapshot = DiagnosticLogs.ToArray();
+                _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
             }
 
             int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
@@ -310,6 +314,23 @@ namespace MoonlightWmpHost
         // Called from Moonlight Common C's native connection callback. Keep this
         // callback short: queue the UI notification and let one managed worker send
         // ordered MessagePort events outside the native networking thread.
+        private static void SendNewNativeDiagnosticLogs(string appId, string remotePort)
+        {
+            string[] snapshot;
+            int start;
+            lock (Gate)
+            {
+                snapshot = NativeDiagnosticLogs.ToArray();
+                long oldestSequence = _nativeDiagnosticLogSequence - snapshot.Length + 1;
+                long firstSequence = Math.Max(_nativeDiagnosticLogSentSequence + 1, oldestSequence);
+                start = (int)Math.Max(0, firstSequence - oldestSequence);
+                _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
+            }
+
+            for (int i = start; i < snapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+        }
+
         internal static void NativeStageStarting(int stage, string name)
         {
             try
@@ -784,7 +805,7 @@ namespace MoonlightWmpHost
                         Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
                         // Refresh the native ring buffer after each lifecycle snapshot so
                         // callbacks emitted after startup (prepare_async_done/start) are visible.
-                        Event(appId, remotePort, "wmpDiagnosticReady", null);
+                        SendNewNativeDiagnosticLogs(appId, remotePort);
                         nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
                     }
 
