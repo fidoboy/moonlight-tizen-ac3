@@ -69,6 +69,9 @@ namespace MoonlightWmpHost
         internal delegate int RunningFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int VideoReadyFn();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void StopFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -111,6 +114,7 @@ namespace MoonlightWmpHost
         }
 
         internal readonly RunningFn Running;
+        internal readonly VideoReadyFn VideoReady;
         internal readonly StopFn Stop;
         internal readonly SetDolbyPassthroughFn SetDolbyPassthrough;
         internal readonly ActiveAudioCodecFn GetActiveAudioCodec;
@@ -137,6 +141,7 @@ namespace MoonlightWmpHost
             _setStageCallback = Bind<SetStageCallbackFn>(resolve, "ml_engine_set_stage_cb");
             _setLogCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_log_cb");
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
+            VideoReady = Bind<VideoReadyFn>(resolve, "ml_engine_video_ready");
             Stop = Bind<StopFn>(resolve, "ml_engine_stop");
             SetDolbyPassthrough = Bind<SetDolbyPassthroughFn>(
                 resolve, "ml_engine_set_dolby_passthrough_enabled");

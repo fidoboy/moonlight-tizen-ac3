@@ -622,6 +622,15 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     return result;
 }
 
+int esplus_video_ready(void)
+{
+    int ready;
+    pthread_mutex_lock(&s_lock);
+    ready = s_started && esplus_stats.submitted > 0;
+    pthread_mutex_unlock(&s_lock);
+    return ready;
+}
+
 void esplus_close(void)
 {
     MLT("esplus_close");

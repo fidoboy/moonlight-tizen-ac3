@@ -674,6 +674,9 @@ namespace MoonlightWmpHost
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP native StartSessionV2 returned " +
                     result.ToString(CultureInfo.InvariantCulture));
+                // The Debug Mode WebApp can now retrieve the native startup trace,
+                // including ESPlus window/display and prepare diagnostics.
+                Event(appId, remotePort, "wmpDiagnosticReady", null);
                 if (result != 0)
                 {
                     int nativeCode = _engine.ReadLastError(out diagnostic);
@@ -716,11 +719,11 @@ namespace MoonlightWmpHost
                     EngineApi.Stats stats = new EngineApi.Stats();
                     stats.StructSize = Marshal.SizeOf(typeof(EngineApi.Stats));
                     int statsResult = _engine.GetStats(ref stats);
-                    if (!videoReady && statsResult == 0 && stats.Submitted > 0)
+                    if (!videoReady && _engine.VideoReady() != 0)
                     {
                         videoReady = true;
-                        Log.Info("WMP first video submission observed: submitted=" +
-                            stats.Submitted.ToString(CultureInfo.InvariantCulture));
+                        Log.Info("WMP ESPlus playback started after accepting video; submitted=" +
+                            (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
                         Event(appId, remotePort, "displayVideo", null);
                     }
                     if (statsResult == 0 && stats.Errors > lastReportedPlayerErrors)
@@ -760,15 +763,19 @@ namespace MoonlightWmpHost
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown"));
-                        Log.Info("WMP stream diagnostic: stats_rc=" +
-                            statsResult.ToString(CultureInfo.InvariantCulture) +
+                        string diagnostic = "stats_rc=" + statsResult.ToString(CultureInfo.InvariantCulture) +
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", video_ready=" + (_engine.VideoReady() != 0 ? "1" : "0") +
+                            ", playing_ms=" + (statsResult == 0 ? stats.PlayingMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown"));
+                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
+                        RecordDiagnostic("host stream stats: " + diagnostic);
+                        Log.Info("WMP stream diagnostic: " + diagnostic);
+                        Event(appId, remotePort, "wmpDiagnostic", diagnostic);
                         nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
                     }
 

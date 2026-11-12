@@ -14,6 +14,7 @@
 #include "Limelight.h"
 #include "errors.h"
 #include "esplus_stats.h"
+#include "esplus_player.h"
 #include "mlengine.h"
 #include "mldiag.h"
 #include "mltrace.h"
@@ -203,6 +204,10 @@ int ml_engine_start(const char *host, int appId, const char *pin,
 
 int ml_engine_get_active_audio_codec(void) {
   return AudEsplus_GetActiveAudioCodec();
+}
+
+int ml_engine_video_ready(void) {
+  return esplus_video_ready();
 }
 
 int ml_engine_get_stats(ml_engine_stats *out) {
