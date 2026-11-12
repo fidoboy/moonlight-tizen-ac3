@@ -357,7 +357,6 @@
   "Obtaining preliminary data...": "Récupération des données préliminaires...",
   "Open the stream menu by holding Select": "Ouvrir le menu de diffusion en maintenant Select",
   "Optimal bitrate": "Débit optimal",
-  "Playback engine": "Moteur de lecture",
   "Optimize bitrate presets": "Optimiser les préréglages de débit",
   "Optimize bitrate to balance stream quality, performance, and bandwidth usage": "Optimiser le débit pour équilibrer qualité, performances et consommation de bande passante",
   "Optimize game settings": "Optimiser les paramètres des jeux",
@@ -627,5 +626,7 @@
   "Show Ambilight settings": "Afficher les paramètres Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Aperçu des paramètres uniquement. Le service Ambilight n’est pas disponible sur ce téléviseur.",
   "Streaming engine:": "Moteur de streaming :",
-  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS est le moteur de streaming éprouvé et devrait fonctionner sur tous les téléviseurs Tizen pris en charge. WMP utilise le moteur de lecture natif expérimental de Tizen et peut ne pas fonctionner sur tous les téléviseurs."
+  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS est le moteur de streaming éprouvé et devrait fonctionner sur tous les téléviseurs Tizen pris en charge. WMP utilise le moteur de lecture natif expérimental de Tizen et peut ne pas fonctionner sur tous les téléviseurs.",
+  "Engine:": "Moteur :",
+  "Native": "Natif"
 }
