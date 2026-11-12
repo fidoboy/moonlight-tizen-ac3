@@ -499,7 +499,7 @@ static uint32_t AudioFecCounterDelta(uint32_t current, uint32_t previous) {
 
 static void UpdateAudioFecWindowStats(void) {
   s_AudioFecWindowStats = {};
-  if (g_Instance == nullptr || g_Instance->m_AudioBackend == AudioBackend::Disabled) {
+  if (g_Instance == nullptr || !g_Instance->IsAudioBackendEnabled()) {
     s_LastAudioFecStats = {};
     s_AudioFecStatsBaselineValid = false;
     return;
