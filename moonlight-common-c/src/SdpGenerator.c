@@ -192,7 +192,7 @@ static int addGen5Options(PSDP_OPTION* head) {
         featureFlags = NVFF_BASE | NVFF_RI_ENCRYPTION;
 
         // Enable audio encryption if the client opted in or the host required it
-        if (AudioStreamEnabled &&
+        if (AudioTransportEnabled &&
                 ((StreamConfig.encryptionFlags & ENCFLG_AUDIO) || (EncryptionFeaturesEnabled & SS_ENC_AUDIO))) {
             featureFlags |= NVFF_AUDIO_ENCRYPTION;
             AudioEncryptionEnabled = true;
@@ -291,11 +291,11 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         }
 
         // If audio encryption is supported by the host and desired by the client, use it
-        if (AudioStreamEnabled && (EncryptionFeaturesSupported & SS_ENC_AUDIO) &&
+        if (AudioTransportEnabled && (EncryptionFeaturesSupported & SS_ENC_AUDIO) &&
                 (StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             EncryptionFeaturesEnabled |= SS_ENC_AUDIO;
         }
-        else if (AudioStreamEnabled && (EncryptionFeaturesRequested & SS_ENC_AUDIO) &&
+        else if (AudioTransportEnabled && (EncryptionFeaturesRequested & SS_ENC_AUDIO) &&
                  !(StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             // If audio encryption is explicitly requested by the host but *not* by the client,
             // we'll encrypt anyway (since we are capable of doing so) and print a warning.
@@ -419,9 +419,9 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         err |= addGen5Options(&optionHead);
     }
 
-    // Audio layout metadata is still required by Sunshine's RTSP ANNOUNCE parser
-    // when the client disables audio. The engine supplies stereo as a harmless
-    // fallback, while AudioStreamEnabled controls whether an audio track is used.
+    // Audio layout metadata is required by Sunshine's RTSP ANNOUNCE parser.
+    // AudioTransportEnabled controls whether the GameStream audio transport is negotiated;
+    // playback enablement is handled separately by the audio receive path.
     audioChannelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
     audioChannelMask = CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
 
@@ -484,9 +484,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-video[0].clientRefreshRateX100", payloadStr);
         }
 
-        // Sunshine requires these audio-layout fields in ANNOUNCE even when the
-        // client does not request an audio stream. With audio disabled the native
-        // engine has already selected stereo as the metadata fallback.
+        // Sunshine requires these audio-layout fields in ANNOUNCE. Preserve the
+        // selected layout independently of whether local audio playback is enabled.
         snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
         err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
         snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
@@ -500,7 +499,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (AppVersionQuad[0] >= 7) {
-        if (AudioStreamEnabled && StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
+        if (AudioTransportEnabled && StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
                 HighQualitySurroundSupported && (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
             // Enable high quality mode for surround sound
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
@@ -516,7 +515,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "0");
             HighQualitySurroundEnabled = false;
 
-            if (AudioStreamEnabled &&
+            if (AudioTransportEnabled &&
                     ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
                      ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
                        StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD))) {
