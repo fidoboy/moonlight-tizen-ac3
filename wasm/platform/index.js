@@ -9912,14 +9912,20 @@ function probeSmartHubSupport() {
   return new Promise(function(resolve) {
     // Check localStorage cache first
     var cached = localStorage.getItem('smartHubSupported');
-    if (cached !== null) {
-      _isSmartHubSupported = cached === 'true';
-      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (cached): ' + _isSmartHubSupported);
+    if (cached === 'true') {
+      _isSmartHubSupported = true;
+      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (cached): true');
       resolve();
       return;
     }
 
-    // First launch: probe the service
+    // A negative result may have been caused by a transient service or message-port
+    // failure. Re-probe on every launch until support is positively confirmed.
+    if (cached === 'false') {
+      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Ignoring cached negative Smart Hub result; probing again.');
+    }
+
+    // Probe the service whenever support has not been positively confirmed.
     var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
     var serviceId = packageId + '.service';
     
@@ -10127,9 +10133,10 @@ function updateConfigSummaryBar() {
     codec = 'H264 (' + displayH264Level + ')';
   }
   var audioValue = textFor('#selectAudio', 'Stereo');
-  var audio = audioValue === '51Surround' ? '5.1' :
-    (audioValue === '71Surround' ? '7.1' :
-      (/stereo/i.test(audioValue) ? 'Stereo' : audioValue));
+  var audio = isAudioOutputDisabled() ? 'off' :
+    (audioValue === '51Surround' ? '5.1' :
+      (audioValue === '71Surround' ? '7.1' :
+        (/stereo/i.test(audioValue) ? 'Stereo' : audioValue)));
 
   function setSummaryText(selector, value) {
     var output = document.querySelector(selector);
