@@ -58,6 +58,15 @@ static char GetModifierFlags(const EmscriptenKeyboardEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
+  // The stream-menu close transition dispatches a synthetic mousedown solely
+  // to reacquire pointer lock. A negative button value is our explicit marker:
+  // it must never become a mouse press in the remote session.
+  if (event.button < 0) {
+    if (!streamMenuInputBlocked.load(std::memory_order_acquire) && !m_MouseLocked) {
+      LockMouse();
+    }
+    return EM_TRUE;
+  }
   if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
   if (!m_MouseLocked) {
     LockMouse();
