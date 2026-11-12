@@ -86,6 +86,10 @@ const SyncFunctions = {
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
   fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
   'startRequest': (...args) => {
+    // Reset overlay state for every new session, including sessions started after
+    // a previous stream set performanceStatsStreamTerminated.
+    beginPerformanceStatsStream();
+
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
