@@ -5471,6 +5471,47 @@ const STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS = 3000;
 // hideStreamTransitionBackground() spends this long fading status and then the transition layer.
 const STREAM_TRANSITION_HIDE_ANIMATION_MS = UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS + 500;
 
+// The video-ready path uses two delayed steps before hiding the startup transition.
+// Keep both handles so a later termination can cancel that stale hide before showing
+// the closing transition. This coordinates UI animation only; it does not monitor or
+// determine stream/session state.
+var streamVideoReadyHideStartTimeout = null;
+var streamVideoReadyHideTimeout = null;
+var streamVideoReadyHideGeneration = 0;
+
+function cancelStreamVideoReadyTransitionHide() {
+  streamVideoReadyHideGeneration++;
+  if (streamVideoReadyHideStartTimeout !== null) {
+    window.clearTimeout(streamVideoReadyHideStartTimeout);
+    streamVideoReadyHideStartTimeout = null;
+  }
+  if (streamVideoReadyHideTimeout !== null) {
+    window.clearTimeout(streamVideoReadyHideTimeout);
+    streamVideoReadyHideTimeout = null;
+  }
+}
+
+function scheduleStreamTransitionHideAfterVideoReady() {
+  cancelStreamVideoReadyTransitionHide();
+  var generation = streamVideoReadyHideGeneration;
+  streamVideoReadyHideStartTimeout = window.setTimeout(function() {
+    streamVideoReadyHideStartTimeout = null;
+    if (generation !== streamVideoReadyHideGeneration) return;
+    if (typeof hideStreamTransitionBackground !== 'function') return;
+
+    var elapsed = streamEncryptionStatusVisibleAt === null
+      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
+      : Date.now() - streamEncryptionStatusVisibleAt;
+    var waitForEncryptionStatus = Math.max(0,
+      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
+    streamVideoReadyHideTimeout = window.setTimeout(function() {
+      streamVideoReadyHideTimeout = null;
+      if (generation !== streamVideoReadyHideGeneration) return;
+      hideStreamTransitionBackground();
+    }, waitForEncryptionStatus);
+  }, 200);
+}
+
 function resetStreamEncryptionStatus() {
   streamEncryptionStatusVisibleAt = null;
   currentStreamEncryptionStatus = null;
@@ -5592,6 +5633,10 @@ function startStreamEncryptionStatusPolling() {
 }
 
 function showStreamTransitionBackground(onVisible) {
+  // A new transition supersedes any delayed hide requested by the previous stream's
+  // video-ready callback. In particular, termination must retain the closing layer.
+  cancelStreamVideoReadyTransitionHide();
+
   // The stream menu must never remain visible above a startup or shutdown transition.
   if ($('#streamMenuDialogOverlay').length > 0) closeStreamMenuDialog(false);
 
@@ -5722,20 +5767,10 @@ function handleNormalStreamVideoReady() {
   });
   $('#listener').addClass('fullscreen');
 
-  // Keep the transition visible briefly after playback starts, and ensure the encryption
-  // indicator has been visible for at least 3 seconds before the transition is fully hidden.
-  window.setTimeout(function() {
-    if (typeof hideStreamTransitionBackground !== 'function') return;
-
-    var elapsed = streamEncryptionStatusVisibleAt === null
-      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
-      : Date.now() - streamEncryptionStatusVisibleAt;
-    var waitForEncryptionStatus = Math.max(0,
-      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
-    window.setTimeout(function() {
-      hideStreamTransitionBackground();
-    }, waitForEncryptionStatus);
-  }, 200);
+  // Schedule the startup transition hide through a cancellable lifecycle operation.
+  // A stream may terminate before these delays expire; in that case the closing
+  // transition must supersede this pending video-ready hide.
+  scheduleStreamTransitionHideAfterVideoReady();
 }
 
 // Finalize a direct Smart Hub stream without relying on the normal UI readiness path.
@@ -5755,16 +5790,10 @@ function handleDirectSmartHubVideoReady() {
   var listener = document.getElementById('listener');
   if (listener) listener.classList.add('fullscreen');
 
-  window.setTimeout(function() {
-    var elapsed = streamEncryptionStatusVisibleAt === null
-      ? STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS
-      : Date.now() - streamEncryptionStatusVisibleAt;
-    var waitForEncryptionStatus = Math.max(0,
-      STREAM_ENCRYPTION_STATUS_MIN_VISIBLE_MS - elapsed - STREAM_TRANSITION_HIDE_ANIMATION_MS);
-    window.setTimeout(function() {
-      hideStreamTransitionBackground();
-    }, waitForEncryptionStatus);
-  }, 200);
+  // Schedule the startup transition hide through a cancellable lifecycle operation.
+  // A stream may terminate before these delays expire; in that case the closing
+  // transition must supersede this pending video-ready hide.
+  scheduleStreamTransitionHideAfterVideoReady();
 }
 
 // Handle layout elements when displaying the Stream view
