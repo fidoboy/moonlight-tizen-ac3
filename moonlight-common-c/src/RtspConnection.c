@@ -1216,7 +1216,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         }
         EncryptionFeaturesEnabled = 0;
 
-        // Opus parameters are irrelevant when this session has no audio track.
+        // Always negotiate and parse the audio transport, even when local playback is disabled.
         if (AudioTransportEnabled) {
             ret = parseOpusConfigurations(&response);
             if (ret != 0) {
