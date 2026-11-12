@@ -231,6 +231,11 @@ var isInGame = false; // Flag indicating whether the game has started, initial v
 var dolbyDecodingModeSupported = false;
 var dolbyDecodingModeSupportChecked = false;
 
+// Audio backend preferences hidden by the active streaming-engine / Dolby policy.
+var audioBackendBeforeWmpPreference = null;
+var audioBackendBeforeAc3Preference = null;
+var audioBackendPolicyLoadState = { streamingEngine: false, audioBackend: false, ac3AudioMode: false, beforeWmp: false, beforeAc3: false };
+
 // Per-operation limits prevent a stalled Tizen subsystem or host request from
 // leaving either launch path indefinitely on its loading screen.
 const STREAM_OPERATION_TIMEOUTS = {
@@ -1071,7 +1076,7 @@ function loadConfigSummarySettings(callback) {
     completeOne();
   });
   getData('audioBackend', function(result) {
-    applyMenuValue('audioBackend', '.audioBackendMenu', result && result.audioBackend);
+    // Restored by loadUserDataCb after the engine and Dolby policy are loaded.
     completeOne();
   });
   getData('audioConfig', function(result) {
@@ -6869,9 +6874,25 @@ function cacheHostAppList(host, appList) {
 function saveStreamingEngine() {
   var chosenEngine = $(this).data('value');
   if (chosenEngine !== 'EMSS' && chosenEngine !== 'WMP') return;
-  $('#selectStreamingEngine').text($(this).text())
-    .attr('data-value', chosenEngine).data('value', chosenEngine);
-  storeData('streamingEngine', chosenEngine, null);
+  var currentEngine = String($('#selectStreamingEngine').data('value') || 'EMSS');
+  if (chosenEngine === currentEngine) return;
+
+  var currentBackend = String($('#selectAudioBackend').data('value') || 'EMSS');
+  if (chosenEngine === 'WMP') {
+    // Preserve the effective EMSS choice for the next time EMSS is selected.
+    audioBackendBeforeWmpPreference = currentBackend === 'Disabled' ? 'Disabled' : currentBackend;
+    storeData('audioBackendBeforeWmp', audioBackendBeforeWmpPreference, null);
+    currentBackend = currentBackend === 'Disabled' ? 'Disabled' : 'WMP';
+    setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', currentBackend);
+    storeData('audioBackend', currentBackend, null);
+    $('#selectStreamingEngine').text($(this).text()).attr('data-value', chosenEngine).data('value', chosenEngine);
+    storeData('streamingEngine', chosenEngine, null);
+    applyAudioBackendPolicy('enter-wmp');
+  } else {
+    $('#selectStreamingEngine').text($(this).text()).attr('data-value', chosenEngine).data('value', chosenEngine);
+    storeData('streamingEngine', chosenEngine, null);
+    applyAudioBackendPolicy('leave-wmp');
+  }
 }
 
 function saveResolution() {
@@ -7830,12 +7851,17 @@ function saveFlipXYfaceButtons() {
 }
 
 function saveAudioBackend() {
-  var chosenAudioBackend = $(this).data('value');
-  $('#selectAudioBackend').text($(this).text()).attr('data-value', chosenAudioBackend).data('value', chosenAudioBackend);
+  var chosenAudioBackend = String($(this).data('value') || '');
+  var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
+  var dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  var allowed = engine === 'WMP'
+    ? ['WMP', 'Disabled']
+    : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
+  if (allowed.indexOf(chosenAudioBackend) === -1) return;
+
+  setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', chosenAudioBackend);
   console.log('%c[index.js, saveAudioBackend]', 'color: green;', 'Saving audioBackend value: ' + chosenAudioBackend);
   storeData('audioBackend', chosenAudioBackend, null);
-
-  // Show only the settings that apply to the selected audio backend
   updateAudioBackendSettings();
 }
 
@@ -7858,6 +7884,10 @@ function updateAudioBackendSettings() {
       // The Web Audio backend schedules the audio itself using the jitter buffer
       $('#audioSyncOption').hide();
       $('#audioJitterOption').show();
+    } else if ($('#selectAudioBackend').data('value') === 'WMP') {
+      // WMP uses the native player path and does not use EMSS/WebAudio tuning.
+      $('#audioSyncOption').hide();
+      $('#audioJitterOption').hide();
     } else {
       // The EMSS backend drops audio packets to stay in sync instead of buffering them
       $('#audioJitterOption').hide();
@@ -7959,9 +7989,83 @@ function saveDolbyDecodingMode() {
   storeData('dolbyDecodingMode', value, null);
 }
 
-function updateAc3AudioModeUI(enabled) {
+function setAudioBackendMenuAvailability(engine, dolbyEnabled) {
+  var allowed = engine === 'WMP'
+    ? ['WMP', 'Disabled']
+    : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
+
+  $('.audioBackendMenu li').each(function() {
+    var visible = allowed.indexOf(String($(this).data('value'))) !== -1;
+    $(this).toggle(visible);
+    this.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  });
+
+  // Every mode has at least two valid choices; keep the selector interactive.
+  $('#selectAudioBackend').prop('disabled', false)
+    .removeClass('mdl-button--disabled')
+    .attr('aria-disabled', 'false')
+    .attr('tabindex', '0');
+}
+
+function applyAudioBackendPolicy(reason) {
+  var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
+  var dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  var backend = String($('#selectAudioBackend').data('value') || 'EMSS');
+
+  if (engine === 'WMP') {
+    // WMP owns both media tracks. DD must never redirect audio to EMSS.
+    if (backend !== 'WMP' && backend !== 'Disabled') {
+      if (reason === 'startup' && audioBackendBeforeWmpPreference == null) {
+        audioBackendBeforeWmpPreference = backend;
+        storeData('audioBackendBeforeWmp', backend, null);
+      }
+      backend = 'WMP';
+    }
+  } else {
+    if (reason === 'leave-wmp' || (reason === 'startup' && audioBackendBeforeWmpPreference != null)) {
+      backend = audioBackendBeforeWmpPreference || 'EMSS';
+      audioBackendBeforeWmpPreference = null;
+      storeData('audioBackendBeforeWmp', null, null);
+    }
+
+    if (dolbyEnabled) {
+      if (backend === 'WebAudio') {
+        if (audioBackendBeforeAc3Preference == null) {
+          audioBackendBeforeAc3Preference = 'WebAudio';
+          storeData('audioBackendBeforeAc3', 'WebAudio', null);
+        }
+        backend = 'EMSS';
+      } else if (backend === 'WMP') {
+        backend = 'EMSS';
+      }
+    } else if (audioBackendBeforeAc3Preference != null &&
+               (reason === 'disable-dolby' || reason === 'startup' || reason === 'leave-wmp')) {
+      backend = audioBackendBeforeAc3Preference;
+      audioBackendBeforeAc3Preference = null;
+      storeData('audioBackendBeforeAc3', null, null);
+    }
+  }
+
+  var allowed = engine === 'WMP'
+    ? ['WMP', 'Disabled']
+    : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
+  if (allowed.indexOf(backend) === -1) backend = engine === 'WMP' ? 'WMP' : 'EMSS';
+
+  setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', backend);
+  storeData('audioBackend', backend, null);
+  setAudioBackendMenuAvailability(engine, dolbyEnabled);
+  updateAudioBackendSettings();
+}
+
+function completeAudioBackendPolicyLoad() {
+  var state = audioBackendPolicyLoadState;
+  if (!state.streamingEngine || !state.audioBackend || !state.ac3AudioMode ||
+      !state.beforeWmp || !state.beforeAc3) return;
+  updateAc3AudioModeUI($('#ac3AudioModeSwitch').parent().hasClass('is-checked'), 'startup');
+}
+
+function updateAc3AudioModeUI(enabled, reason) {
   if (enabled) {
-    setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', 'EMSS');
     $('.audioConfigMenu li[data-optical-incompatible="true"]').hide();
     if ($('#selectAudio').data('value') === '71Surround') {
       setAudioSelectorValue('#selectAudio', '.audioConfigMenu', '51Surround');
@@ -7971,47 +8075,31 @@ function updateAc3AudioModeUI(enabled) {
     $('.audioConfigMenu li[data-optical-incompatible="true"]').show();
   }
 
-  $('#selectAudioBackend')
-    .prop('disabled', enabled)
-    .toggleClass('mdl-button--disabled', enabled)
-    .attr('aria-disabled', enabled ? 'true' : 'false')
-    .attr('tabindex', enabled ? '-1' : '0');
-
-  $('#selectAudio')
-    .prop('disabled', false)
+  applyAudioBackendPolicy(reason || 'refresh');
+  $('#selectAudio').prop('disabled', false)
     .removeClass('mdl-button--disabled')
     .attr('aria-disabled', 'false')
     .attr('tabindex', '0');
-
-  updateAudioBackendSettings();
   updateDolbyAudioAdvancedSettings();
 }
 
 function saveAc3AudioMode() {
-  setTimeout(() => {
-    const chosenAc3Mode = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  setTimeout(function() {
+    var chosenAc3Mode = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+    var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
     console.log('%c[index.js, saveAc3AudioMode]', 'color: green;', 'Saving AC-3 audio mode state: ' + chosenAc3Mode);
     storeData('ac3AudioMode', chosenAc3Mode, null);
 
-    if (chosenAc3Mode) {
-      const previousAudioBackend = String($('#selectAudioBackend').data('value') || 'EMSS');
-      storeData('audioBackendBeforeAc3', previousAudioBackend, null);
-      storeData('audioBackend', 'EMSS', null);
-      updateAc3AudioModeUI(true);
-    } else {
-      updateAc3AudioModeUI(false);
-
-      getData('audioBackendBeforeAc3', function(previousValue) {
-        const restoredBackend = previousValue.audioBackendBeforeAc3 || 'EMSS';
-        storeData('audioBackend', restoredBackend, null);
-        storeData('audioBackendBeforeAc3', null, null);
-        setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', restoredBackend);
-        updateAudioBackendSettings();
-      });
+    // DD controls format negotiation, not the playback engine. WMP remains
+    // the sole audio/video backend regardless of the DD switch.
+    if (engine !== 'WMP' && chosenAc3Mode &&
+        $('#selectAudioBackend').data('value') === 'WebAudio') {
+      audioBackendBeforeAc3Preference = 'WebAudio';
+      storeData('audioBackendBeforeAc3', 'WebAudio', null);
     }
+    updateAc3AudioModeUI(chosenAc3Mode, chosenAc3Mode ? 'enable-dolby' : 'disable-dolby');
   }, 100);
 }
-
 
 function saveAudioSync() {
   setTimeout(() => {
@@ -8442,13 +8530,15 @@ function restoreDefaultsSettingsValues() {
   const defaultAc3AudioMode = false;
   document.querySelector('#ac3AudioModeBtn').MaterialSwitch.off();
   storeData('ac3AudioMode', defaultAc3AudioMode, null);
-  updateAc3AudioModeUI(false);
+  audioBackendBeforeWmpPreference = null;
+  audioBackendBeforeAc3Preference = null;
+  storeData('audioBackendBeforeWmp', null, null);
+  storeData('audioBackendBeforeAc3', null, null);
 
   const defaultAudioBackend = 'EMSS';
   $('#selectAudioBackend').text('EMSS').attr('data-value', defaultAudioBackend).data('value', defaultAudioBackend);
   storeData('audioBackend', defaultAudioBackend, null);
-  // Show the settings of the restored audio backend
-  updateAudioBackendSettings();
+  updateAc3AudioModeUI(false, 'startup');
 
   const defaultAudioConfig = 'Stereo';
   $('#selectAudio').text('Stereo').attr('data-value', defaultAudioConfig).data('value', defaultAudioConfig);
@@ -8794,6 +8884,8 @@ function loadUserDataCb() {
       $('#selectStreamingEngine').text(option.text())
         .attr('data-value', engine).data('value', engine);
     }
+    audioBackendPolicyLoadState.streamingEngine = true;
+    completeAudioBackendPolicyLoad();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored automatic update check preference.');
@@ -9036,16 +9128,26 @@ function loadUserDataCb() {
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored audioBackend preferences.');
   getData('audioBackend', function(previousValue) {
-    if (previousValue.audioBackend != null) {
-      $('.audioBackendMenu li').each(function() {
-        if ($(this).data('value') === previousValue.audioBackend) {
-          // Update the audio backend field based on the given value
-          $('#selectAudioBackend').text($(this).text()).attr('data-value', previousValue.audioBackend).data('value', previousValue.audioBackend);
-        }
-      });
+    var storedBackend = previousValue && previousValue.audioBackend;
+    if (['EMSS', 'WebAudio', 'Disabled', 'WMP'].indexOf(storedBackend) !== -1) {
+      setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', storedBackend);
     }
-    // Show the settings of the stored audio backend
-    updateAudioBackendSettings();
+    audioBackendPolicyLoadState.audioBackend = true;
+    completeAudioBackendPolicyLoad();
+  });
+
+  getData('audioBackendBeforeWmp', function(previousValue) {
+    var value = previousValue && previousValue.audioBackendBeforeWmp;
+    audioBackendBeforeWmpPreference = ['EMSS', 'WebAudio', 'Disabled'].indexOf(value) !== -1 ? value : null;
+    audioBackendPolicyLoadState.beforeWmp = true;
+    completeAudioBackendPolicyLoad();
+  });
+
+  getData('audioBackendBeforeAc3', function(previousValue) {
+    var value = previousValue && previousValue.audioBackendBeforeAc3;
+    audioBackendBeforeAc3Preference = ['EMSS', 'WebAudio', 'Disabled'].indexOf(value) !== -1 ? value : null;
+    audioBackendPolicyLoadState.beforeAc3 = true;
+    completeAudioBackendPolicyLoad();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored audioConfig preferences.');
@@ -9080,7 +9182,8 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#ac3AudioModeBtn').MaterialSwitch.off();
     }
-    updateAc3AudioModeUI(enabled);
+    audioBackendPolicyLoadState.ac3AudioMode = true;
+    completeAudioBackendPolicyLoad();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored audioSync preferences.');
