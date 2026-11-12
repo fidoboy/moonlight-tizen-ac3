@@ -1231,7 +1231,7 @@ function handleMessage(msg) {
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
     // Native WMP failures may attach the full ML-ERROR diagnostic record as the API
     // message. Keep it in DEBUG_MODE logs above, but never render that dump in the dialog.
-    if (typeof streamErrorApiMessage === 'string' && /^ML-ERROR\\b/.test(streamErrorApiMessage)) {
+    if (typeof streamErrorApiMessage === 'string' && /^ML-ERROR\b/.test(streamErrorApiMessage)) {
       streamErrorApiMessage = null;
     }
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
