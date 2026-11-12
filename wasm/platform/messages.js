@@ -340,6 +340,19 @@ function revealPerformanceStatsOverlayWhenReady() {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
       performanceStatsFirstRevealAt === 0 || performanceStatsGraphSamples.length === 0) return;
 
+  // Do not reveal statistics while the startup transition layer is still present,
+  // even if a readiness callback was delivered earlier than expected.
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
+    if (performanceStatsRevealTimer === null) {
+      performanceStatsRevealTimer = window.setTimeout(function() {
+        performanceStatsRevealTimer = null;
+        revealPerformanceStatsOverlayWhenReady();
+      }, 50);
+    }
+    return;
+  }
+
   var overlay = document.getElementById('performance-stats');
   if (!overlay) return;
 
@@ -359,6 +372,7 @@ function revealPerformanceStatsOverlayWhenReady() {
 
   performanceStatsPendingFirstReveal = false;
   performanceStatsFirstRevealAt = 0;
+  overlay.style.visibility = 'visible';
   fadeInUiElement(overlay, 'inline-block');
 }
 
@@ -1673,6 +1687,9 @@ function handleMessage(msg) {
     if (!overlayWasVisible) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
+      // Keep it unpaintable until the transition has completely disappeared
+      // and the post-transition one-second delay has elapsed.
+      statsOverlay.style.visibility = 'hidden';
       performanceStatsPendingFirstReveal = true;
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
