@@ -1398,7 +1398,8 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       offset += ret;
     }
 
-    // Report the audio stream only when one is actually enabled.
+    // Keep the audio row present, but do not report configured or synthetic
+    // codec/channel/bitrate values when this session has no audio stream.
     if (audioStreamEnabled) {
       ret = snprintf(
         &output[offset], length - offset,
@@ -1406,7 +1407,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps
       );
     } else {
-      ret = snprintf(&output[offset], length - offset, "Audio stream: Disabled\n");
+      ret = snprintf(&output[offset], length - offset, "Audio stream: -\n");
     }
     if (ret < 0 || ret >= length - offset) {
       assert(false);
@@ -1414,9 +1415,12 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     }
     offset += ret;
 
-    // Show the effective Dolby decoder mode only when AC-3/E-AC-3 was negotiated.
-    // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
-    if (audioStreamEnabled && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
+    // Keep Dolby decoder information in the same position. A dash means that
+    // no Dolby audio decoder is active for this session.
+    if (!audioStreamEnabled) {
+      ret = snprintf(&output[offset], length - offset, "Decoding mode: -\n");
+    } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
+      // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
       const char* decodingModeString = "Hardware";
       if (hasDecodingMode) {
@@ -1431,14 +1435,17 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         "Decoding mode: %s\n",
         decodingModeString
       );
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
+    } else {
+      ret = 0;
     }
+    if (ret < 0 || ret >= length - offset) {
+      assert(false);
+      return;
+    }
+    offset += ret;
 
-    // Keep the FEC row stable when audio is active; omit it when no audio stream exists.
+    // Keep the FEC row present so the overlay layout remains consistent.
+    // No FEC counters are available or meaningful without an audio stream.
     if (audioStreamEnabled) {
       ret = snprintf(
         &output[offset], length - offset,
@@ -1447,12 +1454,14 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         s_AudioFecWindowStats.failedBlocks,
         s_AudioFecWindowStats.outOfOrderPackets
       );
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
+    } else {
+      ret = snprintf(&output[offset], length - offset, "Audio FEC: -\n");
     }
+    if (ret < 0 || ret >= length - offset) {
+      assert(false);
+      return;
+    }
+    offset += ret;
 
     // Print frame rates at various stages of the pipeline
     ret = snprintf(
