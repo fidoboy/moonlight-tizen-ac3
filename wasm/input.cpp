@@ -24,7 +24,9 @@ void ResetStreamInputState() {
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
-  std::fill(std::begin(forwardedMouseButtons), std::end(forwardedMouseButtons), false);
+  forwardedMouseButtons[0] = false;
+  forwardedMouseButtons[1] = false;
+  forwardedMouseButtons[2] = false;
 
   // The movement accumulator is consumed by the input thread.
   mouseMovementResetPending.store(true, std::memory_order_release);
