@@ -650,13 +650,16 @@ function handlePerformanceStatsGraphMessage(message) {
   var values = message.replace('GraphMsg: ', '').split(',').map(Number);
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
+  // Audio FEC fields were added after the original three network fields.
+  // Missing or malformed optional fields remain unavailable instead of being
+  // presented as genuine zero-valued counters.
   performanceStatsGraphSamples.push({
     rtt: Math.max(0, values[0]),
     variance: Math.max(0, values[1]),
     droppedFrames: Math.max(0, values[2]),
-    audioFecRecovered: Math.max(0, values[3] || 0),
-    audioFecFailed: Math.max(0, values[4] || 0),
-    audioFecOutOfOrder: Math.max(0, values[5] || 0),
+    audioFecRecovered: values.length > 3 && Number.isFinite(values[3]) ? Math.max(0, values[3]) : null,
+    audioFecFailed: values.length > 4 && Number.isFinite(values[4]) ? Math.max(0, values[4]) : null,
+    audioFecOutOfOrder: values.length > 5 && Number.isFinite(values[5]) ? Math.max(0, values[5]) : null,
     hostLatency: performanceStatsHostLatencyLatest
       ? {
         min: performanceStatsHostLatencyLatest.min,
@@ -668,9 +671,16 @@ function handlePerformanceStatsGraphMessage(message) {
   if (performanceStatsGraphSamples.length > PERFORMANCE_STATS_GRAPH_SECONDS) {
     performanceStatsGraphSamples.shift();
   }
-  drawPerformanceStatsGraph();
-  drawHostProcessingLatencyGraph();
-  revealPerformanceStatsOverlayWhenReady();
+
+  // Canvas/UI failures are isolated to the diagnostics overlay. They must not
+  // escape the message handler or interfere with the active stream.
+  try {
+    drawPerformanceStatsGraph();
+    drawHostProcessingLatencyGraph();
+    revealPerformanceStatsOverlayWhenReady();
+  } catch (error) {
+    console.warn('[messages.js] Unable to render performance statistics graph:', error);
+  }
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
@@ -1659,13 +1669,17 @@ function handleMessage(msg) {
     var statsElements = ensurePerformanceStatsOverlayElements();
     if (statsElements) {
       var sourceStatsText = msg.replace('StatMsg: ', '');
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-      drawPerformanceStatsGraph();
-      drawHostProcessingLatencyGraph();
+      try {
+        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+        drawPerformanceStatsGraph();
+        drawHostProcessingLatencyGraph();
 
-      if (!overlayWasVisible) {
-        // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
-        revealPerformanceStatsOverlayWhenReady();
+        if (!overlayWasVisible) {
+          // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
+          revealPerformanceStatsOverlayWhenReady();
+        }
+      } catch (error) {
+        console.warn('[messages.js] Unable to render performance statistics:', error);
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
