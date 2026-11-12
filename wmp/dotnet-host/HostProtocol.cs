@@ -663,7 +663,7 @@ namespace MoonlightWmpHost
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
-                _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0);
+                _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
