@@ -192,7 +192,8 @@ static int addGen5Options(PSDP_OPTION* head) {
         featureFlags = NVFF_BASE | NVFF_RI_ENCRYPTION;
 
         // Enable audio encryption if the client opted in or the host required it
-        if ((StreamConfig.encryptionFlags & ENCFLG_AUDIO) || (EncryptionFeaturesEnabled & SS_ENC_AUDIO)) {
+        if (AudioStreamEnabled &&
+                ((StreamConfig.encryptionFlags & ENCFLG_AUDIO) || (EncryptionFeaturesEnabled & SS_ENC_AUDIO))) {
             featureFlags |= NVFF_AUDIO_ENCRYPTION;
             AudioEncryptionEnabled = true;
         }
@@ -290,10 +291,12 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         }
 
         // If audio encryption is supported by the host and desired by the client, use it
-        if ((EncryptionFeaturesSupported & SS_ENC_AUDIO) && (StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
+        if (AudioStreamEnabled && (EncryptionFeaturesSupported & SS_ENC_AUDIO) &&
+                (StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             EncryptionFeaturesEnabled |= SS_ENC_AUDIO;
         }
-        else if ((EncryptionFeaturesRequested & SS_ENC_AUDIO) && !(StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
+        else if (AudioStreamEnabled && (EncryptionFeaturesRequested & SS_ENC_AUDIO) &&
+                 !(StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             // If audio encryption is explicitly requested by the host but *not* by the client,
             // we'll encrypt anyway (since we are capable of doing so) and print a warning.
             Limelog("Enabling audio encryption by host request despite client opt-out. Audio quality may suffer!");
@@ -416,8 +419,10 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         err |= addGen5Options(&optionHead);
     }
 
-    audioChannelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
-    audioChannelMask = CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
+    audioChannelCount = AudioStreamEnabled
+        ? CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) : 0;
+    audioChannelMask = AudioStreamEnabled
+        ? CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) : 0;
 
     if (AppVersionQuad[0] >= 4) {
         unsigned char slicesPerFrame;
@@ -478,19 +483,21 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-video[0].clientRefreshRateX100", payloadStr);
         }
 
-        snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
-        err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
-        snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
-        err |= addAttributeString(&optionHead, "x-nv-audio.surround.channelMask", payloadStr);
-        if (audioChannelCount > 2) {
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "1");
-        }
-        else {
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "0");
+        if (AudioStreamEnabled) {
+            snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
+            err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
+            snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
+            err |= addAttributeString(&optionHead, "x-nv-audio.surround.channelMask", payloadStr);
+            if (audioChannelCount > 2) {
+                err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "1");
+            }
+            else {
+                err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "0");
+            }
         }
     }
 
-    if (AppVersionQuad[0] >= 7) {
+    if (AudioStreamEnabled && AppVersionQuad[0] >= 7) {
         if (StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
                 HighQualitySurroundSupported && (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
             // Enable high quality mode for surround sound
@@ -523,10 +530,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         err |= addAttributeString(&optionHead, "x-nv-aqos.packetDuration", payloadStr);
     }
     else {
-        // 5 ms duration for legacy servers
+        // Keep audio defaults deterministic when audio is disabled or the host is legacy.
         AudioPacketDuration = 5;
-
-        // High quality audio mode not supported on legacy servers
         HighQualitySurroundEnabled = false;
     }
 
