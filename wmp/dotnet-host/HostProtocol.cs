@@ -45,6 +45,7 @@ namespace MoonlightWmpHost
             internal string RtspUrl;
             internal string VideoCodec;
             internal string AudioConfig;
+            internal int AudioEnabled;
             internal int Width;
             internal int Height;
             internal int Fps;
@@ -167,7 +168,9 @@ namespace MoonlightWmpHost
             value.VideoCodec = Arg(bundle, "videoCodec");
             value.AudioConfig = Arg(bundle, "audioConfig");
 
-            if (String.IsNullOrEmpty(value.Host)) invalidField = "host";
+            if (!TryBool(Arg(bundle, "audioEnabled"), out value.AudioEnabled))
+                invalidField = "audioEnabled";
+            else if (String.IsNullOrEmpty(value.Host)) invalidField = "host";
             else if (!IsHexKey(value.Rikey)) invalidField = "rikey";
             else if (String.IsNullOrEmpty(value.RtspUrl)) invalidField = "rtspUrl";
             else if (String.IsNullOrEmpty(value.VideoCodec)) invalidField = "videoCodec";
@@ -436,7 +439,8 @@ namespace MoonlightWmpHost
                 .Append(" (Codec: ").Append(request.VideoCodec).Append(")\n");
             text.Append("Target frame rate: ")
                 .Append(request.Fps.ToString(CultureInfo.InvariantCulture)).Append(" FPS\n");
-            text.Append("Audio stream: disabled (video-only diagnostic)\n");
+            text.Append("Audio stream: ")
+                .Append(request.AudioEnabled != 0 ? "enabled\n" : "disabled\n");
             text.Append("Native player: ")
                 .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
@@ -527,6 +531,7 @@ namespace MoonlightWmpHost
                 ", rtspUrl=" + DiagnosticArgument(bundle, "rtspUrl", true) +
                 ", videoCodec=" + DiagnosticArgument(bundle, "videoCodec", false) +
                 ", audioConfig=" + DiagnosticArgument(bundle, "audioConfig", false) +
+                ", audioEnabled=" + DiagnosticArgument(bundle, "audioEnabled", false) +
                 ", codecMode=" + DiagnosticArgument(bundle, "codecMode", false) +
                 ", hdr=" + DiagnosticArgument(bundle, "hdr", false) +
                 ", fullRange=" + DiagnosticArgument(bundle, "fullRange", false) +
@@ -657,14 +662,14 @@ namespace MoonlightWmpHost
                     request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
-                    "; audio renderer is VIDEO-ONLY diagnostic");
-                _engine.SetDolbyPassthrough(request.OpticalOutputEnabled);
+                    "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
+                _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0);
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
                     request.AppVersion, request.GfeVersion, request.RtspUrl,
                     request.CodecMode, request.VideoCodec, request.Hdr,
-                    request.AudioConfig, request.FullRange);
+                    request.AudioConfig, request.FullRange, request.AudioEnabled);
 
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP native StartSessionV2 returned " +
