@@ -17,7 +17,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Fixed
 - **Performance statistics robustness:** Made unavailable, invalid or incomplete video, network and audio measurements non-fatal. Invalid counters and timing intervals now produce unavailable placeholders instead of unsafe calculations, and unknown video formats no longer trigger assertions. Statistics overlay rendering errors are isolated from stream processing.
 - **Performance statistics startup timing:** Kept the statistics overlay hidden until the startup transition has completely disappeared, then enforced an additional one-second delay before its first reveal.
-- **Streaming with audio output disabled:** Kept the GameStream audio transport and UDP ping active while discarding received audio packets without decoding or routing them to EMSS or Web Audio.
+- **Streaming with audio output disabled:** Kept the GameStream audio transport and UDP ping active while discarding received audio packets without decoding or routing them to a playback backend.
 - **Settings page navigation and control visibility:** Fixed navigation issues that could leave controls at the bottom of the Moonlight settings page hidden or inaccessible.
 - **Host status icon during startup:** Fixed an initialization issue that could leave a host card without its status icon when the host did not respond to a request in time.
 
