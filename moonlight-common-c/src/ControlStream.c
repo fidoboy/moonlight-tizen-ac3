@@ -886,6 +886,13 @@ static bool sendMessageEnet(short ptype, unsigned int paylen, const void* payloa
             }
         }
         else {
+            Limelog("Needed a jumbo message to a legacy server!\n");
+            return false;
+        }
+
+        // enetMutex still locked here
+    }
+    else {
         PNVCTL_ENET_PACKET_HEADER_V1 packet;
         enetPacket = enet_packet_create(NULL, sizeof(*packet) + paylen,
                                         flags);
@@ -965,7 +972,7 @@ static bool sendMessageEnet(short ptype, unsigned int paylen, const void* payloa
     return true;
 }
 
-static bool sendMessageTcp(short ptype, short paylen, const void* payload) {
+static bool sendMessageTcp(short ptype, unsigned short paylen, const void* payload) {
     PNVCTL_TCP_PACKET_HEADER packet;
     SOCK_RET err;
 
@@ -1003,7 +1010,7 @@ static bool sendMessageAndForget(short ptype, unsigned int paylen, const void* p
             Limelog("Control message exceeds legacy TCP payload limit: %u\n", paylen);
             return false;
         }
-        ret = sendMessageTcp(ptype, (short)paylen, payload);
+        ret = sendMessageTcp(ptype, (unsigned short)paylen, payload);
     }
 
     return ret;
