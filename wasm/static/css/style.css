@@ -2838,3 +2838,8 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0;
 }
 #popup-layer > #screensaver-overlay { pointer-events: none; }
+/* Keep enough scrollable space below every focused setting so dropdown menus
+   can open without being clipped by the bottom edge of the TV screen. */
+#settings-right-pane {
+    padding-bottom: 30vh;
+}
