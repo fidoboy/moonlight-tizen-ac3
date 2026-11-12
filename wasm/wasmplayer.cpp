@@ -1256,7 +1256,8 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
 }
 
 void MoonlightInstance::AddVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst) {
-  // Accumulate video stats from src into dst for aggregated metrics
+  // Statistics are best-effort diagnostics. Missing or inconsistent measurements
+  // must never abort the video callback or affect the streaming session.
   dst.receivedFrames += src.receivedFrames;
   dst.decodedFrames += src.decodedFrames;
   dst.renderedFrames += src.renderedFrames;
@@ -1267,253 +1268,194 @@ void MoonlightInstance::AddVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst) {
   dst.totalPacerTime += src.totalPacerTime;
   dst.totalRenderTime += src.totalRenderTime;
 
-  // Update minimum host processing latency if it's not set or if the source has a valid smaller value
-  if (dst.minHostProcessingLatency == 0) {
-    dst.minHostProcessingLatency = src.minHostProcessingLatency;
-  } else if (src.minHostProcessingLatency != 0) {
-    dst.minHostProcessingLatency = MIN(dst.minHostProcessingLatency, src.minHostProcessingLatency);
+  if (src.minHostProcessingLatency != 0) {
+    dst.minHostProcessingLatency = dst.minHostProcessingLatency == 0
+      ? src.minHostProcessingLatency
+      : MIN(dst.minHostProcessingLatency, src.minHostProcessingLatency);
   }
-
-  // Update the maximum host processing latency if the current source value is higher
   dst.maxHostProcessingLatency = MAX(dst.maxHostProcessingLatency, src.maxHostProcessingLatency);
   dst.totalHostProcessingLatency += src.totalHostProcessingLatency;
   dst.framesWithHostProcessingLatency += src.framesWithHostProcessingLatency;
 
-  // Attempt to retrieve the latest estimated RTT and variance
-  if (!LiGetEstimatedRttInfo(&dst.lastRtt, &dst.lastRttVariance)) {
-    // Set RTTs to 0 if unavailable
+  uint32_t rtt = 0;
+  uint32_t rttVariance = 0;
+  if (LiGetEstimatedRttInfo(&rtt, &rttVariance) && rtt > 0) {
+    dst.lastRtt = rtt;
+    dst.lastRttVariance = rttVariance;
+  } else {
     dst.lastRtt = 0;
     dst.lastRttVariance = 0;
-  } else {
-    // Our logic to determine if RTT is valid depends on us never
-    // getting an RTT of 0. ENet currently ensures RTTs are >= 1.
-    assert(dst.lastRtt > 0);
   }
 
-  // Get the current time in milliseconds
-  auto now = LiGetMillis();
-
-  // Initialize the measurement start point if this is the first video stat window
-  if (!dst.measurementStartTimestamp) {
+  const uint32_t now = LiGetMillis();
+  if (dst.measurementStartTimestamp == 0 ||
+      (src.measurementStartTimestamp != 0 &&
+       src.measurementStartTimestamp < dst.measurementStartTimestamp)) {
     dst.measurementStartTimestamp = src.measurementStartTimestamp;
   }
 
-  // Ensure the global measurement timestamp has already started first
-  assert(dst.measurementStartTimestamp <= src.measurementStartTimestamp);
-
-  // Compute frames per second metrics for various stages of the video pipeline
-  dst.totalFps = (float)dst.totalFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.receivedFps = (float)dst.receivedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.decodedFps = (float)dst.decodedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.renderedFps = (float)dst.renderedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
+  const uint32_t elapsedMs = dst.measurementStartTimestamp != 0 &&
+    now >= dst.measurementStartTimestamp ? now - dst.measurementStartTimestamp : 0;
+  if (elapsedMs > 0) {
+    const float elapsedSeconds = static_cast<float>(elapsedMs) / 1000.0f;
+    dst.totalFps = static_cast<float>(dst.totalFrames) / elapsedSeconds;
+    dst.receivedFps = static_cast<float>(dst.receivedFrames) / elapsedSeconds;
+    dst.decodedFps = static_cast<float>(dst.decodedFrames) / elapsedSeconds;
+    dst.renderedFps = static_cast<float>(dst.renderedFrames) / elapsedSeconds;
+  } else {
+    dst.totalFps = dst.receivedFps = dst.decodedFps = dst.renderedFps = 0.0f;
+  }
 }
 
 void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int length) {
-  int ret;
+  if (output == nullptr || length <= 0) {
+    return;
+  }
+  output[0] = '\0';
   int offset = 0;
-  const char* codecString;
+
+  // Append each row independently. A formatting/buffer problem only truncates
+  // the diagnostic text; it never propagates into video/session control.
+  auto append = [&](const char* format, auto... args) -> bool {
+    if (offset < 0 || offset >= length) {
+      return false;
+    }
+    const int remaining = length - offset;
+    const int written = snprintf(output + offset, static_cast<size_t>(remaining), format, args...);
+    if (written < 0 || written >= remaining) {
+      output[length - 1] = '\0';
+      return false;
+    }
+    offset += written;
+    return true;
+  };
+
+  const char* codecString = "UNKNOWN";
   std::string codecStringStorage;
-
-  // Start with an empty string
-  output[offset] = 0;
-
-  // Determine the video format being used and assign a readable string
   switch (s_VideoFormat) {
-    case VIDEO_FORMAT_H264: // H.264 codec
-      codecStringStorage = s_H264LevelName.empty()
-        ? "H.264"
-        : "H.264 L" + s_H264LevelName;
+    case VIDEO_FORMAT_H264:
+      codecStringStorage = s_H264LevelName.empty() ? "H.264" : "H.264 L" + s_H264LevelName;
       codecString = codecStringStorage.c_str();
       break;
-    case VIDEO_FORMAT_H265: // HEVC codec
+    case VIDEO_FORMAT_H265:
       codecString = "HEVC";
       break;
-    case VIDEO_FORMAT_H265_MAIN10: // HEVC Main10 codec
-      if (LiGetCurrentHostDisplayHdrMode()) {
-        codecString = "HEVC 10-bit HDR";
-      } else {
-        codecString = "HEVC 10-bit SDR";
-      }
+    case VIDEO_FORMAT_H265_MAIN10:
+      codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR";
       break;
-    case VIDEO_FORMAT_AV1_MAIN8: // AV1 codec
+    case VIDEO_FORMAT_AV1_MAIN8:
       codecString = "AV1";
       break;
-    case VIDEO_FORMAT_AV1_MAIN10: // AV1 Main10 codec
-      if (LiGetCurrentHostDisplayHdrMode()) {
-        codecString = "AV1 10-bit HDR";
-      } else {
-        codecString = "AV1 10-bit SDR";
-      }
+    case VIDEO_FORMAT_AV1_MAIN10:
+      codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR" : "AV1 10-bit SDR";
       break;
-    default: // Unknown codec
-      assert(false);
-      codecString = "UNKNOWN";
+    default:
+      // An unknown negotiated format is a display value, not a fatal error.
       break;
   }
 
-  // Audio statistics must reflect an actual stream, not the configured channel layout.
   const bool audioStreamEnabled =
     g_Instance != nullptr && g_Instance->m_AudioBackend != AudioBackend::Disabled;
-  const char* audioCodecString = "OPUS";
+  const bool ac3Negotiated = audioStreamEnabled && LiIsAc3AudioNegotiated();
+  const bool eac3Negotiated = audioStreamEnabled && LiIsEac3AudioNegotiated();
+  const char* audioCodecString = eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS");
   int audioChannels = 0;
-  const char* audioLayoutString = "Unknown layout";
-  if (audioStreamEnabled) {
-    if (LiIsEac3AudioNegotiated()) {
-      audioCodecString = "E-AC-3";
-    } else if (LiIsAc3AudioNegotiated()) {
-      audioCodecString = "AC-3";
-    }
-
-    audioChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
-    switch (audioChannels) {
-      case 2:
-        audioLayoutString = "Stereo";
-        break;
-      case 6:
-        audioLayoutString = "5.1";
-        break;
-      case 8:
-        audioLayoutString = "7.1";
-        break;
-      default:
-        audioLayoutString = "Unknown layout";
-        break;
+  const char* audioLayoutString = "-";
+  if (audioStreamEnabled && g_Instance != nullptr) {
+    const int configuredChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+    switch (configuredChannels) {
+      case 2: audioChannels = 2; audioLayoutString = "Stereo"; break;
+      case 6: audioChannels = 6; audioLayoutString = "5.1"; break;
+      case 8: audioChannels = 8; audioLayoutString = "7.1"; break;
+      default: break;
     }
   }
 
-  // If there is a meaningful received frame rate, print basic stream info
-  if (stats.receivedFps > 0) {
-    if (codecString != nullptr) {
-      // Print video resolution, frame rate, and codec name
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Video stream: %dx%d %.2f FPS (Codec: %s)\n",
-        s_Width, s_Height, stats.totalFps, codecString
-      );
-      // Abort if string formatting failed or buffer overflowed
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
-    }
+  if (stats.receivedFps > 0 && std::isfinite(stats.receivedFps)) {
+    append("Video stream: %dx%d %.2f FPS (Codec: %s)\n",
+      s_Width > 0 ? s_Width : 0, s_Height > 0 ? s_Height : 0,
+      std::isfinite(stats.totalFps) && stats.totalFps >= 0 ? stats.totalFps : 0.0,
+      codecString);
 
-    // Keep the audio row present, but do not report configured or synthetic
-    // codec/channel/bitrate values when this session has no audio stream.
-    if (audioStreamEnabled) {
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Audio stream: %s (%s, %d channels, %.0f kbps)\n",
-        audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps
-      );
+    if (audioStreamEnabled && audioChannels > 0 &&
+        std::isfinite(stats.receivedAudioBitrateKbps) && stats.receivedAudioBitrateKbps >= 0) {
+      append("Audio stream: %s (%s, %d channels, %.0f kbps)\n",
+        audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps);
     } else {
-      ret = snprintf(&output[offset], length - offset, "Audio stream: -\n");
+      append("Audio stream: -\n");
     }
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
 
-    // Keep Dolby decoder information in the same position. A dash means that
-    // no Dolby audio decoder is active for this session.
     if (!audioStreamEnabled) {
-      ret = snprintf(&output[offset], length - offset, "Decoding mode: -\n");
-    } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
-      // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
+      append("Decoding mode: -\n");
+    } else if (ac3Negotiated || eac3Negotiated) {
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      const char* decodingModeString = "Hardware";
-      if (hasDecodingMode) {
-        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
-          decodingModeString = "Automatic";
-        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
-          decodingModeString = "Software";
-        }
+      const char* mode = "Hardware";
+      if (hasDecodingMode && g_Instance != nullptr) {
+        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") mode = "Automatic";
+        else if (g_Instance->m_DolbyDecodingMode == "Software") mode = "Software";
       }
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Decoding mode: %s\n",
-        decodingModeString
-      );
-    } else {
-      ret = 0;
+      append("Decoding mode: %s\n", mode);
     }
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
 
-    // Keep the FEC row present so the overlay layout remains consistent.
-    // No FEC counters are available or meaningful without an audio stream.
     if (audioStreamEnabled) {
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
+      append("Audio FEC: %u recovered · %u failed · %u out-of-order\n",
         s_AudioFecWindowStats.recoveredPackets,
         s_AudioFecWindowStats.failedBlocks,
-        s_AudioFecWindowStats.outOfOrderPackets
-      );
+        s_AudioFecWindowStats.outOfOrderPackets);
     } else {
-      ret = snprintf(&output[offset], length - offset, "Audio FEC: -\n");
+      append("Audio FEC: -\n");
     }
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
 
-    // Print frame rates at various stages of the pipeline
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Frame rates: %.2f Recv | %.2f Dec | %.2f Rend\n"
-      "Incoming bitrate from network: %.2f Mbps\n",
-      stats.receivedFps, stats.decodedFps, stats.renderedFps, stats.receivedBitrate
-    );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
+    char receivedFps[24], decodedFps[24], renderedFps[24];
+    snprintf(receivedFps, sizeof(receivedFps), "%.2f",
+      std::isfinite(stats.receivedFps) && stats.receivedFps >= 0 ? stats.receivedFps : 0.0);
+    snprintf(decodedFps, sizeof(decodedFps), "%.2f",
+      std::isfinite(stats.decodedFps) && stats.decodedFps >= 0 ? stats.decodedFps : 0.0);
+    snprintf(renderedFps, sizeof(renderedFps), "%.2f",
+      std::isfinite(stats.renderedFps) && stats.renderedFps >= 0 ? stats.renderedFps : 0.0);
+    append("Frame rates: %s Recv | %s Dec | %s Rend\n",
+      receivedFps, decodedFps, renderedFps);
+
+    if (std::isfinite(stats.receivedBitrate) && stats.receivedBitrate >= 0) {
+      append("Incoming bitrate from network: %.2f Mbps\n", stats.receivedBitrate);
+    } else {
+      append("Incoming bitrate from network: -\n");
     }
-    offset += ret;
   }
 
-  // Show remaining statistics only if some frames have been rendered
   if (stats.renderedFrames != 0) {
-    char rttString[32];
-    // Format the round-trip time string
-    if (stats.lastRtt != 0) {
-      // Print the last RTT including variance in milliseconds
-      snprintf(
-        rttString, sizeof(rttString),
-        "%u ms (variance: %u ms)",
-        stats.lastRtt, stats.lastRttVariance
-      );
-    } else {
-      // Otherwise, print as "N/A" if RTT is unavailable
-      snprintf(rttString, sizeof(rttString), "N/A");
+    char rttBuffer[64];
+    const char* rttString = "N/A";
+    if (stats.lastRtt > 0) {
+      snprintf(rttBuffer, sizeof(rttBuffer), "%u ms (variance: %u ms)",
+        stats.lastRtt, stats.lastRttVariance);
+      rttString = rttBuffer;
     }
 
-    // Print detailed drop rates and timing statistics
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Frames dropped by your network connection: %.2f%%\n"
-      "Average network latency: %s\n"
-      "Average decoding time: %.2f ms\n"
-      "Average frame queue delay: %.2f ms\n"
-      "Average rendering time: %.2f ms\n",
-      (float)stats.networkDroppedFrames / stats.totalFrames * 100,
-      rttString,
-      (float)stats.totalDecodeTime / stats.decodedFrames,
-      (float)stats.totalPacerTime / stats.renderedFrames,
-      (float)stats.totalRenderTime / stats.renderedFrames
-    );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
+    if (stats.totalFrames > 0) {
+      append("Frames dropped by your network connection: %.2f%%\n",
+        100.0 * static_cast<double>(stats.networkDroppedFrames) /
+        static_cast<double>(stats.totalFrames));
+    } else {
+      append("Frames dropped by your network connection: -\n");
     }
-    offset += ret;
+    append("Average network latency: %s\n", rttString);
+
+    if (stats.decodedFrames > 0) {
+      append("Average decoding time: %.2f ms\n",
+        static_cast<double>(stats.totalDecodeTime) / stats.decodedFrames);
+    } else {
+      append("Average decoding time: -\n");
+    }
+    if (stats.renderedFrames > 0) {
+      append("Average frame queue delay: %.2f ms\n",
+        static_cast<double>(stats.totalPacerTime) / stats.renderedFrames);
+      append("Average rendering time: %.2f ms\n",
+        static_cast<double>(stats.totalRenderTime) / stats.renderedFrames);
+    } else {
+      append("Average frame queue delay: -\n");
+      append("Average rendering time: -\n");
+    }
   }
 }
 
