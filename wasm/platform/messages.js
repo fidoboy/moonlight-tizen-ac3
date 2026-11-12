@@ -260,6 +260,20 @@ var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
 var pendingMediaPipelineStopRequested = false;
 
+function formatWmpStartupDiagnostic(message) {
+  if (typeof message !== 'string' || !/^ML-ERROR\b/.test(message)) return message;
+
+  // ML-ERROR is a debug record containing internal state. Expose only the
+  // startup stage in the dialog, prefixed with its originating engine.
+  var stageMatch = message.match(/\bstage=(.*?)(?=\s+[A-Za-z][A-Za-z0-9_-]*=|$)/);
+  if (stageMatch && stageMatch[1].trim()) {
+    var stage = stageMatch[1].trim().replace(/[^A-Za-z0-9_.:/ -]/g, '').trim();
+    if (stage) return 'WMP::' + stage;
+  }
+
+  return 'WMP::Stream startup';
+}
+
 function logStreamTerminationRecovery(stage, details) {
   if (typeof DEBUG_MODE === 'undefined' || !DEBUG_MODE) return;
   console.debug('[stream/recovery]', stage, details || '');
@@ -1230,11 +1244,9 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
-    // Native WMP failures may attach the full ML-ERROR diagnostic record as the API
-    // message. Keep it in DEBUG_MODE logs above, but never render that dump in the dialog.
-    if (typeof streamErrorApiMessage === 'string' && /^ML-ERROR\b/.test(streamErrorApiMessage)) {
-      streamErrorApiMessage = null;
-    }
+    // Keep the WMP engine and failing startup stage identifiable in the dialog,
+    // while leaving the full ML-ERROR record exclusively in DEBUG_MODE logs.
+    streamErrorApiMessage = formatWmpStartupDiagnostic(streamErrorApiMessage);
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
