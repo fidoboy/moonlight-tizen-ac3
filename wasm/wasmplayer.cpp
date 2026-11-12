@@ -1193,6 +1193,19 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
         PostToJs(graphMessage);
       }
 
+      // Mark the end of this statistics snapshot. Optional audio and host-latency
+      // fields do not affect whether the snapshot contains usable measurements.
+      const bool hasStatisticsValues =
+        lastTwoWndStats.receivedFrames > 0 ||
+        lastTwoWndStats.decodedFrames > 0 ||
+        lastTwoWndStats.renderedFrames > 0 ||
+        lastTwoWndStats.totalFrames > 0 ||
+        lastTwoWndStats.networkDroppedFrames > 0 ||
+        lastTwoWndStats.lastRtt > 0 ||
+        lastTwoWndStats.framesWithHostProcessingLatency > 0 ||
+        audioBytesReceived > 0;
+      PostToJs(std::string("StatsSnapshotMsg: ") + (hasStatisticsValues ? "1" : "0"));
+
       std::fill(s_StatString.begin(), s_StatString.end(), '\0');
       total_bytes = 0;
       AddVideoStats(m_ActiveWndVideoStats, m_GlobalVideoStats);
