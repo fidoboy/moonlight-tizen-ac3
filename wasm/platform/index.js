@@ -6586,9 +6586,8 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
       var videoElement = document.getElementById('wasm_module');
       videoElement.focus();
       if (document.pointerLockElement !== videoElement) {
-        // This is only a pointer-lock reacquisition signal, never a real click.
         videoElement.dispatchEvent(new MouseEvent('mousedown', {
-          bubbles: true, cancelable: true, view: window, button: -1, clientX: 0, clientY: 0
+          bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0
         }));
       }
     }
