@@ -326,22 +326,14 @@ function resetPerformanceStatsGraph() {
   }
 }
 
-// Reveal the overlay only after its text and first graph sample are ready,
-// and at least one second has elapsed since the startup transition was fully hidden.
-function onPerformanceStatsStreamTransitionHidden() {
-  if (performanceStatsStreamTerminated) return;
-
-  // Start the reveal delay only after the startup transition layer is fully hidden.
-  performanceStatsFirstRevealAt = Date.now();
-  revealPerformanceStatsOverlayWhenReady();
-}
-
+// Reveal the overlay after its text is ready and the startup transition has
+// disappeared. Graph samples are optional: missing network data must not keep the
+// entire statistics overlay hidden.
 function revealPerformanceStatsOverlayWhenReady() {
-  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
-      performanceStatsFirstRevealAt === 0 || performanceStatsGraphSamples.length === 0) return;
+  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated) return;
 
-  // Do not reveal statistics while the startup transition layer is still present,
-  // even if a readiness callback was delivered earlier than expected.
+  // Wait for the transition layer to disappear. Polling here is limited to UI
+  // presentation and does not participate in stream/session state.
   var transitionLayer = document.getElementById('stream-transition-layer');
   if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
     if (performanceStatsRevealTimer === null) {
@@ -351,6 +343,13 @@ function revealPerformanceStatsOverlayWhenReady() {
       }, 50);
     }
     return;
+  }
+
+  // Begin the one-second reveal delay when the transition is actually hidden.
+  // This timestamp is initialized here because no transition-hidden callback is
+  // wired to the statistics overlay.
+  if (performanceStatsFirstRevealAt === 0) {
+    performanceStatsFirstRevealAt = Date.now();
   }
 
   var overlay = document.getElementById('performance-stats');
