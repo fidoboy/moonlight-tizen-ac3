@@ -745,6 +745,13 @@ function handlePerformanceStatsSnapshotComplete(message) {
     }
     if (snapshot.hostLatency) {
       performanceStatsHostLatencyLatest = snapshot.hostLatency;
+      if (snapshot.graphSample) {
+        snapshot.graphSample.hostLatency = {
+          min: snapshot.hostLatency.min,
+          max: snapshot.hostLatency.max,
+          avg: snapshot.hostLatency.avg
+        };
+      }
     }
     appendPerformanceStatsGraphSample(snapshot.graphSample);
     drawPerformanceStatsGraph();
