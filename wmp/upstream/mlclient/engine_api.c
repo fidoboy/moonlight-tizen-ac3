@@ -319,7 +319,8 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   g_sc.colorSpace = (hdr && hevc) ? COLORSPACE_REC_2020 : COLORSPACE_REC_709;
   g_sc.colorRange = full_range ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
   MLT("start_session: colorSpace=%d colorRange=%d", g_sc.colorSpace, g_sc.colorRange);
-  g_sc.audioConfiguration = !audio_config ? AUDIO_CONFIGURATION_STEREO
+  /* Disabled audio must not advertise the configured multichannel layout to the host. */
+  g_sc.audioConfiguration = !g_audio_enabled || !audio_config ? AUDIO_CONFIGURATION_STEREO
     : !strcmp(audio_config, "51Surround") ? AUDIO_CONFIGURATION_51_SURROUND
     : !strcmp(audio_config, "71Surround") ? AUDIO_CONFIGURATION_71_SURROUND
     : AUDIO_CONFIGURATION_STEREO;
