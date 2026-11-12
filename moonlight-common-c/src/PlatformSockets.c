@@ -179,22 +179,13 @@ bool isSocketReadable(SOCKET s) {
     return true;
 }
 
-int recvUdpSocketFrom(SOCKET s, char* buffer, int size, bool useSelect,
-                      struct sockaddr_storage* remoteAddr, SOCKADDR_LEN* addrLen) {
-    struct sockaddr* sourceAddr;
-    SOCKADDR_LEN* sourceAddrLen;
-
-    if ((remoteAddr == NULL) != (addrLen == NULL)) {
-        SetLastSocketError(EINVAL);
-        return SOCKET_ERROR;
-    }
-
-    sourceAddr = remoteAddr != NULL ? (struct sockaddr*)remoteAddr : NULL;
-    sourceAddrLen = addrLen;
-    if (sourceAddrLen != NULL) {
-        *sourceAddrLen = sizeof(*remoteAddr);
-    }
+int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect,
+                  struct sockaddr_storage* remoteAddr, SOCKADDR_LEN* addrLen) {
     int err;
+
+    if (remoteAddr != NULL && addrLen != NULL) {
+        *addrLen = sizeof(*remoteAddr);
+    }
 
     do {
         if (useSelect) {
@@ -210,13 +201,13 @@ int recvUdpSocketFrom(SOCKET s, char* buffer, int size, bool useSelect,
             }
 
             // This won't block since the socket is readable
-            err = (int)recvfrom(s, buffer, size, 0, sourceAddr, sourceAddrLen);
+            err = (int)recvfrom(s, buffer, size, 0, (struct sockaddr*)remoteAddr, addrLen);
         }
         else {
             // The caller has already configured a timeout on this
             // socket via SO_RCVTIMEO, so we can avoid a syscall
             // for each packet.
-            err = (int)recvfrom(s, buffer, size, 0, NULL, NULL);
+            err = (int)recvfrom(s, buffer, size, 0, (struct sockaddr*)remoteAddr, addrLen);
             if (err < 0 &&
                     (LastSocketError() == EWOULDBLOCK ||
                      LastSocketError() == EINTR ||
