@@ -16,6 +16,7 @@ STREAM_CONFIGURATION StreamConfig;
 CONNECTION_LISTENER_CALLBACKS ListenerCallbacks;
 DECODER_RENDERER_CALLBACKS VideoCallbacks;
 AUDIO_RENDERER_CALLBACKS AudioCallbacks;
+bool AudioTransportEnabled = true;
 bool AudioOutputEnabled = true;
 int NegotiatedVideoFormat;
 volatile bool ConnectionInterrupted;
@@ -221,6 +222,7 @@ int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION st
     void* audioContext, int arFlags, int audioOutputEnabled) {
     int err;
 
+    AudioTransportEnabled = true;
     AudioOutputEnabled = audioOutputEnabled != 0;
 
     // Do not expose a previous stream's encryption status while this connection negotiates.
