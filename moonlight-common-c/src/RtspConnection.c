@@ -676,7 +676,7 @@ static bool sendVideoAnnounce(PRTSP_MESSAGE response, int* error) {
 
         // Accept the exact optional Dolby format offered by Sunshine. Prefer E-AC-3
         // when present; legacy hosts do not advertise either extension and continue with Opus.
-        if (AudioStreamEnabled && (Eac3AudioOffered || Ac3AudioOffered) &&
+        if (AudioTransportEnabled && (Eac3AudioOffered || Ac3AudioOffered) &&
                 (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0) {
             const char* acceptAttribute = Eac3AudioOffered
                 ? "a=x-ss-audio-codec-accept:EAC3\r\n"
@@ -1138,11 +1138,11 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
 
         // AC-3 and E-AC-3 are optional Sunshine extensions. Accept them only when the
         // active renderer declares support for compressed Dolby packets.
-        Ac3AudioOffered = AudioStreamEnabled && response.payload != NULL &&
+        Ac3AudioOffered = AudioTransportEnabled && response.payload != NULL &&
             strstr(response.payload, "a=x-ss-audio-codec-offer:AC3") != NULL;
-        Eac3AudioOffered = AudioStreamEnabled && response.payload != NULL &&
+        Eac3AudioOffered = AudioTransportEnabled && response.payload != NULL &&
             strstr(response.payload, "a=x-ss-audio-codec-offer:EAC3") != NULL;
-        if (AudioStreamEnabled && (Ac3AudioOffered || Eac3AudioOffered) &&
+        if (AudioTransportEnabled && (Ac3AudioOffered || Eac3AudioOffered) &&
                 (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0) {
             Limelog("Sunshine offered optional %s passthrough\n",
                 Eac3AudioOffered ? "E-AC-3" : "AC-3");
@@ -1217,7 +1217,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         EncryptionFeaturesEnabled = 0;
 
         // Opus parameters are irrelevant when this session has no audio track.
-        if (AudioStreamEnabled) {
+        if (AudioTransportEnabled) {
             ret = parseOpusConfigurations(&response);
             if (ret != 0) {
                 goto Exit;
@@ -1227,7 +1227,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         freeMessage(&response);
     }
 
-    if (AudioStreamEnabled) {
+    if (AudioTransportEnabled) {
         {
             RTSP_MESSAGE response;
             char* sessionId;
@@ -1350,7 +1350,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         }
 
         // With no audio SETUP, the video SETUP provides the RTSP session token.
-        if (!AudioStreamEnabled) {
+        if (!AudioTransportEnabled) {
             char* sessionId = getOptionContent(response.options, "Session");
             char* sessionToken;
             char* strtokCtx = NULL;
@@ -1441,9 +1441,9 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         // The codec is active only when the server explicitly confirms the exact selection.
         // A missing or mismatched header leaves the existing Opus path unchanged.
         char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
-        Ac3AudioNegotiated = AudioStreamEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
+        Ac3AudioNegotiated = AudioTransportEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "AC3") == 0;
-        Eac3AudioNegotiated = AudioStreamEnabled && Eac3AudioAcceptSent && selectedAudioCodec != NULL &&
+        Eac3AudioNegotiated = AudioTransportEnabled && Eac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "EAC3") == 0;
         if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
             // 1536 samples at 48 kHz yields one 32 ms Dolby frame per RTP audio packet.
@@ -1499,7 +1499,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             freeMessage(&response);
         }
 
-        if (AudioStreamEnabled) {
+        if (AudioTransportEnabled) {
             {
                 RTSP_MESSAGE response;
                 int error = -1;
