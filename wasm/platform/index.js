@@ -6053,7 +6053,9 @@ function startGame(host, appID) {
         flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
-        audioBackend = opticalOutputEnabled ? 'EMSS' : $('#selectAudioBackend').data('value').toString();
+        // The selector already reflects the engine/DD policy. Do not force EMSS
+        // here: WMP must remain WMP, and Disabled is valid with Dolby enabled.
+        audioBackend = $('#selectAudioBackend').data('value').toString();
         audioConfig = $('#selectAudio').data('value').toString();
         audioSync = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
         audioJitter = parseInt($('#jitterSlider').val());
@@ -8812,6 +8814,17 @@ function loadDirectSmartHubStreamSettings() {
     if (!isFinite(width) || width <= 0) resolution = '1280:720';
 
     var ac3Enabled = stored.ac3AudioMode === true || stored.ac3AudioMode === 'true' || stored.ac3AudioMode === 1;
+    var streamingEngine = stored.streamingEngine === 'WMP' ? 'WMP' : 'EMSS';
+    var storedAudioBackend = stored.audioBackend || 'EMSS';
+    var audioBackend;
+    if (streamingEngine === 'WMP') {
+      audioBackend = storedAudioBackend === 'Disabled' ? 'Disabled' : 'WMP';
+    } else if (ac3Enabled) {
+      audioBackend = storedAudioBackend === 'Disabled' ? 'Disabled' : 'EMSS';
+    } else {
+      audioBackend = ['EMSS', 'WebAudio', 'Disabled'].indexOf(storedAudioBackend) !== -1
+        ? storedAudioBackend : 'EMSS';
+    }
     var audioConfig = stored.audioConfig || 'Stereo';
     if (ac3Enabled && audioConfig === '71Surround') audioConfig = '51Surround';
 
@@ -8835,7 +8848,7 @@ function loadDirectSmartHubStreamSettings() {
       flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
       flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
       opticalOutputEnabled: ac3Enabled,
-      audioBackend: ac3Enabled ? 'EMSS' : (stored.audioBackend || 'EMSS'),
+      audioBackend: audioBackend,
       audioConfig: audioConfig,
       audioSync: boolValue(stored.audioSync, false) ? 1 : 0,
       audioJitter: parseInt(stored.audioJitter != null ? stored.audioJitter : 100, 10),
@@ -8850,7 +8863,7 @@ function loadDirectSmartHubStreamSettings() {
       performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
       performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
       quitAppAfterDisconnect: boolValue(stored.quitAppAfterDisconnect, false),
-      streamingEngine: stored.streamingEngine === 'WMP' ? 'WMP' : 'EMSS',
+      streamingEngine: streamingEngine,
       dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
       dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
     };
