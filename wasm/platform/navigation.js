@@ -379,54 +379,46 @@ function focusElement(target) {
   }
 
 
-  // Check if the element is a SELECT dropdown
-  if (element.tagName === 'SELECT') {
-    // Delegate focus to the hidden listener element
-    if (listener && typeof listener.focus === 'function') {
-      listener.focus();
+  // Keep the entire focused setting row inside a safe viewport area. Use the
+  // row as the anchor so switches, selects, sliders and buttons get identical
+  // treatment, including SELECT controls that delegate actual focus to listener.
+  const settingsPane = element.closest && element.closest('#settings-right-pane');
+  if (settingsPane) {
+    const settingRow = element.closest('.setting-option') || element;
+    const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
+      .find(options => window.getComputedStyle(options).display !== 'none');
+    const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
+    const isFirstOption = !!firstOption && settingRow === firstOption;
+
+    if (isFirstOption) {
+      settingsPane.scrollTop = 0;
+    } else {
+      const paneRect = settingsPane.getBoundingClientRect();
+      const rowRect = settingRow.getBoundingClientRect();
+      const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+      // Reserve at least 30% of the pane height below every focused control.
+      // This leaves room for expanded option menus without control-specific rules.
+      const bottomSafetyMargin = Math.max(240, Math.round(settingsPane.clientHeight * 0.30));
+      const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
+
+      if (rowRect.top < visibleTop) {
+        settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top));
+      } else if (rowRect.bottom > visibleBottom) {
+        settingsPane.scrollTop += rowRect.bottom - visibleBottom;
+      }
     }
+  }
+
+  // SELECT controls use the hidden listener for remote/gamepad navigation, but
+  // their setting row must still be scrolled into the safe area above.
+  if (element.tagName === 'SELECT') {
+    if (listener && typeof listener.focus === 'function') listener.focus();
     return;
   }
-  // Keep Settings focus scrolling inside the independently scrollable right pane.
+
   if (typeof element.focus === 'function') {
-    const settingsPane = element.closest && element.closest('#settings-right-pane');
     if (settingsPane) {
       element.focus({ preventScroll: true });
-
-      // When the first option in the active category receives focus, restore the
-      // explanatory text above it by returning the right pane to the very top.
-      const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
-        .find(options => window.getComputedStyle(options).display !== 'none');
-      const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
-      const isFirstOption = !!firstOption && element.closest('.setting-option') === firstOption;
-
-      if (isFirstOption) {
-        settingsPane.scrollTop = 0;
-      } else {
-        // Keep a deliberate safety margin below focused controls rather than
-        // allowing them to sit against the bottom edge of the scroll viewport.
-        const paneRect = settingsPane.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
-        const visibleTop = paneRect.top + settingsPane.clientTop + 8;
-        // The performance-position menu opens below its trigger and contains
-        // four entries. Keep enough room for the complete dropdown when this
-        // control is reached with the TV remote's directional navigation.
-        const dropdownSafetyMargin = element.id === 'selectPerformanceStatsPosition'
-          ? (4 * 48) + 16
-          : 0;
-        const bottomSafetyMargin = Math.max(
-          48,
-          Math.round(settingsPane.clientHeight * 0.06),
-          dropdownSafetyMargin
-        );
-        const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
-
-        if (elementRect.top < visibleTop) {
-          settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - elementRect.top));
-        } else if (elementRect.bottom > visibleBottom) {
-          settingsPane.scrollTop += elementRect.bottom - visibleBottom;
-        }
-      }
     } else if (element.closest && element.closest('#host-grid')) {
       // Let the carousel control horizontal positioning without browser auto-scroll.
       element.focus({ preventScroll: true });
