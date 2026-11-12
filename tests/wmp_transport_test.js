@@ -150,6 +150,7 @@ vm.runInNewContext(source, {
     gfeVer: '3.0',
     rtspUrl: 'rtsp://host/session',
     codecMode: 1,
+    audioEnabled: false,
     audioConfig: '51Surround',
     opticalOutputEnabled: true,
     videoCodec: 'H264',
@@ -162,6 +163,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
   assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
   assert.strictEqual(startMessage.arg_videoCodec, 'H264');
+  assert.strictEqual(startMessage.arg_audioEnabled, 'false');
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
 
   // Native ParseStart diagnostics must reach the caller with the rejected field.
