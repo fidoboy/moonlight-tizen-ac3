@@ -296,6 +296,8 @@ function stopStreamAfterMediaPipelineError() {
 var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
 var performanceStatsPendingFirstReveal = false;
+var performanceStatsFirstRevealAt = 0;
+var performanceStatsRevealTimer = null;
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -317,9 +319,15 @@ function resetPerformanceStatsGraph() {
   performanceStatsGraphSamples.length = 0;
   performanceStatsHostLatencyLatest = null;
   performanceStatsPendingFirstReveal = false;
+  performanceStatsFirstRevealAt = 0;
+  if (performanceStatsRevealTimer !== null) {
+    window.clearTimeout(performanceStatsRevealTimer);
+    performanceStatsRevealTimer = null;
+  }
 }
 
-// Reveal the overlay only after both its text and the first network graph sample are ready.
+// Reveal the overlay only after its text and first graph sample are ready,
+// and at least one second has elapsed since the initial statistics message.
 function revealPerformanceStatsOverlayWhenReady() {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
       performanceStatsGraphSamples.length === 0) return;
@@ -330,7 +338,19 @@ function revealPerformanceStatsOverlayWhenReady() {
   var text = overlay.querySelector('.performance-stats-text');
   if (!text || !text.textContent.trim()) return;
 
+  var elapsed = Date.now() - performanceStatsFirstRevealAt;
+  if (elapsed < 1000) {
+    if (performanceStatsRevealTimer === null) {
+      performanceStatsRevealTimer = window.setTimeout(function() {
+        performanceStatsRevealTimer = null;
+        revealPerformanceStatsOverlayWhenReady();
+      }, 1000 - elapsed);
+    }
+    return;
+  }
+
   performanceStatsPendingFirstReveal = false;
+  performanceStatsFirstRevealAt = 0;
   fadeInUiElement(overlay, 'inline-block');
 }
 
@@ -1632,6 +1652,7 @@ function handleMessage(msg) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
       performanceStatsPendingFirstReveal = true;
+      if (!performanceStatsFirstRevealAt) performanceStatsFirstRevealAt = Date.now();
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
 
