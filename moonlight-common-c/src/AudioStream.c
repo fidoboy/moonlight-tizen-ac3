@@ -247,7 +247,7 @@ static void AudioReceiveThreadProc(void* context) {
     int waitingForAudioMs;
 
     packet = NULL;
-    packetsToDrop = 500 / AudioPacketDuration;
+    packetsToDrop = AudioOutputEnabled && AudioPacketDuration > 0 ? 500 / AudioPacketDuration : 0;
 
     if (setNonFatalRecvTimeoutMs(rtpSocket, UDP_RECV_POLL_TIMEOUT_MS) < 0) {
         // SO_RCVTIMEO failed, so use select() to wait
@@ -285,6 +285,14 @@ static void AudioReceiveThreadProc(void* context) {
                 // If we hit this path, there are no queued audio packets on the host PC,
                 // so we don't need to drop anything.
                 packetsToDrop = 0;
+            }
+            continue;
+        }
+
+        if (!AudioOutputEnabled) {
+            if (!receivedDataFromPeer) {
+                receivedDataFromPeer = true;
+                Limelog("Received first audio packet after %d ms (discarding; audio output disabled)\n", waitingForAudioMs);
             }
             continue;
         }
@@ -406,26 +414,40 @@ void stopAudioStream(void) {
         Limelog("No audio traffic was ever received from the host!\n");
     }
 
-    AudioCallbacks.stop();
+    if (AudioOutputEnabled) {
+        AudioCallbacks.stop();
+    }
 
     PltInterruptThread(&receiveThread);
-    if ((AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
+    if (AudioOutputEnabled && (AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
         // Signal threads waiting on the LBQ
         LbqSignalQueueShutdown(&packetQueue);
         PltInterruptThread(&decoderThread);
     }
 
     PltJoinThread(&receiveThread);
-    if ((AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
+    if (AudioOutputEnabled && (AudioCallbacks.capabilities & CAPABILITY_DIRECT_SUBMIT) == 0) {
         PltJoinThread(&decoderThread);
     }
 
-    AudioCallbacks.cleanup();
+    if (AudioOutputEnabled) {
+        AudioCallbacks.cleanup();
+    }
 }
 
 int startAudioStream(void* audioContext, int arFlags) {
     int err;
     OPUS_MULTISTREAM_CONFIGURATION chosenConfig;
+
+    if (!AudioOutputEnabled) {
+        Limelog("Audio playback disabled; receiving and discarding host audio packets\n");
+        err = PltCreateThread("AudioRecv", AudioReceiveThreadProc, NULL, &receiveThread);
+        if (err != 0) {
+            closeSocket(rtpSocket);
+            return err;
+        }
+        return 0;
+    }
 
     if (HighQualitySurroundEnabled) {
         LC_ASSERT(HighQualitySurroundSupported);
