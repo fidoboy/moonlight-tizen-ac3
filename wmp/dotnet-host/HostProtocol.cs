@@ -773,7 +773,7 @@ namespace MoonlightWmpHost
 
                     if (DateTime.UtcNow >= nextDiagnosticLog)
                     {
-                        string diagnostic = "stats_rc=" + statsResult.ToString(CultureInfo.InvariantCulture) +
+                        string streamStatsDiagnostic = "stats_rc=" + statsResult.ToString(CultureInfo.InvariantCulture) +
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", video_ready=" + (_engine.VideoReady() != 0 ? "1" : "0") +
@@ -783,9 +783,9 @@ namespace MoonlightWmpHost
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
-                        RecordDiagnostic("host stream stats: " + diagnostic);
-                        Log.Info("WMP stream diagnostic: " + diagnostic);
-                        Event(appId, remotePort, "wmpDiagnostic", diagnostic);
+                        RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
+                        Log.Info("WMP stream diagnostic: " + streamStatsDiagnostic);
+                        Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
                         nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
                     }
 
