@@ -669,8 +669,6 @@ namespace MoonlightWmpHost
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
             DateTime nextStatsMessage = DateTime.UtcNow;
             uint lastReportedPlayerErrors = 0;
-            bool playerErrorDetected = false;
-            uint playerErrorCode = 0;
 
             try
             {
@@ -756,13 +754,11 @@ namespace MoonlightWmpHost
                             ", total=" + stats.Errors.ToString(CultureInfo.InvariantCulture));
                         Event(appId, remotePort, "wmpPlayerError: " +
                             stats.LastError.ToString(CultureInfo.InvariantCulture), playerError);
-                        // ESPlus exposes underrun/overrun separately as recoverable buffer
-                        // status callbacks. Its error callback is terminal: stop the Common C
-                        // session on this worker thread and let the normal termination path
-                        // release the player and notify the WebApp.
-                        playerErrorDetected = true;
-                        playerErrorCode = stats.LastError;
-                        break;
+                        // Match the reference WMP player lifecycle: a player error callback
+                        // is diagnostic, not a session-termination decision. In particular,
+                        // prepare_async_done may still arrive with ok=0, after which the native
+                        // ESPlus path makes its one permitted start() attempt. Common C remains
+                        // authoritative for session state and termination.
                     }
                     if (StatsAreEnabled() && DateTime.UtcNow >= nextStatsMessage)
                     {
@@ -792,16 +788,7 @@ namespace MoonlightWmpHost
                     Thread.Sleep(200);
                 }
 
-                if (playerErrorDetected)
-                {
-                    terminationCode = -300;
-                    diagnostic = "ESPlus player reported a fatal error (0x" +
-                        playerErrorCode.ToString("X", CultureInfo.InvariantCulture) + ")";
-                }
-                else
-                {
-                    terminationCode = _engine.ReadLastError(out diagnostic);
-                }
+                terminationCode = _engine.ReadLastError(out diagnostic);
                 RecordDiagnostic("host session ended: code=" + terminationCode.ToString(CultureInfo.InvariantCulture) +
                     (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
                 _engine.Stop();
