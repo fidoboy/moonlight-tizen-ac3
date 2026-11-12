@@ -181,7 +181,7 @@ int LiFindExternalAddressIP4(const char* stunServer, unsigned short stunPort, un
                 }
 
                 remoteAddrLen = sizeof(remoteAddr);
-                bytesRead = recvUdpSocketFrom(sock, resp.buf, sizeof(resp.buf), true,
+                bytesRead = recvUdpSocket(sock, resp.buf, sizeof(resp.buf), true,
                                               &remoteAddr, &remoteAddrLen);
                 validResponse = validateStunResponse(bytesRead, &reqMsg, &resp.hdr,
                                                       stunAddrs, &remoteAddr);
@@ -189,7 +189,7 @@ int LiFindExternalAddressIP4(const char* stunServer, unsigned short stunPort, un
         }
         else {
             remoteAddrLen = sizeof(remoteAddr);
-            bytesRead = recvUdpSocketFrom(sock, resp.buf, sizeof(resp.buf), true,
+            bytesRead = recvUdpSocket(sock, resp.buf, sizeof(resp.buf), true,
                                           &remoteAddr, &remoteAddrLen);
             validResponse = validateStunResponse(bytesRead, &reqMsg, &resp.hdr,
                                                   stunAddrs, &remoteAddr);
