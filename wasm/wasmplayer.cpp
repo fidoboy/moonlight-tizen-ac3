@@ -1156,14 +1156,10 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       AddVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
       lastTwoWndStats.receivedAudioBitrateKbps = audioBitrateKbps;
 
-      // Formatting and publishing diagnostics are isolated from video processing.
-      // Even an unexpected formatter/UI-message failure must not escape this callback.
-      try {
-        FormatVideoStats(lastTwoWndStats, s_StatString.data(), static_cast<int>(s_StatString.size()));
-        PostToJs(std::string("StatMsg: ") + s_StatString.data());
-      } catch (...) {
-        std::fill(s_StatString.begin(), s_StatString.end(), '\0');
-      }
+      // Formatting failures only leave the diagnostics buffer empty or partial.
+      // The formatter has no fatal assertions and never changes the video callback result.
+      FormatVideoStats(lastTwoWndStats, s_StatString.data(), static_cast<int>(s_StatString.size()));
+      PostToJs(std::string("StatMsg: ") + s_StatString.data());
 
       // Send host latency only when valid measurements are available.
       if (lastTwoWndStats.framesWithHostProcessingLatency > 0) {
