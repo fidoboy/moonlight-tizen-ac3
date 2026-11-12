@@ -25,6 +25,7 @@ extern void AudEsplus_SetDolbyPassthroughEnabled(int enabled);      /* audio_opu
 extern int AudEsplus_GetActiveAudioCodec(void);
 
 static int g_dolby_passthrough_enabled;
+static int g_audio_enabled = 1;
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
 extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned short httpsPort,
@@ -108,9 +109,14 @@ static void cl_stageComplete(int stage) {
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
-  AudEsplus_SetDolbyPassthroughEnabled(g_dolby_passthrough_enabled);
+  AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
-  AUDIO_RENDERER_CALLBACKS   ar; AudEsplus_FillCallbacks(&ar);
+  AUDIO_RENDERER_CALLBACKS ar;
+  PAUDIO_RENDERER_CALLBACKS arCallbacks = NULL;
+  if (g_audio_enabled) {
+    AudEsplus_FillCallbacks(&ar);
+    arCallbacks = &ar;
+  }
   CONNECTION_LISTENER_CALLBACKS cl;
   LiInitializeConnectionCallbacks(&cl);
   cl.stageStarting = cl_stageStarting;
@@ -136,8 +142,9 @@ static int start_connection(void) {
                     (const unsigned char *)g_sc.remoteInputAesKey, 0, rtspscheme };
   { unsigned id; memcpy(&id, g_sc.remoteInputAesIv, 4); dc.rikeyid = (int)ntohl(id); }   /* rikeyid is the IV's first 4 bytes, big-endian */
   mldiag_reset(&dc);
-  int err = LiStartConnection(&g_si, &g_sc, &cl, &dr, &ar, NULL, 0, NULL, 0);
-  if (err != 0) { fprintf(stderr, "[ml] LiStartConnection failed: %d\n", err); MLT("start_connection -> 1 (LiStartConnection %d)", err); return 1; }
+  int err = LiStartConnectionEx(&g_si, &g_sc, &cl, &dr, arCallbacks, NULL, 0, NULL, 0,
+                                g_audio_enabled);
+  if (err != 0) { fprintf(stderr, "[ml] LiStartConnectionEx failed: %d\n", err); MLT("start_connection -> 1 (LiStartConnectionEx %d)", err); return 1; }
   MLT("LiStartConnection -> 0");
   g_started = 1; g_running = 1;
 
@@ -156,6 +163,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
       bitrate_kbps, datadir ? datadir : "(null)");
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
+  g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host) { MLT("ml_engine_start -> 2 (no host)"); return 2; }
   if (!datadir) datadir = "/tmp";
@@ -262,14 +270,15 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
                               const char *rikey_hex, int rikeyid, const char *app_version,
                               const char *gfe_version, const char *rtsp_url,
                               int server_codec_mode_support, const char *video_codec, int hdr,
-                              const char *audio_config, int full_range) {
-  MLT("ml_engine_start_session host=%s %dx%d@%d %dkbps rikey=%s rikeyid=%d appver=%s gfever=%s rtsp=%s scm=%d codec=%s hdr=%d audio=%s full_range=%d",
+                              const char *audio_config, int full_range, int audio_enabled) {
+  MLT("ml_engine_start_session host=%s %dx%d@%d %dkbps rikey=%s rikeyid=%d appver=%s gfever=%s rtsp=%s scm=%d codec=%s hdr=%d audio=%s full_range=%d audio_enabled=%d",
       host ? "(configured)" : "(null)", width, height, fps, bitrate_kbps, rikey_hex ? "(set)" : "(null)",
       rikeyid, app_version ? app_version : "(null)", gfe_version ? gfe_version : "(null)",
       rtsp_url ? "(set)" : "(null)", server_codec_mode_support, video_codec ? video_codec : "(null)",
-      hdr, audio_config ? audio_config : "(null)", full_range);
+      hdr, audio_config ? audio_config : "(null)", full_range, audio_enabled != 0);
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
+  g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
     return invalid_settings(width, height, fps, bitrate_kbps, "host or rikey length");
@@ -338,15 +347,15 @@ int ml_engine_start_session(const char *host, int width, int height, int fps, in
                             const char *audio_config) {
   return start_session_impl(host, width, height, fps, bitrate_kbps, rikey_hex, rikeyid, app_version,
                             gfe_version, rtsp_url, server_codec_mode_support, video_codec, hdr,
-                            audio_config, 0);
+                            audio_config, 0, 1);
 }
 
 int ml_engine_start_session_v2(const char *host, int width, int height, int fps, int bitrate_kbps,
                                const char *rikey_hex, int rikeyid, const char *app_version,
                                const char *gfe_version, const char *rtsp_url,
                                int server_codec_mode_support, const char *video_codec, int hdr,
-                               const char *audio_config, int full_range) {
+                               const char *audio_config, int full_range, int audio_enabled) {
   return start_session_impl(host, width, height, fps, bitrate_kbps, rikey_hex, rikeyid, app_version,
                             gfe_version, rtsp_url, server_codec_mode_support, video_codec, hdr,
-                            audio_config, full_range);
+                            audio_config, full_range, audio_enabled);
 }
