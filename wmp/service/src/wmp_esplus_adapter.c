@@ -2,7 +2,10 @@
 
 #include <dlfcn.h>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
+
+#define ABI_LOG(...) do { fprintf(stderr, "[esplus-abi] " __VA_ARGS__); fputc('\n', stderr); } while (0)
 
 /* SET (public 0.0.3): timestamps in milliseconds; extended HDR packet. */
 typedef struct {
@@ -118,7 +121,11 @@ static wmp_esplus_buffer_status_e neutral_buffer_status(uint32_t status)
 static void emit_error(uint32_t value, void *context)
 {
     wmp_esplus_adapter_t *a = context;
-    if (a && a->callbacks.error) a->callbacks.error(value, a->context);
+    ABI_LOG("callback error ENTER value=0x%08x context=%p adapter=%p player=%p", value, context, (void *)a, a ? a->player : NULL);
+    if (a && a->callbacks.error) {
+        ABI_LOG("callback error FORWARD user_context=%p", a->context);
+        a->callbacks.error(value, a->context);
+    } else ABI_LOG("callback error DROPPED adapter_or_handler_missing");
 }
 static void emit_buffer(uint32_t stream, uint32_t status, void *context)
 {
@@ -146,14 +153,20 @@ static void emit_seek_done(void *context)
 static void emit_ready(uint32_t stream, void *context)
 {
     wmp_esplus_adapter_t *a = context;
-    if (a && a->callbacks.ready_to_prepare)
+    ABI_LOG("callback ready_to_prepare ENTER raw_stream=%u context=%p adapter=%p player=%p", stream, context, (void *)a, a ? a->player : NULL);
+    if (a && a->callbacks.ready_to_prepare) {
+        ABI_LOG("callback ready_to_prepare FORWARD mapped_stream=%d user_context=%p", (int)neutral_stream_type(stream), a->context);
         a->callbacks.ready_to_prepare(neutral_stream_type(stream), a->context);
+    } else ABI_LOG("callback ready_to_prepare DROPPED adapter_or_handler_missing");
 }
 static void emit_prepared(bool success, void *context)
 {
     wmp_esplus_adapter_t *a = context;
-    if (a && a->callbacks.prepare_async_done)
+    ABI_LOG("callback prepare_async_done ENTER raw_success=%d context=%p adapter=%p player=%p", success ? 1 : 0, context, (void *)a, a ? a->player : NULL);
+    if (a && a->callbacks.prepare_async_done) {
+        ABI_LOG("callback prepare_async_done FORWARD bool=%d user_context=%p", success ? 1 : 0, a->context);
         a->callbacks.prepare_async_done(success != 0, a->context);
+    } else ABI_LOG("callback prepare_async_done DROPPED adapter_or_handler_missing");
 }
 
 static void add_error(uint32_t value) { if (s_add_adapter) emit_error(value, s_add_adapter); }
@@ -180,17 +193,47 @@ static int bind_set(wmp_esplus_adapter_t *a)
     set_void_reg_fn seek_reg = (set_void_reg_fn)symbol(a, "esplusplayer_set_seek_done_cb");
     set_stream_reg_fn ready_reg = (set_stream_reg_fn)symbol(a, "esplusplayer_set_ready_to_prepare_cb");
     set_prepared_reg_fn prepared_reg = (set_prepared_reg_fn)symbol(a, "esplusplayer_set_prepare_async_done_cb");
+    int rc;
 
-    if (!error_reg || !buffer_reg || !conflict_reg || !seek_reg || !ready_reg || !prepared_reg)
+    ABI_LOG("bind_set ENTER player=%p adapter=%p context=%p", a->player, (void *)a, a->context);
+    ABI_LOG("bind_set symbols error=%p buffer=%p conflict=%p eos=%p seek=%p ready=%p prepared=%p",
+            (void *)error_reg, (void *)buffer_reg, (void *)conflict_reg, (void *)eos_reg,
+            (void *)seek_reg, (void *)ready_reg, (void *)prepared_reg);
+    if (!error_reg || !buffer_reg || !conflict_reg || !seek_reg || !ready_reg || !prepared_reg) {
+        ABI_LOG("bind_set FAIL missing_required_setter");
         return -1;
-    if (error_reg(a->player, emit_error, a) < 0 ||
-        buffer_reg(a->player, emit_buffer, a) < 0 ||
-        conflict_reg(a->player, emit_conflict, a) < 0 ||
-        seek_reg(a->player, emit_seek_done, a) < 0 ||
-        ready_reg(a->player, emit_ready, a) < 0 ||
-        prepared_reg(a->player, emit_prepared, a) < 0)
-        return -1;
-    if (eos_reg && eos_reg(a->player, emit_eos, a) < 0) return -1;
+    }
+    ABI_LOG("setter error_cb ENTER address=%p player=%p", (void *)error_reg, a->player);
+    rc = error_reg(a->player, emit_error, a);
+    ABI_LOG("setter error_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    ABI_LOG("setter buffer_status_cb ENTER address=%p player=%p", (void *)buffer_reg, a->player);
+    rc = buffer_reg(a->player, emit_buffer, a);
+    ABI_LOG("setter buffer_status_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    ABI_LOG("setter resource_conflicted_cb ENTER address=%p player=%p", (void *)conflict_reg, a->player);
+    rc = conflict_reg(a->player, emit_conflict, a);
+    ABI_LOG("setter resource_conflicted_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    ABI_LOG("setter seek_done_cb ENTER address=%p player=%p", (void *)seek_reg, a->player);
+    rc = seek_reg(a->player, emit_seek_done, a);
+    ABI_LOG("setter seek_done_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    ABI_LOG("setter ready_to_prepare_cb ENTER address=%p player=%p", (void *)ready_reg, a->player);
+    rc = ready_reg(a->player, emit_ready, a);
+    ABI_LOG("setter ready_to_prepare_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    ABI_LOG("setter prepare_async_done_cb ENTER address=%p player=%p", (void *)prepared_reg, a->player);
+    rc = prepared_reg(a->player, emit_prepared, a);
+    ABI_LOG("setter prepare_async_done_cb RETURN rc=%d", rc);
+    if (rc < 0) return -1;
+    if (eos_reg) {
+        ABI_LOG("setter eos_cb ENTER address=%p player=%p", (void *)eos_reg, a->player);
+        rc = eos_reg(a->player, emit_eos, a);
+        ABI_LOG("setter eos_cb RETURN rc=%d", rc);
+        if (rc < 0) return -1;
+    }
+    ABI_LOG("bind_set COMPLETE");
     return 0;
 }
 
@@ -251,27 +294,35 @@ wmp_esplus_call_result_t wmp_esplus_normalize_lifecycle_result(
 }
 
 static wmp_esplus_call_result_t lifecycle_call(
-    wmp_esplus_adapter_t *adapter, void *address)
+    wmp_esplus_adapter_t *adapter, const char *name, void *address)
 {
     typedef int (*lifecycle_fn)(void *);
     lifecycle_fn fn = (lifecycle_fn)address;
-    if (!adapter || !adapter->api || !adapter->player)
+    int raw;
+    if (!adapter || !adapter->api || !adapter->player) {
+        ABI_LOG("lifecycle %s REJECT invalid_adapter=%p player=%p", name, (void *)adapter, adapter ? adapter->player : NULL);
         return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
-    if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
-    return wmp_esplus_normalize_lifecycle_result(
-        adapter->api->selected_family, fn(adapter->player));
+    }
+    if (!fn) {
+        ABI_LOG("lifecycle %s REJECT missing_function", name);
+        return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+    }
+    ABI_LOG("lifecycle %s ENTER address=%p player=%p family=%d", name, address, adapter->player, (int)adapter->api->selected_family);
+    raw = fn(adapter->player);
+    ABI_LOG("lifecycle %s RETURN raw=%d", name, raw);
+    return wmp_esplus_normalize_lifecycle_result(adapter->api->selected_family, raw);
 }
 
 wmp_esplus_call_result_t wmp_esplus_adapter_open(wmp_esplus_adapter_t *a)
-{ return lifecycle_call(a, a && a->api ? a->api->open : NULL); }
+{ return lifecycle_call(a, "open", a && a->api ? a->api->open : NULL); }
 wmp_esplus_call_result_t wmp_esplus_adapter_close(wmp_esplus_adapter_t *a)
-{ return lifecycle_call(a, a && a->api ? a->api->close : NULL); }
+{ return lifecycle_call(a, "close", a && a->api ? a->api->close : NULL); }
 wmp_esplus_call_result_t wmp_esplus_adapter_prepare_async(wmp_esplus_adapter_t *a)
-{ return lifecycle_call(a, a && a->api ? a->api->prepare_async : NULL); }
+{ return lifecycle_call(a, "prepare_async", a && a->api ? a->api->prepare_async : NULL); }
 wmp_esplus_call_result_t wmp_esplus_adapter_start(wmp_esplus_adapter_t *a)
-{ return lifecycle_call(a, a && a->api ? a->api->start : NULL); }
+{ return lifecycle_call(a, "start", a && a->api ? a->api->start : NULL); }
 wmp_esplus_call_result_t wmp_esplus_adapter_stop(wmp_esplus_adapter_t *a)
-{ return lifecycle_call(a, a && a->api ? a->api->stop : NULL); }
+{ return lifecycle_call(a, "stop", a && a->api ? a->api->stop : NULL); }
 
 wmp_esplus_call_result_t wmp_esplus_adapter_set_ecore_display(
     wmp_esplus_adapter_t *adapter, int display_type, void *display,
@@ -337,12 +388,16 @@ int wmp_esplus_adapter_bind(
     adapter->callbacks = *callbacks;
     adapter->context = context;
 
+    ABI_LOG("adapter_bind ENTER family=%d api=%p player=%p adapter=%p user_context=%p callbacks=%p",
+            (int)api->selected_family, (void *)api, player, (void *)adapter, context, (const void *)callbacks);
     if ((api->selected_family == WMP_ESPLUS_FAMILY_SET ? bind_set(adapter) :
          bind_add(adapter)) != 0) {
+        ABI_LOG("adapter_bind FAIL family=%d (partial registrations may exist)", (int)api->selected_family);
         /* Some callbacks may already be installed: retain this storage until player close. */
         return -1;
     }
     adapter->callbacks_registered = 1;
+    ABI_LOG("adapter_bind COMPLETE family=%d callbacks_registered=1", (int)api->selected_family);
     return 0;
 }
 
