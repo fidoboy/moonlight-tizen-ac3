@@ -676,7 +676,7 @@ static bool sendVideoAnnounce(PRTSP_MESSAGE response, int* error) {
 
         // Accept the exact optional Dolby format offered by Sunshine. Prefer E-AC-3
         // when present; legacy hosts do not advertise either extension and continue with Opus.
-        if ((Eac3AudioOffered || Ac3AudioOffered) &&
+        if (AudioStreamEnabled && (Eac3AudioOffered || Ac3AudioOffered) &&
                 (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0) {
             const char* acceptAttribute = Eac3AudioOffered
                 ? "a=x-ss-audio-codec-accept:EAC3\r\n"
@@ -1138,11 +1138,11 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
 
         // AC-3 and E-AC-3 are optional Sunshine extensions. Accept them only when the
         // active renderer declares support for compressed Dolby packets.
-        Ac3AudioOffered = response.payload != NULL &&
+        Ac3AudioOffered = AudioStreamEnabled && response.payload != NULL &&
             strstr(response.payload, "a=x-ss-audio-codec-offer:AC3") != NULL;
-        Eac3AudioOffered = response.payload != NULL &&
+        Eac3AudioOffered = AudioStreamEnabled && response.payload != NULL &&
             strstr(response.payload, "a=x-ss-audio-codec-offer:EAC3") != NULL;
-        if ((Ac3AudioOffered || Eac3AudioOffered) &&
+        if (AudioStreamEnabled && (Ac3AudioOffered || Eac3AudioOffered) &&
                 (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0) {
             Limelog("Sunshine offered optional %s passthrough\n",
                 Eac3AudioOffered ? "E-AC-3" : "AC-3");
@@ -1216,93 +1216,98 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         }
         EncryptionFeaturesEnabled = 0;
 
-        // Parse the Opus surround parameters out of the RTSP DESCRIBE response.
-        ret = parseOpusConfigurations(&response);
-        if (ret != 0) {
-            goto Exit;
+        // Opus parameters are irrelevant when this session has no audio track.
+        if (AudioStreamEnabled) {
+            ret = parseOpusConfigurations(&response);
+            if (ret != 0) {
+                goto Exit;
+            }
         }
 
         freeMessage(&response);
     }
 
-    {
-        RTSP_MESSAGE response;
-        char* sessionId;
-        char* pingPayload;
-        char* sessionToken;
-        int error = -1;
-        char* strtokCtx = NULL;
-
-        if (!setupStream(&response,
-                         AppVersionQuad[0] >= 5 ? "streamid=audio/0/0" : "streamid=audio",
-                         &error)) {
-            Limelog("RTSP SETUP streamid=audio request failed: %d\n", error);
-            ret = error;
-            goto Exit;
+    if (AudioStreamEnabled) {
+        {
+            RTSP_MESSAGE response;
+            char* sessionId;
+            char* pingPayload;
+            char* sessionToken;
+            int error = -1;
+            char* strtokCtx = NULL;
+    
+            if (!setupStream(&response,
+                             AppVersionQuad[0] >= 5 ? "streamid=audio/0/0" : "streamid=audio",
+                             &error)) {
+                Limelog("RTSP SETUP streamid=audio request failed: %d\n", error);
+                ret = error;
+                goto Exit;
+            }
+    
+            if (response.message.response.statusCode != 200) {
+                Limelog("RTSP SETUP streamid=audio request failed: %d\n",
+                    response.message.response.statusCode);
+                ret = response.message.response.statusCode;
+                goto Exit;
+            }
+    
+            // Parse the audio port out of the RTSP SETUP response
+            LC_ASSERT(AudioPortNumber == 0);
+            if (!parseServerPortFromTransport(&response, &AudioPortNumber)) {
+                // Use the well known port if parsing fails
+                AudioPortNumber = 48000;
+    
+                Limelog("Audio port: %u (RTSP parsing failed)\n", AudioPortNumber);
+            }
+            else {
+                Limelog("Audio port: %u\n", AudioPortNumber);
+            }
+    
+            // Parse the Sunshine ping payload protocol extension if present
+            memset(&AudioPingPayload, 0, sizeof(AudioPingPayload));
+            pingPayload = getOptionContent(response.options, "X-SS-Ping-Payload");
+            if (pingPayload != NULL && strlen(pingPayload) == sizeof(AudioPingPayload.payload)) {
+                memcpy(AudioPingPayload.payload, pingPayload, sizeof(AudioPingPayload.payload));
+            }
+    
+            // Let the audio stream know the port number is now finalized.
+            // NB: This is needed because audio stream init happens before RTSP,
+            // which is not the case for the video stream.
+            notifyAudioPortNegotiationComplete();
+    
+            sessionId = getOptionContent(response.options, "Session");
+    
+            if (sessionId == NULL) {
+                Limelog("RTSP SETUP streamid=audio is missing session attribute\n");
+                ret = -1;
+                goto Exit;
+            }
+    
+            // Given there is a non-null session id, get the
+            // first token of the session until ";", which
+            // resolves any 454 session not found errors on
+            // standard RTSP server implementations.
+            // (i.e - sessionId = "DEADBEEFCAFE;timeout = 90")
+            sessionToken = strtok_r(sessionId, ";", &strtokCtx);
+            if (sessionToken == NULL || sessionToken[0] == '\0') {
+                Limelog("RTSP SETUP streamid=audio has malformed session attribute\n");
+                ret = -1;
+                goto Exit;
+            }
+          
+            sessionIdString = strdup(sessionToken);
+            if (sessionIdString == NULL) {
+                Limelog("Failed to duplicate session ID string\n");
+                ret = -1;
+                goto Exit;
+            }
+          
+    
+            hasSessionId = true;
+    
+            freeMessage(&response);
         }
-
-        if (response.message.response.statusCode != 200) {
-            Limelog("RTSP SETUP streamid=audio request failed: %d\n",
-                response.message.response.statusCode);
-            ret = response.message.response.statusCode;
-            goto Exit;
-        }
-
-        // Parse the audio port out of the RTSP SETUP response
-        LC_ASSERT(AudioPortNumber == 0);
-        if (!parseServerPortFromTransport(&response, &AudioPortNumber)) {
-            // Use the well known port if parsing fails
-            AudioPortNumber = 48000;
-
-            Limelog("Audio port: %u (RTSP parsing failed)\n", AudioPortNumber);
-        }
-        else {
-            Limelog("Audio port: %u\n", AudioPortNumber);
-        }
-
-        // Parse the Sunshine ping payload protocol extension if present
-        memset(&AudioPingPayload, 0, sizeof(AudioPingPayload));
-        pingPayload = getOptionContent(response.options, "X-SS-Ping-Payload");
-        if (pingPayload != NULL && strlen(pingPayload) == sizeof(AudioPingPayload.payload)) {
-            memcpy(AudioPingPayload.payload, pingPayload, sizeof(AudioPingPayload.payload));
-        }
-
-        // Let the audio stream know the port number is now finalized.
-        // NB: This is needed because audio stream init happens before RTSP,
-        // which is not the case for the video stream.
-        notifyAudioPortNegotiationComplete();
-
-        sessionId = getOptionContent(response.options, "Session");
-
-        if (sessionId == NULL) {
-            Limelog("RTSP SETUP streamid=audio is missing session attribute\n");
-            ret = -1;
-            goto Exit;
-        }
-
-        // Given there is a non-null session id, get the
-        // first token of the session until ";", which
-        // resolves any 454 session not found errors on
-        // standard RTSP server implementations.
-        // (i.e - sessionId = "DEADBEEFCAFE;timeout = 90")
-        sessionToken = strtok_r(sessionId, ";", &strtokCtx);
-        if (sessionToken == NULL || sessionToken[0] == '\0') {
-            Limelog("RTSP SETUP streamid=audio has malformed session attribute\n");
-            ret = -1;
-            goto Exit;
-        }
-      
-        sessionIdString = strdup(sessionToken);
-        if (sessionIdString == NULL) {
-            Limelog("Failed to duplicate session ID string\n");
-            ret = -1;
-            goto Exit;
-        }
-      
-
-        hasSessionId = true;
-
-        freeMessage(&response);
+    
     }
 
     {
@@ -1342,6 +1347,31 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         }
         else {
             Limelog("Video port: %u\n", VideoPortNumber);
+        }
+
+        // With no audio SETUP, the video SETUP provides the RTSP session token.
+        if (!AudioStreamEnabled) {
+            char* sessionId = getOptionContent(response.options, "Session");
+            char* sessionToken;
+            char* strtokCtx = NULL;
+            if (sessionId == NULL) {
+                Limelog("RTSP SETUP streamid=video is missing session attribute\n");
+                ret = -1;
+                goto Exit;
+            }
+            sessionToken = strtok_r(sessionId, ";", &strtokCtx);
+            if (sessionToken == NULL || sessionToken[0] == '\0') {
+                Limelog("RTSP SETUP streamid=video has malformed session attribute\n");
+                ret = -1;
+                goto Exit;
+            }
+            sessionIdString = strdup(sessionToken);
+            if (sessionIdString == NULL) {
+                Limelog("Failed to duplicate RTSP session ID\n");
+                ret = -1;
+                goto Exit;
+            }
+            hasSessionId = true;
         }
 
         freeMessage(&response);
@@ -1411,9 +1441,9 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         // The codec is active only when the server explicitly confirms the exact selection.
         // A missing or mismatched header leaves the existing Opus path unchanged.
         char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
-        Ac3AudioNegotiated = Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
+        Ac3AudioNegotiated = AudioStreamEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "AC3") == 0;
-        Eac3AudioNegotiated = Eac3AudioAcceptSent && selectedAudioCodec != NULL &&
+        Eac3AudioNegotiated = AudioStreamEnabled && Eac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "EAC3") == 0;
         if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
             // 1536 samples at 48 kHz yields one 32 ms Dolby frame per RTP audio packet.
@@ -1469,24 +1499,26 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             freeMessage(&response);
         }
 
-        {
-            RTSP_MESSAGE response;
-            int error = -1;
-
-            if (!playStream(&response, "streamid=audio", &error)) {
-                Limelog("RTSP PLAY streamid=audio request failed: %d\n", error);
-                ret = error;
-                goto Exit;
+        if (AudioStreamEnabled) {
+            {
+                RTSP_MESSAGE response;
+                int error = -1;
+    
+                if (!playStream(&response, "streamid=audio", &error)) {
+                    Limelog("RTSP PLAY streamid=audio request failed: %d\n", error);
+                    ret = error;
+                    goto Exit;
+                }
+    
+                if (response.message.response.statusCode != 200) {
+                    Limelog("RTSP PLAY streamid=audio failed: %d\n",
+                        response.message.response.statusCode);
+                    ret = response.message.response.statusCode;
+                    goto Exit;
+                }
+    
+                freeMessage(&response);
             }
-
-            if (response.message.response.statusCode != 200) {
-                Limelog("RTSP PLAY streamid=audio failed: %d\n",
-                    response.message.response.statusCode);
-                ret = response.message.response.statusCode;
-                goto Exit;
-            }
-
-            freeMessage(&response);
         }
     }
 
