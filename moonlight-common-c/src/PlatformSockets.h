@@ -129,6 +129,8 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
 int enableNoDelay(SOCKET s);
 int setSocketNonBlocking(SOCKET s, bool enabled);
 int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect);
+int recvUdpSocketFrom(SOCKET s, char* buffer, int size, bool useSelect,
+                      struct sockaddr_storage* remoteAddr, SOCKADDR_LEN* addrLen);
 void shutdownTcpSocket(SOCKET s);
 int setNonFatalRecvTimeoutMs(SOCKET s, int timeoutMs);
 void closeSocket(SOCKET s);
