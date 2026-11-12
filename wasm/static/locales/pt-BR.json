@@ -357,7 +357,6 @@
   "Obtaining preliminary data...": "Obtendo dados preliminares...",
   "Open the stream menu by holding Select": "Abrir o menu da transmissão ao manter Select pressionado",
   "Optimal bitrate": "Taxa de bits ideal",
-  "Playback engine": "Motor de reprodução",
   "Optimize bitrate presets": "Otimizar predefinições de taxa de bits",
   "Optimize bitrate to balance stream quality, performance, and bandwidth usage": "Otimizar taxa de bits para equilibrar qualidade do stream, desempenho e uso de largura de banda",
   "Optimize game settings": "Otimizar configurações do jogo",
@@ -627,5 +626,7 @@
   "Show Ambilight settings": "Mostrar configurações do Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Apenas prévia das configurações. O serviço Ambilight não está disponível nesta TV.",
   "Streaming engine:": "Mecanismo de transmissão:",
-  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS é o mecanismo de transmissão consolidado e deve funcionar em todas as TVs Tizen compatíveis. O WMP usa o mecanismo experimental de reprodução nativo do Tizen e pode não funcionar em todas as TVs."
+  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS é o mecanismo de transmissão consolidado e deve funcionar em todas as TVs Tizen compatíveis. O WMP usa o mecanismo experimental de reprodução nativo do Tizen e pode não funcionar em todas as TVs.",
+  "Engine:": "Motor:",
+  "Native": "Nativo"
 }
