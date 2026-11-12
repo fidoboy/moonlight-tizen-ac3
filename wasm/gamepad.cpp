@@ -13,6 +13,7 @@
 #include <thread>
 #include <cmath>
 #include <map>
+#include <mutex>
 
 #include <Limelight.h>
 #include <emscripten/emscripten.h>
