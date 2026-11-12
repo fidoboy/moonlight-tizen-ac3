@@ -16,6 +16,7 @@ STREAM_CONFIGURATION StreamConfig;
 CONNECTION_LISTENER_CALLBACKS ListenerCallbacks;
 DECODER_RENDERER_CALLBACKS VideoCallbacks;
 AUDIO_RENDERER_CALLBACKS AudioCallbacks;
+bool AudioStreamEnabled = true;
 int NegotiatedVideoFormat;
 volatile bool ConnectionInterrupted;
 bool HighQualitySurroundSupported;
@@ -89,10 +90,12 @@ void LiStopConnection(void) {
         Limelog("done\n");
     }
     if (stage == STAGE_AUDIO_STREAM_START) {
-        Limelog("Stopping audio stream...");
-        stopAudioStream();
+        if (AudioStreamEnabled) {
+            Limelog("Stopping audio stream...");
+            stopAudioStream();
+            Limelog("done\n");
+        }
         stage--;
-        Limelog("done\n");
     }
     if (stage == STAGE_VIDEO_STREAM_START) {
         Limelog("Stopping video stream...");
@@ -129,10 +132,12 @@ void LiStopConnection(void) {
         stage--;
     }
     if (stage == STAGE_AUDIO_STREAM_INIT) {
-        Limelog("Cleaning up audio stream...");
-        destroyAudioStream();
+        if (AudioStreamEnabled) {
+            Limelog("Cleaning up audio stream...");
+            destroyAudioStream();
+            Limelog("done\n");
+        }
         stage--;
-        Limelog("done\n");
     }
     if (stage == STAGE_NAME_RESOLUTION) {
         // Nothing to do
@@ -215,10 +220,12 @@ static bool parseRtspPortNumberFromUrl(const char* rtspSessionUrl, uint16_t* por
 }
 
 // Starts the connection to the streaming machine
-int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
+int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
-    void* audioContext, int arFlags) {
+    void* audioContext, int arFlags, int audioEnabled) {
     int err;
+
+    AudioStreamEnabled = audioEnabled != 0;
 
     // Do not expose a previous stream's encryption status while this connection negotiates.
     EncryptionStatus = -1;
@@ -436,18 +443,25 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
         }
     }
 
-    Limelog("Initializing audio stream...");
-    ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_INIT);
-    err = initializeAudioStream();
-    if (err != 0) {
-        Limelog("failed: %d\n", err);
-        ListenerCallbacks.stageFailed(STAGE_AUDIO_STREAM_INIT, err);
-        goto Cleanup;
+    if (AudioStreamEnabled) {
+        Limelog("Initializing audio stream...");
+        ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_INIT);
+        err = initializeAudioStream();
+        if (err != 0) {
+            Limelog("failed: %d\n", err);
+            ListenerCallbacks.stageFailed(STAGE_AUDIO_STREAM_INIT, err);
+            goto Cleanup;
+        }
+        stage++;
+        LC_ASSERT(stage == STAGE_AUDIO_STREAM_INIT);
+        ListenerCallbacks.stageComplete(STAGE_AUDIO_STREAM_INIT);
+        Limelog("done\n");
     }
-    stage++;
-    LC_ASSERT(stage == STAGE_AUDIO_STREAM_INIT);
-    ListenerCallbacks.stageComplete(STAGE_AUDIO_STREAM_INIT);
-    Limelog("done\n");
+    else {
+        Limelog("Audio stream disabled; skipping initialization\n");
+        stage++;
+        LC_ASSERT(stage == STAGE_AUDIO_STREAM_INIT);
+    }
 
     Limelog("Starting RTSP handshake...");
     ListenerCallbacks.stageStarting(STAGE_RTSP_HANDSHAKE);
@@ -517,18 +531,25 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     ListenerCallbacks.stageComplete(STAGE_VIDEO_STREAM_START);
     Limelog("done\n");
 
-    Limelog("Starting audio stream...");
-    ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_START);
-    err = startAudioStream(audioContext, arFlags);
-    if (err != 0) {
-        Limelog("Audio stream start failed: %d\n", err);
-        ListenerCallbacks.stageFailed(STAGE_AUDIO_STREAM_START, err);
-        goto Cleanup;
+    if (AudioStreamEnabled) {
+        Limelog("Starting audio stream...");
+        ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_START);
+        err = startAudioStream(audioContext, arFlags);
+        if (err != 0) {
+            Limelog("Audio stream start failed: %d\n", err);
+            ListenerCallbacks.stageFailed(STAGE_AUDIO_STREAM_START, err);
+            goto Cleanup;
+        }
+        stage++;
+        LC_ASSERT(stage == STAGE_AUDIO_STREAM_START);
+        ListenerCallbacks.stageComplete(STAGE_AUDIO_STREAM_START);
+        Limelog("done\n");
     }
-    stage++;
-    LC_ASSERT(stage == STAGE_AUDIO_STREAM_START);
-    ListenerCallbacks.stageComplete(STAGE_AUDIO_STREAM_START);
-    Limelog("done\n");
+    else {
+        Limelog("Audio stream disabled; skipping establishment\n");
+        stage++;
+        LC_ASSERT(stage == STAGE_AUDIO_STREAM_START);
+    }
 
     Limelog("Starting input stream...");
     ListenerCallbacks.stageStarting(STAGE_INPUT_STREAM_START);
@@ -557,6 +578,13 @@ Cleanup:
         LiStopConnection();
     }
     return err;
+}
+
+int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
+    PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
+    void* audioContext, int arFlags) {
+    return LiStartConnectionEx(serverInfo, streamConfig, clCallbacks, drCallbacks, arCallbacks,
+                              renderContext, drFlags, audioContext, arFlags, 1);
 }
 
 const char* LiGetLaunchUrlQueryParameters(void) {
