@@ -88,7 +88,7 @@ namespace MoonlightWmpHost
             string host, int width, int height, int fps, int bitrateKbps,
             string rikeyHex, int rikeyId, string appVersion, string gfeVersion,
             string rtspUrl, int codecMode, string videoCodec, int hdr,
-            string audioConfig, int fullRange);
+            string audioConfig, int fullRange, int audioEnabled);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int EsplusProbeFn(ref EsplusApi api, [Out] byte[] report, uint capacity);
