@@ -272,8 +272,9 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
     PostToJs("Selecting the audio renderer capabilities to: CAPABILITY_DIRECT_SUBMIT");
   }
 
-  err = LiStartConnection(&serverInfo, &me->m_StreamConfig, &MoonlightInstance::s_ClCallbacks,
-    &MoonlightInstance::s_DrCallbacks, &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0);
+  err = LiStartConnectionEx(&serverInfo, &me->m_StreamConfig, &MoonlightInstance::s_ClCallbacks,
+    &MoonlightInstance::s_DrCallbacks, &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0,
+    me->m_AudioBackend != AudioBackend::Disabled);
   if (err != 0) {
     // A failed media setup may leave the source attached. Clean it up before
     // telling JavaScript the stream ended, so the next session can start cleanly.
