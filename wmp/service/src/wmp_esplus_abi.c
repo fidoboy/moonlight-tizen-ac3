@@ -73,8 +73,8 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
 #define RESOLVE(field, symbol) \
     do { \
         api->field = resolve_symbol(api->library, symbol); \
-        report_append(report, report_capacity, "%s %s\n", \
-                      api->field != NULL ? "FOUND" : "MISSING", symbol); \
+        report_append(report, report_capacity, "%s %s address=%p\n", \
+                      api->field != NULL ? "FOUND" : "MISSING", symbol, api->field); \
     } while (0)
 
     RESOLVE(create, "esplusplayer_create");
