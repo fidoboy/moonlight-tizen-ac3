@@ -328,9 +328,17 @@ function resetPerformanceStatsGraph() {
 
 // Reveal the overlay only after its text and first graph sample are ready,
 // and at least one second has elapsed since the initial statistics message.
+function onPerformanceStatsStreamTransitionHidden() {
+  if (performanceStatsStreamTerminated) return;
+
+  // Start the reveal delay only after the startup transition layer is fully hidden.
+  performanceStatsFirstRevealAt = Date.now();
+  revealPerformanceStatsOverlayWhenReady();
+}
+
 function revealPerformanceStatsOverlayWhenReady() {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
-      performanceStatsGraphSamples.length === 0) return;
+      performanceStatsFirstRevealAt === 0 || performanceStatsGraphSamples.length === 0) return;
 
   var overlay = document.getElementById('performance-stats');
   if (!overlay) return;
@@ -1666,7 +1674,6 @@ function handleMessage(msg) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
       performanceStatsPendingFirstReveal = true;
-      if (!performanceStatsFirstRevealAt) performanceStatsFirstRevealAt = Date.now();
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
 
