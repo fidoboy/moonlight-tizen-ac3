@@ -1018,6 +1018,7 @@ function handleMessage(msg) {
     var streamMediaPipelineApiMessage = pendingMediaPipelineApiMessage;
     var streamVideoTrackCloseErrorMessage = pendingVideoTrackCloseErrorMessage;
     var streamVideoTrackCloseApiMessage = pendingVideoTrackCloseApiMessage;
+    var hasWmpStartupDiagnostic = typeof streamApiMessage === 'string' && /^ML-ERROR\b/.test(streamApiMessage);
     h264TrackRejectionClosingMessage = null;
     pendingStreamDialogMessage = null;
     pendingStreamApiMessage = null;
@@ -1205,7 +1206,7 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The TV media player reported an error.');
           break;
         default:
-          transitionStatusMessage = window._activeStreamingEngine === 'WMP'
+          transitionStatusMessage = window._activeStreamingEngine === 'WMP' && hasWmpStartupDiagnostic
             ? t('Unable to launch the selected app.')
             : t('Connection to %1$s lost.', activeStreamHostName);
           break;
