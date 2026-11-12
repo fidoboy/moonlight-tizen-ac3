@@ -330,11 +330,12 @@ function resetPerformanceStatsGraph() {
   }
 }
 
-// Reveal the overlay after its text is ready and the startup transition has
-// disappeared. Graph samples are optional: missing network data must not keep the
-// entire statistics overlay hidden.
+// Reveal only after the text and at least one valid graph sample are ready.
+// Samples are collected while the overlay is hidden; visibility must not gate
+// collection, otherwise the first-sample readiness check deadlocks.
 function revealPerformanceStatsOverlayWhenReady() {
-  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated) return;
+  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
+      performanceStatsGraphSamples.length === 0) return;
 
   // Wait for the transition layer to disappear. Polling here is limited to UI
   // presentation and does not participate in stream/session state.
@@ -670,7 +671,8 @@ function drawPerformanceStatsGraph() {
 }
 
 function handlePerformanceStatsGraphMessage(message) {
-  if (!isPerformanceStatsOverlayVisible()) return;
+  // Keep collecting the first samples while the overlay is intentionally hidden.
+  if (!isPerformanceStatsOverlayVisible() && !performanceStatsPendingFirstReveal) return;
 
   var values = message.replace('GraphMsg: ', '').split(',').map(function(value) {
     return value.trim() === '' ? NaN : Number(value);
@@ -711,7 +713,8 @@ function handlePerformanceStatsGraphMessage(message) {
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
-  if (!isPerformanceStatsOverlayVisible()) return;
+  // Host latency is optional, but valid samples may arrive before the RTT graph.
+  if (!isPerformanceStatsOverlayVisible() && !performanceStatsPendingFirstReveal) return;
 
   var values = message.replace('HostLatencyMsg: ', '').split(',').map(function(value) {
     return value.trim() === '' ? NaN : Number(value);
