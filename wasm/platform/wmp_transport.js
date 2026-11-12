@@ -50,6 +50,7 @@
       fps: payload.fps,
       bitrateKbps: payload.bitrate,
       codecMode: payload.codecMode,
+      audioEnabled: payload.audioEnabled === true,
       audioConfig: payload.audioConfig,
       opticalOutputEnabled: !!payload.opticalOutputEnabled,
       videoCodec: payload.videoCodec,
