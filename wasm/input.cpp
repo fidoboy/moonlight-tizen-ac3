@@ -151,8 +151,13 @@ EM_BOOL MoonlightInstance::HandleKeyUp(const EmscriptenKeyboardEvent &event) {
     m_WaitingForAllModifiersUp = false;
   }
 
-  forwardedKeys.erase(keyCode);
-  LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_UP, modifiers);
+  // A key release is forwarded only when its matching press was sent to
+  // the host. Menu navigation keys and releases after an input reset stay local.
+  const auto forwardedKey = forwardedKeys.find(keyCode);
+  if (forwardedKey != forwardedKeys.end()) {
+    forwardedKeys.erase(forwardedKey);
+    LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_UP, modifiers);
+  }
   return EM_TRUE;
 }
 

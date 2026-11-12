@@ -145,6 +145,8 @@ std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
 std::map<int, bool> selectMenuTriggered;
 std::map<int, bool> selectButtonConsumed;
 std::map<int, std::chrono::steady_clock::time_point> selectClickPulseUntil;
+std::map<int, bool> comboTriggered;
+std::map<int, std::chrono::steady_clock::time_point> activatePressTimes;
 
 // Flags for gamepad to track face buttons state
 bool flipABfaceButtonsSwitch = false;
@@ -179,21 +181,19 @@ static uint16_t lastActiveGamepadMask = 0;
 static std::array<bool, gamepad_identity::kMaxControllers> gamepadNeutralRequired{};
 
 extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
-  bool changed;
-  {
-    // Serialize ownership changes with the final gamepad dispatch. This closes
-    // the race where a sample could pass its check just as the menu opens.
-    std::lock_guard<std::mutex> lock(streamMenuInputMutex);
-    const bool newState = blocked != 0;
-    const bool oldState = streamMenuInputBlocked.exchange(newState, std::memory_order_acq_rel);
-    changed = oldState != newState;
+  // Serialize the complete ownership transition, including the reset, against
+  // the final native gamepad dispatch. Publish the reset before releasing input.
+  std::lock_guard<std::mutex> lock(streamMenuInputMutex);
+  const bool newState = blocked != 0;
+  if (streamMenuInputBlocked.load(std::memory_order_acquire) == newState) {
+    return;
   }
-  if (changed) {
-    // Keyboard/mouse events are handled on the browser thread. Gamepad state
-    // is reset by PollGamepads on its own thread to avoid cross-thread access.
-    ResetStreamInputState();
-    gamepadResetPending.store(true, std::memory_order_release);
-  }
+
+  // The polling thread owns gamepad state; it consumes this flag and discards
+  // any sample captured before the new input epoch.
+  gamepadResetPending.store(true, std::memory_order_release);
+  ResetStreamInputState();
+  streamMenuInputBlocked.store(newState, std::memory_order_release);
 }
 
 static bool IsGamepadNeutral(const EmscriptenGamepadEvent& gamepad) {
@@ -338,6 +338,8 @@ void MoonlightInstance::PollGamepads() {
     selectMenuTriggered.clear();
     selectButtonConsumed.clear();
     selectClickPulseUntil.clear();
+    comboTriggered.clear();
+    activatePressTimes.clear();
   }
 
   // Keep sampling paused at the native input boundary while the UI owns the controller.
@@ -377,7 +379,6 @@ void MoonlightInstance::PollGamepads() {
       ClLogMessage("Controller %u announced with type %u\n", i, type);
     }
   }
-  static std::map<int, bool> comboTriggered;
   for (int gamepadID = 0; gamepadID < limit; ++gamepadID) {
     if (!(activeGamepadMask & (1u << gamepadID)) || !controllerTracker.isAnnounced(gamepadID)) {
       continue;
@@ -479,7 +480,6 @@ void MoonlightInstance::PollGamepads() {
 
     // Check if the mouse emulation switch is checked
     if (mouseEmulationSwitch) {
-      static std::map<int, std::chrono::time_point<std::chrono::steady_clock>> activatePressTimes;
       // Toggle mouse emulation on and off based on how long the PLAY/START button is pressed
       if (buttonFlags & PLAY_FLAG) {
         if (activatePressTimes.find(gamepadID) == activatePressTimes.end()) {
@@ -515,7 +515,8 @@ void MoonlightInstance::PollGamepads() {
     // Serialize the final dispatch with menu ownership changes. The opening
     // sample is discarded, and no gamepad packet can cross the block boundary.
     std::lock_guard<std::mutex> inputLock(streamMenuInputMutex);
-    if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
+    if (streamMenuInputBlocked.load(std::memory_order_acquire) ||
+        gamepadResetPending.load(std::memory_order_acquire)) {
       return;
     }
 
