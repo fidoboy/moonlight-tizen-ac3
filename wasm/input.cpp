@@ -1,8 +1,32 @@
 #include "moonlight_wasm.hpp"
 
 #include <Limelight.h>
+#include <map>
+#include <atomic>
 
 #define KEY_PREFIX 0x80
+
+namespace {
+std::map<uint32_t, char> forwardedKeys;
+std::atomic<bool> mouseMovementResetPending{false};
+}
+
+void ResetStreamInputState() {
+  // Release every key that was forwarded before the menu took ownership.
+  for (const auto& key : forwardedKeys) {
+    LiSendKeyboardEvent(KEY_PREFIX << 8 | key.first, KEY_ACTION_UP, key.second);
+  }
+  forwardedKeys.clear();
+
+  // Mouse buttons can also be held by gamepad mouse emulation, so release all
+  // three regardless of which input path originally pressed them.
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+
+  // The movement accumulator is consumed by the input thread.
+  mouseMovementResetPending.store(true, std::memory_order_release);
+}
 
 static int ConvertButtonToLiButton(unsigned short button) {
   switch (button) {
@@ -107,6 +131,7 @@ EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
     }
   }
 
+  forwardedKeys[keyCode] = modifiers;
   LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_DOWN, modifiers);
   return EM_TRUE;
 }
@@ -126,6 +151,7 @@ EM_BOOL MoonlightInstance::HandleKeyUp(const EmscriptenKeyboardEvent &event) {
     m_WaitingForAllModifiersUp = false;
   }
 
+  forwardedKeys.erase(keyCode);
   LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_UP, modifiers);
   return EM_TRUE;
 }
@@ -174,6 +200,10 @@ EM_BOOL handlePointerLockError(int eventType, const void *reserved, void *userDa
 }
 
 void MoonlightInstance::ReportMouseMovement() {
+  if (mouseMovementResetPending.exchange(false, std::memory_order_acq_rel)) {
+    m_MouseDeltaX = m_MouseDeltaY = 0;
+    m_AccumulatedTicks = 0;
+  }
   if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
     m_MouseDeltaX = m_MouseDeltaY = 0;
     m_AccumulatedTicks = 0;

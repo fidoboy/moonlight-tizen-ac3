@@ -127,10 +127,6 @@ class Tracker {
 // The streaming menu owns all remote input while it is visible.
 std::atomic<bool> streamMenuInputBlocked{false};
 
-extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
-  streamMenuInputBlocked.store(blocked != 0, std::memory_order_release);
-}
-
 // Bitmask for gamepad combo buttons to stop the streaming session
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
 
@@ -176,6 +172,35 @@ enum GamepadAxis {
 };
 
 static gamepad_identity::Tracker controllerTracker;
+static std::atomic<bool> gamepadResetPending{false};
+static uint16_t lastActiveGamepadMask = 0;
+static std::array<bool, gamepad_identity::kMaxControllers> gamepadNeutralRequired{};
+
+extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
+  const bool newState = blocked != 0;
+  const bool oldState = streamMenuInputBlocked.exchange(newState, std::memory_order_acq_rel);
+  if (oldState != newState) {
+    // Keyboard/mouse events are handled on the browser thread. Gamepad state
+    // is reset by PollGamepads on its own thread to avoid cross-thread access.
+    ResetStreamInputState();
+    gamepadResetPending.store(true, std::memory_order_release);
+  }
+}
+
+static bool IsGamepadNeutral(const EmscriptenGamepadEvent& gamepad) {
+  for (int i = 0; i < gamepad.numButtons; ++i) {
+    if (gamepad.digitalButton[i] == EM_TRUE ||
+        std::abs(gamepad.analogButton[i]) > 0.05f) {
+      return false;
+    }
+  }
+  for (int i = 0; i < gamepad.numAxes; ++i) {
+    if (std::abs(gamepad.axis[i]) > 0.15f) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // Function to map gamepad buttons to flags
 static int GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
@@ -291,14 +316,30 @@ void MoonlightInstance::PollGamepads() {
       samples[i] = {events[i].connected != 0, events[i].timestamp, events[i].id};
     }
   }
+  // Apply controller releases on the polling thread. This runs on both menu
+  // transitions, so a button held before opening or closing cannot be replayed.
+  if (gamepadResetPending.exchange(false, std::memory_order_acq_rel)) {
+    for (unsigned i = 0; i < gamepad_identity::kMaxControllers; ++i) {
+      if (controllerTracker.isAnnounced(i)) {
+        LiSendMultiControllerEvent(i, lastActiveGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+      }
+    }
+    gamepadNeutralRequired.fill(true);
+    selectPressTimes.clear();
+    selectMenuTriggered.clear();
+    selectButtonConsumed.clear();
+    selectClickPulseUntil.clear();
+  }
+
   // Keep sampling paused at the native input boundary while the UI owns the controller.
-  // This also defers tracker changes so arrivals/removals are synchronized after the menu closes.
+  // Tracker changes are deferred until the menu has released ownership.
   if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
     return;
   }
 
   const auto changes = controllerTracker.update(samples);
   const auto activeGamepadMask = changes.mask;
+  lastActiveGamepadMask = activeGamepadMask;
   for (const auto i : changes.removed) {
     selectPressTimes.erase(i);
     selectMenuTriggered.erase(i);
@@ -333,6 +374,15 @@ void MoonlightInstance::PollGamepads() {
       continue;
     }
     const auto& gamepad = events[gamepadID];
+
+    // Require every controller to return to neutral after the menu closes.
+    // This prevents held buttons/triggers/sticks from becoming fresh host input.
+    if (gamepadNeutralRequired[gamepadID]) {
+      if (!IsGamepadNeutral(gamepad)) {
+        continue;
+      }
+      gamepadNeutralRequired[gamepadID] = false;
+    }
 
     // Process input for active gamepad
     auto buttonFlags = GetButtonFlags(gamepad);
