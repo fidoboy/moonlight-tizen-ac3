@@ -496,9 +496,15 @@ static uint32_t AudioFecCounterDelta(uint32_t current, uint32_t previous) {
 }
 
 static void UpdateAudioFecWindowStats(void) {
+  s_AudioFecWindowStats = {};
+  if (g_Instance == nullptr || g_Instance->m_AudioBackend == AudioBackend::Disabled) {
+    s_LastAudioFecStats = {};
+    s_AudioFecStatsBaselineValid = false;
+    return;
+  }
+
   RTP_AUDIO_FEC_STATS currentStats = {};
   LiGetRTPAudioFecStats(&currentStats);
-  s_AudioFecWindowStats = {};
   if (!s_AudioFecStatsBaselineValid) {
     s_LastAudioFecStats = currentStats;
     s_AudioFecStatsBaselineValid = true;
@@ -1345,12 +1351,13 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       break;
   }
 
-  // Report the audio codec negotiated for this session, not merely the user's preference.
-  // If neither Dolby codec was negotiated, the GameStream audio codec is Opus.
+  // Audio statistics must reflect an actual stream, not the configured channel layout.
+  const bool audioStreamEnabled =
+    g_Instance != nullptr && g_Instance->m_AudioBackend != AudioBackend::Disabled;
   const char* audioCodecString = "OPUS";
   int audioChannels = 0;
   const char* audioLayoutString = "Unknown layout";
-  if (g_Instance != nullptr) {
+  if (audioStreamEnabled) {
     if (LiIsEac3AudioNegotiated()) {
       audioCodecString = "E-AC-3";
     } else if (LiIsAc3AudioNegotiated()) {
@@ -1391,23 +1398,25 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       offset += ret;
     }
 
-    // Display measured audio payload bitrate directly below the video stream header.
-    if (g_Instance != nullptr) {
+    // Report the audio stream only when one is actually enabled.
+    if (audioStreamEnabled) {
       ret = snprintf(
         &output[offset], length - offset,
         "Audio stream: %s (%s, %d channels, %.0f kbps)\n",
         audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps
       );
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
+    } else {
+      ret = snprintf(&output[offset], length - offset, "Audio stream: Disabled\n");
     }
+    if (ret < 0 || ret >= length - offset) {
+      assert(false);
+      return;
+    }
+    offset += ret;
 
     // Show the effective Dolby decoder mode only when AC-3/E-AC-3 was negotiated.
     // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
-    if (g_Instance != nullptr && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
+    if (audioStreamEnabled && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
       const char* decodingModeString = "Hardware";
       if (hasDecodingMode) {
@@ -1429,19 +1438,21 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       offset += ret;
     }
 
-    // Keep this row permanently present; severity changes must not shift the overlay.
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
-      s_AudioFecWindowStats.recoveredPackets,
-      s_AudioFecWindowStats.failedBlocks,
-      s_AudioFecWindowStats.outOfOrderPackets
-    );
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
+    // Keep the FEC row stable when audio is active; omit it when no audio stream exists.
+    if (audioStreamEnabled) {
+      ret = snprintf(
+        &output[offset], length - offset,
+        "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
+        s_AudioFecWindowStats.recoveredPackets,
+        s_AudioFecWindowStats.failedBlocks,
+        s_AudioFecWindowStats.outOfOrderPackets
+      );
+      if (ret < 0 || ret >= length - offset) {
+        assert(false);
+        return;
+      }
+      offset += ret;
     }
-    offset += ret;
 
     // Print frame rates at various stages of the pipeline
     ret = snprintf(
