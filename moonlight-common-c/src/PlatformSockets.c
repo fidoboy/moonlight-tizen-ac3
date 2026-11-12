@@ -179,7 +179,21 @@ bool isSocketReadable(SOCKET s) {
     return true;
 }
 
-int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
+int recvUdpSocketFrom(SOCKET s, char* buffer, int size, bool useSelect,
+                      struct sockaddr_storage* remoteAddr, SOCKADDR_LEN* addrLen) {
+    struct sockaddr* sourceAddr;
+    SOCKADDR_LEN* sourceAddrLen;
+
+    if ((remoteAddr == NULL) != (addrLen == NULL)) {
+        SetLastSocketError(EINVAL);
+        return SOCKET_ERROR;
+    }
+
+    sourceAddr = remoteAddr != NULL ? (struct sockaddr*)remoteAddr : NULL;
+    sourceAddrLen = addrLen;
+    if (sourceAddrLen != NULL) {
+        *sourceAddrLen = sizeof(*remoteAddr);
+    }
     int err;
 
     do {
@@ -196,7 +210,7 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
             }
 
             // This won't block since the socket is readable
-            err = (int)recvfrom(s, buffer, size, 0, NULL, NULL);
+            err = (int)recvfrom(s, buffer, size, 0, sourceAddr, sourceAddrLen);
         }
         else {
             // The caller has already configured a timeout on this
@@ -237,6 +251,10 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
 #endif
 
     return err;
+}
+
+int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
+    return recvUdpSocketFrom(s, buffer, size, useSelect, NULL, NULL);
 }
 
 void closeSocket(SOCKET s) {
