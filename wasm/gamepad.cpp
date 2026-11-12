@@ -503,6 +503,12 @@ void MoonlightInstance::PollGamepads() {
       mouseEmulationActive = false;
     }
 
+    // Opening the menu can happen synchronously from PostToJs() above. Re-check
+    // ownership before dispatching this sample so the opening press is not sent.
+    if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
+      return;
+    }
+
     // If mouse emulation is active, then send mouse input to the desired handler (acts as a mouse)
     if (mouseEmulationActive) {
       // Left Stick values are mapped to horizontal and vertical mouse movements
