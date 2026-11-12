@@ -17,6 +17,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 ### Fixed
 - **Streaming startup with audio disabled:** Fixed an issue that prevented the host from starting a stream when audio was disabled in Moonlight settings.
 - **Settings page navigation and control visibility:** Fixed navigation issues that could leave controls at the bottom of the Moonlight settings page hidden or inaccessible.
+- **Host status icon during startup:** Fixed an initialization issue that could leave a host card without its status icon when the host did not respond to a request in time.
 
 
 ## v1.2.3
