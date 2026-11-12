@@ -502,8 +502,14 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_video_info(
         native_info.slice_height = info->slice_height;
         native_info.frame_rate = info->frame_rate;
         native_info.interlaced = info->interlaced;
-        return wmp_esplus_normalize_stream_result(
-            WMP_ESPLUS_FAMILY_SET, fn(adapter->player, &native_info));
+        ABI_LOG("video_info SET ENTER fn=%p player=%p info=%p size=%lu mime=%u %ux%u stride=%u slice=%u fps=%u interlaced=%u",
+                (void *)fn, adapter->player, (void *)&native_info, (unsigned long)sizeof(native_info),
+                mime, info->width, info->height, info->stride, info->slice_height, info->frame_rate, info->interlaced);
+        {
+            int raw = fn(adapter->player, &native_info);
+            ABI_LOG("video_info SET RETURN raw=%d", raw);
+            return wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, raw);
+        }
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
         add_video_info_t native_info;
@@ -543,8 +549,14 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_audio_info(
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET) {
         set_stream_fn fn = (set_stream_fn)adapter->api->set_audio_stream_info;
         if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
-        return wmp_esplus_normalize_stream_result(
-            WMP_ESPLUS_FAMILY_SET, fn(adapter->player, &native_info));
+        ABI_LOG("audio_info SET ENTER fn=%p player=%p info=%p size=%lu mime=%u bitrate=%u channels=%u rate=%u",
+                (void *)fn, adapter->player, (void *)&native_info, (unsigned long)sizeof(native_info),
+                mime, info->bitrate, info->channels, info->sample_rate);
+        {
+            int raw = fn(adapter->player, &native_info);
+            ABI_LOG("audio_info SET RETURN raw=%d", raw);
+            return wmp_esplus_normalize_stream_result(WMP_ESPLUS_FAMILY_SET, raw);
+        }
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
         add_stream_fn fn = (add_stream_fn)adapter->api->add_audio_stream_info;
@@ -613,8 +625,15 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.matroska_color_info = packet->matroska_color_info;
         native_packet.hdr10p_metadata_size = packet->hdr_metadata_size;
         native_packet.hdr10p_metadata = packet->hdr_metadata;
-        result = wmp_esplus_normalize_submit_result(
-            WMP_ESPLUS_FAMILY_SET, fn(adapter->player, &native_packet));
+        ABI_LOG("submit SET ENTER fn=%p player=%p packet=%p native_packet=%p size=%u type=%u pts_ms=%llu duration_ms=%llu",
+                (void *)fn, adapter->player, packet, (void *)&native_packet,
+                packet->size, type, (unsigned long long)native_packet.pts_ms,
+                (unsigned long long)native_packet.duration_ms);
+        {
+            int raw = fn(adapter->player, &native_packet);
+            result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_SET, raw);
+            ABI_LOG("submit SET RETURN raw=%d normalized=%d", raw, (int)result.status);
+        }
         return result;
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
@@ -624,8 +643,15 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.buffer_size = packet->size;
         native_packet.pts_ns = packet->pts_ns;
         native_packet.duration_ns = packet->duration_ns;
-        result = wmp_esplus_normalize_submit_result(
-            WMP_ESPLUS_FAMILY_ADD, fn(adapter->player, &native_packet));
+        ABI_LOG("submit ADD ENTER fn=%p player=%p packet=%p native_packet=%p size=%u type=%u pts_ns=%llu duration_ns=%llu",
+                (void *)fn, adapter->player, packet, (void *)&native_packet,
+                packet->size, type, (unsigned long long)native_packet.pts_ns,
+                (unsigned long long)native_packet.duration_ns);
+        {
+            int raw = fn(adapter->player, &native_packet);
+            result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD, raw);
+            ABI_LOG("submit ADD RETURN raw=%d normalized=%d", raw, (int)result.status);
+        }
         return result;
     }
     result.status = WMP_ESPLUS_SUBMIT_INVALID_PACKET;
