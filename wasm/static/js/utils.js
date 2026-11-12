@@ -403,10 +403,6 @@ NvHTTP.prototype = {
       return false;
     }
 
-    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
-      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
-    }
-
     // Retrieve the hostname and handle name validation
     var serverName = $root.find('hostname').text().trim();
     if (serverName != '') {
@@ -482,6 +478,20 @@ NvHTTP.prototype = {
       this.currentGame = parseInt($root.find('currentgame').text().trim(), 10);
     } else {
       this.currentGame = 0;
+    }
+
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      var displayModeCount = Object.keys(this.supportedDisplayModes).length;
+      var serverType = this.isNvidiaServerSoftware ? 'NVIDIA GameStream' : 'Sunshine-compatible';
+      var serverSummary = 'Host response parsed: ' + this.hostname +
+        ' | ' + serverType +
+        ' | app version: ' + (this.appVersion || 'unknown') +
+        (this.gfeVersion ? ' | GFE version: ' + this.gfeVersion : '') +
+        ' | paired: ' + (this.paired ? 'yes' : 'no') +
+        ' | state: ' + (this.serverState || 'unknown') +
+        ' | apps: ' + (this.numofapps || 'unknown') +
+        ' | display modes: ' + displayModeCount;
+      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', serverSummary);
     }
 
     return true;
