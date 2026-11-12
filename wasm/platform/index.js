@@ -10022,7 +10022,7 @@ function createConfigSummaryBar() {
     var label = document.createElement('span');
     label.className = 'config-summary-label';
     label.setAttribute('data-i18n', entry.label);
-    label.textContent = typeof t === 'function' ? t(entry.label) : entry.label;
+    label.textContent = (typeof t === 'function' ? t(entry.label) : entry.label).replace(/:\s*$/, '');
 
     var value = document.createElement('span');
     value.id = entry.id;
