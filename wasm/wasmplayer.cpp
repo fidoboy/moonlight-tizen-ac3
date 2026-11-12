@@ -1384,10 +1384,15 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   }
 
   if (stats.receivedFps > 0 && std::isfinite(stats.receivedFps)) {
-    append("Video stream: %dx%d %.2f FPS (Codec: %s)\n",
+    char totalFps[24];
+    if (std::isfinite(stats.totalFps) && stats.totalFps >= 0) {
+      snprintf(totalFps, sizeof(totalFps), "%.2f", stats.totalFps);
+    } else {
+      snprintf(totalFps, sizeof(totalFps), "-");
+    }
+    append("Video stream: %dx%d %s FPS (Codec: %s)\n",
       s_Width > 0 ? s_Width : 0, s_Height > 0 ? s_Height : 0,
-      std::isfinite(stats.totalFps) && stats.totalFps >= 0 ? stats.totalFps : 0.0,
-      codecString);
+      totalFps, codecString);
 
     if (audioStreamEnabled && audioChannels > 0 &&
         std::isfinite(stats.receivedAudioBitrateKbps) && stats.receivedAudioBitrateKbps >= 0) {
@@ -1421,10 +1426,16 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     char receivedFps[24], decodedFps[24], renderedFps[24];
     snprintf(receivedFps, sizeof(receivedFps), "%.2f",
       std::isfinite(stats.receivedFps) && stats.receivedFps >= 0 ? stats.receivedFps : 0.0);
-    snprintf(decodedFps, sizeof(decodedFps), "%.2f",
-      std::isfinite(stats.decodedFps) && stats.decodedFps >= 0 ? stats.decodedFps : 0.0);
-    snprintf(renderedFps, sizeof(renderedFps), "%.2f",
-      std::isfinite(stats.renderedFps) && stats.renderedFps >= 0 ? stats.renderedFps : 0.0);
+    if (!std::isfinite(stats.decodedFps) || stats.decodedFps < 0) {
+      snprintf(decodedFps, sizeof(decodedFps), "-");
+    } else {
+      snprintf(decodedFps, sizeof(decodedFps), "%.2f", stats.decodedFps);
+    }
+    if (!std::isfinite(stats.renderedFps) || stats.renderedFps < 0) {
+      snprintf(renderedFps, sizeof(renderedFps), "-");
+    } else {
+      snprintf(renderedFps, sizeof(renderedFps), "%.2f", stats.renderedFps);
+    }
     append("Frame rates: %s Recv | %s Dec | %s Rend\n",
       receivedFps, decodedFps, renderedFps);
 
@@ -1444,7 +1455,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       rttString = rttBuffer;
     }
 
-    if (stats.totalFrames > 0) {
+    if (stats.totalFrames > 0 && stats.networkDroppedFrames <= stats.totalFrames) {
       append("Frames dropped by your network connection: %.2f%%\n",
         100.0 * static_cast<double>(stats.networkDroppedFrames) /
         static_cast<double>(stats.totalFrames));
