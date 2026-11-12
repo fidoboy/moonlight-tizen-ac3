@@ -443,7 +443,6 @@ int startAudioStream(void* audioContext, int arFlags) {
         Limelog("Audio playback disabled; receiving and discarding host audio packets\n");
         err = PltCreateThread("AudioRecv", AudioReceiveThreadProc, NULL, &receiveThread);
         if (err != 0) {
-            closeSocket(rtpSocket);
             return err;
         }
         return 0;
