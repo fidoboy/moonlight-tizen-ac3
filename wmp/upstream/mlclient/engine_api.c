@@ -254,6 +254,7 @@ static int hexval(char c) {
 
 /* Invalid start parameters are failed commands and must replace stale diagnostics. */
 static int invalid_settings(int width, int height, int fps, int bitrate_kbps, const char *why) {
+  (void)why; /* MLT compiles to a no-op in release builds. */
   mldiag_cfg cfg = {
     .width = width,
     .height = height,

@@ -80,7 +80,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 {
     wmp_esplus_audio_info_t info;
     int result;
-    int channel_count;
+    int channel_count = 0;
 
     (void)context;
     (void)flags;
