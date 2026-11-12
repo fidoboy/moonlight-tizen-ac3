@@ -410,14 +410,6 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
     m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
     PostToJs("Selecting the fallback audio config to: AUDIO_CONFIGURATION_STEREO");
   }
-  // When audio output is disabled, keep the selected layout out of host negotiation.
-  // Sunshine still requires audio-layout metadata in RTSP ANNOUNCE, so advertise
-  // stereo as a harmless fallback while AudioStreamEnabled prevents audio setup.
-  if (m_AudioBackend == AudioBackend::Disabled) {
-    m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
-    PostToJs("Audio output disabled; using stereo metadata for host negotiation");
-  }
-
   // Store the effective audio configuration value from the stream configuration.
   m_AudioConfig = m_StreamConfig.audioConfiguration;
 
