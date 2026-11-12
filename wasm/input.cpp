@@ -8,6 +8,7 @@
 
 namespace {
 std::map<uint32_t, char> forwardedKeys;
+bool forwardedMouseButtons[3] = {};
 std::atomic<bool> mouseMovementResetPending{false};
 }
 
@@ -23,6 +24,7 @@ void ResetStreamInputState() {
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
   LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+  std::fill(std::begin(forwardedMouseButtons), std::end(forwardedMouseButtons), false);
 
   // The movement accumulator is consumed by the input thread.
   mouseMovementResetPending.store(true, std::memory_order_release);
@@ -66,7 +68,11 @@ EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
     return EM_TRUE;
   }
 
-  LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, ConvertButtonToLiButton(event.button));
+  const int button = ConvertButtonToLiButton(event.button);
+  if (button != 0) {
+    LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, button);
+    if (event.button < 3) forwardedMouseButtons[event.button] = true;
+  }
   return EM_TRUE;
 }
 
@@ -91,7 +97,11 @@ EM_BOOL MoonlightInstance::HandleMouseUp(const EmscriptenMouseEvent &event) {
     return EM_FALSE;
   }
 
-  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, ConvertButtonToLiButton(event.button));
+  const int button = ConvertButtonToLiButton(event.button);
+  if (button != 0 && event.button < 3 && forwardedMouseButtons[event.button]) {
+    forwardedMouseButtons[event.button] = false;
+    LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, button);
+  }
   return EM_TRUE;
 }
 
