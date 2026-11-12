@@ -7859,6 +7859,12 @@ function saveAudioBackend() {
     : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
   if (allowed.indexOf(chosenAudioBackend) === -1) return;
 
+  // An explicit choice made while Dolby is active replaces the backend that
+  // was automatically saved before enabling Dolby.
+  if (engine === 'EMSS' && dolbyEnabled) {
+    audioBackendBeforeAc3Preference = null;
+    storeData('audioBackendBeforeAc3', null, null);
+  }
   setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', chosenAudioBackend);
   console.log('%c[index.js, saveAudioBackend]', 'color: green;', 'Saving audioBackend value: ' + chosenAudioBackend);
   storeData('audioBackend', chosenAudioBackend, null);
@@ -8014,13 +8020,11 @@ function applyAudioBackendPolicy(reason) {
 
   if (engine === 'WMP') {
     // WMP owns both media tracks. DD must never redirect audio to EMSS.
-    if (backend !== 'WMP' && backend !== 'Disabled') {
-      if (reason === 'startup' && audioBackendBeforeWmpPreference == null) {
-        audioBackendBeforeWmpPreference = backend;
-        storeData('audioBackendBeforeWmp', backend, null);
-      }
-      backend = 'WMP';
+    if (reason === 'startup' && audioBackendBeforeWmpPreference == null) {
+      audioBackendBeforeWmpPreference = backend === 'WMP' ? 'EMSS' : backend;
+      storeData('audioBackendBeforeWmp', audioBackendBeforeWmpPreference, null);
     }
+    if (backend !== 'WMP' && backend !== 'Disabled') backend = 'WMP';
   } else {
     if (reason === 'leave-wmp' || (reason === 'startup' && audioBackendBeforeWmpPreference != null)) {
       backend = audioBackendBeforeWmpPreference || 'EMSS';
