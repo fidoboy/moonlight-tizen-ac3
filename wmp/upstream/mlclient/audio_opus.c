@@ -38,6 +38,10 @@ int AudEsplus_GetActiveAudioCodec(void) {
 void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
     s_dolby_passthrough_enabled = enabled != 0;
+    s_dolby = 0;
+    s_pts_ns = 0;
+    __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
 
 /* RFC 7845 OpusHead. Returns its encoded length. */
