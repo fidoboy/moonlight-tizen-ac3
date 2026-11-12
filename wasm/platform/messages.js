@@ -1205,7 +1205,9 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The TV media player reported an error.');
           break;
         default:
-          transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
+          transitionStatusMessage = window._activeStreamingEngine === 'WMP'
+            ? t('Unable to launch the selected app.')
+            : t('Connection to %1$s lost.', activeStreamHostName);
           break;
       }
     }
@@ -1227,6 +1229,11 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
+    // Native WMP failures may attach the full ML-ERROR diagnostic record as the API
+    // message. Keep it in DEBUG_MODE logs above, but never render that dump in the dialog.
+    if (typeof streamErrorApiMessage === 'string' && /^ML-ERROR\\b/.test(streamErrorApiMessage)) {
+      streamErrorApiMessage = null;
+    }
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
