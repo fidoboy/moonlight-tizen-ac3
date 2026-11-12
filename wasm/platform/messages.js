@@ -647,7 +647,9 @@ function drawPerformanceStatsGraph() {
 function handlePerformanceStatsGraphMessage(message) {
   if (!isPerformanceStatsOverlayVisible()) return;
 
-  var values = message.replace('GraphMsg: ', '').split(',').map(Number);
+  var values = message.replace('GraphMsg: ', '').split(',').map(function(value) {
+    return value.trim() === '' ? NaN : Number(value);
+  });
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
   // Audio FEC fields were added after the original three network fields.
@@ -686,7 +688,9 @@ function handlePerformanceStatsGraphMessage(message) {
 function handlePerformanceStatsHostLatencyMessage(message) {
   if (!isPerformanceStatsOverlayVisible()) return;
 
-  var values = message.replace('HostLatencyMsg: ', '').split(',').map(Number);
+  var values = message.replace('HostLatencyMsg: ', '').split(',').map(function(value) {
+    return value.trim() === '' ? NaN : Number(value);
+  });
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
   performanceStatsHostLatencyLatest = {
