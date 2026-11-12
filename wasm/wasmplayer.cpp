@@ -1119,15 +1119,22 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       m_LastFrameNumber = decodeUnit->frameNumber;
     } else {
       // Any frame number greater than the last frame number + 1 represents a dropped frame.
-      m_ActiveWndVideoStats.networkDroppedFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
-      m_ActiveWndVideoStats.totalFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
+      // Frame counters can reset or wrap. Treat non-increasing values as a new
+      // baseline instead of allowing unsigned underflow into diagnostic counters.
+      if (decodeUnit->frameNumber > m_LastFrameNumber) {
+        const uint32_t missingFrames = decodeUnit->frameNumber - m_LastFrameNumber - 1;
+        m_ActiveWndVideoStats.networkDroppedFrames += missingFrames;
+        m_ActiveWndVideoStats.totalFrames += missingFrames;
+      }
       m_LastFrameNumber = decodeUnit->frameNumber;
     }
 
     const uint32_t nowMs = LiGetMillis();
 
     // Flip the performance stats window roughly every second.
-    if (m_ActiveWndVideoStats.measurementStartTimestamp + 1000 < nowMs) {
+    if (m_ActiveWndVideoStats.measurementStartTimestamp != 0 &&
+        nowMs > m_ActiveWndVideoStats.measurementStartTimestamp &&
+        nowMs - m_ActiveWndVideoStats.measurementStartTimestamp > 1000) {
       const uint32_t statsIntervalMs = nowMs - m_ActiveWndVideoStats.measurementStartTimestamp;
       const uint64_t audioBytesReceived =
         g_Instance->m_AudioBytesReceived.exchange(0, std::memory_order_relaxed);
@@ -1139,8 +1146,10 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       UpdateAudioFecWindowStats();
 
       VIDEO_STATS lastTwoWndStats = {};
-      lastTwoWndStats.receivedBitrate =
-        (total_bytes * 8.0f) / (statsIntervalMs * 1000.0f);
+      lastTwoWndStats.receivedBitrate = statsIntervalMs > 0
+        ? (static_cast<double>(total_bytes) * 8.0) /
+          (static_cast<double>(statsIntervalMs) * 1000.0)
+        : 0.0;
       AddVideoStats(m_LastWndVideoStats, lastTwoWndStats);
       AddVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
       lastTwoWndStats.receivedAudioBitrateKbps = audioBitrateKbps;
