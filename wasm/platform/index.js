@@ -5518,7 +5518,11 @@ function scheduleStreamTransitionHideAfterVideoReady() {
     streamVideoReadyHideTimeout = window.setTimeout(function() {
       streamVideoReadyHideTimeout = null;
       if (generation !== streamVideoReadyHideGeneration) return;
-      hideStreamTransitionBackground();
+      hideStreamTransitionBackground(function() {
+        if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
+          onPerformanceStatsStreamTransitionHidden();
+        }
+      });
     }, waitForEncryptionStatus);
   }, 200);
 }
@@ -5835,7 +5839,8 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
         var statsOverlay = document.getElementById('performance-stats');
         if (warningOverlay) warningOverlay.style.display = _directSmartHubStreamSettings.disableWarnings ? 'none' : 'inline-block';
         if (statsOverlay) {
-          statsOverlay.style.display = _directSmartHubStreamSettings.performanceStats ? 'inline-block' : 'none';
+          // The statistics handler reveals this overlay after the startup transition is fully hidden.
+          statsOverlay.style.display = 'none';
           ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach(function(corner) {
             statsOverlay.classList.remove('performance-stats-position-' + corner);
           });
@@ -5898,8 +5903,9 @@ function handleOnScreenOverlays() {
   // Check if the disable warnings switch is checked, then hide or show the connection warning messages
   disableWarningsSwitch.checked ? fadeOutUiElement('connection-warnings') : fadeInUiElement('connection-warnings', 'inline-block');
 
-  // Check if the performance stats switch is checked, then show or hide the performance statistics information
-  performanceStatsSwitch.checked ? fadeInUiElement('performance-stats', 'inline-block') : fadeOutUiElement('performance-stats');
+  // Keep statistics hidden until the startup transition has fully disappeared.
+  // The first populated StatMsg reveals them after the required post-transition delay.
+  fadeOutUiElement('performance-stats');
 }
 
 // Start the given appID. If another app is running, offer to quit it. Otherwise, if the given app is already running, just resume it.
