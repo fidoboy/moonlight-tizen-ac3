@@ -9992,13 +9992,13 @@ function createConfigSummaryBar() {
   bar.setAttribute('aria-label', 'Current Moonlight configuration');
 
   var items = [
+    { label: 'Engine:', id: 'summaryPlaybackEngine', icon: 'static/res/ic_summary_engine.svg' },
     { label: 'Resolution', id: 'summaryResolution', icon: 'static/res/ic_summary_resolution.svg' },
     { label: 'FPS', id: 'summaryFps', icon: 'static/res/ic_summary_fps.svg' },
     { label: 'Bitrate', id: 'summaryBitrate', icon: 'static/res/ic_summary_bitrate.svg' },
     { label: 'Optimal bitrate', id: 'summaryOptimalBitrate', toggle: true, icon: 'static/res/ic_summary_optimal_bitrate.svg' },
     { label: 'HDR', id: 'summaryHdr', toggle: true, icon: 'static/res/ic_summary_hdr.svg' },
     { label: 'Codec', id: 'summaryCodec', icon: 'static/res/ic_summary_codec.svg' },
-    { label: 'Playback engine', id: 'summaryPlaybackEngine', icon: 'static/res/ic_summary_engine.svg' },
     { label: 'Dolby', id: 'summaryDolby', toggle: true, icon: 'static/res/ic_dolby_double_d.svg' },
     { label: 'Audio', id: 'summaryAudio', icon: 'static/res/ic_summary_audio.svg' },
     { label: 'Game mode summary', id: 'summaryGameMode', toggle: true, icon: 'static/res/ic_summary_gamepad.svg' }
@@ -10147,7 +10147,7 @@ function updateConfigSummaryBar() {
       (audioValue === '71Surround' ? '7.1' :
         (/stereo/i.test(audioValue) ? 'Stereo' : audioValue)));
   var playbackEngine = textFor('#selectStreamingEngine', 'EMSS').toUpperCase();
-  if (playbackEngine !== 'WMP') playbackEngine = 'EMSS';
+  playbackEngine = playbackEngine === 'WMP' ? t('Native') : 'EMSS';
 
   function setSummaryText(selector, value) {
     var output = document.querySelector(selector);
