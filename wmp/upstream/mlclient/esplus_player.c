@@ -292,6 +292,7 @@ static void sampler_stop(void)
 static void on_prepared(bool ok, void *context)
 {
     (void)context;
+    MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d", ok ? 1 : 0, s_prepared, s_start_tried);
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
     mldiag_player("pdone", ok ? 1 : 0);
@@ -300,14 +301,15 @@ static void on_prepared(bool ok, void *context)
 }
 static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
-    (void)stream;
     (void)context;
+    MLT("stage ready_to_prepare callback ENTER stream=%d prepared=%d", (int)stream, s_prepared);
     PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
 }
 static void on_error(uint32_t error, void *context)
 {
     (void)context;
+    MLT("stage player_error callback ENTER error=0x%08x prepared=%d started=%d start_tried=%d", error, s_prepared, __atomic_load_n(&s_started, __ATOMIC_ACQUIRE), s_start_tried);
     __atomic_fetch_add(&esplus_stats.errors, 1, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.last_error, error, __ATOMIC_RELAXED);
     PLOG("player error 0x%x\n", error);
@@ -581,12 +583,17 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     static int last_raw = 4;
 
     pthread_mutex_lock(&s_lock);
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
+        MLT("stage first_video_submit ENTER prepared=%d prepare_ok=%d start_tried=%d started=%d",
+            s_prepared, s_prepare_ok, s_start_tried, __atomic_load_n(&s_started, __ATOMIC_ACQUIRE));
     if (s_prepared && !s_start_tried) {
         /* ESPlus may report prepare_async_done(ok=0) after showing the first frame.
          * The reference engine still calls start() once in that case; skipping it
          * can leave a black picture while packet submission appears successful. */
         s_start_tried = 1;
+        MLT("stage start CALL about_to_enter prepared=%d prepare_ok=%d", s_prepared, s_prepare_ok);
         started = wmp_esplus_adapter_start(&s_adapter);
+        MLT("stage start CALL returned status=%d raw=%d", (int)started.status, started.raw_status);
         __atomic_store_n(&s_started,
                          started.status == WMP_ESPLUS_CALL_SUCCESS,
                          __ATOMIC_RELEASE);
@@ -595,7 +602,11 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         MLT("esplus_start -> status=%d raw=%d", (int)started.status, started.raw_status);
         mldiag_player("start", started.raw_status);
     }
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
+        MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
+        MLT("stage submit CALL returned status=%d raw=%d", (int)result.status, result.raw_status);
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
          result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
