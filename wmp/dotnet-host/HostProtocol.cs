@@ -32,6 +32,9 @@ namespace MoonlightWmpHost
         private static readonly Queue<string> DiagnosticLogs = new Queue<string>();
         private const int DiagnosticLogCapacity = 256;
         private const int DiagnosticLogLineLimit = 384;
+        private static readonly Queue<string> NativeDiagnosticLogs = new Queue<string>();
+        private const int NativeDiagnosticLogCapacity = 100;
+        private const int NativeDiagnosticLogLineLimit = 512;
         private static bool _stageDispatchScheduled;
         private static string _stageAppId;
         private static string _stageRemotePort;
@@ -69,7 +72,6 @@ namespace MoonlightWmpHost
         internal static void UpdateEngine(
             EngineApi engine, string esplusState, string esplusFamily, string loadError)
         {
-            if (engine != null) engine.EnableStageCallbacks();
             lock (Gate)
             {
                 _engine = engine;
@@ -246,7 +248,7 @@ namespace MoonlightWmpHost
             try
             {
                 if (line == IntPtr.Zero) return;
-                RecordDiagnostic(Marshal.PtrToStringAnsi(line));
+                RecordNativeDiagnostic(Marshal.PtrToStringAnsi(line));
             }
             catch (Exception ex)
             {
@@ -269,21 +271,40 @@ namespace MoonlightWmpHost
             }
         }
 
+        private static void RecordNativeDiagnostic(string value)
+        {
+            if (String.IsNullOrEmpty(value)) return;
+            if (value.Length > NativeDiagnosticLogLineLimit)
+                value = value.Substring(0, NativeDiagnosticLogLineLimit) + " [truncated]";
+            lock (Gate)
+            {
+                while (NativeDiagnosticLogs.Count >= NativeDiagnosticLogCapacity)
+                    NativeDiagnosticLogs.Dequeue();
+                NativeDiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
+                    CultureInfo.InvariantCulture) + " " + value);
+            }
+        }
+
         private static void SendDiagnosticLogs(string appId, string remotePort, string id)
         {
-            string[] snapshot;
-            lock (Gate) snapshot = DiagnosticLogs.ToArray();
-            const int maxLines = 64;
-            int start = Math.Max(0, snapshot.Length - maxLines);
-            var json = new System.Text.StringBuilder(256 + (snapshot.Length - start) * 128);
-            json.Append("{\"count\":").Append(snapshot.Length).Append(",\"logs\":[");
-            for (int i = start; i < snapshot.Length; i++)
+            string[] nativeSnapshot;
+            string[] hostSnapshot;
+            lock (Gate)
             {
-                if (i > start) json.Append(',');
-                json.Append(JsonQuote(snapshot[i]));
+                nativeSnapshot = NativeDiagnosticLogs.ToArray();
+                hostSnapshot = DiagnosticLogs.ToArray();
             }
-            json.Append("]}");
-            Respond(appId, remotePort, id, "ok", json.ToString());
+
+            int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
+            int hostStart = Math.Max(0, hostSnapshot.Length - 64);
+            for (int i = nativeStart; i < nativeSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
+            for (int i = hostStart; i < hostSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
+
+            Respond(appId, remotePort, id, "ok",
+                "{\"count\":" + (nativeSnapshot.Length - nativeStart).ToString(CultureInfo.InvariantCulture) +
+                ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) + "}");
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this

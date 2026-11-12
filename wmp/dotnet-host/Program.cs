@@ -50,6 +50,8 @@ namespace MoonlightWmpHost
                 ManualLoader.ManualImage image =
                     ManualLoader.Load(File.ReadAllBytes(enginePath));
                 _engine = new EngineApi(image.Resolve);
+                // Capture native MLT_TRACE lines from the ESPlus probe onward.
+                _engine.EnableStageCallbacks();
 
                 string report;
                 probeState = _engine.ProbeEsplus(out family, out report);

@@ -43,13 +43,23 @@ const remotePort = {
         : request.command === 'stop_session'
           ? {stopped: true}
           : request.command === 'get_logs'
-            ? {count: 2, logs: ['native stage RTSP complete', 'video submit #1 status=ok']}
+            ? {count: 2, hostCount: 0}
             : request.command === 'toggle_stats'
               ? {enabled: true}
               : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
     const nativeResponse = nextNativeResponse || {status: 'ok', payload};
     nextNativeResponse = null;
     Promise.resolve().then(() => {
+      if (request.command === 'get_logs') {
+        ['native stage RTSP complete', 'video submit #1 status=ok'].forEach(line => {
+          messageListener([
+            {key: 'protocol', value: request.protocol},
+            {key: 'type', value: 'event'},
+            {key: 'event', value: 'wmpNativeLog'},
+            {key: 'detail', value: line}
+          ]);
+        });
+      }
       messageListener([
         {key: 'protocol', value: request.protocol},
         {key: 'id', value: request.id},
@@ -186,9 +196,10 @@ vm.runInNewContext(source, {
   assert.strictEqual(stop.payload.stopped, true);
   const logs = await window.WmpTransport.getLogs();
   assert.strictEqual(logs.payload.count, 2);
-  assert.deepStrictEqual(logs.payload.logs, [
-    'native stage RTSP complete', 'video submit #1 status=ok'
-  ]);
+  assert.strictEqual(logs.payload.hostCount, 0);
+  assert.ok(infoEntries.some(entry => entry[0] === '[wmp/native]' &&
+    entry[1] === 'native stage RTSP complete'),
+    'Debug builds must print each native engine log line separately');
   const statsToggle = await window.WmpTransport.toggleStats();
   assert.strictEqual(statsToggle.payload.enabled, true);
   messageListener([

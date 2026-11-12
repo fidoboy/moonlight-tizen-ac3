@@ -96,7 +96,7 @@ jobs:
               export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
               ccache --version
               WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/upstream/build/build-deps-lib.sh
-              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=release bash wmp/upstream/mlclient/build-engine-so.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=debug bash wmp/upstream/mlclient/build-engine-so.sh
               echo "::group::WMP ARM ccache statistics"
               ccache --show-stats
               echo "::endgroup::"

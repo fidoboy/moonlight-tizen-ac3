@@ -86,16 +86,36 @@
     if (message.type === 'event') {
       if (message.event === 'wmpDiagnosticReady') {
         if (global.DEBUG_MODE === true) {
+          if (global.console && typeof global.console.info === 'function') {
+            global.console.info('[wmp] native diagnostic log requested (last 100 lines)');
+          }
           request('get_logs').then(function(response) {
-            var logs = response && response.payload && Array.isArray(response.payload.logs)
-              ? response.payload.logs : [];
+            var payload = response && response.payload ? response.payload : {};
             if (global.console && typeof global.console.info === 'function') {
-              global.console.info('[wmp] native diagnostic log (' + logs.length + ' lines)');
-              logs.forEach(function(line) { global.console.info('[wmp/native]', line); });
+              global.console.info('[wmp] native diagnostic log received (' +
+                Number(payload.count || 0) + ' lines)');
+              if (Number(payload.hostCount || 0) > 0) {
+                global.console.info('[wmp] host diagnostic log (' +
+                  Number(payload.hostCount) + ' lines)');
+              }
             }
           }).catch(function(error) {
             debugLog('could not retrieve native diagnostic log', errorDetails(error));
           });
+        }
+        return;
+      }
+      if (message.event === 'wmpNativeLog') {
+        if (global.DEBUG_MODE === true && global.console &&
+            typeof global.console.info === 'function') {
+          global.console.info('[wmp/native]', message.detail || '');
+        }
+        return;
+      }
+      if (message.event === 'wmpHostDiagnostic') {
+        if (global.DEBUG_MODE === true && global.console &&
+            typeof global.console.info === 'function') {
+          global.console.info('[wmp/host]', message.detail || '');
         }
         return;
       }
