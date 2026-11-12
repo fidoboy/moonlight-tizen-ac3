@@ -1396,8 +1396,14 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   host._backgroundStatusRefreshCount = (host._backgroundStatusRefreshCount || 0) + 1;
   host._backgroundStatusRefreshInProgress = true;
 
-  // Discovery may already have completed a successful status check.
+  // Until this refresh (or a successful discovery check) confirms the host,
+  // treat a restored/known host as offline rather than showing stale persisted state.
   var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  if (!refreshServerInfoSucceeded) {
+    host.online = false;
+    updateHostStatusIndicator(host);
+  }
+
   var initialStatusPromise = refreshServerInfoSucceeded
     ? Promise.resolve()
     : Promise.resolve().then(function() {
@@ -2756,9 +2762,6 @@ function addHostToGrid(host, ismDNSDiscovered) {
   // Append the host status indicator to the host container
   hostContainer.append(hostStatusIndicator);
 
-  // Set initial status
-  updateHostStatusIndicator(host);
-
   // Attach the click event listener to the host container
   hostContainer.off('click');
   hostContainer.on('click', function() {
@@ -2784,6 +2787,10 @@ function addHostToGrid(host, ismDNSDiscovered) {
   });
 
   $('#host-grid').append(hostContainer);
+
+  // The indicator must be updated after insertion so the DOM lookup can find it.
+  updateHostStatusIndicator(host);
+
   if (typeof updateHostsCarousel === 'function') updateHostsCarousel();
 
   // Store the host object in the hosts array using its server UID as the key
