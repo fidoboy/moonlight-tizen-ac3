@@ -752,17 +752,6 @@ namespace MoonlightWmpHost
 
                     if (DateTime.UtcNow >= nextDiagnosticLog)
                     {
-                        RecordDiagnostic("host stream stats: stats_rc=" +
-                            statsResult.ToString(CultureInfo.InvariantCulture) +
-                            ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", playing_ms=" + (statsResult == 0 ? stats.PlayingMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", depth_ms=" + (statsResult == 0 ? stats.DepthMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown"));
                         string diagnostic = "stats_rc=" + statsResult.ToString(CultureInfo.InvariantCulture) +
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +

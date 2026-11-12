@@ -203,7 +203,7 @@ void esplus_sample_tick(uint64_t now_ms)
     uint64_t play;
     int request_idr = 0;
     pthread_mutex_lock(&s_lock);
-    if (s_pl && s_started &&
+    if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
         wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
         esplus_stats.playing_ms = (uint32_t)play;
         esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
@@ -368,7 +368,8 @@ int esplus_create_open(void)
 
     load_cfg();
     memset(&esplus_stats, 0, sizeof(esplus_stats));
-    s_prepared = s_prepare_ok = s_started = 0;
+    s_prepared = s_prepare_ok = 0;
+    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     s_prepare_called = 0;
     s_idr_t0 = s_idr_last = 0;
@@ -586,7 +587,9 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
          * can leave a black picture while packet submission appears successful. */
         s_start_tried = 1;
         started = wmp_esplus_adapter_start(&s_adapter);
-        s_started = started.status == WMP_ESPLUS_CALL_SUCCESS;
+        __atomic_store_n(&s_started,
+                         started.status == WMP_ESPLUS_CALL_SUCCESS,
+                         __ATOMIC_RELEASE);
         PLOG("ESPlus start returned status=%d raw=%d (prepare callback=%d)\n",
              (int)started.status, started.raw_status, s_prepare_ok);
         MLT("esplus_start -> status=%d raw=%d", (int)started.status, started.raw_status);
@@ -598,7 +601,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
          result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
         PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\n",
              s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
-             (int)result.status, result.raw_status, s_prepared, s_started);
+             (int)result.status, result.raw_status, s_prepared,
+              __atomic_load_n(&s_started, __ATOMIC_ACQUIRE));
     }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO)
         ++s_video_tries;
@@ -624,11 +628,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 
 int esplus_video_ready(void)
 {
-    int ready;
-    pthread_mutex_lock(&s_lock);
-    ready = s_started && esplus_stats.submitted > 0;
-    pthread_mutex_unlock(&s_lock);
-    return ready;
+    return __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
+           __atomic_load_n(&esplus_stats.submitted, __ATOMIC_ACQUIRE) > 0;
 }
 
 void esplus_close(void)
@@ -647,7 +648,8 @@ void esplus_close(void)
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
     }
-    s_prepared = s_prepare_ok = s_started = 0;
+    s_prepared = s_prepare_ok = 0;
+    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     s_prepare_called = 0;
     s_idr_t0 = s_idr_last = 0;
