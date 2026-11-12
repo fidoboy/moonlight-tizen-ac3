@@ -244,9 +244,6 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect,
     return err;
 }
 
-int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
-    return recvUdpSocketFrom(s, buffer, size, useSelect, NULL, NULL);
-}
 
 void closeSocket(SOCKET s) {
 #if defined(LC_WINDOWS) && !defined(NXDK)
