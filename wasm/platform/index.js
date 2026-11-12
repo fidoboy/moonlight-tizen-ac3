@@ -7871,37 +7871,69 @@ function saveAudioBackend() {
   console.log('%c[index.js, saveAudioBackend]', 'color: green;', 'Saving audioBackend value: ' + chosenAudioBackend);
   storeData('audioBackend', chosenAudioBackend, null);
   updateAudioBackendSettings();
+  updateDolbyAudioAdvancedSettings();
 }
 
-// The audio backends do not share their tuning settings, so only show the
-// settings that the selected backend actually uses while streaming
+function setAudioButtonEnabled(selector, enabled) {
+  $(selector).prop('disabled', !enabled)
+    .toggleClass('mdl-button--disabled', !enabled)
+    .attr('aria-disabled', enabled ? 'false' : 'true')
+    .attr('tabindex', enabled ? '0' : '-1');
+}
+
+function setAudioSwitchEnabled(labelSelector, inputSelector, enabled) {
+  var label = $(labelSelector)[0];
+  var input = $(inputSelector)[0];
+  var component = label && label.MaterialSwitch;
+  if (component) {
+    if (enabled && typeof component.enable === 'function') component.enable();
+    else if (!enabled && typeof component.disable === 'function') component.disable();
+  } else if (input) {
+    input.disabled = !enabled;
+  }
+  if (input) input.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+}
+
+function setAudioSliderEnabled(selector, enabled) {
+  var slider = $(selector)[0];
+  if (slider && slider.MaterialSlider) {
+    if (enabled && typeof slider.MaterialSlider.enable === 'function') slider.MaterialSlider.enable();
+    else if (!enabled && typeof slider.MaterialSlider.disable === 'function') slider.MaterialSlider.disable();
+  } else if (slider) {
+    slider.disabled = !enabled;
+  }
+  if (slider) slider.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+}
+
+// Keep backend-specific tuning visible only where it applies. Controls that
+// become meaningless with Disabled remain visible but are visibly unavailable.
 function updateAudioBackendSettings() {
-  // Check if the audio output is disabled in the audio backend setting
-  if (isAudioOutputDisabled()) {
-    // Neither setting applies when the audio stream is discarded
-    $('#audioConfigOption').hide();
+  var audioEnabled = !isAudioOutputDisabled();
+  var backend = String($('#selectAudioBackend').data('value') || 'EMSS');
+
+  $('#audioConfigOption').show();
+  $('#decryptHostAudioOption').show();
+
+  if (backend === 'WebAudio') {
+    $('#audioSyncOption').hide();
+    $('#audioJitterOption').show();
+  } else if (backend === 'WMP') {
     $('#audioSyncOption').hide();
     $('#audioJitterOption').hide();
-    $('#decryptHostAudioOption').hide();
   } else {
-    // These two settings apply to all active backends, so show them normally
-    $('#audioConfigOption').show();
-    $('#decryptHostAudioOption').show();
-    // Check which backend is selected and show the appropriate setting for that backend
-    if (isWebAudioBackendSelected()) {
-      // The Web Audio backend schedules the audio itself using the jitter buffer
-      $('#audioSyncOption').hide();
-      $('#audioJitterOption').show();
-    } else if ($('#selectAudioBackend').data('value') === 'WMP') {
-      // WMP uses the native player path and does not use EMSS/WebAudio tuning.
-      $('#audioSyncOption').hide();
-      $('#audioJitterOption').hide();
-    } else {
-      // The EMSS backend drops audio packets to stay in sync instead of buffering them
-      $('#audioJitterOption').hide();
-      $('#audioSyncOption').show();
-    }
+    $('#audioJitterOption').hide();
+    $('#audioSyncOption').show();
   }
+
+  // Audio on the host is independent of the TV audio route and stays usable.
+  setAudioButtonEnabled('#selectAudio', audioEnabled);
+  setAudioSwitchEnabled('#ac3AudioModeBtn', '#ac3AudioModeSwitch', audioEnabled);
+  setAudioSwitchEnabled('#audioSyncBtn', '#audioSyncSwitch', audioEnabled && backend === 'EMSS');
+  setAudioSliderEnabled('#jitterSlider', audioEnabled && backend === 'WebAudio');
+  setAudioButtonEnabled('#selectAudioJitter', audioEnabled && backend === 'WebAudio');
+  setAudioSwitchEnabled('#decryptHostAudioBtn', '#decryptHostAudioSwitch', audioEnabled);
+
+  updateDolbyAudioAdvancedSettings();
 }
 
 // Check whether the Web Audio backend is the currently selected audio backend
@@ -7945,7 +7977,8 @@ function setDolbySelectorValue(buttonSelector, menuSelector, value) {
 }
 
 function updateDolbyAudioAdvancedSettings() {
-  const dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  const audioEnabled = !isAudioOutputDisabled();
+  const dolbyEnabled = audioEnabled && $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
   const is51Selected = $('#selectAudio').data('value') === '51Surround';
   const layoutEnabled = dolbyEnabled && is51Selected;
   $('#selectDolbyChannelLayout')
@@ -7953,11 +7986,7 @@ function updateDolbyAudioAdvancedSettings() {
     .toggleClass('mdl-button--disabled', !layoutEnabled)
     .attr('aria-disabled', layoutEnabled ? 'false' : 'true')
     .attr('tabindex', layoutEnabled ? '0' : '-1');
-  $('#selectDolbyDecodingMode')
-    .prop('disabled', !dolbyEnabled)
-    .toggleClass('mdl-button--disabled', !dolbyEnabled)
-    .attr('aria-disabled', dolbyEnabled ? 'false' : 'true')
-    .attr('tabindex', dolbyEnabled ? '0' : '-1');
+  setAudioButtonEnabled('#selectDolbyDecodingMode', dolbyEnabled);
   $('#dolbyDecodingModeOption').toggle(dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported);
 }
 
@@ -8082,11 +8111,7 @@ function updateAc3AudioModeUI(enabled, reason) {
   }
 
   applyAudioBackendPolicy(reason || 'refresh');
-  $('#selectAudio').prop('disabled', false)
-    .removeClass('mdl-button--disabled')
-    .attr('aria-disabled', 'false')
-    .attr('tabindex', '0');
-  updateDolbyAudioAdvancedSettings();
+  updateAudioBackendSettings();
 }
 
 function saveAc3AudioMode() {
