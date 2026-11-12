@@ -556,11 +556,11 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
     void* audioContext, int arFlags);
 
-// Explicit audio-enabled variant for clients that must omit the audio RTSP track entirely.
-// The original LiStartConnection() remains audio-enabled and retains its default-callback semantics.
+// Explicit audio-output variant. The audio transport and UDP ping remain active regardless
+// of this flag; when disabled, received audio packets are discarded without renderer callbacks.
 int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
-    void* audioContext, int arFlags, int audioEnabled);
+    void* audioContext, int arFlags, int audioOutputEnabled);
 
 // Returns true only when the current RTSP session explicitly negotiated AC-3 with the host.
 bool LiIsAc3AudioNegotiated(void);
