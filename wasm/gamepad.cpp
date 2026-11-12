@@ -172,14 +172,22 @@ enum GamepadAxis {
 };
 
 static gamepad_identity::Tracker controllerTracker;
+static std::mutex streamMenuInputMutex;
 static std::atomic<bool> gamepadResetPending{false};
 static uint16_t lastActiveGamepadMask = 0;
 static std::array<bool, gamepad_identity::kMaxControllers> gamepadNeutralRequired{};
 
 extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
-  const bool newState = blocked != 0;
-  const bool oldState = streamMenuInputBlocked.exchange(newState, std::memory_order_acq_rel);
-  if (oldState != newState) {
+  bool changed;
+  {
+    // Serialize ownership changes with the final gamepad dispatch. This closes
+    // the race where a sample could pass its check just as the menu opens.
+    std::lock_guard<std::mutex> lock(streamMenuInputMutex);
+    const bool newState = blocked != 0;
+    const bool oldState = streamMenuInputBlocked.exchange(newState, std::memory_order_acq_rel);
+    changed = oldState != newState;
+  }
+  if (changed) {
     // Keyboard/mouse events are handled on the browser thread. Gamepad state
     // is reset by PollGamepads on its own thread to avoid cross-thread access.
     ResetStreamInputState();
@@ -503,8 +511,9 @@ void MoonlightInstance::PollGamepads() {
       mouseEmulationActive = false;
     }
 
-    // Opening the menu can happen synchronously from PostToJs() above. Re-check
-    // ownership before dispatching this sample so the opening press is not sent.
+    // Serialize the final dispatch with menu ownership changes. The opening
+    // sample is discarded, and no gamepad packet can cross the block boundary.
+    std::lock_guard<std::mutex> inputLock(streamMenuInputMutex);
     if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
       return;
     }
