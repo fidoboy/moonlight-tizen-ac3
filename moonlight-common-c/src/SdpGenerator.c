@@ -419,10 +419,11 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         err |= addGen5Options(&optionHead);
     }
 
-    audioChannelCount = AudioStreamEnabled
-        ? CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) : 0;
-    audioChannelMask = AudioStreamEnabled
-        ? CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) : 0;
+    // Audio layout metadata is still required by Sunshine's RTSP ANNOUNCE parser
+    // when the client disables audio. The engine supplies stereo as a harmless
+    // fallback, while AudioStreamEnabled controls whether an audio track is used.
+    audioChannelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
+    audioChannelMask = CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
 
     if (AppVersionQuad[0] >= 4) {
         unsigned char slicesPerFrame;
@@ -483,22 +484,23 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-video[0].clientRefreshRateX100", payloadStr);
         }
 
-        if (AudioStreamEnabled) {
-            snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
-            snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.channelMask", payloadStr);
-            if (audioChannelCount > 2) {
-                err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "1");
-            }
-            else {
-                err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "0");
-            }
+        // Sunshine requires these audio-layout fields in ANNOUNCE even when the
+        // client does not request an audio stream. With audio disabled the native
+        // engine has already selected stereo as the metadata fallback.
+        snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
+        err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
+        snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
+        err |= addAttributeString(&optionHead, "x-nv-audio.surround.channelMask", payloadStr);
+        if (audioChannelCount > 2) {
+            err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "1");
+        }
+        else {
+            err |= addAttributeString(&optionHead, "x-nv-audio.surround.enable", "0");
         }
     }
 
-    if (AudioStreamEnabled && AppVersionQuad[0] >= 7) {
-        if (StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
+    if (AppVersionQuad[0] >= 7) {
+        if (AudioStreamEnabled && StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
                 HighQualitySurroundSupported && (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
             // Enable high quality mode for surround sound
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
@@ -514,9 +516,10 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "0");
             HighQualitySurroundEnabled = false;
 
-            if ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
+            if (AudioStreamEnabled &&
+                    ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
                      ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
-                       StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD)) {
+                       StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD))) {
                 // Use 10 ms packets for slow devices and networks to balance latency and bandwidth usage
                 AudioPacketDuration = 10;
             }
