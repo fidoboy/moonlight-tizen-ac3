@@ -300,6 +300,8 @@ function stopStreamAfterMediaPipelineError() {
 var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
 var performanceStatsPendingFirstReveal = false;
+var performanceStatsInitialSnapshotReady = false;
+var performanceStatsPendingSnapshot = null;
 var performanceStatsFirstRevealAt = 0;
 var performanceStatsRevealTimer = null;
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
@@ -323,6 +325,8 @@ function resetPerformanceStatsGraph() {
   performanceStatsGraphSamples.length = 0;
   performanceStatsHostLatencyLatest = null;
   performanceStatsPendingFirstReveal = false;
+  performanceStatsInitialSnapshotReady = false;
+  performanceStatsPendingSnapshot = null;
   performanceStatsFirstRevealAt = 0;
   if (performanceStatsRevealTimer !== null) {
     window.clearTimeout(performanceStatsRevealTimer);
@@ -330,12 +334,11 @@ function resetPerformanceStatsGraph() {
   }
 }
 
-// Reveal only after the text and at least one valid graph sample are ready.
-// Samples are collected while the overlay is hidden; visibility must not gate
-// collection, otherwise the first-sample readiness check deadlocks.
+// Reveal only after one completed initial statistics snapshot contains at least
+// one available value and the stream transition has completely disappeared.
 function revealPerformanceStatsOverlayWhenReady() {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
-      performanceStatsGraphSamples.length === 0) return;
+      !performanceStatsInitialSnapshotReady) return;
 
   // Wait for the transition layer to disappear. Polling here is limited to UI
   // presentation and does not participate in stream/session state.
@@ -351,8 +354,6 @@ function revealPerformanceStatsOverlayWhenReady() {
   }
 
   // Begin the one-second reveal delay when the transition is actually hidden.
-  // This timestamp is initialized here because no transition-hidden callback is
-  // wired to the statistics overlay.
   if (performanceStatsFirstRevealAt === 0) {
     performanceStatsFirstRevealAt = Date.now();
   }
@@ -670,19 +671,14 @@ function drawPerformanceStatsGraph() {
   });
 }
 
-function handlePerformanceStatsGraphMessage(message) {
-  // Keep collecting the first samples while the overlay is intentionally hidden.
-  if (!isPerformanceStatsOverlayVisible() && !performanceStatsPendingFirstReveal) return;
-
+function parsePerformanceStatsGraphSample(message) {
   var values = message.replace('GraphMsg: ', '').split(',').map(function(value) {
     return value.trim() === '' ? NaN : Number(value);
   });
-  if (values.length < 3 || !values.every(Number.isFinite)) return;
+  if (values.length < 3 || !values.every(Number.isFinite)) return null;
 
-  // Audio FEC fields were added after the original three network fields.
-  // Missing or malformed optional fields remain unavailable instead of being
-  // presented as genuine zero-valued counters.
-  performanceStatsGraphSamples.push({
+  // Audio FEC fields are optional and remain unavailable when not supplied.
+  return {
     rtt: Math.max(0, values[0]),
     variance: Math.max(0, values[1]),
     droppedFrames: Math.max(0, values[2]),
@@ -696,36 +692,92 @@ function handlePerformanceStatsGraphMessage(message) {
         avg: performanceStatsHostLatencyLatest.avg
       }
       : null
-  });
+  };
+}
+
+function appendPerformanceStatsGraphSample(sample) {
+  if (!sample) return;
+  performanceStatsGraphSamples.push(sample);
   if (performanceStatsGraphSamples.length > PERFORMANCE_STATS_GRAPH_SECONDS) {
     performanceStatsGraphSamples.shift();
   }
+}
 
-  // Canvas/UI failures are isolated to the diagnostics overlay. They must not
-  // escape the message handler or interfere with the active stream.
+function handlePerformanceStatsGraphMessage(message) {
+  var sample = parsePerformanceStatsGraphSample(message);
+  if (!sample) return;
+
+  if (!isPerformanceStatsOverlayVisible() && performanceStatsPendingFirstReveal) {
+    if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+    performanceStatsPendingSnapshot.graphSample = sample;
+    return;
+  }
+  if (!isPerformanceStatsOverlayVisible()) return;
+
   try {
+    appendPerformanceStatsGraphSample(sample);
     drawPerformanceStatsGraph();
     drawHostProcessingLatencyGraph();
-    revealPerformanceStatsOverlayWhenReady();
   } catch (error) {
     console.warn('[messages.js] Unable to render performance statistics graph:', error);
   }
 }
 
-function handlePerformanceStatsHostLatencyMessage(message) {
-  // Host latency is optional, but valid samples may arrive before the RTT graph.
-  if (!isPerformanceStatsOverlayVisible() && !performanceStatsPendingFirstReveal) return;
+function handlePerformanceStatsSnapshotComplete(message) {
+  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated) return;
 
+  var hasValues = message.replace('StatsSnapshotMsg: ', '').trim() === '1';
+  var snapshot = performanceStatsPendingSnapshot;
+  performanceStatsPendingSnapshot = null;
+  if (!hasValues || !snapshot ||
+      (!snapshot.statsText && !snapshot.graphSample && !snapshot.hostLatency)) return;
+
+  try {
+    var elements = ensurePerformanceStatsOverlayElements();
+    if (!elements) return;
+
+    if (typeof snapshot.statsText === 'string') {
+      renderPerformanceStatsText(
+        elements.text,
+        translateBackendMessage(snapshot.statsText),
+        snapshot.statsText
+      );
+    }
+    if (snapshot.hostLatency) {
+      performanceStatsHostLatencyLatest = snapshot.hostLatency;
+    }
+    appendPerformanceStatsGraphSample(snapshot.graphSample);
+    drawPerformanceStatsGraph();
+    drawHostProcessingLatencyGraph();
+
+    performanceStatsInitialSnapshotReady = true;
+    revealPerformanceStatsOverlayWhenReady();
+  } catch (error) {
+    console.warn('[messages.js] Unable to render initial performance statistics snapshot:', error);
+  }
+}
+
+function handlePerformanceStatsHostLatencyMessage(message) {
+  // Host latency is optional, but valid samples may arrive before the snapshot marker.
   var values = message.replace('HostLatencyMsg: ', '').split(',').map(function(value) {
     return value.trim() === '' ? NaN : Number(value);
   });
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
-  performanceStatsHostLatencyLatest = {
+  var sample = {
     min: Math.max(0, values[0]),
     max: Math.max(0, values[1]),
     avg: Math.max(0, values[2])
   };
+
+  if (!isPerformanceStatsOverlayVisible() && performanceStatsPendingFirstReveal) {
+    if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+    performanceStatsPendingSnapshot.hostLatency = sample;
+    return;
+  }
+  if (!isPerformanceStatsOverlayVisible()) return;
+
+  performanceStatsHostLatencyLatest = sample;
 }
 
 // Repeat the most recently reported values on regular graph ticks until another
@@ -1686,40 +1738,40 @@ function handleMessage(msg) {
     var statsOverlay = document.getElementById('performance-stats');
     if (!statsOverlay) return;
     var overlayWasVisible = isPerformanceStatsOverlayVisible();
+    var sourceStatsText = msg.replace('StatMsg: ', '');
 
-    // Keep the overlay transparent while the first statistics message is rendered.
-    // fadeInUiElement schedules the opacity transition on the next animation frame,
-    // so the first visible frame already contains the populated statistics.
     if (!overlayWasVisible) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
-      // Keep it unpaintable until the transition has completely disappeared
-      // and the post-transition one-second delay has elapsed.
       statsOverlay.style.visibility = 'hidden';
       performanceStatsPendingFirstReveal = true;
+      performanceStatsPendingSnapshot = sourceStatsText
+        ? { statsText: sourceStatsText }
+        : null;
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
 
-    var statsElements = ensurePerformanceStatsOverlayElements();
-    if (statsElements) {
-      var sourceStatsText = msg.replace('StatMsg: ', '');
-      try {
-        renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-        drawPerformanceStatsGraph();
-        drawHostProcessingLatencyGraph();
-
-        if (!overlayWasVisible) {
-          // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
-          revealPerformanceStatsOverlayWhenReady();
+    if (overlayWasVisible) {
+      var statsElements = ensurePerformanceStatsOverlayElements();
+      if (statsElements) {
+        try {
+          renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+          drawPerformanceStatsGraph();
+          drawHostProcessingLatencyGraph();
+        } catch (error) {
+          console.warn('[messages.js] Unable to render performance statistics:', error);
         }
-      } catch (error) {
-        console.warn('[messages.js] Unable to render performance statistics:', error);
       }
+    } else if (sourceStatsText) {
+      if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+      performanceStatsPendingSnapshot.statsText = sourceStatsText;
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
     if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
   } else if (msg.indexOf('GraphMsg: ') === 0) {
     if (!performanceStatsStreamTerminated) handlePerformanceStatsGraphMessage(msg);
+  } else if (msg.indexOf('StatsSnapshotMsg: ') === 0) {
+    if (!performanceStatsStreamTerminated) handlePerformanceStatsSnapshotComplete(msg);
   } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
