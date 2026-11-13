@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "mltrace.h"
 #include "wmp_window_order.h"
 
 /* HostProtocol installs this callback before any stream can create the WMP window. */
@@ -30,14 +29,17 @@ extern void (*volatile ml_log_cb)(const char *line) __attribute__((weak));
 static void window_order_log(const char *format, ...)
 {
     char line[512];
+    size_t prefix_length;
     va_list args;
     void (*callback)(const char *);
 
+    snprintf(line, sizeof(line), "[window-order] ");
+    prefix_length = strlen(line);
     va_start(args, format);
-    vsnprintf(line, sizeof(line), format, args);
+    vsnprintf(line + prefix_length, sizeof(line) - prefix_length, format, args);
     va_end(args);
 
-    fprintf(stderr, "[window-order] %s\\n", line);
+    fprintf(stderr, "%s\\n", line);
     if (&ml_log_cb) {
         callback = ml_log_cb;
         if (callback) callback(line);
