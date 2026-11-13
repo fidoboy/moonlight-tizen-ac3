@@ -85,6 +85,10 @@
     }
 
     if (message.type === 'event') {
+      if (message.event === 'Connection Established') {
+        nativeGamepadMask = 0;
+        syncNativeGamepads();
+      }
       if (message.event === 'wmpDiagnosticReady') {
         if (global.DEBUG_MODE === true) {
           if (global.console && typeof global.console.info === 'function') {
@@ -516,6 +520,103 @@
     });
   }
 
+  var nativeGamepadMask = 0;
+
+  function nativeInputActive() {
+    return global._activeStreamingEngine === 'ESPLUSPLAYER' && global.isInGame !== false;
+  }
+
+  function controllerType(id) {
+    id = String(id || '').toLowerCase();
+    if (id.indexOf('054c') !== -1 || /dualsense|dualshock|playstation|sony/.test(id)) return 2;
+    if (id.indexOf('045e') !== -1 || id.indexOf('xbox') !== -1) return 1;
+    if (id.indexOf('057e') !== -1 || /nintendo|joy-con/.test(id)) return 3;
+    return 0;
+  }
+
+  function supportedButtons(count) {
+    var flags = [0x1000, 0x2000, 0x4000, 0x8000, 0x0100, 0x0200,
+      0, 0, 0x0020, 0x0010, 0x0040, 0x0080, 0x0001, 0x0002,
+      0x0004, 0x0008, 0x0400, 0x200000];
+    var result = 0;
+    for (var i = 0; i < count && i < flags.length; i++) result |= flags[i];
+    return result;
+  }
+
+  function onGamepadConnected(event) {
+    if (!nativeInputActive()) return;
+    var detail = event.detail || {};
+    var index = Number(detail.gamepadIndex);
+    if (!Number.isInteger(index) || index < 0 || index > 15) return;
+    nativeGamepadMask |= (1 << index);
+    sendGamepadArrival(index, nativeGamepadMask, controllerType(detail.id),
+      supportedButtons(Number(detail.buttonCount) || 0),
+      Number(detail.buttonCount) > 7 ? 1 : 0);
+  }
+
+  function onGamepadDisconnected(event) {
+    if (!nativeInputActive()) return;
+    var detail = event.detail || {};
+    var index = Number(detail.gamepadIndex);
+    if (!Number.isInteger(index) || index < 0 || index > 15) return;
+    nativeGamepadMask &= ~(1 << index);
+    sendGamepadState(index, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+  }
+
+  function onGamepadState(event) {
+    if (!nativeInputActive()) return;
+    var detail = event.detail || {};
+    var index = Number(detail.gamepadIndex);
+    if (!Number.isInteger(index) || index < 0 || index > 15 ||
+        !(nativeGamepadMask & (1 << index))) return;
+    var buttons = Array.isArray(detail.buttons) ? detail.buttons : [];
+    var axes = Array.isArray(detail.axes) ? detail.axes : [];
+    var map = [0x1000, 0x2000, 0x4000, 0x8000, 0x0100, 0x0200,
+      0, 0, 0x0020, 0x0010, 0x0040, 0x0080, 0x0001, 0x0002,
+      0x0004, 0x0008, 0x0400, 0x200000];
+    var flags = 0;
+    for (var i = 0; i < buttons.length && i < map.length; i++) {
+      if (Number(buttons[i]) > 0.5) flags |= map[i];
+    }
+    if (flags === (0x0020 | 0x0010 | 0x0100 | 0x0200)) {
+      request('stop_session').catch(function() {});
+      return;
+    }
+    if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
+      request('toggle_stats').catch(function() {});
+      return;
+    }
+    function axis(index) {
+      var value = Number(axes[index] || 0);
+      return Math.max(-32768, Math.min(32767, Math.round(value * 32767)));
+    }
+    sendGamepadState(index, nativeGamepadMask, flags,
+      Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
+      Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
+      axis(0), -axis(1), axis(2), -axis(3));
+  }
+
+  function syncNativeGamepads() {
+    if (!nativeInputActive() || !global.navigator) return;
+    var pads = global.navigator.getGamepads ? global.navigator.getGamepads() : [];
+    for (var i = 0; i < pads.length && i < 16; i++) {
+      var pad = pads[i];
+      if (!pad || !pad.connected) continue;
+      onGamepadConnected({detail: {
+        gamepadIndex: pad.index, id: pad.id, buttonCount: pad.buttons.length
+      }});
+      onGamepadState({detail: {
+        gamepadIndex: pad.index, id: pad.id,
+        buttons: pad.buttons.map(function(button) { return button.value; }),
+        axes: Array.prototype.slice.call(pad.axes)
+      }});
+    }
+  }
+
+  global.addEventListener('esplusgamepadconnected', onGamepadConnected);
+  global.addEventListener('esplusgamepaddisconnected', onGamepadDisconnected);
+  global.addEventListener('esplusgamepadstate', onGamepadState);
+
   global.ESPlusPlayerTransport = {
     connect: connect,
     request: request,
@@ -529,6 +630,7 @@
     sendKey: sendKey,
     sendGamepadArrival: sendGamepadArrival,
     sendGamepadState: sendGamepadState,
+    syncGamepads: syncNativeGamepads,
     close: close
   };
 })(window);
