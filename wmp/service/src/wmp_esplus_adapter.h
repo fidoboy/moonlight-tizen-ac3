@@ -23,7 +23,7 @@ typedef enum {
     WMP_ESPLUS_BUFFER_STATUS_OVERRUN = 1
 } wmp_esplus_buffer_status_e;
 
-/* Semantic codec identifiers. Never pass these values directly to ESPlus. */
+/* Semantic codec identifiers; convert through wmp_esplus_map_video_mime(). */
 typedef enum {
     WMP_ESPLUS_VIDEO_MIME_UNKNOWN = 0,
     WMP_ESPLUS_VIDEO_MIME_H263,
