@@ -35,7 +35,7 @@ function startESPlusPlayerSession(args) {
     rtspUrl: args[10],
     codecMode: args[11],
     debugMode: typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true,
-    audioEnabled: args[18] === 'ESPLUSPLAYER',
+    audioEnabled: args[18] === 'ESPLUSPLAYER' || args[18] === 'WMP',
     audioConfig: args[19],
     opticalOutputEnabled: !!args[20],
     videoCodec: args[25],
