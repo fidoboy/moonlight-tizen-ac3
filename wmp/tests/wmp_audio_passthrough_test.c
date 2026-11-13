@@ -6,7 +6,7 @@
 #include "esplus_player.h"
 #include "../upstream/mlclient/audio_opus.c"
 
-static int g_ac3, g_eac3, g_submit_count, g_registration_result;
+static int g_ac3, g_eac3, g_submit_count, g_registration_result, g_audio_registered;
 static wmp_esplus_audio_info_t g_audio_info;
 static wmp_esplus_packet_t g_last_packet;
 
@@ -16,8 +16,9 @@ void LiInitializeAudioCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
 { memset(callbacks, 0, sizeof(*callbacks)); }
 int esplus_create_open(void) { return 1; }
 int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
-{ g_audio_info = *info; return g_registration_result; }
-void esplus_audio_registration_complete(int success) { (void)success; }
+{ g_audio_info = *info; g_audio_registered = 1; return g_registration_result; }
+void esplus_audio_registration_complete(int success)
+{ if (success) assert(g_audio_registered); }
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 {
     wmp_esplus_submit_result_t result = { WMP_ESPLUS_SUBMIT_SUCCESS, 4 };
@@ -32,6 +33,7 @@ static void reset_capture(void)
     memset(&g_last_packet, 0, sizeof(g_last_packet));
     g_submit_count = 0;
     g_registration_result = 0;
+    g_audio_registered = 0;
 }
 
 int main(void)
