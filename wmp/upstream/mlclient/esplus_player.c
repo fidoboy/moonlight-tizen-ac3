@@ -19,7 +19,6 @@
 #include "esplus_stats.h"
 #include "mldiag.h"
 #include "mltrace.h"
-#include "wmp_window_order.h"
 
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
@@ -35,6 +34,7 @@ static void *(*p_ecore_wl2_display_connect)(const char *);
 static void (*p_ecore_wl2_display_disconnect)(void *);
 static void *(*p_ecore_wl2_window_new)(void *, void *, int, int, int, int);
 static void (*p_ecore_wl2_window_show)(void *);
+static void (*p_ecore_wl2_window_lower)(void *);
 static void (*p_ecore_wl2_window_alpha_set)(void *, unsigned char);
 static void (*p_ecore_wl2_window_free)(void *);
 static void (*p_ecore_wl2_display_flush)(void *);
@@ -50,6 +50,7 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 #define ecore_wl2_display_disconnect p_ecore_wl2_display_disconnect
 #define ecore_wl2_window_new p_ecore_wl2_window_new
 #define ecore_wl2_window_show p_ecore_wl2_window_show
+#define ecore_wl2_window_lower p_ecore_wl2_window_lower
 #define ecore_wl2_window_alpha_set p_ecore_wl2_window_alpha_set
 #define ecore_wl2_window_free p_ecore_wl2_window_free
 #define ecore_wl2_display_flush p_ecore_wl2_display_flush
@@ -80,6 +81,9 @@ static int ecore_runtime_load(void)
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_disconnect);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_new);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_show);
+    /* Added in Tizen 6.0 EFL 1.24; optional for older firmware. */
+    *(void **)(&p_ecore_wl2_window_lower) =
+        dlsym(s_ecore_wl2_lib, "ecore_wl2_window_lower");
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_alpha_set);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_free);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_flush);
@@ -562,6 +566,12 @@ static void *win_create_main(void *arg)
     if (!s_win) { PLOG("window_new failed\n"); r->rc = -1; return NULL; }
     ecore_wl2_window_alpha_set(s_win, 1);
     ecore_wl2_window_show(s_win);
+    if (ecore_wl2_window_lower) {
+        ecore_wl2_window_lower(s_win);
+        MLT("ecore_wl2_window_lower requested for WMP window");
+    } else {
+        MLT("ecore_wl2_window_lower unavailable on this firmware");
+    }
     ecore_wl2_display_flush(s_disp);
     if (ecore_wl2_display_sync) {
         ecore_wl2_display_sync(s_disp);
@@ -622,8 +632,6 @@ int esplus_set_window(int width, int height)
             req.rc == -2 ? "set_ecore_display" : "no window/display access");
         return -1;
     }
-    /* Diagnostic lookup only; no stacking request is sent in this test build. */
-    (void)wmp_window_order_probe();
     MLT("esplus_set_window -> 0");
     return 0;
 }
