@@ -468,13 +468,13 @@
     // a Promise continuation to every keyboard, mouse or gamepad sample.
     if (remotePort && localPort) {
       try {
-        return Promise.resolve(sendInputNow(command, payload));
+        return sendInputNow(command, payload);
       } catch (error) {
         debugLog('native input forwarding failed', {
           command: command,
           error: errorDetails(error)
         });
-        return Promise.resolve(false);
+        return false;
       }
     }
 
