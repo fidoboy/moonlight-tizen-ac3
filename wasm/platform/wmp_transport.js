@@ -978,7 +978,11 @@
     getLogs: function() { return request('get_logs'); },
     toggleStats: function() { return request('toggle_stats'); },
     probeEsplus: function() { return request('probe_esplus'); },
-    startStream: function(parameters) { return request('start_session', parameters); },
+    startStream: function(parameters) {
+      nativeInputCapabilities = 0;
+      nativeGamepadMask = 0;
+      return request('start_session', parameters);
+    },
     stopStream: function() { return request('stop_session'); },
     sendKey: sendKey,
     sendMouseMove: sendMouseMove,
