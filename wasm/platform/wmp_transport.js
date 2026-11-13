@@ -620,6 +620,13 @@
       }
       return;
     }
+    // Pressing both stick buttons opens the in-stream menu. This remains
+    // available when navigation is stopped for the fullscreen stream.
+    if (flags === (0x0040 | 0x0080) &&
+        typeof global.openStreamMenuFromGamepad === 'function') {
+      global.openStreamMenuFromGamepad();
+      return;
+    }
     if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
       request('toggle_stats').catch(function() {});
       return;
@@ -681,7 +688,7 @@
   }
 
   function onPhysicalKeyboard(event) {
-    if (!nativeInputActive() || inputUiBlocked() || isEditableTarget(event.target)) return;
+    if (!nativeInputActive()) return;
     var code = Number(event.keyCode || event.which || 0);
     if (!code || code > 0xFFFF) return;
     // Samsung remote keys are already translated by remote_controller.js.
@@ -713,6 +720,8 @@
       }
       return;
     }
+
+    if (inputUiBlocked() || isEditableTarget(event.target)) return;
 
     var key = String(code);
     if (event.type === 'keydown') {
