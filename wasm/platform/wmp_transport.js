@@ -557,6 +557,66 @@
   }
 
   var nativeGamepadMask = 0;
+  // The browser gamepad API is polled every 5 ms. Forwarding every tiny axis
+  // fluctuation through Tizen MessagePort can build a queue in the ServiceApp.
+  // Keep button transitions immediate, but coalesce analog state to 60 Hz.
+  var GAMEPAD_SEND_INTERVAL_MS = 16;
+  var pendingGamepadStates = Object.create(null);
+  var gamepadSendTimers = Object.create(null);
+  var lastSentGamepadAxes = Object.create(null);
+  var lastSentGamepadTriggers = Object.create(null);
+  var lastSentGamepadFlags = Object.create(null);
+
+  function transmitGamepadState(index, state) {
+    sendGamepadState(index, nativeGamepadMask, state.flags,
+      state.leftTrigger, state.rightTrigger,
+      state.lsX, state.lsY, state.rsX, state.rsY);
+    lastSentGamepadFlags[index] = state.flags;
+    lastSentGamepadAxes[index] = [state.lsX, state.lsY, state.rsX, state.rsY];
+    lastSentGamepadTriggers[index] = [state.leftTrigger, state.rightTrigger];
+  }
+
+  function queueGamepadState(index, state, immediate) {
+    var previousAxes = lastSentGamepadAxes[index];
+    var previousTriggers = lastSentGamepadTriggers[index];
+    var axesChanged = !previousAxes;
+    var triggersChanged = !previousTriggers;
+    if (previousAxes) {
+      var axes = [state.lsX, state.lsY, state.rsX, state.rsY];
+      for (var i = 0; i < axes.length; i++) {
+        // Ignore sub-0.1% quantization noise from resting analog sticks.
+        if (Math.abs(axes[i] - previousAxes[i]) >= 32) axesChanged = true;
+      }
+    }
+    if (previousTriggers) {
+      triggersChanged = Math.abs(state.leftTrigger - previousTriggers[0]) >= 2 ||
+        Math.abs(state.rightTrigger - previousTriggers[1]) >= 2;
+    }
+
+    var buttonsChanged = lastSentGamepadFlags[index] !== state.flags;
+    if (immediate || buttonsChanged) {
+      if (gamepadSendTimers[index] !== undefined) {
+        global.clearTimeout(gamepadSendTimers[index]);
+        delete gamepadSendTimers[index];
+      }
+      delete pendingGamepadStates[index];
+      transmitGamepadState(index, state);
+      return;
+    }
+
+    if (!axesChanged && !triggersChanged) return;
+    pendingGamepadStates[index] = state;
+    if (gamepadSendTimers[index] !== undefined) return;
+
+    gamepadSendTimers[index] = global.setTimeout(function() {
+      delete gamepadSendTimers[index];
+      var latest = pendingGamepadStates[index];
+      delete pendingGamepadStates[index];
+      if (latest && nativeInputActive() && (nativeGamepadMask & (1 << index))) {
+        transmitGamepadState(index, latest);
+      }
+    }, GAMEPAD_SEND_INTERVAL_MS);
+  }
 
   function nativeInputActive() {
     var state = global.getStreamingEngineState && global.getStreamingEngineState();
@@ -586,6 +646,9 @@
     var index = Number(detail.gamepadIndex);
     if (!Number.isInteger(index) || index < 0 || index > 15) return;
     nativeGamepadMask |= (1 << index);
+    lastSentGamepadFlags[index] = undefined;
+    lastSentGamepadAxes[index] = undefined;
+    lastSentGamepadTriggers[index] = undefined;
     sendGamepadArrival(index, nativeGamepadMask, controllerType(detail.id),
       supportedButtons(Number(detail.buttonCount) || 0),
       Number(detail.buttonCount) > 7 ? 1 : 0);
@@ -597,6 +660,14 @@
     var index = Number(detail.gamepadIndex);
     if (!Number.isInteger(index) || index < 0 || index > 15) return;
     nativeGamepadMask &= ~(1 << index);
+    if (gamepadSendTimers[index] !== undefined) {
+      global.clearTimeout(gamepadSendTimers[index]);
+      delete gamepadSendTimers[index];
+    }
+    delete pendingGamepadStates[index];
+    delete lastSentGamepadFlags[index];
+    delete lastSentGamepadAxes[index];
+    delete lastSentGamepadTriggers[index];
     sendGamepadState(index, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
   }
 
@@ -636,10 +707,15 @@
       var value = Number(axes[index] || 0);
       return Math.max(-32768, Math.min(32767, Math.round(value * 32767)));
     }
-    sendGamepadState(index, nativeGamepadMask, flags,
-      Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
-      Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
-      axis(0), -axis(1), axis(2), -axis(3));
+    queueGamepadState(index, {
+      flags: flags,
+      leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
+      rightTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
+      lsX: axis(0),
+      lsY: -axis(1),
+      rsX: axis(2),
+      rsY: -axis(3)
+    }, false);
   }
 
   function syncNativeGamepads() {
