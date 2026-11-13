@@ -654,7 +654,7 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         {
             int raw = fn(adapter->player, &native_packet);
             result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_SET, raw);
-            if (raw != 4)
+            if (raw != 4 && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE)
                 ABI_LOG("submit SET failed raw=%d normalized=%d", raw, (int)result.status);
         }
         return result;
@@ -669,7 +669,7 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         {
             int raw = fn(adapter->player, &native_packet);
             result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD, raw);
-            if (raw != 4)
+            if (raw != 4 && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE)
                 ABI_LOG("submit ADD failed raw=%d normalized=%d", raw, (int)result.status);
         }
         return result;
