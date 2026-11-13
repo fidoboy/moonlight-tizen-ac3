@@ -72,6 +72,9 @@ namespace MoonlightWmpHost
         internal delegate int VideoReadyFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int InputCapabilitiesFn();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void StopFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -135,6 +138,7 @@ namespace MoonlightWmpHost
 
         internal readonly RunningFn Running;
         internal readonly VideoReadyFn VideoReady;
+        internal readonly InputCapabilitiesFn InputCapabilities;
         internal readonly StopFn Stop;
         internal readonly SendKeyFn SendKey;
         internal readonly SendMouseMoveFn SendMouseMove;
@@ -168,6 +172,7 @@ namespace MoonlightWmpHost
             _setLogCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_log_cb");
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
             VideoReady = Bind<VideoReadyFn>(resolve, "ml_engine_video_ready");
+            InputCapabilities = Bind<InputCapabilitiesFn>(resolve, "ml_engine_input_capabilities");
             Stop = Bind<StopFn>(resolve, "ml_engine_stop");
             SendKey = Bind<SendKeyFn>(resolve, "ml_engine_send_key");
             SendMouseMove = Bind<SendMouseMoveFn>(resolve, "ml_engine_send_mouse_move");
