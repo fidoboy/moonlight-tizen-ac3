@@ -331,6 +331,7 @@ var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
 var performanceStatsPendingFirstReveal = false;
 var performanceStatsInitialSnapshotReady = false;
+var performanceStatsSnapshotComplete = false;
 var performanceStatsPendingSnapshot = null;
 var performanceStatsFirstRevealAt = 0;
 var performanceStatsRevealTimer = null;
@@ -356,6 +357,7 @@ function resetPerformanceStatsGraph() {
   performanceStatsHostLatencyLatest = null;
   performanceStatsPendingFirstReveal = false;
   performanceStatsInitialSnapshotReady = false;
+  performanceStatsSnapshotComplete = false;
   performanceStatsPendingSnapshot = null;
   performanceStatsFirstRevealAt = 0;
   if (performanceStatsRevealTimer !== null) {
@@ -757,10 +759,15 @@ function handlePerformanceStatsSnapshotComplete(message) {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated) return;
 
   var hasValues = message.replace('StatsSnapshotMsg: ', '').trim() === '1';
+  if (!hasValues) return;
+
+  // The native marker may arrive before the first StatMsg. Latch completion
+  // and wait for the first payload instead of discarding the initial snapshot.
+  performanceStatsSnapshotComplete = true;
   var snapshot = performanceStatsPendingSnapshot;
-  performanceStatsPendingSnapshot = null;
-  if (!hasValues || !snapshot ||
+  if (!snapshot ||
       (!snapshot.statsText && !snapshot.graphSample && !snapshot.hostLatency)) return;
+  performanceStatsPendingSnapshot = null;
 
   try {
     var elements = ensurePerformanceStatsOverlayElements();
@@ -1166,9 +1173,18 @@ function handleMessage(msg) {
     stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
     performanceStatsStreamTerminated = true;
-    hideStreamDiagnosticsLayer(function() {
+    // Termination must remove diagnostics in the same paint, not fade them
+    // over the closing transition. Also invalidate any pending first reveal.
+    if (typeof hideUiLayerImmediately === 'function') {
+      hideUiLayerImmediately('stream-diagnostics-layer');
+      $('#connection-warnings').css('display', 'none').text('');
+      $('#performance-stats').css('display', 'none').text('');
       resetPerformanceStatsGraph();
-    });
+    } else {
+      hideStreamDiagnosticsLayer(function() {
+        resetPerformanceStatsGraph();
+      });
+    }
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
@@ -1809,6 +1825,9 @@ function handleMessage(msg) {
     } else if (sourceStatsText) {
       if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
       performanceStatsPendingSnapshot.statsText = sourceStatsText;
+      if (performanceStatsSnapshotComplete) {
+        handlePerformanceStatsSnapshotComplete('StatsSnapshotMsg: 1');
+      }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
     if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
