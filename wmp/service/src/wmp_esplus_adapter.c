@@ -6,7 +6,7 @@
 #include <string.h>
 #include "../../upstream/mlclient/mltrace.h"
 
-#define ABI_LOG(...) do { fprintf(stderr, "[esplus-abi] " __VA_ARGS__); fputc('\n', stderr); MLT("[esplus-abi] " __VA_ARGS__); } while (0)
+#define ABI_LOG(...) MLT("[esplus-abi] " __VA_ARGS__)
 
 /* SET (public 0.0.3): timestamps in milliseconds; extended HDR packet. */
 typedef struct {
