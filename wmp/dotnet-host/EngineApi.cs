@@ -75,6 +75,17 @@ namespace MoonlightWmpHost
         internal delegate void StopFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SendKeyFn(int keyCode, int keyAction, int modifiers);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int GamepadArrivalFn(int index, int activeMask, int type,
+            uint supportedButtons, int capabilities);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int GamepadStateFn(int index, int activeMask, int buttons,
+            int leftTrigger, int rightTrigger, int lsX, int lsY, int rsX, int rsY);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void SetDolbyPassthroughFn(int enabled);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -116,6 +127,9 @@ namespace MoonlightWmpHost
         internal readonly RunningFn Running;
         internal readonly VideoReadyFn VideoReady;
         internal readonly StopFn Stop;
+        internal readonly SendKeyFn SendKey;
+        internal readonly GamepadArrivalFn GamepadArrival;
+        internal readonly GamepadStateFn GamepadState;
         internal readonly SetDolbyPassthroughFn SetDolbyPassthrough;
         internal readonly ActiveAudioCodecFn GetActiveAudioCodec;
         internal readonly GetStatsFn GetStats;
@@ -143,6 +157,9 @@ namespace MoonlightWmpHost
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
             VideoReady = Bind<VideoReadyFn>(resolve, "ml_engine_video_ready");
             Stop = Bind<StopFn>(resolve, "ml_engine_stop");
+            SendKey = Bind<SendKeyFn>(resolve, "ml_engine_send_key");
+            GamepadArrival = Bind<GamepadArrivalFn>(resolve, "ml_engine_gamepad_arrival");
+            GamepadState = Bind<GamepadStateFn>(resolve, "ml_engine_gamepad_state");
             SetDolbyPassthrough = Bind<SetDolbyPassthroughFn>(
                 resolve, "ml_engine_set_dolby_passthrough_enabled");
             GetActiveAudioCodec = Bind<ActiveAudioCodecFn>(
