@@ -407,12 +407,11 @@ static void *reader(void *unused) {
                     for (size_t k = 0; k < count; k++)
                         handle_event(&s_devices[i], &events[k]);
                 } else if (bytes < 0 && errno != EAGAIN && errno != EINTR) {
-                    fprintf(stderr, "[input] read %s failed: errno=%d (%s)\n",
-                            s_devices[i].name, errno, strerror(errno));
+                    MLT("[input] read %s failed: errno=%d (%s)", s_devices[i].name, errno, strerror(errno));
                 }
             }
             if (s_poll[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-                fprintf(stderr, "[input] device disconnected: %s\n", s_devices[i].name);
+                MLT("[input] device disconnected: %s", s_devices[i].name);
                 close(s_devices[i].fd);
                 s_devices[i].fd = -1;
                 s_poll[i].fd = -1;
