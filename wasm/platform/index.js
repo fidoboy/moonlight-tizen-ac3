@@ -6459,17 +6459,22 @@ function getStreamMenuOptions() {
 function requestManualStreamStop() {
   // Both engines use the same visual closing transition. Only the final stop
   // command differs: WMP must stop through its native Common C session owner.
-  if (window._manualStreamStopRequested) return;
+  var isWmpStream = window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+    window.ESPlusPlayerTransport &&
+    typeof window.ESPlusPlayerTransport.stopStream === 'function';
+  if (isWmpStream && window._manualStreamStopRequested) return;
+  if (isWmpStream) window._manualStreamStopRequested = true;
+
   showStreamTransitionBackground(function() {
-    window._manualStreamStopRequested = true;
-    if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
-        window.ESPlusPlayerTransport &&
-        typeof window.ESPlusPlayerTransport.stopStream === 'function') {
+    // Preserve the existing EMSS stop ordering; its flag is set only after
+    // the transition has been revealed.
+    if (isWmpStream) {
       window.ESPlusPlayerTransport.stopStream().catch(function(error) {
         console.error('%c[index.js, requestManualStreamStop]', 'color: red;', 'WMP session stop request failed:', error);
       });
       return;
     }
+    window._manualStreamStopRequested = true;
     Module.stopStream();
   });
 }
