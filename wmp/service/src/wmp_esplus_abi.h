@@ -47,6 +47,7 @@ typedef struct {
     void *set_ecore_display;
     void *set_display_mode;
     void *get_playing_time; /* optional; legacy ADD boolean query */
+    void *get_error_string; /* optional; esplusplayer_get_error_string(int) */
     /* The complete SET or ADD pair selects the stream-registration ABI. */
     void *set_video_stream_info;
     void *set_audio_stream_info;
