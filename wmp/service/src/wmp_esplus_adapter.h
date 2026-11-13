@@ -34,7 +34,8 @@ typedef enum {
     WMP_ESPLUS_VIDEO_MIME_MPEG4,
     WMP_ESPLUS_VIDEO_MIME_VP8,
     WMP_ESPLUS_VIDEO_MIME_VP9,
-    WMP_ESPLUS_VIDEO_MIME_WMV3
+    WMP_ESPLUS_VIDEO_MIME_WMV3,
+    WMP_ESPLUS_VIDEO_MIME_AV1
 } wmp_esplus_video_mime_e;
 
 typedef enum {
