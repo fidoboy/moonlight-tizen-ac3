@@ -156,6 +156,26 @@ namespace MoonlightWmpHost
                     _engine.SendKey(a, b, c);
                 return;
             }
+            if (command == "mouse_move")
+            {
+                if (TryInt(Arg(bundle, "deltaX"), out a) &&
+                    TryInt(Arg(bundle, "deltaY"), out b))
+                    _engine.SendMouseMove(a, b);
+                return;
+            }
+            if (command == "mouse_button")
+            {
+                if (TryInt(Arg(bundle, "button"), out a) &&
+                    TryInt(Arg(bundle, "pressed"), out b))
+                    _engine.SendMouseButton(a, b != 0 ? 1 : 0);
+                return;
+            }
+            if (command == "mouse_scroll")
+            {
+                if (TryInt(Arg(bundle, "amount"), out a))
+                    _engine.SendMouseScroll(a);
+                return;
+            }
             if (command == "gamepad_arrival")
             {
                 if (TryInt(Arg(bundle, "index"), out a) &&
@@ -457,7 +477,9 @@ namespace MoonlightWmpHost
                     return;
                 }
                 bool inputCommand = command == "input_key" ||
-                    command == "gamepad_arrival" || command == "gamepad_state";
+                    command == "mouse_move" || command == "mouse_button" ||
+                    command == "mouse_scroll" || command == "gamepad_arrival" ||
+                    command == "gamepad_state";
                 if (String.IsNullOrEmpty(id) && !inputCommand)
                 {
                     Respond(appId, remotePort, id, "error",
@@ -474,6 +496,9 @@ namespace MoonlightWmpHost
                 switch (command)
                 {
                     case "input_key":
+                    case "mouse_move":
+                    case "mouse_button":
+                    case "mouse_scroll":
                     case "gamepad_arrival":
                     case "gamepad_state":
                         HandleInputCommand(command, bundle);
