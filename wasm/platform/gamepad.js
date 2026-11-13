@@ -103,7 +103,7 @@ const Controller = (function() {
     const gamepads = navigator.getGamepads
       ? navigator.getGamepads()
       : navigator.webkitGetGamepads
-      ? navigator.webkitGetGamepads
+      ? navigator.webkitGetGamepads()
       : [];
     for (const gamepad of gamepads) {
       if (gamepad) {
