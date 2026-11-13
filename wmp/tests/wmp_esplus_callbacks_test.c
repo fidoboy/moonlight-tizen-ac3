@@ -19,7 +19,7 @@ typedef struct {
     void *expected_context;
 } callback_state_t;
 
-static void on_error(uint32_t value, void *context)
+static void on_error(int value, void *context)
 {
     callback_state_t *s = context;
     assert(s == s->expected_context);
