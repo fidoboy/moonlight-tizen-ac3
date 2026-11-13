@@ -19,6 +19,7 @@
 #include "esplus_stats.h"
 #include "mldiag.h"
 #include "mltrace.h"
+#include "wmp_window_order.h"
 
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
@@ -562,6 +563,10 @@ static void *win_create_main(void *arg)
     ecore_wl2_window_alpha_set(s_win, 1);
     ecore_wl2_window_show(s_win);
     ecore_wl2_display_flush(s_disp);
+    if (ecore_wl2_display_sync) {
+        ecore_wl2_display_sync(s_disp);
+        MLT("window show synchronized with compositor");
+    }
     MLT("window shown");
 
     display_result = wmp_esplus_adapter_set_ecore_display(
@@ -617,6 +622,8 @@ int esplus_set_window(int width, int height)
             req.rc == -2 ? "set_ecore_display" : "no window/display access");
         return -1;
     }
+    /* Diagnostic lookup only; no stacking request is sent in this test build. */
+    (void)wmp_window_order_probe();
     MLT("esplus_set_window -> 0");
     return 0;
 }
