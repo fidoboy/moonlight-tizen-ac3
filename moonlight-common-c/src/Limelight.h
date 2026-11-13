@@ -304,6 +304,8 @@ typedef void(*DecoderRendererCleanup)(void);
 // it must return DR_NEED_IDR to generate a keyframe.
 #define DR_OK 0
 #define DR_NEED_IDR -1
+// The decoder renderer cannot continue. Common C will terminate the active session.
+#define DR_FATAL -2
 typedef int(*DecoderRendererSubmitDecodeUnit)(PDECODE_UNIT decodeUnit);
 
 typedef struct _DECODER_RENDERER_CALLBACKS {
@@ -442,6 +444,8 @@ typedef void(*ConnListenerConnectionTerminated)(int errorCode);
 // desktop resolution and streaming resolution with HDR enabled. This value is
 // supported on GFE 3.22+.
 #define ML_ERROR_FRAME_CONVERSION -104
+// The local video renderer rejected a frame and cannot continue playback.
+#define ML_ERROR_VIDEO_RENDERER -300
 
 // This callback is invoked to log debug message
 typedef void(*ConnListenerLogMessage)(const char* format, ...);
