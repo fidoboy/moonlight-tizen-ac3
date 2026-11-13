@@ -92,6 +92,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
     RESOLVE(set_display_mode, "esplusplayer_set_display_mode");
     RESOLVE(get_playing_time, "esplusplayer_get_playing_time");
+    RESOLVE(get_error_string, "esplusplayer_get_error_string");
     RESOLVE(set_video_stream_info, "esplusplayer_set_video_stream_info");
     RESOLVE(set_audio_stream_info, "esplusplayer_set_audio_stream_info");
     RESOLVE(add_video_stream_info, "esplusplayer_add_video_stream_info");
