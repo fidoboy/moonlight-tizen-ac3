@@ -325,6 +325,11 @@ void LiCompleteVideoFrame(VIDEO_FRAME_HANDLE handle, int drStatus) {
     }
 }
 
+void LiReportVideoRendererError(void) {
+    Limelog("Native video renderer reported a fatal error; terminating the streaming session\\n");
+    ListenerCallbacks.connectionTerminated(ML_ERROR_VIDEO_RENDERER);
+}
+
 static bool isSeqReferenceFrameStart(PBUFFER_DESC buffer) {
     BUFFER_DESC startSeq;
 
