@@ -305,7 +305,8 @@ static void on_prepared(bool ok, void *context)
     s_prepared = 1;
     if (!ok) {
         s_prepare_failed = 1;
-        report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
+        if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
+            report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
     }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
@@ -314,7 +315,7 @@ static void on_prepared(bool ok, void *context)
     if (!ok) {
         PLOG("prepare_async_done reported false; start() will not be called\n");
         MLT("prepare_async_done=false; start skipped");
-        if (report_failure)
+        if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
             LiReportVideoRendererError();
         return;
     }
@@ -367,7 +368,7 @@ static void on_error(int error, void *context)
          (unsigned)error, error, description ? description : "unavailable");
     MLT("cb player error code=0x%08x (%d) description=%s",
         (unsigned)error, error, description ? description : "unavailable");
-    if (report_failure)
+    if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
         LiReportVideoRendererError();
 }
 static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status, void *context)
@@ -801,7 +802,7 @@ void esplus_close(void)
     s_corr_us = 0; s_corr_ms = 0; s_tick_prev_ms = 0;
     /* Serialize dlclose with a possible next esplus_create_open(). */
     wmp_esplus_close(&s_api);
-    s_player_closing = 0;
+    __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
     if (s_win || s_disp || s_ecore) {
