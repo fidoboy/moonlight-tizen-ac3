@@ -661,12 +661,15 @@
     var code = Number(event.keyCode || event.which || 0);
     if (!code || code > 0xFFFF) return;
     // Samsung remote keys are already translated by remote_controller.js.
-    if (global.tvKey && (
+    var isSamsungRemoteKey = global.tvKey && (
       code === global.tvKey.KEY_UP || code === global.tvKey.KEY_DOWN ||
       code === global.tvKey.KEY_LEFT || code === global.tvKey.KEY_RIGHT ||
       code === global.tvKey.KEY_ENTER || code === global.tvKey.KEY_REMOTE_ENTER ||
       code === global.tvKey.KEY_RETURN
-    )) return;
+    );
+    // DOM keyboard events carry a physical KeyboardEvent.code; Samsung's
+    // platform remote callback is handled separately by remote_controller.js.
+    if (isSamsungRemoteKey && (!event.code || event.code === 'Unidentified')) return;
 
     var key = String(code);
     if (event.type === 'keydown') {
