@@ -117,7 +117,7 @@ static pthread_cond_t s_state_cv = PTHREAD_COND_INITIALIZER;
 static volatile int s_prepared, s_prepare_ok, s_started;
 static int s_video_ready;
 static int s_prepare_failed, s_start_failed;
-static int s_start_tried, s_start_in_progress, s_player_closing;
+static int s_start_tried, s_player_closing;
 static volatile int s_prepare_called;
 static uint64_t s_idr_t0, s_idr_last;
 static unsigned s_idr_n, s_video_tries;
@@ -294,59 +294,25 @@ static void sampler_stop(void)
 
 static void on_prepared(bool ok, void *context)
 {
-    wmp_esplus_call_result_t started;
-    int should_start = 0;
-
     (void)context;
     pthread_mutex_lock(&s_lock);
     MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d",
         ok ? 1 : 0, s_prepared, s_start_tried);
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
-
-    if (!ok) {
+    if (!ok)
         s_prepare_failed = 1;
-        pthread_cond_broadcast(&s_state_cv);
-        pthread_mutex_unlock(&s_lock);
-        mldiag_player("pdone", 0);
+    pthread_cond_broadcast(&s_state_cv);
+    pthread_mutex_unlock(&s_lock);
+
+    mldiag_player("pdone", ok ? 1 : 0);
+    if (!ok) {
         PLOG("prepare_async_done reported false; start() will not be called\n");
         MLT("prepare_async_done=false; start skipped");
         return;
     }
-
-    if (!s_player_closing && !s_start_tried) {
-        s_start_tried = 1;
-        s_start_in_progress = 1;
-        should_start = 1;
-    }
-    pthread_cond_broadcast(&s_state_cv);
-    pthread_mutex_unlock(&s_lock);
-
-    mldiag_player("pdone", 1);
     PLOG("callback prepare_async_done=true\n");
     MLT("cb prepare_async_done=true");
-
-    if (!should_start)
-        return;
-
-    MLT("stage start CALL about_to_enter after prepare_async_done(true)");
-    started = wmp_esplus_adapter_start(&s_adapter);
-
-    pthread_mutex_lock(&s_lock);
-    s_start_in_progress = 0;
-    if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
-        __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
-    } else {
-        s_start_failed = 1;
-    }
-    pthread_cond_broadcast(&s_state_cv);
-    pthread_mutex_unlock(&s_lock);
-
-    PLOG("ESPlus start returned status=%d raw=%d (prepare callback=true)\n",
-         (int)started.status, started.raw_status);
-    MLT("stage start CALL returned status=%d raw=%d",
-        (int)started.status, started.raw_status);
-    mldiag_player("start", started.raw_status);
 }
 static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
@@ -433,7 +399,7 @@ int esplus_create_open(void)
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
-    s_start_tried = s_start_in_progress = 0;
+    s_start_tried = 0;
     s_player_closing = 0;
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_prepare_called = 0;
@@ -620,7 +586,7 @@ int esplus_prepare(void)
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
-    s_start_tried = s_start_in_progress = 0;
+    s_start_tried = 0;
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_idr_t0 = esplus_mono_ms();
     s_idr_last = 0;
@@ -650,6 +616,7 @@ int esplus_prepare(void)
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 {
     wmp_esplus_submit_result_t result;
+    wmp_esplus_call_result_t started;
     static unsigned n;
     static int last_raw = 4;
 
@@ -676,6 +643,33 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             pthread_mutex_unlock(&s_lock);
             return result;
         }
+    }
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
+        s_prepared && s_prepare_ok && !s_start_tried) {
+        /* start() is legal only after prepare_async_done(true). Keep it on
+         * the feeder path rather than calling back into ESPlus from its own
+         * prepare callback. */
+        s_start_tried = 1;
+        MLT("stage start CALL about_to_enter after prepare_async_done(true)");
+        started = wmp_esplus_adapter_start(&s_adapter);
+        MLT("stage start CALL returned status=%d raw=%d",
+            (int)started.status, started.raw_status);
+        if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
+            __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
+        } else {
+            s_start_failed = 1;
+            pthread_cond_broadcast(&s_state_cv);
+            PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\n",
+                 (int)started.status, started.raw_status);
+            mldiag_player("start", started.raw_status);
+            result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+            result.raw_status = INT_MIN;
+            pthread_mutex_unlock(&s_lock);
+            return result;
+        }
+        PLOG("ESPlus start returned status=%d raw=%d (prepare callback=true)\n",
+             (int)started.status, started.raw_status);
+        mldiag_player("start", started.raw_status);
     }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
         MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
@@ -728,8 +722,6 @@ void esplus_close(void)
     pthread_mutex_lock(&s_lock);
     s_player_closing = 1;
     pthread_cond_broadcast(&s_state_cv);
-    while (s_start_in_progress)
-        pthread_cond_wait(&s_state_cv, &s_lock);
     pthread_mutex_unlock(&s_lock);
 
     if (s_pl) {
@@ -749,7 +741,7 @@ void esplus_close(void)
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
-    s_start_tried = s_start_in_progress = 0;
+    s_start_tried = 0;
     s_prepare_called = 0;
     s_idr_t0 = s_idr_last = 0;
     s_idr_n = s_video_tries = 0;
