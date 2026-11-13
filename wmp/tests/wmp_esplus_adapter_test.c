@@ -25,8 +25,17 @@ static void test_video_mime_mapping(void)
                                     WMP_ESPLUS_VIDEO_MIME_H264, &native) == 0);
     assert(native == 2);
     assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
-                                    WMP_ESPLUS_VIDEO_MIME_HEVC, &native) == 0);
+                                    WMP_ESPLUS_VIDEO_MIME_H264, &native) == 0);
     assert(native == 2);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_VIDEO_MIME_HEVC, &native) == 0);
+    assert(native == 3);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_VIDEO_MIME_AV1, &native) == 0);
+    assert(native == 10);
+    assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    WMP_ESPLUS_VIDEO_MIME_AV1, &native) == 0);
+    assert(native == 10);
     assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_SET,
                                     WMP_ESPLUS_VIDEO_MIME_UNKNOWN, &native) == -1);
     assert(wmp_esplus_map_video_mime(WMP_ESPLUS_FAMILY_ADD,
