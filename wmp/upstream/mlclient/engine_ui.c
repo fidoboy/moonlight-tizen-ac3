@@ -140,4 +140,33 @@ void ml_engine_send_key(int key_code, int key_action, int modifiers) {
   (void)LiSendKeyboardEvent((short)key_code, (char)key_action, (char)modifiers);
 }
 
+void ml_engine_send_mouse_move(int delta_x, int delta_y) {
+  if (!ml_engine_running()) return;
+  if (delta_x < -32768) delta_x = -32768;
+  if (delta_x > 32767) delta_x = 32767;
+  if (delta_y < -32768) delta_y = -32768;
+  if (delta_y > 32767) delta_y = 32767;
+  LiSendMouseMoveEvent((short)delta_x, (short)delta_y);
+}
+
+void ml_engine_send_mouse_button(int button, int pressed) {
+  char native_button;
+  if (!ml_engine_running()) return;
+  switch (button) {
+    case 0: native_button = BUTTON_LEFT; break;
+    case 1: native_button = BUTTON_MIDDLE; break;
+    case 2: native_button = BUTTON_RIGHT; break;
+    default: return;
+  }
+  LiSendMouseButtonEvent(pressed ? BUTTON_ACTION_PRESS : BUTTON_ACTION_RELEASE,
+                         native_button);
+}
+
+void ml_engine_send_mouse_scroll(int amount) {
+  if (!ml_engine_running()) return;
+  if (amount < -127) amount = -127;
+  if (amount > 127) amount = 127;
+  if (amount != 0) LiSendScrollEvent((signed char)amount);
+}
+
 void ml_engine_free(void *p) { free(p); }
