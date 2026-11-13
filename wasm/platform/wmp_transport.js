@@ -88,7 +88,7 @@
       if (message.event === 'Connection Established') {
         nativeGamepadMask = 0;
       }
-      if (message.event && /^wmpInputCapabilities: \\d+$/.test(String(message.event))) {
+      if (message.event && /^wmpInputCapabilities: \d+$/.test(String(message.event))) {
         nativeInputCapabilities = Number(String(message.event).slice('wmpInputCapabilities: '.length)) | 0;
         debugLog('native evdev input capabilities received', {
           capabilities: nativeInputCapabilities,
