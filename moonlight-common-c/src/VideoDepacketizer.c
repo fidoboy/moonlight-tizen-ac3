@@ -299,7 +299,11 @@ void LiCompleteVideoFrame(VIDEO_FRAME_HANDLE handle, int drStatus) {
     PQUEUED_DECODE_UNIT qdu = handle;
     PLENTRY_INTERNAL lastEntry;
 
-    if (drStatus == DR_NEED_IDR) {
+    if (drStatus == DR_FATAL) {
+        Limelog("Video renderer reported a fatal error; terminating the streaming session\n");
+        ListenerCallbacks.connectionTerminated(ML_ERROR_VIDEO_RENDERER);
+    }
+    else if (drStatus == DR_NEED_IDR) {
         Limelog("Requesting IDR frame on behalf of DR\n");
         requestDecoderRefresh();
     }
