@@ -47,6 +47,18 @@ static void window_order_log(const char *format, ...)
 }
 
 #define WLOG(...) window_order_log(__VA_ARGS__)
+/* Public libdbus DBusError ABI: name and message are the first two fields. */
+typedef struct {
+    const char *name;
+    const char *message;
+    unsigned int dummy1 : 1;
+    unsigned int dummy2 : 1;
+    unsigned int dummy3 : 1;
+    unsigned int dummy4 : 1;
+    unsigned int dummy5 : 1;
+    void *padding1;
+} dbus_error_info_t;
+
 typedef union {
     long double align_ld;
     void *align_ptr;
@@ -230,7 +242,11 @@ static int query_window_resource_id(pid_t pid, uint32_t *resource_id)
     reply = s_dbus.connection_send_with_reply_and_block(
         connection, message, DBUS_TIMEOUT_MS, error.bytes);
     if (!reply || s_dbus.error_is_set(error.bytes)) {
-        WLOG("get_window_prop D-Bus call failed for PID %s", pid_text);
+        const dbus_error_info_t *detail = (const dbus_error_info_t *)error.bytes;
+        WLOG("get_window_prop D-Bus call failed for PID %s: name=%s message=%s",
+             pid_text,
+             detail->name ? detail->name : "(none)",
+             detail->message ? detail->message : "(none)");
         if (s_dbus.error_is_set(error.bytes)) s_dbus.error_free(error.bytes);
         goto done;
     }
