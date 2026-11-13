@@ -28,6 +28,12 @@
 #include "Limelight.h"
 #include "mltrace.h"
 
+#ifndef MLT_TRACE
+/* Keep trace arguments referenced in non-trace builds without doing any I/O. */
+#undef MLT
+#define MLT(...) do { if (0) fprintf(stderr, __VA_ARGS__); } while (0)
+#endif
+
 #ifndef BTN_SOUTH
 #define BTN_SOUTH BTN_A
 #define BTN_EAST  BTN_B
@@ -507,6 +513,8 @@ int input_init(void) {
             path, candidate.name, candidate.caps);
     }
     closedir(dir);
+    if (s_device_count == MAX_DEV)
+        MLT("[input] device scan reached MAX_DEV=%d; remaining event nodes were not inspected", MAX_DEV);
 
     MLT("[input] scan complete: event_nodes=%d opened=%d accepted=%d rejected=%d",
         event_entries, opened_devices, s_device_count, rejected_devices);
