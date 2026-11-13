@@ -111,6 +111,12 @@ static short map_vk(int code) {
     case KEY_SLASH: return 0xBF; case KEY_KPSLASH: return 0x6F;
     case KEY_KPASTERISK: return 0x6A; case KEY_KPMINUS: return 0x6D;
     case KEY_KPPLUS: return 0x6B; case KEY_KPDOT: return 0x6E;
+    case KEY_KP0: return 0x60; case KEY_KP1: return 0x61;
+    case KEY_KP2: return 0x62; case KEY_KP3: return 0x63;
+    case KEY_KP4: return 0x64; case KEY_KP5: return 0x65;
+    case KEY_KP6: return 0x66; case KEY_KP7: return 0x67;
+    case KEY_KP8: return 0x68; case KEY_KP9: return 0x69;
+    case KEY_NUMLOCK: return 0x90;
     default: return 0;
     }
 }
@@ -120,6 +126,7 @@ static void update_modifier(int code, int down) {
     if (code == KEY_LEFTSHIFT || code == KEY_RIGHTSHIFT) flag = MODIFIER_SHIFT;
     else if (code == KEY_LEFTCTRL || code == KEY_RIGHTCTRL) flag = MODIFIER_CTRL;
     else if (code == KEY_LEFTALT || code == KEY_RIGHTALT) flag = MODIFIER_ALT;
+    else if (code == KEY_LEFTMETA || code == KEY_RIGHTMETA) flag = MODIFIER_META;
     if (flag) {
         if (down) s_modifiers |= flag;
         else s_modifiers &= (char)~flag;
@@ -128,7 +135,7 @@ static void update_modifier(int code, int down) {
 
 static char key_modifier_flags(int code) {
     switch (code) {
-    case KEY_RIGHTCTRL: case KEY_RIGHTALT: case KEY_RIGHTMETA:
+    case KEY_RIGHTCTRL: case KEY_RIGHTALT: case KEY_LEFTMETA: case KEY_RIGHTMETA:
     case KEY_KPENTER: case KEY_KPSLASH:
     case KEY_UP: case KEY_DOWN: case KEY_LEFT: case KEY_RIGHT:
     case KEY_INSERT: case KEY_DELETE: case KEY_HOME: case KEY_END:
