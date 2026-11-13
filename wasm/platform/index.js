@@ -5776,11 +5776,13 @@ function handleNormalStreamVideoReady() {
     background: 'transparent',
     backgroundColor: 'transparent'
   });
-  $('#wasm_module').css({
-    display: '',
-    background: 'transparent',
-    backgroundColor: 'transparent'
-  });
+  if (!window.isNativeStreamingEngineActive()) {
+    $('#wasm_module').css({
+      display: '',
+      background: 'transparent',
+      backgroundColor: 'transparent'
+    });
+  }
   $('#listener').addClass('fullscreen');
 
   // Schedule the startup transition hide through a cancellable lifecycle operation.
@@ -5798,7 +5800,7 @@ function handleDirectSmartHubVideoReady() {
   var body = document.body;
   if (body) body.style.backgroundColor = 'transparent';
   var video = document.getElementById('wasm_module');
-  if (video) {
+  if (video && !window.isNativeStreamingEngineActive()) {
     video.style.display = '';
     video.style.background = 'transparent';
     video.style.backgroundColor = 'transparent';
@@ -5858,7 +5860,10 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       stopPollingHosts();
       isInGame = true;
       startAmbilightForStream();
-      fullscreenWasmModule(streamWidth, streamHeight);
+      if (typeof getSelectedStreamingEngine !== 'function' ||
+          getSelectedStreamingEngine() !== 'ESPLUSPLAYER') {
+        fullscreenWasmModule(streamWidth, streamHeight);
+      }
       showUiLayer('stream-diagnostics-layer');
       resolve();
     };
@@ -6459,7 +6464,7 @@ function getStreamMenuOptions() {
 function requestManualStreamStop() {
   // Both engines use the same visual closing transition. Only the final stop
   // command differs: WMP must stop through its native Common C session owner.
-  var isWmpStream = window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+  var isWmpStream = window.getStreamingEngineState().active === 'ESPLUSPLAYER' &&
     window.ESPlusPlayerTransport &&
     typeof window.ESPlusPlayerTransport.stopStream === 'function';
   if (isWmpStream && window._manualStreamStopRequested) return;
@@ -6653,13 +6658,16 @@ function toggleStreamMenuDialog() {
   var transitionLayer = document.getElementById('stream-transition-layer');
   var transitionActive = streamTransitionVisible ||
     (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none');
-  var isWmpStream = window._activeStreamingEngine === 'ESPLUSPLAYER' &&
-    window._activeStreamingEngineConfirmed === true;
-  // WMP renders outside #wasm_module. Common C's video-ready lifecycle flag
-  // is the readiness authority for that engine; do not require an EMSS video.
-  var videoReady = isWmpStream || (videoElement && videoElement.style.display !== 'none' &&
-    videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0);
-  var streamReady = window._normalStreamVideoReady || window._directSmartHubVideoReady;
+  var engineState = window.getStreamingEngineState();
+  var isWmpStream = engineState.active === 'ESPLUSPLAYER' && engineState.confirmed === true;
+  // Native readiness comes from the native player's displayVideo notification.
+  var videoReady = isWmpStream
+    ? engineState.videoReady
+    : (videoElement && videoElement.style.display !== 'none' &&
+      videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0);
+  var streamReady = isWmpStream
+    ? engineState.videoReady
+    : (window._normalStreamVideoReady || window._directSmartHubVideoReady);
 
   if (streamMenuDialogOverlay.length > 0) {
     // During teardown, close without returning focus to a video covered by the transition.

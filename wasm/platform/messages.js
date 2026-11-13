@@ -4,6 +4,36 @@ function normalizeStreamingEngine(value) {
   return value === 'ESPLUSPLAYER' || value === 'WMP' ? 'ESPLUSPLAYER' : value === 'EMSS' ? 'EMSS' : null;
 }
 
+// Explicit engine lifecycle state; native video readiness is independent of HTML video.
+window._streamingEngineState = window._streamingEngineState || {
+  selected: null, active: null, confirmed: false, videoReady: false
+};
+window.getStreamingEngineState = function() { return window._streamingEngineState; };
+window.isNativeStreamingEngineActive = function() {
+  var state = window._streamingEngineState;
+  return !!state && state.active === 'ESPLUSPLAYER' && state.confirmed === true;
+};
+function resetStreamingEngineState(engine) {
+  var normalized = normalizeStreamingEngine(engine);
+  window._streamingEngineState = {
+    selected: normalized, active: normalized, confirmed: false, videoReady: false
+  };
+  // Keep the legacy diagnostics fields synchronized until their remaining consumers migrate.
+  window._activeStreamingEngine = normalized;
+  window._activeStreamingEngineConfirmed = false;
+}
+function confirmStreamingEngineConnection() {
+  var state = window._streamingEngineState;
+  if (state && state.active) {
+    state.confirmed = true;
+    window._activeStreamingEngineConfirmed = true;
+  }
+}
+function markStreamingEngineVideoReady() {
+  var state = window._streamingEngineState;
+  if (state && state.active && state.confirmed) state.videoReady = true;
+}
+
 function getSelectedStreamingEngine() {
   if (window._directSmartHubLaunch) {
     var directSettings = window._directSmartHubStreamSettings;
@@ -94,8 +124,7 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
-    window._activeStreamingEngine = activeStreamingEngine;
-    window._activeStreamingEngineConfirmed = false;
+    resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
     if (!activeStreamingEngine) {
       pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or ESPlusPlayer and try again.';
@@ -1127,6 +1156,9 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    var engineState = window.getStreamingEngineState();
+    engineState.confirmed = false;
+    engineState.videoReady = false;
     window._activeStreamingEngineConfirmed = false;
     window._esplusActiveAudioCodec = null;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
@@ -1615,7 +1647,7 @@ function handleMessage(msg) {
     });
 
   } else if (msg === 'Connection Established') {
-    window._activeStreamingEngineConfirmed = true;
+    confirmStreamingEngineConnection();
     if (typeof window.refreshPerformanceStatsEngineStatus === 'function') window.refreshPerformanceStatsEngineStatus();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
@@ -1626,8 +1658,11 @@ function handleMessage(msg) {
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
     $('body').css('backgroundColor', 'transparent');
-    $('#wasm_module').css('display', '');
-    $('#wasm_module').focus();
+    // ESPlusPlayer presents through its native Tizen surface, not #wasm_module.
+    if (!window.isNativeStreamingEngineActive()) {
+      $('#wasm_module').css('display', '');
+      $('#wasm_module').focus();
+    }
   } else if (msg.indexOf('MediaPipelineErrorMsg: ') === 0) {
     // MediaSource may report a format error while it is being closed. Such a
     // callback is a teardown side effect, not a failure of the active stream.
@@ -1703,6 +1738,7 @@ function handleMessage(msg) {
     // A late first-frame notification must not revive a stream whose startup failed.
     if (window._streamStartupFailureHandled) return;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
+    markStreamingEngineVideoReady();
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
     // "playing" event is also wired as a fallback for builds that omit this message.

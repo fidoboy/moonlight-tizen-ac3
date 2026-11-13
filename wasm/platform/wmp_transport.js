@@ -559,7 +559,8 @@
   var nativeGamepadMask = 0;
 
   function nativeInputActive() {
-    return global._activeStreamingEngine === 'ESPLUSPLAYER' && global._activeStreamingEngineConfirmed === true;
+    var state = global.getStreamingEngineState && global.getStreamingEngineState();
+    return !!state && state.active === 'ESPLUSPLAYER' && state.confirmed === true;
   }
 
   function controllerType(id) {
