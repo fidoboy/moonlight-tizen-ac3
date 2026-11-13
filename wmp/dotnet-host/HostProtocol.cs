@@ -574,17 +574,21 @@ namespace MoonlightWmpHost
             text.Append("Native player: ")
                 .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
-                .Append(stats.DepthMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\n");
+                .Append(stats.DepthMs == Int32.MinValue
+                    ? "n/a"
+                    : stats.DepthMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
             text.Append("Frames submitted: ")
                 .Append(stats.Submitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" · late drops: ").Append(stats.DroppedLate.ToString(CultureInfo.InvariantCulture))
                 .Append(" · queue drops: ").Append(stats.DroppedFull.ToString(CultureInfo.InvariantCulture)).Append("\n");
             text.Append("Playback time: ")
-                .Append(stats.PlayingMs.ToString(CultureInfo.InvariantCulture)).Append(" ms\n");
+                .Append(stats.PlayingMs == UInt32.MaxValue
+                    ? "n/a"
+                    : stats.PlayingMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
             text.Append("Player errors: ").Append(stats.Errors.ToString(CultureInfo.InvariantCulture))
                 .Append(" (last: 0x").Append(stats.LastError.ToString("X", CultureInfo.InvariantCulture))
-                .Append(") · underruns: ").Append(stats.Underruns.ToString(CultureInfo.InvariantCulture))
-                .Append(" · overruns: ").Append(stats.Overruns.ToString(CultureInfo.InvariantCulture));
+                .Append(") · video queue-empty events: ").Append(stats.Underruns.ToString(CultureInfo.InvariantCulture))
+                .Append(" · video queue-full events: ").Append(stats.Overruns.ToString(CultureInfo.InvariantCulture));
             return text.ToString();
         }
 
@@ -897,12 +901,13 @@ namespace MoonlightWmpHost
                             ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", video_ready=" + (_engine.VideoReady() != 0 ? "1" : "0") +
-                            ", playing_ms=" + (statsResult == 0 ? stats.PlayingMs.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", playing_ms=" + (statsResult != 0 ? "unknown" :
+                                stats.PlayingMs == UInt32.MaxValue ? "n/a" : stats.PlayingMs.ToString(CultureInfo.InvariantCulture)) +
                             ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", underruns=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", overruns=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
+                            ", video_queue_empty_events=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                            ", video_queue_full_events=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
                         RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
                         Log.Info("WMP stream diagnostic: " + streamStatsDiagnostic);
                         Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
