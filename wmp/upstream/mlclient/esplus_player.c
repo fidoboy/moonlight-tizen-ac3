@@ -313,7 +313,7 @@ static void on_prepared(bool ok, void *context)
 
     mldiag_player("pdone", ok ? 1 : 0);
     if (!ok) {
-        fprintf(stderr, "[esplus] prepare_async_done reported false; start() will not be called\\n");
+        fprintf(stderr, "[esplus] prepare_async_done reported false; start() will not be called\n");
         PLOG("prepare_async_done reported false; start() will not be called\n");
         MLT("prepare_async_done=false; start skipped");
         if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
@@ -365,7 +365,7 @@ static void on_error(int error, void *context)
         }
     }
 
-    fprintf(stderr, "[esplus] player error code=0x%08x (%d) description=%s\\n",
+    fprintf(stderr, "[esplus] player error code=0x%08x (%d) description=%s\n",
             (unsigned)error, error, description ? description : "unavailable");
     PLOG("player error code=0x%08x (%d) description=%s\n",
          (unsigned)error, error, description ? description : "unavailable");
@@ -393,7 +393,7 @@ static void on_conflict(void *context)
     (void)context;
     /* Record the native condition; Common C remains responsible for session state. */
     __atomic_store_n(&esplus_stats.recovery_state, 2, __ATOMIC_RELAXED);
-    fprintf(stderr, "[esplus] resource conflict\\n");
+    fprintf(stderr, "[esplus] resource conflict\n");
     PLOG("resource conflict\n");
     MLT("cb resource_conflicted");
 }
@@ -710,7 +710,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         } else {
             s_start_failed = 1;
             pthread_cond_broadcast(&s_state_cv);
-            fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\\n",
+            fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\n",
                     (int)started.status, started.raw_status);
             PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\n",
                  (int)started.status, started.raw_status);
