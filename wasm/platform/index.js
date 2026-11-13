@@ -931,7 +931,7 @@ function attachListeners() {
         const buttonMapping = {
           0: () => delayedNavigation(() => Navigation.accept(), gamepadIndex),
           1: () => delayedNavigation(() => Navigation.back(), gamepadIndex),
-          8: () => delayedNavigation(() => Navigation.move(), gamepadIndex),
+          8: () => delayedNavigation(() => Navigation.switch(), gamepadIndex),
         };
         // Handle D-Pad mapping
         const dPadMapping = {
