@@ -14,7 +14,11 @@ static int g_pad_traced;   /* state lines traced since the last arrival: the UI 
 
 int ml_engine_gamepad_arrival(int index, int active_mask, int type, unsigned int supported_buttons,
                               int capabilities) {
-  if (index < 0 || index > 15 || !ml_engine_running()) { mldiag_pad(1, -1); return -1; }
+  if (index < 0 || index > 15 || !ml_engine_running() || active_mask < 0 || active_mask > 0xFFFF ||
+      type < LI_CTYPE_UNKNOWN || type > LI_CTYPE_STEAM || capabilities < 0 || capabilities > 0xFFFF) {
+    mldiag_pad(1, -1);
+    return -1;
+  }
   g_pad_traced = 0;
   int rc = LiSendControllerArrivalEvent((uint8_t)index, (uint16_t)active_mask, (uint8_t)type,
                                         supported_buttons, (uint16_t)capabilities);
@@ -26,7 +30,10 @@ int ml_engine_gamepad_arrival(int index, int active_mask, int type, unsigned int
 
 int ml_engine_gamepad_state(int index, int active_mask, int buttons, int left_trigger,
                             int right_trigger, int ls_x, int ls_y, int rs_x, int rs_y) {
-  if (index < 0 || index > 15 || !ml_engine_running()) { mldiag_pad(0, -1); return -1; }
+  if (index < 0 || index > 15 || !ml_engine_running() || active_mask < 0 || active_mask > 0xFFFF) {
+    mldiag_pad(0, -1);
+    return -1;
+  }
   int rc = LiSendMultiControllerEvent((short)index, (short)active_mask, buttons,
                                       (unsigned char)clampi(left_trigger, 0, 255),
                                       (unsigned char)clampi(right_trigger, 0, 255),
