@@ -712,6 +712,11 @@
     // to acquire pointer lock for relative mouse movement.
   }
 
+  function onMouseContextMenu(event) {
+    if (!nativeInputActive() || inputUiBlocked()) return;
+    if (event.cancelable) event.preventDefault();
+  }
+
   function onMouseWheel(event) {
     if (!nativeInputActive() || inputUiBlocked()) return;
     var wheelDelta = Number(event.deltaY || 0);
@@ -732,6 +737,7 @@
     global.document.addEventListener('mousemove', onMouseMove, true);
     global.document.addEventListener('mousedown', onMouseButton, true);
     global.document.addEventListener('mouseup', onMouseButton, true);
+    global.document.addEventListener('contextmenu', onMouseContextMenu, true);
     global.document.addEventListener('wheel', onMouseWheel, {capture: true, passive: false});
   }
   global.addEventListener('blur', releasePressedKeys);
