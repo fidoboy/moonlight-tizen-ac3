@@ -84,7 +84,7 @@ static void cl_connTerminated(int errorCode) {
   fprintf(stderr, "[ml] connection terminated err=%d\n", errorCode);
   MLT("connectionTerminated err=%d", errorCode);
   if (errorCode != 0) report_failure(errorCode, -1);   /* before g_running = 0: the host reads it after */
-  g_running = 0;
+  __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
 }
 /* moonlight-common-c is built with LC_LOG (build-deps-lib.sh): Limelog formats the line
    itself and passes it as the only argument, so it is plain text here; a '%' in it must
@@ -143,11 +143,21 @@ static int start_connection(void) {
                     (const unsigned char *)g_sc.remoteInputAesKey, 0, rtspscheme };
   { unsigned id; memcpy(&id, g_sc.remoteInputAesIv, 4); dc.rikeyid = (int)ntohl(id); }   /* rikeyid is the IV's first 4 bytes, big-endian */
   mldiag_reset(&dc);
+  /* Publish the active state before Common C starts its worker threads.
+   * connectionTerminated may be called from a renderer callback as soon as
+   * LiStartConnectionEx starts processing. Setting g_running after the call
+   * could overwrite that termination and leave the host worker running forever. */
+  __atomic_store_n(&g_running, 1, __ATOMIC_RELEASE);
   int err = LiStartConnectionEx(&g_si, &g_sc, &cl, &dr, arCallbacks, NULL, 0, NULL, 0,
                                 g_audio_enabled);
-  if (err != 0) { fprintf(stderr, "[ml] LiStartConnectionEx failed: %d\n", err); MLT("start_connection -> 1 (LiStartConnectionEx %d)", err); return 1; }
+  if (err != 0) {
+    __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
+    fprintf(stderr, "[ml] LiStartConnectionEx failed: %d\\n", err);
+    MLT("start_connection -> 1 (LiStartConnectionEx %d)", err);
+    return 1;
+  }
   MLT("LiStartConnection -> 0");
-  g_started = 1; g_running = 1;
+  g_started = 1;
 
   int in = input_init();
   MLT("input_init -> %d", in);
@@ -225,7 +235,7 @@ int ml_engine_get_stats(ml_engine_stats *out) {
 int ml_engine_last_error(char *buf, int len) { return mldiag_last(buf, len); }
 
 int ml_engine_running(void) {   /* polled every 500 ms by the host: trace only changes */
-  static int last = -1; int r = g_running;
+  static int last = -1; int r = __atomic_load_n(&g_running, __ATOMIC_ACQUIRE);
   if (r != last) { MLT("ml_engine_running -> %d", r); last = r; }
   return r;
 }
