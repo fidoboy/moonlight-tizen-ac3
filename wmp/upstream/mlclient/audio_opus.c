@@ -13,14 +13,12 @@
 
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
 #define DOLBY_SAMPLE_RATE 48000u
-#define DOLBY_FRAME_DURATION_NS 32000000ull
 
 static int s_sample_rate = 48000;
 static int s_channel_count;
 static int s_samples_per_frame = 240;
 static unsigned char s_opus_head[21 + AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT];
 static uint32_t s_opus_head_size;
-static uint64_t s_pts_ns;
 static int s_dolby;
 static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
@@ -36,7 +34,6 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
     s_dolby_passthrough_enabled = enabled != 0;
     s_dolby = 0;
-    s_pts_ns = 0;
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -102,7 +99,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 
     (void)context;
     (void)flags;
-    s_pts_ns = 0;
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -185,7 +181,6 @@ static void ar_stop(void) {}
 static void ar_cleanup(void)
 {
     s_dolby = 0;
-    s_pts_ns = 0;
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -198,13 +193,13 @@ static void ar_decodePlay(char *data, int len)
     uint64_t duration_ns;
 
     if (s_dolby) {
-        duration_ns = DOLBY_FRAME_DURATION_NS;
+        duration_ns = 32000000ull;
         if (data && len > 0) {
             memset(&packet, 0, sizeof(packet));
             packet.type = WMP_ESPLUS_STREAM_AUDIO;
             packet.data = data;
             packet.size = (uint32_t)len;
-            packet.pts_ns = s_pts_ns;
+            packet.pts_ns = esplus_stream_clock_pts_ns();
             packet.duration_ns = duration_ns;
             result = esplus_submit(&packet);
             if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
@@ -216,7 +211,6 @@ static void ar_decodePlay(char *data, int len)
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
                      (int)result.status, result.raw_status);
         }
-        s_pts_ns += duration_ns;
         return;
     }
 
@@ -224,7 +218,6 @@ static void ar_decodePlay(char *data, int len)
                   (uint64_t)(s_sample_rate > 0 ? s_sample_rate : 48000);
     if (!data || len <= 0) {
         /* A lost packet has no compressed payload to forward. */
-        s_pts_ns += duration_ns;
         return;
     }
 
@@ -232,7 +225,7 @@ static void ar_decodePlay(char *data, int len)
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
     packet.data = data;                 /* original Opus packet, no PCM stage */
     packet.size = (uint32_t)len;
-    packet.pts_ns = s_pts_ns;
+    packet.pts_ns = esplus_stream_clock_pts_ns();
     packet.duration_ns = duration_ns;
     result = esplus_submit(&packet);
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
@@ -241,7 +234,6 @@ static void ar_decodePlay(char *data, int len)
              result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
         ALOG("submit Opus audio failed status=%d raw=%d\n",
              (int)result.status, result.raw_status);
-    s_pts_ns += duration_ns;
 }
 
 void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
