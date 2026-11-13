@@ -528,6 +528,15 @@
   }
 
   function close() {
+    Object.keys(gamepadSendTimers).forEach(function(index) {
+      global.clearTimeout(gamepadSendTimers[index]);
+      delete gamepadSendTimers[index];
+    });
+    pendingGamepadStates = Object.create(null);
+    lastSentGamepadAxes = Object.create(null);
+    lastSentGamepadTriggers = Object.create(null);
+    lastSentGamepadFlags = Object.create(null);
+    nativeGamepadMask = 0;
     var pendingCount = Object.keys(pending).length;
     debugLog('closing ESPlusPlayer transport', {
       localPortAvailable: !!localPort,
