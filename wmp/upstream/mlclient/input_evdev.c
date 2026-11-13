@@ -353,6 +353,23 @@ int input_init(void) {
             continue;
         }
 
+        if (candidate.caps & INPUT_CAP_GAMEPAD) {
+            if (s_pad_registered) {
+                /* This first implementation exposes one physical controller. */
+                candidate.caps &= ~INPUT_CAP_GAMEPAD;
+            } else {
+                int rc = LiSendControllerArrivalEvent(0, 0x1, LI_CTYPE_UNKNOWN,
+                                                       gamepad_supported_buttons(), 1);
+                fprintf(stderr, "[input] evdev gamepad registration: rc=%d\n", rc);
+                if (rc == 0) s_pad_registered = 1;
+                else candidate.caps &= ~INPUT_CAP_GAMEPAD;
+            }
+        }
+        if (!candidate.caps) {
+            close(fd);
+            continue;
+        }
+
         s_devices[s_device_count] = candidate;
         s_poll[s_device_count].fd = fd;
         s_poll[s_device_count].events = POLLIN;
@@ -364,13 +381,6 @@ int input_init(void) {
                 !!(candidate.caps & INPUT_CAP_KEYBOARD),
                 !!(candidate.caps & INPUT_CAP_MOUSE),
                 !!(candidate.caps & INPUT_CAP_GAMEPAD));
-
-        if ((candidate.caps & INPUT_CAP_GAMEPAD) && !s_pad_registered) {
-            int rc = LiSendControllerArrivalEvent(0, 0x1, LI_CTYPE_UNKNOWN,
-                                                   gamepad_supported_buttons(), 1);
-            fprintf(stderr, "[input] evdev gamepad registered: rc=%d\n", rc);
-            s_pad_registered = rc == 0;
-        }
     }
     closedir(dir);
 
