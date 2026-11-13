@@ -2,6 +2,30 @@ function remoteControllerHandler(e) {
   isGamepadActive = false;
   const keyCode = e.keyCode;
 
+  // In native-engine mode the WASM input loop does not own the stream.
+  // Forward TV remote navigation keys directly to Moonlight Common C instead.
+  if (isInGame === true && window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.sendKey === 'function') {
+    let virtualKey = 0;
+    switch (keyCode) {
+      case tvKey.KEY_UP: virtualKey = 0x26; break;
+      case tvKey.KEY_DOWN: virtualKey = 0x28; break;
+      case tvKey.KEY_LEFT: virtualKey = 0x25; break;
+      case tvKey.KEY_RIGHT: virtualKey = 0x27; break;
+      case tvKey.KEY_ENTER:
+      case tvKey.KEY_REMOTE_ENTER: virtualKey = 0x0D; break;
+      case tvKey.KEY_RETURN: virtualKey = 0x1B; break;
+      default: break;
+    }
+    if (virtualKey !== 0) {
+      e.preventDefault();
+      window.ESPlusPlayerTransport.sendKey(virtualKey, 3, 0);
+      window.ESPlusPlayerTransport.sendKey(virtualKey, 4, 0);
+      return;
+    }
+  }
+
   switch (keyCode) {
     case tvKey.KEY_UP:
       // Navigate in the up direction
