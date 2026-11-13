@@ -137,6 +137,50 @@ namespace MoonlightWmpHost
                 CultureInfo.InvariantCulture, out result);
         }
 
+        private static bool TryUInt(string value, out uint result)
+        {
+            return UInt32.TryParse(value, NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out result);
+        }
+
+        private static void HandleInputCommand(string command, Bundle bundle)
+        {
+            if (_engine == null || _engine.Running() == 0) return;
+            int a, b, c, d, e, f, g, h, i;
+            uint buttons;
+            if (command == "input_key")
+            {
+                if (TryInt(Arg(bundle, "keyCode"), out a) &&
+                    TryInt(Arg(bundle, "keyAction"), out b) &&
+                    TryInt(Arg(bundle, "modifiers"), out c))
+                    _engine.SendKey(a, b, c);
+                return;
+            }
+            if (command == "gamepad_arrival")
+            {
+                if (TryInt(Arg(bundle, "index"), out a) &&
+                    TryInt(Arg(bundle, "activeMask"), out b) &&
+                    TryInt(Arg(bundle, "type"), out c) &&
+                    TryUInt(Arg(bundle, "supportedButtons"), out buttons) &&
+                    TryInt(Arg(bundle, "capabilities"), out d))
+                    _engine.GamepadArrival(a, b, c, buttons, d);
+                return;
+            }
+            if (command == "gamepad_state")
+            {
+                if (TryInt(Arg(bundle, "index"), out a) &&
+                    TryInt(Arg(bundle, "activeMask"), out b) &&
+                    TryInt(Arg(bundle, "buttons"), out c) &&
+                    TryInt(Arg(bundle, "leftTrigger"), out d) &&
+                    TryInt(Arg(bundle, "rightTrigger"), out e) &&
+                    TryInt(Arg(bundle, "lsX"), out f) &&
+                    TryInt(Arg(bundle, "lsY"), out g) &&
+                    TryInt(Arg(bundle, "rsX"), out h) &&
+                    TryInt(Arg(bundle, "rsY"), out i))
+                    _engine.GamepadState(a, b, c, d, e, f, g, h, i);
+            }
+        }
+
         private static bool TryBool(string value, out int result)
         {
             if (value == "true" || value == "1") { result = 1; return true; }
@@ -406,7 +450,15 @@ namespace MoonlightWmpHost
                         "{\"error\":\"unsupported_protocol\"}");
                     return;
                 }
-                if (String.IsNullOrEmpty(id) || String.IsNullOrEmpty(command))
+                if (String.IsNullOrEmpty(command))
+                {
+                    Respond(appId, remotePort, id, "error",
+                        "{\"error\":\"invalid_request\"}");
+                    return;
+                }
+                bool inputCommand = command == "input_key" ||
+                    command == "gamepad_arrival" || command == "gamepad_state";
+                if (String.IsNullOrEmpty(id) && !inputCommand)
                 {
                     Respond(appId, remotePort, id, "error",
                         "{\"error\":\"invalid_request\"}");
@@ -421,6 +473,11 @@ namespace MoonlightWmpHost
 
                 switch (command)
                 {
+                    case "input_key":
+                    case "gamepad_arrival":
+                    case "gamepad_state":
+                        HandleInputCommand(command, bundle);
+                        return;
                     case "ping":
                         Respond(appId, remotePort, id, "ok",
                             "{\"pong\":true,\"service\":" +
