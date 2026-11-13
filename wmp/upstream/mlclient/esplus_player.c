@@ -568,9 +568,9 @@ static void *win_create_main(void *arg)
     ecore_wl2_window_show(s_win);
     if (ecore_wl2_window_lower) {
         ecore_wl2_window_lower(s_win);
-        MLT("ecore_wl2_window_lower requested for WMP window");
+        PLOG("ecore_wl2_window_lower requested for WMP window\\n");
     } else {
-        MLT("ecore_wl2_window_lower unavailable on this firmware");
+        PLOG("ecore_wl2_window_lower unavailable on this firmware\\n");
     }
     ecore_wl2_display_flush(s_disp);
     if (ecore_wl2_display_sync) {
