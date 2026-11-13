@@ -53,15 +53,30 @@ const Controller = (function() {
 
       this.buttons = newButtons.map((button) => new Button(button));
       this.axes = newAxes.slice(); // Update stored axis values
+      return changes.length > 0;
     }
   }
 
   function gamepadConnected(gamepad) {
     gamepads[gamepad.index] = new Gamepad(gamepad);
+    window.dispatchEvent(new CustomEvent('esplusgamepadconnected', {
+      detail: { gamepadIndex: gamepad.index, id: gamepad.id, buttonCount: gamepad.buttons.length }
+    }));
+    window.dispatchEvent(new CustomEvent('esplusgamepadstate', {
+      detail: {
+        gamepadIndex: gamepad.index,
+        id: gamepad.id,
+        buttons: gamepad.buttons.map((button) => button.value),
+        axes: gamepad.axes.slice()
+      }
+    }));
   }
 
   function gamepadDisconnected(gamepad) {
     delete gamepads[gamepad.index];
+    window.dispatchEvent(new CustomEvent('esplusgamepaddisconnected', {
+      detail: { gamepadIndex: gamepad.index }
+    }));
     // Let navigation release any held/repeated input owned by this controller.
     window.dispatchEvent(new CustomEvent('gamepadinputcleared', {
       detail: { gamepadIndex: gamepad.index },
@@ -72,8 +87,15 @@ const Controller = (function() {
     const index = gamepad.index;
     const pGamepad = gamepads[index];
 
-    if (pGamepad) {
-      pGamepad.analyzeButtonsAndAxes(gamepad.buttons, gamepad.axes);
+    if (pGamepad && pGamepad.analyzeButtonsAndAxes(gamepad.buttons, gamepad.axes)) {
+      window.dispatchEvent(new CustomEvent('esplusgamepadstate', {
+        detail: {
+          gamepadIndex: gamepad.index,
+          id: gamepad.id,
+          buttons: gamepad.buttons.map((button) => button.value),
+          axes: gamepad.axes.slice()
+        }
+      }));
     }
   }
 
