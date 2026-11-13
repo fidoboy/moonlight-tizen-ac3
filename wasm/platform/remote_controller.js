@@ -57,7 +57,8 @@ function remoteControllerHandler(e) {
     case tvKey.KEY_PAUSE:
     case tvKey.KEY_PLAY:
       // Use the registered Tizen remote-controller events for media keys.
-      if (isInGame) {
+      if (isInGame || (typeof window.isNativeStreamingEngineActive === 'function' &&
+          window.isNativeStreamingEngineActive())) {
         e.preventDefault();
         toggleStreamMenuDialog();
       }
