@@ -899,6 +899,7 @@ void esplus_close(void)
     s_pl = NULL;
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
+    s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
     __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
