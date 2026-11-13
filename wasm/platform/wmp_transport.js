@@ -644,12 +644,14 @@
   function syncNativeGamepads() {
     if (!nativeInputActive() || !global.navigator) return;
     var pads = [];
+    var list = null;
+    if (global.navigator.getGamepads) {
+      try { list = global.navigator.getGamepads(); } catch (error) {}
+    }
+    if (!list && global.navigator.webkitGetGamepads) {
+      try { list = global.navigator.webkitGetGamepads(); } catch (error) {}
+    }
     try {
-      var list = global.navigator.getGamepads
-        ? global.navigator.getGamepads()
-        : global.navigator.webkitGetGamepads
-        ? global.navigator.webkitGetGamepads()
-        : [];
       pads = Array.prototype.slice.call(list || []);
     } catch (error) {
       debugLog('could not enumerate gamepads for native synchronization', errorDetails(error));
