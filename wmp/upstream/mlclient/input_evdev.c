@@ -33,6 +33,12 @@
 #define BTN_NORTH BTN_X
 #define BTN_WEST  BTN_Y
 #endif
+#ifndef BTN_DPAD_UP
+#define BTN_DPAD_UP    0x220
+#define BTN_DPAD_DOWN  0x221
+#define BTN_DPAD_LEFT  0x222
+#define BTN_DPAD_RIGHT 0x223
+#endif
 
 #define MAX_DEV 32
 #define INPUT_CAP_KEYBOARD 0x01
@@ -54,7 +60,6 @@ static int s_run;
 static int s_thread_started;
 static pthread_t s_thread;
 static unsigned s_capabilities;
-static pthread_mutex_t s_state_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Gamepad state. This implementation exposes the first evdev gamepad as pad 0. */
 static int s_pad_registered;
