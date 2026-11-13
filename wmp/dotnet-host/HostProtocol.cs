@@ -549,15 +549,25 @@ namespace MoonlightWmpHost
             {
                 _statsEnabled = !_statsEnabled;
                 enabled = _statsEnabled;
+
+                // Serialize the state change and its notification with periodic stats.
+                // Otherwise a worker that already observed "enabled" can send a stale
+                // StatMsg after this NoStatMsg and immediately reveal the overlay again.
+                Event(appId, remotePort, enabled ? "StatMsg: " : "NoStatMsg: ", null);
             }
             Respond(appId, remotePort, id, "ok",
                 "{\"enabled\":" + (enabled ? "true" : "false") + "}");
-            Event(appId, remotePort, enabled ? "StatMsg: " : "NoStatMsg: ", null);
         }
 
-        private static bool StatsAreEnabled()
+        private static bool SendStatsEventIfEnabled(string appId, string remotePort,
+                                                    string eventName, string detail)
         {
-            lock (Gate) return _statsEnabled;
+            lock (Gate)
+            {
+                if (!_statsEnabled) return false;
+                Event(appId, remotePort, eventName, detail);
+                return true;
+            }
         }
 
         private static string FormatStats(StartRequest request, EngineApi.Stats stats)
@@ -889,16 +899,18 @@ namespace MoonlightWmpHost
                         // ESPlus path makes its one permitted start() attempt. Common C remains
                         // authoritative for session state and termination.
                     }
-                    if (StatsAreEnabled() && DateTime.UtcNow >= nextStatsMessage)
+                    if (DateTime.UtcNow >= nextStatsMessage)
                     {
-                        if (statsResult == 0)
+                        if (statsResult == 0 &&
+                            SendStatsEventIfEnabled(appId, remotePort,
+                                "StatMsg: " + FormatStats(request, stats), null))
                         {
-                            Event(appId, remotePort, "StatMsg: " + FormatStats(request, stats), null);
                             // The shared overlay waits for an explicit initial-snapshot
                             // marker before revealing its first populated statistics view.
-                            if (!initialStatsSnapshotSent)
+                            if (!initialStatsSnapshotSent &&
+                                SendStatsEventIfEnabled(appId, remotePort,
+                                    "StatsSnapshotMsg: 1", null))
                             {
-                                Event(appId, remotePort, "StatsSnapshotMsg: 1", null);
                                 initialStatsSnapshotSent = true;
                             }
                         }
