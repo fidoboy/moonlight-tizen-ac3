@@ -443,23 +443,43 @@
 
   // Input is high-frequency and does not need a response. Keep it on the
   // trusted control port without creating one pending request per sample.
+  function sendInputNow(command, payload) {
+    if (!remotePort || !localPort) return false;
+    var items = [
+      {key: 'protocol', value: PROTOCOL},
+      {key: 'id', value: ''},
+      {key: 'command', value: command},
+      {key: 'payload', value: '{}'}
+    ];
+    Object.keys(payload).forEach(function(key) {
+      if (/^[A-Za-z][A-Za-z0-9]*$/.test(key) &&
+          payload[key] !== undefined && payload[key] !== null) {
+        items.push({key: 'arg_' + key, value: String(payload[key])});
+      }
+    });
+    remotePort.sendMessage(items, localPort);
+    return true;
+  }
+
   function sendInput(command, payload) {
     if (!command || !payload || typeof payload !== 'object') return Promise.resolve(false);
+
+    // MessagePort is synchronous once both trusted ports are open. Do not add
+    // a Promise continuation to every keyboard, mouse or gamepad sample.
+    if (remotePort && localPort) {
+      try {
+        return Promise.resolve(sendInputNow(command, payload));
+      } catch (error) {
+        debugLog('native input forwarding failed', {
+          command: command,
+          error: errorDetails(error)
+        });
+        return Promise.resolve(false);
+      }
+    }
+
     return connect().then(function() {
-      var items = [
-        {key: 'protocol', value: PROTOCOL},
-        {key: 'id', value: ''},
-        {key: 'command', value: command},
-        {key: 'payload', value: '{}'}
-      ];
-      Object.keys(payload).forEach(function(key) {
-        if (/^[A-Za-z][A-Za-z0-9]*$/.test(key) &&
-            payload[key] !== undefined && payload[key] !== null) {
-          items.push({key: 'arg_' + key, value: String(payload[key])});
-        }
-      });
-      remotePort.sendMessage(items, localPort);
-      return true;
+      return sendInputNow(command, payload);
     }).catch(function(error) {
       debugLog('native input forwarding failed', {
         command: command,
@@ -595,7 +615,9 @@
       if (Number(buttons[i]) > 0.5) flags |= map[i];
     }
     if (flags === (0x0020 | 0x0010 | 0x0100 | 0x0200)) {
-      request('stop_session').catch(function() {});
+      if (typeof global.requestManualStreamStop === 'function') {
+        global.requestManualStreamStop();
+      }
       return;
     }
     if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
@@ -672,6 +694,25 @@
     // DOM keyboard events carry a physical KeyboardEvent.code; Samsung's
     // platform remote callback is handled separately by remote_controller.js.
     if (isSamsungRemoteKey && (!event.code || event.code === 'Unidentified')) return;
+
+    // Reserve Ctrl+Alt+Shift+Q for Moonlight while WMP owns the stream.
+    // It must never be forwarded as a host keyboard shortcut.
+    if (event.type === 'keydown' && code === 81 &&
+        event.ctrlKey && event.altKey && event.shiftKey) {
+      if (event.cancelable) event.preventDefault();
+      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      [16, 17, 18, 160, 161, 162, 163, 164, 165].forEach(function(modifierCode) {
+        var modifierKey = String(modifierCode);
+        if (pressedKeys[modifierKey]) {
+          delete pressedKeys[modifierKey];
+          sendKey(modifierCode, 4, 0);
+        }
+      });
+      if (typeof global.requestManualStreamStop === 'function') {
+        global.requestManualStreamStop();
+      }
+      return;
+    }
 
     var key = String(code);
     if (event.type === 'keydown') {
