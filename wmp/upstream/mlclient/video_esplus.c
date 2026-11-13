@@ -237,7 +237,9 @@ static int VidDecSubmit(PDECODE_UNIT du)
 
     VLOG("submit_packet failed status=%d raw=%d\n",
          (int)result.status, result.raw_status);
-    return DR_NEED_IDR;
+    MLT("fatal video renderer rejection: ESPlus status=%d raw=%d",
+        (int)result.status, result.raw_status);
+    return DR_FATAL;
 }
 
 void VidEsplus_FillCallbacks(PDECODER_RENDERER_CALLBACKS cb)
