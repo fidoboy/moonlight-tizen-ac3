@@ -6457,10 +6457,19 @@ function getStreamMenuOptions() {
 }
 
 function requestManualStreamStop() {
-  // Reveal the closing transition completely before asking the native core to stop the stream.
+  // Both engines use the same visual closing transition. Only the final stop
+  // command differs: WMP must stop through its native Common C session owner.
+  if (window._manualStreamStopRequested) return;
   showStreamTransitionBackground(function() {
-    // The native termination callback does not distinguish local and host-initiated graceful closure.
     window._manualStreamStopRequested = true;
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+        window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.stopStream === 'function') {
+      window.ESPlusPlayerTransport.stopStream().catch(function(error) {
+        console.error('%c[index.js, requestManualStreamStop]', 'color: red;', 'WMP session stop request failed:', error);
+      });
+      return;
+    }
     Module.stopStream();
   });
 }
@@ -6639,8 +6648,12 @@ function toggleStreamMenuDialog() {
   var transitionLayer = document.getElementById('stream-transition-layer');
   var transitionActive = streamTransitionVisible ||
     (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none');
-  var videoReady = videoElement && videoElement.style.display !== 'none' &&
-    videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0;
+  var isWmpStream = window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+    window._activeStreamingEngineConfirmed === true;
+  // WMP renders outside #wasm_module. Common C's video-ready lifecycle flag
+  // is the readiness authority for that engine; do not require an EMSS video.
+  var videoReady = isWmpStream || (videoElement && videoElement.style.display !== 'none' &&
+    videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0);
   var streamReady = window._normalStreamVideoReady || window._directSmartHubVideoReady;
 
   if (streamMenuDialogOverlay.length > 0) {
