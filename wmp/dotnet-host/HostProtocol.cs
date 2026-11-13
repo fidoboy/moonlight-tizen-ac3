@@ -835,6 +835,12 @@ namespace MoonlightWmpHost
                     return;
                 }
 
+                int inputCapabilities = _engine.InputCapabilities();
+                RecordDiagnostic("native evdev input capabilities=0x" +
+                    inputCapabilities.ToString("X", CultureInfo.InvariantCulture));
+                Event(appId, remotePort, "wmpInputCapabilities: " +
+                    inputCapabilities.ToString(CultureInfo.InvariantCulture), null);
+
                 if (StopWasRequested())
                 {
                     _engine.Stop();
