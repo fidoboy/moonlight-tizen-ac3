@@ -217,24 +217,39 @@ void esplus_sample_tick(uint64_t now_ms)
     uint64_t play;
     int request_idr = 0;
     pthread_mutex_lock(&s_lock);
-    if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
-        wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
-        esplus_stats.playing_ms = (uint32_t)play;
-        esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
-        esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
-        if (!s_fps_t0) {
-            s_fps_t0 = now_ms;
-            s_fps_sub0 = esplus_stats.submitted;
-        } else if (now_ms - s_fps_t0 >= 1000) {
-            esplus_stats.fps_submitted = esplus_stats.submitted - s_fps_sub0;
-            s_fps_t0 = now_ms;
-            s_fps_sub0 = esplus_stats.submitted;
+    if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE)) {
+        /*
+         * SET does not export get_playing_time(). Keep playback-clock-derived
+         * depth unavailable on that ABI, but calculate accepted video FPS
+         * independently so the metric works for both SET and legacy ADD.
+         */
+        if (wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
+            esplus_stats.playing_ms = play > UINT32_MAX ? UINT32_MAX : (uint32_t)play;
+            esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
+            esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
+            if (play > 0) nudge(esplus_stats.depth_ms, now_ms);
+            s_tick_prev_ms = now_ms;
+            MLT("stats depth=%dms audio=%dms playing=%u",
+                esplus_stats.depth_ms, esplus_stats.audio_depth_ms,
+                esplus_stats.playing_ms);
         }
-        if (play > 0) nudge(esplus_stats.depth_ms, now_ms);
-        s_tick_prev_ms = now_ms;
-        MLT("stats depth=%dms audio=%dms fps=%u submitted=%u",
-            esplus_stats.depth_ms, esplus_stats.audio_depth_ms,
-            esplus_stats.fps_submitted, esplus_stats.submitted);
+
+        {
+            uint32_t submitted = __atomic_load_n(&esplus_stats.submitted, __ATOMIC_RELAXED);
+            if (submitted > 0) {
+                if (!s_fps_t0) {
+                    s_fps_t0 = now_ms;
+                    s_fps_sub0 = submitted;
+                } else if (now_ms > s_fps_t0 && now_ms - s_fps_t0 >= 1000) {
+                    uint64_t elapsed = now_ms - s_fps_t0;
+                    uint32_t accepted = submitted - s_fps_sub0;
+                    esplus_stats.fps_submitted =
+                        (uint32_t)(((uint64_t)accepted * 1000ull) / elapsed);
+                    s_fps_t0 = now_ms;
+                    s_fps_sub0 = submitted;
+                }
+            }
+        }
     }
     /* Retry the initial IDR request while no video packet has reached the player.
      * This only asks the host for a keyframe; it never changes session state. */
@@ -386,14 +401,18 @@ static void on_error(int error, void *context)
 static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status, void *context)
 {
     (void)context;
+    /*
+     * The overlay reports video queue events. Samsung defines UNDERRUN as
+     * the ES packet queue becoming empty; it is not a dropped frame or proof
+     * of a visible playback stall. Ignore audio notifications here so this
+     * video statistic cannot mix two independent stream queues.
+     */
+    if (stream != WMP_ESPLUS_STREAM_VIDEO)
+        return;
     if (status == WMP_ESPLUS_BUFFER_STATUS_UNDERRUN)
         __atomic_fetch_add(&esplus_stats.underruns, 1, __ATOMIC_RELAXED);
     else if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
         __atomic_fetch_add(&esplus_stats.overruns, 1, __ATOMIC_RELAXED);
-    if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
-        PLOG("buffer overrun stream=%d\n", (int)stream);
-    else if (status == WMP_ESPLUS_BUFFER_STATUS_UNDERRUN)
-        PLOG("buffer underrun stream=%d\n", (int)stream);
 }
 static void on_seek_done(void *context) { (void)context; MLT("cb seek_done"); }
 static void on_eos(void *context) { (void)context; MLT("cb eos"); }
@@ -443,6 +462,10 @@ int esplus_create_open(void)
 
     load_cfg();
     memset(&esplus_stats, 0, sizeof(esplus_stats));
+    /* SET has no playback-clock query; expose unavailable values, not fake zeroes. */
+    esplus_stats.depth_ms = INT32_MIN;
+    esplus_stats.audio_depth_ms = INT32_MIN;
+    esplus_stats.playing_ms = UINT32_MAX;
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
