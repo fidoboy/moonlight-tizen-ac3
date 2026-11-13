@@ -25,7 +25,7 @@ const Controller = (function() {
       const changes = [];
 
       for (let i = 0; i < newButtons.length; ++i) {
-        if (this.buttons[i].pressed !== newButtons[i].pressed) {
+        if (this.buttons[i].pressed !== newButtons[i].pressed || this.buttons[i].value !== newButtons[i].value) {
           changes.push({
             type: 'button',
             index: i,
