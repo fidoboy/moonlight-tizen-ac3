@@ -82,6 +82,9 @@ const handledEvents = [];
 const windowEventListeners = Object.create(null);
 const window = {
   DEBUG_MODE: true,
+  getStreamingEngineState() {
+    return {active: 'ESPLUSPLAYER', confirmed: true};
+  },
   addEventListener(type, callback) {
     if (!windowEventListeners[type]) windowEventListeners[type] = [];
     windowEventListeners[type].push(callback);
@@ -160,6 +163,51 @@ vm.runInNewContext(source, {
   assert.strictEqual(status.payload.libraryLoaded, true);
   assert.strictEqual(status.payload.esplus, 'symbols_detected');
   assert.strictEqual(status.payload.streamApi, 'set');
+
+  // Gamepad analog samples must be coalesced across the MessagePort bridge,
+  // while digital button transitions must bypass the analog-rate limiter.
+  const gamepadStateMessages = () => pendingMessages.filter(message =>
+    message.command === 'gamepad_state');
+  window.dispatchEvent({
+    type: 'esplusgamepadconnected',
+    detail: {gamepadIndex: 0, id: 'Xbox Controller', buttonCount: 16}
+  });
+  const neutralButtons = Array(16).fill(0);
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0, 0, 0, 0]}
+  });
+  assert.strictEqual(gamepadStateMessages().length, 1, 'initial gamepad state must be sent immediately');
+
+  [0.1, 0.2, 0.3].forEach(value => {
+    window.dispatchEvent({
+      type: 'esplusgamepadstate',
+      detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [value, 0, 0, 0]}
+    });
+  });
+  assert.strictEqual(gamepadStateMessages().length, 1,
+    'multiple analog samples in one 16 ms window must collapse into one MessagePort message');
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.strictEqual(gamepadStateMessages().length, 2,
+    'the latest analog state must be sent after the coalescing interval');
+  assert.strictEqual(Number(gamepadStateMessages()[1].arg_lsX), Math.round(0.3 * 32767),
+    'the coalesced message must contain the newest stick position');
+
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0.4, 0, 0, 0]}
+  });
+  const pressedButtons = neutralButtons.slice();
+  pressedButtons[0] = 1;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: pressedButtons, axes: [0.4, 0, 0, 0]}
+  });
+  assert.strictEqual(gamepadStateMessages().length, 3,
+    'digital button transitions must be forwarded immediately, without waiting for the analog timer');
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.strictEqual(gamepadStateMessages().length, 3,
+    'an immediate button update must cancel the stale queued analog sample');
 
   const start = await window.ESPlusPlayerTransport.startStream({
     host: '192.168.0.10',
