@@ -285,7 +285,7 @@ static int get_application_pid(const char *app_id, pid_t *pid)
     typedef int (*get_context_fn)(const char *, void **);
     typedef int (*get_pid_fn)(void *, pid_t *);
     typedef int (*destroy_context_fn)(void *);
-    void *manager = NULL, *common = NULL, *context = NULL;
+    void *manager = NULL, *context = NULL;
     get_context_fn get_context = NULL;
     get_pid_fn get_context_pid = NULL;
     destroy_context_fn destroy_context = NULL;
@@ -298,21 +298,10 @@ static int get_application_pid(const char *app_id, pid_t *pid)
         WLOG("cannot load Application Manager library: %s", error_text ? error_text : "not found");
         return 0;
     }
+
     *(void **)(&get_context) = dlsym(manager, "app_manager_get_app_context");
     *(void **)(&get_context_pid) = dlsym(manager, "app_context_get_pid");
     *(void **)(&destroy_context) = dlsym(manager, "app_context_destroy");
-
-    if (!get_context_pid || !destroy_context) {
-        common = dlopen("libcapi-appfw-app-common.so.0", RTLD_NOW | RTLD_LOCAL);
-        if (!common) common = dlopen("libcapi-appfw-app-common.so", RTLD_NOW | RTLD_LOCAL);
-        if (common) {
-            if (!get_context_pid)
-                *(void **)(&get_context_pid) = dlsym(common, "app_context_get_pid");
-            if (!destroy_context)
-                *(void **)(&destroy_context) = dlsym(common, "app_context_destroy");
-        }
-    }
-
     if (!get_context || !get_context_pid || !destroy_context) {
         WLOG("Application Manager symbols unavailable (get_context=%d get_pid=%d destroy=%d)",
              get_context != NULL, get_context_pid != NULL, destroy_context != NULL);
@@ -321,7 +310,7 @@ static int get_application_pid(const char *app_id, pid_t *pid)
 
     result = get_context(app_id, &context);
     if (result != 0 || !context) {
-        WLOG("app_manager_get_app_context(\"%s\") failed: rc=%d context=%p", app_id, result, context);
+        WLOG("app_manager_get_app_context(\\"%s\\") failed: rc=%d context=%p", app_id, result, context);
         goto fail;
     }
 
@@ -332,13 +321,11 @@ static int get_application_pid(const char *app_id, pid_t *pid)
     context = NULL;
     if (pid_result != 0 || *pid <= 0) goto fail;
 
-    if (common) dlclose(common);
     dlclose(manager);
     return 1;
 
 fail:
     if (context && destroy_context) destroy_context(context);
-    if (common) dlclose(common);
     if (manager) dlclose(manager);
     return 0;
 }
