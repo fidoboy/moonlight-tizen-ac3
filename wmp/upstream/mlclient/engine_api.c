@@ -111,6 +111,7 @@ static void cl_stageComplete(int stage) {
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
   AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
+  esplus_set_audio_enabled(g_audio_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
   AUDIO_RENDERER_CALLBACKS ar;
   PAUDIO_RENDERER_CALLBACKS arCallbacks = NULL;
