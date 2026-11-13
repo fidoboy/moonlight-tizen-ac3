@@ -6672,7 +6672,10 @@ function toggleStreamMenuDialog() {
   if (streamMenuDialogOverlay.length > 0) {
     // During teardown, close without returning focus to a video covered by the transition.
     closeStreamMenuDialog(isInGame && !transitionActive && streamReady && videoReady);
-  } else if (isInGame && !transitionActive && streamReady && videoReady && !isDialogOpen) {
+  } else if ((isWmpStream || isInGame) &&
+      !transitionActive && streamReady && videoReady && !isDialogOpen) {
+    // A confirmed native session plus native video readiness is authoritative
+    // for WMP; do not additionally depend on the HTML/EMSS game-state flag.
     streamMenuDialog();
   }
 }
