@@ -477,6 +477,20 @@
     });
   }
 
+  function sendMouseMove(deltaX, deltaY) {
+    if (!deltaX && !deltaY) return Promise.resolve(false);
+    return sendInput('mouse_move', {deltaX: deltaX, deltaY: deltaY});
+  }
+
+  function sendMouseButton(button, pressed) {
+    return sendInput('mouse_button', {button: button, pressed: pressed ? 1 : 0});
+  }
+
+  function sendMouseScroll(amount) {
+    if (!amount) return Promise.resolve(false);
+    return sendInput('mouse_scroll', {amount: amount});
+  }
+
   function sendGamepadArrival(index, activeMask, type, supportedButtons, capabilities) {
     return sendInput('gamepad_arrival', {
       index: index, activeMask: activeMask, type: type,
@@ -615,6 +629,103 @@
     }
   }
 
+  var pressedKeys = Object.create(null);
+  var wheelRemainder = 0;
+
+  function inputUiBlocked() {
+    return global.isDialogOpen === true ||
+      global.isPairingInProgress === true ||
+      global.isGamepadTestDialogOpen === true;
+  }
+
+  function inputModifiers(event) {
+    return (event.shiftKey ? 0x01 : 0) |
+      (event.ctrlKey ? 0x02 : 0) |
+      (event.altKey ? 0x04 : 0) |
+      (event.metaKey ? 0x08 : 0);
+  }
+
+  function isEditableTarget(target) {
+    if (!target) return false;
+    var tag = String(target.tagName || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' ||
+      target.isContentEditable === true;
+  }
+
+  function onPhysicalKeyboard(event) {
+    if (!nativeInputActive() || inputUiBlocked() || isEditableTarget(event.target)) return;
+    var code = Number(event.keyCode || event.which || 0);
+    if (!code || code > 0xFFFF) return;
+    // Samsung remote keys are already translated by remote_controller.js.
+    if (global.tvKey && (
+      code === global.tvKey.KEY_UP || code === global.tvKey.KEY_DOWN ||
+      code === global.tvKey.KEY_LEFT || code === global.tvKey.KEY_RIGHT ||
+      code === global.tvKey.KEY_ENTER || code === global.tvKey.KEY_REMOTE_ENTER ||
+      code === global.tvKey.KEY_RETURN
+    )) return;
+
+    var key = String(code);
+    if (event.type === 'keydown') {
+      if (pressedKeys[key]) {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+      pressedKeys[key] = true;
+      sendKey(code, 3, inputModifiers(event));
+    } else {
+      if (!pressedKeys[key]) return;
+      delete pressedKeys[key];
+      sendKey(code, 4, inputModifiers(event));
+    }
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function releasePressedKeys() {
+    Object.keys(pressedKeys).forEach(function(key) {
+      sendKey(Number(key), 4, 0);
+      delete pressedKeys[key];
+    });
+  }
+
+  function onMouseMove(event) {
+    if (!nativeInputActive() || inputUiBlocked()) return;
+    var locked = global.document &&
+      (global.document.pointerLockElement || global.document.webkitPointerLockElement);
+    if (!locked) return;
+    var dx = Number(event.movementX || event.webkitMovementX || 0);
+    var dy = Number(event.movementY || event.webkitMovementY || 0);
+    if (dx || dy) sendMouseMove(Math.round(dx), Math.round(dy));
+  }
+
+  function onMouseButton(event) {
+    if (!nativeInputActive() || inputUiBlocked()) return;
+    if (event.button < 0 || event.button > 2) return;
+    sendMouseButton(event.button, event.type === 'mousedown');
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function onMouseWheel(event) {
+    if (!nativeInputActive() || inputUiBlocked()) return;
+    wheelRemainder += -Number(event.deltaY || 0) / 100;
+    var amount = wheelRemainder < 0 ? Math.ceil(wheelRemainder) : Math.floor(wheelRemainder);
+    if (amount !== 0) {
+      wheelRemainder -= amount;
+      sendMouseScroll(amount);
+      if (event.cancelable) event.preventDefault();
+    }
+  }
+
+  if (global.document && global.document.addEventListener) {
+    global.document.addEventListener('keydown', onPhysicalKeyboard, true);
+    global.document.addEventListener('keyup', onPhysicalKeyboard, true);
+    global.document.addEventListener('mousemove', onMouseMove, true);
+    global.document.addEventListener('mousedown', onMouseButton, true);
+    global.document.addEventListener('mouseup', onMouseButton, true);
+    global.document.addEventListener('wheel', onMouseWheel, {capture: true, passive: false});
+  }
+  global.addEventListener('blur', releasePressedKeys);
+  global.addEventListener('pagehide', releasePressedKeys);
+
   global.addEventListener('esplusgamepadconnected', onGamepadConnected);
   global.addEventListener('esplusgamepaddisconnected', onGamepadDisconnected);
   global.addEventListener('esplusgamepadstate', onGamepadState);
@@ -630,6 +741,9 @@
     startStream: function(parameters) { return request('start_session', parameters); },
     stopStream: function() { return request('stop_session'); },
     sendKey: sendKey,
+    sendMouseMove: sendMouseMove,
+    sendMouseButton: sendMouseButton,
+    sendMouseScroll: sendMouseScroll,
     sendGamepadArrival: sendGamepadArrival,
     sendGamepadState: sendGamepadState,
     syncGamepads: syncNativeGamepads,
