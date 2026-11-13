@@ -300,7 +300,11 @@ static int classify_device(int fd, unsigned *caps_out,
     unsigned long absbits[(ABS_MAX + 8 * sizeof(unsigned long)) /
                           (8 * sizeof(unsigned long))] = {0};
     unsigned caps = 0;
-    if (ioctl(fd, EVIOCGBIT(0, sizeof(evbits)), evbits) < 0) return 0;
+    if (ioctl(fd, EVIOCGBIT(0, sizeof(evbits)), evbits) < 0) {
+        int error = errno;
+        fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\\n", "event-types", error, strerror(error));
+        return 0;
+    }
     if (bit_is_set(evbits, EV_KEY) &&
         ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) >= 0) {
         if (bit_is_set(keybits, KEY_A) && bit_is_set(keybits, KEY_Z) &&
@@ -312,18 +316,23 @@ static int classify_device(int fd, unsigned *caps_out,
         bit_is_set(relbits, REL_X) && bit_is_set(relbits, REL_Y) &&
         bit_is_set(keybits, BTN_LEFT))
         caps |= INPUT_CAP_MOUSE;
-    if (bit_is_set(evbits, EV_ABS) &&
-        ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) >= 0) {
-        int has_axes = bit_is_set(absbits, ABS_X) || bit_is_set(absbits, ABS_RX) ||
-                       bit_is_set(absbits, ABS_HAT0X);
-        int has_buttons = bit_is_set(keybits, BTN_GAMEPAD) ||
-                          bit_is_set(keybits, BTN_JOYSTICK) ||
-                          bit_is_set(keybits, BTN_SOUTH);
-        if (has_axes && has_buttons) caps |= INPUT_CAP_GAMEPAD;
-        for (int code = 0; code <= ABS_MAX; code++) {
-            if (bit_is_set(absbits, (unsigned)code) &&
-                ioctl(fd, EVIOCGABS(code), &abs_out[code]) == 0)
-                abs_valid_out[code] = 1;
+    if (bit_is_set(evbits, EV_ABS)) {
+        if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) < 0) {
+            int error = errno;
+            fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\\n",
+                    "absolute-axes", error, strerror(error));
+        } else {
+            int has_axes = bit_is_set(absbits, ABS_X) || bit_is_set(absbits, ABS_RX) ||
+                           bit_is_set(absbits, ABS_HAT0X);
+            int has_buttons = bit_is_set(keybits, BTN_GAMEPAD) ||
+                              bit_is_set(keybits, BTN_JOYSTICK) ||
+                              bit_is_set(keybits, BTN_SOUTH);
+            if (has_axes && has_buttons) caps |= INPUT_CAP_GAMEPAD;
+            for (int code = 0; code <= ABS_MAX; code++) {
+                if (bit_is_set(absbits, (unsigned)code) &&
+                    ioctl(fd, EVIOCGABS(code), &abs_out[code]) == 0)
+                    abs_valid_out[code] = 1;
+            }
         }
     }
     *caps_out = caps;
