@@ -13,14 +13,14 @@ typedef struct {
   volatile uint32_t submitted;      /* video packets accepted (SUCCESS) */
   volatile uint32_t dropped_late;   /* skipped by the in-flight cap */
   volatile uint32_t dropped_full;   /* lost after FULL retries */
-  volatile uint32_t underruns, overruns;
+  volatile uint32_t underruns, overruns; /* video queue-empty/full notifications, not dropped frames */
   volatile uint32_t errors, last_error;
   volatile uint32_t recoveries;     /* retained for the frozen ml_engine_stats ABI; no player recovery */
   volatile int      recovery_state; /* retained ABI field; 2 records native resource conflict */
-  volatile int32_t  depth_ms;       /* video: last pts - playing_time */
-  volatile int32_t  audio_depth_ms;
-  volatile uint32_t playing_ms;
-  volatile uint32_t fps_submitted;  /* submits in the last full second */
+  volatile int32_t  depth_ms;       /* video: last pts - playing_time; INT32_MIN when unavailable */
+  volatile int32_t  audio_depth_ms;  /* INT32_MIN when playback clock unavailable */
+  volatile uint32_t playing_ms;     /* UINT32_MAX when playback clock unavailable */
+  volatile uint32_t fps_submitted;  /* accepted video packets/sec, independent of player clock */
 } esplus_stats_t;
 
 enum { ESPLUS_LAT_OFF, ESPLUS_LAT_NUDGE, ESPLUS_LAT_ARRIVAL };
