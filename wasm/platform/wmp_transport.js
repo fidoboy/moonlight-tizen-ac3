@@ -643,11 +643,18 @@
 
   function syncNativeGamepads() {
     if (!nativeInputActive() || !global.navigator) return;
-    var pads = global.navigator.getGamepads
-      ? global.navigator.getGamepads()
-      : global.navigator.webkitGetGamepads
-      ? global.navigator.webkitGetGamepads()
-      : [];
+    var pads = [];
+    try {
+      var list = global.navigator.getGamepads
+        ? global.navigator.getGamepads()
+        : global.navigator.webkitGetGamepads
+        ? global.navigator.webkitGetGamepads()
+        : [];
+      pads = Array.prototype.slice.call(list || []);
+    } catch (error) {
+      debugLog('could not enumerate gamepads for native synchronization', errorDetails(error));
+      return;
+    }
     for (var i = 0; i < pads.length && i < 16; i++) {
       var pad = pads[i];
       if (!pad || !pad.connected) continue;
