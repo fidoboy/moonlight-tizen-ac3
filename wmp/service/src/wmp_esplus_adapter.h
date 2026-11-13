@@ -130,7 +130,7 @@ typedef struct {
 } wmp_esplus_call_result_t;
 
 typedef struct {
-    void (*error)(uint32_t error, void *context);
+    void (*error)(int error, void *context);
     void (*buffer_status)(wmp_esplus_stream_e stream,
                           wmp_esplus_buffer_status_e status, void *context);
     void (*resource_conflicted)(void *context);
@@ -166,6 +166,9 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_display_mode(
 int wmp_esplus_adapter_has_playing_time(const wmp_esplus_adapter_t *adapter);
 int wmp_esplus_adapter_get_playing_time(
     wmp_esplus_adapter_t *adapter, uint64_t *playing_time_ms);
+/* Returns Samsung's static error description, or NULL when the optional API is absent. */
+const char *wmp_esplus_adapter_get_error_string(
+    const wmp_esplus_adapter_t *adapter, int error);
 
 /* Registers exactly one callback ABI family; ADD is process-global/singleton. */
 int wmp_esplus_adapter_bind(
