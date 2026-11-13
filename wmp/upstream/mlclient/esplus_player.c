@@ -462,7 +462,7 @@ int esplus_create_open(void)
 
     load_cfg();
     memset(&esplus_stats, 0, sizeof(esplus_stats));
-    /* SET has no playback-clock query; expose unavailable values, not fake zeroes. */
+    /* Playback-clock metrics remain unavailable until the optional native query succeeds. */
     esplus_stats.depth_ms = INT32_MIN;
     esplus_stats.audio_depth_ms = INT32_MIN;
     esplus_stats.playing_ms = UINT32_MAX;
