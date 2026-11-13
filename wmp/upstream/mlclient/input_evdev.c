@@ -94,13 +94,15 @@ static short map_vk(int code) {
     case KEY_TAB: return 0x09; case KEY_SPACE: return 0x20;
     case KEY_UP: return 0x26; case KEY_DOWN: return 0x28;
     case KEY_LEFT: return 0x25; case KEY_RIGHT: return 0x27;
-    case KEY_LEFTSHIFT: case KEY_RIGHTSHIFT: return 0xA0;
-    case KEY_LEFTCTRL: case KEY_RIGHTCTRL: return 0xA2;
-    case KEY_LEFTALT: case KEY_RIGHTALT: return 0xA4;
+    case KEY_LEFTSHIFT: return 0xA0; case KEY_RIGHTSHIFT: return 0xA1;
+    case KEY_LEFTCTRL: return 0xA2; case KEY_RIGHTCTRL: return 0xA3;
+    case KEY_LEFTALT: return 0xA4; case KEY_RIGHTALT: return 0xA5;
     case KEY_DELETE: return 0x2E; case KEY_HOME: return 0x24;
     case KEY_END: return 0x23; case KEY_PAGEUP: return 0x21;
     case KEY_PAGEDOWN: return 0x22; case KEY_INSERT: return 0x2D;
-    case KEY_CAPSLOCK: return 0x14; case KEY_LEFTMETA: case KEY_RIGHTMETA: return 0x5B;
+    case KEY_CAPSLOCK: return 0x14; case KEY_LEFTMETA: return 0x5B;
+    case KEY_RIGHTMETA: return 0x5C; case KEY_MENU: return 0x5D;
+    case KEY_PRINT: return 0x2C; case KEY_PAUSE: return 0x13;
     case KEY_MINUS: return 0xBD; case KEY_EQUAL: return 0xBB;
     case KEY_LEFTBRACE: return 0xDB; case KEY_RIGHTBRACE: return 0xDD;
     case KEY_BACKSLASH: return 0xDC; case KEY_SEMICOLON: return 0xBA;
@@ -121,6 +123,19 @@ static void update_modifier(int code, int down) {
     if (flag) {
         if (down) s_modifiers |= flag;
         else s_modifiers &= (char)~flag;
+    }
+}
+
+static char key_modifier_flags(int code) {
+    switch (code) {
+    case KEY_RIGHTCTRL: case KEY_RIGHTALT: case KEY_RIGHTMETA:
+    case KEY_KPENTER: case KEY_KPSLASH:
+    case KEY_UP: case KEY_DOWN: case KEY_LEFT: case KEY_RIGHT:
+    case KEY_INSERT: case KEY_DELETE: case KEY_HOME: case KEY_END:
+    case KEY_PAGEUP: case KEY_PAGEDOWN:
+        return (char)(s_modifiers | MODIFIER_EXTENDED);
+    default:
+        return s_modifiers;
     }
 }
 
@@ -211,7 +226,7 @@ static void handle_event(input_device *dev, const struct input_event *event) {
                 update_modifier(event->code, down);
                 if (event->value != 2)
                     LiSendKeyboardEvent(vk,
-                        down ? KEY_ACTION_DOWN : KEY_ACTION_UP, s_modifiers);
+                        down ? KEY_ACTION_DOWN : KEY_ACTION_UP, key_modifier_flags(event->code));
             }
         }
     } else if (event->type == EV_REL && (dev->caps & INPUT_CAP_MOUSE)) {
