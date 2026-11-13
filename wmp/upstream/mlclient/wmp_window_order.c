@@ -39,7 +39,7 @@ static void window_order_log(const char *format, ...)
     vsnprintf(line + prefix_length, sizeof(line) - prefix_length, format, args);
     va_end(args);
 
-    fprintf(stderr, "%s\\n", line);
+    fprintf(stderr, "%s\n", line);
     if (&ml_log_cb) {
         callback = ml_log_cb;
         if (callback) callback(line);
