@@ -756,7 +756,7 @@ function handlePerformanceStatsGraphMessage(message) {
 }
 
 function handlePerformanceStatsSnapshotComplete(message) {
-  if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated) return;
+  if (performanceStatsStreamTerminated) return;
 
   var hasValues = message.replace('StatsSnapshotMsg: ', '').trim() === '1';
   if (!hasValues) return;
@@ -764,6 +764,8 @@ function handlePerformanceStatsSnapshotComplete(message) {
   // The native marker may arrive before the first StatMsg. Latch completion
   // and wait for the first payload instead of discarding the initial snapshot.
   performanceStatsSnapshotComplete = true;
+  if (!performanceStatsPendingFirstReveal) return;
+
   var snapshot = performanceStatsPendingSnapshot;
   if (!snapshot ||
       (!snapshot.statsText && !snapshot.graphSample && !snapshot.hostLatency)) return;
