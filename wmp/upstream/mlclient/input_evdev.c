@@ -26,13 +26,6 @@
 #include <unistd.h>
 
 #include "Limelight.h"
-#include "mltrace.h"
-
-#ifndef MLT_TRACE
-/* Keep trace arguments referenced in non-trace builds without doing any I/O. */
-#undef MLT
-#define MLT(...) do { if (0) fprintf(stderr, __VA_ARGS__); } while (0)
-#endif
 
 #ifndef BTN_SOUTH
 #define BTN_SOUTH BTN_A
@@ -70,7 +63,6 @@ static unsigned s_capabilities;
 
 /* Gamepad state. This implementation exposes the first evdev gamepad as pad 0. */
 static int s_pad_registered;
-static int s_pad_dirty;
 static int s_pad_buttons;
 static short s_lx, s_ly, s_rx, s_ry;
 static unsigned char s_lt, s_rt;
@@ -253,31 +245,27 @@ static void handle_event(input_device *dev, const struct input_event *event) {
             event->code <= ABS_MAX && dev->abs_valid[event->code]
                 ? &dev->abs[event->code] : NULL;
         switch (event->code) {
-        case ABS_X: s_lx = normalize_axis(info, event->value, 0); s_pad_dirty = 1; break;
-        case ABS_Y: s_ly = normalize_axis(info, event->value, 1); s_pad_dirty = 1; break;
-        case ABS_RX: s_rx = normalize_axis(info, event->value, 0); s_pad_dirty = 1; break;
-        case ABS_RY: s_ry = normalize_axis(info, event->value, 1); s_pad_dirty = 1; break;
+        case ABS_X: s_lx = normalize_axis(info, event->value, 0); send_pad(); break;
+        case ABS_Y: s_ly = normalize_axis(info, event->value, 1); send_pad(); break;
+        case ABS_RX: s_rx = normalize_axis(info, event->value, 0); send_pad(); break;
+        case ABS_RY: s_ry = normalize_axis(info, event->value, 1); send_pad(); break;
         case ABS_Z: case ABS_BRAKE:
-            s_lt = normalize_trigger(info, event->value); s_pad_dirty = 1; break;
+            s_lt = normalize_trigger(info, event->value); send_pad(); break;
         case ABS_RZ: case ABS_GAS:
-            s_rt = normalize_trigger(info, event->value); s_pad_dirty = 1; break;
+            s_rt = normalize_trigger(info, event->value); send_pad(); break;
         case ABS_HAT0X:
             s_pad_buttons &= ~(LEFT_FLAG | RIGHT_FLAG);
             if (event->value < 0) s_pad_buttons |= LEFT_FLAG;
             else if (event->value > 0) s_pad_buttons |= RIGHT_FLAG;
-            s_pad_dirty = 1; break;
+            send_pad(); break;
         case ABS_HAT0Y:
             s_pad_buttons &= ~(UP_FLAG | DOWN_FLAG);
             if (event->value < 0) s_pad_buttons |= UP_FLAG;
             else if (event->value > 0) s_pad_buttons |= DOWN_FLAG;
-            s_pad_dirty = 1; break;
+            send_pad(); break;
         }
-    } else if (event->type == EV_SYN && event->code == SYN_REPORT) {
-        if ((dev->caps & INPUT_CAP_GAMEPAD) && s_pad_dirty) {
-            send_pad();
-            s_pad_dirty = 0;
-        }
-        if (!(dev->caps & INPUT_CAP_MOUSE)) return;
+    } else if (event->type == EV_SYN && event->code == SYN_REPORT &&
+               (dev->caps & INPUT_CAP_MOUSE)) {
         if (s_mouse_dx || s_mouse_dy) {
             int dx = s_mouse_dx, dy = s_mouse_dy;
             while (dx || dy) {
@@ -300,8 +288,7 @@ static void handle_event(input_device *dev, const struct input_event *event) {
     }
 }
 
-static int classify_device(const char *path, const char *name, int fd,
-                           unsigned *caps_out,
+static int classify_device(int fd, unsigned *caps_out,
                            struct input_absinfo *abs_out,
                            unsigned char *abs_valid_out) {
     unsigned long evbits[(EV_MAX + 8 * sizeof(unsigned long)) /
@@ -313,88 +300,42 @@ static int classify_device(const char *path, const char *name, int fd,
     unsigned long absbits[(ABS_MAX + 8 * sizeof(unsigned long)) /
                           (8 * sizeof(unsigned long))] = {0};
     unsigned caps = 0;
-
     if (ioctl(fd, EVIOCGBIT(0, sizeof(evbits)), evbits) < 0) {
         int error = errno;
-        MLT("[input] reject %s (%s): EVIOCGBIT event-types failed: errno=%d (%s)",
-            path, name, error, strerror(error));
+        fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\n", "event-types", error, strerror(error));
         return 0;
     }
-
-    if (bit_is_set(evbits, EV_KEY)) {
-        if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) < 0) {
-            int error = errno;
-            MLT("[input] %s (%s): EVIOCGBIT keys failed: errno=%d (%s)",
-                path, name, error, strerror(error));
-        } else if (bit_is_set(keybits, KEY_A) && bit_is_set(keybits, KEY_Z) &&
-                   bit_is_set(keybits, KEY_ENTER)) {
+    if (bit_is_set(evbits, EV_KEY) &&
+        ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) >= 0) {
+        if (bit_is_set(keybits, KEY_A) && bit_is_set(keybits, KEY_Z) &&
+            bit_is_set(keybits, KEY_ENTER))
             caps |= INPUT_CAP_KEYBOARD;
-        } else {
-            MLT("[input] %s (%s): keyboard not classified (requires KEY_A, KEY_Z and KEY_ENTER)",
-                path, name);
-        }
-    } else {
-        MLT("[input] %s (%s): no EV_KEY capability", path, name);
     }
-
-    if (bit_is_set(evbits, EV_REL)) {
-        if (ioctl(fd, EVIOCGBIT(EV_REL, sizeof(relbits)), relbits) < 0) {
-            int error = errno;
-            MLT("[input] %s (%s): EVIOCGBIT relative axes failed: errno=%d (%s)",
-                path, name, error, strerror(error));
-        } else if (bit_is_set(relbits, REL_X) && bit_is_set(relbits, REL_Y) &&
-                   bit_is_set(keybits, BTN_LEFT)) {
-            caps |= INPUT_CAP_MOUSE;
-        } else {
-            MLT("[input] %s (%s): mouse not classified (REL_X=%d REL_Y=%d BTN_LEFT=%d)",
-                path, name, bit_is_set(relbits, REL_X), bit_is_set(relbits, REL_Y),
-                bit_is_set(keybits, BTN_LEFT));
-        }
-    } else {
-        MLT("[input] %s (%s): no EV_REL capability", path, name);
-    }
-
+    if (bit_is_set(evbits, EV_REL) &&
+        ioctl(fd, EVIOCGBIT(EV_REL, sizeof(relbits)), relbits) >= 0 &&
+        bit_is_set(relbits, REL_X) && bit_is_set(relbits, REL_Y) &&
+        bit_is_set(keybits, BTN_LEFT))
+        caps |= INPUT_CAP_MOUSE;
     if (bit_is_set(evbits, EV_ABS)) {
         if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) < 0) {
             int error = errno;
-            MLT("[input] %s (%s): EVIOCGBIT absolute axes failed: errno=%d (%s)",
-                path, name, error, strerror(error));
+            fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\n",
+                    "absolute-axes", error, strerror(error));
         } else {
             int has_axes = bit_is_set(absbits, ABS_X) || bit_is_set(absbits, ABS_RX) ||
                            bit_is_set(absbits, ABS_HAT0X);
             int has_buttons = bit_is_set(keybits, BTN_GAMEPAD) ||
                               bit_is_set(keybits, BTN_JOYSTICK) ||
                               bit_is_set(keybits, BTN_SOUTH);
-            if (has_axes && has_buttons) {
-                caps |= INPUT_CAP_GAMEPAD;
-            } else {
-                MLT("[input] %s (%s): gamepad not classified (axes=%d buttons=%d)",
-                    path, name, has_axes, has_buttons);
-            }
+            if (has_axes && has_buttons) caps |= INPUT_CAP_GAMEPAD;
             for (int code = 0; code <= ABS_MAX; code++) {
-                if (bit_is_set(absbits, (unsigned)code)) {
-                    if (ioctl(fd, EVIOCGABS(code), &abs_out[code]) == 0) {
-                        abs_valid_out[code] = 1;
-                    } else {
-                        int error = errno;
-                        MLT("[input] %s (%s): EVIOCGABS code=%d failed: errno=%d (%s)",
-                            path, name, code, error, strerror(error));
-                    }
-                }
+                if (bit_is_set(absbits, (unsigned)code) &&
+                    ioctl(fd, EVIOCGABS(code), &abs_out[code]) == 0)
+                    abs_valid_out[code] = 1;
             }
         }
-    } else {
-        MLT("[input] %s (%s): no EV_ABS capability", path, name);
     }
-
     *caps_out = caps;
-    if (!caps)
-        MLT("[input] reject %s (%s): no supported keyboard/mouse/gamepad capabilities",
-            path, name);
-    else
-        MLT("[input] classified %s (%s): capabilities=0x%x keyboard=%d mouse=%d gamepad=%d",
-            path, name, caps, !!(caps & INPUT_CAP_KEYBOARD),
-            !!(caps & INPUT_CAP_MOUSE), !!(caps & INPUT_CAP_GAMEPAD));
     return caps != 0;
 }
 
@@ -413,11 +354,12 @@ static void *reader(void *unused) {
                     for (size_t k = 0; k < count; k++)
                         handle_event(&s_devices[i], &events[k]);
                 } else if (bytes < 0 && errno != EAGAIN && errno != EINTR) {
-                    MLT("[input] read %s failed: errno=%d (%s)", s_devices[i].name, errno, strerror(errno));
+                    fprintf(stderr, "[input] read %s failed: errno=%d (%s)\n",
+                            s_devices[i].name, errno, strerror(errno));
                 }
             }
             if (s_poll[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-                MLT("[input] device disconnected: %s", s_devices[i].name);
+                fprintf(stderr, "[input] device disconnected: %s\n", s_devices[i].name);
                 close(s_devices[i].fd);
                 s_devices[i].fd = -1;
                 s_poll[i].fd = -1;
@@ -428,78 +370,53 @@ static void *reader(void *unused) {
     return NULL;
 }
 
-/* Used by the pthread-create failure path before its definition below. */
-void input_shutdown(void);
-
 int input_init(void) {
-    int event_entries = 0;
-    int opened_devices = 0;
-    int rejected_devices = 0;
-
-    MLT("[input] initialization started: scanning /dev/input");
     DIR *dir = opendir("/dev/input");
     if (!dir) {
         int error = errno;
-        MLT("[input] opendir(/dev/input) failed: errno=%d (%s)",
-            error, strerror(error));
+        fprintf(stderr, "[input] opendir(/dev/input) failed: errno=%d (%s)\n",
+                error, strerror(error));
         return -1;
     }
-    MLT("[input] opendir(/dev/input) succeeded");
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL && s_device_count < MAX_DEV) {
         if (strncmp(entry->d_name, "event", 5) != 0) continue;
-        event_entries++;
         char path[300];
         snprintf(path, sizeof(path), "/dev/input/%s", entry->d_name);
         int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0) {
             int error = errno;
-            MLT("[input] open %s failed: errno=%d (%s)",
-                path, error, strerror(error));
-            rejected_devices++;
+            fprintf(stderr, "[input] open %s failed: errno=%d (%s)\n",
+                    path, error, strerror(error));
             continue;
         }
-        opened_devices++;
 
         input_device candidate;
         memset(&candidate, 0, sizeof(candidate));
         candidate.fd = fd;
-        if (ioctl(fd, EVIOCGNAME(sizeof(candidate.name)), candidate.name) < 0) {
-            int error = errno;
+        if (ioctl(fd, EVIOCGNAME(sizeof(candidate.name)), candidate.name) < 0)
             snprintf(candidate.name, sizeof(candidate.name), "%s", entry->d_name);
-            MLT("[input] %s: EVIOCGNAME failed: errno=%d (%s); using node name",
-                path, error, strerror(error));
-        } else {
-            MLT("[input] opened %s: device name=\"%s\"", path, candidate.name);
-        }
-
-        if (!classify_device(path, candidate.name, fd, &candidate.caps,
-                             candidate.abs, candidate.abs_valid)) {
+        if (!classify_device(fd, &candidate.caps, candidate.abs,
+                             candidate.abs_valid)) {
             close(fd);
-            rejected_devices++;
             continue;
         }
 
         if (candidate.caps & INPUT_CAP_GAMEPAD) {
             if (s_pad_registered) {
-                MLT("[input] %s (%s): gamepad capability ignored; pad 0 already registered",
-                    path, candidate.name);
+                /* This first implementation exposes one physical controller. */
                 candidate.caps &= ~INPUT_CAP_GAMEPAD;
             } else {
                 int rc = LiSendControllerArrivalEvent(0, 0x1, LI_CTYPE_UNKNOWN,
                                                        gamepad_supported_buttons(), 1);
-                MLT("[input] %s (%s): gamepad registration rc=%d",
-                    path, candidate.name, rc);
+                fprintf(stderr, "[input] evdev gamepad registration: rc=%d\n", rc);
                 if (rc == 0) s_pad_registered = 1;
                 else candidate.caps &= ~INPUT_CAP_GAMEPAD;
             }
         }
         if (!candidate.caps) {
-            MLT("[input] reject %s (%s): no remaining usable capabilities",
-                path, candidate.name);
             close(fd);
-            rejected_devices++;
             continue;
         }
 
@@ -509,31 +426,29 @@ int input_init(void) {
         s_poll[s_device_count].revents = 0;
         s_device_count++;
         s_capabilities |= candidate.caps;
-        MLT("[input] accepted %s (%s): capabilities=0x%x",
-            path, candidate.name, candidate.caps);
+        fprintf(stderr, "[input] %s: %s (keyboard=%d mouse=%d gamepad=%d)\n",
+                path, candidate.name,
+                !!(candidate.caps & INPUT_CAP_KEYBOARD),
+                !!(candidate.caps & INPUT_CAP_MOUSE),
+                !!(candidate.caps & INPUT_CAP_GAMEPAD));
     }
     closedir(dir);
-    if (s_device_count == MAX_DEV)
-        MLT("[input] device scan reached MAX_DEV=%d; remaining event nodes were not inspected", MAX_DEV);
-
-    MLT("[input] scan complete: event_nodes=%d opened=%d accepted=%d rejected=%d",
-        event_entries, opened_devices, s_device_count, rejected_devices);
 
     if (!s_device_count) {
-        MLT("[input] no supported readable evdev devices found; native input remains disabled");
+        fprintf(stderr, "[input] no supported readable evdev devices found\n");
         return -1;
     }
 
     __atomic_store_n(&s_run, 1, __ATOMIC_RELEASE);
     int rc = pthread_create(&s_thread, NULL, reader, NULL);
     if (rc != 0) {
-        MLT("[input] pthread_create failed: rc=%d (%s)", rc, strerror(rc));
+        fprintf(stderr, "[input] pthread_create failed: rc=%d (%s)\n", rc, strerror(rc));
         input_shutdown();
         return -1;
     }
     s_thread_started = 1;
-    MLT("[input] native input active: capabilities=0x%x devices=%d",
-        s_capabilities, s_device_count);
+    fprintf(stderr, "[input] native input active: capabilities=0x%x devices=%d\n",
+            s_capabilities, s_device_count);
     return 0;
 }
 
@@ -555,7 +470,6 @@ void input_shutdown(void) {
     s_device_count = 0;
     __atomic_store_n(&s_capabilities, 0, __ATOMIC_RELEASE);
     s_pad_registered = 0;
-    s_pad_dirty = 0;
     s_pad_buttons = 0;
     s_lx = s_ly = s_rx = s_ry = 0;
     s_lt = s_rt = 0;
