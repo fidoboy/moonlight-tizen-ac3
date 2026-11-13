@@ -10,6 +10,10 @@ int esplus_set_window(int width, int height);
 int esplus_prepare(void);
 void esplus_set_audio_enabled(int enabled);
 void esplus_audio_registration_complete(int success);
+/* Shared monotonic PTS origin: set by the first video frame, read by audio. */
+void esplus_stream_clock_reset(void);
+void esplus_stream_clock_start(void);
+uint64_t esplus_stream_clock_pts_ns(void);
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet);
 /* 1 after ESPlus start succeeds and at least one video packet is accepted. */
 int esplus_video_ready(void);
