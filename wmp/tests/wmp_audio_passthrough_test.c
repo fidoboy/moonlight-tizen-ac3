@@ -7,6 +7,7 @@
 #include "../upstream/mlclient/audio_opus.c"
 
 static int g_ac3, g_eac3, g_submit_count, g_registration_result, g_audio_registered;
+static uint64_t g_clock_pts_ns;
 static wmp_esplus_audio_info_t g_audio_info;
 static wmp_esplus_packet_t g_last_packet;
 
@@ -19,6 +20,7 @@ int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
 { g_audio_info = *info; g_audio_registered = 1; return g_registration_result; }
 void esplus_audio_registration_complete(int success)
 { if (success) assert(g_audio_registered); }
+uint64_t esplus_stream_clock_pts_ns(void) { return g_clock_pts_ns; }
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 {
     wmp_esplus_submit_result_t result = { WMP_ESPLUS_SUBMIT_SUCCESS, 4 };
@@ -34,6 +36,7 @@ static void reset_capture(void)
     g_submit_count = 0;
     g_registration_result = 0;
     g_audio_registered = 0;
+    g_clock_pts_ns = 0;
 }
 
 int main(void)
@@ -64,9 +67,12 @@ int main(void)
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_EAC3);
     assert(g_audio_info.codec_data == NULL && g_audio_info.codec_data_size == 0);
     assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
+    g_clock_pts_ns = 123456789ull;
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
     assert(g_submit_count == 1 && g_last_packet.data == frame);
-    assert(g_last_packet.size == sizeof(frame) && g_last_packet.duration_ns == 32000000ull);
+    assert(g_last_packet.size == sizeof(frame));
+    assert(g_last_packet.pts_ns == 123456789ull);
+    assert(g_last_packet.duration_ns == 32000000ull);
     callbacks.cleanup();
 
     reset_capture();
@@ -87,11 +93,13 @@ int main(void)
     assert(((const unsigned char *)g_audio_info.codec_data)[18] == 1);
     assert(((const unsigned char *)g_audio_info.codec_data)[19] == 4);
     assert(((const unsigned char *)g_audio_info.codec_data)[20] == 2);
+    g_clock_pts_ns = 987654321ull;
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
     assert(g_submit_count == 1);
     assert(g_last_packet.type == WMP_ESPLUS_STREAM_AUDIO);
     assert(g_last_packet.data == frame && g_last_packet.size == sizeof(frame));
-    assert(g_last_packet.pts_ns == 0 && g_last_packet.duration_ns == 10000000ull);
+    assert(g_last_packet.pts_ns == 987654321ull);
+    assert(g_last_packet.duration_ns == 10000000ull);
     callbacks.cleanup();
 
     /* Registration failure is propagated to Common C and does not submit. */
