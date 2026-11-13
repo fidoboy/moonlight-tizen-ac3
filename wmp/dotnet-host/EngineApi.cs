@@ -78,6 +78,15 @@ namespace MoonlightWmpHost
         internal delegate void SendKeyFn(int keyCode, int keyAction, int modifiers);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SendMouseMoveFn(int deltaX, int deltaY);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SendMouseButtonFn(int button, int pressed);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SendMouseScrollFn(int amount);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int GamepadArrivalFn(int index, int activeMask, int type,
             uint supportedButtons, int capabilities);
 
@@ -128,6 +137,9 @@ namespace MoonlightWmpHost
         internal readonly VideoReadyFn VideoReady;
         internal readonly StopFn Stop;
         internal readonly SendKeyFn SendKey;
+        internal readonly SendMouseMoveFn SendMouseMove;
+        internal readonly SendMouseButtonFn SendMouseButton;
+        internal readonly SendMouseScrollFn SendMouseScroll;
         internal readonly GamepadArrivalFn GamepadArrival;
         internal readonly GamepadStateFn GamepadState;
         internal readonly SetDolbyPassthroughFn SetDolbyPassthrough;
@@ -158,6 +170,9 @@ namespace MoonlightWmpHost
             VideoReady = Bind<VideoReadyFn>(resolve, "ml_engine_video_ready");
             Stop = Bind<StopFn>(resolve, "ml_engine_stop");
             SendKey = Bind<SendKeyFn>(resolve, "ml_engine_send_key");
+            SendMouseMove = Bind<SendMouseMoveFn>(resolve, "ml_engine_send_mouse_move");
+            SendMouseButton = Bind<SendMouseButtonFn>(resolve, "ml_engine_send_mouse_button");
+            SendMouseScroll = Bind<SendMouseScrollFn>(resolve, "ml_engine_send_mouse_scroll");
             GamepadArrival = Bind<GamepadArrivalFn>(resolve, "ml_engine_gamepad_arrival");
             GamepadState = Bind<GamepadStateFn>(resolve, "ml_engine_gamepad_state");
             SetDolbyPassthrough = Bind<SetDolbyPassthroughFn>(
