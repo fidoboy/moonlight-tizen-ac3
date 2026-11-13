@@ -513,8 +513,14 @@ namespace MoonlightWmpHost
                         // on the MessagePort callback thread. Each event is handed
                         // to the thread pool, as the reference host does.
                         if (!ThreadPool.QueueUserWorkItem(delegate
-                            { HandleInputCommand(command, bundle); }))
-                            Log.Error("input command dispatch failed: " + command);
+                        {
+                            try { HandleInputCommand(command, bundle); }
+                            catch (Exception ex)
+                            {
+                                Log.Error("WMP input dispatch failed (" + command + "): " + ex.Message);
+                            }
+                        }))
+                            Log.Error("input command dispatch could not be queued: " + command);
                         return;
                     case "gamepad_arrival":
                     case "gamepad_state":
