@@ -6916,6 +6916,8 @@ function saveResolution() {
   console.log('%c[index.js, saveResolution]', 'color: green;', 'Saving resolution value: ' + chosenResolution);
   storeData('resolution', chosenResolution, null);
 
+  updateH264FramerateConstraint();
+
   // Update the bitrate value based on the selected resolution
   $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
   // Trigger warning check after changing video resolution
@@ -6932,6 +6934,35 @@ function saveFramerate() {
   $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
   // Trigger warning check after changing video frame rate
   warnResolutionFramerate();
+}
+
+// ESPlusPlayer cannot sustain H.264 above 1080p at 60 FPS.
+function updateH264FramerateConstraint() {
+  var resolution = ($('#selectResolution').data('value') || '1280:720').split(':');
+  var height = parseInt(resolution[1], 10) || 0;
+  var isH264 = $('#selectCodec').data('value') === 'H264';
+  var mustForce30Fps = isH264 && height > 1080;
+  var framerateButton = $('#selectFramerate');
+
+  if (mustForce30Fps && framerateButton.data('value') !== '30') {
+    var thirtyFpsOption = $('.videoFramerateMenu li[data-value="30"]').first();
+    if (thirtyFpsOption.length) {
+      framerateButton.text(thirtyFpsOption.text());
+    } else {
+      framerateButton.text('30 FPS');
+    }
+    framerateButton.attr('data-value', '30').data('value', '30');
+    storeData('frameRate', '30', null);
+    $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
+  }
+
+  framerateButton.prop('disabled', mustForce30Fps)
+    .attr('aria-disabled', mustForce30Fps ? 'true' : 'false')
+    .toggleClass('is-disabled', mustForce30Fps);
+
+  if (mustForce30Fps) {
+    closePopupMenu('selectFramerate');
+  }
 }
 
 function warnResolutionFramerate() {
@@ -8258,6 +8289,8 @@ function updateVideoCodec(chosenCodecId, chosenCodecValue) {
   console.log('%c[index.js, updateVideoCodec]', 'color: green;', 'Saving video codec value: ' + chosenCodecValue);
   storeData('videoCodec', chosenCodecValue, null);
 
+  updateH264FramerateConstraint();
+
   // Update the bitrate value based on the selected codec
   if ($('#optimizeBitrateSwitch').prop('checked')) {
     optimizeBitratePresets();
@@ -9012,6 +9045,7 @@ function loadUserDataCb() {
         }
       });
     }
+    updateH264FramerateConstraint();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored bitrate preferences.');
@@ -9302,6 +9336,7 @@ function loadUserDataCb() {
       });
     }
     updateH264LevelControlState();
+    updateH264FramerateConstraint();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored H.264 level preference.');
