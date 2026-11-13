@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "Limelight.h"
-#include "opus_multistream.h"
+#include "../../../opus/include/opus_multistream.h"
 #include "esplus_player.h"
 #include "mltrace.h"
 
