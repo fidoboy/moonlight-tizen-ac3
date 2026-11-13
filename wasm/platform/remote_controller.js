@@ -4,7 +4,7 @@ function remoteControllerHandler(e) {
 
   // In native-engine mode the WASM input loop does not own the stream.
   // Forward TV remote navigation keys directly to Moonlight Common C instead.
-  if (isInGame === true && window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+  if (isInGame === true && isDialogOpen !== true && window._activeStreamingEngine === 'ESPLUSPLAYER' &&
       window.ESPlusPlayerTransport &&
       typeof window.ESPlusPlayerTransport.sendKey === 'function') {
     let virtualKey = 0;
