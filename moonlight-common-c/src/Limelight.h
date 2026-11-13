@@ -1014,6 +1014,10 @@ bool LiPollNextVideoFrame(VIDEO_FRAME_HANDLE* frameHandle, PDECODE_UNIT* decodeU
 void LiWakeWaitForVideoFrame(void);
 void LiCompleteVideoFrame(VIDEO_FRAME_HANDLE handle, int drStatus);
 
+// Report a fatal native video-renderer failure from an asynchronous renderer callback.
+// The normal connection termination callback is dispatched by Common C on its own thread.
+void LiReportVideoRendererError(void);
+
 // This function returns the last reported HDR mode from the host PC.
 // See ConnListenerSetHdrMode() for more details.
 bool LiGetCurrentHostDisplayHdrMode(void);
