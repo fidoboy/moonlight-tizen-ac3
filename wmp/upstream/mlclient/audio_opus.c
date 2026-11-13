@@ -47,7 +47,7 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
 
-static void opus_decoder_destroy(void)
+static void opus_multistream_state_destroy(void)
 {
     if (s_opus_decoder) {
         opus_multistream_decoder_destroy(s_opus_decoder);
@@ -58,7 +58,7 @@ static void opus_decoder_destroy(void)
     s_pcm_capacity_samples = 0;
 }
 
-static int opus_decoder_create(const POPUS_MULTISTREAM_CONFIGURATION config)
+static int opus_multistream_state_init(const POPUS_MULTISTREAM_CONFIGURATION config)
 {
     int error = OPUS_OK;
     size_t required_samples;
@@ -86,7 +86,7 @@ static int opus_decoder_create(const POPUS_MULTISTREAM_CONFIGURATION config)
         config->mapping, &error);
     if (!s_opus_decoder || error != OPUS_OK) {
         MLT("opus_multistream_decoder_create failed: %d", error);
-        opus_decoder_destroy();
+        opus_multistream_state_destroy();
         return -1;
     }
 
@@ -94,7 +94,7 @@ static int opus_decoder_create(const POPUS_MULTISTREAM_CONFIGURATION config)
     if (!s_pcm_buffer) {
         MLT("Opus PCM buffer allocation failed (%lu samples)",
             (unsigned long)required_samples);
-        opus_decoder_destroy();
+        opus_multistream_state_destroy();
         return -1;
     }
 
@@ -114,7 +114,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 
     (void)context;
     (void)flags;
-    opus_decoder_destroy();
+    opus_multistream_state_destroy();
     s_pts_ns = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -135,7 +135,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
             s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "E-AC-3" : "AC-3",
             channel_count, DOLBY_SAMPLE_RATE);
     } else {
-        if (opus_decoder_create(config) != 0) {
+        if (opus_multistream_state_init(config) != 0) {
             ALOG("Opus decoder initialization failed\n");
             return -1;
         }
@@ -146,7 +146,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     if (!esplus_create_open()) {
         ALOG("player create failed\n");
         MLT("audio init -> -1 (player)");
-        opus_decoder_destroy();
+        opus_multistream_state_destroy();
         return -1;
     }
 
@@ -176,7 +176,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         result);
     if (result != 0) {
         ALOG("audio stream registration failed: %d\n", result);
-        opus_decoder_destroy();
+        opus_multistream_state_destroy();
         return -1;
     }
 
@@ -200,7 +200,7 @@ static void ar_stop(void) {}
 
 static void ar_cleanup(void)
 {
-    opus_decoder_destroy();
+    opus_multistream_state_destroy();
     s_dolby = 0;
     s_pts_ns = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
