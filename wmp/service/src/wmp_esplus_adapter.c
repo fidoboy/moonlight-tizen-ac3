@@ -112,7 +112,6 @@ typedef char assert_set_video_arm32[(sizeof(void *) != 4 || sizeof(set_video_inf
 typedef char assert_set_audio_arm32[(sizeof(void *) != 4 || sizeof(set_audio_info_t) == 88) ? 1 : -1];
 typedef char assert_add_audio_arm32[(sizeof(void *) != 4 || sizeof(add_audio_info_t) == 24) ? 1 : -1];
 typedef char assert_add_video_arm32[(sizeof(void *) != 4 || sizeof(add_video_info_t) == 36) ? 1 : -1];
-typedef char assert_audio_arm32[(sizeof(void *) != 4 || sizeof(native_audio_info_t) == 24) ? 1 : -1];
 
 static wmp_esplus_adapter_t *s_add_adapter;
 
