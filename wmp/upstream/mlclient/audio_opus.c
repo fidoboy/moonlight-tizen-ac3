@@ -1,32 +1,25 @@
 /*
- * audio_opus.c - Moonlight Common C audio renderer backed by the shared
- * native ESPlus player.
- *
- * Normal audio is decoded from the received Opus multistream packets to
- * interleaved signed 16-bit PCM and submitted as PCM_S16LE. AC-3/E-AC-3 is
- * submitted unchanged only when Common C confirms successful negotiation.
+ * audio_opus.c - Moonlight Common C audio renderer backed by ESPlusPlayer.
+ * Opus multistream packets and negotiated Dolby elementary streams are sent
+ * compressed and unchanged to the native player.
  */
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "Limelight.h"
-#include "../../../opus/include/opus_multistream.h"
 #include "esplus_player.h"
 #include "mltrace.h"
 
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
-
 #define DOLBY_SAMPLE_RATE 48000u
 #define DOLBY_FRAME_DURATION_NS 32000000ull
 
-static OpusMSDecoder *s_opus_decoder;
-static opus_int16 *s_pcm_buffer;
-static size_t s_pcm_capacity_samples;
 static int s_sample_rate = 48000;
 static int s_channel_count;
 static int s_samples_per_frame = 240;
+static unsigned char s_opus_head[21 + AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT];
+static uint32_t s_opus_head_size;
 static uint64_t s_pts_ns;
 static int s_dolby;
 static int s_dolby_passthrough_enabled;
@@ -34,7 +27,8 @@ static wmp_esplus_audio_mime_e s_dolby_mime;
 static volatile int s_audio_codec_candidate;
 static volatile int s_audio_codec_active;
 
-int AudEsplus_GetActiveAudioCodec(void) {
+int AudEsplus_GetActiveAudioCodec(void)
+{
     return __atomic_load_n(&s_audio_codec_active, __ATOMIC_ACQUIRE);
 }
 
@@ -43,63 +37,56 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     s_dolby_passthrough_enabled = enabled != 0;
     s_dolby = 0;
     s_pts_ns = 0;
+    s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
 
-static void opus_multistream_state_destroy(void)
+/* Build the standard OpusHead codec-private data, including the multistream
+ * mapping supplied by Moonlight Common C for surround layouts. */
+static int opus_head_build(const POPUS_MULTISTREAM_CONFIGURATION config)
 {
-    if (s_opus_decoder) {
-        opus_multistream_decoder_destroy(s_opus_decoder);
-        s_opus_decoder = NULL;
-    }
-    free(s_pcm_buffer);
-    s_pcm_buffer = NULL;
-    s_pcm_capacity_samples = 0;
-}
+    unsigned i;
+    unsigned char family;
+    size_t size;
 
-static int opus_multistream_state_init(const POPUS_MULTISTREAM_CONFIGURATION config)
-{
-    int error = OPUS_OK;
-    size_t required_samples;
-
-    if (!config || config->sampleRate <= 0 ||
-        config->channelCount <= 0 ||
+    if (!config || config->sampleRate <= 0 || config->channelCount <= 0 ||
         config->channelCount > AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT ||
-        config->samplesPerFrame <= 0 ||
-        config->samplesPerFrame <= 0 ||
-        config->streams <= 0 || config->coupledStreams < 0) {
-        MLT("Opus decoder init -> -1 (invalid multistream configuration)");
+        config->samplesPerFrame <= 0 || config->streams <= 0 ||
+        config->coupledStreams < 0 || config->coupledStreams > config->streams ||
+        config->streams + config->coupledStreams > 255)
         return -1;
+
+    family = config->channelCount <= 2 ? 0 : 1;
+    size = family == 0 ? 19u : 21u + (size_t)config->channelCount;
+    if (size > sizeof(s_opus_head))
+        return -1;
+
+    memset(s_opus_head, 0, sizeof(s_opus_head));
+    memcpy(s_opus_head, "OpusHead", 8);
+    s_opus_head[8] = 1; /* OpusHead version */
+    s_opus_head[9] = (unsigned char)config->channelCount;
+    /* pre-skip and output gain are zero; input rate is informational. */
+    s_opus_head[12] = (unsigned char)(config->sampleRate & 0xff);
+    s_opus_head[13] = (unsigned char)((config->sampleRate >> 8) & 0xff);
+    s_opus_head[14] = (unsigned char)((config->sampleRate >> 16) & 0xff);
+    s_opus_head[15] = (unsigned char)((config->sampleRate >> 24) & 0xff);
+    s_opus_head[18] = family;
+
+    if (family == 0) {
+        if ((config->channelCount == 1 &&
+             (config->streams != 1 || config->coupledStreams != 0)) ||
+            (config->channelCount == 2 &&
+             (config->streams != 1 || config->coupledStreams != 1)))
+            return -1;
+    } else {
+        s_opus_head[19] = (unsigned char)config->streams;
+        s_opus_head[20] = (unsigned char)config->coupledStreams;
+        for (i = 0; i < (unsigned)config->channelCount; ++i)
+            s_opus_head[21 + i] = config->mapping[i];
     }
 
-    if ((size_t)config->samplesPerFrame >
-        SIZE_MAX / (size_t)config->channelCount)
-        return -1;
-    required_samples = (size_t)config->samplesPerFrame *
-                       (size_t)config->channelCount;
-    if (required_samples > SIZE_MAX / sizeof(*s_pcm_buffer))
-        return -1;
-
-    s_opus_decoder = opus_multistream_decoder_create(
-        config->sampleRate, config->channelCount,
-        config->streams, config->coupledStreams,
-        config->mapping, &error);
-    if (!s_opus_decoder || error != OPUS_OK) {
-        MLT("opus_multistream_decoder_create failed: %d", error);
-        opus_multistream_state_destroy();
-        return -1;
-    }
-
-    s_pcm_buffer = malloc(required_samples * sizeof(*s_pcm_buffer));
-    if (!s_pcm_buffer) {
-        MLT("Opus PCM buffer allocation failed (%lu samples)",
-            (unsigned long)required_samples);
-        opus_multistream_state_destroy();
-        return -1;
-    }
-
-    s_pcm_capacity_samples = required_samples;
+    s_opus_head_size = (uint32_t)size;
     s_sample_rate = config->sampleRate;
     s_channel_count = config->channelCount;
     s_samples_per_frame = config->samplesPerFrame;
@@ -115,85 +102,80 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 
     (void)context;
     (void)flags;
-    opus_multistream_state_destroy();
     s_pts_ns = 0;
+    s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
+
     s_dolby = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
     s_dolby_mime = LiIsEac3AudioNegotiated()
         ? WMP_ESPLUS_AUDIO_MIME_EAC3 : WMP_ESPLUS_AUDIO_MIME_AC3;
 
     if (s_dolby) {
         channel_count = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(audioConfig);
-        if (channel_count <= 0 || channel_count > AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT) {
-            MLT("Dolby audio init -> -1 (invalid channel count %d)", channel_count);
+        if (channel_count <= 0 ||
+            channel_count > AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT) {
+            MLT("Dolby audio init failed: invalid channel count %d", channel_count);
             esplus_audio_registration_complete(0);
             return -1;
         }
         s_sample_rate = DOLBY_SAMPLE_RATE;
         s_channel_count = channel_count;
         s_samples_per_frame = 1536;
-        MLT("Dolby audio init codec=%s channels=%d rate=%u",
-            s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "E-AC-3" : "AC-3",
-            channel_count, DOLBY_SAMPLE_RATE);
-    } else {
-        if (opus_multistream_state_init(config) != 0) {
-            ALOG("Opus decoder initialization failed\n");
-            return -1;
-        }
-        MLT("Opus decoder ready: %d Hz, %d channels, %d samples/frame",
-            s_sample_rate, s_channel_count, s_samples_per_frame);
+    } else if (opus_head_build(config) != 0) {
+        ALOG("invalid Opus multistream configuration\n");
+        MLT("native Opus configuration rejected");
+        esplus_audio_registration_complete(0);
+        return -1;
     }
 
     if (!esplus_create_open()) {
-        ALOG("player create failed\n");
-        MLT("audio init -> -1 (player)");
-        opus_multistream_state_destroy();
+        ALOG("ESPlus player unavailable during audio init\n");
+        esplus_audio_registration_complete(0);
         return -1;
     }
 
     memset(&info, 0, sizeof(info));
     if (s_dolby) {
-        /* AC-3/E-AC-3 carry their codec configuration in-band. */
-        info.codec_data = NULL;
-        info.codec_data_size = 0;
         info.mime_type = s_dolby_mime;
         info.channels = (uint32_t)channel_count;
         info.sample_rate = DOLBY_SAMPLE_RATE;
-        info.bitrate = 0;
     } else {
-        /* OpusHead carries the multistream layout required by ESPlus. */
-        info.codec_data = NULL;
-        info.codec_data_size = 0;
-        info.mime_type = WMP_ESPLUS_AUDIO_MIME_PCM_S16LE;
+        info.codec_data = s_opus_head;
+        info.codec_data_size = s_opus_head_size;
+        info.mime_type = WMP_ESPLUS_AUDIO_MIME_OPUS;
         info.channels = (uint32_t)s_channel_count;
         info.sample_rate = (uint32_t)s_sample_rate;
-        info.bitrate = 0;
     }
 
     result = esplus_set_audio_info(&info);
     MLT("audio stream registration %s -> %d",
-        s_dolby ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "eac3" : "ac3")
-                : "pcm_s16le",
+        s_dolby
+            ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "eac3" : "ac3")
+            : "opus",
         result);
     if (result != 0) {
-        ALOG("audio stream registration failed: %d\n", result);
-        opus_multistream_state_destroy();
+        ALOG("ESPlus audio stream registration failed: %d\n", result);
+        esplus_audio_registration_complete(0);
         return -1;
     }
 
-    if (s_dolby) {
-        ALOG("init %s passthrough, %d channels at %u Hz\n",
+    __atomic_store_n(&s_audio_codec_candidate,
+        s_dolby
+            ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3 : 2)
+            : 1,
+        __ATOMIC_RELEASE);
+
+    /* This is the lifecycle barrier: prepare_async cannot run before this. */
+    esplus_audio_registration_complete(1);
+
+    if (s_dolby)
+        ALOG("registered %s passthrough: %d channels at %u Hz\n",
              s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "E-AC-3" : "AC-3",
              channel_count, DOLBY_SAMPLE_RATE);
-    } else {
-        ALOG("init Opus decoder -> PCM_S16LE, %d Hz, %d channels, %d samples/frame\n",
+    else
+        ALOG("registered native Opus: %d Hz, %d channels, %d samples/frame\n",
              s_sample_rate, s_channel_count, s_samples_per_frame);
-    }
-
-    __atomic_store_n(&s_audio_codec_candidate,
-                     s_dolby ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3 : 2) : 1,
-                     __ATOMIC_RELEASE);
     return 0;
 }
 
@@ -202,9 +184,9 @@ static void ar_stop(void) {}
 
 static void ar_cleanup(void)
 {
-    opus_multistream_state_destroy();
     s_dolby = 0;
     s_pts_ns = 0;
+    s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -216,10 +198,8 @@ static void ar_decodePlay(char *data, int len)
     uint64_t duration_ns;
 
     if (s_dolby) {
-        /* Common C reports a lost Dolby frame as (NULL, 0). Keep the 32 ms
-         * elementary-stream clock moving even when that frame is absent. */
         duration_ns = DOLBY_FRAME_DURATION_NS;
-        if (data != NULL && len > 0) {
+        if (data && len > 0) {
             memset(&packet, 0, sizeof(packet));
             packet.type = WMP_ESPLUS_STREAM_AUDIO;
             packet.data = data;
@@ -227,66 +207,40 @@ static void ar_decodePlay(char *data, int len)
             packet.pts_ns = s_pts_ns;
             packet.duration_ns = duration_ns;
             result = esplus_submit(&packet);
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
                 __atomic_store_n(&s_audio_codec_active,
-                                 __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
-                                 __ATOMIC_RELEASE);
-            }
-            if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
-                result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
-                result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
+                    __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
+                    __ATOMIC_RELEASE);
+            else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+                     result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
                      (int)result.status, result.raw_status);
-            }
         }
         s_pts_ns += duration_ns;
         return;
     }
 
-    if (!s_opus_decoder || !s_pcm_buffer || s_channel_count <= 0 ||
-        s_sample_rate <= 0)
-        return;
-
     duration_ns = (uint64_t)s_samples_per_frame * 1000000000ull /
-                  (uint64_t)s_sample_rate;
-
-    /* A NULL/empty packet is passed to libopus as PLC, matching the EMSS path. */
-    decoded_samples = opus_multistream_decode(
-        s_opus_decoder, (const unsigned char *)data, len,
-        s_pcm_buffer, s_samples_per_frame, 0);
-    if (decoded_samples <= 0) {
-        MLT("Opus decode rejected packet: %d", decoded_samples);
+                  (uint64_t)(s_sample_rate > 0 ? s_sample_rate : 48000);
+    if (!data || len <= 0) {
+        /* A lost packet has no compressed payload to forward. */
         s_pts_ns += duration_ns;
         return;
     }
-
-    pcm_samples = (size_t)decoded_samples * (size_t)s_channel_count;
-    if (pcm_samples > s_pcm_capacity_samples ||
-        pcm_samples > UINT32_MAX / sizeof(*s_pcm_buffer)) {
-        MLT("Opus decoder returned oversized PCM frame: %d samples x %d channels",
-            decoded_samples, s_channel_count);
-        s_pts_ns += duration_ns;
-        return;
-    }
-    pcm_bytes = pcm_samples * sizeof(*s_pcm_buffer);
-    duration_ns = (uint64_t)decoded_samples * 1000000000ull /
-                  (uint64_t)s_sample_rate;
 
     memset(&packet, 0, sizeof(packet));
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
-    packet.data = s_pcm_buffer;
-    packet.size = (uint32_t)pcm_bytes;
+    packet.data = data;                 /* original Opus packet, no PCM stage */
+    packet.size = (uint32_t)len;
     packet.pts_ns = s_pts_ns;
     packet.duration_ns = duration_ns;
-
     result = esplus_submit(&packet);
-    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
         __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
-    } else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
-               result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
-        ALOG("submit PCM audio failed status=%d raw=%d\n",
+    else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+             result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
+        ALOG("submit Opus audio failed status=%d raw=%d\n",
              (int)result.status, result.raw_status);
-    }
     s_pts_ns += duration_ns;
 }
 
