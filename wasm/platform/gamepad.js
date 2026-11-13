@@ -146,7 +146,7 @@ const Controller = (function() {
       window.addEventListener('gamepaddisconnected', function(e) {
         gamepadDisconnected(e.gamepad);
       });
-      pollingInterval = setInterval(pollGamepads, 10);
+      pollingInterval = setInterval(pollGamepads, 5);
     }
   }
 
