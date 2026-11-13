@@ -15,6 +15,7 @@
 #include <dlfcn.h>
 
 #include "esplus_player.h"
+#include "Limelight.h"
 #include "esplus_stats.h"
 #include "mldiag.h"
 #include "mltrace.h"
@@ -118,6 +119,7 @@ static volatile int s_prepared, s_prepare_ok, s_started;
 static int s_video_ready;
 static int s_prepare_failed, s_start_failed;
 static int s_start_tried, s_player_closing;
+static volatile int s_player_error;
 static volatile int s_prepare_called;
 static uint64_t s_idr_t0, s_idr_last;
 static unsigned s_idr_n, s_video_tries;
@@ -294,14 +296,17 @@ static void sampler_stop(void)
 
 static void on_prepared(bool ok, void *context)
 {
+    int report_failure = 0;
     (void)context;
     pthread_mutex_lock(&s_lock);
     MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d",
         ok ? 1 : 0, s_prepared, s_start_tried);
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
-    if (!ok)
+    if (!ok) {
         s_prepare_failed = 1;
+        report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
+    }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
 
@@ -309,6 +314,8 @@ static void on_prepared(bool ok, void *context)
     if (!ok) {
         PLOG("prepare_async_done reported false; start() will not be called\n");
         MLT("prepare_async_done=false; start skipped");
+        if (report_failure)
+            LiReportVideoRendererError();
         return;
     }
     PLOG("callback prepare_async_done=true\n");
@@ -319,7 +326,7 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     (void)context;
     pthread_mutex_lock(&s_lock);
     MLT("stage ready_to_prepare callback ENTER stream=%d", (int)stream);
-    if (stream == WMP_ESPLUS_STREAM_VIDEO && !s_player_closing) {
+    if (stream == WMP_ESPLUS_STREAM_VIDEO && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         s_video_ready = 1;
         pthread_cond_broadcast(&s_state_cv);
         MLT("ready_to_prepare(STREAM_VIDEO): video feeder released");
@@ -328,14 +335,40 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
 }
-static void on_error(uint32_t error, void *context)
+static void on_error(int error, void *context)
 {
+    const char *description;
+    int report_failure = 0;
     (void)context;
-    MLT("stage player_error callback ENTER error=0x%08x prepared=%d started=%d start_tried=%d", error, s_prepared, __atomic_load_n(&s_started, __ATOMIC_ACQUIRE), s_start_tried);
+
+    description = wmp_esplus_adapter_get_error_string(&s_adapter, error);
     __atomic_fetch_add(&esplus_stats.errors, 1, __ATOMIC_RELAXED);
-    __atomic_store_n(&esplus_stats.last_error, error, __ATOMIC_RELAXED);
-    PLOG("player error 0x%x\n", error);
-    MLT("cb player error 0x%x", error);
+    __atomic_store_n(&esplus_stats.last_error, (uint32_t)error, __ATOMIC_RELAXED);
+
+    /* ESPlusPlayer may invoke this on its own thread. Never tear down the
+     * player from the callback: latch the error and ask Common C to terminate
+     * through its normal asynchronous connectionTerminated path. */
+    if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
+        report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
+        if (pthread_mutex_trylock(&s_lock) == 0) {
+            if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
+                s_prepare_failed = 1;
+            pthread_cond_broadcast(&s_state_cv);
+            pthread_mutex_unlock(&s_lock);
+        }
+        else {
+            /* submit may hold s_lock while the native API calls back inline.
+             * The atomic error flag is checked immediately after that call. */
+            pthread_cond_broadcast(&s_state_cv);
+        }
+    }
+
+    PLOG("player error code=0x%08x (%d) description=%s\n",
+         (unsigned)error, error, description ? description : "unavailable");
+    MLT("cb player error code=0x%08x (%d) description=%s",
+        (unsigned)error, error, description ? description : "unavailable");
+    if (report_failure)
+        LiReportVideoRendererError();
 }
 static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status, void *context)
 {
@@ -368,7 +401,7 @@ int esplus_create_open(void)
     wmp_esplus_callbacks_t callbacks;
 
     pthread_mutex_lock(&s_lock);
-    if (s_player_closing) {
+    if (__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         pthread_mutex_unlock(&s_lock);
         return 0;
     }
@@ -399,8 +432,9 @@ int esplus_create_open(void)
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
+    __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
-    s_player_closing = 0;
+    __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_prepare_called = 0;
     s_idr_t0 = s_idr_last = 0;
@@ -586,6 +620,7 @@ int esplus_prepare(void)
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
+    __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_idr_t0 = esplus_mono_ms();
@@ -607,6 +642,8 @@ int esplus_prepare(void)
         pthread_mutex_unlock(&s_lock);
         PLOG("prepare_async failed (status=%d raw=%d); video feeder released with failure\n",
              (int)result.status, result.raw_status);
+        if (!__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL))
+            LiReportVideoRendererError();
         return result_to_int(result);
     }
     sampler_start();
@@ -629,12 +666,16 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         /* Match OmegaTube's feed loop: do not submit video until the native
          * player explicitly announces ready_to_prepare(STREAM_VIDEO). */
         while (!s_video_ready && !s_prepare_failed && !s_start_failed &&
-               !s_player_closing) {
+               !__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) &&
+               !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
             pthread_cond_wait(&s_state_cv, &s_lock);
         }
 
-        if (s_prepare_failed || s_start_failed || s_player_closing) {
-            const char *reason = s_prepare_failed ? "prepare_async_done(false)" :
+        if (s_prepare_failed || s_start_failed ||
+            __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) ||
+            __atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
+            const char *reason = __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) ? "native ESPlusPlayer error" :
+                                 s_prepare_failed ? "prepare_async_done(false)" :
                                  s_start_failed ? "start() failed" : "player closing";
             MLT("video feeder released without readiness: %s", reason);
             PLOG("video submit rejected: %s\n", reason);
@@ -643,6 +684,12 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             pthread_mutex_unlock(&s_lock);
             return result;
         }
+    }
+    if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
+        result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+        result.raw_status = INT_MIN;
+        pthread_mutex_unlock(&s_lock);
+        return result;
     }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         s_prepared && s_prepare_ok && !s_start_tried) {
@@ -674,6 +721,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
         MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
+    if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
+        result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+        result.raw_status = INT_MIN;
+    }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
         MLT("stage submit CALL returned status=%d raw=%d", (int)result.status, result.raw_status);
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
@@ -720,7 +771,7 @@ void esplus_close(void)
     /* Wake a feeder blocked on ready_to_prepare and prevent it from
      * submitting or starting a player that is being torn down. */
     pthread_mutex_lock(&s_lock);
-    s_player_closing = 1;
+    __atomic_store_n(&s_player_closing, 1, __ATOMIC_RELEASE);
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
 
@@ -740,6 +791,7 @@ void esplus_close(void)
     s_prepared = s_prepare_ok = 0;
     s_video_ready = 0;
     s_prepare_failed = s_start_failed = 0;
+    __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     s_prepare_called = 0;
