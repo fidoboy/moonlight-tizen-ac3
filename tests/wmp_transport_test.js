@@ -79,8 +79,21 @@ const remotePort = {
 };
 
 const handledEvents = [];
+const windowEventListeners = Object.create(null);
 const window = {
   DEBUG_MODE: true,
+  addEventListener(type, callback) {
+    if (!windowEventListeners[type]) windowEventListeners[type] = [];
+    windowEventListeners[type].push(callback);
+  },
+  removeEventListener(type, callback) {
+    if (!windowEventListeners[type]) return;
+    windowEventListeners[type] = windowEventListeners[type].filter(listener => listener !== callback);
+  },
+  dispatchEvent(event) {
+    const listeners = windowEventListeners[event.type] || [];
+    listeners.slice().forEach(listener => listener.call(window, event));
+  },
   console: {
     debug(...args) { debugEntries.push(args); },
     info(...args) { infoEntries.push(args); }
