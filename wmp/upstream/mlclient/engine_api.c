@@ -29,6 +29,7 @@ static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
+extern unsigned input_get_capabilities(void);
 extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned short httpsPort,
                            int appId, const char *pin, STREAM_CONFIGURATION *sc,
                            SERVER_INFORMATION *si, const char *datadir);
@@ -219,6 +220,10 @@ int ml_engine_get_active_audio_codec(void) {
 
 int ml_engine_video_ready(void) {
   return esplus_video_ready();
+}
+
+int ml_engine_input_capabilities(void) {
+  return (int)input_get_capabilities();
 }
 
 int ml_engine_get_stats(ml_engine_stats *out) {
