@@ -15,9 +15,10 @@ typedef struct {
     uint32_t buffer_size;
     uint64_t pts_ms;
     uint64_t duration_ms;
-    uint32_t matroska_color_info;
+    const void *matroska_color_info;
     uint32_t hdr10p_metadata_size;
     const void *hdr10p_metadata;
+    uint8_t reserved[64];
 } set_packet_t;
 
 /* ADD (legacy TV50): compact packet; timestamps in nanoseconds. */
@@ -36,10 +37,11 @@ typedef struct {
     uint32_t mime_type;
     uint32_t width;
     uint32_t height;
-    uint32_t stride;
-    uint32_t slice_height;
-    uint32_t frame_rate;
-    uint32_t interlaced;
+    uint32_t max_width;
+    uint32_t max_height;
+    uint32_t framerate_num;
+    uint32_t framerate_den;
+    uint8_t reserved[64];
 } set_video_info_t;
 
 typedef struct {
@@ -61,7 +63,17 @@ typedef struct {
     uint32_t bitrate;
     uint32_t channels;
     uint32_t sample_rate;
-} native_audio_info_t;
+    uint8_t reserved[64];
+} set_audio_info_t;
+
+typedef struct {
+    const void *codec_data;
+    uint32_t codec_data_length;
+    uint32_t mime_type;
+    uint32_t bitrate;
+    uint32_t channels;
+    uint32_t sample_rate;
+} add_audio_info_t;
 
 typedef int (*set_stream_fn)(void *, const void *);
 typedef int (*add_stream_fn)(void *, const void *);
@@ -90,12 +102,15 @@ typedef void (*add_void_reg_fn)(void *, add_void_cb);
 typedef void (*add_stream_reg_fn)(void *, add_stream_cb);
 typedef void (*add_prepared_reg_fn)(void *, add_prepared_cb);
 
-typedef char assert_set_packet_arm32[(sizeof(void *) != 4 || sizeof(set_packet_t) == 48) ? 1 : -1];
+typedef char assert_set_packet_arm32[(sizeof(void *) != 4 || sizeof(set_packet_t) == 112) ? 1 : -1];
 typedef char assert_set_pts_offset_arm32[(sizeof(void *) != 4 || offsetof(set_packet_t, pts_ms) == 16) ? 1 : -1];
 typedef char assert_set_hdr_offset_arm32[(sizeof(void *) != 4 || offsetof(set_packet_t, hdr10p_metadata) == 40) ? 1 : -1];
+typedef char assert_set_packet_reserved_offset_arm32[(sizeof(void *) != 4 || offsetof(set_packet_t, reserved) == 44) ? 1 : -1];
 typedef char assert_add_packet_arm32[(sizeof(void *) != 4 || sizeof(add_packet_t) == 32) ? 1 : -1];
 typedef char assert_add_pts_offset_arm32[(sizeof(void *) != 4 || offsetof(add_packet_t, pts_ns) == 16) ? 1 : -1];
-typedef char assert_set_video_arm32[(sizeof(void *) != 4 || sizeof(set_video_info_t) == 36) ? 1 : -1];
+typedef char assert_set_video_arm32[(sizeof(void *) != 4 || sizeof(set_video_info_t) == 100) ? 1 : -1];
+typedef char assert_set_audio_arm32[(sizeof(void *) != 4 || sizeof(set_audio_info_t) == 88) ? 1 : -1];
+typedef char assert_add_audio_arm32[(sizeof(void *) != 4 || sizeof(add_audio_info_t) == 24) ? 1 : -1];
 typedef char assert_add_video_arm32[(sizeof(void *) != 4 || sizeof(add_video_info_t) == 36) ? 1 : -1];
 typedef char assert_audio_arm32[(sizeof(void *) != 4 || sizeof(native_audio_info_t) == 24) ? 1 : -1];
 
@@ -499,10 +514,11 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_video_info(
         native_info.mime_type = mime;
         native_info.width = info->width;
         native_info.height = info->height;
-        native_info.stride = info->stride;
-        native_info.slice_height = info->slice_height;
-        native_info.frame_rate = info->frame_rate;
-        native_info.interlaced = info->interlaced;
+        native_info.max_width = info->max_width ? info->max_width : info->width;
+        native_info.max_height = info->max_height ? info->max_height : info->height;
+        native_info.framerate_num = info->frame_rate_num ? info->frame_rate_num : info->frame_rate;
+        native_info.framerate_den = info->frame_rate_den ? info->frame_rate_den : 1u;
+        memset(native_info.reserved, 0, sizeof(native_info.reserved));
         ABI_LOG("video_info SET ENTER fn=%p player=%p info=%p size=%lu mime=%u %ux%u stride=%u slice=%u fps=%u interlaced=%u",
                 (void *)fn, adapter->player, (void *)&native_info, (unsigned long)sizeof(native_info),
                 mime, info->width, info->height, info->stride, info->slice_height, info->frame_rate, info->interlaced);
@@ -535,21 +551,21 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_audio_info(
     wmp_esplus_adapter_t *adapter, const wmp_esplus_audio_info_t *info)
 {
     uint32_t mime;
-    native_audio_info_t native_info;
     if (!adapter || !adapter->api || !adapter->player || !info ||
         wmp_esplus_map_audio_mime(adapter->api->selected_family, info->mime_type, &mime) != 0)
         return stream_local_error(WMP_ESPLUS_CALL_INVALID_ARGUMENT);
 
-    native_info.codec_data = info->codec_data;
-    native_info.codec_data_length = info->codec_data_size;
-    native_info.mime_type = mime;
-    native_info.bitrate = info->bitrate;
-    native_info.channels = info->channels;
-    native_info.sample_rate = info->sample_rate;
-
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET) {
+        set_audio_info_t native_info;
         set_stream_fn fn = (set_stream_fn)adapter->api->set_audio_stream_info;
         if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+        memset(&native_info, 0, sizeof(native_info));
+        native_info.codec_data = info->codec_data;
+        native_info.codec_data_length = info->codec_data_size;
+        native_info.mime_type = mime;
+        native_info.bitrate = info->bitrate;
+        native_info.channels = info->channels;
+        native_info.sample_rate = info->sample_rate;
         ABI_LOG("audio_info SET ENTER fn=%p player=%p info=%p size=%lu mime=%u bitrate=%u channels=%u rate=%u",
                 (void *)fn, adapter->player, (void *)&native_info, (unsigned long)sizeof(native_info),
                 mime, info->bitrate, info->channels, info->sample_rate);
@@ -560,8 +576,15 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_audio_info(
         }
     }
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD) {
+        add_audio_info_t native_info;
         add_stream_fn fn = (add_stream_fn)adapter->api->add_audio_stream_info;
         if (!fn) return stream_local_error(WMP_ESPLUS_CALL_MISSING_FUNCTION);
+        native_info.codec_data = info->codec_data;
+        native_info.codec_data_length = info->codec_data_size;
+        native_info.mime_type = mime;
+        native_info.bitrate = info->bitrate;
+        native_info.channels = info->channels;
+        native_info.sample_rate = info->sample_rate;
         return wmp_esplus_normalize_stream_result(
             WMP_ESPLUS_FAMILY_ADD, fn(adapter->player, &native_info));
     }
@@ -618,6 +641,7 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
 
     if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET) {
         set_packet_t native_packet;
+        memset(&native_packet, 0, sizeof(native_packet));
         native_packet.type = type;
         native_packet.buffer = packet->data;
         native_packet.buffer_size = packet->size;
