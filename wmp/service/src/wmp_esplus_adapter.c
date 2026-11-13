@@ -79,13 +79,13 @@ typedef int (*set_stream_fn)(void *, const void *);
 typedef int (*add_stream_fn)(void *, const void *);
 typedef int (*submit_fn)(void *, const void *);
 
-typedef void (*set_error_cb)(uint32_t, void *);
+typedef void (*set_error_cb)(int, void *);
 typedef void (*set_buffer_cb)(uint32_t, uint32_t, void *);
 typedef void (*set_void_cb)(void *);
 typedef void (*set_stream_cb)(uint32_t, void *);
 typedef void (*set_prepared_cb)(bool, void *);
 
-typedef void (*add_error_cb)(uint32_t);
+typedef void (*add_error_cb)(int);
 typedef void (*add_buffer_cb)(uint32_t, uint32_t);
 typedef void (*add_void_cb)(void);
 typedef void (*add_stream_cb)(uint32_t);
@@ -133,10 +133,10 @@ static wmp_esplus_buffer_status_e neutral_buffer_status(uint32_t status)
     }
 }
 
-static void emit_error(uint32_t value, void *context)
+static void emit_error(int value, void *context)
 {
     wmp_esplus_adapter_t *a = context;
-    ABI_LOG("callback error ENTER value=0x%08x context=%p adapter=%p player=%p", value, context, (void *)a, a ? a->player : NULL);
+    ABI_LOG("callback error ENTER value=0x%08x (%d) context=%p adapter=%p player=%p", (unsigned)value, value, context, (void *)a, a ? a->player : NULL);
     if (a && a->callbacks.error) {
         ABI_LOG("callback error FORWARD user_context=%p", a->context);
         a->callbacks.error(value, a->context);
@@ -184,7 +184,7 @@ static void emit_prepared(bool success, void *context)
     } else ABI_LOG("callback prepare_async_done DROPPED adapter_or_handler_missing");
 }
 
-static void add_error(uint32_t value) { if (s_add_adapter) emit_error(value, s_add_adapter); }
+static void add_error(int value) { if (s_add_adapter) emit_error(value, s_add_adapter); }
 static void add_buffer(uint32_t stream, uint32_t status)
 { if (s_add_adapter) emit_buffer(stream, status, s_add_adapter); }
 static void add_conflict(void) { if (s_add_adapter) emit_conflict(s_add_adapter); }
@@ -383,6 +383,18 @@ int wmp_esplus_adapter_get_playing_time(
         return 0;
     fn = (playing_time_fn)adapter->api->get_playing_time;
     return fn(adapter->player, playing_time_ms) != 0;
+}
+
+typedef const char *(*error_string_fn)(int);
+
+const char *wmp_esplus_adapter_get_error_string(
+    const wmp_esplus_adapter_t *adapter, int error)
+{
+    error_string_fn fn;
+    if (!adapter || !adapter->api || !adapter->api->get_error_string)
+        return NULL;
+    fn = (error_string_fn)adapter->api->get_error_string;
+    return fn(error);
 }
 
 int wmp_esplus_adapter_bind(
