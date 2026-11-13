@@ -154,12 +154,14 @@ const SyncFunctions = {
         console.warn('[ambilight] Could not stop native service:', error);
       });
     }
+    // Begin the same UI termination path for both engines before sending the
+    // engine-specific stop signal. Unsolicited terminations converge on the same
+    // helper from handleMessage('streamTerminated: ...') below.
+    hidePerformanceStatsForStreamTermination();
+
     // Stop the engine captured when this session started, not a preference that
     // may have been changed while the stream was running.
     if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
-      // Hide diagnostics at the stop request, not at streamTerminated: the
-      // native service sends that event only after LiStopConnection() returns.
-      hidePerformanceStatsForStreamTermination();
       if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.stopStream === 'function') {
         window.ESPlusPlayerTransport.stopStream().catch(function(error) {
           console.warn('[messages.js, stopRequest]', 'ESPlusPlayer stop request failed:', error);
