@@ -126,6 +126,7 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     s_video_idrs = 0;
+    esplus_stream_clock_reset();
     {
         int prepare_rc = esplus_prepare();
         VLOG("ESPlus prepare request returned %d\n", prepare_rc);
@@ -187,6 +188,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
 
     if (!s_have_base) {
+        /* Establish the common media-time origin for audio and video. */
+        esplus_stream_clock_start();
         s_base_pts_us = du->presentationTimeUs;
         s_have_base = 1;
     }
