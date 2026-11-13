@@ -718,6 +718,12 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
              (int)started.status, started.raw_status);
         mldiag_player("start", started.raw_status);
     }
+    if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
+        result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+        result.raw_status = INT_MIN;
+        pthread_mutex_unlock(&s_lock);
+        return result;
+    }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
         MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
