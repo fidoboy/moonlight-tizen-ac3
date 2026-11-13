@@ -711,7 +711,10 @@
 
   function onMouseWheel(event) {
     if (!nativeInputActive() || inputUiBlocked()) return;
-    wheelRemainder += -Number(event.deltaY || 0) / 100;
+    var wheelDelta = Number(event.deltaY || 0);
+    if (event.deltaMode === 1) wheelDelta *= 33;
+    else if (event.deltaMode === 2) wheelDelta *= 100;
+    wheelRemainder += -wheelDelta / 100;
     var amount = wheelRemainder < 0 ? Math.ceil(wheelRemainder) : Math.floor(wheelRemainder);
     if (amount !== 0) {
       wheelRemainder -= amount;
