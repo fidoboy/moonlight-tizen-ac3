@@ -990,6 +990,9 @@
     sendMouseScroll: sendMouseScroll,
     sendGamepadArrival: sendGamepadArrival,
     sendGamepadState: sendGamepadState,
+    isEvdevInputActive: function(capability) {
+      return (nativeInputCapabilities & Number(capability || 0)) !== 0;
+    },
     syncGamepads: syncNativeGamepads,
     close: close
   };
