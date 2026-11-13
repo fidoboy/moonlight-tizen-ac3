@@ -6443,6 +6443,16 @@ function getStreamMenuOptions() {
         id: 'streamMenuToggleStats',
         text: t(isPerformanceStatsOverlayVisible() ? 'Hide performance stats' : 'Show performance stats'),
         action: function() {
+          var engineState = typeof window.getStreamingEngineState === 'function'
+            ? window.getStreamingEngineState() : null;
+          if (engineState && engineState.active === 'ESPLUSPLAYER' &&
+              engineState.confirmed === true && window.ESPlusPlayerTransport &&
+              typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+            window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+              console.error('[esplusplayer] Could not toggle performance statistics:', error);
+            });
+            return;
+          }
           Module.toggleStats();
         }
       }
