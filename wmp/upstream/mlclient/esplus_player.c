@@ -143,6 +143,7 @@ esplus_stats_t esplus_stats;
 esplus_cfg_t esplus_cfg;
 
 static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
+static uint64_t s_stream_clock_origin_ns;
 static uint64_t s_fps_t0;
 static uint32_t s_fps_sub0;
 static int64_t s_corr_us;
@@ -208,6 +209,35 @@ static void nudge(int32_t depth, uint64_t now_ms)
 
 int32_t esplus_correction_ms(void) { return s_corr_ms; }
 uint32_t esplus_sample_seq(void) { return s_tick_seq; }
+
+static uint64_t esplus_mono_ns(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec;
+}
+
+void esplus_stream_clock_reset(void)
+{
+    __atomic_store_n(&s_stream_clock_origin_ns, 0, __ATOMIC_RELEASE);
+}
+
+void esplus_stream_clock_start(void)
+{
+    uint64_t expected = 0;
+    uint64_t now = esplus_mono_ns();
+    (void)__atomic_compare_exchange_n(&s_stream_clock_origin_ns, &expected, now,
+                                      0, __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+}
+
+uint64_t esplus_stream_clock_pts_ns(void)
+{
+    uint64_t origin = __atomic_load_n(&s_stream_clock_origin_ns, __ATOMIC_ACQUIRE);
+    uint64_t now;
+    if (!origin) return 0;
+    now = esplus_mono_ns();
+    return now >= origin ? now - origin : 0;
+}
 
 uint64_t esplus_mono_ms(void)
 {
