@@ -302,7 +302,7 @@ static int classify_device(int fd, unsigned *caps_out,
     unsigned caps = 0;
     if (ioctl(fd, EVIOCGBIT(0, sizeof(evbits)), evbits) < 0) {
         int error = errno;
-        fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\\n", "event-types", error, strerror(error));
+        fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\n", "event-types", error, strerror(error));
         return 0;
     }
     if (bit_is_set(evbits, EV_KEY) &&
@@ -319,7 +319,7 @@ static int classify_device(int fd, unsigned *caps_out,
     if (bit_is_set(evbits, EV_ABS)) {
         if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) < 0) {
             int error = errno;
-            fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\\n",
+            fprintf(stderr, "[input] EVIOCGBIT(%s) failed: errno=%d (%s)\n",
                     "absolute-axes", error, strerror(error));
         } else {
             int has_axes = bit_is_set(absbits, ABS_X) || bit_is_set(absbits, ABS_RX) ||
