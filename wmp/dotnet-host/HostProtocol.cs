@@ -18,6 +18,10 @@ namespace MoonlightWmpHost
         private const string ControlPortName = "MoonlightWmpControl";
 
         private static readonly object Gate = new object();
+        // Mirrors the reference WMP host: gamepad updates never wait behind
+        // session start/stop, while keyboard and mouse callbacks are dispatched
+        // away from the MessagePort receive thread.
+        private static readonly object EngineLifecycleGate = new object();
         private static MessagePort _port;
         private static EngineApi _engine;
         private static Thread _worker;
@@ -104,7 +108,7 @@ namespace MoonlightWmpHost
 
             try
             {
-                if (_engine != null) _engine.Stop();
+                StopEngine();
             }
             catch (Exception ex)
             {
@@ -505,9 +509,24 @@ namespace MoonlightWmpHost
                     case "mouse_move":
                     case "mouse_button":
                     case "mouse_scroll":
+                        // Match WMP v0.2: don't run keyboard/mouse P/Invoke calls
+                        // on the MessagePort callback thread. Each event is handed
+                        // to the thread pool, as the reference host does.
+                        if (!ThreadPool.QueueUserWorkItem(delegate
+                            { HandleInputCommand(command, bundle); }))
+                            Log.Error("input command dispatch failed: " + command);
+                        return;
                     case "gamepad_arrival":
                     case "gamepad_state":
-                        HandleInputCommand(command, bundle);
+                        // Preserve gamepad ordering on the port callback, but never
+                        // wait for the native lifecycle call to finish. If start/stop
+                        // owns the gate, the next gamepad keepalive supplies a fresh
+                        // complete state.
+                        if (Monitor.TryEnter(EngineLifecycleGate))
+                        {
+                            try { HandleInputCommand(command, bundle); }
+                            finally { Monitor.Exit(EngineLifecycleGate); }
+                        }
                         return;
                     case "ping":
                         Respond(appId, remotePort, id, "ok",
@@ -765,10 +784,18 @@ namespace MoonlightWmpHost
                 return;
             }
 
-            try { if (_engine != null) _engine.Stop(); }
+            try { if (_engine != null) StopEngine(); }
             catch (Exception ex) { Log.Error("idempotent engine stop failed: " + ex.Message); }
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
+        }
+
+        private static void StopEngine()
+        {
+            lock (EngineLifecycleGate)
+            {
+                if (_engine != null) _engine.Stop();
+            }
         }
 
         private static bool StopWasRequested()
@@ -806,12 +833,15 @@ namespace MoonlightWmpHost
                 Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
                     request.GameMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
-                result = _engine.StartSessionV2(
-                    request.Host, request.Width, request.Height, request.Fps,
-                    request.Bitrate, request.Rikey, request.RikeyId,
-                    request.AppVersion, request.GfeVersion, request.RtspUrl,
-                    request.CodecMode, request.VideoCodec, request.Hdr,
-                    request.AudioConfig, request.FullRange, request.AudioEnabled);
+                lock (EngineLifecycleGate)
+                {
+                    result = _engine.StartSessionV2(
+                        request.Host, request.Width, request.Height, request.Fps,
+                        request.Bitrate, request.Rikey, request.RikeyId,
+                        request.AppVersion, request.GfeVersion, request.RtspUrl,
+                        request.CodecMode, request.VideoCodec, request.Hdr,
+                        request.AudioConfig, request.FullRange, request.AudioEnabled);
+                }
 
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP native StartSessionV2 returned " +
