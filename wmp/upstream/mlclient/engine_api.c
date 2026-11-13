@@ -152,7 +152,7 @@ static int start_connection(void) {
                                 g_audio_enabled);
   if (err != 0) {
     __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
-    fprintf(stderr, "[ml] LiStartConnectionEx failed: %d\\n", err);
+    fprintf(stderr, "[ml] LiStartConnectionEx failed: %d\n", err);
     MLT("start_connection -> 1 (LiStartConnectionEx %d)", err);
     return 1;
   }
