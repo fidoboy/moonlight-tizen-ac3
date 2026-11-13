@@ -250,6 +250,25 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_audioEnabled, 'false');
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
 
+  // When evdev owns a device class, the browser must not forward duplicate
+  // events for that class through MessagePort.
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpInputCapabilities: 4'}
+  ]);
+  const nativeGamepadMessageCount = gamepadStateMessages().length;
+  window.dispatchEvent({
+    type: 'esplusgamepadconnected',
+    detail: {gamepadIndex: 0, id: 'Xbox Controller', buttonCount: 16}
+  });
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0.5, 0, 0, 0]}
+  });
+  assert.strictEqual(gamepadStateMessages().length, nativeGamepadMessageCount,
+    'evdev gamepad capture must suppress duplicate browser gamepad forwarding');
+
   // Native ParseStart diagnostics must reach the caller with the rejected field.
   nextNativeResponse = {
     status: 'error',
