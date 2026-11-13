@@ -60,6 +60,7 @@ namespace MoonlightWmpHost
             internal int Hdr;
             internal int FullRange;
             internal int OpticalOutputEnabled;
+            internal int PerformanceStats;
         }
 
         internal static void Start()
@@ -253,6 +254,8 @@ namespace MoonlightWmpHost
             else if (!TryBool(Arg(bundle, "fullRange"), out value.FullRange)) invalidField = "fullRange";
             else if (!TryBool(Arg(bundle, "opticalOutputEnabled"), out value.OpticalOutputEnabled))
                 invalidField = "opticalOutputEnabled";
+            else if (!TryBool(Arg(bundle, "performanceStats"), out value.PerformanceStats))
+                invalidField = "performanceStats";
             else if (value.Width <= 0) invalidField = "w";
             else if (value.Height <= 0) invalidField = "h";
             else if (value.Fps <= 0) invalidField = "fps";
@@ -711,7 +714,7 @@ namespace MoonlightWmpHost
 
                 _workerActive = true;
                 _stopRequested = false;
-                _statsEnabled = false;
+                _statsEnabled = request.PerformanceStats != 0;
                 _stageAppId = appId;
                 _stageRemotePort = remotePort;
                 StageMessages.Clear();
@@ -772,6 +775,7 @@ namespace MoonlightWmpHost
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
             DateTime nextStatsMessage = DateTime.UtcNow;
             uint lastReportedPlayerErrors = 0;
+            bool initialStatsSnapshotSent = false;
 
             try
             {
@@ -866,7 +870,16 @@ namespace MoonlightWmpHost
                     if (StatsAreEnabled() && DateTime.UtcNow >= nextStatsMessage)
                     {
                         if (statsResult == 0)
+                        {
                             Event(appId, remotePort, "StatMsg: " + FormatStats(request, stats), null);
+                            // The shared overlay waits for an explicit initial-snapshot
+                            // marker before revealing its first populated statistics view.
+                            if (!initialStatsSnapshotSent)
+                            {
+                                Event(appId, remotePort, "StatsSnapshotMsg: 1", null);
+                                initialStatsSnapshotSent = true;
+                            }
+                        }
                         nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
                     }
 
