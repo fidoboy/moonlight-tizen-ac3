@@ -525,7 +525,7 @@
   var nativeGamepadMask = 0;
 
   function nativeInputActive() {
-    return global._activeStreamingEngine === 'ESPLUSPLAYER' && global.isInGame !== false;
+    return global._activeStreamingEngine === 'ESPLUSPLAYER' && global._activeStreamingEngineConfirmed === true;
   }
 
   function controllerType(id) {
