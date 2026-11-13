@@ -647,7 +647,7 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.buffer_size = packet->size;
         native_packet.pts_ms = wmp_esplus_ns_to_ms(packet->pts_ns);
         native_packet.duration_ms = wmp_esplus_ns_to_ms(packet->duration_ns);
-        native_packet.matroska_color_info = packet->matroska_color_info;
+        native_packet.matroska_color_info = (const void *)(uintptr_t)packet->matroska_color_info;
         native_packet.hdr10p_metadata_size = packet->hdr_metadata_size;
         native_packet.hdr10p_metadata = packet->hdr_metadata;
         ABI_LOG("submit SET ENTER fn=%p player=%p packet=%p native_packet=%p size=%u type=%u pts_ms=%llu duration_ms=%llu",
