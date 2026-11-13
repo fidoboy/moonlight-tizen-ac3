@@ -635,7 +635,11 @@ int esplus_prepare(void)
         (int)result.status, result.raw_status);
     mldiag_player("prep", result.raw_status);
     if (result.status != WMP_ESPLUS_CALL_SUCCESS) {
-        PLOG("prepare_async failed (status=%d raw=%d)\n",
+        pthread_mutex_lock(&s_lock);
+        s_prepare_failed = 1;
+        pthread_cond_broadcast(&s_state_cv);
+        pthread_mutex_unlock(&s_lock);
+        PLOG("prepare_async failed (status=%d raw=%d); video feeder released with failure\n",
              (int)result.status, result.raw_status);
         return result_to_int(result);
     }
