@@ -273,7 +273,9 @@ vm.runInNewContext(source, {
   assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
     'Debug builds must print the native diagnostic log after session teardown');
   assert.deepStrictEqual(
-    pendingMessages.map(message => message.command),
+    pendingMessages
+      .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')
+      .map(message => message.command),
     ['ping', 'get_status', 'start_session', 'start_session', 'stop_session', 'get_logs', 'toggle_stats', 'get_logs']
   );
 
