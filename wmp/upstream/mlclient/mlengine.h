@@ -46,6 +46,9 @@ int  ml_engine_start_session(const char *host, int width, int height, int fps, i
                              int server_codec_mode_support, const char *video_codec, int hdr,
                              const char *audio_config);
 void ml_engine_send_key(int key_code, int key_action, int modifiers);
+void ml_engine_send_mouse_move(int delta_x, int delta_y);
+void ml_engine_send_mouse_button(int button, int pressed);
+void ml_engine_send_mouse_scroll(int amount);
 void ml_engine_free(void *p);
 
 /* On-demand log forwarding: when cb is set, each engine trace line (MLT, debug
