@@ -56,6 +56,12 @@ static void test_audio_mime_mapping(void)
     assert(native == 7);
     assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_SET,
                                     WMP_ESPLUS_AUDIO_MIME_DTS, &native) == -1);
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_SET,
+                                    WMP_ESPLUS_AUDIO_MIME_PCM_S16LE, &native) == 0);
+    assert(native == 8);
+    assert(wmp_esplus_map_audio_mime(WMP_ESPLUS_FAMILY_ADD,
+                                    WMP_ESPLUS_AUDIO_MIME_PCM_S16LE, &native) == 0);
+    assert(native == 9);
 }
 
 static void test_timestamp_conversion(void)
