@@ -12,7 +12,7 @@
   "- Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.": "- Escolha EMSS para a implementação original ou Web Audio se ouvir estalos ou interrupções durante a transmissão.",
   "- Choose a color scheme for the application. Move with the left and right arrows, then confirm to apply it.": "Selecione a aparência visual que você deseja para este aplicativo entre os diferentes esquemas de cores disponíveis.",
   "- Choose the background animation you want to display as the application background, or select \"None\" if you do not want one displayed.": "Escolha a animação de fundo que deseja exibir como plano de fundo do aplicativo ou selecione \"Nenhuma\" se não quiser exibi-la.",
-  "- Choose the streaming engine used to handle audio and video playback. EMSS uses the existing Moonlight streaming backend, while WMP uses the experimental native Tizen playback engine.": "- Escolha o mecanismo de transmissão usado para reproduzir áudio e vídeo. O EMSS usa o backend de transmissão existente do Moonlight, enquanto o WMP usa o mecanismo experimental de reprodução nativo do Tizen.",
+  "- Choose the streaming engine used to handle audio and video playback. EMSS uses the existing Moonlight streaming backend, while the native engine uses the experimental native Tizen playback engine.": "- Escolha o mecanismo de transmissão usado para reproduzir áudio e vídeo. O EMSS usa o backend de transmissão existente do Moonlight, enquanto o mecanismo nativo usa o mecanismo experimental de reprodução nativo do Tizen.",
   "- Choose the screen corner where the performance overlay is displayed.": "- Escolha o canto da tela em que será sobreposto o quadro com os gráficos e as estatísticas de desempenho da transmissão.",
   "- Choose whether the current streaming configuration appears at the top, at the bottom, or is hidden on the Hosts and Apps screens.": "- Escolha se a configuração atual de transmissão será exibida em cima, embaixo ou ficará oculta nas telas de Hosts e Aplicativos.",
   "- Displays a black screen with the Moonlight logo after 30 seconds without user input.": "- Exibe uma tela preta com o logotipo do Moonlight quando não há atividade do usuário.",
@@ -626,7 +626,8 @@
   "Show Ambilight settings": "Mostrar configurações do Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Apenas prévia das configurações. O serviço Ambilight não está disponível nesta TV.",
   "Streaming engine:": "Mecanismo de transmissão:",
-  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. WMP uses the experimental native Tizen playback engine and may not work on every TV.": "- EMSS é o mecanismo de transmissão consolidado e deve funcionar em todas as TVs Tizen compatíveis. O WMP usa o mecanismo experimental de reprodução nativo do Tizen e pode não funcionar em todas as TVs.",
+  "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. The native engine uses the experimental Tizen playback engine and may not work on every TV.": "- EMSS é o mecanismo de transmissão consolidado e deve funcionar em todas as TVs Tizen compatíveis. O mecanismo nativo usa o mecanismo experimental de reprodução nativo do Tizen e pode não funcionar em todas as TVs.",
   "Engine:": "Motor:",
+  "Native engine": "Mecanismo nativo",
   "Native": "Nativo"
 }

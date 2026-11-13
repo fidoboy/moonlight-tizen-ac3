@@ -1,5 +1,5 @@
 /*
- * Moonlight WMP native control channel.
+ * Moonlight ESPlusPlayer native control channel.
  *
  * Control messages use trusted Tizen MessagePorts. This channel is for small
  * commands and status replies only; encoded audio/video packets must use a
@@ -8,7 +8,8 @@
 (function(global) {
   'use strict';
 
-  // Must match the .NET service-application appid in wmp/dotnet-host/tizen-manifest.xml.
+  // Keep the legacy service application ID, MessagePort names, and protocol stable
+  // so an app update can continue using the already-registered native service.
   var SERVICE_APP_ID = 'MoonLightS.WmpService';
   var CONTROL_PORT = 'MoonlightWmpControl';
   var REPLY_PORT = 'MoonlightWmpReply';
@@ -23,12 +24,12 @@
 
   function debugLog(stage, details) {
     // The runtime log policy also filters console.debug, but keep this guard
-    // here so WMP diagnostics can never leak into a non-Debug build.
+    // here so ESPlusPlayer diagnostics can never leak into a non-Debug build.
     if (global.DEBUG_MODE !== true ||
         !global.console ||
         typeof global.console.debug !== 'function') return;
     try {
-      global.console.debug('[wmp]', stage, details === undefined ? '' : details);
+      global.console.debug('[esplusplayer]', stage, details === undefined ? '' : details);
     } catch (error) {}
   }
 
@@ -60,7 +61,7 @@
   }
 
   function makeError(message) {
-    return new Error('WMP transport: ' + message);
+    return new Error('ESPlusPlayer transport: ' + message);
   }
 
   function readMessage(items) {
@@ -87,15 +88,15 @@
       if (message.event === 'wmpDiagnosticReady') {
         if (global.DEBUG_MODE === true) {
           if (global.console && typeof global.console.info === 'function') {
-            global.console.info('[wmp] native diagnostic log requested (last 100 lines)');
+            global.console.info('[esplusplayer] native diagnostic log requested (last 100 lines)');
           }
           request('get_logs').then(function(response) {
             var payload = response && response.payload ? response.payload : {};
             if (global.console && typeof global.console.info === 'function') {
-              global.console.info('[wmp] native diagnostic log received (' +
+              global.console.info('[esplusplayer] native diagnostic log received (' +
                 Number(payload.count || 0) + ' lines)');
               if (Number(payload.hostCount || 0) > 0) {
-                global.console.info('[wmp] host diagnostic log (' +
+                global.console.info('[esplusplayer] host diagnostic log (' +
                   Number(payload.hostCount) + ' lines)');
               }
             }
@@ -108,14 +109,14 @@
       if (message.event === 'wmpNativeLog') {
         if (global.DEBUG_MODE === true && global.console &&
             typeof global.console.info === 'function') {
-          global.console.info('[wmp/native]', message.detail || '');
+          global.console.info('[esplusplayer/native]', message.detail || '');
         }
         return;
       }
       if (message.event === 'wmpHostDiagnostic') {
         if (global.DEBUG_MODE === true && global.console &&
             typeof global.console.info === 'function') {
-          global.console.info('[wmp/host]', message.detail || '');
+          global.console.info('[esplusplayer/host]', message.detail || '');
         }
         return;
       }
@@ -139,12 +140,12 @@
         // A fatal player error is followed by streamTerminated from the native
         // host. Do not show the transient connection-warning overlay here:
         // the shared stream-termination path owns the closing transition and
-        // the final error dialog for both WMP and EMSS.
+        // the final error dialog for both ESPlusPlayer and EMSS.
         return;
       }
       if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
         var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
-        global._wmpActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
+        global._esplusActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
         if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
           global.refreshPerformanceStatsEngineStatus();
         }
@@ -211,14 +212,14 @@
 
   function connect() {
     if (connectPromise) {
-      debugLog('reusing in-progress WMP service connection', {
+      debugLog('reusing in-progress ESPlusPlayer service connection', {
         serviceAppId: SERVICE_APP_ID
       });
       return connectPromise;
     }
 
     var connectStartedAt = Date.now();
-    debugLog('connecting to WMP native service', {
+    debugLog('connecting to ESPlusPlayer native service', {
       serviceAppId: SERVICE_APP_ID,
       controlPort: CONTROL_PORT,
       replyPort: REPLY_PORT,
@@ -246,9 +247,9 @@
         listenerId = localPort.addMessagePortListener(handleMessage);
         debugLog('local MessagePort listener registered', {listenerId: listenerId});
 
-        debugLog('launching WMP ServiceApp', {serviceAppId: SERVICE_APP_ID});
+        debugLog('launching ESPlusPlayer ServiceApp', {serviceAppId: SERVICE_APP_ID});
         tizen.application.launch(SERVICE_APP_ID, function() {
-          debugLog('WMP ServiceApp launch callback succeeded', {
+          debugLog('ESPlusPlayer ServiceApp launch callback succeeded', {
             serviceAppId: SERVICE_APP_ID,
             elapsedMs: Date.now() - connectStartedAt
           });
@@ -328,7 +329,7 @@
 
           openRemoteControlPort(null);
         }, function(error) {
-          debugLog('WMP ServiceApp launch failed', {
+          debugLog('ESPlusPlayer ServiceApp launch failed', {
             serviceAppId: SERVICE_APP_ID,
             elapsedMs: Date.now() - connectStartedAt,
             error: errorDetails(error)
@@ -338,13 +339,13 @@
             (error && error.message ? error.message : String(error))));
         });
       } catch (error) {
-        debugLog('WMP service connection setup failed synchronously', {
+        debugLog('ESPlusPlayer service connection setup failed synchronously', {
           serviceAppId: SERVICE_APP_ID,
           elapsedMs: Date.now() - connectStartedAt,
           error: errorDetails(error)
         });
         connectPromise = null;
-        reject(error && error.message && error.message.indexOf('WMP transport:') === 0
+        reject(error && error.message && error.message.indexOf('ESPlusPlayer transport:') === 0
           ? error
           : makeError(error.message || String(error)));
       }
@@ -436,7 +437,7 @@
 
   function close() {
     var pendingCount = Object.keys(pending).length;
-    debugLog('closing WMP transport', {
+    debugLog('closing ESPlusPlayer transport', {
       localPortAvailable: !!localPort,
       remotePortAvailable: !!remotePort,
       listenerRegistered: listenerId !== null,
@@ -463,7 +464,7 @@
     });
   }
 
-  global.WmpTransport = {
+  global.ESPlusPlayerTransport = {
     connect: connect,
     request: request,
     ping: function() { return request('ping'); },

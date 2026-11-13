@@ -1,24 +1,23 @@
 /* eslint-disable */
 
+function normalizeStreamingEngine(value) {
+  return value === 'ESPLUSPLAYER' || value === 'WMP' ? 'ESPLUSPLAYER' : value === 'EMSS' ? 'EMSS' : null;
+}
+
 function getSelectedStreamingEngine() {
   if (window._directSmartHubLaunch) {
     var directSettings = window._directSmartHubStreamSettings;
-    return directSettings &&
-      (directSettings.streamingEngine === 'WMP' || directSettings.streamingEngine === 'EMSS')
-      ? directSettings.streamingEngine
-      : null;
+    return directSettings ? normalizeStreamingEngine(directSettings.streamingEngine) : null;
   }
 
   var engineButton = document.getElementById('selectStreamingEngine');
   var selectedEngine = engineButton && engineButton.getAttribute('data-value');
-  return selectedEngine === 'WMP' || selectedEngine === 'EMSS'
-    ? selectedEngine
-    : null;
+  return normalizeStreamingEngine(selectedEngine);
 }
 
-function startWmpSession(args) {
-  if (!window.WmpTransport || typeof window.WmpTransport.startStream !== 'function') {
-    pendingStreamApiMessage = 'WMP native transport is unavailable.';
+function startESPlusPlayerSession(args) {
+  if (!window.ESPlusPlayerTransport || typeof window.ESPlusPlayerTransport.startStream !== 'function') {
+    pendingStreamApiMessage = 'ESPlusPlayer native transport is unavailable.';
     handleMessage('streamTerminated: -1');
     return;
   }
@@ -36,7 +35,7 @@ function startWmpSession(args) {
     rtspUrl: args[10],
     codecMode: args[11],
     debugMode: typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true,
-    audioEnabled: args[18] === 'WMP',
+    audioEnabled: args[18] === 'ESPLUSPLAYER',
     audioConfig: args[19],
     opticalOutputEnabled: !!args[20],
     videoCodec: args[25],
@@ -52,12 +51,12 @@ function startWmpSession(args) {
         ? '<redacted>'
         : parameters[name];
     });
-    console.debug('[wmp] Moonlight is requesting native stream startup', {
+    console.debug('[esplusplayer] Moonlight is requesting native stream startup', {
       parameters: diagnosticParameters
     });
   }
 
-  window.WmpTransport.startStream(parameters).catch(function(error) {
+  window.ESPlusPlayerTransport.startStream(parameters).catch(function(error) {
     pendingStreamApiMessage = error && error.message
       ? error.message
       : String(error);
@@ -65,7 +64,7 @@ function startWmpSession(args) {
       pendingStreamApiMessage += ' (code ' + error.code + ')';
     }
     if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
-      console.debug('[wmp] Native stream startup request failed', {
+      console.debug('[esplusplayer] Native stream startup request failed', {
         name: error && error.name || null,
         message: pendingStreamApiMessage,
         code: error && error.code !== undefined ? error.code : null,
@@ -95,14 +94,14 @@ const SyncFunctions = {
     const activeStreamingEngine = getSelectedStreamingEngine();
     window._activeStreamingEngine = activeStreamingEngine;
     window._activeStreamingEngineConfirmed = false;
-    window._wmpActiveAudioCodec = null;
+    window._esplusActiveAudioCodec = null;
     if (!activeStreamingEngine) {
-      pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or WMP and try again.';
+      pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or ESPlusPlayer and try again.';
       handleMessage('streamTerminated: -1');
       return {type: 'resolve', ret: null};
     }
-    if (activeStreamingEngine === 'WMP') {
-      startWmpSession(args);
+    if (activeStreamingEngine === 'ESPLUSPLAYER') {
+      startESPlusPlayerSession(args);
       return {type: 'resolve', ret: null};
     }
     const dolbyChannelLayout = args[31] || 'Back';
@@ -126,13 +125,13 @@ const SyncFunctions = {
     }
     // Stop the engine captured when this session started, not a preference that
     // may have been changed while the stream was running.
-    if (window._activeStreamingEngine === 'WMP') {
-      if (window.WmpTransport && typeof window.WmpTransport.stopStream === 'function') {
-        window.WmpTransport.stopStream().catch(function(error) {
-          console.warn('[messages.js, stopRequest]', 'WMP stop request failed:', error);
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.stopStream === 'function') {
+        window.ESPlusPlayerTransport.stopStream().catch(function(error) {
+          console.warn('[messages.js, stopRequest]', 'ESPlusPlayer stop request failed:', error);
         });
       } else {
-        console.error('[messages.js, stopRequest] WMP was active but its transport is unavailable.');
+        console.error('[messages.js, stopRequest] ESPlusPlayer was active but its transport is unavailable.');
       }
       return {type: 'resolve', ret: null};
     }
@@ -142,10 +141,10 @@ const SyncFunctions = {
   'cancelRequest': (...args) => Module.cancelRequest(...args),
   // no parameters
   'toggleStats': (...args) => {
-    if (window._activeStreamingEngine === 'WMP') {
-      if (window.WmpTransport && typeof window.WmpTransport.toggleStats === 'function') {
-        window.WmpTransport.toggleStats().catch(function(error) {
-          console.warn('[messages.js, toggleStats] WMP statistics toggle failed:', error);
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+        window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+          console.warn('[messages.js, toggleStats] ESPlusPlayer statistics toggle failed:', error);
         });
       }
       return {type: 'resolve', ret: null};
@@ -264,7 +263,7 @@ var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
 var pendingMediaPipelineStopRequested = false;
 
-function formatWmpStartupDiagnostic(message) {
+function formatESPlusPlayerStartupDiagnostic(message) {
   if (typeof message !== 'string' || !/^ML-ERROR\b/.test(message)) return message;
 
   // ML-ERROR is a debug record containing internal state. Expose only the
@@ -272,10 +271,10 @@ function formatWmpStartupDiagnostic(message) {
   var stageMatch = message.match(/\bstage=(.*?)(?=\s+[A-Za-z][A-Za-z0-9_-]*=|$)/);
   if (stageMatch && stageMatch[1].trim()) {
     var stage = stageMatch[1].trim().replace(/[^A-Za-z0-9_.:/ -]/g, '').trim();
-    if (stage) return 'WMP::' + stage;
+    if (stage) return 'ESPlusPlayer::' + stage;
   }
 
-  return 'WMP::Stream startup';
+  return 'ESPlusPlayer::Stream startup';
 }
 
 function logStreamTerminationRecovery(stage, details) {
@@ -483,14 +482,14 @@ function ensurePerformanceStatsOverlayElements() {
   var engineValueElement = engineStatus.querySelector('#performanceStatsEngineValue');
   if (engineValueElement) {
     engineValueElement.textContent = window._activeStreamingEngineConfirmed
-      ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS')
+      ? (window._activeStreamingEngine === 'ESPLUSPLAYER' ? t('Native engine') : 'EMSS')
       : '';
   }
   var audioValueElement = audioStatus.querySelector('#performanceStatsAudioValue');
   if (audioValueElement) {
-    audioStatus.style.display = window._activeStreamingEngine === 'WMP' ? '' : 'none';
-    audioValueElement.textContent = window._activeStreamingEngine === 'WMP'
-      ? (window._wmpActiveAudioCodec || '—')
+    audioStatus.style.display = window._activeStreamingEngine === 'ESPLUSPLAYER' ? '' : 'none';
+    audioValueElement.textContent = window._activeStreamingEngine === 'ESPLUSPLAYER'
+      ? (window._esplusActiveAudioCodec || '—')
       : '';
   }
 
@@ -510,9 +509,9 @@ window.refreshPerformanceStatsEngineStatus = function() {
   if (!elements) return;
   var engineValue = elements.engineStatus.querySelector('#performanceStatsEngineValue');
   if (engineValue) engineValue.textContent = window._activeStreamingEngineConfirmed
-    ? (window._activeStreamingEngine === 'WMP' ? 'WMP' : 'EMSS') : '';
+    ? (window._activeStreamingEngine === 'ESPLUSPLAYER' ? t('Native engine') : 'EMSS') : '';
   var audioValue = elements.audioStatus.querySelector('#performanceStatsAudioValue');
-  if (audioValue) audioValue.textContent = window._wmpActiveAudioCodec || '—';
+  if (audioValue) audioValue.textContent = window._esplusActiveAudioCodec || '—';
 };
 
 function getPerformanceStatsGraphColor(sample) {
@@ -1127,7 +1126,7 @@ function handleMessage(msg) {
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
     window._activeStreamingEngineConfirmed = false;
-    window._wmpActiveAudioCodec = null;
+    window._esplusActiveAudioCodec = null;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
@@ -1153,7 +1152,7 @@ function handleMessage(msg) {
     var streamMediaPipelineApiMessage = pendingMediaPipelineApiMessage;
     var streamVideoTrackCloseErrorMessage = pendingVideoTrackCloseErrorMessage;
     var streamVideoTrackCloseApiMessage = pendingVideoTrackCloseApiMessage;
-    var hasWmpStartupDiagnostic = typeof streamApiMessage === 'string' && /^ML-ERROR\b/.test(streamApiMessage);
+    var hasESPlusPlayerStartupDiagnostic = typeof streamApiMessage === 'string' && /^ML-ERROR\b/.test(streamApiMessage);
     h264TrackRejectionClosingMessage = null;
     pendingStreamDialogMessage = null;
     pendingStreamApiMessage = null;
@@ -1341,7 +1340,7 @@ function handleMessage(msg) {
           transitionStatusMessage = t('The TV media player reported an error.');
           break;
         default:
-          transitionStatusMessage = window._activeStreamingEngine === 'WMP' && hasWmpStartupDiagnostic
+          transitionStatusMessage = window._activeStreamingEngine === 'ESPLUSPLAYER' && hasESPlusPlayerStartupDiagnostic
             ? t('Unable to launch the selected app.')
             : t('Connection to %1$s lost.', activeStreamHostName);
           break;
@@ -1365,9 +1364,9 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
-    // Keep the WMP engine and failing startup stage identifiable in the dialog,
+    // Keep the ESPlusPlayer engine and failing startup stage identifiable in the dialog,
     // while leaving the full ML-ERROR record exclusively in DEBUG_MODE logs.
-    streamErrorApiMessage = formatWmpStartupDiagnostic(streamErrorApiMessage);
+    streamErrorApiMessage = formatESPlusPlayerStartupDiagnostic(streamErrorApiMessage);
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();

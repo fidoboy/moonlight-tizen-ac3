@@ -8,9 +8,9 @@ const vm = require('vm');
 const pendingMessages = [];
 const debugEntries = [];
 const infoEntries = [];
-const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
+const manifest = fs.readFileSync(path.join(__dirname, '../esplusplayer/dotnet-host/tizen-manifest.xml'), 'utf8');
 const expectedServiceAppId = 'MoonLightS.WmpService';
-assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'WMP ServiceApp appid must match the transport');
+assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'ESPlusPlayer ServiceApp appid must match the transport');
 let messageListener = null;
 let listenerRemoved = false;
 let launchedAppId = null;
@@ -55,7 +55,7 @@ const remotePort = {
           messageListener([
             {key: 'protocol', value: request.protocol},
             {key: 'type', value: 'event'},
-            {key: 'event', value: 'wmpNativeLog'},
+            {key: 'event', value: 'esplusplayerNativeLog'},
             {key: 'detail', value: line}
           ]);
         });
@@ -118,7 +118,7 @@ const window = {
 };
 
 const source = fs.readFileSync(
-  path.join(__dirname, '../wasm/platform/wmp_transport.js'),
+  path.join(__dirname, '../wasm/platform/esplusplayer_transport.js'),
   'utf8'
 );
 vm.runInNewContext(source, {
@@ -134,21 +134,21 @@ vm.runInNewContext(source, {
 
 (async function() {
   remotePortNotReadyAttempts = 3;
-  const connection = await window.WmpTransport.connect();
-  assert.strictEqual(remotePortRequests, 4, 'WMP transport must retry while the ServiceApp registers its port');
+  const connection = await window.ESPlusPlayerTransport.connect();
+  assert.strictEqual(remotePortRequests, 4, 'ESPlusPlayer transport must retry while the ServiceApp registers its port');
   assert.strictEqual(connection.trusted, true);
   assert.strictEqual(launchedAppId, expectedServiceAppId);
 
-  const ping = await window.WmpTransport.ping();
+  const ping = await window.ESPlusPlayerTransport.ping();
   assert.strictEqual(ping.payload.pong, true);
 
-  const status = await window.WmpTransport.getStatus();
+  const status = await window.ESPlusPlayerTransport.getStatus();
   assert.strictEqual(status.payload.service, 'ready');
   assert.strictEqual(status.payload.libraryLoaded, true);
   assert.strictEqual(status.payload.esplus, 'symbols_detected');
   assert.strictEqual(status.payload.streamApi, 'set');
 
-  const start = await window.WmpTransport.startStream({
+  const start = await window.ESPlusPlayerTransport.startStream({
     host: '192.168.0.10',
     w: 1920,
     h: 1080,
@@ -182,7 +182,7 @@ vm.runInNewContext(source, {
     payload: {error: 'invalid_start_arguments', field: 'opticalOutputEnabled'}
   };
   await assert.rejects(
-    window.WmpTransport.startStream({host: '192.168.0.10'}),
+    window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'}),
     /invalid_start_arguments: opticalOutputEnabled/
   );
   const debugOutput = JSON.stringify(debugEntries);
@@ -192,20 +192,20 @@ vm.runInNewContext(source, {
   assert.ok(debugOutput.includes('1920x1080'), 'Debug log must include stream dimensions');
   assert.ok(!debugOutput.includes('00112233445566778899aabbccddeeff'), 'Debug log must not include the session key');
   assert.ok(!debugOutput.includes('rtsp://host/session'), 'Debug log must not include the RTSP URL');
-  const stop = await window.WmpTransport.stopStream();
+  const stop = await window.ESPlusPlayerTransport.stopStream();
   assert.strictEqual(stop.payload.stopped, true);
-  const logs = await window.WmpTransport.getLogs();
+  const logs = await window.ESPlusPlayerTransport.getLogs();
   assert.strictEqual(logs.payload.count, 2);
   assert.strictEqual(logs.payload.hostCount, 0);
-  assert.ok(infoEntries.some(entry => entry[0] === '[wmp/native]' &&
+  assert.ok(infoEntries.some(entry => entry[0] === '[esplusplayer/native]' &&
     entry[1] === 'native stage RTSP complete'),
     'Debug builds must print each native engine log line separately');
-  const statsToggle = await window.WmpTransport.toggleStats();
+  const statsToggle = await window.ESPlusPlayerTransport.toggleStats();
   assert.strictEqual(statsToggle.payload.enabled, true);
   messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'wmpDiagnosticReady'}
+    {key: 'event', value: 'esplusplayerDiagnosticReady'}
   ]);
   for (let i = 0; i < 8; i++) await Promise.resolve();
   assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
@@ -216,42 +216,42 @@ vm.runInNewContext(source, {
   );
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
     {key: 'type', value: 'event'},
     {key: 'event', value: 'displayVideo'}
   ]);
   assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo']);
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'wmpPlayerError: 8193'},
+    {key: 'event', value: 'esplusplayerPlayerError: 8193'},
     {key: 'detail', value: 'ESPlus player error 0x2001'}
   ]);
   assert.deepStrictEqual(handledEvents, [
     'StatMsg: ', 'displayVideo'
-  ], 'fatal WMP player errors must not show a transient warning; stream termination owns the shared error dialog');
+  ], 'fatal ESPlusPlayer player errors must not show a transient warning; stream termination owns the shared error dialog');
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlus player error 0x2001');
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
     {key: 'type', value: 'event'},
     {key: 'event', value: 'streamTerminated: -1'},
-    {key: 'detail', value: 'WMP engine start failed (code -101)'}
+    {key: 'detail', value: 'ESPlusPlayer engine start failed (code -101)'}
   ]);
   assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
-  assert.strictEqual(window.pendingStreamApiMessage, 'WMP engine start failed (code -101)');
+  assert.strictEqual(window.pendingStreamApiMessage, 'ESPlusPlayer engine start failed (code -101)');
 
-  window.WmpTransport.close();
+  window.ESPlusPlayerTransport.close();
   assert.strictEqual(listenerRemoved, true);
   const debugEntryCount = debugEntries.length;
 
   // Diagnostic output must be completely suppressed outside Debug builds.
   window.DEBUG_MODE = false;
-  await window.WmpTransport.connect();
-  await window.WmpTransport.ping();
-  assert.strictEqual(debugEntries.length, debugEntryCount, 'WMP diagnostics must be Debug-only');
-  window.WmpTransport.close();
+  await window.ESPlusPlayerTransport.connect();
+  await window.ESPlusPlayerTransport.ping();
+  assert.strictEqual(debugEntries.length, debugEntryCount, 'ESPlusPlayer diagnostics must be Debug-only');
+  window.ESPlusPlayerTransport.close();
 
   // A Tizen launch failure must retain the native error details in Debug logs.
   window.DEBUG_MODE = true;
@@ -266,11 +266,11 @@ vm.runInNewContext(source, {
   };
   const failureLogStart = debugEntries.length;
   await assert.rejects(
-    window.WmpTransport.connect(),
+    window.ESPlusPlayerTransport.connect(),
     /could not launch native service: Application not found/
   );
   const launchFailureLog = JSON.stringify(debugEntries.slice(failureLogStart));
-  assert.ok(launchFailureLog.includes('WMP ServiceApp launch failed'));
+  assert.ok(launchFailureLog.includes('ESPlusPlayer ServiceApp launch failed'));
   assert.ok(launchFailureLog.includes('NotFoundError'));
   assert.ok(launchFailureLog.includes('Application not found'));
   assert.ok(launchFailureLog.includes(expectedServiceAppId));
@@ -283,16 +283,16 @@ vm.runInNewContext(source, {
   remotePortNotReadyAttempts = 100;
   const retryStart = remotePortRequests;
   await assert.rejects(
-    window.WmpTransport.connect(),
+    window.ESPlusPlayerTransport.connect(),
     /native control port is unavailable/
   );
   assert.strictEqual(
     remotePortRequests - retryStart,
     30,
-    'WMP transport must stop retrying after the configured attempt limit'
+    'ESPlusPlayer transport must stop retrying after the configured attempt limit'
   );
 
-  console.log('WMP trusted MessagePort bridge tests passed.');
+  console.log('ESPlusPlayer trusted MessagePort bridge tests passed.');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
