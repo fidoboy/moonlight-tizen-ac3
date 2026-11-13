@@ -651,14 +651,11 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.matroska_color_info = (const void *)(uintptr_t)packet->matroska_color_info;
         native_packet.hdr10p_metadata_size = packet->hdr_metadata_size;
         native_packet.hdr10p_metadata = packet->hdr_metadata;
-        ABI_LOG("submit SET ENTER fn=%p player=%p packet=%p native_packet=%p size=%u type=%u pts_ms=%llu duration_ms=%llu",
-                (void *)fn, adapter->player, packet, (void *)&native_packet,
-                packet->size, type, (unsigned long long)native_packet.pts_ms,
-                (unsigned long long)native_packet.duration_ms);
         {
             int raw = fn(adapter->player, &native_packet);
             result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_SET, raw);
-            ABI_LOG("submit SET RETURN raw=%d normalized=%d", raw, (int)result.status);
+            if (raw != 4)
+                ABI_LOG("submit SET failed raw=%d normalized=%d", raw, (int)result.status);
         }
         return result;
     }
@@ -669,14 +666,11 @@ wmp_esplus_submit_result_t wmp_esplus_adapter_submit(
         native_packet.buffer_size = packet->size;
         native_packet.pts_ns = packet->pts_ns;
         native_packet.duration_ns = packet->duration_ns;
-        ABI_LOG("submit ADD ENTER fn=%p player=%p packet=%p native_packet=%p size=%u type=%u pts_ns=%llu duration_ns=%llu",
-                (void *)fn, adapter->player, packet, (void *)&native_packet,
-                packet->size, type, (unsigned long long)native_packet.pts_ns,
-                (unsigned long long)native_packet.duration_ns);
         {
             int raw = fn(adapter->player, &native_packet);
             result = wmp_esplus_normalize_submit_result(WMP_ESPLUS_FAMILY_ADD, raw);
-            ABI_LOG("submit ADD RETURN raw=%d normalized=%d", raw, (int)result.status);
+            if (raw != 4)
+                ABI_LOG("submit ADD failed raw=%d normalized=%d", raw, (int)result.status);
         }
         return result;
     }
