@@ -635,6 +635,8 @@
 
   var pressedKeys = Object.create(null);
   var wheelRemainder = 0;
+  var lastMouseX = null;
+  var lastMouseY = null;
 
   function inputUiBlocked() {
     return global.isDialogOpen === true ||
@@ -698,9 +700,21 @@
     if (!nativeInputActive() || inputUiBlocked()) return;
     var locked = global.document &&
       (global.document.pointerLockElement || global.document.webkitPointerLockElement);
-    if (!locked) return;
-    var dx = Number(event.movementX || event.webkitMovementX || 0);
-    var dy = Number(event.movementY || event.webkitMovementY || 0);
+    var dx = 0;
+    var dy = 0;
+    if (locked) {
+      dx = Number(event.movementX || event.webkitMovementX || 0);
+      dy = Number(event.movementY || event.webkitMovementY || 0);
+    } else {
+      var x = Number(event.clientX);
+      var y = Number(event.clientY);
+      if (lastMouseX !== null && lastMouseY !== null) {
+        dx = x - lastMouseX;
+        dy = y - lastMouseY;
+      }
+      lastMouseX = x;
+      lastMouseY = y;
+    }
     if (dx || dy) sendMouseMove(Math.round(dx), Math.round(dy));
   }
 
@@ -742,6 +756,20 @@
   }
   global.addEventListener('blur', releasePressedKeys);
   global.addEventListener('pagehide', releasePressedKeys);
+  if (global.document) {
+    global.document.addEventListener('pointerlockchange', function() {
+      lastMouseX = null;
+      lastMouseY = null;
+    });
+    global.document.addEventListener('webkitpointerlockchange', function() {
+      lastMouseX = null;
+      lastMouseY = null;
+    });
+    global.document.addEventListener('mouseleave', function() {
+      lastMouseX = null;
+      lastMouseY = null;
+    });
+  }
 
   global.addEventListener('esplusgamepadconnected', onGamepadConnected);
   global.addEventListener('esplusgamepaddisconnected', onGamepadDisconnected);
