@@ -157,6 +157,9 @@ const SyncFunctions = {
     // Stop the engine captured when this session started, not a preference that
     // may have been changed while the stream was running.
     if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      // Hide diagnostics at the stop request, not at streamTerminated: the
+      // native service sends that event only after LiStopConnection() returns.
+      hidePerformanceStatsForStreamTermination();
       if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.stopStream === 'function') {
         window.ESPlusPlayerTransport.stopStream().catch(function(error) {
           console.warn('[messages.js, stopRequest]', 'ESPlusPlayer stop request failed:', error);
@@ -364,6 +367,24 @@ function resetPerformanceStatsGraph() {
     window.clearTimeout(performanceStatsRevealTimer);
     performanceStatsRevealTimer = null;
   }
+}
+
+/**
+ * Lock and remove stream diagnostics as soon as native shutdown is requested.
+ * ESPlusPlayer acknowledges termination only after the native engine has
+ * completed LiStopConnection(), so waiting for streamTerminated leaves the
+ * overlay visible throughout that teardown interval.
+ */
+function hidePerformanceStatsForStreamTermination() {
+  performanceStatsStreamTerminated = true;
+  if (typeof hideUiLayerImmediately === 'function') {
+    hideUiLayerImmediately('stream-diagnostics-layer');
+  } else if (typeof hideStreamDiagnosticsLayer === 'function') {
+    hideStreamDiagnosticsLayer();
+  }
+  $('#connection-warnings').css('display', 'none').text('');
+  $('#performance-stats').css('display', 'none').text('');
+  resetPerformanceStatsGraph();
 }
 
 // Reveal only after one completed initial statistics snapshot contains at least
@@ -1174,19 +1195,8 @@ function handleMessage(msg) {
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
-    performanceStatsStreamTerminated = true;
-    // Termination must remove diagnostics in the same paint, not fade them
-    // over the closing transition. Also invalidate any pending first reveal.
-    if (typeof hideUiLayerImmediately === 'function') {
-      hideUiLayerImmediately('stream-diagnostics-layer');
-      $('#connection-warnings').css('display', 'none').text('');
-      $('#performance-stats').css('display', 'none').text('');
-      resetPerformanceStatsGraph();
-    } else {
-      hideStreamDiagnosticsLayer(function() {
-        resetPerformanceStatsGraph();
-      });
-    }
+    // Also cover unsolicited native termination and the EMSS callback path.
+    hidePerformanceStatsForStreamTermination();
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
