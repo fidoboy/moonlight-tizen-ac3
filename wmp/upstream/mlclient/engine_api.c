@@ -151,7 +151,7 @@ static int start_connection(void) {
 
   int in = input_init();
   MLT("input_init -> %d", in);
-  if (in != 0) fprintf(stderr, "[ml] input disabled (no evdev access)\n");
+  if (in != 0) fprintf(stderr, "[ml] evdev input unavailable; browser input bridge remains active\n");
   fprintf(stderr, "[ml] streaming\n");
   return 0;
 }
