@@ -74,7 +74,7 @@ jobs:
               test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a
               echo "::group::WMP transport and native unit tests"
               node tests/wmp_transport_test.js
-              cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src -Iopus/include wmp/tests/wmp_audio_passthrough_test.c -o /runner-temp/wmp-audio-passthrough-test
+              cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src wmp/tests/wmp_audio_passthrough_test.c -o /runner-temp/wmp-audio-passthrough-test
               /runner-temp/wmp-audio-passthrough-test
               bash wmp/tests/wmp_esplus_abi_test.sh
               echo "::endgroup::"
