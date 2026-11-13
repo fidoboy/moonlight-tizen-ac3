@@ -220,7 +220,8 @@ static void handle_event(input_device *dev, const struct input_event *event) {
         else if (event->code == REL_WHEEL) s_mouse_wheel += event->value;
     } else if (event->type == EV_ABS && (dev->caps & INPUT_CAP_GAMEPAD)) {
         const struct input_absinfo *info =
-            dev->abs_valid[event->code] ? &dev->abs[event->code] : NULL;
+            event->code <= ABS_MAX && dev->abs_valid[event->code]
+                ? &dev->abs[event->code] : NULL;
         switch (event->code) {
         case ABS_X: s_lx = normalize_axis(info, event->value, 0); send_pad(); break;
         case ABS_Y: s_ly = normalize_axis(info, event->value, 1); send_pad(); break;
