@@ -613,7 +613,16 @@
       return;
     }
 
-    if (!axesChanged && !triggersChanged) return;
+    if (!axesChanged && !triggersChanged) {
+      // If the stick returns to its last transmitted position before the
+      // coalescing timer fires, discard the stale intermediate sample.
+      if (gamepadSendTimers[index] !== undefined) {
+        global.clearTimeout(gamepadSendTimers[index]);
+        delete gamepadSendTimers[index];
+        delete pendingGamepadStates[index];
+      }
+      return;
+    }
     pendingGamepadStates[index] = state;
     if (gamepadSendTimers[index] !== undefined) return;
 
