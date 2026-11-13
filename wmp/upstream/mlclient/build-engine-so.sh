@@ -48,7 +48,7 @@ include celt_sources.mk
 include silk_sources.mk
 include opus_sources.mk
 all:
-	@printf '%s\\n' $(CELT_SOURCES) $(SILK_SOURCES) $(SILK_SOURCES_FIXED) $(OPUS_SOURCES) $(OPUS_SOURCES_FLOAT)
+	@printf '%s\n' $(CELT_SOURCES) $(SILK_SOURCES) $(SILK_SOURCES_FIXED) $(OPUS_SOURCES) $(OPUS_SOURCES_FLOAT)
 EOF
 )
 OPUS_OBJECTS=""
