@@ -126,6 +126,10 @@ static int s_prepare_failed, s_start_failed;
 static int s_start_tried, s_player_closing;
 static volatile int s_player_error;
 static volatile int s_prepare_called;
+static int s_audio_enabled = 1;
+static int s_audio_registration_done;
+static int s_prepare_requested;
+static int s_prepare_started;
 static uint64_t s_idr_t0, s_idr_last;
 static unsigned s_idr_n, s_video_tries;
 #define IDR_FIRST_MS 300
@@ -659,34 +663,30 @@ int esplus_set_window(int width, int height)
     return 0;
 }
 
-int esplus_prepare(void)
+static int esplus_start_prepare_if_ready(void)
 {
     wmp_esplus_call_result_t result;
     pthread_mutex_lock(&s_lock);
-    s_prepare_called = 1;
-    s_prepared = s_prepare_ok = 0;
-    s_video_ready = 0;
-    s_prepare_failed = s_start_failed = 0;
-    s_start_tried = 0;
-    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
-    s_idr_t0 = esplus_mono_ms();
-    s_idr_last = 0;
-    s_idr_n = 0;
-    s_video_tries = 0;
+    if (!s_prepare_requested || (s_audio_enabled && !s_audio_registration_done) ||
+        s_prepare_started || s_prepare_failed || !s_pl) {
+        pthread_mutex_unlock(&s_lock);
+        return 0;
+    }
+    s_prepare_started = 1; /* exactly once, before dropping the lock */
     pthread_mutex_unlock(&s_lock);
-    PLOG("calling ESPlus prepare_async\n");
+
+    PLOG("calling ESPlus prepare_async after stream registration\n");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
     PLOG("ESPlus prepare_async returned status=%d raw=%d\n",
          (int)result.status, result.raw_status);
-    MLT("esplus_prepare prepare_async -> status=%d raw=%d",
-        (int)result.status, result.raw_status);
+    MLT("prepare_async -> status=%d raw=%d", (int)result.status, result.raw_status);
     mldiag_player("prep", result.raw_status);
     if (result.status != WMP_ESPLUS_CALL_SUCCESS) {
         pthread_mutex_lock(&s_lock);
         s_prepare_failed = 1;
         pthread_cond_broadcast(&s_state_cv);
         pthread_mutex_unlock(&s_lock);
-        PLOG("prepare_async failed (status=%d raw=%d); video feeder released with failure\n",
+        PLOG("prepare_async failed (status=%d raw=%d)\n",
              (int)result.status, result.raw_status);
         if (!__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL))
             LiReportVideoRendererError();
@@ -694,6 +694,47 @@ int esplus_prepare(void)
     }
     sampler_start();
     return 0;
+}
+
+void esplus_set_audio_enabled(int enabled)
+{
+    pthread_mutex_lock(&s_lock);
+    s_audio_enabled = enabled != 0;
+    pthread_mutex_unlock(&s_lock);
+}
+
+void esplus_audio_registration_complete(int success)
+{
+    pthread_mutex_lock(&s_lock);
+    s_audio_registration_done = success != 0;
+    if (!success) {
+        s_prepare_failed = 1;
+        pthread_cond_broadcast(&s_state_cv);
+    }
+    pthread_mutex_unlock(&s_lock);
+    MLT("audio stream registration completion success=%d", success != 0);
+    if (success) (void)esplus_start_prepare_if_ready();
+}
+
+int esplus_prepare(void)
+{
+    pthread_mutex_lock(&s_lock);
+    s_prepare_called = 1;
+    s_prepared = s_prepare_ok = 0;
+    s_video_ready = 0;
+    s_prepare_failed = s_start_failed = 0;
+    s_start_tried = 0;
+    s_prepare_requested = 1;
+    s_prepare_started = 0;
+    s_audio_registration_done = 0;
+    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
+    s_idr_t0 = esplus_mono_ms();
+    s_idr_last = 0;
+    s_idr_n = 0;
+    s_video_tries = 0;
+    pthread_mutex_unlock(&s_lock);
+    MLT("esplus_prepare requested audio_enabled=%d", s_audio_enabled);
+    return esplus_start_prepare_if_ready();
 }
 
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
