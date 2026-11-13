@@ -49,7 +49,7 @@ link-time `DT_NEEDED` dependency.
 
 - AC-3/E-AC-3 is used only when the RTSP negotiation confirms the selected
   codec. The original compressed frames are submitted to ESPlus.
-- If Dolby is unavailable or not negotiated, the engine retains its Opus path.
+- If Dolby is unavailable or not negotiated, the engine decodes received Opus multistream packets with the vendored libopus decoder and submits interleaved PCM_S16LE to ESPlus. Opus packets are never passed to ESPlus.
 - The optional optical-output setting is passed to the shared engine before
   session start.
 - Moonlight Common C remains authoritative for session validity and
