@@ -6,6 +6,7 @@
  */
 #include <dlfcn.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,9 @@
 #include "mltrace.h"
 #include "wmp_window_order.h"
 
+/* HostProtocol installs this callback before any stream can create the WMP window. */
+extern void (*volatile ml_log_cb)(const char *line) __attribute__((weak));
+
 #define WEB_APP_ID "MoonLightS.MoonlightWasm"
 #define DBUS_BUS_SYSTEM 1
 #define DBUS_TYPE_STRING 's'
@@ -23,11 +27,24 @@
 #define DBUS_TYPE_STRUCT 'r'
 #define DBUS_TIMEOUT_MS 3000
 
-#define WLOG(fmt, ...) do { \
-    fprintf(stderr, "[window-order] " fmt "\n", ##__VA_ARGS__); \
-    MLT("[window-order] " fmt, ##__VA_ARGS__); \
-} while (0)
+static void window_order_log(const char *format, ...)
+{
+    char line[512];
+    va_list args;
+    void (*callback)(const char *);
 
+    va_start(args, format);
+    vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+
+    fprintf(stderr, "[window-order] %s\\n", line);
+    if (&ml_log_cb) {
+        callback = ml_log_cb;
+        if (callback) callback(line);
+    }
+}
+
+#define WLOG(...) window_order_log(__VA_ARGS__)
 typedef union {
     long double align_ld;
     void *align_ptr;
