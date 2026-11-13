@@ -9020,6 +9020,7 @@ function loadUserDataCb() {
         }
       });
     }
+    updateH264FramerateConstraint();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored unlockAllFps preferences.');
