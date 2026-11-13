@@ -614,7 +614,11 @@
 
   function syncNativeGamepads() {
     if (!nativeInputActive() || !global.navigator) return;
-    var pads = global.navigator.getGamepads ? global.navigator.getGamepads() : [];
+    var pads = global.navigator.getGamepads
+      ? global.navigator.getGamepads()
+      : global.navigator.webkitGetGamepads
+      ? global.navigator.webkitGetGamepads()
+      : [];
     for (var i = 0; i < pads.length && i < 16; i++) {
       var pad = pads[i];
       if (!pad || !pad.connected) continue;
@@ -701,7 +705,8 @@
     if (!nativeInputActive() || inputUiBlocked()) return;
     if (event.button < 0 || event.button > 2) return;
     sendMouseButton(event.button, event.type === 'mousedown');
-    if (event.cancelable) event.preventDefault();
+    // Do not cancel mousedown: the video surface still needs the user gesture
+    // to acquire pointer lock for relative mouse movement.
   }
 
   function onMouseWheel(event) {
