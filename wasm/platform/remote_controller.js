@@ -90,9 +90,17 @@ function remoteControllerHandler(e) {
       }
       break;
     case tvKey.KEY_YELLOW:
-      // Toggle performance stats overlay
+      // Toggle performance stats through the active streaming engine.
       if (isInGame === true) {
-        Module.toggleStats();
+        if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+            window.ESPlusPlayerTransport &&
+            typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+          window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+            console.error('[esplusplayer] Could not toggle performance statistics:', error);
+          });
+        } else {
+          Module.toggleStats();
+        }
       }
       break;
     default:
