@@ -107,11 +107,11 @@ const Controller = (function() {
 
   function readGamepads() {
     let list = [];
-    try {
-      if (navigator.getGamepads) list = navigator.getGamepads();
-      else if (navigator.webkitGetGamepads) list = navigator.webkitGetGamepads();
-    } catch (error) {
-      return [];
+    if (navigator.getGamepads) {
+      try { list = navigator.getGamepads(); } catch (error) {}
+    }
+    if (!list && navigator.webkitGetGamepads) {
+      try { list = navigator.webkitGetGamepads(); } catch (error) {}
     }
     // Older WebKit implementations expose an array-like GamepadList rather
     // than a fully iterable Array.
