@@ -87,7 +87,6 @@
     if (message.type === 'event') {
       if (message.event === 'Connection Established') {
         nativeGamepadMask = 0;
-        syncNativeGamepads();
       }
       if (message.event === 'wmpDiagnosticReady') {
         if (global.DEBUG_MODE === true) {
@@ -158,6 +157,9 @@
       if (message.detail) global.pendingStreamApiMessage = String(message.detail);
       if (typeof global.handleMessage === 'function' && message.event) {
         global.handleMessage(String(message.event));
+      }
+      if (message.event === 'Connection Established') {
+        syncNativeGamepads();
       }
       return;
     }
