@@ -717,8 +717,8 @@ void esplus_close(void)
     MLT("esplus_close");
     sampler_stop();
 
-    /* Wake a feeder blocked on ready_to_prepare and prevent a concurrent
-     * prepare callback from starting a player that is being torn down. */
+    /* Wake a feeder blocked on ready_to_prepare and prevent it from
+     * submitting or starting a player that is being torn down. */
     pthread_mutex_lock(&s_lock);
     s_player_closing = 1;
     pthread_cond_broadcast(&s_state_cv);
