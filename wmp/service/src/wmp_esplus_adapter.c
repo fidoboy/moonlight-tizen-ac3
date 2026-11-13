@@ -422,16 +422,18 @@ int wmp_esplus_map_video_mime(
 {
     if (!native_mime || (family != WMP_ESPLUS_FAMILY_SET && family != WMP_ESPLUS_FAMILY_ADD))
         return -1;
-    if (mime < WMP_ESPLUS_VIDEO_MIME_UNKNOWN || mime > WMP_ESPLUS_VIDEO_MIME_WMV3)
+    if (mime < WMP_ESPLUS_VIDEO_MIME_UNKNOWN || mime > WMP_ESPLUS_VIDEO_MIME_AV1)
         return -1;
-    if (family == WMP_ESPLUS_FAMILY_ADD) {
-        /* Legacy header explicitly includes UNKNOWN=0 before H263=1. */
-        *native_mime = (uint32_t)mime;
-        return 0;
-    }
-    /* Samsung's SET VideoMimeType enum starts at H263=0; it has no UNKNOWN. */
-    if (mime == WMP_ESPLUS_VIDEO_MIME_UNKNOWN) return -1;
-    *native_mime = (uint32_t)mime - 1u;
+    if (mime == WMP_ESPLUS_VIDEO_MIME_UNKNOWN)
+        return -1;
+
+    /*
+     * OmegaTube's independently declared Samsung SET API enum documents the
+     * native order as UNKNOWN, H263, H264, HEVC, MPEG1, MPEG2, MPEG4, VP8,
+     * VP9, WMV3, AV1, MJPEG. The legacy ADD family uses the same numeric
+     * values for the codecs represented here. Do not shift SET values.
+     */
+    *native_mime = (uint32_t)mime;
     return 0;
 }
 
