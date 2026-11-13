@@ -313,6 +313,8 @@ static wmp_esplus_call_result_t lifecycle_call(
 {
     typedef int (*lifecycle_fn)(void *);
     lifecycle_fn fn = (lifecycle_fn)address;
+    /* ABI_LOG may compile to a no-op when native traces are disabled. */
+    (void)name;
     int raw;
     if (!adapter || !adapter->api || !adapter->player) {
         ABI_LOG("lifecycle %s REJECT invalid_adapter=%p player=%p", name, (void *)adapter, adapter ? adapter->player : NULL);
