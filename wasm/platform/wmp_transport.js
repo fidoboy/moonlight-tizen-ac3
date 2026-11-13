@@ -690,6 +690,8 @@
   }
 
   function releasePressedKeys() {
+    lastMouseX = null;
+    lastMouseY = null;
     Object.keys(pressedKeys).forEach(function(key) {
       sendKey(Number(key), 4, 0);
       delete pressedKeys[key];
@@ -697,7 +699,12 @@
   }
 
   function onMouseMove(event) {
-    if (!nativeInputActive() || inputUiBlocked()) return;
+    if (!nativeInputActive()) return;
+    if (inputUiBlocked()) {
+      lastMouseX = null;
+      lastMouseY = null;
+      return;
+    }
     var locked = global.document &&
       (global.document.pointerLockElement || global.document.webkitPointerLockElement);
     var dx = 0;
