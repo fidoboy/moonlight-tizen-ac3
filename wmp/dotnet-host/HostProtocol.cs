@@ -856,7 +856,7 @@ namespace MoonlightWmpHost
                     RecordDiagnostic("native startup failure: code=" +
                         nativeCode.ToString(CultureInfo.InvariantCulture) +
                         (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
-                    _engine.Stop();
+                    StopEngine();
                     Event(appId, remotePort, "streamTerminated: " +
                         nativeCode.ToString(CultureInfo.InvariantCulture),
                         String.IsNullOrEmpty(diagnostic)
@@ -873,7 +873,7 @@ namespace MoonlightWmpHost
 
                 if (StopWasRequested())
                 {
-                    _engine.Stop();
+                    StopEngine();
                     Event(appId, remotePort, "streamTerminated: 0", null);
                     return;
                 }
@@ -963,13 +963,13 @@ namespace MoonlightWmpHost
                 terminationCode = _engine.ReadLastError(out diagnostic);
                 RecordDiagnostic("host session ended: code=" + terminationCode.ToString(CultureInfo.InvariantCulture) +
                     (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
-                _engine.Stop();
+                StopEngine();
                 Event(appId, remotePort, "streamTerminated: " +
                     terminationCode.ToString(CultureInfo.InvariantCulture), diagnostic);
             }
             catch (Exception ex)
             {
-                try { _engine.Stop(); } catch { }
+                try { StopEngine(); } catch { }
                 RecordDiagnostic("host worker exception: " + ex.GetType().Name + ": " + ex.Message);
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP host session worker failed: " + ex.Message);
