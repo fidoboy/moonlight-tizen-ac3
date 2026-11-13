@@ -67,6 +67,7 @@ static int opus_multistream_state_init(const POPUS_MULTISTREAM_CONFIGURATION con
         config->channelCount <= 0 ||
         config->channelCount > AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT ||
         config->samplesPerFrame <= 0 ||
+        config->samplesPerFrame <= 0 ||
         config->streams <= 0 || config->coupledStreams < 0) {
         MLT("Opus decoder init -> -1 (invalid multistream configuration)");
         return -1;
@@ -126,6 +127,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         channel_count = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(audioConfig);
         if (channel_count <= 0 || channel_count > AUDIO_CONFIGURATION_MAX_CHANNEL_COUNT) {
             MLT("Dolby audio init -> -1 (invalid channel count %d)", channel_count);
+            esplus_audio_registration_complete(0);
             return -1;
         }
         s_sample_rate = DOLBY_SAMPLE_RATE;
@@ -160,7 +162,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         info.sample_rate = DOLBY_SAMPLE_RATE;
         info.bitrate = 0;
     } else {
-        /* ESPlus receives decoded PCM, never the original Opus payload. */
+        /* OpusHead carries the multistream layout required by ESPlus. */
         info.codec_data = NULL;
         info.codec_data_size = 0;
         info.mime_type = WMP_ESPLUS_AUDIO_MIME_PCM_S16LE;
@@ -212,9 +214,6 @@ static void ar_decodePlay(char *data, int len)
     wmp_esplus_packet_t packet;
     wmp_esplus_submit_result_t result;
     uint64_t duration_ns;
-    int decoded_samples;
-    size_t pcm_samples;
-    size_t pcm_bytes;
 
     if (s_dolby) {
         /* Common C reports a lost Dolby frame as (NULL, 0). Keep the 32 ms
