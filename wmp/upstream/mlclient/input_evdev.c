@@ -62,6 +62,7 @@ static int s_pad_buttons;
 static short s_lx, s_ly, s_rx, s_ry;
 static unsigned char s_lt, s_rt;
 static char s_modifiers;
+static int s_suppress_stop_key;
 static int s_mouse_dx, s_mouse_dy, s_mouse_wheel;
 
 static int bit_is_set(const unsigned long *bits, unsigned bit) {
@@ -188,6 +189,18 @@ static void handle_event(input_device *dev, const struct input_event *event) {
             }
         }
         if (dev->caps & INPUT_CAP_KEYBOARD) {
+            /* Ctrl+Alt+Shift+Q is reserved by the WebApp to stop WMP. */
+            if (event->code == KEY_Q) {
+                if (down && s_modifiers ==
+                    (MODIFIER_CTRL | MODIFIER_ALT | MODIFIER_SHIFT)) {
+                    s_suppress_stop_key = 1;
+                    return;
+                }
+                if (s_suppress_stop_key) {
+                    if (!down) s_suppress_stop_key = 0;
+                    return;
+                }
+            }
             short vk = map_vk(event->code);
             if (vk) {
                 update_modifier(event->code, down);
@@ -424,5 +437,6 @@ void input_shutdown(void) {
     s_lx = s_ly = s_rx = s_ry = 0;
     s_lt = s_rt = 0;
     s_modifiers = 0;
+    s_suppress_stop_key = 0;
     s_mouse_dx = s_mouse_dy = s_mouse_wheel = 0;
 }
