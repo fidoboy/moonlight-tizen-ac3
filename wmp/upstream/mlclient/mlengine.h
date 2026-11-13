@@ -69,10 +69,10 @@ void ml_engine_set_dolby_passthrough_enabled(int enabled);
  * sets struct_size = sizeof(ml_engine_stats); the engine fills the struct and
  * returns 0, or GS_INVALID when out is NULL or struct_size is too small. The
  * layout is frozen; new fields only come with a new function. Works in release
- * builds. fps_submitted counts accepted video packets per second. The SET ABI has
- * no playback-clock query: depth_ms/audio_depth_ms use INT32_MIN and playing_ms
- * uses UINT32_MAX when those playback-clock metrics are unavailable. underruns /
- * overruns count video ES queue-empty / queue-full notifications, not dropped frames. */
+ * builds. fps_submitted counts accepted video packets per second. When the selected
+ * ABI has no playback-clock query (always true for SET), depth_ms/audio_depth_ms use
+ * INT32_MIN and playing_ms uses UINT32_MAX. underruns / overruns count video ES
+ * queue-empty / queue-full notifications, not dropped frames. */
 typedef struct ml_engine_stats {
   int32_t  struct_size;
   int32_t  running;
