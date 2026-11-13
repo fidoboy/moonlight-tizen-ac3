@@ -372,10 +372,9 @@ function resetPerformanceStatsGraph() {
 }
 
 /**
- * Lock and remove stream diagnostics as soon as native shutdown is requested.
- * ESPlusPlayer acknowledges termination only after the native engine has
- * completed LiStopConnection(), so waiting for streamTerminated leaves the
- * overlay visible throughout that teardown interval.
+ * Shared UI preamble for every stream termination path. Hide and lock
+ * diagnostics before either engine begins teardown; streamTerminated calls
+ * the same helper again to cover unsolicited/remote termination.
  */
 function hidePerformanceStatsForStreamTermination() {
   performanceStatsStreamTerminated = true;
