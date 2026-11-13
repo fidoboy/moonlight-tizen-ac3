@@ -34,7 +34,7 @@ ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
 INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$CRYPTO_PREFIX/include"
 
-for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player wmp_window_order gs_client input_evdev mldiag ctlcrypto; do
+for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
 
@@ -49,7 +49,7 @@ done
   -Wl,--hash-style=both -Wl,--wrap=PltEncryptMessage \
   -o "$OUT/libmlengine.so" \
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
-  "$OUT"/esplus_player.o "$OUT"/wmp_window_order.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
+  "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
