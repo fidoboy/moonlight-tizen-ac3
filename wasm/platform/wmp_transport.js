@@ -435,6 +435,58 @@
     });
   }
 
+  // Input is high-frequency and does not need a response. Keep it on the
+  // trusted control port without creating one pending request per sample.
+  function sendInput(command, payload) {
+    if (!command || !payload || typeof payload !== 'object') return Promise.resolve(false);
+    return connect().then(function() {
+      var items = [
+        {key: 'protocol', value: PROTOCOL},
+        {key: 'id', value: ''},
+        {key: 'command', value: command},
+        {key: 'payload', value: '{}'}
+      ];
+      Object.keys(payload).forEach(function(key) {
+        if (/^[A-Za-z][A-Za-z0-9]*$/.test(key) &&
+            payload[key] !== undefined && payload[key] !== null) {
+          items.push({key: 'arg_' + key, value: String(payload[key])});
+        }
+      });
+      remotePort.sendMessage(items, localPort);
+      return true;
+    }).catch(function(error) {
+      debugLog('native input forwarding failed', {
+        command: command,
+        error: errorDetails(error)
+      });
+      return false;
+    });
+  }
+
+  function sendKey(keyCode, keyAction, modifiers) {
+    return sendInput('input_key', {
+      keyCode: keyCode,
+      keyAction: keyAction,
+      modifiers: modifiers || 0
+    });
+  }
+
+  function sendGamepadArrival(index, activeMask, type, supportedButtons, capabilities) {
+    return sendInput('gamepad_arrival', {
+      index: index, activeMask: activeMask, type: type,
+      supportedButtons: supportedButtons, capabilities: capabilities || 0
+    });
+  }
+
+  function sendGamepadState(index, activeMask, buttons, leftTrigger, rightTrigger,
+                            lsX, lsY, rsX, rsY) {
+    return sendInput('gamepad_state', {
+      index: index, activeMask: activeMask, buttons: buttons,
+      leftTrigger: leftTrigger, rightTrigger: rightTrigger,
+      lsX: lsX, lsY: lsY, rsX: rsX, rsY: rsY
+    });
+  }
+
   function close() {
     var pendingCount = Object.keys(pending).length;
     debugLog('closing ESPlusPlayer transport', {
@@ -474,6 +526,9 @@
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) { return request('start_session', parameters); },
     stopStream: function() { return request('stop_session'); },
+    sendKey: sendKey,
+    sendGamepadArrival: sendGamepadArrival,
+    sendGamepadState: sendGamepadState,
     close: close
   };
 })(window);
