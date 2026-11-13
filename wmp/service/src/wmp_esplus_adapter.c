@@ -465,6 +465,8 @@ int wmp_esplus_map_audio_mime(
         case WMP_ESPLUS_AUDIO_MIME_VORBIS: *native_mime = 6; return 0;
         case WMP_ESPLUS_AUDIO_MIME_DTS: *native_mime = 7; return 0;
         case WMP_ESPLUS_AUDIO_MIME_OPUS: *native_mime = 8; return 0;
+        /* Legacy ADD inserts DTS before OPUS; PCM_S16LE follows OPUS. */
+        case WMP_ESPLUS_AUDIO_MIME_PCM_S16LE: *native_mime = 9; return 0;
         default: return -1;
         }
     }
@@ -478,6 +480,8 @@ int wmp_esplus_map_audio_mime(
         case WMP_ESPLUS_AUDIO_MIME_EAC3: *native_mime = 5; return 0;
         case WMP_ESPLUS_AUDIO_MIME_VORBIS: *native_mime = 6; return 0;
         case WMP_ESPLUS_AUDIO_MIME_OPUS: *native_mime = 7; return 0;
+        /* Samsung SET AudioMimeType order places PCM_S16LE after OPUS. */
+        case WMP_ESPLUS_AUDIO_MIME_PCM_S16LE: *native_mime = 8; return 0;
         /* DTS occupies slot 7 only in ADD; SET does not define it. */
         default: return -1;
         }
