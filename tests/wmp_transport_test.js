@@ -55,7 +55,7 @@ const remotePort = {
           messageListener([
             {key: 'protocol', value: request.protocol},
             {key: 'type', value: 'event'},
-            {key: 'event', value: 'esplusplayerNativeLog'},
+            {key: 'event', value: 'wmpNativeLog'},
             {key: 'detail', value: line}
           ]);
         });
@@ -118,7 +118,7 @@ const window = {
 };
 
 const source = fs.readFileSync(
-  path.join(__dirname, '../wasm/platform/esplusplayer_transport.js'),
+  path.join(__dirname, '../wasm/platform/wmp_transport.js'),
   'utf8'
 );
 vm.runInNewContext(source, {
@@ -203,9 +203,9 @@ vm.runInNewContext(source, {
   const statsToggle = await window.ESPlusPlayerTransport.toggleStats();
   assert.strictEqual(statsToggle.payload.enabled, true);
   messageListener([
-    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
+    {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'esplusplayerDiagnosticReady'}
+    {key: 'event', value: 'wmpDiagnosticReady'}
   ]);
   for (let i = 0; i < 8; i++) await Promise.resolve();
   assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
@@ -216,16 +216,16 @@ vm.runInNewContext(source, {
   );
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
+    {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
     {key: 'event', value: 'displayVideo'}
   ]);
   assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo']);
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
+    {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'esplusplayerPlayerError: 8193'},
+    {key: 'event', value: 'wmpPlayerError: 8193'},
     {key: 'detail', value: 'ESPlus player error 0x2001'}
   ]);
   assert.deepStrictEqual(handledEvents, [
@@ -234,7 +234,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlus player error 0x2001');
 
   messageListener([
-    {key: 'protocol', value: 'moonlight-esplusplayer/1'},
+    {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
     {key: 'event', value: 'streamTerminated: -1'},
     {key: 'detail', value: 'ESPlusPlayer engine start failed (code -101)'}
