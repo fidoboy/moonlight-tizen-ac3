@@ -58,6 +58,11 @@ const Controller = (function() {
   }
 
   function gamepadConnected(gamepad) {
+    if (!gamepad || gamepad.index == null) return;
+    if (gamepads[gamepad.index]) {
+      analyzeGamepad(gamepad);
+      return;
+    }
     gamepads[gamepad.index] = new Gamepad(gamepad);
     window.dispatchEvent(new CustomEvent('esplusgamepadconnected', {
       detail: { gamepadIndex: gamepad.index, id: gamepad.id, buttonCount: gamepad.buttons.length }
@@ -73,6 +78,7 @@ const Controller = (function() {
   }
 
   function gamepadDisconnected(gamepad) {
+    if (!gamepads[gamepad.index]) return;
     delete gamepads[gamepad.index];
     window.dispatchEvent(new CustomEvent('esplusgamepaddisconnected', {
       detail: { gamepadIndex: gamepad.index }
@@ -99,37 +105,48 @@ const Controller = (function() {
     }
   }
 
-  function pollGamepads() {
-    const gamepads = navigator.getGamepads
-      ? navigator.getGamepads()
-      : navigator.webkitGetGamepads
-      ? navigator.webkitGetGamepads()
-      : [];
-    for (const gamepad of gamepads) {
-      if (gamepad) {
-        analyzeGamepad(gamepad);
-      }
+  function readGamepads() {
+    let list = [];
+    try {
+      if (navigator.getGamepads) list = navigator.getGamepads();
+      else if (navigator.webkitGetGamepads) list = navigator.webkitGetGamepads();
+    } catch (error) {
+      return [];
     }
+    // Older WebKit implementations expose an array-like GamepadList rather
+    // than a fully iterable Array.
+    try { return Array.prototype.slice.call(list || []); }
+    catch (error) { return []; }
+  }
+
+  function pollGamepads() {
+    const connected = Object.create(null);
+    const current = readGamepads();
+    for (const gamepad of current) {
+      if (!gamepad || !gamepad.connected) continue;
+      connected[gamepad.index] = true;
+      if (gamepads[gamepad.index]) analyzeGamepad(gamepad);
+      else gamepadConnected(gamepad);
+    }
+
+    // Some Tizen WebKit versions do not dispatch gamepadconnected /
+    // gamepaddisconnected reliably. Reconcile the polled list with our state.
+    Object.keys(gamepads).forEach((index) => {
+      if (!connected[index]) gamepadDisconnected({index: Number(index)});
+    });
   }
 
   function startWatching() {
     if (!pollingInterval) {
-      // Register controllers that were already connected when the app started.
-      const connectedGamepads = navigator.getGamepads
-        ? navigator.getGamepads()
-        : navigator.webkitGetGamepads
-        ? navigator.webkitGetGamepads()
-        : [];
-      for (const gamepad of connectedGamepads) {
-        if (gamepad && gamepad.connected) gamepadConnected(gamepad);
-      }
+      // Register controllers already connected before the first polling tick.
+      pollGamepads();
       window.addEventListener('gamepadconnected', function(e) {
         gamepadConnected(e.gamepad);
       });
       window.addEventListener('gamepaddisconnected', function(e) {
         gamepadDisconnected(e.gamepad);
       });
-      pollingInterval = setInterval(pollGamepads, 5);
+      pollingInterval = setInterval(pollGamepads, 10);
     }
   }
 
