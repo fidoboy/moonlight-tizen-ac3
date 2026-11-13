@@ -32,30 +32,10 @@ echo "engine variant: $BUILD_VARIANT"
 OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
-INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$MLT/opus/include -I$MLT/opus/src -I$CRYPTO_PREFIX/include"
+INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$CRYPTO_PREFIX/include"
 
 for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
-done
-
-# Build the same vendored libopus sources used by the EMSS/WASM target.
-# The native WMP engine needs the multistream decoder because ESPlus accepts
-# PCM_S16LE, not the Opus RTP payloads received from Moonlight Common C.
-OPUS_INC="-I$MLT/opus/include -I$MLT/opus/src -I$MLT/opus/celt -I$MLT/opus/silk -I$MLT/opus/silk/fixed"
-OPUS_FLAGS="$FLAGS $OPUS_INC -DUSE_ALLOCA -DHAVE_LRINT -DHAVE_LRINTF -DFIXED_POINT -DOPUS_BUILD"
-OPUS_SOURCES=$(cd "$MLT/opus" && make -s -f - <<'EOF'
-include celt_sources.mk
-include silk_sources.mk
-include opus_sources.mk
-all:
-	@printf '%s\n' $(CELT_SOURCES) $(SILK_SOURCES) $(SILK_SOURCES_FIXED) $(OPUS_SOURCES) $(OPUS_SOURCES_FLOAT)
-EOF
-)
-OPUS_OBJECTS=""
-for src in $OPUS_SOURCES; do
-  obj=$(printf '%s' "$src" | tr '/.' '__')
-  "$GCC" $OPUS_FLAGS -c "$MLT/opus/$src" -o "$OUT/opus_$obj.o"
-  OPUS_OBJECTS="$OPUS_OBJECTS $OUT/opus_$obj.o"
 done
 
 # Project-owned, typed ESPlus ABI discovery and ADD/SET adapter layer.
@@ -71,7 +51,7 @@ done
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
-  $OPUS_OBJECTS "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
+  "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
   -lcurl -lssl -lcrypto -ldl -lpthread -lm $DBGLIB
