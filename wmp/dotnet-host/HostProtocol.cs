@@ -61,6 +61,7 @@ namespace MoonlightWmpHost
             internal int FullRange;
             internal int OpticalOutputEnabled;
             internal int PerformanceStats;
+            internal int GameMode;
         }
 
         internal static void Start()
@@ -256,6 +257,8 @@ namespace MoonlightWmpHost
                 invalidField = "opticalOutputEnabled";
             else if (!TryBool(Arg(bundle, "performanceStats"), out value.PerformanceStats))
                 invalidField = "performanceStats";
+            else if (!TryBool(Arg(bundle, "gameMode"), out value.GameMode))
+                invalidField = "gameMode";
             else if (value.Width <= 0) invalidField = "w";
             else if (value.Height <= 0) invalidField = "h";
             else if (value.Fps <= 0) invalidField = "fps";
@@ -783,12 +786,17 @@ namespace MoonlightWmpHost
                     request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
-                    "; bitrateKbps=" + request.Bitrate.ToString(CultureInfo.InvariantCulture));
+                    "; bitrateKbps=" + request.Bitrate.ToString(CultureInfo.InvariantCulture) +
+                    "; gameMode=" + (request.GameMode != 0 ? "on" : "off"));
                 Log.Info("WMP session starting: video=" + request.VideoCodec + " " +
                     request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
+                // Game Mode is session configuration consumed by the native ESPlus renderer.
+                // Set it explicitly for every attempt so a previous session cannot leak its policy.
+                Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
+                    request.GameMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,

@@ -41,6 +41,7 @@ function startESPlusPlayerSession(args) {
     videoCodec: args[25],
     hdr: args[26],
     fullRange: args[27],
+    gameMode: !!args[28],
     performanceStats: Number(args[30]) !== 0
   };
 

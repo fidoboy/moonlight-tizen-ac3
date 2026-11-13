@@ -158,9 +158,13 @@ static int mlc_env_int(const char *name, int def)
 static void load_cfg(void)
 {
     const char *m = getenv("MLENGINE_LATENCY_MODE");
-    esplus_cfg.latency_mode = !m ? ESPLUS_LAT_OFF :
+    const char *game_mode = getenv("MLENGINE_GAME_MODE");
+    /* Game Mode uses arrival-based PTS for both SET and ADD. The ADD-only
+     * playback-clock nudge is unavailable on SET and is not a portable policy. */
+    esplus_cfg.latency_mode = (game_mode && !strcmp(game_mode, "1")) ? ESPLUS_LAT_ARRIVAL :
+        (!m ? ESPLUS_LAT_OFF :
         !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
-        !strcmp(m, "arrival") ? ESPLUS_LAT_ARRIVAL : ESPLUS_LAT_OFF;
+        !strcmp(m, "arrival") ? ESPLUS_LAT_ARRIVAL : ESPLUS_LAT_OFF);
     esplus_cfg.target_depth_ms = mlc_env_int("MLENGINE_TARGET_DEPTH_MS", 50);
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
