@@ -72,6 +72,9 @@ static int opus_decoder_create(const POPUS_MULTISTREAM_CONFIGURATION config)
         return -1;
     }
 
+    if ((size_t)config->samplesPerFrame >
+        SIZE_MAX / (size_t)config->channelCount)
+        return -1;
     required_samples = (size_t)config->samplesPerFrame *
                        (size_t)config->channelCount;
     if (required_samples > SIZE_MAX / sizeof(*s_pcm_buffer))
