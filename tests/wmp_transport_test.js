@@ -198,6 +198,18 @@ vm.runInNewContext(source, {
     type: 'esplusgamepadstate',
     detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0.4, 0, 0, 0]}
   });
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0.3, 0, 0, 0]}
+  });
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.strictEqual(gamepadStateMessages().length, 2,
+    'returning to the last transmitted stick position must cancel a stale pending sample');
+
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: neutralButtons, axes: [0.4, 0, 0, 0]}
+  });
   const pressedButtons = neutralButtons.slice();
   pressedButtons[0] = 1;
   window.dispatchEvent({
