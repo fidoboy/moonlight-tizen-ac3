@@ -12,7 +12,7 @@ on:
         description: "Enable verbose ESPlusPlayer/WMP native trace logs"
         required: false
         type: boolean
-        default: true
+        default: false
   # Deliberately manual-only: debug builds must never run on production pushes.
 
 permissions:
