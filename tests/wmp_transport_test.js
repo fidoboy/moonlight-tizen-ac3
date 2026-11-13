@@ -105,6 +105,7 @@ const window = {
     handledEvents.push(message);
   },
   setTimeout,
+  clearTimeout,
   tizen: {
     messageport: {
       requestTrustedLocalMessagePort(name) {
