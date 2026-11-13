@@ -10,7 +10,8 @@
  * expat - we avoid that dependency).
  *
  * NOTE: UNTESTED end-to-end. Needs a Sunshine/GFE host on the LAN. The GameStream
- * URLs, query parameters and field names mirror moonlight-embedded exactly.
+ * URLs and field names mirror moonlight-embedded, with a WMP-specific
+ * continuousAudio request so ESPlus can preroll video even during host silence.
  */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -175,7 +176,7 @@ int gs_orchestrate(const char *host, unsigned short httpPort, unsigned short htt
   gen_uuid(uuid);
   snprintf(url, sizeof url,
     "https://%s:%u/%s?uniqueid=%s&uuid=%s&appid=%d&mode=%dx%dx%d&additionalStates=1&sops=%d"
-    "&rikey=%s&rikeyid=%d&localAudioPlayMode=0&surroundAudioInfo=%d&remoteControllersBitmap=0&gcmap=0%s",
+    "&rikey=%s&rikeyid=%d&localAudioPlayMode=0&surroundAudioInfo=%d&remoteControllersBitmap=0&gcmap=0&continuousAudio=1%s",
     host, httpsPort, verb, g_UniqueId, uuid, appId, sc->width, sc->height, sc->fps, sops,
     rikey_hex, (int)rikeyid, surround, LiGetLaunchUrlQueryParameters());
   if ((ret = http_request(url, server_cert, data)) != GS_OK) { fprintf(stderr, "[gs] %s failed %d\n", verb, ret); MLT("gs: %s failed %d", verb, ret); goto fail; }
