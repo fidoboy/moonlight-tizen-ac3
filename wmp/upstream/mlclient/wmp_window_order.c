@@ -329,7 +329,7 @@ static int get_application_pid(const char *app_id, pid_t *pid)
 
     result = get_context(app_id, &context);
     if (result != 0 || !context) {
-        WLOG("app_manager_get_app_context(\\"%s\\") failed: rc=%d context=%p", app_id, result, context);
+        WLOG("app_manager_get_app_context(\"%s\") failed: rc=%d context=%p", app_id, result, context);
         goto fail;
     }
 
