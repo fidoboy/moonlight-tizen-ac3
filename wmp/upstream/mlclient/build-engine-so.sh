@@ -12,18 +12,23 @@ GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-l
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
+WMP_MLT_TRACE=${WMP_MLT_TRACE:-false}
 case "$BUILD_VARIANT" in
   release) OPT="-O2"; LOPT="-O2"; DBGLIB="-ldl" ;;
-  debug)   OPT="-O0 -g -DMLT_TRACE"; LOPT="-O0 -g"; DBGLIB="-ldl" ;;
+  debug)   OPT="-O0 -g"; LOPT="-O0 -g"; DBGLIB="-ldl" ;;
   *) echo "BUILD_VARIANT must be debug or release, got: $BUILD_VARIANT" >&2; exit 1 ;;
 esac
-echo "engine variant: $BUILD_VARIANT"
-# The temporary video-only diagnostic mode must remain observable even when
-# the surrounding hybrid debug workflow builds the engine with BUILD_VARIANT=release.
-if grep -q '^#define WMP_VIDEO_ONLY_DIAGNOSTIC 1$' "$HERE/audio_opus.c"; then
-  OPT="$OPT -DMLT_TRACE"
-  echo "WMP video-only diagnostic mode: enabling native MLT_TRACE logging"
+if [[ "$WMP_MLT_TRACE" != "true" && "$WMP_MLT_TRACE" != "false" ]]; then
+  echo "WMP_MLT_TRACE must be true or false." >&2
+  exit 1
 fi
+if [[ "$WMP_MLT_TRACE" == "true" ]]; then
+  OPT="$OPT -DMLT_TRACE"
+  echo "native WMP/ESPlusPlayer trace logging: enabled"
+else
+  echo "native WMP/ESPlusPlayer trace logging: disabled"
+fi
+echo "engine variant: $BUILD_VARIANT"
 OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
