@@ -61,6 +61,8 @@ static int VidDecSetup_(int videoFormat, int width, int height,
         mime = WMP_ESPLUS_VIDEO_MIME_H264;
     else if (videoFormat & VIDEO_FORMAT_MASK_H265)
         mime = WMP_ESPLUS_VIDEO_MIME_HEVC;
+    else if (videoFormat & VIDEO_FORMAT_MASK_AV1)
+        mime = WMP_ESPLUS_VIDEO_MIME_AV1;
     else {
         VLOG("unsupported videoFormat 0x%x\n", videoFormat);
         MLT("video setup -> -1 (format)");
