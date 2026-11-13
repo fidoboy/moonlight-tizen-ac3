@@ -6,7 +6,9 @@ function remoteControllerHandler(e) {
   // Forward TV remote navigation keys directly to Moonlight Common C instead.
   if (isInGame === true && isDialogOpen !== true && window._activeStreamingEngine === 'ESPLUSPLAYER' &&
       window.ESPlusPlayerTransport &&
-      typeof window.ESPlusPlayerTransport.sendKey === 'function') {
+      typeof window.ESPlusPlayerTransport.sendKey === 'function' &&
+      !(typeof window.ESPlusPlayerTransport.isEvdevInputActive === 'function' &&
+        window.ESPlusPlayerTransport.isEvdevInputActive(1))) {
     let virtualKey = 0;
     switch (keyCode) {
       case tvKey.KEY_UP: virtualKey = 0x26; break;
