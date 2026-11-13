@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "Limelight.h"
-#include "opus_multistream.h"
 #include "esplus_player.h"
 
 /* Exercise the production ESPlus audio implementation. */
