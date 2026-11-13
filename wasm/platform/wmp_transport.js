@@ -88,6 +88,16 @@
       if (message.event === 'Connection Established') {
         nativeGamepadMask = 0;
       }
+      if (message.event && /^wmpInputCapabilities: \\d+$/.test(String(message.event))) {
+        nativeInputCapabilities = Number(String(message.event).slice('wmpInputCapabilities: '.length)) | 0;
+        debugLog('native evdev input capabilities received', {
+          capabilities: nativeInputCapabilities,
+          keyboard: !!(nativeInputCapabilities & 1),
+          mouse: !!(nativeInputCapabilities & 2),
+          gamepad: !!(nativeInputCapabilities & 4)
+        });
+        return;
+      }
       if (message.event === 'wmpDiagnosticReady') {
         if (global.DEBUG_MODE === true) {
           if (global.console && typeof global.console.info === 'function') {
@@ -537,6 +547,7 @@
     lastSentGamepadTriggers = Object.create(null);
     lastSentGamepadFlags = Object.create(null);
     nativeGamepadMask = 0;
+    nativeInputCapabilities = 0;
     var pendingCount = Object.keys(pending).length;
     debugLog('closing ESPlusPlayer transport', {
       localPortAvailable: !!localPort,
@@ -566,6 +577,7 @@
   }
 
   var nativeGamepadMask = 0;
+  var nativeInputCapabilities = 0;
   // The browser gamepad API is polled every 5 ms. Forwarding every tiny axis
   // fluctuation through Tizen MessagePort can build a queue in the ServiceApp.
   // Keep button transitions immediate, but coalesce analog state to 60 Hz.
@@ -586,6 +598,7 @@
   }
 
   function queueGamepadState(index, state, immediate) {
+    if (!browserGamepadInputActive()) return;
     var previousAxes = lastSentGamepadAxes[index];
     var previousTriggers = lastSentGamepadTriggers[index];
     var axesChanged = !previousAxes;
@@ -630,7 +643,7 @@
       delete gamepadSendTimers[index];
       var latest = pendingGamepadStates[index];
       delete pendingGamepadStates[index];
-      if (latest && nativeInputActive() && (nativeGamepadMask & (1 << index))) {
+      if (latest && browserGamepadInputActive() && (nativeGamepadMask & (1 << index))) {
         transmitGamepadState(index, latest);
       }
     }, GAMEPAD_SEND_INTERVAL_MS);
@@ -639,6 +652,18 @@
   function nativeInputActive() {
     var state = global.getStreamingEngineState && global.getStreamingEngineState();
     return !!state && state.active === 'ESPLUSPLAYER' && state.confirmed === true;
+  }
+
+  function browserKeyboardInputActive() {
+    return nativeInputActive() && !(nativeInputCapabilities & 1);
+  }
+
+  function browserMouseInputActive() {
+    return nativeInputActive() && !(nativeInputCapabilities & 2);
+  }
+
+  function browserGamepadInputActive() {
+    return nativeInputActive() && !(nativeInputCapabilities & 4);
   }
 
   function controllerType(id) {
@@ -667,9 +692,11 @@
     lastSentGamepadFlags[index] = undefined;
     lastSentGamepadAxes[index] = undefined;
     lastSentGamepadTriggers[index] = undefined;
-    sendGamepadArrival(index, nativeGamepadMask, controllerType(detail.id),
-      supportedButtons(Number(detail.buttonCount) || 0),
-      Number(detail.buttonCount) > 7 ? 1 : 0);
+    if (browserGamepadInputActive()) {
+      sendGamepadArrival(index, nativeGamepadMask, controllerType(detail.id),
+        supportedButtons(Number(detail.buttonCount) || 0),
+        Number(detail.buttonCount) > 7 ? 1 : 0);
+    }
   }
 
   function onGamepadDisconnected(event) {
@@ -686,7 +713,9 @@
     delete lastSentGamepadFlags[index];
     delete lastSentGamepadAxes[index];
     delete lastSentGamepadTriggers[index];
-    sendGamepadState(index, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+    if (browserGamepadInputActive()) {
+      sendGamepadState(index, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+    }
   }
 
   function onGamepadState(event) {
@@ -725,15 +754,17 @@
       var value = Number(axes[index] || 0);
       return Math.max(-32768, Math.min(32767, Math.round(value * 32767)));
     }
-    queueGamepadState(index, {
-      flags: flags,
-      leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
-      rightTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
-      lsX: axis(0),
-      lsY: -axis(1),
-      rsX: axis(2),
-      rsY: -axis(3)
-    }, false);
+    if (browserGamepadInputActive()) {
+      queueGamepadState(index, {
+        flags: flags,
+        leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
+        rightTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
+        lsX: axis(0),
+        lsY: -axis(1),
+        rsX: axis(2),
+        rsY: -axis(3)
+      }, false);
+    }
   }
 
   function syncNativeGamepads() {
@@ -826,6 +857,7 @@
     }
 
     if (inputUiBlocked() || isEditableTarget(event.target)) return;
+    if (!browserKeyboardInputActive()) return;
 
     var key = String(code);
     if (event.type === 'keydown') {
@@ -876,13 +908,15 @@
       lastMouseX = x;
       lastMouseY = y;
     }
-    if (dx || dy) sendMouseMove(Math.round(dx), Math.round(dy));
+    if ((dx || dy) && browserMouseInputActive())
+      sendMouseMove(Math.round(dx), Math.round(dy));
   }
 
   function onMouseButton(event) {
     if (!nativeInputActive() || inputUiBlocked()) return;
     if (event.button < 0 || event.button > 2) return;
-    sendMouseButton(event.button, event.type === 'mousedown');
+    if (browserMouseInputActive())
+      sendMouseButton(event.button, event.type === 'mousedown');
     // Do not cancel mousedown: the video surface still needs the user gesture
     // to acquire pointer lock for relative mouse movement.
   }
@@ -901,7 +935,7 @@
     var amount = wheelRemainder < 0 ? Math.ceil(wheelRemainder) : Math.floor(wheelRemainder);
     if (amount !== 0) {
       wheelRemainder -= amount;
-      sendMouseScroll(amount);
+      if (browserMouseInputActive()) sendMouseScroll(amount);
       if (event.cancelable) event.preventDefault();
     }
   }
