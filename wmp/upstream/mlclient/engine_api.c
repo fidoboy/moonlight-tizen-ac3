@@ -366,35 +366,3 @@ int ml_engine_start_session_v2(const char *host, int width, int height, int fps,
                             gfe_version, rtsp_url, server_codec_mode_support, video_codec, hdr,
                             audio_config, full_range, audio_enabled);
 }
-
-/* Input is forwarded through the service only while Common C owns an active session. */
-void ml_engine_send_key(int key_code, int key_action, int modifiers) {
-  if (!g_running || key_code < 0 || key_code > 0xFFFF ||
-      (key_action != KEY_ACTION_DOWN && key_action != KEY_ACTION_UP) ||
-      modifiers < 0 || modifiers > 0x1F) return;
-  (void)LiSendKeyboardEvent((short)key_code, (char)key_action, (char)modifiers);
-}
-
-int ml_engine_gamepad_arrival(int index, int active_mask, int type,
-                              unsigned int supported_buttons, int capabilities) {
-  if (!g_running || index < 0 || index > 15 || active_mask < 0 || active_mask > 0xFFFF ||
-      type < LI_CTYPE_UNKNOWN || type > LI_CTYPE_STEAM ||
-      capabilities < 0 || capabilities > 0xFFFF) return -1;
-  return LiSendControllerArrivalEvent((uint8_t)index, (uint16_t)active_mask,
-      (uint8_t)type, (uint32_t)supported_buttons, (uint16_t)capabilities);
-}
-
-int ml_engine_gamepad_state(int index, int active_mask, int buttons, int left_trigger,
-                            int right_trigger, int ls_x, int ls_y, int rs_x, int rs_y) {
-  if (!g_running || index < 0 || index > 15 || active_mask < 0 || active_mask > 0xFFFF)
-    return -1;
-  if (left_trigger < 0) left_trigger = 0; else if (left_trigger > 255) left_trigger = 255;
-  if (right_trigger < 0) right_trigger = 0; else if (right_trigger > 255) right_trigger = 255;
-  if (ls_x < -32768) ls_x = -32768; else if (ls_x > 32767) ls_x = 32767;
-  if (ls_y < -32768) ls_y = -32768; else if (ls_y > 32767) ls_y = 32767;
-  if (rs_x < -32768) rs_x = -32768; else if (rs_x > 32767) rs_x = 32767;
-  if (rs_y < -32768) rs_y = -32768; else if (rs_y > 32767) rs_y = 32767;
-  return LiSendMultiControllerEvent((short)index, (short)active_mask, buttons,
-      (unsigned char)left_trigger, (unsigned char)right_trigger,
-      (short)ls_x, (short)ls_y, (short)rs_x, (short)rs_y);
-}
