@@ -40,7 +40,8 @@ function startESPlusPlayerSession(args) {
     opticalOutputEnabled: !!args[20],
     videoCodec: args[25],
     hdr: args[26],
-    fullRange: args[27]
+    fullRange: args[27],
+    performanceStats: Number(args[30]) !== 0
   };
 
   if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
