@@ -130,9 +130,14 @@ int ml_engine_pair(int server_major, const char *address, int http_port, const c
 
 void ml_engine_cancel_request(void) { MLT("ml_engine_cancel_request"); http_cancel_request(); }
 
+int ml_engine_running(void);
+
 void ml_engine_send_key(int key_code, int key_action, int modifiers) {
+  if (!ml_engine_running() || key_code < 0 || key_code > 0xFFFF ||
+      (key_action != KEY_ACTION_DOWN && key_action != KEY_ACTION_UP) ||
+      modifiers < 0 || modifiers > 0x1F) return;
   MLT("ml_engine_send_key code=%d action=%d mod=%d", key_code, key_action, modifiers);
-  LiSendKeyboardEvent((short)key_code, (char)key_action, (char)modifiers);
+  (void)LiSendKeyboardEvent((short)key_code, (char)key_action, (char)modifiers);
 }
 
 void ml_engine_free(void *p) { free(p); }
