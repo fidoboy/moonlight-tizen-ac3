@@ -276,6 +276,12 @@ int ml_engine_start(const char *host, int appId, const char *pin,
   return 0;
 }
 
+void ml_engine_set_performance_stats_enabled(int enabled) {
+  esplus_set_performance_stats_enabled(enabled);
+  g_stream_info_last_time_ms = 0;
+  g_stream_info_fec_baseline_valid = 0;
+}
+
 int ml_engine_get_active_audio_codec(void) {
   return AudEsplus_GetActiveAudioCodec();
 }
