@@ -875,6 +875,7 @@ namespace MoonlightWmpHost
             int terminationCode = 0;
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
             DateTime nextStatsMessage = DateTime.UtcNow;
+            bool encryptionStatusPublished = false;
             uint lastReportedPlayerErrors = 0;
 
             try
@@ -984,11 +985,15 @@ namespace MoonlightWmpHost
                         // Encryption status belongs to the stream transition, not to
                         // the optional performance overlay. Publish it independently
                         // so the native engine shows the same transition indicator as EMSS.
-                        int encryptionStatus = _engine.GetEncryptionStatus();
-                        if (encryptionStatus >= 0)
+                        if (!encryptionStatusPublished)
                         {
-                            Event(appId, remotePort,
-                                "EncryptionStatusMsg: " + encryptionStatus.ToString(CultureInfo.InvariantCulture), null);
+                            int encryptionStatus = _engine.GetEncryptionStatus();
+                            if (encryptionStatus >= 0)
+                            {
+                                Event(appId, remotePort,
+                                    "EncryptionStatusMsg: " + encryptionStatus.ToString(CultureInfo.InvariantCulture), null);
+                                encryptionStatusPublished = true;
+                            }
                         }
 
                         if (statsResult == 0)
