@@ -346,6 +346,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->video_fps_received = 0;
   out->video_fps_decoded = 0;
   out->video_fps_rendered = 0;
+  out->video_fps_total = 0;
   out->network_dropped_percent_x100 = 0;
   out->average_reassembly_us = 0;
   out->average_decode_us = 0;
@@ -414,6 +415,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
     out->video_fps_received = (uint32_t)((combined_received * 1000ull) / combined_elapsed);
     out->video_fps_decoded = (uint32_t)((combined_decoded * 1000ull) / combined_elapsed);
     out->video_fps_rendered = (uint32_t)((combined_rendered * 1000ull) / combined_elapsed);
+    out->video_fps_total = (uint32_t)((combined_total_frames * 1000ull) / combined_elapsed);
   }
   if (combined_total_frames != 0)
     out->network_dropped_percent_x100 =
