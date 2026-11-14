@@ -810,7 +810,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
                                  s_prepare_failed ? "prepare_async_done(false)" :
                                  s_start_failed ? "start() failed" : "player closing";
             MLT("video feeder released without startup readiness: %s", reason);
-            PLOG("video submit rejected: %s\\n", reason);
+            PLOG("video submit rejected: %s\n", reason);
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
@@ -830,9 +830,9 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             } else {
                 s_start_failed = 1;
                 pthread_cond_broadcast(&s_state_cv);
-                fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\\n",
+                fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\n",
                         (int)started.status, started.raw_status);
-                PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\\n",
+                PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\n",
                      (int)started.status, started.raw_status);
                 mldiag_player("start", started.raw_status);
                 result.status = WMP_ESPLUS_SUBMIT_REJECTED;
@@ -840,7 +840,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
                 pthread_mutex_unlock(&s_lock);
                 return result;
             }
-            PLOG("ESPlus start returned status=%d raw=%d (video ready, prepare callback=true)\\n",
+            PLOG("ESPlus start returned status=%d raw=%d (video ready, prepare callback=true)\n",
                  (int)started.status, started.raw_status);
             mldiag_player("start", started.raw_status);
         }
@@ -879,7 +879,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
          result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
-        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\\n",
+        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\n",
              s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
              (int)result.status, result.raw_status, s_prepared,
               __atomic_load_n(&s_started, __ATOMIC_ACQUIRE));
