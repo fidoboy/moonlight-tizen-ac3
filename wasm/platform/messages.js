@@ -1335,6 +1335,12 @@ function handleMessage(msg) {
       return;
     }
 
+    if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
+      window.moonlightAmbilight.shutdown().catch(function(error) {
+        console.warn('[ambilight] Could not shut down service after stream termination:', error);
+      });
+    }
+
     logStreamTerminationRecovery('termination received', {errorCode: errorCode, engine: window._activeStreamingEngine || null});
 
     // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
