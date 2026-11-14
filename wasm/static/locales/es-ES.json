@@ -624,7 +624,7 @@
   "Checking Ambilight support...": "Comprobando la compatibilidad con Ambilight...",
   "Enable Ambilight": "Activar Ambilight",
   "WLED IP address": "Dirección IP de WLED",
-  "Capture the Moonlight video plane and send live colors to your WLED device.": "Captura la imagen de vídeo de Moonlight y envía colores en tiempo real a tu dispositivo WLED.",
+  "Ambilight permite sincronizar los colores de la imagen en pantalla con tiras LED. Antes de activarlo, asegúrese de disponer de un dispositivo WLED configurado con una dirección IP perteneciente a la misma red que el televisor.": "Ambilight permite sincronizar los colores de la imagen en pantalla con tiras LED. Antes de activarlo, asegúrese de disponer de un dispositivo WLED configurado con una dirección IP perteneciente a la misma red que el televisor.",
   "Ambilight is not supported on this TV.": "Este televisor no es compatible con Ambilight.",
   "Show Ambilight settings": "Mostrar ajustes de Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Solo vista previa de los ajustes. El servicio Ambilight no está disponible en este televisor.",
