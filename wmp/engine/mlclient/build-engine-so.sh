@@ -10,6 +10,7 @@ MLT=${MLT:?}; DEPS=${DEPS:?}; BPD=${BPD:?}; DEPSBUILD=${DEPSBUILD:?}
 HERE=$(cd "$(dirname "$0")" && pwd)
 GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
+NM=${WMP_ARM_NM:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-nm}
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 WMP_MLT_TRACE=${WMP_MLT_TRACE:-false}
@@ -67,7 +68,7 @@ for s in ml_engine_start ml_engine_running ml_engine_wait ml_engine_stop \
          ml_engine_set_log_cb ml_engine_get_stats ml_engine_start_session_v2 ml_engine_last_error \
          ml_engine_gamepad_arrival ml_engine_gamepad_state ml_engine_input_capabilities \
          wmp_esplus_probe wmp_esplus_probe_result_name wmp_esplus_family_name wmp_esplus_close; do
-  "$OBJD" -T "$OUT/libmlengine.so" | grep -q " $s\$" || miss="$miss $s"
+  "$NM" -D --defined-only "$OUT/libmlengine.so" | awk -v symbol="$s" '$NF == symbol { found=1 } END { exit !found }' || miss="$miss $s"
 done
 [ -z "$miss" ] && echo "ABI exported: ml_engine_* OK" || { echo "MISSING ABI:$miss"; exit 1; }
 
