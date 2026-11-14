@@ -594,7 +594,7 @@ namespace MoonlightWmpHost
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
             uint height = stream.VideoHeight != 0 ? stream.VideoHeight : (uint)request.Height;
             uint targetFps = stream.VideoFps != 0 ? stream.VideoFps : (uint)request.Fps;
-            uint displayedFps = stream.VideoFpsReceived != 0 ? stream.VideoFpsReceived : targetFps;
+            uint displayedFps = stream.VideoFpsTotal != 0 ? stream.VideoFpsTotal : targetFps;
             string codec;
             if ((stream.VideoFormat & 0x000Fu) != 0)
             {
