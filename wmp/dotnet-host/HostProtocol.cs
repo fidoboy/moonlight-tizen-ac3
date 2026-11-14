@@ -594,8 +594,7 @@ namespace MoonlightWmpHost
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
             uint height = stream.VideoHeight != 0 ? stream.VideoHeight : (uint)request.Height;
             uint targetFps = stream.VideoFps != 0 ? stream.VideoFps : (uint)request.Fps;
-            uint displayedFps = stream.VideoFpsRendered != 0 ? stream.VideoFpsRendered :
-                stats.FpsSubmitted != 0 ? stats.FpsSubmitted : targetFps;
+            uint displayedFps = stream.VideoFpsReceived != 0 ? stream.VideoFpsReceived : targetFps;
             string codec;
             if ((stream.VideoFormat & 0x000Fu) != 0)
             {
@@ -667,7 +666,7 @@ namespace MoonlightWmpHost
                     .Append(" Mbps (video payload)\n");
             else
                 text.Append("Incoming bitrate from network: -\n");
-            text.Append("Frames dropped by your network connection: ")
+            text.Append("Frames missing from stream: ")
                 .Append((stream.NetworkDroppedPercentX100 / 100.0).ToString("0.00", CultureInfo.InvariantCulture))
                 .Append("%\n");
             text.Append("Average network latency: ");
