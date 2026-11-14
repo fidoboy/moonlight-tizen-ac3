@@ -102,6 +102,10 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_bytes_received, 0, __ATOMIC_RELAXED);
 
     s_dolby = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
     s_dolby_mime = LiIsEac3AudioNegotiated()
@@ -161,6 +165,13 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
             ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3 : 2)
             : 1,
         __ATOMIC_RELEASE);
+    __atomic_store_n(&esplus_stats.audio_codec,
+        s_dolby
+            ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3u : 2u)
+            : 1u,
+        __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_channels, (uint32_t)s_channel_count, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_sample_rate, (uint32_t)s_sample_rate, __ATOMIC_RELAXED);
 
     /* This is the lifecycle barrier: prepare_async cannot run before this. */
     esplus_audio_registration_complete(1);
@@ -184,6 +195,9 @@ static void ar_cleanup(void)
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
 }
 
 static void ar_decodePlay(char *data, int len)
@@ -195,6 +209,7 @@ static void ar_decodePlay(char *data, int len)
     if (s_dolby) {
         duration_ns = 32000000ull;
         if (data && len > 0) {
+            __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
             memset(&packet, 0, sizeof(packet));
             packet.type = WMP_ESPLUS_STREAM_AUDIO;
             packet.data = data;
@@ -221,6 +236,7 @@ static void ar_decodePlay(char *data, int len)
         return;
     }
 
+    __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
     memset(&packet, 0, sizeof(packet));
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
     packet.data = data;                 /* original Opus packet, no PCM stage */
