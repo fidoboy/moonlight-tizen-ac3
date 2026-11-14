@@ -294,7 +294,9 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->host_latency_avg_tenths_ms = host_count ? (uint32_t)(host_total / host_count) : 0;
   (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
   if (g_stream_info_last_time_ms && now_ms > g_stream_info_last_time_ms &&
-      video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes) {
+      video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes &&
+      received >= g_stream_info_last_received && decoded >= g_stream_info_last_decoded &&
+      rendered >= g_stream_info_last_rendered) {
     uint64_t elapsed = now_ms - g_stream_info_last_time_ms;
     uint64_t video_rate = ((video_bytes - g_stream_info_last_video_bytes) * 8ull) / elapsed;
     uint64_t audio_rate = ((audio_bytes - g_stream_info_last_audio_bytes) * 8ull) / elapsed;
