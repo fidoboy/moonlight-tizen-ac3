@@ -7478,7 +7478,11 @@ function readAmbilightStoredValue(key) {
 }
 
 function startAmbilightForStream(showTransitionStatus) {
-  if (!window.moonlightAmbilight) return Promise.resolve(false);
+  if (showTransitionStatus === true) window._ambilightStartupFailed = false;
+  if (!window.moonlightAmbilight) {
+    if (showTransitionStatus === true) window._ambilightStartupFailed = true;
+    return Promise.resolve(false);
+  }
 
   return initializeAmbilightSupport().then(function(supported) {
     if (!supported) return false;
@@ -7494,6 +7498,7 @@ function startAmbilightForStream(showTransitionStatus) {
     var ip = ipData && ipData.ambilightWledIp;
     if (!ip) {
       console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+      if (showTransitionStatus === true) window._ambilightStartupFailed = true;
       return false;
     }
 
@@ -7506,6 +7511,7 @@ function startAmbilightForStream(showTransitionStatus) {
       return true;
     }).catch(function(error) {
       console.warn('[ambilight] Could not start capture:', error);
+      if (showTransitionStatus === true) window._ambilightStartupFailed = true;
       if (window.moonlightAmbilight && !window.moonlightAmbilight.isSupported()) {
         updateAmbilightAvailability(false);
       }
@@ -7513,6 +7519,7 @@ function startAmbilightForStream(showTransitionStatus) {
     });
   }).catch(function(error) {
     console.warn('[ambilight] Could not prepare service for this stream:', error);
+    if (showTransitionStatus === true) window._ambilightStartupFailed = true;
     return false;
   });
 }
