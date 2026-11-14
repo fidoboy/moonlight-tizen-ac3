@@ -1783,14 +1783,6 @@ function handleMessage(msg) {
       }
     }
 
-    // Ambilight is optional: report its startup failure only after remote video
-    // is visible, without interrupting or aborting the stream.
-    if (window._ambilightStartupFailed === true) {
-      window._ambilightStartupFailed = false;
-      if (typeof snackbarLog === 'function') {
-        snackbarLog('Ambilight service failed to start.');
-      }
-    }
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
     fadeOutUiElement('connection-warnings', function() {
