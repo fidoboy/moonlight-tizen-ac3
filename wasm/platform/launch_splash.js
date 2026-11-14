@@ -8,6 +8,9 @@
   var FPS = 30;
   var TOTAL_FRAMES = 258;
   var ANIMATED_FRAME_COUNT = 168;
+  // Keep a barely perceptible star drift after the logo settles, rather than
+  // freezing the background during the final hold and UI hand-off.
+  var STAR_HOLD_SPEED = 0.45;
   var SECTOR_INTERVAL_FRAMES = 9;
   var SECTOR_FADE_FRAMES = 9;
   var SECTOR_PHASE_FRAMES = 72;
@@ -153,7 +156,7 @@
     var progress = (frameNumber - STAR_ACCELERATION_FRAMES) /
       (ANIMATED_FRAME_COUNT - 1 - STAR_ACCELERATION_FRAMES);
     progress = Math.max(0.0, Math.min(1.0, progress));
-    if (progress >= 1.0) return 0.0;
+    if (progress >= 1.0) return STAR_HOLD_SPEED;
 
     var normalizedDecay = Math.log1p(STAR_DECEL_LOG_STRENGTH * progress) /
       Math.log1p(STAR_DECEL_LOG_STRENGTH);
@@ -353,7 +356,7 @@
       targetFrame = Math.min(TOTAL_FRAMES - 1, targetFrame);
       // Advance the simulation once per displayed frame. Catch-up loops after a
       // delayed frame create bursts of thousands of updates and visible stutter.
-      if (targetFrame > lastRenderedFrame && targetFrame < ANIMATED_FRAME_COUNT) {
+      if (targetFrame > lastRenderedFrame) {
         starField.update(starSpeedForFrame(targetFrame));
       }
       lastRenderedFrame = targetFrame;
@@ -384,15 +387,60 @@
         ? window.performance.now() : Date.now();
     }
 
+    var startupHandoffStarted = false;
+    var splashFadeStarted = false;
+
     function finishSplash() {
-      window.removeEventListener('resize', resizeStage);
+      if (startupHandoffStarted) return;
+      startupHandoffStarted = true;
       if (audioPlayback && audioPlayback.source) {
         try { audioPlayback.source.stop(); } catch (error) {}
       }
-      overlay.classList.remove('is-active');
-      window._normalLaunchSplashActive = false;
+
+      // Start normal initialization while the final starfield remains visible.
+      // Keep the splash opaque until the real UI layer has begun appearing below it.
       window._normalLaunchSplashFinished = true;
       if (typeof onComplete === 'function') onComplete();
+      waitForUiReveal();
+    }
+
+    function beginSplashFade() {
+      if (splashFadeStarted) return;
+      splashFadeStarted = true;
+
+      // Let the UI's own opacity transition begin before fading the splash away.
+      requestFrame(function() {
+        requestFrame(function() {
+          overlay.style.transition = 'opacity 500ms ease-in-out';
+          overlay.style.opacity = '0';
+          window.setTimeout(function() {
+            overlay.classList.remove('is-active');
+            overlay.style.opacity = '';
+            overlay.style.transition = '';
+            window.removeEventListener('resize', resizeStage);
+            window._normalLaunchSplashActive = false;
+          }, 520);
+        });
+      });
+    }
+
+    function waitForUiReveal() {
+      var mainUi = document.getElementById('main-ui-layer');
+
+      function waitFrame() {
+        // Continue the low-speed starfield while the deferred startup work runs.
+        starField.update(STAR_HOLD_SPEED);
+        drawStarField(STAR_HOLD_SPEED);
+
+        if (mainUi && !mainUi.classList.contains('ui-inactive') &&
+            getComputedStyle(mainUi).display !== 'none') {
+          beginSplashFade();
+          return;
+        }
+        requestFrame(waitFrame);
+      }
+
+      requestFrame(waitFrame);
     }
 
     function animationFrame() {
