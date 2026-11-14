@@ -47,7 +47,6 @@ jobs:
           runuser -u tizen -- env HOME=/home/tizen TIZEN_STUDIO_DATA_PATH=/tmp/tizen-studio-data \
             "$pm" show-pkgs --tree 2>&1 | tee "$RUNNER_TEMP/tizen-installed-package-catalog.txt"
           required_packages=(
-            NativeCLI
             TIZEN-9.0-WebAppDevelopment-CLI
             TIZEN-10.0
             TV-SAMSUNG-Public
