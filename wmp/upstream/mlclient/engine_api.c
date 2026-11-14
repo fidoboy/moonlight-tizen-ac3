@@ -298,7 +298,8 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   host_count = __atomic_load_n(&esplus_stats.host_latency_count, __ATOMIC_RELAXED);
   host_min = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
   host_max = __atomic_load_n(&esplus_stats.host_latency_max, __ATOMIC_RELAXED);
-  LiGetRTPAudioFecStats(&audio_fec);
+  if (__atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) != 0)
+    LiGetRTPAudioFecStats(&audio_fec);
   out->video_format = __atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED);
   out->video_width = __atomic_load_n(&esplus_stats.video_width, __ATOMIC_RELAXED);
   out->video_height = __atomic_load_n(&esplus_stats.video_height, __ATOMIC_RELAXED);
