@@ -786,14 +786,18 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     static int last_raw = 4;
 
     pthread_mutex_lock(&s_lock);
-    if (packet && (packet->type == WMP_ESPLUS_STREAM_VIDEO ||
-                   packet->type == WMP_ESPLUS_STREAM_AUDIO)) {
-        if (packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
-            MLT("stage first_video_submit ENTER video_ready=%d audio_ready=%d prepared=%d prepare_ok=%d",
-                s_video_ready, s_audio_ready, s_prepared, s_prepare_ok);
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO) {
+        if (s_video_tries < 3)
+            MLT("stage first_video_submit ENTER video_ready=%d prepared=%d prepare_ok=%d",
+                s_video_ready, s_prepared, s_prepare_ok);
 
-        /* Hold both feeders until ESPlusPlayer is ready for both tracks. */
-        while ((!s_video_ready || (s_audio_enabled && !s_audio_ready)) &&
+        /*
+         * Video is the playback clock master. Do not make its startup depend
+         * on an audio-track readiness notification or on an audio sample.
+         * Keep the first video unit here until the native player is prepared,
+         * so the first submitted video PTS is also the playback-time origin.
+         */
+        while ((!s_video_ready || !s_prepared || !s_prepare_ok) &&
                !s_prepare_failed && !s_start_failed &&
                !__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) &&
                !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
@@ -806,51 +810,63 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             const char *reason = __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) ? "native ESPlusPlayer error" :
                                  s_prepare_failed ? "prepare_async_done(false)" :
                                  s_start_failed ? "start() failed" : "player closing";
-            MLT("A/V feeder released without joint readiness: %s", reason);
-            PLOG("A/V submit rejected: %s\n", reason);
+            MLT("video feeder released without startup readiness: %s", reason);
+            PLOG("video submit rejected: %s\\n", reason);
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
             return result;
         }
-    }
-    if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
-        result.status = WMP_ESPLUS_SUBMIT_REJECTED;
-        result.raw_status = INT_MIN;
-        pthread_mutex_unlock(&s_lock);
-        return result;
-    }
-    if (packet && (packet->type == WMP_ESPLUS_STREAM_VIDEO ||
-                   packet->type == WMP_ESPLUS_STREAM_AUDIO) &&
-        s_video_ready && (!s_audio_enabled || s_audio_ready) &&
-        s_prepared && s_prepare_ok && !s_start_tried) {
-        /* start() is legal only after prepare_async_done(true). Keep it on
-         * the feeder path rather than calling back into ESPlus from its own
-         * prepare callback. */
-        s_start_tried = 1;
-        MLT("stage start CALL about_to_enter after prepare_async_done(true)");
-        started = wmp_esplus_adapter_start(&s_adapter);
-        MLT("stage start CALL returned status=%d raw=%d",
-            (int)started.status, started.raw_status);
-        if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
-            __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
-        } else {
-            s_start_failed = 1;
-            pthread_cond_broadcast(&s_state_cv);
-            fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\n",
-                    (int)started.status, started.raw_status);
-            PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\n",
+
+        if (!__atomic_load_n(&s_started, __ATOMIC_ACQUIRE) && !s_start_tried) {
+            /* ESPlus start is valid only after prepare_async_done(true). */
+            s_start_tried = 1;
+            MLT("stage start CALL about_to_enter after video readiness and prepare_async_done(true)");
+            started = wmp_esplus_adapter_start(&s_adapter);
+            MLT("stage start CALL returned status=%d raw=%d",
+                (int)started.status, started.raw_status);
+            if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
+                /*
+                 * Start the shared audio clock at the same lifecycle
+                 * boundary as video playback, before releasing the lock or
+                 * submitting the first video packet.
+                 */
+                esplus_stream_clock_start();
+                __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
+                pthread_cond_broadcast(&s_state_cv);
+            } else {
+                s_start_failed = 1;
+                pthread_cond_broadcast(&s_state_cv);
+                fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\\n",
+                        (int)started.status, started.raw_status);
+                PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\\n",
+                     (int)started.status, started.raw_status);
+                mldiag_player("start", started.raw_status);
+                result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+                result.raw_status = INT_MIN;
+                pthread_mutex_unlock(&s_lock);
+                return result;
+            }
+            PLOG("ESPlus start returned status=%d raw=%d (video ready, prepare callback=true)\\n",
                  (int)started.status, started.raw_status);
             mldiag_player("start", started.raw_status);
-            result.status = WMP_ESPLUS_SUBMIT_REJECTED;
+        }
+    }
+    else if (packet && packet->type == WMP_ESPLUS_STREAM_AUDIO) {
+        /*
+         * Audio is a follower: an early packet must never hold up the video
+         * feeder. Drop preroll arriving before the player/audio track is
+         * ready; subsequent packets use the clock established by video start.
+         */
+        if (!s_audio_enabled || !s_audio_ready ||
+            !__atomic_load_n(&s_started, __ATOMIC_ACQUIRE)) {
+            result.status = WMP_ESPLUS_SUBMIT_NOT_PREPARED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
             return result;
         }
-        PLOG("ESPlus start returned status=%d raw=%d (prepare callback=true)\n",
-             (int)started.status, started.raw_status);
-        mldiag_player("start", started.raw_status);
     }
+
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
         result.raw_status = INT_MIN;
@@ -869,7 +885,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
          result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
-        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\n",
+        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\\n",
              s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
              (int)result.status, result.raw_status, s_prepared,
               __atomic_load_n(&s_started, __ATOMIC_ACQUIRE));
