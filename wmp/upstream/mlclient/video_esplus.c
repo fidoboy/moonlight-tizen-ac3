@@ -29,6 +29,26 @@ static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static unsigned s_video_idrs;
+static uint32_t s_last_frame_number;
+static int s_have_frame_number;
+
+static void record_host_latency(uint32_t latency)
+{
+    uint32_t count = __atomic_load_n(&esplus_stats.host_latency_count, __ATOMIC_RELAXED);
+    if (count == 0) {
+        __atomic_store_n(&esplus_stats.host_latency_min, latency, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_max, latency, __ATOMIC_RELAXED);
+    } else {
+        uint32_t current = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
+        while (latency < current && !__atomic_compare_exchange_n(
+            &esplus_stats.host_latency_min, &current, latency, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
+        current = __atomic_load_n(&esplus_stats.host_latency_max, __ATOMIC_RELAXED);
+        while (latency > current && !__atomic_compare_exchange_n(
+            &esplus_stats.host_latency_max, &current, latency, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
+    }
+    __atomic_fetch_add(&esplus_stats.host_latency_total, (uint64_t)latency, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&esplus_stats.host_latency_count, 1, __ATOMIC_RELAXED);
+}
 
 static void capture_h264_level(const uint8_t *data, size_t length)
 {
@@ -86,6 +106,18 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_bytes_received, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_frames_received, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_frames_decoded, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_frames_rendered, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_total_frames, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_network_dropped_frames, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.total_reassembly_us, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.total_decode_us, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.total_render_us, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_total, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_count, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_min, UINT32_MAX, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_max, 0, __ATOMIC_RELAXED);
 
     if (videoFormat & VIDEO_FORMAT_MASK_H264)
         mime = WMP_ESPLUS_VIDEO_MIME_H264;
@@ -156,6 +188,8 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     s_video_idrs = 0;
+    s_last_frame_number = 0;
+    s_have_frame_number = 0;
     esplus_stream_clock_reset();
     {
         int prepare_rc = esplus_prepare();
@@ -193,6 +227,22 @@ static int VidDecSubmit(PDECODE_UNIT du)
     int64_t pts_ms;
 
     ++s_video_units;
+    __atomic_fetch_add(&esplus_stats.video_frames_received, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&esplus_stats.video_total_frames, 1, __ATOMIC_RELAXED);
+    if (!s_have_frame_number) {
+        s_last_frame_number = du->frameNumber;
+        s_have_frame_number = 1;
+    } else if (du->frameNumber > s_last_frame_number) {
+        uint32_t missing = du->frameNumber - s_last_frame_number - 1;
+        if (missing) {
+            __atomic_fetch_add(&esplus_stats.video_network_dropped_frames, missing, __ATOMIC_RELAXED);
+            __atomic_fetch_add(&esplus_stats.video_total_frames, missing, __ATOMIC_RELAXED);
+        }
+        s_last_frame_number = du->frameNumber;
+    } else {
+        /* A reset or wrap starts a new frame-number baseline. */
+        s_last_frame_number = du->frameNumber;
+    }
     if (du->frameType == FRAME_TYPE_IDR) ++s_video_idrs;
     if (s_video_units <= 10 || s_video_units % 60 == 0 || du->frameType == FRAME_TYPE_IDR) {
         VLOG("decode unit #%u type=%s bytes=%d pts_us=%llu idr_count=%u\n",
@@ -219,6 +269,18 @@ static int VidDecSubmit(PDECODE_UNIT du)
     __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
     if (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_MASK_H264)
         capture_h264_level(s_scratch, offset);
+    {
+        uint64_t decode_end_us = LiGetMicroseconds();
+        if (du->enqueueTimeUs >= du->receiveTimeUs)
+            __atomic_fetch_add(&esplus_stats.total_reassembly_us,
+                du->enqueueTimeUs - du->receiveTimeUs, __ATOMIC_RELAXED);
+        if (decode_end_us >= du->enqueueTimeUs)
+            __atomic_fetch_add(&esplus_stats.total_decode_us,
+                decode_end_us - du->enqueueTimeUs, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&esplus_stats.video_frames_decoded, 1, __ATOMIC_RELAXED);
+        if (du->frameHostProcessingLatency > 0)
+            record_host_latency((uint32_t)du->frameHostProcessingLatency);
+    }
 
     if (!s_have_base) {
         /*
@@ -254,11 +316,21 @@ static int VidDecSubmit(PDECODE_UNIT du)
     packet.pts_ns = (uint64_t)pts_ms * 1000000ull;
     packet.duration_ns = 1000000000ull / (uint64_t)s_fps;
 
-    result = esplus_submit(&packet);
-    /* Preserve the upstream brief retry policy for native queue backpressure. */
-    for (int i = 0; result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE && i < 3; ++i) {
-        usleep(2000);
+    {
+        uint64_t submit_start_us = LiGetMicroseconds();
         result = esplus_submit(&packet);
+        /* Preserve the upstream brief retry policy for native queue backpressure. */
+        for (int i = 0; result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE && i < 3; ++i) {
+            usleep(2000);
+            result = esplus_submit(&packet);
+        }
+        if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+            uint64_t submit_end_us = LiGetMicroseconds();
+            __atomic_fetch_add(&esplus_stats.video_frames_rendered, 1, __ATOMIC_RELAXED);
+            if (submit_end_us >= submit_start_us)
+                __atomic_fetch_add(&esplus_stats.total_render_us,
+                    submit_end_us - submit_start_us, __ATOMIC_RELAXED);
+        }
     }
     if (s_video_units <= 10 || s_video_units % 60 == 0 ||
         result.status != WMP_ESPLUS_SUBMIT_SUCCESS) {
