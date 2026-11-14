@@ -385,6 +385,10 @@
     function beginAnimation() {
       if (animationStarted) return;
       animationStarted = true;
+      if (audio && isFinite(audio.duration) && audio.duration > 0) {
+        // The MP3 is 8.664 s; hold the final video frame through its encoded tail.
+        durationMs = Math.max(durationMs, audio.duration * 1000);
+      }
       renderThroughFrame(0);
       startTime = window.performance && typeof window.performance.now === 'function'
         ? window.performance.now() : Date.now();
