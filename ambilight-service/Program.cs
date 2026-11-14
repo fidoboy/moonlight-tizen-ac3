@@ -44,7 +44,8 @@ namespace MoonlightAmbilight
                     supported = _supported;
                     VideoPlaneCapture.Shutdown();
                     ok = true; // Unsupported is a capability result, not an AppControl transport failure.
-                    exitAfterReply = !_supported;
+                    // Capability checks are short-lived; no idle Ambilight process should remain.
+                    exitAfterReply = true;
                 }
                 else if (String.Equals(command, "start", StringComparison.OrdinalIgnoreCase))
                 {
@@ -107,13 +108,13 @@ namespace MoonlightAmbilight
             lock (_sync)
             {
                 StopCaptureLocked();
-                if (!_supported)
-                    return "Ambilight capture is not supported on this TV.";
 
+                // Every stream starts in a fresh ServiceApplication process.
+                // Initialize capture here instead of relying on a previous probe.
                 string initError = VideoPlaneCapture.Init();
+                _supported = initError == null;
                 if (initError != null)
                 {
-                    _supported = false;
                     VideoPlaneCapture.Shutdown();
                     return initError;
                 }
