@@ -509,6 +509,19 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
+  // Keep the selected engine visible above the shared statistics for both
+  // renderers. This is UI metadata, not an engine-specific performance metric.
+  var engineElement = container.querySelector('.performance-stats-engine');
+  if (!engineElement) {
+    engineElement = document.createElement('div');
+    engineElement.className = 'performance-stats-engine';
+    container.insertBefore(engineElement, container.firstChild);
+  }
+  var activeEngine = window._activeStreamingEngine;
+  engineElement.textContent = activeEngine === 'ESPLUSPLAYER'
+    ? 'Motor: Nativo'
+    : activeEngine === 'EMSS' ? 'Motor: EMSS' : '';
+
   // The stream-negotiation result is cached by the transition screen. Reuse it
   // here instead of querying the core again, since this overlay may be created later.
   if (typeof currentStreamEncryptionStatus === 'number' &&
@@ -1768,6 +1781,14 @@ function handleMessage(msg) {
       $('#performance-stats').css('background', 'transparent');
       $('#performance-stats').text('');
     });
+  } else if (msg.indexOf('EncryptionStatusMsg: ') === 0) {
+    var encryptionStatusValue = Number(msg.replace('EncryptionStatusMsg: ', '').trim());
+    if (Number.isInteger(encryptionStatusValue) && encryptionStatusValue >= 0) {
+      currentStreamEncryptionStatus = encryptionStatusValue;
+      if (typeof renderStreamEncryptionStatus === 'function') {
+        renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
+      }
+    }
   } else if (msg.indexOf('StatMsg: ') === 0) {
     if (performanceStatsStreamTerminated ||
         (window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) return;
