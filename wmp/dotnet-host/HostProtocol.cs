@@ -636,7 +636,7 @@ namespace MoonlightWmpHost
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
                 if (stream.AudioCodec == 2 || stream.AudioCodec == 3)
-                    text.Append("Decoding mode: Hardware\n");
+                    text.Append("Decoding mode: -\n");
             }
 
             if (request.AudioEnabled == 0)
@@ -1006,8 +1006,8 @@ namespace MoonlightWmpHost
                                 if (streamInfo.HostLatencyMaxTenthsMs != 0)
                                 {
                                     string hostLatency = "HostLatencyMsg: " +
-                                    (streamInfo.HostLatencyMinTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                                    (streamInfo.HostLatencyMaxTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                                        (streamInfo.HostLatencyMinTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                                        (streamInfo.HostLatencyMaxTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
                                         (streamInfo.HostLatencyAvgTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
                                     SendStatsEventIfEnabled(appId, remotePort, hostLatency, null);
                                 }
