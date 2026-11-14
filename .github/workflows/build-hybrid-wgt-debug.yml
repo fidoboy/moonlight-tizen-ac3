@@ -690,7 +690,7 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard hybrid WGT for Apps2Samsung
+      - name: Upload single hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
           name: Moonlight-Debug-${{ github.sha }}
