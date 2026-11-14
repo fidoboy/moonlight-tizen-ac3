@@ -143,6 +143,12 @@ esplus_stats_t esplus_stats;
 esplus_cfg_t esplus_cfg;
 volatile int esplus_performance_stats_enabled;
 
+
+static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
+static uint64_t s_stream_clock_origin_ns;
+static uint64_t s_fps_t0;
+static uint32_t s_fps_sub0;
+
 void esplus_set_performance_stats_enabled(int enabled)
 {
     __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
@@ -160,11 +166,6 @@ void esplus_set_performance_stats_enabled(int enabled)
         __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
     }
 }
-
-static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
-static uint64_t s_stream_clock_origin_ns;
-static uint64_t s_fps_t0;
-static uint32_t s_fps_sub0;
 static int64_t s_corr_us;
 static volatile int32_t s_corr_ms;
 static uint64_t s_tick_prev_ms;
