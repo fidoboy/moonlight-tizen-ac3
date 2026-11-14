@@ -192,8 +192,7 @@ static void load_cfg(void)
 {
     const char *m = getenv("MLENGINE_LATENCY_MODE");
     const char *game_mode = getenv("MLENGINE_GAME_MODE");
-    /* Game Mode uses arrival-based PTS for both SET and ADD. The ADD-only
-     * playback-clock nudge is unavailable on SET and is not a portable policy. */
+    /* Game Mode uses arrival-based PTS for both SET and ADD. */
     esplus_cfg.latency_mode = (game_mode && !strcmp(game_mode, "1")) ? ESPLUS_LAT_ARRIVAL :
         (!m ? ESPLUS_LAT_OFF :
         !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
@@ -202,9 +201,8 @@ static void load_cfg(void)
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
     esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 250);
-    /* Arrival timestamps need no player query; nudge requires the optional ADD query. */
-    if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE &&
-        (s_api.selected_family != WMP_ESPLUS_FAMILY_ADD || !s_api.get_playing_time))
+    /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
+    if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
         esplus_cfg.latency_mode = ESPLUS_LAT_OFF;
     MLT("cfg latency=%d target=%d nudge=%d drop_after=%d poll=%d family=%s",
         esplus_cfg.latency_mode, esplus_cfg.target_depth_ms,
@@ -275,11 +273,8 @@ void esplus_sample_tick(uint64_t now_ms)
     int request_idr = 0;
     pthread_mutex_lock(&s_lock);
     if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE)) {
-        /*
-         * SET does not export get_playing_time(). Keep playback-clock-derived
-         * depth unavailable on that ABI, but calculate accepted video FPS
-         * independently so the metric works for both SET and legacy ADD.
-         */
+        /* Playback-clock availability is detected independently of the
+         * selected stream-registration family; FPS remains measurable either way. */
         if ((__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE) ||
              esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0) &&
             wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
