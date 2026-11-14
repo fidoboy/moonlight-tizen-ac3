@@ -286,7 +286,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
     if (collect_stats)
         __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
-    if (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_MASK_H264)
+    if (collect_stats &&
+        (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_MASK_H264))
         capture_h264_level(s_scratch, offset);
     if (collect_stats) {
         uint64_t decode_end_us = LiGetMicroseconds();
