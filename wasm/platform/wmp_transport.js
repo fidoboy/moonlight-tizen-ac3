@@ -19,6 +19,7 @@
   var remotePort = null;
   var listenerId = null;
   var connectPromise = null;
+  var connectionReady = false;
   var nextRequestId = 0;
   var pending = Object.create(null);
 
@@ -326,17 +327,22 @@
     }
   }
 
-  function connect() {
+  function connect(forceFreshStart) {
     if (connectPromise) {
-      debugLog('reusing in-progress ESPlusPlayer service connection', {
-        serviceAppId: SERVICE_APP_ID
-      });
-      return connectPromise;
+      // Concurrent callers share an in-progress launch. Once a connection is
+      // established, a new start_session explicitly requests a fresh process.
+      if (!forceFreshStart || !connectionReady) {
+        debugLog('reusing in-progress ESPlusPlayer service connection', {
+          serviceAppId: SERVICE_APP_ID
+        });
+        return connectPromise;
+      }
+      close();
+    } else {
+      // Drop all references/listeners from the previous transport before
+      // touching the service process. This also rejects stale pending calls.
+      close();
     }
-
-    // Drop all references/listeners from the previous transport before
-    // touching the service process. This also rejects any stale pending calls.
-    close();
 
     var connectStartedAt = Date.now();
     debugLog('preparing a clean ESPlusPlayer native service start', {
@@ -397,6 +403,7 @@
                 }
 
                 remotePort = candidatePort;
+                connectionReady = true;
                 debugLog('fresh remote control MessagePort acquired', {
                   serviceAppId: SERVICE_APP_ID,
                   controlPort: CONTROL_PORT,
@@ -567,7 +574,7 @@
       parameters: summarizePayload(command, payload)
     });
 
-    return connect().then(function() {
+    return connect(command === 'start_session').then(function() {
       // The service publishes its control port before loading libmlengine.so
       // and probing ESPlus. Do not submit a stream request until initialization
       // has explicitly completed.
@@ -700,6 +707,7 @@
     localPort = null;
     remotePort = null;
     listenerId = null;
+    connectionReady = false;
     connectPromise = null;
 
     Object.keys(pending).forEach(function(id) {
