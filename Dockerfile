@@ -123,15 +123,10 @@ COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/
 RUN /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node moonlight-tizen/tools/patch-embind-string.js build/widget/moonlight-wasm.js
 RUN cp moonlight-tizen/res/icon.png build/widget/
 
-# Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later
-ARG FORCE_GAME_MODE=false
-RUN if [ "$FORCE_GAME_MODE" = "true" ]; then \
-		sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' build/widget/config.xml && \
-		grep -q 'use.game.mode' build/widget/config.xml && \
-		echo "Game Mode metadata injected into config.xml (ForceGM variant)"; \
-	else \
-		echo "No Game Mode metadata injected into config.xml (Standard variant)"; \
-	fi
+# Always include Samsung Game Mode metadata. Older TVs safely ignore this declaration.
+RUN sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' build/widget/config.xml && \
+	grep -q 'use.game.mode' build/widget/config.xml && \
+	echo "Samsung Game Mode metadata included in config.xml"
 
 # Keep the compiled Web application as files. The hybrid WGT is created and signed
 # once, after the native service TPK has been built, by Tizen Core CLI in CI.
