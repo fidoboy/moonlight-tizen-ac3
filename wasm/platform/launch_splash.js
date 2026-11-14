@@ -328,25 +328,8 @@
       }
     }
 
-    renderThroughFrame(0);
-
-    var audio = new Audio('static/res/launch_screen.mp3');
-    audio.preload = 'auto';
-    audio.loop = false;
-    var playResult;
-    try {
-      playResult = audio.play();
-      if (playResult && typeof playResult.catch === 'function') {
-        playResult.catch(function(error) {
-          console.warn('[launch_splash.js] Could not autoplay the launch sound:', error);
-        });
-      }
-    } catch (error) {
-      console.warn('[launch_splash.js] Could not start the launch sound:', error);
-    }
-
-    var startTime = window.performance && typeof window.performance.now === 'function'
-      ? window.performance.now() : Date.now();
+    var audio = null;
+    var startTime = 0;
     var durationMs = TOTAL_FRAMES * 1000 / FPS;
     var requestFrame = window.requestAnimationFrame || function(callback) {
       window.setTimeout(function() {
@@ -354,14 +337,17 @@
           ? window.performance.now() : Date.now());
       }, 1000 / FPS);
     };
+    var animationStarted = false;
 
     function finishSplash() {
       window.removeEventListener('resize', resizeStage);
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-      } catch (error) {
-        // Audio cleanup must never hold normal startup.
+      if (audio) {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch (error) {
+          // Audio cleanup must never hold normal startup.
+        }
       }
       overlay.classList.remove('is-active');
       window._normalLaunchSplashActive = false;
@@ -387,7 +373,34 @@
       requestFrame(animationFrame);
     }
 
-    requestFrame(animationFrame);
+    function beginAnimation() {
+      if (animationStarted) return;
+      animationStarted = true;
+      renderThroughFrame(0);
+      startTime = window.performance && typeof window.performance.now === 'function'
+        ? window.performance.now() : Date.now();
+      requestFrame(animationFrame);
+    }
+
+    // Start the visual timeline when the media element reports that playback
+    // has actually begun. If autoplay is denied, never block application startup.
+    try {
+      audio = new Audio('static/res/launch_screen.mp3');
+      audio.preload = 'auto';
+      audio.loop = false;
+      var playResult = audio.play();
+      if (playResult && typeof playResult.then === 'function') {
+        playResult.then(beginAnimation, function(error) {
+          console.warn('[launch_splash.js] Could not autoplay the launch sound:', error);
+          beginAnimation();
+        });
+      } else {
+        beginAnimation();
+      }
+    } catch (error) {
+      console.warn('[launch_splash.js] Could not start the launch sound:', error);
+      beginAnimation();
+    }
     return true;
   }
 
