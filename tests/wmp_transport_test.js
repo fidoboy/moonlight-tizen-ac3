@@ -17,6 +17,8 @@ let launchedAppId = null;
 let remotePortNotReadyAttempts = 0;
 let remotePortRequests = 0;
 let nextNativeResponse = null;
+let runningServiceContexts = [];
+let killedServiceContexts = [];
 
 const localPort = {
   addMessagePortListener(callback) {
@@ -126,6 +128,14 @@ const window = {
       }
     },
     application: {
+      getAppsContext(success) {
+        success(runningServiceContexts.slice());
+      },
+      kill(contextId, success) {
+        killedServiceContexts.push(contextId);
+        runningServiceContexts = runningServiceContexts.filter(context => context.id !== contextId);
+        success();
+      },
       launch(appId, success) {
         launchedAppId = appId;
         success();
@@ -150,11 +160,16 @@ vm.runInNewContext(source, {
 });
 
 (async function() {
+  runningServiceContexts = [{id: 'stale-wmp-context', appId: expectedServiceAppId}];
   remotePortNotReadyAttempts = 3;
   const connection = await window.ESPlusPlayerTransport.connect();
   assert.strictEqual(remotePortRequests, 4, 'ESPlusPlayer transport must retry while the ServiceApp registers its port');
   assert.strictEqual(connection.trusted, true);
   assert.strictEqual(launchedAppId, expectedServiceAppId);
+  assert.deepStrictEqual(killedServiceContexts, ['stale-wmp-context'],
+    'every new connection must terminate a previous WMP service process before relaunching it');
+  assert.strictEqual(runningServiceContexts.length, 0,
+    'the previous WMP service process must be confirmed stopped before relaunch');
 
   const ping = await window.ESPlusPlayerTransport.ping();
   assert.strictEqual(ping.payload.pong, true);
@@ -307,7 +322,7 @@ vm.runInNewContext(source, {
     pendingMessages
       .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')
       .map(message => message.command),
-    ['ping', 'get_status', 'start_session', 'start_session', 'stop_session', 'get_logs', 'toggle_stats', 'get_logs']
+    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_logs', 'toggle_stats', 'get_logs']
   );
 
   messageListener([
