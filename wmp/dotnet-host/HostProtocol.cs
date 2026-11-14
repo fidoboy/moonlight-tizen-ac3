@@ -981,6 +981,16 @@ namespace MoonlightWmpHost
                     }
                     if (DateTime.UtcNow >= nextStatsMessage)
                     {
+                        // Encryption status belongs to the stream transition, not to
+                        // the optional performance overlay. Publish it independently
+                        // so the native engine shows the same transition indicator as EMSS.
+                        int encryptionStatus = _engine.GetEncryptionStatus();
+                        if (encryptionStatus >= 0)
+                        {
+                            Event(appId, remotePort,
+                                "EncryptionStatusMsg: " + encryptionStatus.ToString(CultureInfo.InvariantCulture), null);
+                        }
+
                         if (statsResult == 0)
                         {
                             bool collectStats;
@@ -991,11 +1001,6 @@ namespace MoonlightWmpHost
                                 streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
                                 if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                     streamInfo = new EngineApi.StreamInfo();
-                                if (streamInfo.EncryptionStatus >= 0)
-                                {
-                                    SendStatsEventIfEnabled(appId, remotePort,
-                                        "EncryptionStatusMsg: " + streamInfo.EncryptionStatus.ToString(CultureInfo.InvariantCulture), null);
-                                }
                                 SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
                                 string graphMessage = "GraphMsg: " +
                                     streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
