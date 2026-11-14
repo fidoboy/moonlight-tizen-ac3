@@ -514,13 +514,32 @@ function ensurePerformanceStatsOverlayElements() {
   var engineElement = container.querySelector('.performance-stats-engine');
   if (!engineElement) {
     engineElement = document.createElement('div');
-    engineElement.className = 'performance-stats-engine';
+    engineElement.className = 'performance-stats-row performance-stats-engine';
+    var engineLabel = document.createElement('span');
+    engineLabel.className = 'performance-stats-label';
+    var engineValue = document.createElement('span');
+    engineValue.className = 'performance-stats-value';
+    engineElement.appendChild(engineLabel);
+    engineElement.appendChild(engineValue);
     container.insertBefore(engineElement, container.firstChild);
+  } else if (!engineElement.querySelector('.performance-stats-label') ||
+             !engineElement.querySelector('.performance-stats-value')) {
+    engineElement.className = 'performance-stats-row performance-stats-engine';
+    engineElement.textContent = '';
+    var engineLabel = document.createElement('span');
+    engineLabel.className = 'performance-stats-label';
+    var engineValue = document.createElement('span');
+    engineValue.className = 'performance-stats-value';
+    engineElement.appendChild(engineLabel);
+    engineElement.appendChild(engineValue);
   }
   var activeEngine = window._activeStreamingEngine;
-  engineElement.textContent = activeEngine === 'ESPLUSPLAYER'
-    ? 'Motor: Nativo'
-    : activeEngine === 'EMSS' ? 'Motor: EMSS' : '';
+  var engineLabelElement = engineElement.querySelector('.performance-stats-label');
+  var engineValueElement = engineElement.querySelector('.performance-stats-value');
+  engineLabelElement.textContent = activeEngine ? 'Motor:' : '';
+  engineValueElement.textContent = activeEngine === 'ESPLUSPLAYER'
+    ? 'Nativo'
+    : activeEngine === 'EMSS' ? 'EMSS' : '';
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
   // here instead of querying the core again, since this overlay may be created later.
@@ -1809,7 +1828,7 @@ function handleMessage(msg) {
     if (Number.isInteger(encryptionStatusValue) && encryptionStatusValue >= 0) {
       currentStreamEncryptionStatus = encryptionStatusValue;
       if (typeof renderStreamEncryptionStatus === 'function') {
-        renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
+        renderStreamEncryptionStatus(currentStreamEncryptionStatus);
       }
     }
   } else if (msg.indexOf('StatMsg: ') === 0) {
