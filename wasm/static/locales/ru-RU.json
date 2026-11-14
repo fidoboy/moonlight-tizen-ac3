@@ -630,5 +630,7 @@
   "Engine:": "Движок:",
   "Native engine": "Нативный движок",
   "Native": "Нативный",
-  "Average processing time:": "Среднее время обработки:"
+  "Average processing time:": "Среднее время обработки:",
+  "Starting native service...": "Запуск нативной службы...",
+  "Starting Ambilight service...": "Запуск службы Ambilight..."
 }
