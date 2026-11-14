@@ -278,7 +278,7 @@ function replaceKnownStatsLabels(text) {
     .replace(/Frame rates:/g, t('Frame rates:'))
     .replace(/\\bRecv\\b/g, t('Recv'))
     .replace(/\\bDec\\b/g, t('Dec'))
-    .replace(/\\bSubmit\\b/g, t('Submit'))
+    .replace(/\\bAccepted\\b/g, t('Accepted'))
     .replace(/Incoming bitrate from network:/g, t('Incoming bitrate from network:'))
     .replace(/Frames missing from stream:/g, t('Frames missing from stream:'))
     .replace(/Average network latency:/g, t('Average network latency:'))
