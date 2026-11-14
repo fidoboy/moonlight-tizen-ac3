@@ -124,12 +124,7 @@ static void cl_stageComplete(int stage) {
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
-  {
-    struct timespec stats_ts;
-    clock_gettime(CLOCK_MONOTONIC, &stats_ts);
-    g_stream_info_last_time_ms = (uint64_t)stats_ts.tv_sec * 1000ull +
-        (uint64_t)stats_ts.tv_nsec / 1000000ull;
-  }
+  g_stream_info_last_time_ms = 0;  /* First poll establishes the post-handshake baseline. */
   g_stream_info_last_video_bytes = 0;
   g_stream_info_last_audio_bytes = 0;
   g_stream_info_last_received = 0;
