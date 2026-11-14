@@ -632,8 +632,11 @@ namespace MoonlightWmpHost
                     stream.AudioChannels == 8 ? "7.1" : "-";
                 text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
-                    .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
-                        ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
+                    .Append(" channels");
+                if (stream.AudioSampleRate != 0)
+                    text.Append(", ").Append((stream.AudioSampleRate / 1000.0).ToString("0", CultureInfo.InvariantCulture)).Append(" kHz");
+                text.Append(", ").Append(stream.AudioBitrateKbps != 0
+                    ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
                 if (stream.AudioCodec == 2 || stream.AudioCodec == 3)
                     text.Append("Decoding mode: Hardware\n");
