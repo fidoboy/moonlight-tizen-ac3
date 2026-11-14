@@ -621,7 +621,6 @@ namespace MoonlightWmpHost
             if (request.AudioEnabled == 0 || stream.AudioCodec == 0)
             {
                 text.Append("Audio stream: -\n");
-                text.Append("Decoding mode: -\n");
             }
             else
             {
@@ -635,8 +634,7 @@ namespace MoonlightWmpHost
                     .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
-                if (stream.AudioCodec == 2 || stream.AudioCodec == 3)
-                    text.Append("Decoding mode: -\n");
+
             }
 
             if (request.AudioEnabled == 0)
@@ -671,12 +669,11 @@ namespace MoonlightWmpHost
             else
                 text.Append("N/A\n");
 
-            // Match EMSS pre-submit processing time (enqueue to native submit), not decoder hardware execution.
-            text.Append("Average decoding time: ")
+            // Time from decode-unit enqueue through packet preparation, up to the native renderer submit boundary.
+            text.Append("Average pre-renderer processing time: ")
                 .Append(stream.AverageDecodeUs != 0
                     ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
                     : "-").Append("\n");
-            text.Append("Average frame queue delay: -\n");
             text.Append("Average renderer submit time: ")
                 .Append(stream.AverageRenderUs != 0
                     ? (stream.AverageRenderUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
