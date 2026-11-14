@@ -472,13 +472,10 @@ function resetSettingsRightPaneScroll() {
   if (settingsPane) settingsPane.scrollTop = 0;
 }
 
-// Scroll the settings pane without changing the focus/navigation timing.
+// Position the settings pane immediately so rapid remote navigation cannot
+// leave the focused control outside the safe area while a smooth scroll is pending.
 function scrollSettingsPaneTo(settingsPane, top) {
-  if (typeof settingsPane.scrollTo === 'function') {
-    settingsPane.scrollTo({ top: top, behavior: 'smooth' });
-  } else {
-    settingsPane.scrollTop = top;
-  }
+  settingsPane.scrollTop = top;
 }
 
 function focusElement(target) {
