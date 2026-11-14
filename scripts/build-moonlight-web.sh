@@ -9,6 +9,7 @@ REPO_NAME="${REPO_NAME:-moonlight-tizen-ac3}"
 DEBUG_MODE="${DEBUG_MODE:-false}"
 OFFICIAL_RELEASE=false
 LOG_SHOW_PRIVATE_DATA="${LOG_SHOW_PRIVATE_DATA:-false}"
+FORCE_GAME_MODE="${FORCE_GAME_MODE:-true}"
 
 if [[ "$DEBUG_MODE" != "true" && "$DEBUG_MODE" != "false" ]]; then
   echo "DEBUG_MODE must be true or false." >&2
@@ -16,6 +17,10 @@ if [[ "$DEBUG_MODE" != "true" && "$DEBUG_MODE" != "false" ]]; then
 fi
 if [[ "$LOG_SHOW_PRIVATE_DATA" != "true" && "$LOG_SHOW_PRIVATE_DATA" != "false" ]]; then
   echo "LOG_SHOW_PRIVATE_DATA must be true or false." >&2
+  exit 1
+fi
+if [[ "$FORCE_GAME_MODE" != "true" && "$FORCE_GAME_MODE" != "false" ]]; then
+  echo "FORCE_GAME_MODE must be true or false." >&2
   exit 1
 fi
 mkdir -p "$HOME"
@@ -68,10 +73,17 @@ test -s "$widget/moonlight-wasm.wasm"
 test -s "$widget/service/service.js"
 cp "$ROOT/res/icon.png" "$widget/"
 node "$ROOT/tools/patch-embind-string.js" "$widget/moonlight-wasm.js"
-sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$widget/config.xml"
-grep -q 'use.game.mode' "$widget/config.xml"
+if [[ "$FORCE_GAME_MODE" == "true" ]]; then
+  sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$widget/config.xml"
+  grep -q 'use.game.mode' "$widget/config.xml"
+else
+  if grep -q 'use.game.mode' "$widget/config.xml"; then
+    echo "Standard build unexpectedly contains Samsung Game Mode metadata." >&2
+    exit 1
+  fi
+fi
 cp -a "$widget" "$OUT/web"
 for file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
   test -s "$OUT/web/$file"
 done
-echo "Single Moonlight Web payload with Samsung Game Mode metadata built."
+echo "Moonlight Web payload built (FORCE_GAME_MODE=$FORCE_GAME_MODE)."
