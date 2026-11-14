@@ -279,7 +279,20 @@ int ml_engine_start(const char *host, int appId, const char *pin,
 void ml_engine_set_performance_stats_enabled(int enabled) {
   esplus_set_performance_stats_enabled(enabled);
   g_stream_info_last_time_ms = 0;
+  g_stream_info_last_video_bytes = 0;
+  g_stream_info_last_audio_bytes = 0;
+  g_stream_info_last_received = g_stream_info_last_decoded = g_stream_info_last_rendered = 0;
+  g_stream_info_last_total_frames = g_stream_info_last_dropped = 0;
+  g_stream_info_last_reassembly_us = g_stream_info_last_decode_us = g_stream_info_last_render_us = 0;
   g_stream_info_fec_baseline_valid = 0;
+  g_stream_info_prev_elapsed_ms = 0;
+  g_stream_info_prev_received = g_stream_info_prev_decoded = g_stream_info_prev_rendered = 0;
+  g_stream_info_prev_total_frames = g_stream_info_prev_dropped = 0;
+  g_stream_info_prev_reassembly_us = g_stream_info_prev_decode_us = g_stream_info_prev_render_us = 0;
+  g_stream_info_prev_host_count = 0;
+  g_stream_info_prev_host_min = UINT32_MAX;
+  g_stream_info_prev_host_max = 0;
+  g_stream_info_prev_host_total = 0;
 }
 
 int ml_engine_get_active_audio_codec(void) {
