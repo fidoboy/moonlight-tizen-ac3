@@ -276,8 +276,8 @@
             ) * speedRatio;
 
             if (radialDistance > 1.0 && trailLength >= 0.65) {
-              var tailX = trailStar.x - (dx / radialDistance) * trailLength;
-              var tailY = trailStar.y - (dy / radialDistance) * trailLength;
+              var tailX = trailX - (dx / radialDistance) * trailLength;
+              var tailY = trailY - (dy / radialDistance) * trailLength;
               context.moveTo(tailX, tailY);
               context.lineTo(trailX, trailY);
             }
