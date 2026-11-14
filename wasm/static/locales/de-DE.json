@@ -112,6 +112,7 @@
   "Average decoding time:": "Durchschnittliche Dekodierzeit:",
   "Average frame queue delay:": "Durchschnittliche Frame-Warteschlangenverzögerung:",
   "Average network latency:": "Durchschnittliche Netzwerklatenz:",
+  "Average pre-renderer processing time:": "Durchschnittliche Verarbeitungszeit vor dem Renderer:",
   "Average rendering time:": "Durchschnittliche Renderzeit:",
   "B": "B",
   "Back": "Zurück",
