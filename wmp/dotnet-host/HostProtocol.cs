@@ -594,7 +594,8 @@ namespace MoonlightWmpHost
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
             uint height = stream.VideoHeight != 0 ? stream.VideoHeight : (uint)request.Height;
             uint targetFps = stream.VideoFps != 0 ? stream.VideoFps : (uint)request.Fps;
-            uint displayedFps = stats.FpsSubmitted != 0 ? stats.FpsSubmitted : targetFps;
+            uint displayedFps = stream.VideoFpsRendered != 0 ? stream.VideoFpsRendered :
+                stats.FpsSubmitted != 0 ? stats.FpsSubmitted : targetFps;
             string codec;
             if ((stream.VideoFormat & 0x000Fu) != 0)
             {
@@ -604,9 +605,11 @@ namespace MoonlightWmpHost
                         (stream.H264LevelIdc % 10).ToString(CultureInfo.InvariantCulture);
             }
             else if ((stream.VideoFormat & 0x0F00u) != 0)
-                codec = (stream.VideoFormat & 0xAA00u) != 0 ? "HEVC 10-bit" : "HEVC";
+                codec = (stream.VideoFormat & 0xAA00u) != 0
+                    ? (request.Hdr != 0 ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR") : "HEVC";
             else if ((stream.VideoFormat & 0xF000u) != 0)
-                codec = (stream.VideoFormat & 0xAA00u) != 0 ? "AV1 10-bit" : "AV1";
+                codec = (stream.VideoFormat & 0xAA00u) != 0
+                    ? (request.Hdr != 0 ? "AV1 10-bit HDR" : "AV1 10-bit SDR") : "AV1";
             else
                 codec = String.IsNullOrEmpty(request.VideoCodec) ? "-" : request.VideoCodec;
 
@@ -671,7 +674,7 @@ namespace MoonlightWmpHost
             text.Append("Average frame queue delay: -\n");
             text.Append("Average rendering time: ")
                 .Append(stream.AverageRenderUs != 0
-                    ? (stream.AverageRenderUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
+                    ? (stream.AverageRenderUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms (native submit)"
                     : "-").Append("\n");
             text.Append("Native player: ").Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
