@@ -50,8 +50,10 @@ const remotePort = {
             : request.command === 'toggle_stats'
               ? {enabled: true}
               : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
-    const nativeResponse = nextNativeResponse || {status: 'ok', payload};
-    nextNativeResponse = null;
+    const nativeResponse = request.command === 'start_session' && nextNativeResponse
+      ? nextNativeResponse
+      : {status: 'ok', payload};
+    if (request.command === 'start_session') nextNativeResponse = null;
     Promise.resolve().then(() => {
       if (request.command === 'get_logs') {
         ['native stage RTSP complete', 'video submit #1 status=ok'].forEach(line => {
