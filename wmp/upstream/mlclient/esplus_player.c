@@ -152,7 +152,6 @@ static uint32_t s_fps_sub0;
 void esplus_set_performance_stats_enabled(int enabled)
 {
     pthread_mutex_lock(&s_lock);
-    __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
     if (enabled) {
         s_fps_t0 = 0;
         s_fps_sub0 = __atomic_load_n(&esplus_stats.submitted, __ATOMIC_RELAXED);
@@ -166,6 +165,7 @@ void esplus_set_performance_stats_enabled(int enabled)
         __atomic_store_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
     }
+    __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
     pthread_mutex_unlock(&s_lock);
 }
 static int64_t s_corr_us;
