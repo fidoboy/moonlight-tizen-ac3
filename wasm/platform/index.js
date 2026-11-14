@@ -10230,6 +10230,16 @@ function updateConfigSummaryBar() {
   setSummaryText('#summaryCodec', codec);
   setSummaryText('#summaryPlaybackEngine', playbackEngine);
   setSummaryText('#summaryAudio', audio);
+  var audioSummary = document.getElementById('summaryAudio');
+  if (audioSummary) {
+    if (audioDisabled) {
+      if (!audioSummary.classList.contains('is-off')) {
+        audioSummary.classList.add('is-off');
+      }
+    } else if (audioSummary.classList.contains('is-off')) {
+      audioSummary.classList.remove('is-off');
+    }
+  }
   var dolbySummaryItem = bar.querySelector('[data-summary-id="summaryDolby"]');
   if (dolbySummaryItem) dolbySummaryItem.style.display = audioDisabled ? 'none' : '';
   toggleFor('#optimizeBitrateSwitch', '#summaryOptimalBitrate');
