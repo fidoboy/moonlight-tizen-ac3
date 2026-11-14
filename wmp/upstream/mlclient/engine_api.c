@@ -40,6 +40,7 @@ static char g_host[256];         /* si.address is held by moonlight-common-c for
                                     session, so the host string must outlive the call */
 static uint64_t g_stream_info_last_time_ms, g_stream_info_last_video_bytes, g_stream_info_last_audio_bytes;
 static uint64_t g_stream_info_last_received, g_stream_info_last_decoded, g_stream_info_last_rendered;
+static uint64_t g_stream_info_last_dropped;
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
 static ml_engine_stage_cb g_stage_cb;
@@ -119,6 +120,7 @@ static int start_connection(void) {
   g_stream_info_last_received = 0;
   g_stream_info_last_decoded = 0;
   g_stream_info_last_rendered = 0;
+  g_stream_info_last_dropped = 0;
   AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
   esplus_set_audio_enabled(g_audio_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
@@ -252,6 +254,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   uint64_t received, decoded, rendered, total_frames, dropped_frames;
   uint64_t reassembly_us, decode_us, render_us, host_total;
   uint32_t host_count, host_min, host_max;
+  RTP_AUDIO_FEC_STATS audio_fec = {0};
   if (!out || out->struct_size < (int32_t)sizeof *out) return GS_INVALID;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   now_ms = (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
@@ -269,6 +272,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   host_count = __atomic_load_n(&esplus_stats.host_latency_count, __ATOMIC_RELAXED);
   host_min = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
   host_max = __atomic_load_n(&esplus_stats.host_latency_max, __ATOMIC_RELAXED);
+  LiGetRTPAudioFecStats(&audio_fec);
   out->video_format = __atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED);
   out->video_width = __atomic_load_n(&esplus_stats.video_width, __ATOMIC_RELAXED);
   out->video_height = __atomic_load_n(&esplus_stats.video_height, __ATOMIC_RELAXED);
@@ -292,11 +296,15 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->host_latency_min_tenths_ms = host_count && host_min != UINT32_MAX ? host_min : 0;
   out->host_latency_max_tenths_ms = host_count ? host_max : 0;
   out->host_latency_avg_tenths_ms = host_count ? (uint32_t)(host_total / host_count) : 0;
+  out->video_dropped_frames_interval = 0;
+  out->audio_fec_recovered = audio_fec.recoveredPackets;
+  out->audio_fec_failed = audio_fec.failedBlocks;
+  out->audio_fec_out_of_order = audio_fec.outOfOrderPackets;
   (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
   if (g_stream_info_last_time_ms && now_ms > g_stream_info_last_time_ms &&
       video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes &&
       received >= g_stream_info_last_received && decoded >= g_stream_info_last_decoded &&
-      rendered >= g_stream_info_last_rendered) {
+      rendered >= g_stream_info_last_rendered && dropped_frames >= g_stream_info_last_dropped) {
     uint64_t elapsed = now_ms - g_stream_info_last_time_ms;
     uint64_t video_rate = ((video_bytes - g_stream_info_last_video_bytes) * 8ull) / elapsed;
     uint64_t audio_rate = ((audio_bytes - g_stream_info_last_audio_bytes) * 8ull) / elapsed;
@@ -305,6 +313,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
     out->video_fps_received = (uint32_t)(((received - g_stream_info_last_received) * 1000ull) / elapsed);
     out->video_fps_decoded = (uint32_t)(((decoded - g_stream_info_last_decoded) * 1000ull) / elapsed);
     out->video_fps_rendered = (uint32_t)(((rendered - g_stream_info_last_rendered) * 1000ull) / elapsed);
+    out->video_dropped_frames_interval = (uint32_t)(dropped_frames - g_stream_info_last_dropped);
   }
   g_stream_info_last_time_ms = now_ms;
   g_stream_info_last_video_bytes = video_bytes;
@@ -312,6 +321,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   g_stream_info_last_received = received;
   g_stream_info_last_decoded = decoded;
   g_stream_info_last_rendered = rendered;
+  g_stream_info_last_dropped = dropped_frames;
   return 0;
 }
 
