@@ -551,6 +551,7 @@ namespace MoonlightWmpHost
                 _statsEnabled = !_statsEnabled;
                 enabled = _statsEnabled;
                 _statsSnapshotPending = enabled;
+                if (_engine != null) _engine.SetPerformanceStatsEnabled(enabled ? 1 : 0);
 
                 // Publish the authoritative state before any data event. The client uses
                 // it to reject statistics that belong to an earlier visibility state.
@@ -915,6 +916,7 @@ namespace MoonlightWmpHost
                 Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
                     request.GameMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
+                _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
@@ -1002,12 +1004,16 @@ namespace MoonlightWmpHost
                     {
                         if (statsResult == 0)
                         {
-                            var streamInfo = new EngineApi.StreamInfo();
-                            streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
-                            if (_engine.GetStreamInfo(ref streamInfo) != 0)
-                                streamInfo = new EngineApi.StreamInfo();
-                            SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
-                            string graphMessage = "GraphMsg: " +
+                            bool collectStats;
+                            lock (Gate) collectStats = _statsEnabled;
+                            if (collectStats)
+                            {
+                                var streamInfo = new EngineApi.StreamInfo();
+                                streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
+                                if (_engine.GetStreamInfo(ref streamInfo) != 0)
+                                    streamInfo = new EngineApi.StreamInfo();
+                                SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
+                                string graphMessage = "GraphMsg: " +
                                 streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
                                 streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
                                 streamInfo.VideoDroppedFramesInterval.ToString(CultureInfo.InvariantCulture) + "," +
@@ -1022,6 +1028,7 @@ namespace MoonlightWmpHost
                                     (streamInfo.HostLatencyMaxTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
                                     (streamInfo.HostLatencyAvgTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
                                 SendStatsEventIfEnabled(appId, remotePort, hostLatency, null);
+                                }
                             }
                         }
                         nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
@@ -1076,6 +1083,7 @@ namespace MoonlightWmpHost
                     _stopRequested = false;
                     _statsEnabled = false;
                     _statsSnapshotPending = false;
+                    if (_engine != null) _engine.SetPerformanceStatsEnabled(0);
                     _stageAppId = null;
                     _stageRemotePort = null;
                     StageMessages.Clear();
