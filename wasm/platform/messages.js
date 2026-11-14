@@ -285,7 +285,7 @@ function replaceKnownStatsLabels(text) {
     .replace(/\bvariance:/g, t('variance:'))
     .replace(/\bN\/A\b/g, t('N/A'))
     .replace(/Average decoding time:/g, t('Average decoding time:'))
-    .replace(/Average pre-renderer processing time:/g, t('Average pre-renderer processing time:'))
+    .replace(/Average processing time:/g, t('Average processing time:'))
     .replace(/Average frame queue delay:/g, t('Average frame queue delay:'))
     .replace(/Average renderer submit time:/g, t('Average renderer submit time:'))
     .replace(/Slow connection to PC\.\nReduce your bitrate!/g, t('Slow connection to PC.\nReduce your bitrate!'));
