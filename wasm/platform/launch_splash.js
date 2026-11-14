@@ -363,7 +363,7 @@
       drawLogoFrame(targetFrame);
     }
 
-    var audio = null;
+    var audioPlayback = null;
     var durationMs = TOTAL_FRAMES * 1000 / FPS;
     var requestFrame = typeof window.requestAnimationFrame === 'function'
       ? function(callback) { window.requestAnimationFrame(callback); }
@@ -373,11 +373,11 @@
             ? window.performance.now() : Date.now());
         }, 1000 / FPS);
       };
-    var playbackRequested = false;
     var animationStarted = false;
-    var animationStartMediaTime = 0;
-    var fallbackStartTime = 0;
-    var usingMediaClock = false;
+    var animationStartAudioTime = 0;
+    var audioContext = null;
+    var silentFallbackStartTime = 0;
+    var usingAudioClock = false;
 
     function nowMilliseconds() {
       return window.performance && typeof window.performance.now === 'function'
@@ -386,13 +386,8 @@
 
     function finishSplash() {
       window.removeEventListener('resize', resizeStage);
-      if (audio) {
-        try {
-          audio.pause();
-          audio.currentTime = 0;
-        } catch (error) {
-          // Audio cleanup must never hold normal startup.
-        }
+      if (audioPlayback && audioPlayback.source) {
+        try { audioPlayback.source.stop(); } catch (error) {}
       }
       overlay.classList.remove('is-active');
       window._normalLaunchSplashActive = false;
@@ -403,17 +398,11 @@
     function animationFrame() {
       if (!animationStarted) return;
 
-      var elapsed;
-      if (usingMediaClock && audio) {
-        elapsed = Math.max(0, (audio.currentTime - animationStartMediaTime) * 1000);
-        if (isFinite(audio.duration) && audio.duration > 0) {
-          durationMs = Math.max(durationMs, audio.duration * 1000);
-        }
-      } else {
-        elapsed = Math.max(0, nowMilliseconds() - fallbackStartTime);
-      }
+      var elapsed = usingAudioClock && audioContext
+        ? Math.max(0, (audioContext.currentTime - animationStartAudioTime) * 1000)
+        : Math.max(0, nowMilliseconds() - silentFallbackStartTime);
 
-      if (elapsed >= durationMs || (audio && audio.ended)) {
+      if (elapsed >= durationMs) {
         renderThroughFrame(TOTAL_FRAMES - 1);
         finishSplash();
         return;
@@ -424,88 +413,59 @@
       requestFrame(animationFrame);
     }
 
-    function beginAnimation(useAudioClock) {
+    function beginAnimation(playback) {
       if (animationStarted) return;
       animationStarted = true;
-      usingMediaClock = !!useAudioClock && !!audio;
-      animationStartMediaTime = usingMediaClock ? audio.currentTime : 0;
-      fallbackStartTime = nowMilliseconds();
+      audioPlayback = playback || null;
+      usingAudioClock = !!(playback && playback.context);
+      audioContext = usingAudioClock ? playback.context : null;
+      if (usingAudioClock) {
+        animationStartAudioTime = playback.startTime;
+        durationMs = Math.max(durationMs, playback.duration * 1000);
+      } else {
+        silentFallbackStartTime = nowMilliseconds();
+      }
       renderThroughFrame(0);
       requestFrame(animationFrame);
     }
 
     function showPreparedStarfield() {
-      // Paint the first complete frame while hidden. Only expose the splash once
-      // the canvas is ready, so the user never sees an unpainted/late first frame.
+      // The audio context and decoded sound are prepared before exposing this frame.
       drawStarField(0);
       drawLogoFrame(-1);
       overlay.classList.add('is-active');
     }
 
-    function startAudioPlayback() {
-      if (playbackRequested || animationStarted) return;
-      playbackRequested = true;
-
-      // Reveal a fully rendered starfield first. The logo timeline starts only
-      // when the media element confirms playback, keeping sound and logo aligned.
-      showPreparedStarfield();
-
-      if (!audio) {
-        beginAnimation(false);
-        return;
-      }
-
-      var playbackStarted = false;
-      function onPlaybackStarted() {
-        if (playbackStarted || animationStarted) return;
-        playbackStarted = true;
-        beginAnimation(true);
-      }
-      audio.addEventListener('playing', onPlaybackStarted, false);
-
+    function startPreparedPresentation() {
+      var playback = null;
       try {
-        var playResult = audio.play();
-        if (playResult && typeof playResult.then === 'function') {
-          playResult.then(onPlaybackStarted, function(error) {
-            console.warn('[launch_splash.js] Could not autoplay the launch sound:', error);
-            beginAnimation(false);
-          });
-        } else {
-          // Older Tizen WebKit may not return a Promise from HTMLMediaElement.play().
-          // The playing event remains the preferred synchronization signal.
-          if (audio.paused === false) onPlaybackStarted();
+        if (typeof window.playLaunchSplashSound === 'function') {
+          playback = window.playLaunchSplashSound();
         }
       } catch (error) {
-        console.warn('[launch_splash.js] Could not start the launch sound:', error);
-        beginAnimation(false);
+        console.warn('[launch_splash.js] Could not start the launch sound in the shared audio context:', error);
       }
+
+      showPreparedStarfield();
+      beginAnimation(playback);
     }
 
     function startSilentFallback(error) {
-      if (playbackRequested || animationStarted) return;
-      console.warn('[launch_splash.js] Launch sound could not be prepared:', error);
-      showPreparedStarfield();
-      beginAnimation(false);
+      console.warn('[launch_splash.js] Shared launch audio could not be prepared:', error);
+      startPreparedPresentation();
     }
 
-    try {
-      audio = new Audio();
-      audio.preload = 'auto';
-      audio.loop = false;
-      audio.addEventListener('canplay', startAudioPlayback, false);
-      audio.addEventListener('error', function() {
-        startSilentFallback(audio.error || new Error('Audio resource failed to load'));
-      }, false);
-      audio.src = 'static/res/launch_screen.mp3';
-      audio.load();
-
-      // HAVE_FUTURE_DATA is sufficient to begin playback without exposing a
-      // blank canvas. Otherwise wait for the media element's canplay event.
-      if (audio.readyState >= (audio.HAVE_FUTURE_DATA || 3)) {
-        startAudioPlayback();
-      }
-    } catch (error) {
-      startSilentFallback(error);
+    // Reuse the navigation UI's AudioContext. Fetching and decoding happen while
+    // the screen remains black; neither the splash nor normal UI startup is exposed
+    // until the shared audio engine reports that it is ready.
+    if (typeof window.prepareLaunchSplashAudio === 'function') {
+      Promise.resolve().then(function() {
+        return window.prepareLaunchSplashAudio();
+      }).then(function() {
+        startPreparedPresentation();
+      }).catch(startSilentFallback);
+    } else {
+      startSilentFallback(new Error('Shared navigation audio engine is unavailable.'));
     }
     return true;
   }
