@@ -82,6 +82,10 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.h264_level_idc, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_bytes_received, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_bytes_received, 0, __ATOMIC_RELAXED);
 
     if (videoFormat & VIDEO_FORMAT_MASK_H264)
         mime = WMP_ESPLUS_VIDEO_MIME_H264;
@@ -213,7 +217,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
         offset += (size_t)entry->length;
     }
     __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
-    if (esplus_stats.video_format & VIDEO_FORMAT_MASK_H264)
+    if (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_MASK_H264)
         capture_h264_level(s_scratch, offset);
 
     if (!s_have_base) {
