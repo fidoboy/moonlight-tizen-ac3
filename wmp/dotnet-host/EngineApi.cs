@@ -43,6 +43,16 @@ namespace MoonlightWmpHost
             public uint AudioBitrateKbps;
             public uint NetworkRttMs;
             public uint NetworkVarianceMs;
+            public uint VideoFpsReceived;
+            public uint VideoFpsDecoded;
+            public uint VideoFpsRendered;
+            public uint NetworkDroppedPercentX100;
+            public uint AverageReassemblyUs;
+            public uint AverageDecodeUs;
+            public uint AverageRenderUs;
+            public uint HostLatencyMinTenthsMs;
+            public uint HostLatencyMaxTenthsMs;
+            public uint HostLatencyAvgTenthsMs;
         }
 
         // Layout mirrors wmp/service/src/wmp_esplus_abi.h. Function pointers are
