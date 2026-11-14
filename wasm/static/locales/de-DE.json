@@ -630,5 +630,7 @@
   "Engine:": "Engine:",
   "Native engine": "Natives Wiedergabemodul",
   "Native": "Nativ",
-  "Average processing time:": "Durchschnittliche Verarbeitungszeit:"
+  "Average processing time:": "Durchschnittliche Verarbeitungszeit:",
+  "Starting native service...": "Nativen Dienst wird gestartet...",
+  "Starting Ambilight service...": "Ambilight-Dienst wird gestartet..."
 }
