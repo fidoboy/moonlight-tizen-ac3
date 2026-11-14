@@ -329,12 +329,15 @@
     function renderThroughFrame(targetFrame) {
       targetFrame = Math.min(TOTAL_FRAMES - 1, targetFrame);
       for (var frame = lastRenderedFrame + 1; frame <= targetFrame; frame++) {
-        var speed = frame < ANIMATED_FRAME_COUNT ? starSpeedForFrame(frame) : 0.0;
-        if (frame < ANIMATED_FRAME_COUNT) starField.update(speed);
-        drawStarField(speed);
-        drawLogoFrame(frame);
-        lastRenderedFrame = frame;
+        if (frame < ANIMATED_FRAME_COUNT) {
+          starField.update(starSpeedForFrame(frame));
+        }
       }
+      lastRenderedFrame = targetFrame;
+      var currentSpeed = targetFrame < ANIMATED_FRAME_COUNT
+        ? starSpeedForFrame(targetFrame) : 0.0;
+      drawStarField(currentSpeed);
+      drawLogoFrame(targetFrame);
     }
 
     var audio = null;
