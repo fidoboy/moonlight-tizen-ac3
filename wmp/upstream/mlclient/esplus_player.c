@@ -127,7 +127,8 @@ static int s_prepare_failed, s_start_failed;
 static int s_start_tried, s_player_closing;
 static volatile int s_player_error;
 static volatile int s_prepare_called;
-static int s_audio_enabled = 1;
+/* Temporary startup isolation test: ESPlusPlayer registers video only. */
+static int s_audio_enabled = 0;
 static int s_audio_registration_done;
 static int s_prepare_requested;
 static int s_prepare_started;
