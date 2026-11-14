@@ -620,7 +620,7 @@ namespace MoonlightWmpHost
             text.Append("Target frame rate: ").Append(targetFps.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS\n");
 
-            if (request.AudioEnabled == 0 || stream.AudioCodec == 0)
+            if (request.AudioEnabled == 0)
             {
                 text.Append("Audio stream: -\n");
                 text.Append("Decoding mode: -\n");
@@ -628,20 +628,29 @@ namespace MoonlightWmpHost
             }
             else
             {
-                string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
-                    stream.AudioCodec == 2 ? "AC-3" : "OPUS";
-                string layout = stream.AudioChannels == 2 ? "Stereo" :
-                    stream.AudioChannels == 6 ? "5.1" :
-                    stream.AudioChannels == 8 ? "7.1" : "multichannel";
-                text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
-                    .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
-                    .Append(" channels");
-                if (stream.AudioSampleRate != 0)
-                    text.Append(", ").Append((stream.AudioSampleRate / 1000.0).ToString("0", CultureInfo.InvariantCulture)).Append(" kHz");
-                text.Append(", ").Append(stream.AudioBitrateKbps != 0
-                    ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) + " kbps" : "- kbps")
-                    .Append(")\n");
-                text.Append("Decoding mode: ").Append(stream.AudioCodec == 1 ? "Opus" : "Native passthrough").Append("\n");
+                if (stream.AudioCodec == 0)
+                {
+                    text.Append("Audio stream: -\n");
+                    text.Append("Decoding mode: -\n");
+                }
+                else
+                {
+                    string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
+                        stream.AudioCodec == 2 ? "AC-3" : "OPUS";
+                    string layout = stream.AudioChannels == 2 ? "Stereo" :
+                        stream.AudioChannels == 6 ? "5.1" :
+                        stream.AudioChannels == 8 ? "7.1" : "multichannel";
+                    text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
+                        .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
+                        .Append(" channels");
+                    if (stream.AudioSampleRate != 0)
+                        text.Append(", ").Append((stream.AudioSampleRate / 1000.0).ToString("0", CultureInfo.InvariantCulture)).Append(" kHz");
+                    text.Append(", ").Append(stream.AudioBitrateKbps != 0
+                        ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) + " kbps" : "- kbps")
+                        .Append(")\n");
+                    text.Append("Decoding mode: ").Append(stream.AudioCodec == 1 ? "Opus" : "Native passthrough").Append("\n");
+                }
+                // FEC is measured by Common C and remains available before ESPlus accepts audio.
                 text.Append("Audio FEC: ")
                     .Append(stream.AudioFecRecovered.ToString(CultureInfo.InvariantCulture)).Append(" recovered · ")
                     .Append(stream.AudioFecFailed.ToString(CultureInfo.InvariantCulture)).Append(" failed · ")
