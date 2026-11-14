@@ -62,8 +62,8 @@ RUN apt-get update \
 # WMP's native Tizen ARM build inputs are part of this image, not a
 # separately provisioned build environment. Keep the GCC 6.2 cross-toolchain,
 # Tizen 5.5 ARM sysroot and framework headers/libraries under one stable path.
-COPY wmp/upstream/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
-COPY wmp/upstream/build/build-static-crypto.sh /opt/wmp-build/build-static-crypto.sh
+COPY wmp/engine/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
+COPY wmp/engine/build/build-static-crypto.sh /opt/wmp-build/build-static-crypto.sh
 RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-build/build-static-crypto.sh \
     && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
     && mkdir -p /opt/wmp-backport-deps \
