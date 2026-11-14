@@ -40,8 +40,16 @@ static char g_host[256];         /* si.address is held by moonlight-common-c for
                                     session, so the host string must outlive the call */
 static uint64_t g_stream_info_last_time_ms, g_stream_info_last_video_bytes, g_stream_info_last_audio_bytes;
 static uint64_t g_stream_info_last_received, g_stream_info_last_decoded, g_stream_info_last_rendered;
-static uint64_t g_stream_info_last_dropped;
+static uint64_t g_stream_info_last_total_frames, g_stream_info_last_dropped;
+static uint64_t g_stream_info_last_reassembly_us, g_stream_info_last_decode_us, g_stream_info_last_render_us;
 static uint32_t g_stream_info_last_fec_recovered, g_stream_info_last_fec_failed, g_stream_info_last_fec_oos;
+/* Previous one-second window for EMSS-compatible rolling two-window values. */
+static uint64_t g_stream_info_prev_elapsed_ms;
+static uint64_t g_stream_info_prev_received, g_stream_info_prev_decoded, g_stream_info_prev_rendered;
+static uint64_t g_stream_info_prev_total_frames, g_stream_info_prev_dropped;
+static uint64_t g_stream_info_prev_reassembly_us, g_stream_info_prev_decode_us, g_stream_info_prev_render_us;
+static uint32_t g_stream_info_prev_host_count, g_stream_info_prev_host_min, g_stream_info_prev_host_max;
+static uint64_t g_stream_info_prev_host_total;
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
 static ml_engine_stage_cb g_stage_cb;
@@ -115,16 +123,33 @@ static void cl_stageComplete(int stage) {
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
-  g_stream_info_last_time_ms = 0;
+  {
+    struct timespec stats_ts;
+    clock_gettime(CLOCK_MONOTONIC, &stats_ts);
+    g_stream_info_last_time_ms = (uint64_t)stats_ts.tv_sec * 1000ull +
+        (uint64_t)stats_ts.tv_nsec / 1000000ull;
+  }
   g_stream_info_last_video_bytes = 0;
   g_stream_info_last_audio_bytes = 0;
   g_stream_info_last_received = 0;
   g_stream_info_last_decoded = 0;
   g_stream_info_last_rendered = 0;
+  g_stream_info_last_total_frames = 0;
   g_stream_info_last_dropped = 0;
+  g_stream_info_last_reassembly_us = 0;
+  g_stream_info_last_decode_us = 0;
+  g_stream_info_last_render_us = 0;
   g_stream_info_last_fec_recovered = 0;
   g_stream_info_last_fec_failed = 0;
   g_stream_info_last_fec_oos = 0;
+  g_stream_info_prev_elapsed_ms = 0;
+  g_stream_info_prev_received = g_stream_info_prev_decoded = g_stream_info_prev_rendered = 0;
+  g_stream_info_prev_total_frames = g_stream_info_prev_dropped = 0;
+  g_stream_info_prev_reassembly_us = g_stream_info_prev_decode_us = g_stream_info_prev_render_us = 0;
+  g_stream_info_prev_host_count = 0;
+  g_stream_info_prev_host_min = UINT32_MAX;
+  g_stream_info_prev_host_max = 0;
+  g_stream_info_prev_host_total = 0;
   __atomic_store_n(&esplus_stats.video_format, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.video_width, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.video_height, 0, __ATOMIC_RELAXED);
@@ -147,6 +172,10 @@ static int start_connection(void) {
   __atomic_store_n(&esplus_stats.host_latency_count, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.host_latency_min, UINT32_MAX, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.host_latency_max, 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.host_latency_window_total, 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.host_latency_window_count, 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
   AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
   esplus_set_audio_enabled(g_audio_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
@@ -276,12 +305,20 @@ int ml_engine_get_stats(ml_engine_stats *out) {
 
 int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   struct timespec ts;
-  uint64_t now_ms, video_bytes, audio_bytes;
+  uint64_t now_ms, elapsed_ms = 0, video_bytes, audio_bytes;
   uint64_t received, decoded, rendered, total_frames, dropped_frames;
-  uint64_t reassembly_us, decode_us, render_us, host_total;
+  uint64_t reassembly_us, decode_us, render_us;
+  uint64_t interval_received = 0, interval_decoded = 0, interval_rendered = 0;
+  uint64_t interval_total_frames = 0, interval_dropped = 0;
+  uint64_t interval_reassembly_us = 0, interval_decode_us = 0, interval_render_us = 0;
+  uint64_t combined_elapsed, combined_received, combined_decoded, combined_rendered;
+  uint64_t combined_total_frames, combined_dropped;
+  uint64_t combined_reassembly_us, combined_decode_us, combined_render_us;
   uint32_t host_count, host_min, host_max;
+  uint64_t host_total;
   RTP_AUDIO_FEC_STATS audio_fec = {0};
   if (!out || out->struct_size < (int32_t)sizeof *out) return GS_INVALID;
+
   clock_gettime(CLOCK_MONOTONIC, &ts);
   now_ms = (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
   video_bytes = __atomic_load_n(&esplus_stats.video_bytes_received, __ATOMIC_RELAXED);
@@ -294,12 +331,9 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   reassembly_us = __atomic_load_n(&esplus_stats.total_reassembly_us, __ATOMIC_RELAXED);
   decode_us = __atomic_load_n(&esplus_stats.total_decode_us, __ATOMIC_RELAXED);
   render_us = __atomic_load_n(&esplus_stats.total_render_us, __ATOMIC_RELAXED);
-  host_total = __atomic_load_n(&esplus_stats.host_latency_total, __ATOMIC_RELAXED);
-  host_count = __atomic_load_n(&esplus_stats.host_latency_count, __ATOMIC_RELAXED);
-  host_min = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
-  host_max = __atomic_load_n(&esplus_stats.host_latency_max, __ATOMIC_RELAXED);
-  if (__atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) != 0)
-    LiGetRTPAudioFecStats(&audio_fec);
+
+  /* Common C owns transport RTT and RTP audio FEC, independently of the renderer. */
+  if (g_audio_enabled) LiGetRTPAudioFecStats(&audio_fec);
   out->video_format = __atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED);
   out->video_width = __atomic_load_n(&esplus_stats.video_width, __ATOMIC_RELAXED);
   out->video_height = __atomic_load_n(&esplus_stats.video_height, __ATOMIC_RELAXED);
@@ -315,15 +349,12 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->video_fps_received = 0;
   out->video_fps_decoded = 0;
   out->video_fps_rendered = 0;
-  out->network_dropped_percent_x100 = total_frames
-      ? (uint32_t)((dropped_frames * 10000ull) / total_frames) : 0;
-  out->average_reassembly_us = decoded ? (uint32_t)(reassembly_us / decoded) : 0;
-  out->average_decode_us = decoded ? (uint32_t)(decode_us / decoded) : 0;
-  out->average_render_us = rendered ? (uint32_t)(render_us / rendered) : 0;
-  out->host_latency_min_tenths_ms = host_count && host_min != UINT32_MAX ? host_min : 0;
-  out->host_latency_max_tenths_ms = host_count ? host_max : 0;
-  out->host_latency_avg_tenths_ms = host_count ? (uint32_t)(host_total / host_count) : 0;
+  out->network_dropped_percent_x100 = 0;
+  out->average_reassembly_us = 0;
+  out->average_decode_us = 0;
+  out->average_render_us = 0;
   out->video_dropped_frames_interval = 0;
+
   out->audio_fec_recovered = audio_fec.recoveredPackets >= g_stream_info_last_fec_recovered
       ? audio_fec.recoveredPackets - g_stream_info_last_fec_recovered : audio_fec.recoveredPackets;
   out->audio_fec_failed = audio_fec.failedBlocks >= g_stream_info_last_fec_failed
@@ -334,27 +365,111 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   g_stream_info_last_fec_failed = audio_fec.failedBlocks;
   g_stream_info_last_fec_oos = audio_fec.outOfOrderPackets;
   (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
+
   if (g_stream_info_last_time_ms && now_ms > g_stream_info_last_time_ms &&
       video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes &&
       received >= g_stream_info_last_received && decoded >= g_stream_info_last_decoded &&
-      rendered >= g_stream_info_last_rendered && dropped_frames >= g_stream_info_last_dropped) {
-    uint64_t elapsed = now_ms - g_stream_info_last_time_ms;
-    uint64_t video_rate = ((video_bytes - g_stream_info_last_video_bytes) * 8ull) / elapsed;
-    uint64_t audio_rate = ((audio_bytes - g_stream_info_last_audio_bytes) * 8ull) / elapsed;
+      rendered >= g_stream_info_last_rendered && total_frames >= g_stream_info_last_total_frames &&
+      dropped_frames >= g_stream_info_last_dropped &&
+      reassembly_us >= g_stream_info_last_reassembly_us &&
+      decode_us >= g_stream_info_last_decode_us && render_us >= g_stream_info_last_render_us) {
+    elapsed_ms = now_ms - g_stream_info_last_time_ms;
+    interval_received = received - g_stream_info_last_received;
+    interval_decoded = decoded - g_stream_info_last_decoded;
+    interval_rendered = rendered - g_stream_info_last_rendered;
+    interval_total_frames = total_frames - g_stream_info_last_total_frames;
+    interval_dropped = dropped_frames - g_stream_info_last_dropped;
+    interval_reassembly_us = reassembly_us - g_stream_info_last_reassembly_us;
+    interval_decode_us = decode_us - g_stream_info_last_decode_us;
+    interval_render_us = render_us - g_stream_info_last_render_us;
+
+    uint64_t video_rate = ((video_bytes - g_stream_info_last_video_bytes) * 8ull) / elapsed_ms;
+    uint64_t audio_rate = ((audio_bytes - g_stream_info_last_audio_bytes) * 8ull) / elapsed_ms;
     out->video_bitrate_kbps = video_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)video_rate;
     out->audio_bitrate_kbps = audio_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)audio_rate;
-    out->video_fps_received = (uint32_t)(((received - g_stream_info_last_received) * 1000ull) / elapsed);
-    out->video_fps_decoded = (uint32_t)(((decoded - g_stream_info_last_decoded) * 1000ull) / elapsed);
-    out->video_fps_rendered = (uint32_t)(((rendered - g_stream_info_last_rendered) * 1000ull) / elapsed);
-    out->video_dropped_frames_interval = (uint32_t)(dropped_frames - g_stream_info_last_dropped);
+    out->video_dropped_frames_interval = interval_dropped;
+  } else if (g_stream_info_last_time_ms) {
+    /* A counter reset invalidates the rolling window; begin a fresh baseline. */
+    g_stream_info_prev_elapsed_ms = 0;
+    g_stream_info_prev_received = g_stream_info_prev_decoded = g_stream_info_prev_rendered = 0;
+    g_stream_info_prev_total_frames = g_stream_info_prev_dropped = 0;
+    g_stream_info_prev_reassembly_us = g_stream_info_prev_decode_us = g_stream_info_prev_render_us = 0;
   }
+
+  combined_elapsed = elapsed_ms + g_stream_info_prev_elapsed_ms;
+  combined_received = interval_received + g_stream_info_prev_received;
+  combined_decoded = interval_decoded + g_stream_info_prev_decoded;
+  combined_rendered = interval_rendered + g_stream_info_prev_rendered;
+  combined_total_frames = interval_total_frames + g_stream_info_prev_total_frames;
+  combined_dropped = interval_dropped + g_stream_info_prev_dropped;
+  combined_reassembly_us = interval_reassembly_us + g_stream_info_prev_reassembly_us;
+  combined_decode_us = interval_decode_us + g_stream_info_prev_decode_us;
+  combined_render_us = interval_render_us + g_stream_info_prev_render_us;
+  if (combined_elapsed != 0) {
+    out->video_fps_received = (uint32_t)((combined_received * 1000ull) / combined_elapsed);
+    out->video_fps_decoded = (uint32_t)((combined_decoded * 1000ull) / combined_elapsed);
+    out->video_fps_rendered = (uint32_t)((combined_rendered * 1000ull) / combined_elapsed);
+  }
+  if (combined_total_frames != 0)
+    out->network_dropped_percent_x100 =
+        (uint32_t)((combined_dropped * 10000ull) / combined_total_frames);
+  out->average_reassembly_us = combined_decoded
+      ? (uint32_t)(combined_reassembly_us / combined_decoded) : 0;
+  out->average_decode_us = combined_decoded
+      ? (uint32_t)(combined_decode_us / combined_decoded) : 0;
+  out->average_render_us = combined_rendered
+      ? (uint32_t)(combined_render_us / combined_rendered) : 0;
+
+  /* Host latency is windowed and combined over two polls, like EMSS's two windows. */
+  host_total = __atomic_exchange_n(&esplus_stats.host_latency_window_total, 0, __ATOMIC_RELAXED);
+  host_count = __atomic_exchange_n(&esplus_stats.host_latency_window_count, 0, __ATOMIC_RELAXED);
+  host_min = __atomic_exchange_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
+  host_max = __atomic_exchange_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
+  out->host_latency_min_tenths_ms = 0;
+  out->host_latency_max_tenths_ms = 0;
+  out->host_latency_avg_tenths_ms = 0;
+  if (host_count || g_stream_info_prev_host_count) {
+    uint32_t min_value = host_count && host_min != UINT32_MAX ? host_min : UINT32_MAX;
+    uint32_t max_value = host_count ? host_max : 0;
+    uint64_t total_value = host_total;
+    uint32_t count_value = host_count;
+    if (g_stream_info_prev_host_count) {
+      if (g_stream_info_prev_host_min < min_value) min_value = g_stream_info_prev_host_min;
+      if (g_stream_info_prev_host_max > max_value) max_value = g_stream_info_prev_host_max;
+      total_value += g_stream_info_prev_host_total;
+      count_value += g_stream_info_prev_host_count;
+    }
+    out->host_latency_min_tenths_ms = min_value == UINT32_MAX ? 0 : min_value;
+    out->host_latency_max_tenths_ms = max_value;
+    out->host_latency_avg_tenths_ms = count_value ? (uint32_t)(total_value / count_value) : 0;
+  }
+  g_stream_info_prev_host_count = host_count;
+  g_stream_info_prev_host_min = host_count && host_min != UINT32_MAX ? host_min : UINT32_MAX;
+  g_stream_info_prev_host_max = host_max;
+  g_stream_info_prev_host_total = host_total;
+
+  /* Retain this interval for the next rolling two-window calculation. */
+  g_stream_info_prev_elapsed_ms = elapsed_ms;
+  g_stream_info_prev_received = interval_received;
+  g_stream_info_prev_decoded = interval_decoded;
+  g_stream_info_prev_rendered = interval_rendered;
+  g_stream_info_prev_total_frames = interval_total_frames;
+  g_stream_info_prev_dropped = interval_dropped;
+  g_stream_info_prev_reassembly_us = interval_reassembly_us;
+  g_stream_info_prev_decode_us = interval_decode_us;
+  g_stream_info_prev_render_us = interval_render_us;
+
   g_stream_info_last_time_ms = now_ms;
   g_stream_info_last_video_bytes = video_bytes;
   g_stream_info_last_audio_bytes = audio_bytes;
   g_stream_info_last_received = received;
   g_stream_info_last_decoded = decoded;
   g_stream_info_last_rendered = rendered;
+  g_stream_info_last_total_frames = total_frames;
   g_stream_info_last_dropped = dropped_frames;
+  g_stream_info_last_reassembly_us = reassembly_us;
+  g_stream_info_last_decode_us = decode_us;
+  g_stream_info_last_render_us = render_us;
   return 0;
 }
 
