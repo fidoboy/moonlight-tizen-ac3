@@ -36,9 +36,6 @@ fi
 command -v emcc >/dev/null
 command -v cmake >/dev/null
 command -v ninja >/dev/null
-command -v rsvg-convert >/dev/null
-test -s "$ROOT/generated-videos/launch-screen.mp4"
-test -s "$ROOT/generated-videos/launch-screen-portrait.mp4"
 index_js="$ROOT/wasm/platform/index.js"
 index_backup="$(mktemp)"
 cp "$index_js" "$index_backup"
@@ -71,18 +68,6 @@ test -s "$widget/moonlight-wasm.wasm"
 test -s "$widget/service/service.js"
 cp "$ROOT/res/icon.png" "$widget/"
 node "$ROOT/tools/patch-embind-string.js" "$widget/moonlight-wasm.js"
-tmpdir="$(mktemp -d)"
-python3 "$ROOT/res/generate-launch-screen.py" --template "$ROOT/res/launch-screen.svg" \
-  --dolby-logo "$ROOT/wasm/static/res/ic_dolby_double_d.svg" \
-  --static-svg "$tmpdir/launch-screen.svg" --orientation landscape --static-only
-python3 "$ROOT/res/generate-launch-screen.py" --template "$ROOT/res/launch-screen.svg" \
-  --dolby-logo "$ROOT/wasm/static/res/ic_dolby_double_d.svg" \
-  --static-svg "$tmpdir/launch-screen-portrait.svg" --orientation portrait --static-only
-rsvg-convert -w 1920 -h 1080 --format png -o "$widget/static/res/launch-screen.png" "$tmpdir/launch-screen.svg"
-rsvg-convert -w 1080 -h 1920 --format png -o "$widget/static/res/launch-screen-portrait.png" "$tmpdir/launch-screen-portrait.svg"
-rm -rf "$tmpdir"
-cp "$ROOT/generated-videos/launch-screen.mp4" "$widget/static/res/launch-screen.mp4"
-cp "$ROOT/generated-videos/launch-screen-portrait.mp4" "$widget/static/res/launch-screen-portrait.mp4"
 cp -a "$widget" "$OUT/web-standard"
 cp -a "$widget" "$OUT/web-forcegm"
 sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$OUT/web-forcegm/config.xml"
@@ -93,7 +78,5 @@ for project in "$OUT/web-standard" "$OUT/web-forcegm"; do
   test -s "$project/moonlight-wasm.js"
   test -s "$project/moonlight-wasm.wasm"
   test -s "$project/service/service.js"
-  test -s "$project/static/res/launch-screen.mp4"
-  test -s "$project/static/res/launch-screen-portrait.mp4"
 done
 echo "Moonlight Web standard and ForceGM payloads built inside the shared Tizen image."
