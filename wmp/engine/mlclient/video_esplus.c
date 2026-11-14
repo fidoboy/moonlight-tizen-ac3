@@ -269,6 +269,11 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
 
+    /* A flushing seek invalidates queued reference frames. Reject one following
+     * non-IDR so Common C requests a fresh keyframe from the host. */
+    if (esplus_take_need_idr() && du->frameType != FRAME_TYPE_IDR)
+        return DR_NEED_IDR;
+
     /* Optional latency frame shedding; it does not control player/session state. */
     if (esplus_cfg.drop_after_ms > 0 &&
         esplus_stats.depth_ms > esplus_cfg.drop_after_ms &&
