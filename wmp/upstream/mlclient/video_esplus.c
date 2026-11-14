@@ -30,6 +30,26 @@ static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static unsigned s_video_idrs;
 
+static void capture_h264_level(const uint8_t *data, size_t length)
+{
+    size_t i;
+    if (!data || length < 7) return;
+    for (i = 0; i + 6 < length; ++i) {
+        size_t nal;
+        if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1)
+            nal = i + 3;
+        else if (i + 7 < length && data[i] == 0 && data[i + 1] == 0 &&
+                 data[i + 2] == 0 && data[i + 3] == 1)
+            nal = i + 4;
+        else
+            continue;
+        if ((data[nal] & 0x1f) == 7 && nal + 3 < length) {
+            __atomic_store_n(&esplus_stats.h264_level_idc, data[nal + 3], __ATOMIC_RELAXED);
+            return;
+        }
+    }
+}
+
 static int ensure_scratch(size_t need)
 {
     size_t cap;
@@ -56,6 +76,12 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     VLOG("setup begin fmt=0x%x %dx%d@%d\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
+    __atomic_store_n(&esplus_stats.video_format, (uint32_t)videoFormat, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_width, (uint32_t)width, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_height, (uint32_t)height, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.h264_level_idc, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_bytes_received, 0, __ATOMIC_RELAXED);
 
     if (videoFormat & VIDEO_FORMAT_MASK_H264)
         mime = WMP_ESPLUS_VIDEO_MIME_H264;
@@ -186,6 +212,9 @@ static int VidDecSubmit(PDECODE_UNIT du)
         memcpy(s_scratch + offset, entry->data, (size_t)entry->length);
         offset += (size_t)entry->length;
     }
+    __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
+    if (esplus_stats.video_format & VIDEO_FORMAT_MASK_H264)
+        capture_h264_level(s_scratch, offset);
 
     if (!s_have_base) {
         /*
