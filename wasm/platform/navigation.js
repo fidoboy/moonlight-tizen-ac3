@@ -6,6 +6,8 @@ const hoveredClassName = 'hovered';
 let navigationSoundEnabled = false;
 let navigationSoundContext = null;
 let navigationSoundBuffer = null;
+let launchSplashSoundBuffer = null;
+let launchSplashSoundLoadPromise = null;
 let navigationSoundData = null;
 let navigationSoundLoadPromise = null;
 let navigationSoundInitializationPromise = null;
@@ -45,14 +47,14 @@ function decodeNavigationSound(context, data) {
   });
 }
 
-function initializeNavigationAudioEngine() {
-  if (!navigationSoundEnabled) return Promise.resolve(false);
-  if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
-  if (navigationSoundInitializationPromise) return navigationSoundInitializationPromise;
+function ensureNavigationAudioContext() {
+  if (navigationSoundContext && navigationSoundContext.state !== 'closed') {
+    return navigationSoundContext;
+  }
 
   var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) {
-    return Promise.reject(new Error('The Web Audio API is not available on this device.'));
+    throw new Error('The Web Audio API is not available on this device.');
   }
 
   try {
@@ -62,7 +64,101 @@ function initializeNavigationAudioEngine() {
     navigationSoundContext = new AudioContextConstructor();
   }
 
+  return navigationSoundContext;
+}
+
+// Prepare the launch presentation with the same Web Audio engine used by the UI.
+// This deliberately does not change the user's navigation-sound preference.
+function prepareLaunchSplashAudio() {
+  var context;
+  try {
+    context = ensureNavigationAudioContext();
+  } catch (error) {
+    return Promise.reject(error);
+  }
+
+  if (launchSplashSoundBuffer && navigationSoundContext === context) {
+    return resumeNavigationAudioContext(context);
+  }
+  if (launchSplashSoundLoadPromise) return launchSplashSoundLoadPromise;
+
+  var loadPromise = fetch('static/res/launch_screen.mp3').then(function(response) {
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading launch_screen.mp3');
+    return response.arrayBuffer();
+  }).then(function(data) {
+    return decodeNavigationSound(context, data);
+  }).then(function(buffer) {
+    if (navigationSoundContext !== context || context.state === 'closed') {
+      throw new Error('The shared audio context changed while preparing the launch sound.');
+    }
+    launchSplashSoundBuffer = buffer;
+    return resumeNavigationAudioContext(context).then(function() {
+      if (context.state !== 'running') {
+        throw new Error('The shared audio context is not running.');
+      }
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Launch presentation sound decoded and audio context running (' +
+        buffer.duration.toFixed(3) + ' s, ' + buffer.sampleRate + ' Hz).');
+      return true;
+    });
+  }).finally(function() {
+    if (launchSplashSoundLoadPromise === loadPromise) launchSplashSoundLoadPromise = null;
+  });
+
+  launchSplashSoundLoadPromise = loadPromise;
+  return loadPromise;
+}
+
+function resumeNavigationAudioContext(context) {
+  if (!context || context.state === 'closed') {
+    return Promise.reject(new Error('The shared audio context is closed.'));
+  }
+  if (context.state === 'running') return Promise.resolve(true);
+  try {
+    return Promise.resolve(context.resume()).then(function() {
+      return context.state === 'running';
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+function playLaunchSplashSound() {
   var context = navigationSoundContext;
+  if (!context || context.state !== 'running' || !launchSplashSoundBuffer) {
+    throw new Error('The launch presentation audio has not been prepared.');
+  }
+
+  var source = context.createBufferSource();
+  source.buffer = launchSplashSoundBuffer;
+  source.connect(context.destination);
+  navigationSoundSources.push(source);
+  source.onended = function() {
+    var sourceIndex = navigationSoundSources.indexOf(source);
+    if (sourceIndex !== -1) navigationSoundSources.splice(sourceIndex, 1);
+    try { source.disconnect(); } catch (error) {}
+  };
+
+  var startTime = context.currentTime;
+  source.start(startTime);
+  return {
+    context: context,
+    source: source,
+    startTime: startTime,
+    duration: launchSplashSoundBuffer.duration
+  };
+}
+
+function initializeNavigationAudioEngine() {
+  if (!navigationSoundEnabled) return Promise.resolve(false);
+  if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
+  if (navigationSoundInitializationPromise) return navigationSoundInitializationPromise;
+
+  var context;
+  try {
+    context = ensureNavigationAudioContext();
+  } catch (error) {
+    return Promise.reject(error);
+  }
   var initializationPromise = loadNavigationSoundData().then(function(data) {
     return decodeNavigationSound(context, data);
   }).then(function(buffer) {
@@ -75,6 +171,7 @@ function initializeNavigationAudioEngine() {
     if (navigationSoundContext === context) {
       navigationSoundContext = null;
       navigationSoundBuffer = null;
+      launchSplashSoundBuffer = null;
       try { context.close(); } catch (closeError) {}
     }
     console.error('%c[navigation.js, audio]', 'color: red;', 'Could not initialize the local audio engine:', error);
@@ -104,6 +201,8 @@ function closeNavigationAudioEngine() {
   if (navigationSoundContext === context) {
     navigationSoundContext = null;
     navigationSoundBuffer = null;
+    launchSplashSoundBuffer = null;
+    launchSplashSoundLoadPromise = null;
   }
 
   // Detach the old sources before closing so a later re-enable can safely create
