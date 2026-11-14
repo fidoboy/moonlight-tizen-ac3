@@ -145,14 +145,27 @@
           context.lineTo(x, y);
         }
       }
-      context.moveTo(x + radius, y);
-      context.arc(x, y, radius, 0, Math.PI * 2);
     }
 
-    context.strokeStyle = 'rgba(255,255,255,' + trailOpacity + ')';
-    context.lineWidth = strokeWidth;
-    context.lineCap = 'round';
-    if (trails) context.stroke();
+    if (trails) {
+      context.strokeStyle = 'rgba(255,255,255,' + trailOpacity + ')';
+      context.lineWidth = strokeWidth;
+      context.lineCap = 'round';
+      context.stroke();
+    }
+
+    context.beginPath();
+    for (var j = 0; j < stars.length; j++) {
+      var point = stars[j];
+      var px = ((point.x / point.z) * WIDTH) / 2 + CENTER_X;
+      var py = ((point.y / point.z) * HEIGHT) / 2 + CENTER_Y;
+      var pr = (1 - point.z / MAX_DEPTH) * point.size * 3;
+      if (pr > 0.02 && px + pr >= 0 && px - pr <= WIDTH &&
+          py + pr >= 0 && py - pr <= HEIGHT) {
+        context.moveTo(px + pr, py);
+        context.arc(px, py, pr, 0, Math.PI * 2);
+      }
+    }
     context.fillStyle = '#ffffff';
     context.fill();
   }
