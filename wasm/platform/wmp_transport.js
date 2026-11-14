@@ -70,6 +70,7 @@
   // the new process is launched and its ports are requested.
   var SERVICE_STOP_VERIFY_ATTEMPTS = 30;
   var SERVICE_STOP_VERIFY_DELAY_MS = 100;
+  var SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS = 5000;
 
   function getRunningServiceContexts() {
     return new Promise(function(resolve, reject) {
@@ -78,12 +79,24 @@
             typeof tizen.application.getAppsContext !== 'function') {
           throw makeError('Tizen running-application inspection is unavailable');
         }
+        var settled = false;
+        var timeoutId = global.setTimeout(function() {
+          if (settled) return;
+          settled = true;
+          reject(makeError('checking the native service state timed out'));
+        }, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
         tizen.application.getAppsContext(function(contexts) {
+          if (settled) return;
+          settled = true;
+          global.clearTimeout(timeoutId);
           contexts = Array.isArray(contexts) ? contexts : [];
           resolve(contexts.filter(function(context) {
             return context && context.appId === SERVICE_APP_ID;
           }));
         }, function(error) {
+          if (settled) return;
+          settled = true;
+          global.clearTimeout(timeoutId);
           reject(makeError('could not inspect running native services: ' +
             (error && error.message ? error.message : String(error))));
         });
@@ -130,25 +143,38 @@
       return contexts.reduce(function(chain, context) {
         return chain.then(function() {
           return new Promise(function(resolve, reject) {
+            var settled = false;
+            var timeoutId = global.setTimeout(function() {
+              if (settled) return;
+              settled = true;
+              reject(makeError('stopping the previous native service timed out'));
+            }, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
+            function finish(error) {
+              if (settled) return;
+              settled = true;
+              global.clearTimeout(timeoutId);
+              if (error) reject(error);
+              else resolve();
+            }
             try {
               tizen.application.kill(context.id, function() {
                 debugLog('previous ESPlusPlayer service process termination requested', {
                   serviceAppId: SERVICE_APP_ID,
                   contextId: context.id
                 });
-                resolve();
+                finish();
               }, function(error) {
                 // The process may have exited between getAppsContext and kill.
                 // The mandatory verification below decides whether it is gone.
                 if (error && error.name === 'NotFoundError') {
-                  resolve();
+                  finish();
                   return;
                 }
-                reject(makeError('could not stop previous native service: ' +
+                finish(makeError('could not stop previous native service: ' +
                   (error && error.message ? error.message : String(error))));
               });
             } catch (error) {
-              reject(makeError('could not stop previous native service: ' +
+              finish(makeError('could not stop previous native service: ' +
                 (error && error.message ? error.message : String(error))));
             }
           });
@@ -493,14 +519,20 @@
     return connectPromise;
   }
 
-  function sendConnectedRequest(command, serializedPayload, payload) {
+  function sendConnectedRequest(command, serializedPayload, payload, timeoutMs) {
     return new Promise(function(resolve, reject) {
       var id = String(++nextRequestId);
+      var timeoutId = timeoutMs > 0 ? global.setTimeout(function() {
+        if (!pending[id]) return;
+        delete pending[id];
+        reject(makeError(command + ' response timed out'));
+      }, timeoutMs) : null;
       pending[id] = {
         resolve: resolve,
         reject: reject,
         command: command,
-        startedAt: Date.now()
+        startedAt: Date.now(),
+        timeoutId: timeoutId
       };
 
       try {
@@ -526,6 +558,7 @@
         remotePort.sendMessage(items, localPort);
       } catch (error) {
         delete pending[id];
+        if (timeoutId !== null) global.clearTimeout(timeoutId);
         debugLog('native command send failed', {
           id: id,
           command: command,
@@ -537,7 +570,7 @@
   }
 
   function waitForServiceReady(attempt) {
-    return sendConnectedRequest('ping', '{}', {}).then(function(response) {
+    return sendConnectedRequest('ping', '{}', {}, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS).then(function(response) {
       var state = response && response.payload ? response.payload.service : null;
       if (state === 'ready') return true;
       if (state !== 'initializing') {
