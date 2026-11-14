@@ -639,7 +639,10 @@ namespace MoonlightWmpHost
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) + " kbps" : "- kbps")
                     .Append(")\n");
                 text.Append("Decoding mode: ").Append(stream.AudioCodec == 1 ? "Opus" : "Native passthrough").Append("\n");
-                text.Append("Audio FEC: -\n");
+                text.Append("Audio FEC: ")
+                    .Append(stream.AudioFecRecovered.ToString(CultureInfo.InvariantCulture)).Append(" recovered · ")
+                    .Append(stream.AudioFecFailed.ToString(CultureInfo.InvariantCulture)).Append(" failed · ")
+                    .Append(stream.AudioFecOutOfOrder.ToString(CultureInfo.InvariantCulture)).Append(" out-of-order\n");
             }
 
             text.Append("Frame rates: ")
@@ -993,6 +996,14 @@ namespace MoonlightWmpHost
                             if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                 streamInfo = new EngineApi.StreamInfo();
                             SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
+                            string graphMessage = "GraphMsg: " +
+                                streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
+                                streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
+                                streamInfo.VideoDroppedFramesInterval.ToString(CultureInfo.InvariantCulture) + "," +
+                                streamInfo.AudioFecRecovered.ToString(CultureInfo.InvariantCulture) + "," +
+                                streamInfo.AudioFecFailed.ToString(CultureInfo.InvariantCulture) + "," +
+                                streamInfo.AudioFecOutOfOrder.ToString(CultureInfo.InvariantCulture);
+                            SendStatsEventIfEnabled(appId, remotePort, graphMessage, null);
                             if (streamInfo.HostLatencyMaxTenthsMs != 0)
                             {
                                 string hostLatency = "HostLatencyMsg: " +
