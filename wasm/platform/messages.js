@@ -89,7 +89,7 @@ function startESPlusPlayerSession(args) {
   }
 
   var startupStatus = document.getElementById('loadingSpinnerMessage');
-  if (startupStatus) startupStatus.textContent = t('Starting native service...');
+  if (startupStatus) startupStatus.textContent = t('Starting native video playback service...');
 
   window.ESPlusPlayerTransport.startStream(parameters).catch(function(error) {
     pendingStreamApiMessage = error && error.message
@@ -1780,6 +1780,15 @@ function handleMessage(msg) {
         handleDirectSmartHubVideoReady();
       } else {
         $('#listener').addClass('fullscreen');
+      }
+    }
+
+    // Ambilight is optional: report its startup failure only after remote video
+    // is visible, without interrupting or aborting the stream.
+    if (window._ambilightStartupFailed === true) {
+      window._ambilightStartupFailed = false;
+      if (typeof snackbarLog === 'function') {
+        snackbarLog('Ambilight service failed to start.');
       }
     }
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
