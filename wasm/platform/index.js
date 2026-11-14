@@ -313,6 +313,12 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     ? t('Connection ended. Frame loss detected.')
     : message;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
+  if (!isInGame && window.moonlightAmbilight &&
+      typeof window.moonlightAmbilight.shutdown === 'function') {
+    window.moonlightAmbilight.shutdown().catch(function(error) {
+      console.warn('[ambilight] Could not clean up after stream startup timeout:', error);
+    });
+  }
   if (isInGame) {
     try {
       var stopResult = sendMessage('stopRequest', []);
@@ -360,6 +366,13 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   streamStartupGeneration++;
   window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
+
+  if (window.moonlightAmbilight &&
+      typeof window.moonlightAmbilight.shutdown === 'function') {
+    window.moonlightAmbilight.shutdown().catch(function(error) {
+      console.warn('[ambilight] Could not clean up after host launch failure:', error);
+    });
+  }
 
   if (_directSmartHubLaunch) {
     directSmartHubLaunchFailure(message);
