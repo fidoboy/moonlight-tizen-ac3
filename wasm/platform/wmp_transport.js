@@ -313,6 +313,9 @@
     }
 
     delete pending[id];
+    if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
+      global.clearTimeout(pendingRequest.timeoutId);
+    }
 
     var response = {
       id: id,
@@ -753,6 +756,9 @@
     connectPromise = null;
 
     Object.keys(pending).forEach(function(id) {
+      if (pending[id].timeoutId !== null && pending[id].timeoutId !== undefined) {
+        global.clearTimeout(pending[id].timeoutId);
+      }
       pending[id].reject(makeError('reply channel closed'));
       delete pending[id];
     });
