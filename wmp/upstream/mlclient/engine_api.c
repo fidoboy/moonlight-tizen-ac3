@@ -257,6 +257,9 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->audio_sample_rate = __atomic_load_n(&esplus_stats.audio_sample_rate, __ATOMIC_RELAXED);
   out->video_bitrate_kbps = 0;
   out->audio_bitrate_kbps = 0;
+  out->network_rtt_ms = 0;
+  out->network_variance_ms = 0;
+  (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
   if (last_time_ms && now_ms > last_time_ms &&
       video_bytes >= last_video_bytes && audio_bytes >= last_audio_bytes) {
     uint64_t elapsed = now_ms - last_time_ms;
