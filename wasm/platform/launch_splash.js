@@ -343,12 +343,14 @@
     var audio = null;
     var startTime = 0;
     var durationMs = TOTAL_FRAMES * 1000 / FPS;
-    var requestFrame = window.requestAnimationFrame || function(callback) {
-      window.setTimeout(function() {
-        callback(window.performance && typeof window.performance.now === 'function'
-          ? window.performance.now() : Date.now());
-      }, 1000 / FPS);
-    };
+    var requestFrame = typeof window.requestAnimationFrame === 'function'
+      ? function(callback) { window.requestAnimationFrame(callback); }
+      : function(callback) {
+        window.setTimeout(function() {
+          callback(window.performance && typeof window.performance.now === 'function'
+            ? window.performance.now() : Date.now());
+        }, 1000 / FPS);
+      };
     var animationStarted = false;
 
     function finishSplash() {
