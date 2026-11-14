@@ -632,5 +632,7 @@
   "Native": "Нативный",
   "Average processing time:": "Среднее время обработки:",
   "Starting native service...": "Запуск нативной службы...",
-  "Starting Ambilight service...": "Запуск службы Ambilight..."
+  "Starting Ambilight service...": "Запуск службы Ambilight...",
+  "Starting native video playback service...": "Запуск нативной службы воспроизведения видео...",
+  "Ambilight service failed to start.": "Не удалось запустить службу Ambilight."
 }
