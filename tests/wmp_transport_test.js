@@ -410,6 +410,8 @@ vm.runInNewContext(source, {
     30,
     'ESPlusPlayer transport must stop retrying after the configured attempt limit'
   );
+  assert.strictEqual(runningServiceContexts.length, 0,
+    'a failed launch handshake must terminate the half-started service process');
 
   console.log('ESPlusPlayer trusted MessagePort bridge tests passed.');
 })().catch(error => {
