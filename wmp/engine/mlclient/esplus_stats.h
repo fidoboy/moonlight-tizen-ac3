@@ -15,7 +15,7 @@ typedef struct {
   volatile uint32_t dropped_full;   /* lost after FULL retries */
   volatile uint32_t underruns, overruns; /* video queue-empty/full notifications, not dropped frames */
   volatile uint32_t errors, last_error;
-  volatile uint32_t recoveries;     /* retained for the frozen ml_engine_stats ABI; no player recovery */
+  volatile uint32_t recoveries;     /* retained for the frozen ml_engine_stats ABI; catch-up seeks are not counted */
   volatile int      recovery_state; /* retained ABI field; 2 records native resource conflict */
   volatile int32_t  depth_ms;       /* video: last pts - playing_time; INT32_MIN when unavailable */
   volatile int32_t  audio_depth_ms;  /* INT32_MIN when playback clock unavailable */
