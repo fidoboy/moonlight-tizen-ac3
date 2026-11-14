@@ -1239,21 +1239,6 @@ function moduleDidLoad() {
   loadHTTPCerts();
 }
 
-// Check if the application is running in a forced Game Mode variant based on Tizen AppMetaData
-function checkForceGMVariant() {
-  try {
-    var metaData = tizen.application.getAppMetaData(appInfo.id);
-    // Check if the AppMetaData contains the key-value pair indicating forced Game Mode
-    if (metaData && metaData.some(m => m.key === 'http://samsung.com/tv/metadata/use.game.mode' && m.value === 'true')) {
-      return true;
-    }
-  } catch (error) {
-    console.warn('%c[index.js, checkForceGMVariant]', 'color: green;', 'Failed to probe AppMetaData for ForceGM check: ', error);
-  }
-  // Return false if the application is not running in a forced Game Mode variant
-  return false;
-}
-
 // Formats the build version and marks all builds outside official stable releases as experimental
 function getBuildVersion(version) {
   var versionLabel = OFFICIAL_RELEASE ? version : `${version} EXPERIMENTAL`;
@@ -8829,7 +8814,6 @@ function initSpecialKeys() {
 function loadSystemInfo() {
   console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'Loading system information...');
   const systemInfoPlaceholder = document.getElementById('systemInfoBtn');
-  const isForceGMVariant = checkForceGMVariant(); // Check if the currently installed app is the ForceGM variant
   const buildVer = getBuildVersion(appInfo.version);
 
   // Get the system information from the TV
@@ -8843,7 +8827,7 @@ function loadSystemInfo() {
     // Insert the system information as text, then render the experimental marker
     // with the same shared badge class used by other experimental settings.
     systemInfoPlaceholder.textContent =
-      t('App Version: %1$s v%2$s', appInfo.name + (isForceGMVariant ? '-ForceGM' : ''), buildVer) + '\n' +
+      t('App Version: %1$s v%2$s', appInfo.name, buildVer) + '\n' +
       t('Platform Version: Tizen %1$s', platformVer ? platformVer : t('Unknown')) + '\n' +
       t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\n' +
       t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
@@ -10283,10 +10267,8 @@ function onWindowLoad() {
     window._normalLaunchWindowLoadPending = true;
     return;
   }
-
-  var isForceGMVariant = checkForceGMVariant();
   var buildVer = getBuildVersion(appInfo.version);
-  console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
+  console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + ' v' + buildVer);
   if (!_directSmartHubLaunch) {
     initSamsungKeys();
     initSpecialKeys();
