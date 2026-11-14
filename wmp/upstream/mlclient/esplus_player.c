@@ -141,6 +141,22 @@ extern void LiRequestIdrFrame(void);
 
 esplus_stats_t esplus_stats;
 esplus_cfg_t esplus_cfg;
+volatile int esplus_performance_stats_enabled;
+
+void esplus_set_performance_stats_enabled(int enabled)
+{
+    __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
+    if (enabled) {
+        __atomic_store_n(&esplus_stats.host_latency_total, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_count, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_min, UINT32_MAX, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_max, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_window_total, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_window_count, 0, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
+    }
+}
 
 static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
 static uint64_t s_stream_clock_origin_ns;
@@ -269,6 +285,7 @@ void esplus_sample_tick(uint64_t now_ms)
                 esplus_stats.playing_ms);
         }
 
+        if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE)) {
         {
             uint32_t submitted = __atomic_load_n(&esplus_stats.submitted, __ATOMIC_RELAXED);
             if (submitted > 0) {
@@ -284,6 +301,7 @@ void esplus_sample_tick(uint64_t now_ms)
                     s_fps_sub0 = submitted;
                 }
             }
+        }
         }
     }
     /* Retry the initial IDR request while no video packet has reached the player.
