@@ -88,6 +88,9 @@ function startESPlusPlayerSession(args) {
     });
   }
 
+  var startupStatus = document.getElementById('loadingSpinnerMessage');
+  if (startupStatus) startupStatus.textContent = t('Starting native service...');
+
   window.ESPlusPlayerTransport.startStream(parameters).catch(function(error) {
     pendingStreamApiMessage = error && error.message
       ? error.message
