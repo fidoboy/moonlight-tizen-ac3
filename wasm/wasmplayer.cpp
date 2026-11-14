@@ -1449,7 +1449,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     } else {
       snprintf(renderedFps, sizeof(renderedFps), "%.2f", stats.renderedFps);
     }
-    append("Frame rates: %s Recv | %s Dec | %s Submit\n",
+    append("Frame rates: %s Recv | %s Dec | %s Accepted\n",
       receivedFps, decodedFps, renderedFps);
 
     if (std::isfinite(stats.receivedBitrate) && stats.receivedBitrate >= 0) {
