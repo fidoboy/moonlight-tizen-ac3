@@ -179,10 +179,10 @@ const SyncFunctions = {
   'toggleStats': (...args) => {
     if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
       if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
-        window.ESPlusPlayerTransport.toggleStats().then(function(response) {
-          var enabled = !!(response && response.payload && response.payload.enabled);
-          handleMessage('StatsStateMsg: ' + (enabled ? '1' : '0'));
-        }).catch(function(error) {
+        // HostProtocol publishes the authoritative StatsStateMsg before its
+        // response. Do not synthesize a second state event from the Promise:
+        // a delayed response can otherwise replay an obsolete visibility state.
+        window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
           console.warn('[messages.js, toggleStats] ESPlusPlayer statistics toggle failed:', error);
         });
       }
@@ -1771,16 +1771,39 @@ function handleMessage(msg) {
       if (performanceStatsEnabled !== nextStatsEnabled) {
         performanceStatsEnabled = nextStatsEnabled;
         resetPerformanceStatsGraph();
+
+        var nativeStatsOverlay = document.getElementById('performance-stats');
+        if (nativeStatsOverlay) {
+          if (nextStatsEnabled) {
+            // Start each native reveal from a clean, hidden state. The overlay
+            // becomes visible only after the service sends a complete snapshot.
+            nativeStatsOverlay.style.display = 'inline-block';
+            nativeStatsOverlay.style.opacity = '0';
+            nativeStatsOverlay.style.visibility = 'hidden';
+            nativeStatsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+            performanceStatsPendingFirstReveal = true;
+          } else {
+            // Invalidate any pending first-reveal work before fading out. The
+            // callback must not clear a newer snapshot if the user re-enables it.
+            fadeOutUiElement(nativeStatsOverlay, function() {
+              if (performanceStatsEnabled !== false) return;
+              nativeStatsOverlay.style.background = 'transparent';
+              nativeStatsOverlay.textContent = '';
+            });
+          }
+        }
       }
     }
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
-    // Hide the overlay for this streaming session without changing the saved preference.
-    if (window._activeStreamingEngine === 'ESPLUSPLAYER') performanceStatsEnabled = false;
-    resetPerformanceStatsGraph();
-    fadeOutUiElement('performance-stats', function() {
-      $('#performance-stats').css('background', 'transparent');
-      $('#performance-stats').text('');
-    });
+    // Common C uses this event directly. For ESPlusPlayer, StatsStateMsg above
+    // already performed the complete transition and this event is redundant.
+    if (window._activeStreamingEngine !== 'ESPLUSPLAYER') {
+      resetPerformanceStatsGraph();
+      fadeOutUiElement('performance-stats', function() {
+        $('#performance-stats').css('background', 'transparent');
+        $('#performance-stats').text('');
+      });
+    }
   } else if (msg.indexOf('EncryptionStatusMsg: ') === 0) {
     var encryptionStatusValue = Number(msg.replace('EncryptionStatusMsg: ', '').trim());
     if (Number.isInteger(encryptionStatusValue) && encryptionStatusValue >= 0) {
