@@ -472,6 +472,15 @@ function resetSettingsRightPaneScroll() {
   if (settingsPane) settingsPane.scrollTop = 0;
 }
 
+// Scroll the settings pane without changing the focus/navigation timing.
+function scrollSettingsPaneTo(settingsPane, top) {
+  if (typeof settingsPane.scrollTo === 'function') {
+    settingsPane.scrollTo({ top: top, behavior: 'smooth' });
+  } else {
+    settingsPane.scrollTop = top;
+  }
+}
+
 function focusElement(target) {
   const element = resolveElement(target);
   const listener = document.getElementById('listener');
@@ -497,7 +506,7 @@ function focusElement(target) {
     const isFirstOption = !!firstOption && settingRow === firstOption;
 
     if (isFirstOption) {
-      settingsPane.scrollTop = 0;
+      scrollSettingsPaneTo(settingsPane, 0);
     } else {
       const paneRect = settingsPane.getBoundingClientRect();
       const rowRect = settingRow.getBoundingClientRect();
@@ -508,9 +517,11 @@ function focusElement(target) {
       const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
 
       if (rowRect.top < visibleTop) {
-        settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top));
+        scrollSettingsPaneTo(settingsPane,
+          Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top)));
       } else if (rowRect.bottom > visibleBottom) {
-        settingsPane.scrollTop += rowRect.bottom - visibleBottom;
+        scrollSettingsPaneTo(settingsPane,
+          settingsPane.scrollTop + rowRect.bottom - visibleBottom);
       }
     }
   }
