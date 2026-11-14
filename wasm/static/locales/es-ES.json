@@ -112,7 +112,6 @@
   "Average decoding time:": "Tiempo medio de decodificación:",
   "Average frame queue delay:": "Retardo medio de la cola de fotogramas:",
   "Average network latency:": "Latencia media de red:",
-  "Average pre-renderer processing time:": "Tiempo medio de procesamiento previo al renderizador:",
   "Average rendering time:": "Tiempo medio de renderizado:",
   "Average renderer submit time:": "Tiempo medio de envío al renderizador:",
   "B": "B",
@@ -634,5 +633,6 @@
   "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. The native engine uses the experimental Tizen playback engine and may not work on every TV.": "- EMSS es el motor de retransmisión consolidado y debería funcionar en todos los televisores Tizen compatibles. El motor nativo utiliza el motor de reproducción nativo experimental de Tizen y puede que no funcione en todos los televisores.",
   "Engine:": "Motor:",
   "Native engine": "Motor nativo",
-  "Native": "Nativo"
+  "Native": "Nativo",
+  "Average processing time:": "Tiempo medio de proceso:"
 }
