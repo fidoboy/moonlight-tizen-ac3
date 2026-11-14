@@ -147,6 +147,9 @@ void esplus_set_performance_stats_enabled(int enabled)
 {
     __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
     if (enabled) {
+        s_fps_t0 = 0;
+        s_fps_sub0 = __atomic_load_n(&esplus_stats.submitted, __ATOMIC_RELAXED);
+        __atomic_store_n(&esplus_stats.fps_submitted, 0, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_total, 0, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_count, 0, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_min, UINT32_MAX, __ATOMIC_RELAXED);
@@ -274,7 +277,9 @@ void esplus_sample_tick(uint64_t now_ms)
          * depth unavailable on that ABI, but calculate accepted video FPS
          * independently so the metric works for both SET and legacy ADD.
          */
-        if (wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
+        if ((__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE) ||
+             esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0) &&
+            wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
             esplus_stats.playing_ms = play > UINT32_MAX ? UINT32_MAX : (uint32_t)play;
             esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
             esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
