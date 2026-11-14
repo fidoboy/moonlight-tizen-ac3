@@ -58,7 +58,7 @@ if [[ "$OFFICIAL_RELEASE" != "true" ]]; then
 fi
 node --check "$index_js"
 build_dir="$ROOT/build-moonlight-web"
-rm -rf "$build_dir" "$OUT/web"
+rm -rf "$build_dir" "$OUT/web" "$OUT/web-standard" "$OUT/web-forcegm"
 mkdir -p "$OUT"
 cmake -DCMAKE_TOOLCHAIN_FILE="$EMSDK/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -73,6 +73,9 @@ test -s "$widget/moonlight-wasm.wasm"
 test -s "$widget/service/service.js"
 cp "$ROOT/res/icon.png" "$widget/"
 node "$ROOT/tools/patch-embind-string.js" "$widget/moonlight-wasm.js"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+  cp -a "$widget" "$OUT/web-standard"
+fi
 if [[ "$FORCE_GAME_MODE" == "true" ]]; then
   sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$widget/config.xml"
   grep -q 'use.game.mode' "$widget/config.xml"
@@ -83,6 +86,14 @@ else
   fi
 fi
 cp -a "$widget" "$OUT/web"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+  cp -a "$widget" "$OUT/web-forcegm"
+  grep -q 'use.game.mode' "$OUT/web-forcegm/config.xml"
+  if grep -q 'use.game.mode' "$OUT/web-standard/config.xml"; then
+    echo "Standard Debug payload unexpectedly contains Samsung Game Mode metadata." >&2
+    exit 1
+  fi
+fi
 for file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
   test -s "$OUT/web/$file"
 done
