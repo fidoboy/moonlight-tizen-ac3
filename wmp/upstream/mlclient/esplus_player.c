@@ -151,6 +151,7 @@ static uint32_t s_fps_sub0;
 
 void esplus_set_performance_stats_enabled(int enabled)
 {
+    pthread_mutex_lock(&s_lock);
     __atomic_store_n(&esplus_performance_stats_enabled, enabled != 0, __ATOMIC_RELEASE);
     if (enabled) {
         s_fps_t0 = 0;
@@ -165,6 +166,7 @@ void esplus_set_performance_stats_enabled(int enabled)
         __atomic_store_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
     }
+    pthread_mutex_unlock(&s_lock);
 }
 static int64_t s_corr_us;
 static volatile int32_t s_corr_ms;
@@ -292,7 +294,6 @@ void esplus_sample_tick(uint64_t now_ms)
         }
 
         if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE)) {
-        {
             uint32_t submitted = __atomic_load_n(&esplus_stats.submitted, __ATOMIC_RELAXED);
             if (submitted > 0) {
                 if (!s_fps_t0) {
@@ -307,7 +308,6 @@ void esplus_sample_tick(uint64_t now_ms)
                     s_fps_sub0 = submitted;
                 }
             }
-        }
         }
     }
     /* Retry the initial IDR request while no video packet has reached the player.
