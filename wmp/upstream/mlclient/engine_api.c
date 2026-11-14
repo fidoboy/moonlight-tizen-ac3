@@ -350,6 +350,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
 
   /* Common C owns transport RTT and RTP audio FEC, independently of the renderer. */
   if (g_audio_enabled) LiGetRTPAudioFecStats(&audio_fec);
+  out->encryption_status = LiGetEncryptionStatus();
   out->video_format = __atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED);
   out->video_width = __atomic_load_n(&esplus_stats.video_width, __ATOMIC_RELAXED);
   out->video_height = __atomic_load_n(&esplus_stats.video_height, __ATOMIC_RELAXED);
