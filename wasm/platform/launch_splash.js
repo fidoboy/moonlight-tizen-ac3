@@ -226,7 +226,10 @@
       var drawTrails = speed >= STAR_TRAIL_MIN_SPEED;
       var trailOpacity = drawTrails ? STAR_TRAIL_MAX_OPACITY * Math.pow(speedRatio, 1.25) : 0;
       var strokeWidth = 0.60 + 0.35 * speedRatio;
-      var projectedStars = [];
+      var opacityBuckets = [];
+      for (var bucketIndex = 0; bucketIndex < 16; bucketIndex++) {
+        opacityBuckets.push({ alpha: bucketIndex / 15, stars: [] });
+      }
 
       for (var i = 0; i < starField.stars.length; i++) {
         var star = starField.stars[i];
@@ -244,45 +247,58 @@
         var depthRatio = 1.0 - star.z / MAX_STAR_DEPTH;
         var starOpacity = STAR_MIN_OPACITY + (1.0 - STAR_MIN_OPACITY) *
           Math.pow(depthRatio, STAR_DEPTH_OPACITY_POWER);
-        projectedStars.push({ x: x, y: y, radius: radius, opacity: starOpacity });
+        var opacityBucket = Math.max(0, Math.min(15, Math.round(starOpacity * 15)));
+        opacityBuckets[opacityBucket].stars.push({
+          x: x, y: y, radius: radius
+        });
       }
 
-      // Batch all trails into one stroke and all star points into one fill,
-      // matching the low-overhead Canvas strategy used by the stream transition.
+      // Preserve depth-based opacity while batching thousands of individual
+      // draw calls into at most 16 strokes and 16 fills on the TV's Canvas 2D.
       if (drawTrails) {
-        context.beginPath();
-        for (var trailIndex = 0; trailIndex < projectedStars.length; trailIndex++) {
-          var trailStar = projectedStars[trailIndex];
-          var dx = trailStar.x - LOGO_CENTER_X;
-          var dy = trailStar.y - LOGO_CENTER_Y;
-          var radialDistance = Math.sqrt(dx * dx + dy * dy);
-          var trailLength = Math.min(
-            STAR_TRAIL_MAX_LENGTH,
-            radialDistance * STAR_TRAIL_RADIAL_FRACTION
-          ) * speedRatio;
+        for (var trailBucketIndex = 0; trailBucketIndex < opacityBuckets.length; trailBucketIndex++) {
+          var trailBucket = opacityBuckets[trailBucketIndex];
+          if (!trailBucket.stars.length) continue;
 
-          if (radialDistance > 1.0 && trailLength >= 0.65) {
-            var tailX = trailStar.x - (dx / radialDistance) * trailLength;
-            var tailY = trailStar.y - (dy / radialDistance) * trailLength;
-            context.moveTo(tailX, tailY);
-            context.lineTo(trailStar.x, trailStar.y);
+          context.beginPath();
+          for (var trailIndex = 0; trailIndex < trailBucket.stars.length; trailIndex++) {
+            var trailStar = trailBucket.stars[trailIndex];
+            var dx = trailStar.x - LOGO_CENTER_X;
+            var dy = trailStar.y - LOGO_CENTER_Y;
+            var radialDistance = Math.sqrt(dx * dx + dy * dy);
+            var trailLength = Math.min(
+              STAR_TRAIL_MAX_LENGTH,
+              radialDistance * STAR_TRAIL_RADIAL_FRACTION
+            ) * speedRatio;
+
+            if (radialDistance > 1.0 && trailLength >= 0.65) {
+              var tailX = trailStar.x - (dx / radialDistance) * trailLength;
+              var tailY = trailStar.y - (dy / radialDistance) * trailLength;
+              context.moveTo(tailX, tailY);
+              context.lineTo(trailStar.x, trailStar.y);
+            }
           }
+          context.globalAlpha = trailOpacity * trailBucket.alpha;
+          context.strokeStyle = '#ffffff';
+          context.lineWidth = strokeWidth;
+          context.stroke();
         }
-        context.globalAlpha = trailOpacity;
-        context.strokeStyle = '#ffffff';
-        context.lineWidth = strokeWidth;
-        context.stroke();
       }
 
-      context.beginPath();
-      for (var pointIndex = 0; pointIndex < projectedStars.length; pointIndex++) {
-        var point = projectedStars[pointIndex];
-        context.moveTo(point.x + point.radius, point.y);
-        context.arc(point.x, point.y, point.radius, 0, Math.PI * 2, false);
+      for (var pointBucketIndex = 0; pointBucketIndex < opacityBuckets.length; pointBucketIndex++) {
+        var pointBucket = opacityBuckets[pointBucketIndex];
+        if (!pointBucket.stars.length) continue;
+
+        context.beginPath();
+        for (var pointIndex = 0; pointIndex < pointBucket.stars.length; pointIndex++) {
+          var point = pointBucket.stars[pointIndex];
+          context.moveTo(point.x + point.radius, point.y);
+          context.arc(point.x, point.y, point.radius, 0, Math.PI * 2, false);
+        }
+        context.globalAlpha = pointBucket.alpha;
+        context.fillStyle = '#ffffff';
+        context.fill();
       }
-      context.globalAlpha = 1.0;
-      context.fillStyle = '#ffffff';
-      context.fill();
       context.globalAlpha = 1.0;
     }
 
