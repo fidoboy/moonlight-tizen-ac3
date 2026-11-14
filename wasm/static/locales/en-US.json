@@ -633,5 +633,7 @@
   "Engine:": "Engine:",
   "Native engine": "Native engine",
   "Native": "Native",
-  "Average processing time:": "Average processing time:"
+  "Average processing time:": "Average processing time:",
+  "Starting native service...": "Starting native service...",
+  "Starting Ambilight service...": "Starting Ambilight service..."
 }
