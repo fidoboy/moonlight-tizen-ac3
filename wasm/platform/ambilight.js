@@ -37,6 +37,11 @@
   var active = false;
   var pending = Promise.resolve();
   var initialization = null;
+  var shutdownPromise = null;
+
+  var SERVICE_STOP_VERIFY_ATTEMPTS = 30;
+  var SERVICE_STOP_VERIFY_DELAY_MS = 100;
+  var SERVICE_LIFECYCLE_TIMEOUT_MS = 5000;
 
   function readReply(data, key) {
     if (!Array.isArray(data)) return null;
@@ -97,10 +102,8 @@
           control,
           SERVICE_APP_ID,
           function() {
-            // The process may be running even if its AppControl reply is delayed.
-            // Do not let a late launch callback resurrect a service already reported unsupported.
-            if ((command === 'initialize' || command === 'start') && initialized && !supported) return;
-            serviceStarted = true;
+            // Process state is updated only after the AppControl reply and lifecycle
+            // verification have completed. A launch callback alone is not readiness.
           },
           function(error) {
             finish(new Error(error && error.message ? error.message : 'Could not launch Ambilight service.'));
@@ -113,11 +116,109 @@
     });
   }
 
-  function serialize(command, settings) {
+  function serialize(command, settings, requireCleanStart) {
     pending = pending.catch(function() {}).then(function() {
+      return requireCleanStart ? stopExistingService() : null;
+    }).then(function() {
       return launch(command, settings);
     });
     return pending;
+  }
+
+  function delay(milliseconds) {
+    return new Promise(function(resolve) {
+      window.setTimeout(resolve, milliseconds);
+    });
+  }
+
+  function getRunningServiceContexts() {
+    return new Promise(function(resolve, reject) {
+      try {
+        if (!window.tizen || !tizen.application ||
+            typeof tizen.application.getAppsContext !== 'function') {
+          throw new Error('Tizen running-application inspection is unavailable.');
+        }
+        var settled = false;
+        var timeoutId = window.setTimeout(function() {
+          if (settled) return;
+          settled = true;
+          reject(new Error('Checking the Ambilight service state timed out.'));
+        }, SERVICE_LIFECYCLE_TIMEOUT_MS);
+        tizen.application.getAppsContext(function(contexts) {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          contexts = Array.isArray(contexts) ? contexts : [];
+          resolve(contexts.filter(function(context) {
+            return context && context.appId === SERVICE_APP_ID;
+          }));
+        }, function(error) {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          reject(new Error('Could not inspect running Ambilight services: ' +
+            (error && error.message ? error.message : String(error))));
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function waitForServiceStopped(attempt) {
+    return getRunningServiceContexts().then(function(contexts) {
+      if (contexts.length === 0) return true;
+      if (attempt >= SERVICE_STOP_VERIFY_ATTEMPTS) {
+        throw new Error('The previous Ambilight service did not stop completely.');
+      }
+      return delay(SERVICE_STOP_VERIFY_DELAY_MS).then(function() {
+        return waitForServiceStopped(attempt + 1);
+      });
+    });
+  }
+
+  function stopExistingService() {
+    return getRunningServiceContexts().then(function(contexts) {
+      if (contexts.length === 0) return true;
+      if (!tizen.application || typeof tizen.application.kill !== 'function') {
+        throw new Error('Tizen application termination is unavailable; a clean Ambilight start cannot be guaranteed.');
+      }
+      return contexts.reduce(function(chain, context) {
+        return chain.then(function() {
+          return new Promise(function(resolve, reject) {
+            var settled = false;
+            var timeoutId = window.setTimeout(function() {
+              if (settled) return;
+              settled = true;
+              reject(new Error('Stopping the previous Ambilight service timed out.'));
+            }, SERVICE_LIFECYCLE_TIMEOUT_MS);
+            function finish(error) {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timeoutId);
+              if (error) reject(error);
+              else resolve();
+            }
+            try {
+              tizen.application.kill(context.id, function() {
+                finish();
+              }, function(error) {
+                if (error && error.name === 'NotFoundError') {
+                  finish();
+                  return;
+                }
+                finish(new Error('Could not stop the previous Ambilight service: ' +
+                  (error && error.message ? error.message : String(error))));
+              });
+            } catch (error) {
+              finish(error);
+            }
+          });
+        });
+      }, Promise.resolve()).then(function() {
+        return waitForServiceStopped(0);
+      });
+    });
   }
 
   function initialize() {
@@ -137,15 +238,23 @@
     initialization = serialize('initialize').then(function(result) {
       initialized = true;
       supported = result.supported === true && result.ok !== false;
-      serviceStarted = supported;
+      serviceStarted = false;
       active = false;
-      return supported;
+      // The capability probe exits its ServiceApplication after replying.
+      // Verify that it is gone before allowing a later stream to start.
+      return stopExistingService().then(function() {
+        return supported;
+      });
     }).catch(function(error) {
       initialized = true;
       supported = false;
       serviceStarted = false;
       active = false;
-      throw error;
+      return stopExistingService().catch(function(cleanupError) {
+        console.warn('[ambilight] Could not clean up after capability probe:', cleanupError);
+      }).then(function() {
+        throw error;
+      });
     });
     return initialization;
   }
@@ -161,7 +270,7 @@
       if (!ip) return Promise.reject(new Error('WLED IP address is required.'));
       return initialize().then(function(available) {
         if (!available) throw new Error('Ambilight capture is not supported on this TV.');
-        return serialize('start', { ip: ip, port: port, ledCount: ledCount });
+        return serialize('start', { ip: ip, port: port, ledCount: ledCount }, true);
       }).then(function(result) {
         if (result.supported === false) {
           supported = false;
@@ -174,36 +283,56 @@
         serviceStarted = true;
         active = true;
         return result;
+      }).catch(function(error) {
+        serviceStarted = false;
+        active = false;
+        return stopExistingService().catch(function(cleanupError) {
+          console.warn('[ambilight] Could not clean up after failed startup:', cleanupError);
+        }).then(function() {
+          throw error;
+        });
       });
     },
 
     stop: function() {
-      return initialize().then(function(available) {
-        if (!available || !serviceStarted) return null;
-        return serialize('stop').then(function(result) {
-          if (!result.ok) throw new Error(result.error || 'Ambilight capture could not be stopped.');
-          active = false;
-          return result;
-        });
+      if (!serviceStarted) {
+        active = false;
+        return Promise.resolve(null);
+      }
+      return serialize('stop').then(function(result) {
+        if (!result.ok) throw new Error(result.error || 'Ambilight capture could not be stopped.');
+        active = false;
+        return result;
       });
     },
 
     shutdown: function() {
-      return pending.catch(function() {}).then(function() {
-        if (!serviceStarted) {
-          active = false;
-          return null;
-        }
+      if (shutdownPromise) return shutdownPromise;
+      shutdownPromise = pending.catch(function() {}).then(function() {
+        if (!serviceStarted) return stopExistingService();
         return launch('shutdown').then(function(result) {
-          serviceStarted = false;
-          active = false;
-          initialized = false;
-          supported = false;
-          initialization = null;
           if (!result.ok) throw new Error(result.error || 'Ambilight service could not be stopped.');
-          return result;
+          return waitForServiceStopped(0);
+        }).catch(function(error) {
+          console.warn('[ambilight] Graceful shutdown failed; forcing service termination:', error);
+          return stopExistingService();
         });
+      }).then(function() {
+        serviceStarted = false;
+        active = false;
+        return true;
+      }).catch(function(error) {
+        serviceStarted = false;
+        active = false;
+        throw error;
+      }).then(function(result) {
+        shutdownPromise = null;
+        return result;
+      }, function(error) {
+        shutdownPromise = null;
+        throw error;
       });
+      return shutdownPromise;
     },
 
     isActive: function() { return active; }
