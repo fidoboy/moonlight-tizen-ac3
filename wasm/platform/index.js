@@ -1120,7 +1120,7 @@ function installNavigationTooltipActionHiding() {
 function maybePrepareNormalStartup() {
   // Normal launch waits for locale and all settings shown in the summary strip.
   // Direct Smart Hub launches retain their existing direct-stream startup path.
-  if (_directSmartHubLaunch || !isStartupLocaleReady ||
+  if (_directSmartHubLaunch || !isStartupWindowLoaded || !isStartupLocaleReady ||
       isNormalStartupPreparationStarted || isNormalStartupPrepared) {
     return;
   }
