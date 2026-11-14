@@ -649,7 +649,7 @@ namespace MoonlightWmpHost
 
             text.Append("Frame rates: ")
                 .Append(stream.VideoFpsReceived.ToString("0.00", CultureInfo.InvariantCulture)).Append(" Recv | ")
-                .Append("- Dec | ")
+                .Append(stream.VideoFpsDecoded.ToString("0.00", CultureInfo.InvariantCulture)).Append(" Dec | ")
                 .Append(stream.VideoFpsRendered.ToString("0.00", CultureInfo.InvariantCulture)).Append(" Accepted\n");
 
             if (stream.VideoBitrateKbps != 0)
@@ -671,10 +671,11 @@ namespace MoonlightWmpHost
             else
                 text.Append("N/A\n");
 
-            // ESPlusPlayer does not expose decoder completion timing or a video queue-delay
-            // measurement. Keep the EMSS labels and show unavailable values rather than
-            // substituting Common C reassembly time or submit-call duration.
-            text.Append("Average decoding time: -\n");
+            // Match EMSS pre-submit processing time (enqueue to native submit), not decoder hardware execution.
+            text.Append("Average decoding time: ")
+                .Append(stream.AverageDecodeUs != 0
+                    ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
+                    : "-").Append("\n");
             text.Append("Average frame queue delay: -\n");
             text.Append("Average renderer submit time: ")
                 .Append(stream.AverageRenderUs != 0
