@@ -240,16 +240,21 @@ static int VidDecSubmit(PDECODE_UNIT du)
     int64_t pts_ms;
 
     ++s_video_units;
-    __atomic_fetch_add(&esplus_stats.video_frames_received, 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&esplus_stats.video_total_frames, 1, __ATOMIC_RELAXED);
+    const int collect_stats = __atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE);
+    if (collect_stats) {
+        __atomic_fetch_add(&esplus_stats.video_frames_received, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&esplus_stats.video_total_frames, 1, __ATOMIC_RELAXED);
+    }
     if (!s_have_frame_number) {
         s_last_frame_number = du->frameNumber;
         s_have_frame_number = 1;
     } else if (du->frameNumber > s_last_frame_number) {
         uint32_t missing = du->frameNumber - s_last_frame_number - 1;
         if (missing) {
-            __atomic_fetch_add(&esplus_stats.video_network_dropped_frames, missing, __ATOMIC_RELAXED);
-            __atomic_fetch_add(&esplus_stats.video_total_frames, missing, __ATOMIC_RELAXED);
+            if (collect_stats) {
+                __atomic_fetch_add(&esplus_stats.video_network_dropped_frames, missing, __ATOMIC_RELAXED);
+                __atomic_fetch_add(&esplus_stats.video_total_frames, missing, __ATOMIC_RELAXED);
+            }
         }
         s_last_frame_number = du->frameNumber;
     } else {
@@ -279,10 +284,11 @@ static int VidDecSubmit(PDECODE_UNIT du)
         memcpy(s_scratch + offset, entry->data, (size_t)entry->length);
         offset += (size_t)entry->length;
     }
-    __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
+    if (collect_stats)
+        __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
     if (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_MASK_H264)
         capture_h264_level(s_scratch, offset);
-    {
+    if (collect_stats) {
         uint64_t decode_end_us = LiGetMicroseconds();
         if (du->enqueueTimeUs >= du->receiveTimeUs)
             __atomic_fetch_add(&esplus_stats.total_reassembly_us,
@@ -339,8 +345,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
         }
         if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
             uint64_t submit_end_us = LiGetMicroseconds();
-            __atomic_fetch_add(&esplus_stats.video_frames_rendered, 1, __ATOMIC_RELAXED);
-            if (submit_end_us >= submit_start_us)
+            if (collect_stats) __atomic_fetch_add(&esplus_stats.video_frames_rendered, 1, __ATOMIC_RELAXED);
+            if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
         }
