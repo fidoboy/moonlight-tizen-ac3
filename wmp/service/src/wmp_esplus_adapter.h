@@ -163,10 +163,14 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_ecore_display(
     int x, int y, int width, int height);
 wmp_esplus_call_result_t wmp_esplus_adapter_set_display_mode(
     wmp_esplus_adapter_t *adapter, int display_mode);
-/* Playing-time query is optional and currently used only by the legacy ADD path. */
+/* Playback clock and absolute seek are optional capabilities, independent of stream ABI family. */
 int wmp_esplus_adapter_has_playing_time(const wmp_esplus_adapter_t *adapter);
 int wmp_esplus_adapter_get_playing_time(
     wmp_esplus_adapter_t *adapter, uint64_t *playing_time_ms);
+int wmp_esplus_adapter_has_seek(const wmp_esplus_adapter_t *adapter);
+/* Returns the native esplusplayer_seek() result; -1 means unavailable/invalid adapter. */
+int wmp_esplus_adapter_seek(
+    wmp_esplus_adapter_t *adapter, uint64_t playing_time_ms);
 /* Returns Samsung's static error description, or NULL when the optional API is absent. */
 const char *wmp_esplus_adapter_get_error_string(
     const wmp_esplus_adapter_t *adapter, int error);
