@@ -114,6 +114,7 @@ jobs:
             '
       - name: Restore compiler cache ownership after WMP build
         if: always()
+      - name: Build Moonlight Web files inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
@@ -158,11 +159,8 @@ jobs:
         run: |
           set -euo pipefail
           cp -a "$RUNNER_TEMP/moonlight-web/web" "$RUNNER_TEMP/web"
-            test -s "$project/config.xml"
-            test -s "$project/index.html"
-            test -s "$project/moonlight-wasm.js"
-            test -s "$project/moonlight-wasm.wasm"
-            test -s "$project/service/service.js"
+          for file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
+            test -s "$RUNNER_TEMP/web/$file"
           done
 
       - name: Package the Tizen Core hybrid workspaces
@@ -686,7 +684,7 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard hybrid WGT for Apps2Samsung
+      - name: Upload Debug hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
           name: Moonlight-Debug-${{ github.sha }}
