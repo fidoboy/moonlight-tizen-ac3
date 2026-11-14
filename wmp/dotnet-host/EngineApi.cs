@@ -53,6 +53,10 @@ namespace MoonlightWmpHost
             public uint HostLatencyMinTenthsMs;
             public uint HostLatencyMaxTenthsMs;
             public uint HostLatencyAvgTenthsMs;
+            public uint VideoDroppedFramesInterval;
+            public uint AudioFecRecovered;
+            public uint AudioFecFailed;
+            public uint AudioFecOutOfOrder;
         }
 
         // Layout mirrors wmp/service/src/wmp_esplus_abi.h. Function pointers are
