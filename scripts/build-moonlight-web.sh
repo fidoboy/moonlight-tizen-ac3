@@ -53,7 +53,7 @@ if [[ "$OFFICIAL_RELEASE" != "true" ]]; then
 fi
 node --check "$index_js"
 build_dir="$ROOT/build-moonlight-web"
-rm -rf "$build_dir" "$OUT/web"
+rm -rf "$build_dir" "$OUT/web-standard" "$OUT/web-forcegm"
 mkdir -p "$OUT"
 cmake -DCMAKE_TOOLCHAIN_FILE="$EMSDK/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -68,10 +68,15 @@ test -s "$widget/moonlight-wasm.wasm"
 test -s "$widget/service/service.js"
 cp "$ROOT/res/icon.png" "$widget/"
 node "$ROOT/tools/patch-embind-string.js" "$widget/moonlight-wasm.js"
-sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$widget/config.xml"
-grep -q 'use.game.mode' "$widget/config.xml"
-cp -a "$widget" "$OUT/web"
-for file in config.xml index.html moonlight-wasm.js moonlight-wasm.wasm service/service.js; do
-  test -s "$OUT/web/$file"
+cp -a "$widget" "$OUT/web-standard"
+cp -a "$widget" "$OUT/web-forcegm"
+sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' "$OUT/web-forcegm/config.xml"
+grep -q 'use.game.mode' "$OUT/web-forcegm/config.xml"
+for project in "$OUT/web-standard" "$OUT/web-forcegm"; do
+  test -s "$project/config.xml"
+  test -s "$project/index.html"
+  test -s "$project/moonlight-wasm.js"
+  test -s "$project/moonlight-wasm.wasm"
+  test -s "$project/service/service.js"
 done
-echo "Single Moonlight Web payload with Samsung Game Mode metadata built."
+echo "Moonlight Web standard and ForceGM payloads built inside the shared Tizen image."
