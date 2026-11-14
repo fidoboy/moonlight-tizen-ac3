@@ -112,6 +112,7 @@
   "Average decoding time:": "Average decoding time:",
   "Average frame queue delay:": "Average frame queue delay:",
   "Average network latency:": "Average network latency:",
+  "Average pre-renderer processing time:": "Average pre-renderer processing time:",
   "Average rendering time:": "Average rendering time:",
   "Average renderer submit time:": "Average renderer submit time:",
   "B": "B",
