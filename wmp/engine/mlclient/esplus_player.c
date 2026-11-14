@@ -209,10 +209,11 @@ static void load_cfg(void)
     /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
     if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
         esplus_cfg.latency_mode = ESPLUS_LAT_OFF;
-    MLT("cfg latency=%d target=%d nudge=%d drop_after=%d poll=%d family=%s",
+    MLT("cfg latency=%d target=%d nudge=%d drop_after=%d poll=%d catchup=%d family=%s",
         esplus_cfg.latency_mode, esplus_cfg.target_depth_ms,
         esplus_cfg.nudge_max_ms_per_s, esplus_cfg.drop_after_ms,
-        esplus_cfg.depth_poll_ms, wmp_esplus_family_name(s_api.selected_family));
+        esplus_cfg.depth_poll_ms, esplus_cfg.catchup_ms,
+        wmp_esplus_family_name(s_api.selected_family));
 }
 
 static void nudge(int32_t depth, uint64_t now_ms)
