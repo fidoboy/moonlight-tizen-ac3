@@ -58,6 +58,7 @@ namespace MoonlightWmpHost
             public uint AudioFecFailed;
             public uint AudioFecOutOfOrder;
             public uint VideoFpsTotal;
+            public int EncryptionStatus;
         }
 
         // Layout mirrors wmp/service/src/wmp_esplus_abi.h. Function pointers are
