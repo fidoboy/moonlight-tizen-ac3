@@ -8747,6 +8747,7 @@ function initSamsungKeys() {
       //'VolumeUp',      // F10
       'ChannelDown',     // F11
       'ChannelUp',       // F12
+      'Guide',
       'MediaPlayPause',
       'MediaPause',
       'MediaPlay',
@@ -8780,6 +8781,7 @@ function initDirectSamsungKeys() {
     initRemoteController: true,
     focusId: 'wasm_module',
     buttonsToRegister: [
+      'Guide',
       'MediaPlayPause',
       'MediaPause',
       'MediaPlay'
