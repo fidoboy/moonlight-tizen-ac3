@@ -1,4 +1,4 @@
-/* Recreates the original 8.6-second launch presentation in the WebApp.
+/* Recreates the launch presentation in the WebApp with a shorter final hold.
  * The Python generator in res/generate-launch-screen.py is the source of truth
  * for geometry, timing, starfield physics and the deterministic random seed.
  */
@@ -6,7 +6,7 @@
   'use strict';
 
   var FPS = 30;
-  var TOTAL_FRAMES = 258;
+  var TOTAL_FRAMES = 198; // 6.6 seconds: shorten the original presentation by 2 seconds.
   var ANIMATED_FRAME_COUNT = 168;
   // Keep a barely perceptible star drift after the logo settles, rather than
   // freezing the background during the final hold and UI hand-off.
@@ -473,7 +473,8 @@
       audioContext = usingAudioClock ? playback.context : null;
       if (usingAudioClock) {
         animationStartAudioTime = playback.startTime;
-        durationMs = Math.max(durationMs, playback.duration * 1000);
+        // The shortened visual presentation owns the hand-off time; the shared
+        // splash sound is stopped when this duration completes.
       } else {
         silentFallbackStartTime = nowMilliseconds();
       }
