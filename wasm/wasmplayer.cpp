@@ -1469,7 +1469,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     }
 
     if (stats.totalFrames > 0 && stats.networkDroppedFrames <= stats.totalFrames) {
-      append("Frames dropped by your network connection: %.2f%%\n",
+      append("Frames missing from stream: %.2f%%\n",
         100.0 * static_cast<double>(stats.networkDroppedFrames) /
         static_cast<double>(stats.totalFrames));
     } else {
