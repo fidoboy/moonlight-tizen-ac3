@@ -29,6 +29,9 @@ typedef struct {
   volatile uint64_t total_reassembly_us, total_decode_us, total_render_us;
   volatile uint64_t host_latency_total;
   volatile uint32_t host_latency_count, host_latency_min, host_latency_max;
+  /* Per-poll host-latency window, atomically exchanged by engine_api.c. */
+  volatile uint64_t host_latency_window_total;
+  volatile uint32_t host_latency_window_count, host_latency_window_min, host_latency_window_max;
 } esplus_stats_t;
 
 enum { ESPLUS_LAT_OFF, ESPLUS_LAT_NUDGE, ESPLUS_LAT_ARRIVAL };
