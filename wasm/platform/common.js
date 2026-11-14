@@ -167,5 +167,23 @@ var common = (function() {
 // Listen for the DOM content to be loaded. This event is fired when parsing of
 // the page's document has finished.
 document.addEventListener('DOMContentLoaded', function() {
+  // Hold all normal application initialization until the HTML presentation ends.
+  // Direct Smart Hub launches bypass the presentation and keep their immediate path.
+  if (!window._directSmartHubLaunch && typeof window.startHtmlLaunchSplash === 'function') {
+    var completionCalled = false;
+    var started = window.startHtmlLaunchSplash(function() {
+      completionCalled = true;
+      common.domContentLoaded();
+
+      // The window load event may have fired while the presentation was running.
+      // Replay its normal startup handler only after common listeners are installed.
+      if (window._normalLaunchWindowLoadPending && typeof window.onload === 'function') {
+        window._normalLaunchWindowLoadPending = false;
+        window.onload();
+      }
+    });
+    if (started || completionCalled) return;
+  }
+
   common.domContentLoaded();
 });
