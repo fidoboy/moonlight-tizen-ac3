@@ -112,7 +112,6 @@
   "Average decoding time:": "Average decoding time:",
   "Average frame queue delay:": "Average frame queue delay:",
   "Average network latency:": "Average network latency:",
-  "Average pre-renderer processing time:": "Average pre-renderer processing time:",
   "Average rendering time:": "Average rendering time:",
   "Average renderer submit time:": "Average renderer submit time:",
   "B": "B",
@@ -633,5 +632,6 @@
   "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. The native engine uses the experimental Tizen playback engine and may not work on every TV.": "- EMSS is the established streaming engine and is expected to work on all supported Tizen TVs. The native engine uses the experimental native Tizen playback engine and may not work on every TV.",
   "Engine:": "Engine:",
   "Native engine": "Native engine",
-  "Native": "Native"
+  "Native": "Native",
+  "Average processing time:": "Average processing time:"
 }
