@@ -6,8 +6,8 @@ on:
       - 1.2.4-pre
     paths:
       - 'docker/tizen-build-env/**'
-      - 'wmp/upstream/build/fetch-tizen-sources.sh'
-      - 'wmp/upstream/build/build-static-crypto.sh'
+      - 'wmp/engine/build/fetch-tizen-sources.sh'
+      - 'wmp/engine/build/build-static-crypto.sh'
       - '.github/workflows/build-tizen-build-env.yml'
   workflow_dispatch:
   workflow_call:
