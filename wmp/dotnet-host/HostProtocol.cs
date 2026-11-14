@@ -659,7 +659,7 @@ namespace MoonlightWmpHost
             text.Append("Frame rates: ")
                 .Append(stream.VideoFpsReceived.ToString(CultureInfo.InvariantCulture)).Append(" Recv | ")
                 .Append(stream.VideoFpsDecoded.ToString(CultureInfo.InvariantCulture)).Append(" Dec | ")
-                .Append(stream.VideoFpsRendered.ToString(CultureInfo.InvariantCulture)).Append(" Submit\n");
+                .Append(stream.VideoFpsRendered.ToString(CultureInfo.InvariantCulture)).Append(" Accepted\n");
             if (stream.VideoBitrateKbps != 0)
                 text.Append("Incoming bitrate from network: ")
                     .Append((stream.VideoBitrateKbps / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
