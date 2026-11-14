@@ -300,8 +300,8 @@ vm.runInNewContext(source, {
     window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'}),
     /invalid_start_arguments: opticalOutputEnabled/
   );
-  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 1,
-    'a failed prior stream attempt must not reuse its service process on the next attempt');
+  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 2,
+    'a new stream must stop the previous process, and a rejected startup must stop its own new process');
   const debugOutput = JSON.stringify(debugEntries);
   assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
   assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
