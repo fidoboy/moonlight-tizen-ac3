@@ -227,6 +227,7 @@
       var drawTrails = speed >= STAR_TRAIL_MIN_SPEED;
       var trailOpacity = drawTrails ? STAR_TRAIL_MAX_OPACITY * Math.pow(speedRatio, 1.25) : 0;
       var strokeWidth = 0.60 + 0.35 * speedRatio;
+      var projectedStars = [];
 
       for (var i = 0; i < starField.stars.length; i++) {
         var star = starField.stars[i];
@@ -244,10 +245,15 @@
         var depthRatio = 1.0 - star.z / MAX_STAR_DEPTH;
         var starOpacity = STAR_MIN_OPACITY + (1.0 - STAR_MIN_OPACITY) *
           Math.pow(depthRatio, STAR_DEPTH_OPACITY_POWER);
+        projectedStars.push({ x: x, y: y, radius: radius, opacity: starOpacity });
+      }
 
-        if (drawTrails) {
-          var dx = x - LOGO_CENTER_X;
-          var dy = y - LOGO_CENTER_Y;
+      // Match the SVG generator's two groups: every trail is behind every point.
+      if (drawTrails) {
+        for (var trailIndex = 0; trailIndex < projectedStars.length; trailIndex++) {
+          var trailStar = projectedStars[trailIndex];
+          var dx = trailStar.x - LOGO_CENTER_X;
+          var dy = trailStar.y - LOGO_CENTER_Y;
           var radialDistance = Math.sqrt(dx * dx + dy * dy);
           var trailLength = Math.min(
             STAR_TRAIL_MAX_LENGTH,
@@ -255,22 +261,25 @@
           ) * speedRatio;
 
           if (radialDistance > 1.0 && trailLength >= 0.65) {
-            var tailX = x - (dx / radialDistance) * trailLength;
-            var tailY = y - (dy / radialDistance) * trailLength;
-            context.globalAlpha = trailOpacity * starOpacity;
+            var tailX = trailStar.x - (dx / radialDistance) * trailLength;
+            var tailY = trailStar.y - (dy / radialDistance) * trailLength;
+            context.globalAlpha = trailOpacity * trailStar.opacity;
             context.strokeStyle = '#ffffff';
             context.lineWidth = strokeWidth;
             context.beginPath();
             context.moveTo(tailX, tailY);
-            context.lineTo(x, y);
+            context.lineTo(trailStar.x, trailStar.y);
             context.stroke();
           }
         }
+      }
 
-        context.globalAlpha = starOpacity;
+      for (var pointIndex = 0; pointIndex < projectedStars.length; pointIndex++) {
+        var point = projectedStars[pointIndex];
+        context.globalAlpha = point.opacity;
         context.fillStyle = '#ffffff';
         context.beginPath();
-        context.arc(x, y, radius, 0, Math.PI * 2, false);
+        context.arc(point.x, point.y, point.radius, 0, Math.PI * 2, false);
         context.fill();
       }
       context.globalAlpha = 1.0;
