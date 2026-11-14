@@ -5835,7 +5835,6 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       // In-flight callbacks also observe isInGame and cannot schedule another poll.
       stopPollingHosts();
       isInGame = true;
-      startAmbilightForStream();
       if (typeof getSelectedStreamingEngine !== 'function' ||
           getSelectedStreamingEngine() !== 'ESPLUSPLAYER') {
         fullscreenWasmModule(streamWidth, streamHeight);
@@ -6154,6 +6153,11 @@ function startGame(host, appID) {
         }
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
+
+      // Ambilight has its own transition phase and starts independently of the
+      // selected video engine. Its failure must not block the game stream.
+      await startAmbilightForStream(true);
+      if (!isStreamStartupCurrent(startupGeneration)) return;
 
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
@@ -7433,7 +7437,7 @@ function saveAmbilightPreference() {
     updateAmbilightSettingsVisibility();
 
     if (enabled) {
-      if (isInGame) startAmbilightForStream();
+      if (isInGame) startAmbilightForStream(false);
     } else if (window.moonlightAmbilight) {
       window.moonlightAmbilight.stop().catch(function(error) {
         console.warn('[ambilight] Could not stop capture:', error);
@@ -7448,31 +7452,55 @@ function saveAmbilightWledIp() {
 
   if (ambilightSupportState === 'supported' &&
       $('#ambilightSwitch').prop('checked') === true && isInGame) {
-    startAmbilightForStream();
+    startAmbilightForStream(false);
   }
 }
 
-function startAmbilightForStream() {
-  if (!window.moonlightAmbilight) return;
+function readAmbilightStoredValue(key) {
+  return new Promise(function(resolve) {
+    getData(key, function(data) {
+      resolve(data || {});
+    });
+  });
+}
+
+function startAmbilightForStream(showTransitionStatus) {
+  if (!window.moonlightAmbilight) return Promise.resolve(false);
 
   return initializeAmbilightSupport().then(function(supported) {
-    if (!supported) return null;
-    getData('ambilightEnabled', function(enabledData) {
-      if (!enabledData || enabledData.ambilightEnabled !== true) return;
-      getData('ambilightWledIp', function(ipData) {
-        var ip = ipData && ipData.ambilightWledIp;
-        if (!ip) {
-          console.warn('[ambilight] Enabled but no WLED IP address is configured.');
-          return;
-        }
-        window.moonlightAmbilight.start(ip, 21324, 73).catch(function(error) {
-          console.warn('[ambilight] Could not start capture:', error);
-          if (window.moonlightAmbilight && !window.moonlightAmbilight.isSupported()) {
-            updateAmbilightAvailability(false);
-          }
-        });
-      });
+    if (!supported) return false;
+    return Promise.all([
+      readAmbilightStoredValue('ambilightEnabled'),
+      readAmbilightStoredValue('ambilightWledIp')
+    ]);
+  }).then(function(settings) {
+    if (!settings) return false;
+    var enabledData = settings[0];
+    var ipData = settings[1];
+    if (!enabledData || enabledData.ambilightEnabled !== true) return false;
+    var ip = ipData && ipData.ambilightWledIp;
+    if (!ip) {
+      console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+      return false;
+    }
+
+    if (showTransitionStatus === true) {
+      var status = document.getElementById('loadingSpinnerMessage');
+      if (status) status.textContent = t('Starting Ambilight service...');
+    }
+
+    return window.moonlightAmbilight.start(ip, 21324, 73).then(function() {
+      return true;
+    }).catch(function(error) {
+      console.warn('[ambilight] Could not start capture:', error);
+      if (window.moonlightAmbilight && !window.moonlightAmbilight.isSupported()) {
+        updateAmbilightAvailability(false);
+      }
+      return false;
     });
+  }).catch(function(error) {
+    console.warn('[ambilight] Could not prepare service for this stream:', error);
+    return false;
   });
 }
 
