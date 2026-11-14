@@ -70,6 +70,7 @@ function ensureNavigationAudioContext() {
 // Prepare the launch presentation with the same Web Audio engine used by the UI.
 // This deliberately does not change the user's navigation-sound preference.
 function prepareLaunchSplashAudio() {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
   var context;
   try {
     context = ensureNavigationAudioContext();
@@ -123,6 +124,7 @@ function resumeNavigationAudioContext(context) {
 }
 
 function playLaunchSplashSound() {
+  if (window._directSmartHubLaunch) return null;
   var context = navigationSoundContext;
   if (!context || context.state !== 'running' || !launchSplashSoundBuffer) {
     throw new Error('The launch presentation audio has not been prepared.');
@@ -191,6 +193,7 @@ function initializeNavigationAudioEngine() {
 }
 
 function closeNavigationAudioEngine() {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
   ++navigationSoundLifecycleId;
   navigationSoundEnabled = false;
 
@@ -232,6 +235,7 @@ function closeNavigationAudioEngine() {
 }
 
 function setNavigationSoundEnabled(enabled) {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
   if (enabled !== true) return closeNavigationAudioEngine();
 
   navigationSoundEnabled = true;
@@ -261,7 +265,7 @@ function setNavigationSoundEnabled(enabled) {
 }
 
 function playNavigationSound() {
-  if (!navigationSoundEnabled || isInGame === true) return;
+  if (window._directSmartHubLaunch || !navigationSoundEnabled || isInGame === true) return;
 
   if (!navigationSoundContext || !navigationSoundBuffer) {
     initializeNavigationAudioEngine().then(function() {
