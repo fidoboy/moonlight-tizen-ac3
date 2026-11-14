@@ -10069,7 +10069,7 @@ function createConfigSummaryBar() {
     { label: 'HDR', id: 'summaryHdr', toggle: true, icon: 'static/res/ic_summary_hdr.svg' },
     { label: 'Codec', id: 'summaryCodec', icon: 'static/res/ic_summary_codec.svg' },
     { label: 'Dolby', id: 'summaryDolby', toggle: true, icon: 'static/res/ic_dolby_double_d.svg' },
-    { label: 'Audio', id: 'summaryAudio', icon: 'static/res/ic_summary_audio.svg' },
+    { label: 'Audio', id: 'summaryAudio', toggle: true, icon: 'static/res/ic_summary_audio.svg' },
     { label: 'Game mode summary', id: 'summaryGameMode', toggle: true, icon: 'static/res/ic_summary_gamepad.svg' }
   ];
 
@@ -10229,6 +10229,11 @@ function updateConfigSummaryBar() {
   setSummaryText('#summaryCodec', codec);
   setSummaryText('#summaryPlaybackEngine', playbackEngine);
   setSummaryText('#summaryAudio', audio);
+  var audioSummary = document.getElementById('summaryAudio');
+  if (audioSummary) {
+    audioSummary.classList.toggle('is-off', audioDisabled);
+    audioSummary.classList.remove('is-on');
+  }
   var dolbySummaryItem = bar.querySelector('[data-summary-id="summaryDolby"]');
   if (dolbySummaryItem) dolbySummaryItem.style.display = audioDisabled ? 'none' : '';
   toggleFor('#optimizeBitrateSwitch', '#summaryOptimalBitrate');
