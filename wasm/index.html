@@ -57,31 +57,6 @@
   <script type="text/javascript" src="platform.js"></script>
 </head>
 <body data-name="moonlight-tizen" data-tools="emscripten" data-configs="Debug Release" data-path="{tc}/{config}">
-  <div id="launch-splash" aria-hidden="true">
-    <canvas id="launch-splash-stars" width="1280" height="720"></canvas>
-    <svg id="launch-splash-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet">
-      <g id="logo-group" transform="translate(639.84 274.84) scale(0.78) translate(-128 -128)">
-        <circle id="background-circle" cx="128" cy="128" r="128" fill="#565c64" opacity="0"/>
-        <path id="sector-0" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" fill="#fff" opacity="0"/>
-        <path id="sector-1" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(45 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-2" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(90 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-3" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(135 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-4" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(180 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-5" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(225 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-6" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(270 128 128)" fill="#fff" opacity="0"/>
-        <path id="sector-7" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(315 128 128)" fill="#fff" opacity="0"/>
-      </g>
-      <text id="app-name" x="640" y="485" font-family="DejaVu Sans, sans-serif" font-size="54" fill="#f5f5f5" text-anchor="middle" opacity="0">Moonlight</text>
-      <g id="dolby-logo" opacity="0">
-        <g transform="translate(640 540) scale(2.2) translate(-12 -12)">
-          <path fill="#fff" fill-rule="evenodd" transform="translate(0 3.7)"
-            d="M1 3.5H23V20.3H1Z M4.2 6.5166v10.9668h1.6172c3.0212 0 5.4847-2.4622 5.4847-5.4834s-2.4635-5.4834-5.4847-5.4834H4.2z M18.1828 6.5166c-3.0212 0-5.4847 2.4622-5.4847 5.4834s2.4635 5.4834 5.4847 5.4834H19.8V6.5166h-1.6172z"/>
-        </g>
-      </g>
-    </svg>
-    <audio id="launch-splash-audio" src="static/res/launch-screen.mp3" preload="auto"></audio>
-  </div>
-  <script type="text/javascript" src="platform/launch_splash.js"></script>
   <div id="stream-transition-layer" aria-hidden="true">
     <canvas id="stream-transition-frame" width="0" height="0" aria-hidden="true"></canvas>
     <div id="loadingSpinner" class="loading-spinner">
