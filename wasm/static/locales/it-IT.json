@@ -630,5 +630,7 @@
   "Engine:": "Motore:",
   "Native engine": "Motore nativo",
   "Native": "Nativo",
-  "Average processing time:": "Tempo medio di elaborazione:"
+  "Average processing time:": "Tempo medio di elaborazione:",
+  "Starting native service...": "Avvio del servizio nativo...",
+  "Starting Ambilight service...": "Avvio del servizio Ambilight..."
 }
