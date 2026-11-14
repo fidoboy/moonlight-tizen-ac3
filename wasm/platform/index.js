@@ -1,4 +1,3 @@
-// Tizen's native splash overlays the normal WebUI until hideNativeLaunchScreen() is called.
 
 // Build-time logging controls. The release build stays quiet unless DEBUG_MODE is injected by CI.
 var DEBUG_MODE = false;
@@ -175,9 +174,8 @@ var isStartupUiRestored = false;
 var isDeferredStartupScheduled = false;
 var isDeferredStartupStarted = false;
 var deferredStartupTimeout = null;
-var isNativeLaunchScreenReleaseStarted = false;
-var isNativeLaunchScreenReleased = false;
-var nativeLaunchScreenReleaseTimeout = null;
+var isNormalStartupPreparationStarted = false;
+var isNormalStartupPrepared = false;
 var isSubnetScanFinished = false; // Indicates if the initial subnet scan has completed
 var subnetScannerLoadPromise = null;
 
@@ -992,21 +990,8 @@ function changeUiModeForWasmLoad() {
   $('#wasmSpinnerMessage, #loadingSpinnerTitle, #loadingSpinnerMessage').empty();
 }
 
-function hideNativeLaunchScreen() {
-  if (isNativeLaunchScreenReleased) return;
-  isNativeLaunchScreenReleased = true;
-  if (nativeLaunchScreenReleaseTimeout !== null) {
-    window.clearTimeout(nativeLaunchScreenReleaseTimeout);
-    nativeLaunchScreenReleaseTimeout = null;
-  }
-
-  try {
-    if (window.screen && typeof window.screen.show === 'function') {
-      window.screen.show();
-    }
-  } catch (error) {
-    console.warn('%c[index.js, hideNativeLaunchScreen]', 'color: gray;', 'Could not release the native TV splash screen:', error);
-  }
+function finishNormalStartupPreparation() {
+  isNormalStartupPrepared = true;
 }
 
 function loadConfigSummarySettings(callback) {
@@ -1132,17 +1117,16 @@ function installNavigationTooltipActionHiding() {
   document.addEventListener('focusout', restoreTooltipWhenButtonIsInactive, true);
 }
 
-function maybeReleaseNativeLaunchScreen() {
+function maybePrepareNormalStartup() {
   // Normal launch waits for locale and all settings shown in the summary strip.
-  // Direct Smart Hub launches keep the pre-hidden UI and their existing startup path.
+  // Direct Smart Hub launches retain their existing direct-stream startup path.
   if (_directSmartHubLaunch || !isStartupLocaleReady ||
-      isNativeLaunchScreenReleaseStarted || isNativeLaunchScreenReleased) {
+      isNormalStartupPreparationStarted || isNormalStartupPrepared) {
     return;
   }
 
-  isNativeLaunchScreenReleaseStarted = true;
+  isNormalStartupPreparationStarted = true;
 
-  // Prepare the first Hosts screen underneath the native splash.
   var headerTitle = document.getElementById('header-title');
   if (headerTitle) headerTitle.textContent = t('Hosts');
   $('#goBackBtn, #restoreDefaultsBtn').hide();
@@ -1150,40 +1134,30 @@ function maybeReleaseNativeLaunchScreen() {
   $('#settings-list, #game-grid, #wasmSpinner').hide();
   document.documentElement.classList.remove('app-starting');
 
-  var prepareSummaryAndReleaseSplash = function() {
+  var prepareSummaryAndContinue = function() {
     initializeConfigSummaryBar();
 
-    // Give the browser a rendering opportunity, then allow the native splash a little
-    // extra time to finish its animation and audio before releasing it.
-    var releaseSplashAndScheduleRestore = function() {
+    var continueStartup = function() {
       var layout = document.querySelector('.mdl-layout');
       if (layout) void layout.getBoundingClientRect();
-
-      nativeLaunchScreenReleaseTimeout = window.setTimeout(function() {
-        nativeLaunchScreenReleaseTimeout = null;
-        hideNativeLaunchScreen();
-        scheduleDeferredNormalStartup();
-      }, 1500);
+      finishNormalStartupPreparation();
+      scheduleDeferredNormalStartup();
     };
 
     if (typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(releaseSplashAndScheduleRestore);
+      window.requestAnimationFrame(continueStartup);
     } else {
-      window.setTimeout(releaseSplashAndScheduleRestore, 0);
+      window.setTimeout(continueStartup, 0);
     }
   };
 
-  // Load the visibility preference first, then wait for all values shown by the
-  // strip before laying it out and starting the splash-release sequence.
   getData('showConfigSummaryBar', function(previousValue) {
     var storedValue = previousValue && previousValue.showConfigSummaryBar;
     applyConfigSummaryPosition(storedValue == null ? 'bottom' : storedValue);
     configSummaryPreferenceLoaded = true;
-    // Load the selected palette before releasing the native splash so the original
-    // colors are never briefly shown when a non-default theme was saved.
     getData('colorTheme', function(themeResult) {
       applyColorTheme(themeResult && themeResult.colorTheme);
-      loadConfigSummarySettings(prepareSummaryAndReleaseSplash);
+      loadConfigSummarySettings(prepareSummaryAndContinue);
     });
   });
 }
@@ -1258,7 +1232,7 @@ function startDeferredNormalStartup() {
 function maybeRestoreUiAfterStartup() {
   // Repeated calls from HTTP/host callbacks are harmless: index.html made the route decision once.
   if (_directSmartHubLaunch || !isStartupLocaleReady) return;
-  maybeReleaseNativeLaunchScreen();
+  maybePrepareNormalStartup();
 }
 
 function moduleDidLoad() {
@@ -10288,11 +10262,6 @@ function onWindowLoad() {
     initDirectSamsungKeys();
     initSpecialKeys();
     console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Direct Smart Hub app launch detected: ' + JSON.stringify(_directSmartHubLaunch));
-    try {
-      if (window.screen && typeof window.screen.show === 'function') window.screen.show();
-    } catch (error) {
-      console.warn('%c[index.js, onWindowLoad]', 'color: gray;', 'Could not dismiss native launch screen early:', error);
-    }
     hideUiLayerImmediately('main-ui-layer');
     var directLocalePromise = window._directSmartHubLocalePromise || Promise.resolve();
     withOperationTimeout(Promise.resolve(directLocalePromise).then(function() {
