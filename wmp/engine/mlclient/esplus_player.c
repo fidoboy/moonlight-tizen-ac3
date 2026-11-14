@@ -145,6 +145,8 @@ volatile int esplus_performance_stats_enabled;
 
 
 static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
+static volatile int s_need_idr;
+static int s_catchup_done, s_catchup_hits;
 static uint64_t s_stream_clock_origin_ns;
 static uint64_t s_fps_t0;
 static uint32_t s_fps_sub0;
@@ -201,6 +203,9 @@ static void load_cfg(void)
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
     esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 250);
+    /* One flushing catch-up seek after two consecutive over-depth samples. */
+    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 150);
+    if (!s_api.get_playing_time || !s_api.seek) esplus_cfg.catchup_ms = 0;
     /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
     if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
         esplus_cfg.latency_mode = ESPLUS_LAT_OFF;
@@ -229,6 +234,10 @@ static void nudge(int32_t depth, uint64_t now_ms)
 
 int32_t esplus_correction_ms(void) { return s_corr_ms; }
 uint32_t esplus_sample_seq(void) { return s_tick_seq; }
+int esplus_take_need_idr(void)
+{
+    return __atomic_exchange_n(&s_need_idr, 0, __ATOMIC_ACQ_REL);
+}
 
 static uint64_t esplus_mono_ns(void)
 {
@@ -276,12 +285,34 @@ void esplus_sample_tick(uint64_t now_ms)
         /* Playback-clock availability is detected independently of the
          * selected stream-registration family; FPS remains measurable either way. */
         if ((__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE) ||
-             esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0) &&
+             esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0 ||
+             esplus_cfg.catchup_ms > 0) &&
             wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
             esplus_stats.playing_ms = play > UINT32_MAX ? UINT32_MAX : (uint32_t)play;
             esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
             esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
             if (play > 0) nudge(esplus_stats.depth_ms, now_ms);
+            /* Two consecutive deep samples trigger one flushing seek to the
+             * newest accepted video PTS; a single transient spike is ignored. */
+            if (esplus_cfg.catchup_ms > 0 && !s_catchup_done && play > 0) {
+                if (esplus_stats.depth_ms > esplus_cfg.catchup_ms)
+                    ++s_catchup_hits;
+                else
+                    s_catchup_hits = 0;
+                if (s_catchup_hits >= 2) {
+                    int seek_rc;
+                    s_catchup_done = 1; /* never loop if the native seek fails */
+                    seek_rc = wmp_esplus_adapter_seek(&s_adapter, s_last_video_pts_ms);
+                    MLT("catchup: depth=%dms seek=%llu ms raw=%d",
+                        esplus_stats.depth_ms,
+                        (unsigned long long)s_last_video_pts_ms, seek_rc);
+                    s_corr_us = 0;
+                    s_corr_ms = 0;
+                    s_tick_prev_ms = 0;
+                    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
+                    request_idr = 1;
+                }
+            }
             s_tick_prev_ms = now_ms;
             MLT("stats depth=%dms audio=%dms playing=%u",
                 esplus_stats.depth_ms, esplus_stats.audio_depth_ms,
@@ -538,6 +569,8 @@ int esplus_create_open(void)
     s_idr_t0 = s_idr_last = 0;
     s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
+    __atomic_store_n(&s_need_idr, 0, __ATOMIC_RELEASE);
+    s_catchup_done = s_catchup_hits = 0;
     s_fps_t0 = 0;
     s_corr_us = 0;
     s_corr_ms = 0;
@@ -979,6 +1012,8 @@ void esplus_close(void)
     s_idr_t0 = s_idr_last = 0;
     s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
+    __atomic_store_n(&s_need_idr, 0, __ATOMIC_RELEASE);
+    s_catchup_done = s_catchup_hits = 0;
     s_fps_t0 = 0;
     s_corr_us = 0; s_corr_ms = 0; s_tick_prev_ms = 0;
     /* Serialize dlclose with a possible next esplus_create_open(). */
