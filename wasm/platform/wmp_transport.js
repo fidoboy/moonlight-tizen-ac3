@@ -477,8 +477,17 @@
       });
     }).catch(function(error) {
       close();
-      connectPromise = null;
-      throw error;
+      // If launch succeeded but the reply port never appeared, do not leave
+      // the half-started ServiceApplication behind for the next attempt.
+      return stopExistingService().catch(function(cleanupError) {
+        debugLog('native service cleanup after startup failure was unsuccessful', {
+          serviceAppId: SERVICE_APP_ID,
+          error: errorDetails(cleanupError)
+        });
+      }).then(function() {
+        connectPromise = null;
+        throw error;
+      });
     });
 
     return connectPromise;
