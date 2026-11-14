@@ -669,6 +669,7 @@ jobs:
           package_hybrid "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/Moonlight-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$RUNNER_TEMP/Moonlight-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-Debug.wgt"
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt > SHA256SUMS)
           
           
           PACKAGE
