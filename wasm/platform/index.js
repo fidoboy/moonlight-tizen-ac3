@@ -3892,7 +3892,6 @@ function showSettingsOverview(category) {
   const settingsPane = document.getElementById('settings-right-pane');
   if (settingsPane) {
     settingsPane.classList.add('settings-pane-dimmed');
-    settingsPane.classList.remove('has-effective-scroll');
   }
 }
 
@@ -3940,14 +3939,6 @@ function handleSettingsView(category) {
     // Show the pane view
     targetPaneOptions.style.display = 'block';
 
-    // Determine whether the right pane has real content overflow before adding
-    // the extra bottom space; the safety padding itself must not trigger the test.
-    const settingsPane = document.getElementById('settings-right-pane');
-    if (settingsPane) {
-      const currentPaddingBottom = parseFloat(window.getComputedStyle(settingsPane).paddingBottom) || 0;
-      const contentOverflows = settingsPane.scrollHeight - currentPaddingBottom > settingsPane.clientHeight + 2;
-      settingsPane.classList.toggle('has-effective-scroll', contentOverflows);
-    }
   } else {
     // Otherwise, exit early
     return;
