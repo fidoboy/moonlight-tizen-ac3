@@ -87,6 +87,14 @@ typedef struct ml_engine_stats {
   int32_t  recovery_state;
 } ml_engine_stats;
 int ml_engine_get_stats(ml_engine_stats *out);
+/* Negotiated stream metadata and rolling compressed-payload bitrate. */
+typedef struct ml_engine_stream_info {
+  int32_t struct_size;
+  uint32_t video_format, video_width, video_height, video_fps, h264_level_idc;
+  uint32_t audio_codec, audio_channels, audio_sample_rate;
+  uint32_t video_bitrate_kbps, audio_bitrate_kbps;
+} ml_engine_stream_info;
+int ml_engine_get_stream_info(ml_engine_stream_info *out);
 /* 1 after ESPlus has started and accepted at least one video packet. */
 int ml_engine_video_ready(void);
 /* Bitmask: 1=evdev keyboard, 2=evdev mouse, 4=evdev gamepad. */
