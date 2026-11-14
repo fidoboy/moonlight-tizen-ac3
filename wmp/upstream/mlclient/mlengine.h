@@ -110,6 +110,8 @@ int ml_engine_video_ready(void);
 int ml_engine_input_capabilities(void);
 /* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */
 int ml_engine_get_active_audio_codec(void);
+/* Returns the Common C negotiated media-encryption bitmask, or -1 while unknown. */
+int ml_engine_get_encryption_status(void);
 
 /* Same as ml_engine_start_session(), plus the encoder color configuration:
  * full_range != 0 selects the full color range, 0 the limited range.
