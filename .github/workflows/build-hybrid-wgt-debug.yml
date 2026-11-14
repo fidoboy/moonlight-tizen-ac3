@@ -27,7 +27,7 @@ concurrency:
 jobs:
   build-hybrid:
     if: github.ref == 'refs/heads/1.2.4-pre'
-    name: Build and package standard and ForceGM Debug hybrid WGTs
+    name: Build and package one Debug hybrid WGT
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -120,7 +120,7 @@ jobs:
           set -euo pipefail
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
-      - name: Build Moonlight Web files (standard and ForceGM) inside optimized v5 image
+      - name: Build the single Moonlight Web payload inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
@@ -159,9 +159,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp -a "$RUNNER_TEMP/moonlight-web/web-standard" "$RUNNER_TEMP/web-standard"
-          cp -a "$RUNNER_TEMP/moonlight-web/web-forcegm" "$RUNNER_TEMP/web-forcegm"
-          for project in "$RUNNER_TEMP/web-standard" "$RUNNER_TEMP/web-forcegm"; do
+          cp -a "$RUNNER_TEMP/moonlight-web/web" "$RUNNER_TEMP/web"
+          for project in "$RUNNER_TEMP/web"; do
             test -s "$project/config.xml"
             test -s "$project/index.html"
             test -s "$project/moonlight-wasm.js"
@@ -237,8 +236,7 @@ jobs:
           run_tz "list-signing-profile" tizen security-profiles list -n Moonlight
         
           workspace="$RUNNER_TEMP/tz-production-workspace"
-          web_standard="$workspace/MoonlightWeb"
-          web_forcegm="$workspace/MoonlightForceGM"
+          web_project="$workspace/MoonlightWeb"
           service_project="$workspace/AmbilightService/AmbilightService"
           mkdir -p "$workspace"
         
@@ -277,8 +275,7 @@ jobs:
             fi
           }
         
-          package_base_web "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
-          package_base_web "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt"
+          package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
         
           run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
           test -d "$service_project"
@@ -302,12 +299,9 @@ jobs:
           deps: []
           YAML
         
-          run_tz "build-web-standard-standalone" "$TIZEN_CORE_CLI" build -w "$web_standard" -s Moonlight -b Release
-          run_tz "build-web-forcegm-standalone" "$TIZEN_CORE_CLI" build -w "$web_forcegm" -s Moonlight -b Release
-          run_tz "add-service-dependency-standard" "$TIZEN_CORE_CLI" add-deps "$web_standard" -d ../AmbilightService/AmbilightService
-          run_tz "add-service-dependency-forcegm" "$TIZEN_CORE_CLI" add-deps "$web_forcegm" -d ../AmbilightService/AmbilightService
-          run_tz "build-hybrid-standard" "$TIZEN_CORE_CLI" build -w "$web_standard" -s Moonlight -b Release
-          run_tz "build-hybrid-forcegm" "$TIZEN_CORE_CLI" build -w "$web_forcegm" -s Moonlight -b Release
+          run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
+          run_tz "add-service-dependency" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService
+          run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
           mapfile -t service_pkgs < <(find "$service_project/bin/Release/net8.0-tizen10.0" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#service_pkgs[@]} != 1 )); then
@@ -337,7 +331,7 @@ jobs:
           fi
           rm -rf "$wmp_project/bin/res" "$wmp_project/bin/tpkroot"
           cp wmp/dotnet-host/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
-          python3 - "$wmp_project/tizen-manifest.xml" "$web_standard/config.xml" <<'PY'
+          python3 - "$wmp_project/tizen-manifest.xml" "$web_project/config.xml" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
 
@@ -677,12 +671,10 @@ jobs:
           PY
           }
           
-          package_hybrid "$RUNNER_TEMP/web-standard" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
-          package_hybrid "$RUNNER_TEMP/web-forcegm" MoonlightForceGM "$RUNNER_TEMP/MoonlightForceGM-base.wgt" "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt"
+          package_hybrid "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$RUNNER_TEMP/Moonlight-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-Debug.wgt"
-          cp "$RUNNER_TEMP/Moonlight-ForceGM-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-ForceGM-Debug.wgt"
-          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt Moonlight-ForceGM-Debug.wgt > SHA256SUMS)
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt > SHA256SUMS)
           
           
           PACKAGE
@@ -706,10 +698,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload ForceGM hybrid WGT for Apps2Samsung
-        uses: actions/upload-artifact@v6
-        with:
-          name: Moonlight-ForceGM-Debug-${{ github.sha }}
-          path: ${{ runner.temp }}/hybrid-output/Moonlight-ForceGM-Debug.wgt
-          if-no-files-found: error
-          retention-days: 14
