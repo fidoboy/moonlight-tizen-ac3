@@ -2843,3 +2843,44 @@ body[data-color-theme="black-orange"] #background-layer {
 #settings-right-pane {
     padding-bottom: 30vh;
 }
+
+
+/* Full-screen HTML launch presentation; it exists only during normal startup. */
+#html-launch-splash {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    background: #000;
+    z-index: 2147483647;
+    pointer-events: auto;
+}
+#html-launch-splash.is-active {
+    display: block;
+}
+#html-launch-splash-stage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    overflow: hidden;
+    background: #000;
+    transform: translate(-50%, -50%);
+}
+#html-launch-splash-stars,
+#html-launch-splash-logo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#html-launch-splash-stars {
+    z-index: 0;
+}
+#html-launch-splash-logo {
+    z-index: 1;
+}
