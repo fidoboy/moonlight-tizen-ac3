@@ -38,6 +38,7 @@ static volatile int g_running;   /* 1 while a session is up */
 static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 static char g_host[256];         /* si.address is held by moonlight-common-c for the
                                     session, so the host string must outlive the call */
+static uint64_t g_stream_info_last_time_ms, g_stream_info_last_video_bytes, g_stream_info_last_audio_bytes;
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
 static ml_engine_stage_cb g_stage_cb;
@@ -111,6 +112,9 @@ static void cl_stageComplete(int stage) {
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
 static int start_connection(void) {
+  g_stream_info_last_time_ms = 0;
+  g_stream_info_last_video_bytes = 0;
+  g_stream_info_last_audio_bytes = 0;
   AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
   esplus_set_audio_enabled(g_audio_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
@@ -239,7 +243,6 @@ int ml_engine_get_stats(ml_engine_stats *out) {
 }
 
 int ml_engine_get_stream_info(ml_engine_stream_info *out) {
-  static uint64_t last_time_ms, last_video_bytes, last_audio_bytes;
   struct timespec ts;
   uint64_t now_ms, video_bytes, audio_bytes;
   if (!out || out->struct_size < (int32_t)sizeof *out) return GS_INVALID;
@@ -260,17 +263,17 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->network_rtt_ms = 0;
   out->network_variance_ms = 0;
   (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
-  if (last_time_ms && now_ms > last_time_ms &&
-      video_bytes >= last_video_bytes && audio_bytes >= last_audio_bytes) {
-    uint64_t elapsed = now_ms - last_time_ms;
-    uint64_t video_rate = ((video_bytes - last_video_bytes) * 8ull) / elapsed;
-    uint64_t audio_rate = ((audio_bytes - last_audio_bytes) * 8ull) / elapsed;
+  if (g_stream_info_last_time_ms && now_ms > g_stream_info_last_time_ms &&
+      video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes) {
+    uint64_t elapsed = now_ms - g_stream_info_last_time_ms;
+    uint64_t video_rate = ((video_bytes - g_stream_info_last_video_bytes) * 8ull) / elapsed;
+    uint64_t audio_rate = ((audio_bytes - g_stream_info_last_audio_bytes) * 8ull) / elapsed;
     out->video_bitrate_kbps = video_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)video_rate;
     out->audio_bitrate_kbps = audio_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)audio_rate;
   }
-  last_time_ms = now_ms;
-  last_video_bytes = video_bytes;
-  last_audio_bytes = audio_bytes;
+  g_stream_info_last_time_ms = now_ms;
+  g_stream_info_last_video_bytes = video_bytes;
+  g_stream_info_last_audio_bytes = audio_bytes;
   return 0;
 }
 
