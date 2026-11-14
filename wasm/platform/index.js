@@ -10070,7 +10070,7 @@ function createConfigSummaryBar() {
     { label: 'HDR', id: 'summaryHdr', toggle: true, icon: 'static/res/ic_summary_hdr.svg' },
     { label: 'Codec', id: 'summaryCodec', icon: 'static/res/ic_summary_codec.svg' },
     { label: 'Dolby', id: 'summaryDolby', toggle: true, icon: 'static/res/ic_dolby_double_d.svg' },
-    { label: 'Audio', id: 'summaryAudio', icon: 'static/res/ic_summary_audio.svg' },
+    { label: 'Audio', id: 'summaryAudio', toggle: true, icon: 'static/res/ic_summary_audio.svg' },
     { label: 'Game mode summary', id: 'summaryGameMode', toggle: true, icon: 'static/res/ic_summary_gamepad.svg' }
   ];
 
