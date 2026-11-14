@@ -912,9 +912,33 @@
       sendMouseMove(Math.round(dx), Math.round(dy));
   }
 
+  function acquireStreamPointerLock() {
+    var doc = global.document;
+    if (!doc || doc.pointerLockElement || doc.webkitPointerLockElement) return;
+    var video = doc.getElementById('wasm_module');
+    if (!video) return;
+    var request = video.requestPointerLock || video.webkitRequestPointerLock;
+    if (typeof request !== 'function') return;
+    try {
+      request.call(video);
+    } catch (error) {
+      // Pointer lock is best-effort on older Tizen Chromium builds. Mouse
+      // forwarding remains available even if the browser rejects the lock.
+    }
+  }
+
   function onMouseButton(event) {
     if (!nativeInputActive() || inputUiBlocked()) return;
     if (event.button < 0 || event.button > 2) return;
+    if (event.type === 'mousedown') {
+      /*
+       * ESPlusPlayer receives physical mouse input through the native evdev
+       * service, so the browser fallback may be disabled. Pointer Lock is
+       * still required to hide Tizen's local cursor; it does not replace the
+       * native input path that forwards movement to the host.
+       */
+      acquireStreamPointerLock();
+    }
     if (browserMouseInputActive())
       sendMouseButton(event.button, event.type === 'mousedown');
     // Do not cancel mousedown: the video surface still needs the user gesture
