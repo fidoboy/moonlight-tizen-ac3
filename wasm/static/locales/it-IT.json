@@ -635,4 +635,6 @@
   "Starting Ambilight service...": "Avvio del servizio Ambilight...",
   "Starting native video playback service...": "Avvio del servizio nativo di riproduzione video...",
   "Ambilight service failed to start.": "Impossibile avviare il servizio Ambilight."
+,
+  "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Per utilizzare più di 30 FPS con risoluzioni superiori a 1080p, è necessario selezionare un codec video compatibile diverso da H.264."
 }
