@@ -642,25 +642,34 @@ namespace MoonlightWmpHost
                 text.Append("Audio FEC: -\n");
             }
 
-            text.Append("Frame rates: - Recv | - Dec | ")
-                .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture)).Append(" Submitted\n");
+            text.Append("Frame rates: ")
+                .Append(stream.VideoFpsReceived.ToString(CultureInfo.InvariantCulture)).Append(" Recv | ")
+                .Append(stream.VideoFpsDecoded.ToString(CultureInfo.InvariantCulture)).Append(" Dec | ")
+                .Append(stream.VideoFpsRendered.ToString(CultureInfo.InvariantCulture)).Append(" Rend\n");
             if (stream.VideoBitrateKbps != 0)
                 text.Append("Incoming bitrate from network: ")
                     .Append((stream.VideoBitrateKbps / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
                     .Append(" Mbps (video payload)\n");
             else
                 text.Append("Incoming bitrate from network: -\n");
-            text.Append("Frames dropped by your network connection: -\n");
+            text.Append("Frames dropped by your network connection: ")
+                .Append((stream.NetworkDroppedPercentX100 / 100.0).ToString("0.00", CultureInfo.InvariantCulture))
+                .Append("%\n");
             text.Append("Average network latency: ");
             if (stream.NetworkRttMs != 0)
                 text.Append(stream.NetworkRttMs.ToString(CultureInfo.InvariantCulture)).Append(" ms (variance: ")
                     .Append(stream.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture)).Append(" ms)\n");
             else
                 text.Append("N/A\n");
-            text.Append("Average decoding time: -\n");
-            text.Append("Average frame queue delay: ").Append(stats.DepthMs == Int32.MinValue
-                ? "-" : stats.DepthMs.ToString(CultureInfo.InvariantCulture) + " ms (current queue depth)").Append("\n");
-            text.Append("Average rendering time: -\n");
+            text.Append("Average decoding time: ")
+                .Append(stream.AverageDecodeUs != 0
+                    ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
+                    : "-").Append("\n");
+            text.Append("Average frame queue delay: -\n");
+            text.Append("Average rendering time: ")
+                .Append(stream.AverageRenderUs != 0
+                    ? (stream.AverageRenderUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
+                    : "-").Append("\n");
             text.Append("Native player: ").Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
                 .Append(stats.DepthMs == Int32.MinValue ? "n/a" :
@@ -984,6 +993,14 @@ namespace MoonlightWmpHost
                             if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                 streamInfo = new EngineApi.StreamInfo();
                             SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
+                            if (streamInfo.HostLatencyMaxTenthsMs != 0)
+                            {
+                                string hostLatency = "HostLatencyMsg: " +
+                                    (streamInfo.HostLatencyMinTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                                    (streamInfo.HostLatencyMaxTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
+                                    (streamInfo.HostLatencyAvgTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
+                                SendStatsEventIfEnabled(appId, remotePort, hostLatency, null);
+                            }
                         }
                         nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
                     }
