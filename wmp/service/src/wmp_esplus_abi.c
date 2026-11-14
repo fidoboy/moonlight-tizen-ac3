@@ -92,6 +92,7 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
     RESOLVE(set_ecore_display, "esplusplayer_set_ecore_display");
     RESOLVE(set_display_mode, "esplusplayer_set_display_mode");
     RESOLVE(get_playing_time, "esplusplayer_get_playing_time");
+    RESOLVE(seek, "esplusplayer_seek");
     RESOLVE(get_error_string, "esplusplayer_get_error_string");
     RESOLVE(set_video_stream_info, "esplusplayer_set_video_stream_info");
     RESOLVE(set_audio_stream_info, "esplusplayer_set_audio_stream_info");
@@ -138,6 +139,10 @@ wmp_esplus_probe_result_e wmp_esplus_probe(
         return WMP_ESPLUS_PROBE_STREAM_API_MISSING;
     }
 
+    report_append(report, report_capacity,
+                  "OPTIONAL_API: get_playing_time=%s seek=%s\n",
+                  api->get_playing_time ? "available" : "missing",
+                  api->seek ? "available" : "missing");
     report_append(report, report_capacity,
                   "STREAM_API: %s family symbols detected; ABI NOT validated\n",
                   wmp_esplus_family_name(api->selected_family));
