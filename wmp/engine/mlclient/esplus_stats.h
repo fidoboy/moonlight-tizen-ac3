@@ -36,7 +36,7 @@ typedef struct {
 
 enum { ESPLUS_LAT_OFF, ESPLUS_LAT_NUDGE, ESPLUS_LAT_ARRIVAL };
 typedef struct { int latency_mode, target_depth_ms, nudge_max_ms_per_s, drop_after_ms,
-                 depth_poll_ms; } esplus_cfg_t;
+                 depth_poll_ms, catchup_ms; } esplus_cfg_t;
 
 extern esplus_stats_t esplus_stats;   /* counters: update with __atomic_fetch_add(..., __ATOMIC_RELAXED) */
 extern volatile int esplus_performance_stats_enabled;
@@ -51,6 +51,8 @@ void esplus_sample_tick(uint64_t now_ms);
 int32_t esplus_correction_ms(void);
 /* Counts sampler ticks; video uses it to skip at most one late frame per tick. */
 uint32_t esplus_sample_seq(void);
+/* One-shot request after a flushing catch-up seek. */
+int esplus_take_need_idr(void);
 /* CLOCK_MONOTONIC in ms (sampler, arrival-mode PTS). */
 uint64_t esplus_mono_ms(void);
 
