@@ -6374,24 +6374,41 @@ function stopGame(host, callbackFunction) {
   });
 }
 
-// Send the Escape key using the keyboard event to the host
-function sendEscapeKeyToHost() {
-  Module.sendKeyboardEvent(0x80 << 8 | 0x1B, 0x03, 0); // Key down
-  Module.sendKeyboardEvent(0x80 << 8 | 0x1B, 0x04, 0); // Key up
+// Route keyboard events through the selected streaming engine.
+function sendKeyboardEventToHost(keyCode, keyAction, modifiers) {
+  if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+    var transport = window.ESPlusPlayerTransport;
+    if (!transport || typeof transport.sendKey !== 'function') {
+      console.error('[stream menu] ESPlusPlayer keyboard transport is unavailable');
+      return false;
+    }
+
+    // ESPlusPlayerTransport.sendKey() accepts the unprefixed virtual-key code.
+    return transport.sendKey(keyCode, keyAction, modifiers);
+  }
+
+  // Keep the existing EMSS/WASM key representation unchanged.
+  return Module.sendKeyboardEvent(0x80 << 8 | keyCode, keyAction, modifiers);
 }
 
-// Send a key combination to the host, pressing the keys in order and releasing them in reverse order
+// Send the Escape key using the keyboard event to the host.
+function sendEscapeKeyToHost() {
+  sendKeyboardEventToHost(0x1B, 0x03, 0); // Key down
+  sendKeyboardEventToHost(0x1B, 0x04, 0); // Key up
+}
+
+// Send a key combination to the host, pressing the keys in order and releasing them in reverse order.
 function sendKeyCombinationToHost(keyCodes) {
-  // Modifier flags of the modifier keys: Left Shift, Left Ctrl, Left Alt and Left Windows
+  // Modifier flags of the modifier keys: Left Shift, Left Ctrl, Left Alt and Left Windows.
   const modifierFlags = { 0xA0: 0x01, 0xA2: 0x02, 0xA4: 0x04, 0x5B: 0x08 };
   var modifiers = 0;
   keyCodes.forEach(function(keyCode) {
     modifiers |= modifierFlags[keyCode] || 0;
-    Module.sendKeyboardEvent(0x80 << 8 | keyCode, 0x03, modifiers); // Key down
+    sendKeyboardEventToHost(keyCode, 0x03, modifiers); // Key down
   });
   keyCodes.slice().reverse().forEach(function(keyCode) {
     modifiers &= ~(modifierFlags[keyCode] || 0);
-    Module.sendKeyboardEvent(0x80 << 8 | keyCode, 0x04, modifiers); // Key up
+    sendKeyboardEventToHost(keyCode, 0x04, modifiers); // Key up
   });
 }
 
