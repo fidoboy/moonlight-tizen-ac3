@@ -796,8 +796,8 @@ function attachListeners() {
     // so its checking and result descriptions are rendered in the selected language.
     initializeAmbilightSupport();
 
-    // Keep Tizen's native splash visible while the app initializes. The localized loading
-    // message will be shown as a bottom snackbar when the persisted host list is ready.
+    // Normal initialization reaches this point only after the HTML launch
+    // presentation has completed. The localized loading message appears once hosts are ready.
     isStartupLocaleReady = true;
     maybeRestoreUiAfterStartup();
   });
