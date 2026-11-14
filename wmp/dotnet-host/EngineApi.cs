@@ -27,6 +27,24 @@ namespace MoonlightWmpHost
             public int RecoveryState;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct StreamInfo
+        {
+            public int StructSize;
+            public uint VideoFormat;
+            public uint VideoWidth;
+            public uint VideoHeight;
+            public uint VideoFps;
+            public uint H264LevelIdc;
+            public uint AudioCodec;
+            public uint AudioChannels;
+            public uint AudioSampleRate;
+            public uint VideoBitrateKbps;
+            public uint AudioBitrateKbps;
+            public uint NetworkRttMs;
+            public uint NetworkVarianceMs;
+        }
+
         // Layout mirrors wmp/service/src/wmp_esplus_abi.h. Function pointers are
         // opaque: managed code only asks the native probe to inspect them.
         [StructLayout(LayoutKind.Sequential)]
@@ -107,6 +125,9 @@ namespace MoonlightWmpHost
         internal delegate int GetStatsFn(ref Stats stats);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int GetStreamInfoFn(ref StreamInfo info);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int LastErrorFn([Out] byte[] buffer, int capacity);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -149,6 +170,7 @@ namespace MoonlightWmpHost
         internal readonly SetDolbyPassthroughFn SetDolbyPassthrough;
         internal readonly ActiveAudioCodecFn GetActiveAudioCodec;
         internal readonly GetStatsFn GetStats;
+        internal readonly GetStreamInfoFn GetStreamInfo;
         internal readonly LastErrorFn LastError;
         internal readonly StartSessionV2Fn StartSessionV2;
 
@@ -185,6 +207,7 @@ namespace MoonlightWmpHost
             GetActiveAudioCodec = Bind<ActiveAudioCodecFn>(
                 resolve, "ml_engine_get_active_audio_codec");
             GetStats = Bind<GetStatsFn>(resolve, "ml_engine_get_stats");
+            GetStreamInfo = Bind<GetStreamInfoFn>(resolve, "ml_engine_get_stream_info");
             LastError = Bind<LastErrorFn>(resolve, "ml_engine_last_error");
             StartSessionV2 = Bind<StartSessionV2Fn>(
                 resolve, "ml_engine_start_session_v2");
