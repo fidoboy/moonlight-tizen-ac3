@@ -179,7 +179,10 @@ const SyncFunctions = {
   'toggleStats': (...args) => {
     if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
       if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
-        window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+        window.ESPlusPlayerTransport.toggleStats().then(function(response) {
+          var enabled = !!(response && response.payload && response.payload.enabled);
+          handleMessage('StatsStateMsg: ' + (enabled ? '1' : '0'));
+        }).catch(function(error) {
           console.warn('[messages.js, toggleStats] ESPlusPlayer statistics toggle failed:', error);
         });
       }
@@ -337,6 +340,7 @@ var performanceStatsHostLatencyLatest = null;
 var performanceStatsPendingFirstReveal = false;
 var performanceStatsInitialSnapshotReady = false;
 var performanceStatsSnapshotComplete = false;
+var performanceStatsEnabled = null;
 var performanceStatsPendingSnapshot = null;
 var performanceStatsFirstRevealAt = 0;
 var performanceStatsRevealTimer = null;
@@ -991,6 +995,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
+  performanceStatsEnabled = null;
   resetPerformanceStatsGraph();
 }
 
@@ -1799,15 +1804,25 @@ function handleMessage(msg) {
     $('#connection-warnings').css('background', 'rgba(0, 0, 0, 0.5)');
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
     fadeInUiElement('connection-warnings', 'inline-block');
+  } else if (msg.indexOf('StatsStateMsg: ') === 0) {
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      var nextStatsEnabled = msg.replace('StatsStateMsg: ', '').trim() === '1';
+      if (performanceStatsEnabled !== nextStatsEnabled) {
+        performanceStatsEnabled = nextStatsEnabled;
+        resetPerformanceStatsGraph();
+      }
+    }
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
     // Hide the overlay for this streaming session without changing the saved preference.
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') performanceStatsEnabled = false;
     resetPerformanceStatsGraph();
     fadeOutUiElement('performance-stats', function() {
       $('#performance-stats').css('background', 'transparent');
       $('#performance-stats').text('');
     });
   } else if (msg.indexOf('StatMsg: ') === 0) {
-    if (performanceStatsStreamTerminated) return;
+    if (performanceStatsStreamTerminated ||
+        (window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) return;
 
     var statsOverlay = document.getElementById('performance-stats');
     if (!statsOverlay) return;
@@ -1844,11 +1859,20 @@ function handleMessage(msg) {
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
-    if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsHostLatencyMessage(msg);
+    }
   } else if (msg.indexOf('GraphMsg: ') === 0) {
-    if (!performanceStatsStreamTerminated) handlePerformanceStatsGraphMessage(msg);
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsGraphMessage(msg);
+    }
   } else if (msg.indexOf('StatsSnapshotMsg: ') === 0) {
-    if (!performanceStatsStreamTerminated) handlePerformanceStatsSnapshotComplete(msg);
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsSnapshotComplete(msg);
+    }
   } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
