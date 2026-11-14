@@ -24,6 +24,11 @@ typedef struct {
   volatile uint32_t video_format, video_width, video_height, video_fps, h264_level_idc;
   volatile uint32_t audio_codec, audio_channels, audio_sample_rate;
   volatile uint64_t video_bytes_received, audio_bytes_received;
+  volatile uint64_t video_frames_received, video_frames_decoded, video_frames_rendered;
+  volatile uint64_t video_total_frames, video_network_dropped_frames;
+  volatile uint64_t total_reassembly_us, total_decode_us, total_render_us;
+  volatile uint64_t host_latency_total;
+  volatile uint32_t host_latency_count, host_latency_min, host_latency_max;
 } esplus_stats_t;
 
 enum { ESPLUS_LAT_OFF, ESPLUS_LAT_NUDGE, ESPLUS_LAT_ARRIVAL };
