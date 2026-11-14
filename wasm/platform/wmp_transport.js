@@ -397,6 +397,10 @@
           debugLog('requesting fresh trusted local reply MessagePort', {replyPort: REPLY_PORT});
           localPort = tizen.messageport.requestTrustedLocalMessagePort(REPLY_PORT);
           if (!localPort) throw makeError('trusted local reply MessagePort is unavailable');
+          debugLog('trusted local reply MessagePort acquired', {
+            replyPort: REPLY_PORT,
+            portAvailable: true
+          });
           listenerId = localPort.addMessagePortListener(handleMessage);
           debugLog('fresh local MessagePort listener registered', {listenerId: listenerId});
 
