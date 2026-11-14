@@ -14,9 +14,6 @@
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
 #define DOLBY_SAMPLE_RATE 48000u
 
-/* Temporary comparison with WMP v0.2: keep ESPlusPlayer video-only. */
-#define ESPLUS_VIDEO_ONLY_STARTUP_TEST 1
-
 static int s_sample_rate = 48000;
 static int s_channel_count;
 static int s_samples_per_frame = 240;
@@ -102,12 +99,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 
     (void)context;
     (void)flags;
-#if ESPLUS_VIDEO_ONLY_STARTUP_TEST
-    (void)audioConfig;
-    (void)config;
-    ALOG("video-only startup test: skipping ESPlus audio track registration\n");
-    return 0;
-#endif
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -200,12 +191,6 @@ static void ar_decodePlay(char *data, int len)
     wmp_esplus_packet_t packet;
     wmp_esplus_submit_result_t result;
     uint64_t duration_ns;
-
-#if ESPLUS_VIDEO_ONLY_STARTUP_TEST
-    (void)data;
-    (void)len;
-    return;
-#endif
 
     if (s_dolby) {
         duration_ns = 32000000ull;
