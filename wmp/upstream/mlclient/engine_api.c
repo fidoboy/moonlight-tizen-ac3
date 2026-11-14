@@ -43,6 +43,7 @@ static uint64_t g_stream_info_last_received, g_stream_info_last_decoded, g_strea
 static uint64_t g_stream_info_last_total_frames, g_stream_info_last_dropped;
 static uint64_t g_stream_info_last_reassembly_us, g_stream_info_last_decode_us, g_stream_info_last_render_us;
 static uint32_t g_stream_info_last_fec_recovered, g_stream_info_last_fec_failed, g_stream_info_last_fec_oos;
+static int g_stream_info_fec_baseline_valid;
 /* Previous one-second window for EMSS-compatible rolling two-window values. */
 static uint64_t g_stream_info_prev_elapsed_ms;
 static uint64_t g_stream_info_prev_received, g_stream_info_prev_decoded, g_stream_info_prev_rendered;
@@ -142,6 +143,7 @@ static int start_connection(void) {
   g_stream_info_last_fec_recovered = 0;
   g_stream_info_last_fec_failed = 0;
   g_stream_info_last_fec_oos = 0;
+  g_stream_info_fec_baseline_valid = 0;
   g_stream_info_prev_elapsed_ms = 0;
   g_stream_info_prev_received = g_stream_info_prev_decoded = g_stream_info_prev_rendered = 0;
   g_stream_info_prev_total_frames = g_stream_info_prev_dropped = 0;
@@ -355,12 +357,20 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->average_render_us = 0;
   out->video_dropped_frames_interval = 0;
 
-  out->audio_fec_recovered = audio_fec.recoveredPackets >= g_stream_info_last_fec_recovered
-      ? audio_fec.recoveredPackets - g_stream_info_last_fec_recovered : audio_fec.recoveredPackets;
-  out->audio_fec_failed = audio_fec.failedBlocks >= g_stream_info_last_fec_failed
-      ? audio_fec.failedBlocks - g_stream_info_last_fec_failed : audio_fec.failedBlocks;
-  out->audio_fec_out_of_order = audio_fec.outOfOrderPackets >= g_stream_info_last_fec_oos
-      ? audio_fec.outOfOrderPackets - g_stream_info_last_fec_oos : audio_fec.outOfOrderPackets;
+  if (g_stream_info_fec_baseline_valid) {
+    out->audio_fec_recovered = audio_fec.recoveredPackets >= g_stream_info_last_fec_recovered
+        ? audio_fec.recoveredPackets - g_stream_info_last_fec_recovered : audio_fec.recoveredPackets;
+    out->audio_fec_failed = audio_fec.failedBlocks >= g_stream_info_last_fec_failed
+        ? audio_fec.failedBlocks - g_stream_info_last_fec_failed : audio_fec.failedBlocks;
+    out->audio_fec_out_of_order = audio_fec.outOfOrderPackets >= g_stream_info_last_fec_oos
+        ? audio_fec.outOfOrderPackets - g_stream_info_last_fec_oos : audio_fec.outOfOrderPackets;
+  } else {
+    /* Establish a Common C baseline so a previous session cannot leak into this overlay. */
+    out->audio_fec_recovered = 0;
+    out->audio_fec_failed = 0;
+    out->audio_fec_out_of_order = 0;
+    g_stream_info_fec_baseline_valid = 1;
+  }
   g_stream_info_last_fec_recovered = audio_fec.recoveredPackets;
   g_stream_info_last_fec_failed = audio_fec.failedBlocks;
   g_stream_info_last_fec_oos = audio_fec.outOfOrderPackets;
