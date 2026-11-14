@@ -64,6 +64,106 @@
     return new Error('ESPlusPlayer transport: ' + message);
   }
 
+  // Every stream starts from a new ServiceApplication process. MessagePort
+  // names are process-scoped, so a previous process must be fully gone before
+  // the new process is launched and its ports are requested.
+  var SERVICE_STOP_VERIFY_ATTEMPTS = 30;
+  var SERVICE_STOP_VERIFY_DELAY_MS = 100;
+
+  function getRunningServiceContexts() {
+    return new Promise(function(resolve, reject) {
+      try {
+        if (!global.tizen || !tizen.application ||
+            typeof tizen.application.getAppsContext !== 'function') {
+          throw makeError('Tizen running-application inspection is unavailable');
+        }
+        tizen.application.getAppsContext(function(contexts) {
+          contexts = Array.isArray(contexts) ? contexts : [];
+          resolve(contexts.filter(function(context) {
+            return context && context.appId === SERVICE_APP_ID;
+          }));
+        }, function(error) {
+          reject(makeError('could not inspect running native services: ' +
+            (error && error.message ? error.message : String(error))));
+        });
+      } catch (error) {
+        reject(error && error.message && error.message.indexOf('ESPlusPlayer transport:') === 0
+          ? error
+          : makeError('could not inspect running native services: ' +
+            (error && error.message ? error.message : String(error))));
+      }
+    });
+  }
+
+  function waitForServiceStopped(attempt) {
+    return getRunningServiceContexts().then(function(contexts) {
+      if (contexts.length === 0) return true;
+      if (attempt >= SERVICE_STOP_VERIFY_ATTEMPTS) {
+        throw makeError('previous native service did not stop completely');
+      }
+      return new Promise(function(resolve) {
+        global.setTimeout(resolve, SERVICE_STOP_VERIFY_DELAY_MS);
+      }).then(function() {
+        return waitForServiceStopped(attempt + 1);
+      });
+    });
+  }
+
+  function stopExistingService() {
+    return getRunningServiceContexts().then(function(contexts) {
+      if (contexts.length === 0) {
+        debugLog('no previous ESPlusPlayer service process is running', {
+          serviceAppId: SERVICE_APP_ID
+        });
+        return true;
+      }
+      if (!tizen.application || typeof tizen.application.kill !== 'function') {
+        throw makeError('Tizen application termination is unavailable; cannot guarantee a clean service start');
+      }
+
+      debugLog('stopping previous ESPlusPlayer service process', {
+        serviceAppId: SERVICE_APP_ID,
+        runningInstances: contexts.length
+      });
+
+      return contexts.reduce(function(chain, context) {
+        return chain.then(function() {
+          return new Promise(function(resolve, reject) {
+            try {
+              tizen.application.kill(context.id, function() {
+                debugLog('previous ESPlusPlayer service process termination requested', {
+                  serviceAppId: SERVICE_APP_ID,
+                  contextId: context.id
+                });
+                resolve();
+              }, function(error) {
+                // The process may have exited between getAppsContext and kill.
+                // The mandatory verification below decides whether it is gone.
+                if (error && error.name === 'NotFoundError') {
+                  resolve();
+                  return;
+                }
+                reject(makeError('could not stop previous native service: ' +
+                  (error && error.message ? error.message : String(error))));
+              });
+            } catch (error) {
+              reject(makeError('could not stop previous native service: ' +
+                (error && error.message ? error.message : String(error))));
+            }
+          });
+        });
+      }, Promise.resolve()).then(function() {
+        return waitForServiceStopped(0);
+      });
+    });
+  }
+
+  function delay(milliseconds) {
+    return new Promise(function(resolve) {
+      global.setTimeout(resolve, milliseconds);
+    });
+  }
+
   function readMessage(items) {
     var result = {};
     if (!Array.isArray(items)) return result;
@@ -234,8 +334,12 @@
       return connectPromise;
     }
 
+    // Drop all references/listeners from the previous transport before
+    // touching the service process. This also rejects any stale pending calls.
+    close();
+
     var connectStartedAt = Date.now();
-    debugLog('connecting to ESPlusPlayer native service', {
+    debugLog('preparing a clean ESPlusPlayer native service start', {
       serviceAppId: SERVICE_APP_ID,
       controlPort: CONTROL_PORT,
       replyPort: REPLY_PORT,
@@ -245,129 +349,191 @@
         typeof global.tizen.application.launch === 'function')
     });
 
-    connectPromise = new Promise(function(resolve, reject) {
-      try {
-        if (!global.tizen ||
-            !tizen.messageport ||
-            !tizen.application ||
-            typeof tizen.application.launch !== 'function') {
-          throw makeError('required Tizen APIs are unavailable');
-        }
+    connectPromise = stopExistingService().then(function() {
+      return new Promise(function(resolve, reject) {
+        try {
+          if (!global.tizen ||
+              !tizen.messageport ||
+              !tizen.application ||
+              typeof tizen.application.launch !== 'function') {
+            throw makeError('required Tizen APIs are unavailable');
+          }
 
-        debugLog('requesting trusted local reply MessagePort', {replyPort: REPLY_PORT});
-        localPort = tizen.messageport.requestTrustedLocalMessagePort(REPLY_PORT);
-        debugLog('trusted local reply MessagePort acquired', {
-          replyPort: REPLY_PORT,
-          portAvailable: !!localPort
-        });
-        listenerId = localPort.addMessagePortListener(handleMessage);
-        debugLog('local MessagePort listener registered', {listenerId: listenerId});
+          debugLog('requesting fresh trusted local reply MessagePort', {replyPort: REPLY_PORT});
+          localPort = tizen.messageport.requestTrustedLocalMessagePort(REPLY_PORT);
+          if (!localPort) throw makeError('trusted local reply MessagePort is unavailable');
+          listenerId = localPort.addMessagePortListener(handleMessage);
+          debugLog('fresh local MessagePort listener registered', {listenerId: listenerId});
 
-        debugLog('launching ESPlusPlayer ServiceApp', {serviceAppId: SERVICE_APP_ID});
-        tizen.application.launch(SERVICE_APP_ID, function() {
-          debugLog('ESPlusPlayer ServiceApp launch callback succeeded', {
-            serviceAppId: SERVICE_APP_ID,
-            elapsedMs: Date.now() - connectStartedAt
-          });
-          var remotePortAttempt = 0;
-          var maxRemotePortAttempts = 30;
-          var remotePortRetryDelayMs = 100;
+          debugLog('launching fresh ESPlusPlayer ServiceApp', {serviceAppId: SERVICE_APP_ID});
+          tizen.application.launch(SERVICE_APP_ID, function() {
+            debugLog('ESPlusPlayer ServiceApp launch callback succeeded', {
+              serviceAppId: SERVICE_APP_ID,
+              elapsedMs: Date.now() - connectStartedAt
+            });
+            var remotePortAttempt = 0;
+            var maxRemotePortAttempts = 30;
+            var remotePortRetryDelayMs = 100;
 
-          function openRemoteControlPort(lastError) {
-            remotePortAttempt++;
-            try {
-              debugLog('requesting trusted remote control MessagePort', {
-                serviceAppId: SERVICE_APP_ID,
-                controlPort: CONTROL_PORT,
-                attempt: remotePortAttempt,
-                maxAttempts: maxRemotePortAttempts
-              });
-              var candidatePort = tizen.messageport.requestTrustedRemoteMessagePort(
-                SERVICE_APP_ID, CONTROL_PORT
-              );
-              if (!candidatePort) {
-                var unavailableError = new Error('trusted remote control port is not available yet');
-                unavailableError.portNotReady = true;
-                throw unavailableError;
-              }
-              if (candidatePort.isTrusted !== true) {
-                throw makeError('native control port is not trusted');
-              }
-
-              remotePort = candidatePort;
-              debugLog('remote control MessagePort acquired', {
-                serviceAppId: SERVICE_APP_ID,
-                controlPort: CONTROL_PORT,
-                portAvailable: true,
-                trusted: true,
-                attempts: remotePortAttempt,
-                elapsedMs: Date.now() - connectStartedAt
-              });
-              resolve({
-                serviceAppId: SERVICE_APP_ID,
-                controlPort: CONTROL_PORT,
-                trusted: true
-              });
-            } catch (error) {
-              var errorMessage = error && error.message ? error.message : String(error);
-              var portNotReady = !!(error && error.portNotReady) ||
-                !!(error && error.name === 'NotFoundError') ||
-                /port.{0,80}not found|not found.{0,80}port/i.test(errorMessage);
-
-              if (portNotReady && remotePortAttempt < maxRemotePortAttempts) {
-                debugLog('trusted remote control MessagePort is not registered yet; retrying', {
+            function openRemoteControlPort(lastError) {
+              remotePortAttempt++;
+              try {
+                debugLog('requesting trusted remote control MessagePort', {
                   serviceAppId: SERVICE_APP_ID,
                   controlPort: CONTROL_PORT,
                   attempt: remotePortAttempt,
-                  maxAttempts: maxRemotePortAttempts,
-                  retryInMs: remotePortRetryDelayMs,
+                  maxAttempts: maxRemotePortAttempts
+                });
+                var candidatePort = tizen.messageport.requestTrustedRemoteMessagePort(
+                  SERVICE_APP_ID, CONTROL_PORT
+                );
+                if (!candidatePort) {
+                  var unavailableError = new Error('trusted remote control port is not available yet');
+                  unavailableError.portNotReady = true;
+                  throw unavailableError;
+                }
+                if (candidatePort.isTrusted !== true) {
+                  throw makeError('native control port is not trusted');
+                }
+
+                remotePort = candidatePort;
+                debugLog('fresh remote control MessagePort acquired', {
+                  serviceAppId: SERVICE_APP_ID,
+                  controlPort: CONTROL_PORT,
+                  portAvailable: true,
+                  trusted: true,
+                  attempts: remotePortAttempt,
+                  elapsedMs: Date.now() - connectStartedAt
+                });
+                resolve({
+                  serviceAppId: SERVICE_APP_ID,
+                  controlPort: CONTROL_PORT,
+                  trusted: true
+                });
+              } catch (error) {
+                var errorMessage = error && error.message ? error.message : String(error);
+                var portNotReady = !!(error && error.portNotReady) ||
+                  !!(error && error.name === 'NotFoundError') ||
+                  /port.{0,80}not found|not found.{0,80}port/i.test(errorMessage);
+
+                if (portNotReady && remotePortAttempt < maxRemotePortAttempts) {
+                  debugLog('fresh trusted remote control MessagePort is not registered yet; retrying', {
+                    serviceAppId: SERVICE_APP_ID,
+                    controlPort: CONTROL_PORT,
+                    attempt: remotePortAttempt,
+                    maxAttempts: maxRemotePortAttempts,
+                    retryInMs: remotePortRetryDelayMs,
+                    elapsedMs: Date.now() - connectStartedAt,
+                    error: errorDetails(error)
+                  });
+                  global.setTimeout(function() {
+                    openRemoteControlPort(error);
+                  }, remotePortRetryDelayMs);
+                  return;
+                }
+
+                debugLog('could not open fresh trusted remote control MessagePort', {
+                  serviceAppId: SERVICE_APP_ID,
+                  controlPort: CONTROL_PORT,
+                  attempts: remotePortAttempt,
                   elapsedMs: Date.now() - connectStartedAt,
+                  previousError: lastError ? errorDetails(lastError) : null,
                   error: errorDetails(error)
                 });
-                global.setTimeout(function() {
-                  openRemoteControlPort(error);
-                }, remotePortRetryDelayMs);
-                return;
+                close();
+                reject(makeError('native control port is unavailable: ' + errorMessage));
               }
-
-              debugLog('could not open trusted remote control MessagePort', {
-                serviceAppId: SERVICE_APP_ID,
-                controlPort: CONTROL_PORT,
-                attempts: remotePortAttempt,
-                elapsedMs: Date.now() - connectStartedAt,
-                previousError: lastError ? errorDetails(lastError) : null,
-                error: errorDetails(error)
-              });
-              close();
-              reject(makeError('native control port is unavailable: ' + errorMessage));
             }
-          }
 
-          openRemoteControlPort(null);
-        }, function(error) {
-          debugLog('ESPlusPlayer ServiceApp launch failed', {
+            openRemoteControlPort(null);
+          }, function(error) {
+            debugLog('ESPlusPlayer ServiceApp launch failed', {
+              serviceAppId: SERVICE_APP_ID,
+              elapsedMs: Date.now() - connectStartedAt,
+              error: errorDetails(error)
+            });
+            close();
+            reject(makeError('could not launch native service: ' +
+              (error && error.message ? error.message : String(error))));
+          });
+        } catch (error) {
+          debugLog('ESPlusPlayer clean service startup failed synchronously', {
             serviceAppId: SERVICE_APP_ID,
             elapsedMs: Date.now() - connectStartedAt,
             error: errorDetails(error)
           });
           close();
-          reject(makeError('could not launch native service: ' +
-            (error && error.message ? error.message : String(error))));
-        });
-      } catch (error) {
-        debugLog('ESPlusPlayer service connection setup failed synchronously', {
-          serviceAppId: SERVICE_APP_ID,
-          elapsedMs: Date.now() - connectStartedAt,
-          error: errorDetails(error)
-        });
-        connectPromise = null;
-        reject(error && error.message && error.message.indexOf('ESPlusPlayer transport:') === 0
-          ? error
-          : makeError(error.message || String(error)));
-      }
+          reject(error && error.message && error.message.indexOf('ESPlusPlayer transport:') === 0
+            ? error
+            : makeError(error.message || String(error)));
+        }
+      });
+    }).catch(function(error) {
+      close();
+      connectPromise = null;
+      throw error;
     });
 
     return connectPromise;
+  }
+
+  function sendConnectedRequest(command, serializedPayload, payload) {
+    return new Promise(function(resolve, reject) {
+      var id = String(++nextRequestId);
+      pending[id] = {
+        resolve: resolve,
+        reject: reject,
+        command: command,
+        startedAt: Date.now()
+      };
+
+      try {
+        var items = [
+          {key: 'protocol', value: PROTOCOL},
+          {key: 'id', value: id},
+          {key: 'command', value: command},
+          {key: 'payload', value: serializedPayload}
+        ];
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+          Object.keys(payload).forEach(function(key) {
+            if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) return;
+            var value = payload[key];
+            if (value === undefined || value === null) return;
+            items.push({key: 'arg_' + key, value: String(value)});
+          });
+        }
+        debugLog('sending native command over fresh MessagePort', {
+          id: id,
+          command: command,
+          itemCount: items.length
+        });
+        remotePort.sendMessage(items, localPort);
+      } catch (error) {
+        delete pending[id];
+        debugLog('native command send failed', {
+          id: id,
+          command: command,
+          error: errorDetails(error)
+        });
+        reject(makeError('could not send command: ' + error.message));
+      }
+    });
+  }
+
+  function waitForServiceReady(attempt) {
+    return sendConnectedRequest('ping', '{}', {}).then(function(response) {
+      var state = response && response.payload ? response.payload.service : null;
+      if (state === 'ready') return true;
+      if (state !== 'initializing') {
+        throw makeError('native service returned an invalid readiness state');
+      }
+      if (attempt >= 100) {
+        throw makeError('native service did not finish initialization');
+      }
+      return delay(100).then(function() {
+        return waitForServiceReady(attempt + 1);
+      });
+    });
   }
 
   function request(command, payload) {
@@ -402,46 +568,12 @@
     });
 
     return connect().then(function() {
-      return new Promise(function(resolve, reject) {
-        var id = String(++nextRequestId);
-        pending[id] = {
-          resolve: resolve,
-          reject: reject,
-          command: command,
-          startedAt: Date.now()
-        };
-
-        try {
-          var items = [
-            {key: 'protocol', value: PROTOCOL},
-            {key: 'id', value: id},
-            {key: 'command', value: command},
-            {key: 'payload', value: serializedPayload}
-          ];
-          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-            Object.keys(payload).forEach(function(key) {
-              if (!/^[A-Za-z][A-Za-z0-9]*$/.test(key)) return;
-              var value = payload[key];
-              if (value === undefined || value === null) return;
-              items.push({key: 'arg_' + key, value: String(value)});
-            });
-          }
-          debugLog('sending native command over MessagePort', {
-            id: id,
-            command: command,
-            itemCount: items.length
-          });
-          remotePort.sendMessage(items, localPort);
-        } catch (error) {
-          delete pending[id];
-          debugLog('native command send failed', {
-            id: id,
-            command: command,
-            error: errorDetails(error)
-          });
-          reject(makeError('could not send command: ' + error.message));
-        }
-      });
+      // The service publishes its control port before loading libmlengine.so
+      // and probing ESPlus. Do not submit a stream request until initialization
+      // has explicitly completed.
+      return command === 'start_session' ? waitForServiceReady(0) : true;
+    }).then(function() {
+      return sendConnectedRequest(command, serializedPayload, payload);
     }).catch(function(error) {
       debugLog('native command failed before receiving a response', {
         command: command,
