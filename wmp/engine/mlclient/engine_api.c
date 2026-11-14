@@ -311,11 +311,6 @@ int ml_engine_input_capabilities(void) {
   return (int)input_get_capabilities();
 }
 
-/* Match the WebAssembly input path: incoming codes are unprefixed Win32 VKs. */
-void ml_engine_send_key(int key_code, int key_action, int modifiers) {
-  LiSendKeyboardEvent((short)(0x8000 | key_code), (char)key_action, (char)modifiers);
-}
-
 int ml_engine_get_stats(ml_engine_stats *out) {
   if (!out || out->struct_size < (int32_t)sizeof *out) return GS_INVALID;
   const esplus_stats_t *s = &esplus_stats;
