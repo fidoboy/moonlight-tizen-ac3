@@ -4,8 +4,8 @@
 
 #include "Limelight.h"
 #include "esplus_player.h"
-#include "../upstream/mlclient/esplus_stats.h"
-#include "../upstream/mlclient/audio_opus.c"
+#include "../engine/mlclient/esplus_stats.h"
+#include "../engine/mlclient/audio_opus.c"
 
 /* audio_opus.c reads these engine-owned statistics globals. The isolated
  * passthrough test does not link esplus_player.c, so provide test-local state. */
