@@ -2005,6 +2005,8 @@ body[data-color-theme="black-orange"] #background-layer {
     height: 100%;
     box-sizing: border-box;
     padding: 20px;
+    /* Permanent scroll reserve: lets navigation keep 30% of the pane below focus. */
+    padding-bottom: 30vh;
     overflow-x: hidden;
     overflow-y: auto;
     transition: opacity 160ms ease;
@@ -2012,10 +2014,6 @@ body[data-color-theme="black-orange"] #background-layer {
 #settings-right-pane.settings-pane-dimmed {
     opacity: 0.38;
     overflow-y: hidden;
-}
-/* Add dropdown/focus safety space only when the settings content genuinely overflows. */
-#settings-right-pane.has-effective-scroll {
-    padding-bottom: 30vh;
 }
 /* Keep settings dropdowns as wide as their trigger controls. The 160px
    allowance matches the pane padding and settings/options side margins. */
@@ -2838,11 +2836,6 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0;
 }
 #popup-layer > #screensaver-overlay { pointer-events: none; }
-/* Keep enough scrollable space below every focused setting so dropdown menus
-   can open without being clipped by the bottom edge of the TV screen. */
-#settings-right-pane {
-    padding-bottom: 30vh;
-}
 
 
 /* Full-screen HTML launch presentation; it exists only during normal startup. */
