@@ -220,15 +220,19 @@
     context.lineCap = 'round';
     context.lineJoin = 'round';
 
+    var opacityBuckets = [];
+    for (var bucketIndex = 0; bucketIndex < 16; bucketIndex++) {
+      opacityBuckets.push({ alpha: bucketIndex / 15, stars: [] });
+    }
+
     function drawStarField(speed) {
       context.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
       var speedRatio = Math.min(1.0, Math.max(0.0, speed / STAR_SPEED_PEAK));
       var drawTrails = speed >= STAR_TRAIL_MIN_SPEED;
       var trailOpacity = drawTrails ? STAR_TRAIL_MAX_OPACITY * Math.pow(speedRatio, 1.25) : 0;
       var strokeWidth = 0.60 + 0.35 * speedRatio;
-      var opacityBuckets = [];
-      for (var bucketIndex = 0; bucketIndex < 16; bucketIndex++) {
-        opacityBuckets.push({ alpha: bucketIndex / 15, stars: [] });
+      for (var resetBucketIndex = 0; resetBucketIndex < opacityBuckets.length; resetBucketIndex++) {
+        opacityBuckets[resetBucketIndex].stars.length = 0;
       }
 
       for (var i = 0; i < starField.stars.length; i++) {
@@ -248,9 +252,8 @@
         var starOpacity = STAR_MIN_OPACITY + (1.0 - STAR_MIN_OPACITY) *
           Math.pow(depthRatio, STAR_DEPTH_OPACITY_POWER);
         var opacityBucket = Math.max(0, Math.min(15, Math.round(starOpacity * 15)));
-        opacityBuckets[opacityBucket].stars.push({
-          x: x, y: y, radius: radius
-        });
+        var bucketStars = opacityBuckets[opacityBucket].stars;
+        bucketStars.push(x, y, radius);
       }
 
       // Preserve depth-based opacity while batching thousands of individual
@@ -261,10 +264,11 @@
           if (!trailBucket.stars.length) continue;
 
           context.beginPath();
-          for (var trailIndex = 0; trailIndex < trailBucket.stars.length; trailIndex++) {
-            var trailStar = trailBucket.stars[trailIndex];
-            var dx = trailStar.x - LOGO_CENTER_X;
-            var dy = trailStar.y - LOGO_CENTER_Y;
+          for (var trailIndex = 0; trailIndex < trailBucket.stars.length; trailIndex += 3) {
+            var trailX = trailBucket.stars[trailIndex];
+            var trailY = trailBucket.stars[trailIndex + 1];
+            var dx = trailX - LOGO_CENTER_X;
+            var dy = trailY - LOGO_CENTER_Y;
             var radialDistance = Math.sqrt(dx * dx + dy * dy);
             var trailLength = Math.min(
               STAR_TRAIL_MAX_LENGTH,
@@ -275,7 +279,7 @@
               var tailX = trailStar.x - (dx / radialDistance) * trailLength;
               var tailY = trailStar.y - (dy / radialDistance) * trailLength;
               context.moveTo(tailX, tailY);
-              context.lineTo(trailStar.x, trailStar.y);
+              context.lineTo(trailX, trailY);
             }
           }
           context.globalAlpha = trailOpacity * trailBucket.alpha;
@@ -290,10 +294,12 @@
         if (!pointBucket.stars.length) continue;
 
         context.beginPath();
-        for (var pointIndex = 0; pointIndex < pointBucket.stars.length; pointIndex++) {
-          var point = pointBucket.stars[pointIndex];
-          context.moveTo(point.x + point.radius, point.y);
-          context.arc(point.x, point.y, point.radius, 0, Math.PI * 2, false);
+        for (var pointIndex = 0; pointIndex < pointBucket.stars.length; pointIndex += 3) {
+          var pointX = pointBucket.stars[pointIndex];
+          var pointY = pointBucket.stars[pointIndex + 1];
+          var pointRadius = pointBucket.stars[pointIndex + 2];
+          context.moveTo(pointX + pointRadius, pointY);
+          context.arc(pointX, pointY, pointRadius, 0, Math.PI * 2, false);
         }
         context.globalAlpha = pointBucket.alpha;
         context.fillStyle = '#ffffff';
@@ -345,10 +351,10 @@
     var lastRenderedFrame = -1;
     function renderThroughFrame(targetFrame) {
       targetFrame = Math.min(TOTAL_FRAMES - 1, targetFrame);
-      for (var frame = lastRenderedFrame + 1; frame <= targetFrame; frame++) {
-        if (frame < ANIMATED_FRAME_COUNT) {
-          starField.update(starSpeedForFrame(frame));
-        }
+      // Advance the simulation once per displayed frame. Catch-up loops after a
+      // delayed frame create bursts of thousands of updates and visible stutter.
+      if (targetFrame > lastRenderedFrame && targetFrame < ANIMATED_FRAME_COUNT) {
+        starField.update(starSpeedForFrame(targetFrame));
       }
       lastRenderedFrame = targetFrame;
       var currentSpeed = targetFrame < ANIMATED_FRAME_COUNT
