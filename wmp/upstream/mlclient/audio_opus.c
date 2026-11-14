@@ -9,6 +9,7 @@
 
 #include "Limelight.h"
 #include "esplus_player.h"
+#include "esplus_stats.h"
 #include "mltrace.h"
 
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
