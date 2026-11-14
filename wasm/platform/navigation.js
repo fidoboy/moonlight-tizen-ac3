@@ -499,27 +499,21 @@ function focusElement(target) {
     const settingRow = element.closest('.setting-option') || element;
     const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
       .find(options => window.getComputedStyle(options).display !== 'none');
-    const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
-    const isFirstOption = !!firstOption && settingRow === firstOption;
+    const paneRect = settingsPane.getBoundingClientRect();
+    const rowRect = settingRow.getBoundingClientRect();
+    const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+    // Always preserve at least 30% of the settings pane below the focused row.
+    // The bottom padding in CSS provides enough scroll range to maintain this
+    // reserve even when the last setting in the category is selected.
+    const bottomSafetyMargin = Math.round(settingsPane.clientHeight * 0.30);
+    const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
 
-    if (isFirstOption) {
-      scrollSettingsPaneTo(settingsPane, 0);
-    } else {
-      const paneRect = settingsPane.getBoundingClientRect();
-      const rowRect = settingRow.getBoundingClientRect();
-      const visibleTop = paneRect.top + settingsPane.clientTop + 8;
-      // Reserve at least 30% of the pane height below every focused control.
-      // This leaves room for expanded option menus without control-specific rules.
-      const bottomSafetyMargin = Math.max(240, Math.round(settingsPane.clientHeight * 0.30));
-      const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
-
-      if (rowRect.top < visibleTop) {
-        scrollSettingsPaneTo(settingsPane,
-          Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top)));
-      } else if (rowRect.bottom > visibleBottom) {
-        scrollSettingsPaneTo(settingsPane,
-          settingsPane.scrollTop + rowRect.bottom - visibleBottom);
-      }
+    if (rowRect.top < visibleTop) {
+      scrollSettingsPaneTo(settingsPane,
+        Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top)));
+    } else if (rowRect.bottom > visibleBottom) {
+      scrollSettingsPaneTo(settingsPane,
+        settingsPane.scrollTop + rowRect.bottom - visibleBottom);
     }
   }
 
