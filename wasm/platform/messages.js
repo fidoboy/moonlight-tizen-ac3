@@ -460,37 +460,9 @@ function ensurePerformanceStatsOverlayElements() {
   var canvas = container.querySelector('#performance-stats-graph');
   var hostCanvas = container.querySelector('#performance-stats-host-graph');
   var encryptionStatus = container.querySelector('#performanceStatsEncryptionStatus');
-  var engineStatus = container.querySelector('#performanceStatsEngineStatus');
-  var audioStatus = container.querySelector('#performanceStatsAudioStatus');
-  if (!textElement || !canvas || !hostCanvas || !encryptionStatus || !engineStatus || !audioStatus) {
+  if (!textElement || !canvas || !hostCanvas || !encryptionStatus) {
     var previousText = textElement ? textElement.textContent : container.textContent;
     container.textContent = '';
-
-    engineStatus = document.createElement('div');
-    engineStatus.id = 'performanceStatsEngineStatus';
-    engineStatus.className = 'performance-stats-row performance-stats-engine';
-
-    var engineLabel = document.createElement('span');
-    engineLabel.className = 'performance-stats-label';
-    engineLabel.textContent = t('Streaming engine:');
-
-    var engineValue = document.createElement('span');
-    engineValue.className = 'performance-stats-value';
-    engineValue.id = 'performanceStatsEngineValue';
-    engineStatus.appendChild(engineLabel);
-    engineStatus.appendChild(engineValue);
-
-    audioStatus = document.createElement('div');
-    audioStatus.id = 'performanceStatsAudioStatus';
-    audioStatus.className = 'performance-stats-row performance-stats-audio';
-    var audioLabel = document.createElement('span');
-    audioLabel.className = 'performance-stats-label';
-    audioLabel.textContent = t('Audio stream:');
-    var audioValue = document.createElement('span');
-    audioValue.className = 'performance-stats-value';
-    audioValue.id = 'performanceStatsAudioValue';
-    audioStatus.appendChild(audioLabel);
-    audioStatus.appendChild(audioValue);
 
     textElement = document.createElement('div');
     textElement.className = 'performance-stats-text';
@@ -530,26 +502,10 @@ function ensurePerformanceStatsOverlayElements() {
 
     encryptionStatus.appendChild(encryptionIcon);
     encryptionStatus.appendChild(encryptionMessage);
-    container.appendChild(engineStatus);
-    container.appendChild(audioStatus);
     container.appendChild(textElement);
     container.appendChild(canvas);
     container.appendChild(hostCanvas);
     container.appendChild(encryptionStatus);
-  }
-
-  var engineValueElement = engineStatus.querySelector('#performanceStatsEngineValue');
-  if (engineValueElement) {
-    engineValueElement.textContent = window._activeStreamingEngineConfirmed
-      ? (window._activeStreamingEngine === 'ESPLUSPLAYER' ? t('Native engine') : 'EMSS')
-      : '';
-  }
-  var audioValueElement = audioStatus.querySelector('#performanceStatsAudioValue');
-  if (audioValueElement) {
-    audioStatus.style.display = window._activeStreamingEngine === 'ESPLUSPLAYER' ? '' : 'none';
-    audioValueElement.textContent = window._activeStreamingEngine === 'ESPLUSPLAYER'
-      ? (window._esplusActiveAudioCodec || '—')
-      : '';
   }
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
@@ -560,18 +516,10 @@ function ensurePerformanceStatsOverlayElements() {
     renderStreamEncryptionStatus(currentStreamEncryptionStatus, ['performanceStatsEncryptionStatus']);
   }
 
-  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus, engineStatus: engineStatus, audioStatus: audioStatus };
+  return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
 }
 
-window.refreshPerformanceStatsEngineStatus = function() {
-  var elements = ensurePerformanceStatsOverlayElements();
-  if (!elements) return;
-  var engineValue = elements.engineStatus.querySelector('#performanceStatsEngineValue');
-  if (engineValue) engineValue.textContent = window._activeStreamingEngineConfirmed
-    ? (window._activeStreamingEngine === 'ESPLUSPLAYER' ? t('Native engine') : 'EMSS') : '';
-  var audioValue = elements.audioStatus.querySelector('#performanceStatsAudioValue');
-  if (audioValue) audioValue.textContent = window._esplusActiveAudioCodec || '—';
-};
+
 
 function getPerformanceStatsGraphColor(sample) {
   if (sample.droppedFrames > 0 || sample.rtt >= 20 || sample.variance >= 50) {
@@ -1683,7 +1631,6 @@ function handleMessage(msg) {
 
   } else if (msg === 'Connection Established') {
     confirmStreamingEngineConnection();
-    if (typeof window.refreshPerformanceStatsEngineStatus === 'function') window.refreshPerformanceStatsEngineStatus();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
