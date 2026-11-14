@@ -1,7 +1,7 @@
 const hoveredClassName = 'hovered';
 
-// Dedicated Web Audio engine for short interface effects. The MP3 is fetched and decoded
-// once while the application starts, then played from an AudioBuffer without per-click
+// Shared Web Audio engine for the launch presentation and short interface effects.
+// Navigation effects are decoded once and played from AudioBuffers without per-click
 // network, media-element or decoder initialization.
 let navigationSoundEnabled = false;
 let navigationSoundContext = null;
