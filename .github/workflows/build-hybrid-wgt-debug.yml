@@ -114,12 +114,12 @@ jobs:
             '
       - name: Restore compiler cache ownership after WMP build
         if: always()
-      - name: Build Moonlight Web files inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
+      - name: Build Moonlight Web files inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
