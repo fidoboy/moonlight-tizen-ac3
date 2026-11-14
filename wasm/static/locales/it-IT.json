@@ -112,6 +112,7 @@
   "Average decoding time:": "Tempo medio di decodifica:",
   "Average frame queue delay:": "Ritardo medio nella coda dei fotogrammi:",
   "Average network latency:": "Latenza media di rete:",
+  "Average pre-renderer processing time:": "Tempo medio di elaborazione prima del renderer:",
   "Average rendering time:": "Tempo medio di rendering:",
   "B": "B",
   "Back": "Indietro",
