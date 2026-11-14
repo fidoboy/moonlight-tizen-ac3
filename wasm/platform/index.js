@@ -976,8 +976,8 @@ function attachListeners() {
 }
 
 function changeUiModeForWasmLoad() {
-  // Tizen's native splash covers the normal WebUI. Keep the full UI visible
-  // and laying out from the start; hide it only for direct Smart Hub launches.
+  // Direct Smart Hub launches bypass the home UI while the normal route is held
+  // behind the HTML launch presentation until its animation has completed.
   if (_directSmartHubLaunch) {
     document.documentElement.classList.add('app-starting');
     $('#main-header').hide();
@@ -996,7 +996,7 @@ function finishNormalStartupPreparation() {
 
 function loadConfigSummarySettings(callback) {
   // Preload every persisted setting displayed in the summary strip before the
-  // native splash is released. getData invokes its callback on both success and
+  // normal UI is restored. getData invokes its callback on both success and
   // read failure, so the barrier cannot be held by a missing setting.
   var pending = 10;
   var finished = false;
@@ -1191,7 +1191,7 @@ function startDeferredNormalStartup() {
     window.startupEngineSnackbarPromise = snackbarLogPersistent('Starting background services...');
     window.startupEngineSnackbarPromise.then(function() {
       // Restore the cached update badge only after the normal UI is visible and the
-      // native splash is gone. Keep it aligned with the start of host recovery.
+      // HTML launch presentation has completed. Keep it aligned with host recovery.
       restoreUpdateBadgeFromCache();
       loadUserData();
 
@@ -10238,6 +10238,14 @@ function initializeConfigSummaryBar() {
 }
 
 function onWindowLoad() {
+  // The normal route must not initialize the application while the launch
+  // presentation is visible. The completion callback replays this handler.
+  if (!_directSmartHubLaunch && window._normalLaunchSplashActive &&
+      !window._normalLaunchSplashFinished) {
+    window._normalLaunchWindowLoadPending = true;
+    return;
+  }
+
   var isForceGMVariant = checkForceGMVariant();
   var buildVer = getBuildVersion(appInfo.version);
   console.log('%c[index.js, onWindowLoad]', 'color: green;', 'App Version: ' + appInfo.name + (isForceGMVariant ? '-ForceGM' : '') + ' v' + buildVer);
@@ -10277,7 +10285,7 @@ function onWindowLoad() {
   maybeRestoreUiAfterStartup();
 
   // Normal startup restoration, including WebAssembly and stored-data loading,
-  // starts 500 ms after the localized UI is revealed and the native splash is released.
+  // is reached only after the HTML launch presentation has completed.
 }
 
 window.onload = onWindowLoad;
