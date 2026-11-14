@@ -632,10 +632,7 @@ namespace MoonlightWmpHost
                     stream.AudioChannels == 8 ? "7.1" : "-";
                 text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
-                    .Append(" channels");
-                if (stream.AudioSampleRate != 0)
-                    text.Append(", ").Append((stream.AudioSampleRate / 1000.0).ToString("0", CultureInfo.InvariantCulture)).Append(" kHz");
-                text.Append(", ").Append(stream.AudioBitrateKbps != 0
+                    .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
                 if (stream.AudioCodec == 2 || stream.AudioCodec == 3)
@@ -663,9 +660,9 @@ namespace MoonlightWmpHost
                 text.Append("Incoming bitrate from network: -\n");
 
             text.Append("Frames missing from stream: ")
-                .Append(stream.NetworkDroppedPercentX100 != 0
+                .Append(stream.VideoFpsReceived != 0
                     ? (stream.NetworkDroppedPercentX100 / 100.0).ToString("0.00", CultureInfo.InvariantCulture) + "%"
-                    : "0.00%").Append("\n");
+                    : "-").Append("\n");
 
             text.Append("Average network latency: ");
             if (stream.NetworkRttMs != 0)
@@ -999,13 +996,13 @@ namespace MoonlightWmpHost
                                     streamInfo = new EngineApi.StreamInfo();
                                 SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
                                 string graphMessage = "GraphMsg: " +
-                                streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
-                                streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
-                                streamInfo.VideoDroppedFramesInterval.ToString(CultureInfo.InvariantCulture) + "," +
-                                streamInfo.AudioFecRecovered.ToString(CultureInfo.InvariantCulture) + "," +
-                                streamInfo.AudioFecFailed.ToString(CultureInfo.InvariantCulture) + "," +
-                                streamInfo.AudioFecOutOfOrder.ToString(CultureInfo.InvariantCulture);
-                            SendStatsEventIfEnabled(appId, remotePort, graphMessage, null);
+                                    streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
+                                    streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
+                                    streamInfo.VideoDroppedFramesInterval.ToString(CultureInfo.InvariantCulture) + "," +
+                                    streamInfo.AudioFecRecovered.ToString(CultureInfo.InvariantCulture) + "," +
+                                    streamInfo.AudioFecFailed.ToString(CultureInfo.InvariantCulture) + "," +
+                                    streamInfo.AudioFecOutOfOrder.ToString(CultureInfo.InvariantCulture);
+                                SendStatsEventIfEnabled(appId, remotePort, graphMessage, null);
                             if (streamInfo.HostLatencyMaxTenthsMs != 0)
                             {
                                 string hostLatency = "HostLatencyMsg: " +
