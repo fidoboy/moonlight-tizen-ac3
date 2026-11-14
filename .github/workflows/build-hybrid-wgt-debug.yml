@@ -688,7 +688,7 @@ jobs:
       - name: Upload Debug hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-Debug-${{ github.sha }}
+          name: Moonlight-Debug
           path: ${{ runner.temp }}/hybrid-output/Moonlight-Debug.wgt
           if-no-files-found: error
           retention-days: 14
