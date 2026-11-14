@@ -1473,7 +1473,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         100.0 * static_cast<double>(stats.networkDroppedFrames) /
         static_cast<double>(stats.totalFrames));
     } else {
-      append("Frames dropped by your network connection: -\n");
+      append("Frames missing from stream: -\n");
     }
     append("Average network latency: %s\n", rttString);
 
