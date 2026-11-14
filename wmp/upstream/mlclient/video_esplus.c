@@ -48,6 +48,14 @@ static void record_host_latency(uint32_t latency)
     }
     __atomic_fetch_add(&esplus_stats.host_latency_total, (uint64_t)latency, __ATOMIC_RELAXED);
     __atomic_fetch_add(&esplus_stats.host_latency_count, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&esplus_stats.host_latency_window_total, (uint64_t)latency, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&esplus_stats.host_latency_window_count, 1, __ATOMIC_RELAXED);
+    current = __atomic_load_n(&esplus_stats.host_latency_window_min, __ATOMIC_RELAXED);
+    while (latency < current && !__atomic_compare_exchange_n(
+        &esplus_stats.host_latency_window_min, &current, latency, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
+    current = __atomic_load_n(&esplus_stats.host_latency_window_max, __ATOMIC_RELAXED);
+    while (latency > current && !__atomic_compare_exchange_n(
+        &esplus_stats.host_latency_window_max, &current, latency, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
 }
 
 static void capture_h264_level(const uint8_t *data, size_t length)
@@ -118,6 +126,10 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     __atomic_store_n(&esplus_stats.host_latency_count, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.host_latency_min, UINT32_MAX, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.host_latency_max, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_window_total, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_window_count, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_window_min, UINT32_MAX, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.host_latency_window_max, 0, __ATOMIC_RELAXED);
 
     if (videoFormat & VIDEO_FORMAT_MASK_H264)
         mime = WMP_ESPLUS_VIDEO_MIME_H264;
