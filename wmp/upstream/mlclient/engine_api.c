@@ -41,6 +41,7 @@ static char g_host[256];         /* si.address is held by moonlight-common-c for
 static uint64_t g_stream_info_last_time_ms, g_stream_info_last_video_bytes, g_stream_info_last_audio_bytes;
 static uint64_t g_stream_info_last_received, g_stream_info_last_decoded, g_stream_info_last_rendered;
 static uint64_t g_stream_info_last_dropped;
+static uint32_t g_stream_info_last_fec_recovered, g_stream_info_last_fec_failed, g_stream_info_last_fec_oos;
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
 static ml_engine_stage_cb g_stage_cb;
@@ -121,6 +122,9 @@ static int start_connection(void) {
   g_stream_info_last_decoded = 0;
   g_stream_info_last_rendered = 0;
   g_stream_info_last_dropped = 0;
+  g_stream_info_last_fec_recovered = 0;
+  g_stream_info_last_fec_failed = 0;
+  g_stream_info_last_fec_oos = 0;
   AudEsplus_SetDolbyPassthroughEnabled(g_audio_enabled && g_dolby_passthrough_enabled);
   esplus_set_audio_enabled(g_audio_enabled);
   DECODER_RENDERER_CALLBACKS dr; VidEsplus_FillCallbacks(&dr);
@@ -297,9 +301,15 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->host_latency_max_tenths_ms = host_count ? host_max : 0;
   out->host_latency_avg_tenths_ms = host_count ? (uint32_t)(host_total / host_count) : 0;
   out->video_dropped_frames_interval = 0;
-  out->audio_fec_recovered = audio_fec.recoveredPackets;
-  out->audio_fec_failed = audio_fec.failedBlocks;
-  out->audio_fec_out_of_order = audio_fec.outOfOrderPackets;
+  out->audio_fec_recovered = audio_fec.recoveredPackets >= g_stream_info_last_fec_recovered
+      ? audio_fec.recoveredPackets - g_stream_info_last_fec_recovered : audio_fec.recoveredPackets;
+  out->audio_fec_failed = audio_fec.failedBlocks >= g_stream_info_last_fec_failed
+      ? audio_fec.failedBlocks - g_stream_info_last_fec_failed : audio_fec.failedBlocks;
+  out->audio_fec_out_of_order = audio_fec.outOfOrderPackets >= g_stream_info_last_fec_oos
+      ? audio_fec.outOfOrderPackets - g_stream_info_last_fec_oos : audio_fec.outOfOrderPackets;
+  g_stream_info_last_fec_recovered = audio_fec.recoveredPackets;
+  g_stream_info_last_fec_failed = audio_fec.failedBlocks;
+  g_stream_info_last_fec_oos = audio_fec.outOfOrderPackets;
   (void)LiGetEstimatedRttInfo(&out->network_rtt_ms, &out->network_variance_ms);
   if (g_stream_info_last_time_ms && now_ms > g_stream_info_last_time_ms &&
       video_bytes >= g_stream_info_last_video_bytes && audio_bytes >= g_stream_info_last_audio_bytes &&
