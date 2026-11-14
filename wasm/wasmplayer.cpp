@@ -1449,7 +1449,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     } else {
       snprintf(renderedFps, sizeof(renderedFps), "%.2f", stats.renderedFps);
     }
-    append("Frame rates: %s Recv | %s Dec | %s Rend\n",
+    append("Frame rates: %s Recv | %s Dec | %s Submit\n",
       receivedFps, decodedFps, renderedFps);
 
     if (std::isfinite(stats.receivedBitrate) && stats.receivedBitrate >= 0) {
@@ -1486,11 +1486,11 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     if (stats.renderedFrames > 0) {
       append("Average frame queue delay: %.2f ms\n",
         static_cast<double>(stats.totalPacerTime) / stats.renderedFrames);
-      append("Average rendering time: %.2f ms\n",
+      append("Average renderer submit time: %.2f ms\n",
         static_cast<double>(stats.totalRenderTime) / stats.renderedFrames);
     } else {
       append("Average frame queue delay: -\n");
-      append("Average rendering time: -\n");
+      append("Average renderer submit time: -\n");
     }
   }
 }
