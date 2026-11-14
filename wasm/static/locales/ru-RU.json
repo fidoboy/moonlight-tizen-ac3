@@ -112,6 +112,7 @@
   "Average decoding time:": "Среднее время декодирования:",
   "Average frame queue delay:": "Средняя задержка в очереди кадров:",
   "Average network latency:": "Средняя задержка сети:",
+  "Average pre-renderer processing time:": "Среднее время обработки до рендерера:",
   "Average rendering time:": "Среднее время отображения:",
   "B": "B",
   "Back": "Назад",
