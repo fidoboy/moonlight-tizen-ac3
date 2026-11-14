@@ -632,5 +632,7 @@
   "Native": "Nativo",
   "Average processing time:": "Tempo medio di elaborazione:",
   "Starting native service...": "Avvio del servizio nativo...",
-  "Starting Ambilight service...": "Avvio del servizio Ambilight..."
+  "Starting Ambilight service...": "Avvio del servizio Ambilight...",
+  "Starting native video playback service...": "Avvio del servizio nativo di riproduzione video...",
+  "Ambilight service failed to start.": "Impossibile avviare il servizio Ambilight."
 }
