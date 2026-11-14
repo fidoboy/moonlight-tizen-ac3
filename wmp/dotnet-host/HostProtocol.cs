@@ -634,7 +634,6 @@ namespace MoonlightWmpHost
                     .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
-
             }
 
             if (request.AudioEnabled == 0)
@@ -669,7 +668,7 @@ namespace MoonlightWmpHost
             else
                 text.Append("N/A\n");
 
-            // Time from decode-unit enqueue through packet preparation, up to the native renderer submit boundary.
+            // Time from decode-unit enqueue through packet reassembly/preparation, before native renderer submission.
             text.Append("Average pre-renderer processing time: ")
                 .Append(stream.AverageDecodeUs != 0
                     ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
