@@ -372,7 +372,6 @@ wmp_esplus_call_result_t wmp_esplus_adapter_set_display_mode(
 int wmp_esplus_adapter_has_playing_time(const wmp_esplus_adapter_t *adapter)
 {
     return adapter && adapter->api && adapter->player &&
-           adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD &&
            adapter->api->get_playing_time != NULL;
 }
 
@@ -385,6 +384,23 @@ int wmp_esplus_adapter_get_playing_time(
         return 0;
     fn = (playing_time_fn)adapter->api->get_playing_time;
     return fn(adapter->player, playing_time_ms) != 0;
+}
+
+int wmp_esplus_adapter_has_seek(const wmp_esplus_adapter_t *adapter)
+{
+    return adapter && adapter->api && adapter->player &&
+           adapter->api->seek != NULL;
+}
+
+int wmp_esplus_adapter_seek(
+    wmp_esplus_adapter_t *adapter, uint64_t playing_time_ms)
+{
+    typedef int (*seek_fn)(void *, uint64_t);
+    seek_fn fn;
+    if (!wmp_esplus_adapter_has_seek(adapter))
+        return -1;
+    fn = (seek_fn)adapter->api->seek;
+    return fn(adapter->player, playing_time_ms);
 }
 
 typedef const char *(*error_string_fn)(int);
