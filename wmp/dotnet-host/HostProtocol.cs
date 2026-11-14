@@ -587,31 +587,89 @@ namespace MoonlightWmpHost
             }
         }
 
-        private static string FormatStats(StartRequest request, EngineApi.Stats stats)
+        private static string FormatStats(StartRequest request, EngineApi.Stats stats,
+                                          EngineApi.StreamInfo stream)
         {
-            var text = new System.Text.StringBuilder(512);
-            text.Append("Video stream: ")
-                .Append(request.Width.ToString(CultureInfo.InvariantCulture)).Append('x')
-                .Append(request.Height.ToString(CultureInfo.InvariantCulture))
-                .Append(" (Codec: ").Append(request.VideoCodec).Append(")\n");
-            text.Append("Target frame rate: ")
-                .Append(request.Fps.ToString(CultureInfo.InvariantCulture)).Append(" FPS\n");
-            text.Append("Audio stream: ")
-                .Append(request.AudioEnabled != 0 ? "enabled\n" : "disabled\n");
-            text.Append("Native player: ")
-                .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
+            var text = new System.Text.StringBuilder(1024);
+            uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
+            uint height = stream.VideoHeight != 0 ? stream.VideoHeight : (uint)request.Height;
+            uint targetFps = stream.VideoFps != 0 ? stream.VideoFps : (uint)request.Fps;
+            uint displayedFps = stats.FpsSubmitted != 0 ? stats.FpsSubmitted : targetFps;
+            string codec;
+            if ((stream.VideoFormat & 0x000Fu) != 0)
+            {
+                codec = "H.264";
+                if (stream.H264LevelIdc != 0)
+                    codec += " L" + (stream.H264LevelIdc / 10).ToString(CultureInfo.InvariantCulture) + "." +
+                        (stream.H264LevelIdc % 10).ToString(CultureInfo.InvariantCulture);
+            }
+            else if ((stream.VideoFormat & 0x0F00u) != 0)
+                codec = (stream.VideoFormat & 0xAA00u) != 0 ? "HEVC 10-bit" : "HEVC";
+            else if ((stream.VideoFormat & 0xF000u) != 0)
+                codec = (stream.VideoFormat & 0xAA00u) != 0 ? "AV1 10-bit" : "AV1";
+            else
+                codec = String.IsNullOrEmpty(request.VideoCodec) ? "-" : request.VideoCodec;
+
+            text.Append("Video stream: ").Append(width.ToString(CultureInfo.InvariantCulture)).Append('x')
+                .Append(height.ToString(CultureInfo.InvariantCulture)).Append(' ')
+                .Append(displayedFps.ToString(CultureInfo.InvariantCulture)).Append(" FPS (Codec: ")
+                .Append(codec).Append(")\n");
+            text.Append("Target frame rate: ").Append(targetFps.ToString(CultureInfo.InvariantCulture))
+                .Append(" FPS\n");
+
+            if (request.AudioEnabled == 0 || stream.AudioCodec == 0)
+            {
+                text.Append("Audio stream: -\n");
+                text.Append("Decoding mode: -\n");
+                text.Append("Audio FEC: -\n");
+            }
+            else
+            {
+                string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
+                    stream.AudioCodec == 2 ? "AC-3" : "OPUS";
+                string layout = stream.AudioChannels == 2 ? "Stereo" :
+                    stream.AudioChannels == 6 ? "5.1" :
+                    stream.AudioChannels == 8 ? "7.1" : "multichannel";
+                text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
+                    .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
+                    .Append(" channels");
+                if (stream.AudioSampleRate != 0)
+                    text.Append(", ").Append((stream.AudioSampleRate / 1000.0).ToString("0", CultureInfo.InvariantCulture)).Append(" kHz");
+                text.Append(", ").Append(stream.AudioBitrateKbps != 0
+                    ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) + " kbps" : "- kbps")
+                    .Append(")\n");
+                text.Append("Decoding mode: ").Append(stream.AudioCodec == 1 ? "Opus" : "Native passthrough").Append("\n");
+                text.Append("Audio FEC: -\n");
+            }
+
+            text.Append("Frame rates: - Recv | - Dec | ")
+                .Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture)).Append(" Submitted\n");
+            if (stream.VideoBitrateKbps != 0)
+                text.Append("Incoming bitrate from network: ")
+                    .Append((stream.VideoBitrateKbps / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
+                    .Append(" Mbps (video payload)\n");
+            else
+                text.Append("Incoming bitrate from network: -\n");
+            text.Append("Frames dropped by your network connection: -\n");
+            text.Append("Average network latency: ");
+            if (stream.NetworkRttMs != 0)
+                text.Append(stream.NetworkRttMs.ToString(CultureInfo.InvariantCulture)).Append(" ms (variance: ")
+                    .Append(stream.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture)).Append(" ms)\n");
+            else
+                text.Append("N/A\n");
+            text.Append("Average decoding time: -\n");
+            text.Append("Average frame queue delay: ").Append(stats.DepthMs == Int32.MinValue
+                ? "-" : stats.DepthMs.ToString(CultureInfo.InvariantCulture) + " ms (current queue depth)").Append("\n");
+            text.Append("Average rendering time: -\n");
+            text.Append("Native player: ").Append(stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" FPS submitted · queue depth: ")
-                .Append(stats.DepthMs == Int32.MinValue
-                    ? "n/a"
-                    : stats.DepthMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
-            text.Append("Frames submitted: ")
-                .Append(stats.Submitted.ToString(CultureInfo.InvariantCulture))
+                .Append(stats.DepthMs == Int32.MinValue ? "n/a" :
+                    stats.DepthMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
+            text.Append("Frames submitted: ").Append(stats.Submitted.ToString(CultureInfo.InvariantCulture))
                 .Append(" · late drops: ").Append(stats.DroppedLate.ToString(CultureInfo.InvariantCulture))
                 .Append(" · queue drops: ").Append(stats.DroppedFull.ToString(CultureInfo.InvariantCulture)).Append("\n");
-            text.Append("Playback time: ")
-                .Append(stats.PlayingMs == UInt32.MaxValue
-                    ? "n/a"
-                    : stats.PlayingMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
+            text.Append("Playback time: ").Append(stats.PlayingMs == UInt32.MaxValue ? "n/a" :
+                stats.PlayingMs.ToString(CultureInfo.InvariantCulture) + " ms").Append("\n");
             text.Append("Player errors: ").Append(stats.Errors.ToString(CultureInfo.InvariantCulture))
                 .Append(" (last: 0x").Append(stats.LastError.ToString("X", CultureInfo.InvariantCulture))
                 .Append(") · video queue-empty events: ").Append(stats.Underruns.ToString(CultureInfo.InvariantCulture))
@@ -921,7 +979,11 @@ namespace MoonlightWmpHost
                     {
                         if (statsResult == 0)
                         {
-                            SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats));
+                            var streamInfo = new EngineApi.StreamInfo();
+                            streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
+                            if (_engine.GetStreamInfo(ref streamInfo) != 0)
+                                streamInfo = new EngineApi.StreamInfo();
+                            SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
                         }
                         nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
                     }
