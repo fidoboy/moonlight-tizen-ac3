@@ -238,6 +238,39 @@ int ml_engine_get_stats(ml_engine_stats *out) {
   return 0;
 }
 
+int ml_engine_get_stream_info(ml_engine_stream_info *out) {
+  static uint64_t last_time_ms, last_video_bytes, last_audio_bytes;
+  struct timespec ts;
+  uint64_t now_ms, video_bytes, audio_bytes;
+  if (!out || out->struct_size < (int32_t)sizeof *out) return GS_INVALID;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  now_ms = (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
+  video_bytes = __atomic_load_n(&esplus_stats.video_bytes_received, __ATOMIC_RELAXED);
+  audio_bytes = __atomic_load_n(&esplus_stats.audio_bytes_received, __ATOMIC_RELAXED);
+  out->video_format = __atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED);
+  out->video_width = __atomic_load_n(&esplus_stats.video_width, __ATOMIC_RELAXED);
+  out->video_height = __atomic_load_n(&esplus_stats.video_height, __ATOMIC_RELAXED);
+  out->video_fps = __atomic_load_n(&esplus_stats.video_fps, __ATOMIC_RELAXED);
+  out->h264_level_idc = __atomic_load_n(&esplus_stats.h264_level_idc, __ATOMIC_RELAXED);
+  out->audio_codec = __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED);
+  out->audio_channels = __atomic_load_n(&esplus_stats.audio_channels, __ATOMIC_RELAXED);
+  out->audio_sample_rate = __atomic_load_n(&esplus_stats.audio_sample_rate, __ATOMIC_RELAXED);
+  out->video_bitrate_kbps = 0;
+  out->audio_bitrate_kbps = 0;
+  if (last_time_ms && now_ms > last_time_ms &&
+      video_bytes >= last_video_bytes && audio_bytes >= last_audio_bytes) {
+    uint64_t elapsed = now_ms - last_time_ms;
+    uint64_t video_rate = ((video_bytes - last_video_bytes) * 8ull) / elapsed;
+    uint64_t audio_rate = ((audio_bytes - last_audio_bytes) * 8ull) / elapsed;
+    out->video_bitrate_kbps = video_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)video_rate;
+    out->audio_bitrate_kbps = audio_rate > UINT32_MAX ? UINT32_MAX : (uint32_t)audio_rate;
+  }
+  last_time_ms = now_ms;
+  last_video_bytes = video_bytes;
+  last_audio_bytes = audio_bytes;
+  return 0;
+}
+
 int ml_engine_last_error(char *buf, int len) { return mldiag_last(buf, len); }
 
 int ml_engine_running(void) {   /* polled every 500 ms by the host: trace only changes */
