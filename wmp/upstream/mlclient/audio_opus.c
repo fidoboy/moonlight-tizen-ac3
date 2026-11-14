@@ -210,7 +210,8 @@ static void ar_decodePlay(char *data, int len)
     if (s_dolby) {
         duration_ns = 32000000ull;
         if (data && len > 0) {
-            __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
+            if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
+                __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
             memset(&packet, 0, sizeof(packet));
             packet.type = WMP_ESPLUS_STREAM_AUDIO;
             packet.data = data;
@@ -237,7 +238,8 @@ static void ar_decodePlay(char *data, int len)
         return;
     }
 
-    __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
+    if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
+        __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
     memset(&packet, 0, sizeof(packet));
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
     packet.data = data;                 /* original Opus packet, no PCM stage */
