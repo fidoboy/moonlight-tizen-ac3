@@ -278,7 +278,7 @@ function replaceKnownStatsLabels(text) {
     .replace(/Frame rates:/g, t('Frame rates:'))
     .replace(/\\bRecv\\b/g, t('Recv'))
     .replace(/\\bDec\\b/g, t('Dec'))
-    .replace(/\\bRend\\b/g, t('Rend'))
+    .replace(/\\bSubmit\\b/g, t('Submit'))
     .replace(/Incoming bitrate from network:/g, t('Incoming bitrate from network:'))
     .replace(/Frames dropped by your network connection:/g, t('Frames dropped by your network connection:'))
     .replace(/Average network latency:/g, t('Average network latency:'))
@@ -286,7 +286,7 @@ function replaceKnownStatsLabels(text) {
     .replace(/\bN\/A\b/g, t('N/A'))
     .replace(/Average decoding time:/g, t('Average decoding time:'))
     .replace(/Average frame queue delay:/g, t('Average frame queue delay:'))
-    .replace(/Average rendering time:/g, t('Average rendering time:'))
+    .replace(/Average renderer submit time:/g, t('Average renderer submit time:'))
     .replace(/Slow connection to PC\.\nReduce your bitrate!/g, t('Slow connection to PC.\nReduce your bitrate!'));
 }
 
