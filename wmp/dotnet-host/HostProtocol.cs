@@ -1003,13 +1003,13 @@ namespace MoonlightWmpHost
                                     streamInfo.AudioFecFailed.ToString(CultureInfo.InvariantCulture) + "," +
                                     streamInfo.AudioFecOutOfOrder.ToString(CultureInfo.InvariantCulture);
                                 SendStatsEventIfEnabled(appId, remotePort, graphMessage, null);
-                            if (streamInfo.HostLatencyMaxTenthsMs != 0)
-                            {
-                                string hostLatency = "HostLatencyMsg: " +
+                                if (streamInfo.HostLatencyMaxTenthsMs != 0)
+                                {
+                                    string hostLatency = "HostLatencyMsg: " +
                                     (streamInfo.HostLatencyMinTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
                                     (streamInfo.HostLatencyMaxTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture) + "," +
-                                    (streamInfo.HostLatencyAvgTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
-                                SendStatsEventIfEnabled(appId, remotePort, hostLatency, null);
+                                        (streamInfo.HostLatencyAvgTenthsMs / 10.0).ToString("0.0", CultureInfo.InvariantCulture);
+                                    SendStatsEventIfEnabled(appId, remotePort, hostLatency, null);
                                 }
                             }
                         }
