@@ -808,6 +808,17 @@
       global.isGamepadTestDialogOpen === true;
   }
 
+  function keyboardInputUiBlocked() {
+    // The streaming menu is an overlay, not a text-entry dialog. Keep browser
+    // keyboard forwarding active there so the user can send host keys (including
+    // Meta/Windows) while using the menu. Other dialogs remain input barriers.
+    var streamMenuOpen = !!(global.document &&
+      global.document.getElementById('streamMenuDialogOverlay'));
+    return (global.isDialogOpen === true && !streamMenuOpen) ||
+      global.isPairingInProgress === true ||
+      global.isGamepadTestDialogOpen === true;
+  }
+
   function inputModifiers(event) {
     return (event.shiftKey ? 0x01 : 0) |
       (event.ctrlKey ? 0x02 : 0) |
@@ -856,7 +867,7 @@
       return;
     }
 
-    if (inputUiBlocked() || isEditableTarget(event.target)) return;
+    if (keyboardInputUiBlocked() || isEditableTarget(event.target)) return;
     if (!browserKeyboardInputActive()) return;
 
     var key = String(code);
