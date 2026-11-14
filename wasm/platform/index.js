@@ -8177,6 +8177,9 @@ function completeAudioBackendPolicyLoad() {
   if (!state.streamingEngine || !state.audioBackend || !state.ac3AudioMode ||
       !state.beforeESPlusPlayer || !state.beforeAc3) return;
   updateAc3AudioModeUI($('#ac3AudioModeSwitch').parent().hasClass('is-checked'), 'startup');
+  // The summary strip is revealed only after the engine and effective audio backend are final.
+  configSummaryValuesReady = true;
+  updateConfigSummaryBar();
 }
 
 function updateAc3AudioModeUI(enabled, reason) {
@@ -10054,6 +10057,7 @@ function probeSmartHubSupport() {
 var navigationSoundPreferenceEnabled = true;
 var screensaverPreferenceEnabled = true;
 var configSummaryPreferenceLoaded = false;
+var configSummaryValuesReady = false;
 var configSummaryTemporarilyHidden = false;
 
 function createConfigSummaryBar() {
@@ -10122,6 +10126,13 @@ function updateConfigSummaryBar() {
   // Hidden removes the element entirely instead of retaining an invisible DOM subtree.
   if (summaryPosition === 'hidden') {
     if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+    return;
+  }
+
+  // Keep the bar out of the first paint until all displayed settings, including
+  // the selected engine and policy-adjusted audio backend, have been restored.
+  if (!configSummaryValuesReady) {
+    if (bar && bar.style.display !== 'none') bar.style.display = 'none';
     return;
   }
 
