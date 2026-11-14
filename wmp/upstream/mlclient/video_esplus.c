@@ -35,11 +35,12 @@ static int s_have_frame_number;
 static void record_host_latency(uint32_t latency)
 {
     uint32_t count = __atomic_load_n(&esplus_stats.host_latency_count, __ATOMIC_RELAXED);
+    uint32_t current;
     if (count == 0) {
         __atomic_store_n(&esplus_stats.host_latency_min, latency, __ATOMIC_RELAXED);
         __atomic_store_n(&esplus_stats.host_latency_max, latency, __ATOMIC_RELAXED);
     } else {
-        uint32_t current = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
+        current = __atomic_load_n(&esplus_stats.host_latency_min, __ATOMIC_RELAXED);
         while (latency < current && !__atomic_compare_exchange_n(
             &esplus_stats.host_latency_min, &current, latency, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {}
         current = __atomic_load_n(&esplus_stats.host_latency_max, __ATOMIC_RELAXED);
