@@ -637,5 +637,6 @@
   "Starting native service...": "Starting native service...",
   "Starting Ambilight service...": "Starting Ambilight service...",
   "Starting native video playback service...": "Starting native video playback service...",
-  "Ambilight service failed to start.": "Ambilight service failed to start."
+  "Ambilight service failed to start.": "Ambilight service failed to start.",
+  "! For 60 FPS or higher above 1080p, use a video codec other than H.264 (such as HEVC). High frame rates are unavailable with H.264 at these resolutions.": "! For 60 FPS or higher above 1080p, use a video codec other than H.264 (such as HEVC). High frame rates are unavailable with H.264 at these resolutions."
 }
