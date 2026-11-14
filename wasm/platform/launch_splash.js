@@ -204,7 +204,6 @@
 
     window._normalLaunchSplashActive = true;
     window._normalLaunchSplashFinished = false;
-    overlay.classList.add('is-active');
 
     function resizeStage() {
       var viewportWidth = window.innerWidth || FRAME_WIDTH;
@@ -248,8 +247,10 @@
         projectedStars.push({ x: x, y: y, radius: radius, opacity: starOpacity });
       }
 
-      // Match the SVG generator's two groups: every trail is behind every point.
+      // Batch all trails into one stroke and all star points into one fill,
+      // matching the low-overhead Canvas strategy used by the stream transition.
       if (drawTrails) {
+        context.beginPath();
         for (var trailIndex = 0; trailIndex < projectedStars.length; trailIndex++) {
           var trailStar = projectedStars[trailIndex];
           var dx = trailStar.x - LOGO_CENTER_X;
@@ -263,25 +264,25 @@
           if (radialDistance > 1.0 && trailLength >= 0.65) {
             var tailX = trailStar.x - (dx / radialDistance) * trailLength;
             var tailY = trailStar.y - (dy / radialDistance) * trailLength;
-            context.globalAlpha = trailOpacity * trailStar.opacity;
-            context.strokeStyle = '#ffffff';
-            context.lineWidth = strokeWidth;
-            context.beginPath();
             context.moveTo(tailX, tailY);
             context.lineTo(trailStar.x, trailStar.y);
-            context.stroke();
           }
         }
+        context.globalAlpha = trailOpacity;
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = strokeWidth;
+        context.stroke();
       }
 
+      context.beginPath();
       for (var pointIndex = 0; pointIndex < projectedStars.length; pointIndex++) {
         var point = projectedStars[pointIndex];
-        context.globalAlpha = point.opacity;
-        context.fillStyle = '#ffffff';
-        context.beginPath();
+        context.moveTo(point.x + point.radius, point.y);
         context.arc(point.x, point.y, point.radius, 0, Math.PI * 2, false);
-        context.fill();
       }
+      context.globalAlpha = 1.0;
+      context.fillStyle = '#ffffff';
+      context.fill();
       context.globalAlpha = 1.0;
     }
 
@@ -341,7 +342,6 @@
     }
 
     var audio = null;
-    var startTime = 0;
     var durationMs = TOTAL_FRAMES * 1000 / FPS;
     var requestFrame = typeof window.requestAnimationFrame === 'function'
       ? function(callback) { window.requestAnimationFrame(callback); }
@@ -351,7 +351,16 @@
             ? window.performance.now() : Date.now());
         }, 1000 / FPS);
       };
+    var playbackRequested = false;
     var animationStarted = false;
+    var animationStartMediaTime = 0;
+    var fallbackStartTime = 0;
+    var usingMediaClock = false;
+
+    function nowMilliseconds() {
+      return window.performance && typeof window.performance.now === 'function'
+        ? window.performance.now() : Date.now();
+    }
 
     function finishSplash() {
       window.removeEventListener('resize', resizeStage);
@@ -366,17 +375,23 @@
       overlay.classList.remove('is-active');
       window._normalLaunchSplashActive = false;
       window._normalLaunchSplashFinished = true;
-
       if (typeof onComplete === 'function') onComplete();
     }
 
-    function animationFrame(timestamp) {
-      var now = typeof timestamp === 'number' ? timestamp :
-        (window.performance && typeof window.performance.now === 'function'
-          ? window.performance.now() : Date.now());
-      var elapsed = Math.max(0, now - startTime);
+    function animationFrame() {
+      if (!animationStarted) return;
 
-      if (elapsed >= durationMs) {
+      var elapsed;
+      if (usingMediaClock && audio) {
+        elapsed = Math.max(0, (audio.currentTime - animationStartMediaTime) * 1000);
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          durationMs = Math.max(durationMs, audio.duration * 1000);
+        }
+      } else {
+        elapsed = Math.max(0, nowMilliseconds() - fallbackStartTime);
+      }
+
+      if (elapsed >= durationMs || (audio && audio.ended)) {
         renderThroughFrame(TOTAL_FRAMES - 1);
         finishSplash();
         return;
@@ -387,37 +402,88 @@
       requestFrame(animationFrame);
     }
 
-    function beginAnimation() {
+    function beginAnimation(useAudioClock) {
       if (animationStarted) return;
       animationStarted = true;
-      if (audio && isFinite(audio.duration) && audio.duration > 0) {
-        // The MP3 is 8.664 s; hold the final video frame through its encoded tail.
-        durationMs = Math.max(durationMs, audio.duration * 1000);
-      }
+      usingMediaClock = !!useAudioClock && !!audio;
+      animationStartMediaTime = usingMediaClock ? audio.currentTime : 0;
+      fallbackStartTime = nowMilliseconds();
       renderThroughFrame(0);
-      startTime = window.performance && typeof window.performance.now === 'function'
-        ? window.performance.now() : Date.now();
       requestFrame(animationFrame);
     }
 
-    // Start the visual timeline when the media element reports that playback
-    // has actually begun. If autoplay is denied, never block application startup.
+    function showPreparedStarfield() {
+      // Paint the first complete frame while hidden. Only expose the splash once
+      // the canvas is ready, so the user never sees an unpainted/late first frame.
+      drawStarField(0);
+      drawLogoFrame(-1);
+      overlay.classList.add('is-active');
+    }
+
+    function startAudioPlayback() {
+      if (playbackRequested || animationStarted) return;
+      playbackRequested = true;
+
+      // Reveal a fully rendered starfield first. The logo timeline starts only
+      // when the media element confirms playback, keeping sound and logo aligned.
+      showPreparedStarfield();
+
+      if (!audio) {
+        beginAnimation(false);
+        return;
+      }
+
+      var playbackStarted = false;
+      function onPlaybackStarted() {
+        if (playbackStarted || animationStarted) return;
+        playbackStarted = true;
+        beginAnimation(true);
+      }
+      audio.addEventListener('playing', onPlaybackStarted, false);
+
+      try {
+        var playResult = audio.play();
+        if (playResult && typeof playResult.then === 'function') {
+          playResult.then(onPlaybackStarted, function(error) {
+            console.warn('[launch_splash.js] Could not autoplay the launch sound:', error);
+            beginAnimation(false);
+          });
+        } else {
+          // Older Tizen WebKit may not return a Promise from HTMLMediaElement.play().
+          // The playing event remains the preferred synchronization signal.
+          if (audio.paused === false) onPlaybackStarted();
+        }
+      } catch (error) {
+        console.warn('[launch_splash.js] Could not start the launch sound:', error);
+        beginAnimation(false);
+      }
+    }
+
+    function startSilentFallback(error) {
+      if (playbackRequested || animationStarted) return;
+      console.warn('[launch_splash.js] Launch sound could not be prepared:', error);
+      showPreparedStarfield();
+      beginAnimation(false);
+    }
+
     try {
-      audio = new Audio('static/res/launch_screen.mp3');
+      audio = new Audio();
       audio.preload = 'auto';
       audio.loop = false;
-      var playResult = audio.play();
-      if (playResult && typeof playResult.then === 'function') {
-        playResult.then(beginAnimation, function(error) {
-          console.warn('[launch_splash.js] Could not autoplay the launch sound:', error);
-          beginAnimation();
-        });
-      } else {
-        beginAnimation();
+      audio.addEventListener('canplay', startAudioPlayback, false);
+      audio.addEventListener('error', function() {
+        startSilentFallback(audio.error || new Error('Audio resource failed to load'));
+      }, false);
+      audio.src = 'static/res/launch_screen.mp3';
+      audio.load();
+
+      // HAVE_FUTURE_DATA is sufficient to begin playback without exposing a
+      // blank canvas. Otherwise wait for the media element's canplay event.
+      if (audio.readyState >= (audio.HAVE_FUTURE_DATA || 3)) {
+        startAudioPlayback();
       }
     } catch (error) {
-      console.warn('[launch_splash.js] Could not start the launch sound:', error);
-      beginAnimation();
+      startSilentFallback(error);
     }
     return true;
   }
