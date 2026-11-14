@@ -24,6 +24,7 @@ namespace MoonlightWmpHost
         private static bool _workerActive;
         private static bool _stopRequested;
         private static bool _statsEnabled;
+        private static bool _statsSnapshotPending;
         private static bool _ready;
         private static string _esplusState = "unknown";
         private static string _esplusFamily = "none";
@@ -549,10 +550,11 @@ namespace MoonlightWmpHost
             {
                 _statsEnabled = !_statsEnabled;
                 enabled = _statsEnabled;
+                _statsSnapshotPending = enabled;
 
-                // Serialize the state change and its notification with periodic stats.
-                // Otherwise a worker that already observed "enabled" can send a stale
-                // StatMsg after this NoStatMsg and immediately reveal the overlay again.
+                // Publish the authoritative state before any data event. The client uses
+                // it to reject statistics that belong to an earlier visibility state.
+                Event(appId, remotePort, "StatsStateMsg: " + (enabled ? "1" : "0"), null);
                 Event(appId, remotePort, enabled ? "StatMsg: " : "NoStatMsg: ", null);
             }
             Respond(appId, remotePort, id, "ok",
@@ -566,6 +568,21 @@ namespace MoonlightWmpHost
             {
                 if (!_statsEnabled) return false;
                 Event(appId, remotePort, eventName, detail);
+                return true;
+            }
+        }
+
+        private static bool SendStatsUpdateIfEnabled(string appId, string remotePort, string detail)
+        {
+            lock (Gate)
+            {
+                if (!_statsEnabled) return false;
+                Event(appId, remotePort, "StatMsg: " + detail, null);
+                if (_statsSnapshotPending)
+                {
+                    Event(appId, remotePort, "StatsSnapshotMsg: 1", null);
+                    _statsSnapshotPending = false;
+                }
                 return true;
             }
         }
@@ -736,6 +753,8 @@ namespace MoonlightWmpHost
                 _workerActive = true;
                 _stopRequested = false;
                 _statsEnabled = request.PerformanceStats != 0;
+                _statsSnapshotPending = _statsEnabled;
+                Event(appId, remotePort, "StatsStateMsg: " + (_statsEnabled ? "1" : "0"), null);
                 _stageAppId = appId;
                 _stageRemotePort = remotePort;
                 StageMessages.Clear();
@@ -796,7 +815,6 @@ namespace MoonlightWmpHost
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
             DateTime nextStatsMessage = DateTime.UtcNow;
             uint lastReportedPlayerErrors = 0;
-            bool initialStatsSnapshotSent = false;
 
             try
             {
@@ -901,18 +919,9 @@ namespace MoonlightWmpHost
                     }
                     if (DateTime.UtcNow >= nextStatsMessage)
                     {
-                        if (statsResult == 0 &&
-                            SendStatsEventIfEnabled(appId, remotePort,
-                                "StatMsg: " + FormatStats(request, stats), null))
+                        if (statsResult == 0)
                         {
-                            // The shared overlay waits for an explicit initial-snapshot
-                            // marker before revealing its first populated statistics view.
-                            if (!initialStatsSnapshotSent &&
-                                SendStatsEventIfEnabled(appId, remotePort,
-                                    "StatsSnapshotMsg: 1", null))
-                            {
-                                initialStatsSnapshotSent = true;
-                            }
+                            SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats));
                         }
                         nextStatsMessage = DateTime.UtcNow.AddSeconds(1);
                     }
@@ -965,6 +974,7 @@ namespace MoonlightWmpHost
                     _worker = null;
                     _stopRequested = false;
                     _statsEnabled = false;
+                    _statsSnapshotPending = false;
                     _stageAppId = null;
                     _stageRemotePort = null;
                     StageMessages.Clear();
