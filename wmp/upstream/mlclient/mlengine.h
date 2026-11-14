@@ -98,6 +98,8 @@ typedef struct ml_engine_stream_info {
   uint32_t network_dropped_percent_x100;
   uint32_t average_reassembly_us, average_decode_us, average_render_us;
   uint32_t host_latency_min_tenths_ms, host_latency_max_tenths_ms, host_latency_avg_tenths_ms;
+  uint32_t video_dropped_frames_interval;
+  uint32_t audio_fec_recovered, audio_fec_failed, audio_fec_out_of_order;
 } ml_engine_stream_info;
 int ml_engine_get_stream_info(ml_engine_stream_info *out);
 /* 1 after ESPlus has started and accepted at least one video packet. */
