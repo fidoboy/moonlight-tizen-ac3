@@ -94,6 +94,10 @@ typedef struct ml_engine_stream_info {
   uint32_t audio_codec, audio_channels, audio_sample_rate;
   uint32_t video_bitrate_kbps, audio_bitrate_kbps;
   uint32_t network_rtt_ms, network_variance_ms;
+  uint32_t video_fps_received, video_fps_decoded, video_fps_rendered;
+  uint32_t network_dropped_percent_x100;
+  uint32_t average_reassembly_us, average_decode_us, average_render_us;
+  uint32_t host_latency_min_tenths_ms, host_latency_max_tenths_ms, host_latency_avg_tenths_ms;
 } ml_engine_stream_info;
 int ml_engine_get_stream_info(ml_engine_stream_info *out);
 /* 1 after ESPlus has started and accepted at least one video packet. */
