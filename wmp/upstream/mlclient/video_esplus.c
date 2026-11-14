@@ -188,8 +188,11 @@ static int VidDecSubmit(PDECODE_UNIT du)
     }
 
     if (!s_have_base) {
-        /* Establish the common media-time origin for audio and video. */
-        esplus_stream_clock_start();
+        /*
+         * Video PTS starts at zero on its first unit. The shared wall-clock
+         * origin is started by esplus_submit() only after native start()
+         * succeeds, immediately before this first unit is submitted.
+         */
         s_base_pts_us = du->presentationTimeUs;
         s_have_base = 1;
     }
