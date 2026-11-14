@@ -119,7 +119,12 @@ EM_BOOL MoonlightInstance::HandleWheel(const EmscriptenWheelEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
-  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
+  const bool menuInputBlocked = streamMenuInputBlocked.load(std::memory_order_acquire);
+  if (event.keyCode == 53) {
+    ClLogMessage("[InputDiag][HandleKeyDown] keyCode=%u (0x%X) blocked=%d mouseLocked=%d\\n",
+                 event.keyCode, event.keyCode, menuInputBlocked ? 1 : 0, m_MouseLocked ? 1 : 0);
+  }
+  if (menuInputBlocked) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
