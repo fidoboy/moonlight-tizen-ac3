@@ -631,7 +631,19 @@
         command: command,
         error: errorDetails(error)
       });
-      throw error;
+      if (command !== 'start_session') throw error;
+
+      // A failed readiness check or rejected start request must not leave the
+      // just-launched service process behind as a partial startup.
+      close();
+      return stopExistingService().catch(function(cleanupError) {
+        debugLog('native service cleanup after rejected stream startup was unsuccessful', {
+          serviceAppId: SERVICE_APP_ID,
+          error: errorDetails(cleanupError)
+        });
+      }).then(function() {
+        throw error;
+      });
     });
   }
 
