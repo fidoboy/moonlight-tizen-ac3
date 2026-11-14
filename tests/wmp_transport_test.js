@@ -19,6 +19,7 @@ let remotePortRequests = 0;
 let nextNativeResponse = null;
 let runningServiceContexts = [];
 let killedServiceContexts = [];
+let launchedServiceCount = 0;
 
 const localPort = {
   addMessagePortListener(callback) {
@@ -138,6 +139,8 @@ const window = {
       },
       launch(appId, success) {
         launchedAppId = appId;
+        launchedServiceCount++;
+        runningServiceContexts.push({id: 'wmp-context-' + launchedServiceCount, appId});
         success();
       }
     }
@@ -168,7 +171,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(launchedAppId, expectedServiceAppId);
   assert.deepStrictEqual(killedServiceContexts, ['stale-wmp-context'],
     'every new connection must terminate a previous WMP service process before relaunching it');
-  assert.strictEqual(runningServiceContexts.length, 0,
+  assert.strictEqual(runningServiceContexts.length, 1,
     'the previous WMP service process must be confirmed stopped before relaunch');
 
   const ping = await window.ESPlusPlayerTransport.ping();
@@ -237,6 +240,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(gamepadStateMessages().length, 3,
     'an immediate button update must cancel the stale queued analog sample');
 
+  const killedBeforeFirstStream = killedServiceContexts.length;
   const start = await window.ESPlusPlayerTransport.startStream({
     host: '192.168.0.10',
     w: 1920,
@@ -257,6 +261,8 @@ vm.runInNewContext(source, {
     fullRange: false
   });
   assert.strictEqual(start.payload.accepted, true);
+  assert.strictEqual(killedServiceContexts.length, killedBeforeFirstStream + 1,
+    'each start_session must stop the previously connected service before launching a fresh process');
   const startMessage = pendingMessages[pendingMessages.length - 1];
   assert.strictEqual(startMessage.command, 'start_session');
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
@@ -284,6 +290,7 @@ vm.runInNewContext(source, {
   assert.strictEqual(gamepadStateMessages().length, nativeGamepadMessageCount,
     'evdev gamepad capture must suppress duplicate browser gamepad forwarding');
 
+  const killedBeforeSecondStream = killedServiceContexts.length;
   // Native ParseStart diagnostics must reach the caller with the rejected field.
   nextNativeResponse = {
     status: 'error',
@@ -293,6 +300,8 @@ vm.runInNewContext(source, {
     window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'}),
     /invalid_start_arguments: opticalOutputEnabled/
   );
+  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 1,
+    'a failed prior stream attempt must not reuse its service process on the next attempt');
   const debugOutput = JSON.stringify(debugEntries);
   assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
   assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
