@@ -5512,6 +5512,14 @@ function scheduleStreamTransitionHideAfterVideoReady() {
         if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
           onPerformanceStatsStreamTransitionHidden();
         }
+        // The transition layer is fully hidden at this point. Only now report
+        // an optional Ambilight startup failure, while the remote video remains visible.
+        if (isInGame && window._ambilightStartupFailed === true) {
+          window._ambilightStartupFailed = false;
+          if (typeof snackbarLog === 'function') {
+            snackbarLog('Ambilight service failed to start.');
+          }
+        }
       });
     }, waitForEncryptionStatus);
   }, 200);
