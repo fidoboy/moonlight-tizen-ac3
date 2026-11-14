@@ -148,6 +148,9 @@ function playLaunchSplashSound() {
   };
 }
 
+
+window.prepareLaunchSplashAudio = prepareLaunchSplashAudio;
+window.playLaunchSplashSound = playLaunchSplashSound;
 function initializeNavigationAudioEngine() {
   if (!navigationSoundEnabled) return Promise.resolve(false);
   if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
