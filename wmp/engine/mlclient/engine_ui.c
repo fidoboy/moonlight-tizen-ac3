@@ -133,11 +133,15 @@ void ml_engine_cancel_request(void) { MLT("ml_engine_cancel_request"); http_canc
 int ml_engine_running(void);
 
 void ml_engine_send_key(int key_code, int key_action, int modifiers) {
-  if (!ml_engine_running() || key_code < 0 || key_code > 0xFFFF ||
+  if (!ml_engine_running() || key_code < 0 || key_code > 0xFF ||
       (key_action != KEY_ACTION_DOWN && key_action != KEY_ACTION_UP) ||
       modifiers < 0 || modifiers > 0x1F) return;
-  MLT("ml_engine_send_key code=%d action=%d mod=%d", key_code, key_action, modifiers);
-  (void)LiSendKeyboardEvent((short)key_code, (char)key_action, (char)modifiers);
+  /* Match wasm/input.cpp: browser key codes are Win32 VK values and must be
+   * marked with the 0x80 virtual-key prefix before entering Moonlight Common C. */
+  const short common_c_key_code = (short)((0x80 << 8) | key_code);
+  MLT("ml_engine_send_key code=0x%04X action=%d mod=%d",
+      (unsigned short)common_c_key_code, key_action, modifiers);
+  (void)LiSendKeyboardEvent(common_c_key_code, (char)key_action, (char)modifiers);
 }
 
 void ml_engine_send_mouse_move(int delta_x, int delta_y) {
