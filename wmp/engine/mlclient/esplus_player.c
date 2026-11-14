@@ -203,8 +203,9 @@ static void load_cfg(void)
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
     esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 250);
-    /* One flushing catch-up seek after two consecutive over-depth samples. */
-    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 150);
+    /* Catch-up seek is disabled by default for the playback stability A/B test.
+     * It can still be enabled explicitly with MLENGINE_CATCHUP_MS. */
+    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 0);
     if (!s_api.get_playing_time || !s_api.seek) esplus_cfg.catchup_ms = 0;
     /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
     if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
