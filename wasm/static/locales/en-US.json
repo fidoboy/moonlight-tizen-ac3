@@ -635,5 +635,7 @@
   "Native": "Native",
   "Average processing time:": "Average processing time:",
   "Starting native service...": "Starting native service...",
-  "Starting Ambilight service...": "Starting Ambilight service..."
+  "Starting Ambilight service...": "Starting Ambilight service...",
+  "Starting native video playback service...": "Starting native video playback service...",
+  "Ambilight service failed to start.": "Ambilight service failed to start."
 }
