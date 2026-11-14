@@ -4,9 +4,9 @@ The active Ambilight implementation is the isolated Tizen .NET `ServiceApplicati
 
 ## Runtime boundary and lifecycle
 
-Moonlight Web/WASM is the orchestrator. On Moonlight startup it sends `command=initialize` to `MoonLightS.MoonlightAmbilight`. The service probes whether Samsung's video-plane capture library and entry point are present, then stays alive but idle when supported. If the probe fails, it replies `supported=false` and exits; Moonlight disables only the Ambilight setting.
+Moonlight Web/WASM is the orchestrator. On Moonlight startup it sends `command=initialize` to `MoonLightS.MoonlightAmbilight` to probe whether Samsung's video-plane capture library and entry point are present. The service replies with the capability result and exits in all cases; no idle process remains resident. If the probe fails, Moonlight disables only the Ambilight setting.
 
-When Ambilight is enabled during a stream, Web/WASM sends `command=start` with `wledIp`, `wledPort` and `ledCount`. Turning the setting off or ending a stream sends `command=stop`. Closing or restarting Moonlight sends `command=shutdown`, which stops capture and terminates the service.
+When Ambilight is enabled for a stream, Web/WASM first checks for an existing service process, terminates it if present, and verifies that it has exited. It then launches a fresh service with `command=start` and `wledIp`, `wledPort` and `ledCount`; the service initializes video capture in that new process. Turning the setting off sends `command=stop`. Ending the stream sends `command=shutdown`, which stops capture and terminates the service. A failed start is followed by process cleanup.
 
 The .NET service captures the decoded TV video plane through Samsung's `libvideo-capture.so.0.1.0` / `secvideo_api_capture_video_main` API, samples the NV12 plane and sends WLED realtime DRGB UDP packets. Web/WASM never receives or processes video frames. It does not intercept EMSS, copy video buffers or implement capture. No MessagePort, PPI, `libvideoenhance.so`, screenshot-to-file fallback or streaming-engine changes are involved.
 
