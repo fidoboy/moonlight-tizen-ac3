@@ -651,7 +651,7 @@ namespace MoonlightWmpHost
             text.Append("Frame rates: ")
                 .Append(stream.VideoFpsReceived.ToString(CultureInfo.InvariantCulture)).Append(" Recv | ")
                 .Append(stream.VideoFpsDecoded.ToString(CultureInfo.InvariantCulture)).Append(" Dec | ")
-                .Append(stream.VideoFpsRendered.ToString(CultureInfo.InvariantCulture)).Append(" Rend\n");
+                .Append(stream.VideoFpsRendered.ToString(CultureInfo.InvariantCulture)).Append(" Submit\n");
             if (stream.VideoBitrateKbps != 0)
                 text.Append("Incoming bitrate from network: ")
                     .Append((stream.VideoBitrateKbps / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
@@ -672,7 +672,7 @@ namespace MoonlightWmpHost
                     ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
                     : "-").Append("\n");
             text.Append("Average frame queue delay: -\n");
-            text.Append("Average rendering time: ")
+            text.Append("Average renderer submit time: ")
                 .Append(stream.AverageRenderUs != 0
                     ? (stream.AverageRenderUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms (native submit)"
                     : "-").Append("\n");
