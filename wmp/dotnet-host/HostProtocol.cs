@@ -991,6 +991,11 @@ namespace MoonlightWmpHost
                                 streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
                                 if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                     streamInfo = new EngineApi.StreamInfo();
+                                if (streamInfo.EncryptionStatus >= 0)
+                                {
+                                    SendStatsEventIfEnabled(appId, remotePort,
+                                        "EncryptionStatusMsg: " + streamInfo.EncryptionStatus.ToString(CultureInfo.InvariantCulture), null);
+                                }
                                 SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
                                 string graphMessage = "GraphMsg: " +
                                     streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
