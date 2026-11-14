@@ -1335,11 +1335,19 @@ function updateHostStatusIndicator(host) {
     }
   }
 
-  // Always show one of the three host states. An unknown or stale online
-  // value is treated as offline; pairing is preserved independently.
   if (!indicator) {
     return;
   }
+
+  // Before the first status request has completed, show no icon at all.
+  // Once resolved (including timeout/failure), every host has exactly one
+  // authoritative visual state: connected, unpaired, or disconnected.
+  if (host._statusVerified !== true) {
+    indicator.textContent = '';
+    indicator.style.display = 'none';
+    return;
+  }
+
   indicator.style.display = 'block';
   if (!host.online) {
     indicator.textContent = 'power_off';
@@ -1374,6 +1382,7 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
   // Until this refresh (or a successful discovery check) confirms the host,
   // treat a restored/known host as offline rather than showing stale persisted state.
   var refreshServerInfoSucceeded = initialStatusAlreadyVerified === true;
+  host._statusVerified = refreshServerInfoSucceeded;
   if (!refreshServerInfoSucceeded) {
     host.online = false;
     updateHostStatusIndicator(host);
@@ -1398,6 +1407,7 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
       // A failed status refresh means the host cannot currently be confirmed
       // online. Mark it offline without changing its persisted pairing state.
       host.online = false;
+      host._statusVerified = true;
       console.warn('%c[index.js, beginBackgroundPollingOfHost]', 'color: orange;', 'Server info refresh failed; marking host offline while preserving its pairing state:', failedRefreshInfo, host.hostname, host.address);
     }
   }).then(function() {
@@ -1441,11 +1451,8 @@ function beginBackgroundPollingOfHost(host, initialStatusAlreadyVerified) {
       }, delay);
     };
 
-    if (host.online) {
-      scheduleNextPoll(5000);
-    } else {
-      scheduleNextPoll(0);
-    }
+    // Even an offline result is retried on the regular five-second cadence.
+    scheduleNextPoll(5000);
   });
 
   return cycle.initializationPromise;
@@ -6417,7 +6424,16 @@ function getStreamMenuOptions() {
         id: 'streamMenuToggleStats',
         text: t(isPerformanceStatsOverlayVisible() ? 'Hide performance stats' : 'Show performance stats'),
         action: function() {
-          Module.toggleStats();
+          if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+            if (window.ESPlusPlayerTransport &&
+                typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+              window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+                console.warn('[stream menu] Could not toggle native performance statistics:', error);
+              });
+            }
+          } else {
+            Module.toggleStats();
+          }
         }
       }
     },
