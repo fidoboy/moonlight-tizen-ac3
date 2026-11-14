@@ -669,7 +669,7 @@ namespace MoonlightWmpHost
                 text.Append("N/A\n");
 
             // Time from decode-unit enqueue through packet reassembly/preparation, before native renderer submission.
-            text.Append("Average pre-renderer processing time: ")
+            text.Append("Average processing time: ")
                 .Append(stream.AverageDecodeUs != 0
                     ? (stream.AverageDecodeUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture) + " ms"
                     : "-").Append("\n");
