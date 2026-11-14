@@ -1809,6 +1809,10 @@ function finishInitialHostDiscovery() {
     // Start the ambient background only after startup host discovery and network scanning finish.
     $('#main-ui-layer').addClass('ambient-trails-ready');
     updateAmbientBackgroundActivation(true);
+    // Reveal the summary strip only at the same final startup stage as the ambient background.
+    // Its DOM and icons can load while hidden, avoiding a visible icon-by-icon first paint.
+    configSummaryRevealReady = true;
+    updateConfigSummaryBar();
 
     // Keep update notifications out of the initial host-loading/check/discovery sequence.
     if (startupUpdateCheckTimeout === null) {
@@ -10060,6 +10064,7 @@ var navigationSoundPreferenceEnabled = true;
 var screensaverPreferenceEnabled = true;
 var configSummaryPreferenceLoaded = false;
 var configSummaryValuesReady = false;
+var configSummaryRevealReady = false;
 var configSummaryTemporarilyHidden = false;
 
 function createConfigSummaryBar() {
@@ -10176,7 +10181,7 @@ function updateConfigSummaryBar() {
   var onSettingsScreen = titleText === t('Settings') || isVisible(document.getElementById('settings-list'));
   // The whole main UI layer is hidden during streaming, so visibility does not
   // need to depend on isInGame here; this function only manages the strip within that layer.
-  var desiredDisplay = !onSettingsScreen &&
+  var desiredDisplay = configSummaryRevealReady && !onSettingsScreen &&
     (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
