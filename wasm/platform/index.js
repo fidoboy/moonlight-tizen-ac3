@@ -3898,15 +3898,16 @@ function showSettingsOverview(category) {
 
 // Navigate to the provided settings view by pushing the target view and set the focus to the setting
 function navigateSettingsView(view) {
-  // Start at the first control that is currently available, not necessarily
-  // the first entry in the view (which may be disabled or hidden).
+  // Reset to the top of the view first, then select its first available control.
+  if (view && view.view && typeof view.view.reset === 'function') {
+    view.view.reset();
+  }
   if (view && view.view && typeof view.view.func === 'function') {
     const items = view.view.func() || [];
     const firstEnabledIndex = items.findIndex(item => !isDisabledNavigationTarget(item));
-    view.view.index = firstEnabledIndex >= 0 ? firstEnabledIndex : 0;
-  }
-  if (view && view.view && typeof view.view.reset === 'function') {
-    view.view.reset();
+    if (firstEnabledIndex >= 0) {
+      view.view.index = firstEnabledIndex;
+    }
   }
   const settingsPane = document.getElementById('settings-right-pane');
   if (settingsPane) {
