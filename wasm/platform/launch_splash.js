@@ -389,6 +389,7 @@
 
     var startupHandoffStarted = false;
     var splashFadeStarted = false;
+    var splashFadeCompleted = false;
 
     function finishSplash() {
       if (startupHandoffStarted) return;
@@ -414,6 +415,7 @@
           overlay.style.transition = 'opacity 500ms ease-in-out';
           overlay.style.opacity = '0';
           window.setTimeout(function() {
+            splashFadeCompleted = true;
             overlay.classList.remove('is-active');
             overlay.style.opacity = '';
             overlay.style.transition = '';
@@ -428,14 +430,16 @@
       var mainUi = document.getElementById('main-ui-layer');
 
       function waitFrame() {
-        // Continue the low-speed starfield while the deferred startup work runs.
+        if (splashFadeCompleted) return;
+
+        // Continue the low-speed starfield while startup runs and throughout
+        // the crossfade, so the presentation never freezes before it disappears.
         starField.update(STAR_HOLD_SPEED);
         drawStarField(STAR_HOLD_SPEED);
 
         if (mainUi && !mainUi.classList.contains('ui-inactive') &&
             getComputedStyle(mainUi).display !== 'none') {
           beginSplashFade();
-          return;
         }
         requestFrame(waitFrame);
       }
