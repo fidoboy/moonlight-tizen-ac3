@@ -19,8 +19,14 @@ The trusted control and reply MessagePorts are:
 - Protocol: `moonlight-wmp/1`
 
 The host implements `ping`, `get_status`, `probe_esplus`,
-`start_session` and `stop_session`. The complete payload, lifecycle and
-Tizen target contract is documented in [dotnet-host/README.md](dotnet-host/README.md).
+`start_session` and `stop_session`. The complete payload, mandatory
+per-stream process lifecycle, failure handling, ownership boundaries and
+Tizen target contract are documented in
+[dotnet-host/README.md](dotnet-host/README.md). That lifecycle contract is
+normative: the service exists for one stream only, must be absent before a
+new stream is launched, and must exit when the stream ends or its attempt
+fails. Unexpected process disappearance must be detected by the WebApp and
+must trigger Moonlight's normal UI recovery path.
 
 The .NET host loads the ARM32 `libmlengine.so` through the managed
 `ManualLoader`. It does not contain a separate native ServiceApp executable.
@@ -75,6 +81,7 @@ bash wmp/tests/wmp_esplus_abi_test.sh
 ```
 
 The audio passthrough test is compiled and executed by the hybrid workflow.
-Successful CI compilation does not replace on-device validation of service
-launch, trusted MessagePorts, engine loading, ESPlus SET/ADD behavior,
-AC-3/E-AC-3 playback, and both host- and client-initiated teardown.
+Successful CI compilation does not replace on-device lifecycle validation
+described in [dotnet-host/README.md](dotnet-host/README.md), including clean
+start, normal teardown, unexpected process exit, UI recovery, and a fresh
+service instance for the next stream.
