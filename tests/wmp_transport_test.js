@@ -8,6 +8,7 @@ const vm = require('vm');
 const pendingMessages = [];
 const debugEntries = [];
 const infoEntries = [];
+const errorEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const expectedServiceAppId = 'MoonLightS.WmpService';
 assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'ESPlusPlayer ServiceApp appid must match the transport');
@@ -20,6 +21,8 @@ let nextNativeResponse = null;
 let runningServiceContexts = [];
 let killedServiceContexts = [];
 let launchedServiceCount = 0;
+let statusChangeListener = null;
+let statusListenerRemoved = false;
 
 const localPort = {
   addMessagePortListener(callback) {
@@ -104,7 +107,8 @@ const window = {
   },
   console: {
     debug(...args) { debugEntries.push(args); },
-    info(...args) { infoEntries.push(args); }
+    info(...args) { infoEntries.push(args); },
+    error(...args) { errorEntries.push(args); }
   },
   handleMessage(message) {
     handledEvents.push(message);
@@ -131,6 +135,17 @@ const window = {
       }
     },
     application: {
+      addAppStatusChangeListener(callback, appId) {
+        assert.strictEqual(appId, expectedServiceAppId);
+        statusChangeListener = callback;
+        statusListenerRemoved = false;
+        return 9;
+      },
+      removeAppStatusChangeListener(id) {
+        assert.strictEqual(id, 9);
+        statusListenerRemoved = true;
+        statusChangeListener = null;
+      },
       getAppsContext(success) {
         success(runningServiceContexts.slice());
       },
@@ -143,6 +158,7 @@ const window = {
         launchedAppId = appId;
         launchedServiceCount++;
         runningServiceContexts.push({id: 'wmp-context-' + launchedServiceCount, appId});
+        if (statusChangeListener) statusChangeListener(appId, true);
         success();
       }
     }
@@ -374,9 +390,13 @@ vm.runInNewContext(source, {
   ]);
   assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlusPlayer engine start failed (code -101)');
+  if (statusChangeListener) statusChangeListener(expectedServiceAppId, false);
+  assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1,
+    'the OS inactive notification after a native streamTerminated event must not create a duplicate UI failure');
 
   window.ESPlusPlayerTransport.close();
   assert.strictEqual(listenerRemoved, true);
+  assert.strictEqual(statusListenerRemoved, true, 'closing the transport must remove the Tizen app status listener');
   const debugEntryCount = debugEntries.length;
 
   // Diagnostic output must be completely suppressed outside Debug builds.
@@ -385,6 +405,19 @@ vm.runInNewContext(source, {
   await window.ESPlusPlayerTransport.ping();
   assert.strictEqual(debugEntries.length, debugEntryCount, 'ESPlusPlayer diagnostics must be Debug-only');
   window.ESPlusPlayerTransport.close();
+
+  // A process exit without a native streamTerminated event must be reported
+  // through the shared Moonlight termination path, without a JS watchdog.
+  window.DEBUG_MODE = true;
+  await window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'});
+  assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1);
+  statusChangeListener(expectedServiceAppId, false);
+  assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 2,
+    'an unexpected OS-reported ServiceApp exit must notify the shared stream termination handler');
+  assert.ok(errorEntries.some(entry => entry[0] === '[esplusplayer] Native service process exited unexpectedly'),
+    'unexpected native service termination must be written to the application error log');
+  assert.ok(window.pendingStreamApiMessage.includes('exited unexpectedly'),
+    'the unexpected process exit reason must be retained for the stream error dialog');
 
   // A Tizen launch failure must retain the native error details in Debug logs.
   window.DEBUG_MODE = true;
