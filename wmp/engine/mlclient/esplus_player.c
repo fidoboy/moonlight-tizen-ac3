@@ -833,10 +833,36 @@ int esplus_set_window(int width, int height)
     struct win_req req;
     int n;
     MLT("esplus_set_window %dx%d pl=%p", width, height, s_pl);
-    if (!s_pl || width <= 0 || height <= 0) return -1;
-    if (!ecore_runtime_load()) return -1;
-    n = ecore_init();
-    MLT("ecore_init -> %d", n);
+    if (!s_pl || width <= 0 || height <= 0) {
+        MLT("esplus_set_window rejected invalid state pl=%p size=%dx%d", s_pl, width, height);
+        return -1;
+    }
+    MLT("ecore_runtime_load ENTER");
+    PLOG("ecore_runtime_load ENTER\n");
+    {
+        uint64_t call_started = esplus_mono_ms();
+        if (!ecore_runtime_load()) {
+            PLOG("ecore_runtime_load FAILED elapsed_ms=%llu\n",
+                 (unsigned long long)(esplus_mono_ms() - call_started));
+            MLT("ecore_runtime_load FAILED elapsed_ms=%llu",
+                (unsigned long long)(esplus_mono_ms() - call_started));
+            return -1;
+        }
+        PLOG("ecore_runtime_load RETURN success elapsed_ms=%llu\n",
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_runtime_load RETURN success elapsed_ms=%llu",
+            (unsigned long long)(esplus_mono_ms() - call_started));
+    }
+    {
+        uint64_t call_started = esplus_mono_ms();
+        MLT("ecore_init ENTER");
+        PLOG("ecore_init ENTER\n");
+        n = ecore_init();
+        PLOG("ecore_init RETURN %d elapsed_ms=%llu\n", n,
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_init RETURN %d elapsed_ms=%llu", n,
+            (unsigned long long)(esplus_mono_ms() - call_started));
+    }
     if (n <= 0) { ecore_runtime_unload(); return -1; }
     req.w = width; req.h = height; req.rc = -1;
     MLT("ecore_main_loop_thread_safe_call_sync(win_create_main) ENTER thread=%llu",
