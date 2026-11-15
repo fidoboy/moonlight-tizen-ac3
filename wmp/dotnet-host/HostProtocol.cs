@@ -520,11 +520,30 @@ namespace MoonlightWmpHost
                 finally
                 {
                     Interlocked.Exchange(ref _diagnosticDispatchScheduled, 0);
+                    // Close the enqueue-vs-dispatch race: if another callback
+                    // appended a line while this worker was sending, schedule
+                    // one more pass instead of waiting for the periodic fallback.
+                    if (HasPendingDiagnosticDispatch())
+                        ScheduleDiagnosticDispatch();
                 }
             }))
             {
                 Interlocked.Exchange(ref _diagnosticDispatchScheduled, 0);
                 Log.Error("WMP_DIAGNOSTICS could not schedule asynchronous dispatch");
+            }
+        }
+
+        private static bool HasPendingDiagnosticDispatch()
+        {
+            lock (Gate)
+            {
+                if (_nativeDiagnosticLogSentSequence < _nativeDiagnosticLogSequence ||
+                    _diagnosticLogSentSequence < _diagnosticLogSequence)
+                    return true;
+            }
+            lock (NativeDiagnosticMarkerGate)
+            {
+                return _nativeDiagnosticMarkerSentSequence < _nativeDiagnosticMarkerSequence;
             }
         }
 
