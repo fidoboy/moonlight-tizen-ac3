@@ -104,6 +104,25 @@ In `HostProtocol.cs`:
   performs the engine stop. When no worker is active, the host performs an
   idempotent stop, responds, emits `streamTerminated: 0`, and requests exit.
 
+### Diagnostic delivery during startup and termination
+
+Native engine log callbacks and host diagnostic records are copied into
+bounded in-memory queues. Enqueueing a diagnostic schedules a coalesced
+ThreadPool dispatcher, which forwards newly queued native markers, native
+logs, and host diagnostics to the WebApp over the existing trusted reply
+MessagePort. The native callback itself performs no MessagePort I/O and does
+not wait for the dispatcher.
+
+The host also flushes diagnostics immediately after `StartSessionV2` returns,
+before its final worker cleanup, and on a one-second periodic fallback while
+the session worker is active. This avoids relying on the WebApp's one-second
+`get_new_logs` request to win a race against a short-lived WMP process. The
+WebApp already writes `wmpNativeDiag`, `wmpNativeLog`, and
+`wmpHostDiagnostic` events to its Debug log as they arrive.
+
+This is diagnostic transport only. It does not monitor stream health, infer
+disconnects, or change Moonlight Common C's authority over session state.
+
 Before scheduling the 1,500 ms orderly process-exit delay, WMP sends
 `expect_exit` to the supervisor over its trusted control port. The delay
 allows final diagnostics to be retrieved; it is not a process-liveness
