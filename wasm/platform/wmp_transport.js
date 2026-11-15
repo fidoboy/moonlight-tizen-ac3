@@ -230,6 +230,9 @@
       } else if (/^streamTerminated:/.test(String(message.event || ''))) {
         startupDiagnosticTerminalEventSeen = true;
         stopStartupDiagnosticPolling('stream_terminated');
+        // Take a second snapshot after native teardown; StartSessionV2's
+        // return snapshot may predate its final error/cleanup records.
+        startupDiagnosticFinalSnapshotRequested = false;
         requestFinalStartupDiagnosticSnapshot('stream_terminated');
       }
       if (message.event === 'Connection Established') {
