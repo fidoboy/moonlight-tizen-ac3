@@ -927,6 +927,12 @@
           error = makeError('native service exited unexpectedly while starting the stream');
           serviceExitObservedDuringStart = false;
         }
+        if (global.console && typeof global.console.error === 'function') {
+          global.console.error('[esplusplayer] Native stream startup failed', {
+            serviceAppId: SERVICE_APP_ID,
+            error: errorDetails(error)
+          });
+        }
       }
       debugLog('native command failed before receiving a response', {
         command: command,
