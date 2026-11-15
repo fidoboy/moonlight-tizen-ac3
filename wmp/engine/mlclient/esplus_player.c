@@ -272,18 +272,20 @@ static void load_cfg(void)
 {
     const char *m = getenv("MLENGINE_LATENCY_MODE");
     const char *game_mode = getenv("MLENGINE_GAME_MODE");
-    /* Game Mode uses arrival-based PTS for both SET and ADD. */
+    /* Game Mode uses arrival-based PTS for both SET and ADD. Otherwise,
+     * restore clock-based PTS nudging by default; an explicit "off" keeps
+     * the uncorrected host-PTS path available for A/B testing. */
     esplus_cfg.latency_mode = (game_mode && !strcmp(game_mode, "1")) ? ESPLUS_LAT_ARRIVAL :
-        (!m ? ESPLUS_LAT_OFF :
-        !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
+        (!m || !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
         !strcmp(m, "arrival") ? ESPLUS_LAT_ARRIVAL : ESPLUS_LAT_OFF);
     esplus_cfg.target_depth_ms = mlc_env_int("MLENGINE_TARGET_DEPTH_MS", 50);
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
+    /* Keep frame shedding opt-in: DR_NEED_IDR can discard dependent frames. */
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
-    esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 250);
-    /* Catch-up seek is disabled by default for the playback stability A/B test.
-     * It can still be enabled explicitly with MLENGINE_CATCHUP_MS. */
-    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 0);
+    esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 150);
+    /* Recover once when the native playback queue exceeds 150 ms for two
+     * consecutive samples. Requires the verified playback clock and seek API. */
+    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 150);
     if (!s_api.get_playing_time || !s_api.seek) esplus_cfg.catchup_ms = 0;
     /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
     if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
