@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   build-hybrid:
-    if: github.ref == 'refs/heads/1.2.4-pre'
+    if: github.ref == 'refs/heads/1.2.4-pre' || github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
