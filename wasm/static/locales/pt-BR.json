@@ -444,7 +444,7 @@
   "Sort apps by usage frequency": "Ordenar aplicativos por frequência de uso",
   "Sort the list of apps": "Ordenar a lista de apps",
   "Speed variation across 5-second intervals: %1$s–%2$s Mbps": "Variação da velocidade em intervalos de 5 segundos: %1$s–%2$s Mbps",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variação: %1$s",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variação: %1$s–%2$s Mbps",
   "Standard": "Padrão",
   "Starting": "Iniciando",
   "Starting %1$s...": "Iniciando %1$s...",
@@ -619,12 +619,10 @@
   "Checking Ambilight support...": "Verificando o suporte ao Ambilight...",
   "Enable Ambilight": "Ativar Ambilight",
   "WLED IP address": "Endereço IP do WLED",
-  "O Ambilight sincroniza as cores da imagem na tela com fitas de LED. Antes de ativá-lo, certifique-se de ter um dispositivo WLED configurado com um endereço IP na mesma rede da sua TV.": "O Ambilight sincroniza as cores da imagem na tela com fitas de LED. Antes de ativá-lo, certifique-se de ter um dispositivo WLED configurado com um endereço IP na mesma rede da sua TV.",
   "Ambilight is not supported on this TV.": "Este televisor não oferece suporte ao Ambilight.",
   "Show Ambilight settings": "Mostrar configurações do Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Apenas prévia das configurações. O serviço Ambilight não está disponível nesta TV.",
   "Streaming engine:": "Mecanismo de transmissão:",
-  "O mecanismo de reprodução EMSS é o recomendado e deve funcionar em todas as TVs com Tizen 5.5 ou superior. Use o mecanismo de reprodução nativo se quiser testá-lo na sua TV e avaliar seu funcionamento. Sua implementação ainda é experimental e não há garantia de que funcione com resultados ideais em todos os modelos.": "O mecanismo de reprodução EMSS é o recomendado e deve funcionar em todas as TVs com Tizen 5.5 ou superior. Use o mecanismo de reprodução nativo se quiser testá-lo na sua TV e avaliar seu funcionamento. Sua implementação ainda é experimental e não há garantia de que funcione com resultados ideais em todos os modelos.",
   "Engine:": "Motor:",
   "Native engine": "Mecanismo nativo",
   "Native": "Nativo",
@@ -635,5 +633,10 @@
   "Ambilight service failed to start.": "Não foi possível iniciar o serviço Ambilight.",
   "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Para usar mais de 30 FPS em resoluções superiores a 1080p, você deve selecionar um codec de vídeo compatível diferente de H.264.",
   "H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.": "H.264 é o codec com maior compatibilidade entre dispositivos. No entanto, para obter o melhor desempenho em resoluções acima de 1080p ou usar o modo HDR (High Dynamic Range), você deve selecionar HEVC ou AV1, desde que o hardware do host ofereça suporte.",
-  "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.": "- Ative para obter a resposta mais rápida aos comandos durante os jogos, reduzindo ao mínimo a latência de entrada. Desative se preferir permitir que a TV aplique seus diversos aprimoramentos de imagem, embora isso possa aumentar ligeiramente a latência."
+  "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.": "- Ative para obter a resposta mais rápida aos comandos durante os jogos, reduzindo ao mínimo a latência de entrada. Desative se preferir permitir que a TV aplique seus diversos aprimoramentos de imagem, embora isso possa aumentar ligeiramente a latência.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "O Ambilight sincroniza as cores da imagem na tela com fitas de LED. Antes de ativá-lo, certifique-se de ter um dispositivo WLED configurado com um endereço IP na mesma rede da sua TV.",
+  "The EMSS streaming engine is recommended and should work on all TVs running Tizen 5.5 or later. Use the Native streaming engine if you want to try it on your TV and evaluate its performance. Its implementation is still experimental, and optimal results are not guaranteed on all models.": "O mecanismo de reprodução EMSS é o recomendado e deve funcionar em todas as TVs com Tizen 5.5 ou superior. Use o mecanismo de reprodução nativo se quiser testá-lo na sua TV e avaliar seu funcionamento. Sua implementação ainda é experimental e não há garantia de que funcione com resultados ideais em todos os modelos.",
+  "Accepted": "Aceito",
+  "Average renderer submit time:": "Tempo médio de envio do renderizador:",
+  "Frames missing from stream:": "Quadros ausentes no fluxo:"
 }
