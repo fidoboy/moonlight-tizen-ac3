@@ -76,7 +76,7 @@ void ml_engine_set_diag_cb(ml_engine_log_cb cb) {
 
 /* Common C can report diagnostic milestones without entering the normal log callback. */
 void ml_engine_diag_log(const char *line) {
-  if (!line || !&ml_diag_cb) return;
+  if (!line) return;
   void (*cb)(const char *) = __atomic_load_n(&ml_diag_cb, __ATOMIC_ACQUIRE);
   if (cb) cb(line);
 }

@@ -430,8 +430,8 @@ namespace MoonlightWmpHost
         {
             string[] nativeSnapshot = new string[0];
             string[] hostSnapshot = new string[0];
-            long sequence = Interlocked.Read(ref _nativeDiagnosticLogSequence);
-            long dropped = Interlocked.Read(ref _nativeDiagnosticLogDroppedCount);
+            long sequence = -1;
+            long dropped = -1;
             bool gateBusy = !Monitor.TryEnter(Gate);
             if (!gateBusy)
             {
@@ -484,8 +484,8 @@ namespace MoonlightWmpHost
         {
             string[] snapshot = new string[0];
             int start = 0;
-            long sequence = Interlocked.Read(ref _nativeDiagnosticLogSequence);
-            long dropped = Interlocked.Read(ref _nativeDiagnosticLogDroppedCount);
+            long sequence = -1;
+            long dropped = -1;
             bool gateBusy = !Monitor.TryEnter(Gate);
             if (!gateBusy)
             {
