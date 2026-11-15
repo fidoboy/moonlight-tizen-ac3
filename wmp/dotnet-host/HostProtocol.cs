@@ -522,6 +522,12 @@ namespace MoonlightWmpHost
                     case "get_logs":
                         SendDiagnosticLogs(appId, remotePort, id);
                         return;
+                    case "get_new_logs":
+                        // Incremental snapshot: safe to request while StartSessionV2
+                        // is still blocked on the native startup path.
+                        SendNewNativeDiagnosticLogs(appId, remotePort);
+                        Respond(appId, remotePort, id, "ok", "{}");
+                        return;
                     case "toggle_stats":
                         ToggleStats(appId, remotePort, id);
                         return;
