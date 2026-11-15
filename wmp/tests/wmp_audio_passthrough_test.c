@@ -115,6 +115,34 @@ static void test_opus_silence_preroll(int channels, int streams, int coupled,
     callbacks.cleanup();
 }
 
+static void test_real_audio_follows_synthetic(void)
+{
+    AUDIO_RENDERER_CALLBACKS callbacks;
+    OPUS_MULTISTREAM_CONFIGURATION opus;
+    unsigned char real_packet[] = { 0x31, 0x42, 0x53 };
+    int i;
+
+    reset_capture(); g_ac3 = 0; g_eac3 = 0;
+    memset(&opus, 0, sizeof(opus));
+    opus.sampleRate = 48000; opus.channelCount = 6; opus.streams = 4;
+    opus.coupledStreams = 2; opus.samplesPerFrame = 480;
+    for (i = 0; i < 6; ++i) opus.mapping[i] = (unsigned char)i;
+    AudEsplus_FillCallbacks(&callbacks);
+    assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
+
+    /* Stop after three synthetic packets to model prepare_async_done(true). */
+    g_clock_pts_ns = 10000000ull; g_auto_advance_ns = 10000000ull; g_stop_after = 3;
+    AudEsplus_PrimeSilence(); preroll_join();
+    assert(g_submit_count == 3);
+    assert(g_packets[2].pts_ns + g_packets[2].duration_ns <= g_clock_pts_ns);
+
+    callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
+    assert(g_submit_count == 4);
+    assert(g_packets[3].data == real_packet);
+    assert(g_packets[3].pts_ns >= g_packets[2].pts_ns + g_packets[2].duration_ns);
+    callbacks.cleanup();
+}
+
 static void test_real_audio_preempts_silence(void)
 {
     AUDIO_RENDERER_CALLBACKS callbacks;
@@ -215,6 +243,7 @@ int main(void)
     test_opus_silence_preroll(6, 4, 2, wmp_silence_opus_51, WMP_SILENCE_OPUS_51_SIZE);
     test_opus_silence_preroll(8, 5, 3, wmp_silence_opus_71, WMP_SILENCE_OPUS_71_SIZE);
     test_real_audio_preempts_silence();
+    test_real_audio_follows_synthetic();
     puts("WMP audio passthrough and synthetic silence preroll tests passed.");
     return 0;
 }
