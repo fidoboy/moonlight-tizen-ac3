@@ -224,9 +224,17 @@
 
     if (message.type === 'event') {
       if (message.event === 'wmpDiagnosticReady') {
-        startupDiagnosticTerminalEventSeen = true;
-        stopStartupDiagnosticPolling('StartSessionV2_returned');
+        // StartSessionV2 returning only means the native call has handed control
+        // back to the service worker. Video setup and ESPlus preparation continue
+        // asynchronously, so keep collecting incremental logs.
         requestFinalStartupDiagnosticSnapshot('StartSessionV2_returned');
+      } else if (message.event === 'displayVideo') {
+        // The native host emits displayVideo only after ml_engine_video_ready()
+        // confirms that the video pipeline is producing output.
+        startupDiagnosticTerminalEventSeen = true;
+        stopStartupDiagnosticPolling('video_ready');
+        startupDiagnosticFinalSnapshotRequested = false;
+        requestFinalStartupDiagnosticSnapshot('video_ready');
       } else if (/^streamTerminated:/.test(String(message.event || ''))) {
         startupDiagnosticTerminalEventSeen = true;
         stopStartupDiagnosticPolling('stream_terminated');
@@ -686,7 +694,7 @@
     startupDiagnosticPollCount = 0;
     startupDiagnosticPollStartedAt = Date.now();
     startupDiagnosticPollingActive = true;
-    debugLog('passive startup log polling started; continues until native startup returns or terminates', {});
+    debugLog('passive startup log polling started; continues until video is ready or the session terminates', {});
     pollStartupDiagnosticLogs();
   }
 
