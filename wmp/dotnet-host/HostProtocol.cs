@@ -35,6 +35,11 @@ namespace MoonlightWmpHost
         private static readonly Queue<string> DiagnosticLogs = new Queue<string>();
         private const int DiagnosticLogCapacity = 256;
         private const int DiagnosticLogLineLimit = 384;
+        private static long _diagnosticLogSequence;
+        private static long _diagnosticLogSentSequence;
+        // Native callbacks only enqueue diagnostics. A ThreadPool worker forwards
+        // them over MessagePort so no IPC or blocking work runs on native threads.
+        private static int _diagnosticDispatchScheduled;
         private static readonly Queue<string> NativeDiagnosticLogs = new Queue<string>();
         private const int NativeDiagnosticLogCapacity = 512;
         private static long _nativeDiagnosticLogDroppedCount;
@@ -448,6 +453,7 @@ namespace MoonlightWmpHost
                     CultureInfo.InvariantCulture) + " " + value);
                 _nativeDiagnosticMarkerSequence++;
             }
+            ScheduleDiagnosticDispatch();
         }
 
         private static void RecordDiagnostic(string value)
@@ -461,7 +467,9 @@ namespace MoonlightWmpHost
                     DiagnosticLogs.Dequeue();
                 DiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
                     CultureInfo.InvariantCulture) + " " + value);
+                _diagnosticLogSequence++;
             }
+            ScheduleDiagnosticDispatch();
         }
 
         private static void RecordNativeDiagnostic(string value)
@@ -485,6 +493,39 @@ namespace MoonlightWmpHost
             }
             if (trace) Log.Info("WMPDIAG native log enqueued sequence=" +
                 sequence.ToString(CultureInfo.InvariantCulture));
+            ScheduleDiagnosticDispatch();
+        }
+
+        private static void ScheduleDiagnosticDispatch()
+        {
+            string appId = _activeSessionAppId;
+            string remotePort = _activeSessionRemotePort;
+            if (String.IsNullOrEmpty(appId) || String.IsNullOrEmpty(remotePort)) return;
+            if (Interlocked.Exchange(ref _diagnosticDispatchScheduled, 1) != 0) return;
+
+            if (!ThreadPool.QueueUserWorkItem(delegate(object state)
+            {
+                try
+                {
+                    string targetAppId = _activeSessionAppId;
+                    string targetRemotePort = _activeSessionRemotePort;
+                    if (!String.IsNullOrEmpty(targetAppId) &&
+                        !String.IsNullOrEmpty(targetRemotePort))
+                        SendNewNativeDiagnosticLogs(targetAppId, targetRemotePort);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP_DIAGNOSTICS asynchronous dispatch failed: " + ex);
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _diagnosticDispatchScheduled, 0);
+                }
+            }))
+            {
+                Interlocked.Exchange(ref _diagnosticDispatchScheduled, 0);
+                Log.Error("WMP_DIAGNOSTICS could not schedule asynchronous dispatch");
+            }
         }
 
         private static void SendDiagnosticLogs(string appId, string remotePort, string id)
@@ -552,9 +593,12 @@ namespace MoonlightWmpHost
         private static void SendNewNativeDiagnosticLogs(string appId, string remotePort, string id)
         {
             string[] snapshot = new string[0];
+            string[] hostSnapshot = new string[0];
             int start = 0;
+            int hostStart = 0;
             long sequence = -1;
             long dropped = -1;
+            long hostSequence = -1;
             bool gateBusy = !Monitor.TryEnter(Gate);
             if (!gateBusy)
             {
@@ -567,6 +611,13 @@ namespace MoonlightWmpHost
                     _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
                     sequence = _nativeDiagnosticLogSequence;
                     dropped = _nativeDiagnosticLogDroppedCount;
+
+                    hostSnapshot = DiagnosticLogs.ToArray();
+                    long oldestHostSequence = _diagnosticLogSequence - hostSnapshot.Length + 1;
+                    long firstHostSequence = Math.Max(_diagnosticLogSentSequence + 1, oldestHostSequence);
+                    hostStart = (int)Math.Max(0, firstHostSequence - oldestHostSequence);
+                    _diagnosticLogSentSequence = _diagnosticLogSequence;
+                    hostSequence = _diagnosticLogSequence;
                 }
                 finally { Monitor.Exit(Gate); }
             }
@@ -585,8 +636,8 @@ namespace MoonlightWmpHost
                 markerDropped = _nativeDiagnosticMarkerDroppedCount;
             }
 
-            // Respond before forwarding the event burst so the client request
-            // timeout measures command handling, not diagnostic log delivery.
+            // A request is acknowledged before forwarding the event burst. The
+            // same routine is also called asynchronously whenever a log is queued.
             if (!String.IsNullOrEmpty(id))
             {
                 Respond(appId, remotePort, id, "ok",
@@ -595,6 +646,9 @@ namespace MoonlightWmpHost
                 ",\"buffered\":" + snapshot.Length.ToString(CultureInfo.InvariantCulture) +
                 ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
                 ",\"gateBusy\":" + (gateBusy ? "true" : "false") +
+                ",\"hostSent\":" + (gateBusy ? 0 : hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
+                ",\"hostSequence\":" + hostSequence.ToString(CultureInfo.InvariantCulture) +
+                ",\"hostBuffered\":" + hostSnapshot.Length.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSent\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerBuffered\":" + markerSnapshot.Length.ToString(CultureInfo.InvariantCulture) +
@@ -607,6 +661,8 @@ namespace MoonlightWmpHost
             {
                 for (int i = start; i < snapshot.Length; i++)
                     Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+                for (int i = hostStart; i < hostSnapshot.Length; i++)
+                    Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
             }
         }
 
@@ -1119,7 +1175,7 @@ namespace MoonlightWmpHost
             int lastAudioCodec = -1;
             string diagnostic = null;
             int terminationCode = 0;
-            DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
+            DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(1);
             DateTime nextStatsMessage = DateTime.UtcNow;
             bool encryptionStatusPublished = false;
             uint lastReportedPlayerErrors = 0;
@@ -1302,7 +1358,7 @@ namespace MoonlightWmpHost
                         // Refresh the native ring buffer after each lifecycle snapshot so
                         // callbacks emitted after startup (prepare_async_done/start) are visible.
                         SendNewNativeDiagnosticLogs(appId, remotePort);
-                        nextDiagnosticLog = DateTime.UtcNow.AddSeconds(5);
+                        nextDiagnosticLog = DateTime.UtcNow.AddSeconds(1);
                     }
 
                     Thread.Sleep(200);
