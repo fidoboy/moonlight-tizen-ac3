@@ -39,6 +39,14 @@ namespace MoonlightWmpHost
         private const int NativeDiagnosticLogLineLimit = 512;
         private static long _nativeDiagnosticLogSequence;
         private static long _nativeDiagnosticLogSentSequence;
+        // This queue is intentionally protected by a different lock from Gate.
+        // It remains readable when the ordinary native-log callback is blocked.
+        private static readonly object NativeDiagnosticMarkerGate = new object();
+        private static readonly Queue<string> NativeDiagnosticMarkerLogs = new Queue<string>();
+        private const int NativeDiagnosticMarkerCapacity = 512;
+        private static long _nativeDiagnosticMarkerDroppedCount;
+        private static long _nativeDiagnosticMarkerSequence;
+        private static long _nativeDiagnosticMarkerSentSequence;
         private static bool _stageDispatchScheduled;
         private static string _stageAppId;
         private static string _stageRemotePort;
@@ -339,6 +347,36 @@ namespace MoonlightWmpHost
             }
         }
 
+        // Called by ml_diag_cb. This path never acquires HostProtocol.Gate and
+        // never performs MessagePort I/O on the native thread.
+        internal static void NativeDiagnosticMarkerLine(IntPtr line)
+        {
+            try
+            {
+                if (line == IntPtr.Zero) return;
+                string value = Marshal.PtrToStringAnsi(line);
+                if (String.IsNullOrEmpty(value)) return;
+                if (value.Length > NativeDiagnosticLogLineLimit)
+                    value = value.Substring(0, NativeDiagnosticLogLineLimit) + " [truncated]";
+                lock (NativeDiagnosticMarkerGate)
+                {
+                    while (NativeDiagnosticMarkerLogs.Count >= NativeDiagnosticMarkerCapacity)
+                    {
+                        NativeDiagnosticMarkerLogs.Dequeue();
+                        _nativeDiagnosticMarkerDroppedCount++;
+                    }
+                    NativeDiagnosticMarkerLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
+                        CultureInfo.InvariantCulture) + " " + value);
+                    _nativeDiagnosticMarkerSequence++;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never allow managed exceptions to cross the native callback ABI.
+                Log.Error("WMP native diagnostic marker callback failed: " + ex.Message);
+            }
+        }
+
         private static void RecordDiagnostic(string value)
         {
             if (String.IsNullOrEmpty(value)) return;
@@ -378,20 +416,39 @@ namespace MoonlightWmpHost
 
         private static void SendDiagnosticLogs(string appId, string remotePort, string id)
         {
-            string[] nativeSnapshot;
-            string[] hostSnapshot;
-            long sequence, dropped;
-            lock (Gate)
+            string[] nativeSnapshot = new string[0];
+            string[] hostSnapshot = new string[0];
+            long sequence = Interlocked.Read(ref _nativeDiagnosticLogSequence);
+            long dropped = Interlocked.Read(ref _nativeDiagnosticLogDroppedCount);
+            bool gateBusy = !Monitor.TryEnter(Gate);
+            if (!gateBusy)
             {
-                nativeSnapshot = NativeDiagnosticLogs.ToArray();
-                hostSnapshot = DiagnosticLogs.ToArray();
-                _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
-                sequence = _nativeDiagnosticLogSequence;
-                dropped = _nativeDiagnosticLogDroppedCount;
+                try
+                {
+                    nativeSnapshot = NativeDiagnosticLogs.ToArray();
+                    hostSnapshot = DiagnosticLogs.ToArray();
+                    _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
+                    sequence = _nativeDiagnosticLogSequence;
+                    dropped = _nativeDiagnosticLogDroppedCount;
+                }
+                finally { Monitor.Exit(Gate); }
+            }
+
+            string[] markerSnapshot;
+            long markerSequence, markerDropped;
+            lock (NativeDiagnosticMarkerGate)
+            {
+                markerSnapshot = NativeDiagnosticMarkerLogs.ToArray();
+                _nativeDiagnosticMarkerSentSequence = _nativeDiagnosticMarkerSequence;
+                markerSequence = _nativeDiagnosticMarkerSequence;
+                markerDropped = _nativeDiagnosticMarkerDroppedCount;
             }
 
             int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
             int hostStart = Math.Max(0, hostSnapshot.Length - 64);
+            int markerStart = Math.Max(0, markerSnapshot.Length - NativeDiagnosticMarkerCapacity);
+            for (int i = markerStart; i < markerSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
             for (int i = nativeStart; i < nativeSnapshot.Length; i++)
                 Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
             for (int i = hostStart; i < hostSnapshot.Length; i++)
@@ -401,7 +458,11 @@ namespace MoonlightWmpHost
                 "{\"count\":" + (nativeSnapshot.Length - nativeStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
-                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) + "}");
+                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
+                ",\"gateBusy\":" + (gateBusy ? "true" : "false") +
+                ",\"markerCount\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
+                ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
+                ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this
@@ -409,27 +470,57 @@ namespace MoonlightWmpHost
         // ordered MessagePort events outside the native networking thread.
         private static string SendNewNativeDiagnosticLogs(string appId, string remotePort)
         {
-            string[] snapshot;
-            int start;
-            long sequence, dropped;
-            lock (Gate)
+            string[] snapshot = new string[0];
+            int start = 0;
+            long sequence = Interlocked.Read(ref _nativeDiagnosticLogSequence);
+            long dropped = Interlocked.Read(ref _nativeDiagnosticLogDroppedCount);
+            bool gateBusy = !Monitor.TryEnter(Gate);
+            if (!gateBusy)
             {
-                snapshot = NativeDiagnosticLogs.ToArray();
-                long oldestSequence = _nativeDiagnosticLogSequence - snapshot.Length + 1;
-                long firstSequence = Math.Max(_nativeDiagnosticLogSentSequence + 1, oldestSequence);
-                start = (int)Math.Max(0, firstSequence - oldestSequence);
-                _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
-                sequence = _nativeDiagnosticLogSequence;
-                dropped = _nativeDiagnosticLogDroppedCount;
+                try
+                {
+                    snapshot = NativeDiagnosticLogs.ToArray();
+                    long oldestSequence = _nativeDiagnosticLogSequence - snapshot.Length + 1;
+                    long firstSequence = Math.Max(_nativeDiagnosticLogSentSequence + 1, oldestSequence);
+                    start = (int)Math.Max(0, firstSequence - oldestSequence);
+                    _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
+                    sequence = _nativeDiagnosticLogSequence;
+                    dropped = _nativeDiagnosticLogDroppedCount;
+                }
+                finally { Monitor.Exit(Gate); }
             }
 
-            for (int i = start; i < snapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+            string[] markerSnapshot;
+            int markerStart;
+            long markerSequence, markerDropped;
+            lock (NativeDiagnosticMarkerGate)
+            {
+                markerSnapshot = NativeDiagnosticMarkerLogs.ToArray();
+                long oldestMarkerSequence = _nativeDiagnosticMarkerSequence - markerSnapshot.Length + 1;
+                long firstMarkerSequence = Math.Max(_nativeDiagnosticMarkerSentSequence + 1, oldestMarkerSequence);
+                markerStart = (int)Math.Max(0, firstMarkerSequence - oldestMarkerSequence);
+                _nativeDiagnosticMarkerSentSequence = _nativeDiagnosticMarkerSequence;
+                markerSequence = _nativeDiagnosticMarkerSequence;
+                markerDropped = _nativeDiagnosticMarkerDroppedCount;
+            }
+
+            for (int i = markerStart; i < markerSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
+            if (!gateBusy)
+            {
+                for (int i = start; i < snapshot.Length; i++)
+                    Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+            }
 
             return "{\"sent\":" + (snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
                 ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"buffered\":" + snapshot.Length.ToString(CultureInfo.InvariantCulture) +
-                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) + "}";
+                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
+                ",\"gateBusy\":" + (gateBusy ? "true" : "false") +
+                ",\"markerSent\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
+                ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
+                ",\"markerBuffered\":" + markerSnapshot.Length.ToString(CultureInfo.InvariantCulture) +
+                ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}";
         }
 
         internal static void NativeStageStarting(int stage, string name)

@@ -331,6 +331,15 @@ vm.runInNewContext(source, {
   for (let i = 0; i < 8; i++) await Promise.resolve();
   assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
     'Debug builds must print the native diagnostic log after session teardown');
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpNativeDiag'},
+    {key: 'detail', value: 'ml_log_cb video registration callback ENTER'}
+  ]);
+  assert.ok(infoEntries.some(entry => entry[0] === '[esplusplayer/diag]' &&
+    entry[1] === 'ml_log_cb video registration callback ENTER'),
+    'Independent native diagnostic markers must be forwarded to the debug log');
   assert.deepStrictEqual(
     pendingMessages
       .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')

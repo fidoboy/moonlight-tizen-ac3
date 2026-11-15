@@ -245,6 +245,13 @@
       if (message.event === 'wmpDiagnosticReady') {
         return;
       }
+      if (message.event === 'wmpNativeDiag') {
+        if (global.DEBUG_MODE === true && global.console &&
+            typeof global.console.info === 'function') {
+          global.console.info('[esplusplayer/diag]', message.detail || '');
+        }
+        return;
+      }
       if (message.event === 'wmpNativeLog') {
         if (global.DEBUG_MODE === true && global.console &&
             typeof global.console.info === 'function') {
@@ -620,7 +627,11 @@
           Number(payload.count || 0) + ' native lines, ' +
           Number(payload.hostCount || 0) + ' host lines, sequence=' +
           Number(payload.sequence || 0) + ', dropped=' +
-          Number(payload.dropped || 0));
+          Number(payload.dropped || 0) + ', independent markers=' +
+          Number(payload.markerCount || 0) + ', marker sequence=' +
+          Number(payload.markerSequence || 0) + ', marker dropped=' +
+          Number(payload.markerDropped || 0) + ', Gate busy=' +
+          (payload.gateBusy === true));
       }
     }).catch(function(error) {
       debugLog('could not retrieve final native diagnostic snapshot', errorDetails(error));
@@ -643,6 +654,11 @@
             sequence: Number(payload.sequence || 0),
             buffered: Number(payload.buffered || 0),
             dropped: Number(payload.dropped || 0),
+            gateBusy: payload.gateBusy === true,
+            markerSent: Number(payload.markerSent || 0),
+            markerSequence: Number(payload.markerSequence || 0),
+            markerBuffered: Number(payload.markerBuffered || 0),
+            markerDropped: Number(payload.markerDropped || 0),
             elapsedMs: Date.now() - startupDiagnosticPollStartedAt
           });
         }
