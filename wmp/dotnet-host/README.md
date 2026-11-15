@@ -1,186 +1,174 @@
 # WMP .NET service
 
-This is the managed WMP auxiliary service for the Moonlight Tizen hybrid
-installation. The final user installation remains one hybrid WGT containing
-the WebApp and exactly two auxiliary .NET services: WMP and Ambilight.
-
-Tizen Core may use intermediate service TPKs while assembling/signing the
-hybrid WGT. Those are build inputs, not separately distributed installation
-packages. Do not copy the upstream repository's standalone WGT + TPK delivery
-model.
+This document describes the implementation in this branch. It distinguishes
+observable code behavior from guarantees that still require device validation
+or further implementation. It is not a specification of behavior that the
+code does not yet provide.
 
 ## Application model
 
-WMP is a Tizen **ServiceApplication** (`service-application`, `type="dotnet"`,
-`nodisplay="true"`), launched on demand by the WebApp using the app ID
-`MoonLightS.WmpService`. It is a managed .NET application, not the former
-native C ServiceApp. Its trusted local
-MessagePort is `MoonlightWmpControl`; the WebApp receives replies/events on
-its trusted local port `MoonlightWmpReply`.
+WMP is a Tizen `ServiceApplication` (`service-application`, `type="dotnet"`,
+`nodisplay="true"`) launched by the WebApp as `MoonLightS.WmpService`.
+The host publishes trusted MessagePort `MoonlightWmpControl`; the WebApp
+receives replies/events on `MoonlightWmpReply`. The protocol is
+`moonlight-wmp/1`.
 
-The target remains `tizen80` (API Level 8, Tizen 6.0 M2). The WMP service
-therefore requires Tizen 6.0 or later. The outer WebApp package can retain its
-5.5 manifest floor, but the complete hybrid installation's practical minimum
-is Tizen 6.0 because of this .NET service. Do not claim full hybrid
-compatibility with Tizen 5.5 and do not silently change the host to
-`net8.0-tizen10.0`.
+The target is `tizen80` (Tizen 6.0). The final installation is one hybrid
+WGT containing the WebApp and the WMP and Ambilight .NET services. Intermediate
+TPKs produced during packaging are build inputs, not separately distributed
+packages.
 
-## Normative service lifecycle contract
+## Implemented lifecycle behavior
 
-**The WMP service is a per-stream process, not a persistent background
-daemon.** When WMP is selected, one service instance is created for that
-stream. It must remain alive for the lifetime of that stream and must
-terminate when the stream ends. It must also terminate if its startup/session
-work fails or the process crashes. A later stream must use a fresh service
-instance; it must never inherit a previous stream's process, worker, engine
-state, or MessagePort endpoints.
+### WebApp: clean start and launch
 
-This contract is mandatory for every implementation and every future change:
+In `wasm/platform/wmp_transport.js`, `connect(true)` (used for
+`start_session`) runs `stopExistingService()` before requesting fresh
+MessagePort references or launching WMP.
 
-1. **Clean-start phase — before starting a stream.** The WebApp must ensure
-   that no previous `MoonLightS.WmpService` instance is still running. If an
-   instance exists, request/force its orderly stop as appropriate and wait
-   until Tizen confirms that it has actually disappeared. Do not treat a stop
-   request, an inactive notification alone, or a closed MessagePort as proof
-   that the process is gone. Only after the old instance is gone may the
-   WebApp discard/recreate its MessagePort references and launch the new
-   instance.
-2. **Launch and readiness.** Launch exactly one fresh service instance.
-   Establish the trusted MessagePort connection and wait for the host's
-   readiness/engine status before issuing `start_session`. A successful
-   application-launch request or a successful `ping` alone is not proof
-   that the engine and ESPlusPlayer are ready.
-3. **Stream ownership.** The service owns the native engine instance and its
-   worker for this stream. It remains alive while the stream is active and
-   serializes start, input, stop, and cleanup operations. No second stream
-   may reuse the same live service instance.
-4. **Normal stream termination.** When Moonlight Common C reports that the
-   stream has ended, the host stops and releases the native engine, sends the
-   terminal `streamTerminated: <code>` event (including available diagnostic
-   detail), completes worker cleanup, and exits the Tizen service process.
-   The service must not remain resident waiting for another stream.
-5. **Startup or managed failure.** If initialization, worker creation, or
-   session startup fails, record the failure, report a terminal failure to
-   Moonlight whenever the process and MessagePort are still usable, release
-   owned resources, and exit. A failed attempt must not leave a half-initialized
-   service available for the next stream.
-6. **Unexpected process disappearance / crash.** A crashed process cannot
-   send its own final MessagePort event. The WebApp must therefore observe
-   Tizen's application/process lifecycle independently of MessagePort. Once
-   Tizen confirms that the service process has disappeared without a terminal
-   event, Moonlight must be notified through its existing stream-termination
-   and UI-recovery path. This applies both while `start_session` is pending
-   and after it has been accepted. Preserve the available reason and
-   diagnostics in the application log, including when normal debug logging is
-   disabled.
-7. **Next stream.** Every new stream repeats the entire clean-start phase.
-   Never assume that a previous stream's cleanup completed merely because
-   Moonlight changed screens or because the MessagePort was closed.
+The current implementation:
 
-The lifecycle observer is a process-liveness mechanism only. It reports that
-the Tizen service process has disappeared; it must not infer that a stream is
-invalid while the service remains alive. **Moonlight Common C remains the
-sole authority for stream/session validity and normal disconnect decisions.**
-Do not add JavaScript watchdogs, elapsed-time heuristics, frame-arrival
-timeouts, or polling loops that independently abort a live session. A bounded
-wait used to complete the clean-start/readiness handshake is a startup
-coordination mechanism, not a session watchdog.
+1. Calls `tizen.application.getAppsContext()` and filters contexts for
+   `MoonLightS.WmpService`.
+2. If contexts exist, calls `tizen.application.kill(context.id)` for each.
+   A `NotFoundError` is treated as a process that may have exited between
+   enumeration and kill.
+3. Polls `getAppsContext()` every 100 ms, for at most 30 attempts, until no
+   matching context remains. The API callback has a 5-second timeout.
+4. Fails the connection if it cannot inspect, kill, or confirm disappearance
+   of the previous process. It does not intentionally continue with a
+   potentially stale service.
+5. Registers the Tizen application-status listener, requests a fresh trusted
+   local reply MessagePort, registers its message listener, launches
+   `MoonLightS.WmpService`, and retries opening the remote control port.
+6. Before sending `start_session`, waits for the host's explicit engine
+   initialization status (`waitForServiceReady`). The host opens its control
+   port in `OnCreate` before loading `libmlengine.so` and probing ESPlus;
+   port availability alone is therefore not treated as engine readiness.
 
-### Ownership boundaries
+These are the code's current API calls and retry limits. Successful API
+callbacks and context enumeration are not, by themselves, proof of every
+possible Tizen process-lifecycle behavior on every TV firmware.
 
-- **Moonlight Common C / native engine:** owns stream protocol state, session
-  validity, and stream termination decisions. Its terminal result and
-  diagnostics are forwarded by the host.
-- **.NET WMP host:** owns the per-stream service process, native engine
-  lifetime, worker serialization, MessagePort server, resource cleanup, and
-  forwarding of native lifecycle/diagnostic events. It exits after the
-  stream ends or the attempt fails.
-- **Moonlight WebApp / JavaScript:** owns orchestration of the clean-start
-  phase, Tizen process-lifecycle observation, MessagePort client references,
-  player/UI integration, and delivery of terminal notifications into
-  Moonlight's existing UI recovery path. It must not replace Common C's
-  session authority.
+### .NET host: process and session
 
-### Required lifecycle invariants
+In `wmp/dotnet-host/Program.cs`:
 
-- At most one WMP service process and one WMP stream worker may exist for a
-  stream attempt.
-- A new attempt cannot proceed until any previous service process is
-  confirmed gone and stale MessagePort references have been discarded.
-- A normal terminal event is delivered before orderly service exit whenever
-  the process is healthy enough to send it.
-- If the process dies before sending that event, the WebApp's Tizen lifecycle
-  observer supplies the missing notification; the UI must not remain on a
-  transition screen indefinitely.
-- Process-exit notification and a native `streamTerminated` event must not
-  cause duplicate recovery.
-- Cleanup and exit are idempotent. The engine is stopped once by its owning
-  session/worker path; shutdown must not race a second independent stop.
-- Diagnostics must identify whether the failure occurred during service
-  launch, host initialization, engine/ESPlus initialization, session startup,
-  active streaming, or teardown, to the extent the platform exposes that
-  information.
+- `Main` creates one `App : ServiceApplication` and calls `Run(args)`.
+- `OnCreate` starts the control MessagePort, loads `libmlengine.so`,
+  creates `EngineApi`, probes ESPlus, and publishes engine status.
+- `OnTerminate` calls `HostProtocol.Shutdown()`, which joins the worker
+  (if present) and stops/disposes the control MessagePort.
+- `RequestExitAfterSession()` schedules `app.Exit()` after 1,500 ms. The
+  delay is intended to leave time for final diagnostics to be retrieved.
 
-## Compatibility boundary
+In `HostProtocol.cs`:
 
-The host preserves the existing `moonlight-wmp/1` MessagePort contract:
+- `start_session` validates its payload, creates a background worker thread,
+  responds `accepted:true`, and starts `RunSession`.
+- `RunSession` calls the shared native engine. The engine/Common C reports
+  session termination; the host forwards `streamTerminated: <code>` and
+  available diagnostic detail.
+- The worker's `finally` block clears worker/session bookkeeping and calls
+  `RequestExitAfterSession()`.
+- A worker-start failure sends `streamTerminated: -1` and requests service
+  exit.
+- A managed exception caught by the worker is logged, the engine stop is
+  attempted, and `streamTerminated: -1` is sent.
+- `AppDomain.CurrentDomain.UnhandledException` attempts to log and forward
+  an unhandled managed exception if active-session MessagePort details are
+  available.
+- `stop_session` currently calls the engine stop, sends a successful stop
+  response and `streamTerminated: 0`, then requests service exit.
 
-- control port: `MoonlightWmpControl`
-- WebApp reply port: `MoonlightWmpReply`
-- commands: `ping`, `get_status`, `probe_esplus`, `start_session`,
-  `stop_session`
-- message fields: `protocol`, `id`, `command`, `payload`, `arg_*`
-- responses/events retain `protocol`, `id`, `type`, `status`, `payload`,
-  `event`, and `detail`.
+The implementation therefore intends the .NET service to be short-lived and
+associated with one stream attempt. Its normal session completion path
+requests process exit; the process is not designed as a persistent daemon
+waiting for later streams.
 
-The `start_session` payload remains:
-`host`, `rikey`, `appVer`, `gfeVer`, `rtspUrl`, `videoCodec`,
-`audioConfig`, `w`, `h`, `fps`, `bitrate`, `rikeyid`, `codecMode`,
-`hdr`, `fullRange`, and `opticalOutputEnabled`.
+### WebApp: unexpected process exit
 
-## Engine and audio invariants
+The WebApp registers `tizen.application.addAppStatusChangeListener` before
+launching the service. The listener:
 
-- Load the same ARM32 `libmlengine.so`; do not fork Moonlight Common C.
-- Moonlight Common C remains authoritative for session state and termination.
-  The host serializes engine lifecycle calls and forwards events; it does not
-  add an independent session watchdog or move disconnect decisions to JS.
-- Call `ml_engine_set_dolby_passthrough_enabled(opticalOutputEnabled)` before
-  `ml_engine_start_session_v2()`.
-- Preserve distinct codec reports: `PENDING`, `OPUS`, `AC-3`, and `E-AC-3`.
-- Preserve `displayVideo` after the first submitted video frame and
-  `streamTerminated: <termination_code>` with the engine diagnostic.
+- Records an active notification for the WMP app ID.
+- On a subsequent inactive notification, calls `getAppsContext()` to check
+  whether the service context is still present.
+- If the context remains, it does not report a process exit.
+- If the context is absent while `start_session` is pending, it rejects the
+  pending start request.
+- If the context is absent after `start_session` was accepted, it logs an
+  error and forwards `streamTerminated: -1` into Moonlight's existing
+  message/UI handling path.
+- Avoids reporting a second failure after a native terminal event has already
+  been received.
 
-## ESPlus ABI selection
+If context verification itself fails, the code logs the verification error;
+it rejects a pending start or reports an unexpected-exit reason for an
+accepted session. This is not equivalent to positively confirming that the
+process exited.
 
-The native adapter in `wmp/service/src/wmp_esplus_abi.*` and
-`wmp/service/src/wmp_esplus_adapter.*` remains the only authority for ESPlus
-symbol discovery and typed calls. It selects exactly one complete family:
-SET (`set_video_stream_info` + `set_audio_stream_info`) or ADD
-(`add_video_stream_info` + `add_audio_stream_info`). C# does not duplicate
-proprietary signatures or make family-selection decisions.
+The listener is removed by transport `close()`. The status listener only
+reports process lifecycle; it is not intended to judge whether a live stream
+is valid.
 
-## Lifecycle verification gate
+## Ownership boundary
 
-A successful build or a successful stream is not sufficient. Before treating
-the lifecycle as complete, verify on the target TV:
+Moonlight Common C remains authoritative for stream/session state and normal
+termination decisions. The .NET host serializes engine operations and
+forwards native results. JavaScript handles service orchestration, MessagePort
+communication, player integration, and UI event delivery. Do not add a JS
+watchdog, frame-arrival heuristic, or timer that independently aborts a
+session while the native service remains alive.
 
-- Start a stream with no prior service process; confirm clean launch and
-  readiness ordering.
-- End a stream normally; confirm terminal event, engine cleanup, service
-  process exit, and return to the normal Moonlight interface.
-- Immediately start another stream; confirm the old process is gone and a
-  fresh process/MessagePort session is used.
-- Terminate the service while clean-start is checking for an old instance;
-  confirm startup fails cleanly and does not hang.
-- Terminate the service while `start_session` is pending; confirm the
-  pending request is rejected and the UI recovers.
-- Terminate the service after `start_session` is accepted; confirm the
-  Tizen process observer reports the disappearance and the UI recovers.
-- Exercise managed startup/session exceptions and, where reproducible,
-  abrupt native process crashes; verify useful diagnostics and no duplicate
-  terminal handling.
-- Repeat after normal stop and after failure to prove that no stale process,
-  worker, or MessagePort reference contaminates the next attempt.
+## Known limitations and unverified behavior
 
-EMSS remains integrated in WASM and is not changed. The native service entry
-point is not part of the target architecture.
+The following must not be described as guaranteed by the current code:
+
+- A native fatal crash (for example, a segmentation fault) may bypass
+  `.NET AppDomain.UnhandledException`; the dead process cannot send a final
+  MessagePort event. Recovery then depends on Tizen delivering the expected
+  status callback and `getAppsContext()` reflecting the process disappearance.
+- The status listener only treats an inactive notification as relevant after
+  it has observed an active notification. Whether Tizen 6 firmware always
+  delivers this sequence as expected must be verified on the target TV.
+- If Tizen reports inactive before the process context disappears, the code
+  checks once. If the context is still present, it marks the service active
+  again; it does not schedule a later recheck specifically for that event.
+- A failure to verify the process is logged and handled as a startup rejection
+  or an unexpected-exit report, but does not prove the process is dead.
+- The 1,500 ms delayed exit is a requested orderly shutdown path. Actual
+  process termination and its timing must be confirmed on device.
+- A successful build or unit test does not prove the Tizen status callback,
+  process enumeration, kill semantics, or UI recovery work on real firmware.
+- The interaction between `stop_session` and an active worker, including
+  engine-stop serialization and races, must be validated against the current
+  implementation and on-device behavior.
+
+## On-device verification still required
+
+Verify on the target TV:
+
+1. Clean launch when no WMP process exists.
+2. A stale WMP process is killed and confirmed absent before a new launch.
+3. Engine readiness is published before `start_session`.
+4. Normal stream end sends the terminal event, cleans up the worker, and
+   actually exits the service process.
+5. A second stream starts with a new service process and fresh MessagePorts.
+6. Service disappearance while `start_session` is pending rejects startup
+   and restores the normal UI.
+7. Service disappearance after `start_session` acceptance reaches the
+   existing UI recovery path.
+8. Managed exceptions and abrupt native crashes are separately exercised;
+   record which are detected and what diagnostics survive.
+9. Tizen's active/inactive callback ordering and `getAppsContext()` behavior
+   are confirmed on the actual Tizen 6 television.
+10. Normal stop and failure paths do not leave a process, worker, or stale
+    MessagePort reference that affects the next attempt.
+
+## Related implementation
+
+- WebApp transport and Tizen lifecycle observer: `wasm/platform/wmp_transport.js`
+- .NET application entry point and process exit: `wmp/dotnet-host/Program.cs`
+- MessagePort protocol, worker, and engine session: `wmp/dotnet-host/HostProtocol.cs`
+- Shared engine and ESPlus adapter: `wmp/upstream/` and `wmp/service/src/`
