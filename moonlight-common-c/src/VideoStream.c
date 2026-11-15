@@ -1,7 +1,13 @@
 #include "Limelight-internal.h"
 #include <stdio.h>
+#include <stdlib.h>
 
-#define WMP_VDIAG(...) do { fprintf(stderr, "[wmp-video-diag] " __VA_ARGS__); fflush(stderr); } while (0)
+static int wmp_video_diag_enabled(void)
+{
+    const char *value = getenv("MLENGINE_DIAGNOSTICS");
+    return value && value[0] == '1' && value[1] == '\0';
+}
+#define WMP_VDIAG(...) do { if (wmp_video_diag_enabled()) { fprintf(stderr, "[wmp-video-diag] " __VA_ARGS__); fflush(stderr); } } while (0)
 
 #define FIRST_FRAME_MAX 1500
 #define FIRST_FRAME_TIMEOUT_SEC 10

@@ -1,7 +1,13 @@
 #include "Limelight-internal.h"
 #include <stdio.h>
+#include <stdlib.h>
 
-#define WMP_SOCK_DIAG(...) do { fprintf(stderr, "[wmp-socket-diag] " __VA_ARGS__); fflush(stderr); } while (0)
+static int wmp_socket_diag_enabled(void)
+{
+    const char *value = getenv("MLENGINE_DIAGNOSTICS");
+    return value && value[0] == '1' && value[1] == '\0';
+}
+#define WMP_SOCK_DIAG(...) do { if (wmp_socket_diag_enabled()) { fprintf(stderr, "[wmp-socket-diag] " __VA_ARGS__); fflush(stderr); } } while (0)
 
 #define TEST_PORT_TIMEOUT_SEC 3
 

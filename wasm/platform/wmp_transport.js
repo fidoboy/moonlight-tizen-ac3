@@ -66,7 +66,8 @@
       opticalOutputEnabled: !!payload.opticalOutputEnabled,
       videoCodec: payload.videoCodec,
       hdr: !!payload.hdr,
-      fullRange: !!payload.fullRange
+      fullRange: !!payload.fullRange,
+      debugMode: payload.debugMode === true
     };
   }
 
@@ -1301,9 +1302,16 @@
     toggleStats: function() { return request('toggle_stats'); },
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) {
+      var requestParameters = {};
       nativeInputCapabilities = 0;
       nativeGamepadMask = 0;
-      return request('start_session', parameters);
+      if (parameters && typeof parameters === 'object') {
+        Object.keys(parameters).forEach(function(key) {
+          requestParameters[key] = parameters[key];
+        });
+      }
+      requestParameters.debugMode = global.DEBUG_MODE === true;
+      return request('start_session', requestParameters);
     },
     stopStream: function() { return request('stop_session'); },
     sendKey: sendKey,

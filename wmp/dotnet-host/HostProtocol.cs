@@ -64,6 +64,7 @@ namespace MoonlightWmpHost
             internal int OpticalOutputEnabled;
             internal int PerformanceStats;
             internal int GameMode;
+            internal int DebugMode;
         }
 
         internal static void Start()
@@ -271,6 +272,8 @@ namespace MoonlightWmpHost
             else if (value.AudioConfig != "Stereo" && value.AudioConfig != "51Surround" &&
                      value.AudioConfig != "71Surround") invalidField = "audioConfig";
 
+            if (!TryBool(Arg(bundle, "debugMode"), out value.DebugMode))
+                value.DebugMode = 0; // Optional: older Web clients do not send this field.
             if (invalidField != null) return false;
             request = value;
             return true;
@@ -928,6 +931,9 @@ namespace MoonlightWmpHost
                 // Set it explicitly for every attempt so a previous session cannot leak its policy.
                 Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
                     request.GameMode != 0 ? "1" : "0");
+                // Common C startup markers are emitted only for explicit Debug Mode sessions.
+                Environment.SetEnvironmentVariable("MLENGINE_DIAGNOSTICS",
+                    request.DebugMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
                 result = _engine.StartSessionV2(
