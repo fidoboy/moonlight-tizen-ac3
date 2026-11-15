@@ -225,10 +225,10 @@
 
     if (message.type === 'event') {
       if (message.event === 'wmpDiagnosticReady') {
-        // StartSessionV2 returning only means the native call has handed control
-        // back to the service worker. Video setup and ESPlus preparation continue
-        // asynchronously, so keep collecting incremental logs.
-        requestFinalStartupDiagnosticSnapshot('StartSessionV2_returned');
+        // This event marks the StartSessionV2 call boundary, not video readiness.
+        // Incremental polling already retrieves the buffered startup trace; avoid
+        // a full snapshot here, which would flood MessagePort during initialization.
+        debugLog('native StartSessionV2 call returned; incremental diagnostics remain active', {});
       } else if (message.event === 'displayVideo') {
         // The native host emits displayVideo only after ml_engine_video_ready()
         // confirms that the video pipeline is producing output.
