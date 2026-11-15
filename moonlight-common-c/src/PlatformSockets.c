@@ -1,4 +1,7 @@
 #include "Limelight-internal.h"
+#include <stdio.h>
+
+#define WMP_SOCK_DIAG(...) do { fprintf(stderr, "[wmp-socket-diag] " __VA_ARGS__); fflush(stderr); } while (0)
 
 #define TEST_PORT_TIMEOUT_SEC 3
 
@@ -307,7 +310,9 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
     LC_SOCKADDR bindAddr;
     int err;
 
+    WMP_SOCK_DIAG("bindUdpSocket createSocket ENTER family=%d", addressFamily);
     s = createSocket(addressFamily, SOCK_DGRAM, IPPROTO_UDP, false);
+    WMP_SOCK_DIAG("bindUdpSocket createSocket RETURN valid=%d", s != INVALID_SOCKET);
     if (s == INVALID_SOCKET) {
         return INVALID_SOCKET;
     }
@@ -336,13 +341,16 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
     struct sockaddr_in *n3ds_addr = &bindAddr;
     n3ds_addr->sin_port = htons(n3ds_udp_port++);
 #endif
+    WMP_SOCK_DIAG("bindUdpSocket bind ENTER family=%d", addressFamily);
     if (bind(s, (struct sockaddr*) &bindAddr, addrLen) == SOCKET_ERROR) {
         err = LastSocketError();
+        WMP_SOCK_DIAG("bindUdpSocket bind FAILED err=%d", err);
         Limelog("bind() failed: %d\n", err);
         closeSocket(s);
         SetLastSocketError(err);
         return INVALID_SOCKET;
     }
+    WMP_SOCK_DIAG("bindUdpSocket bind RETURN success");
 
 #if defined(LC_DARWIN)
     {

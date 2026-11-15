@@ -34,7 +34,8 @@ namespace MoonlightWmpHost
         private const int DiagnosticLogCapacity = 256;
         private const int DiagnosticLogLineLimit = 384;
         private static readonly Queue<string> NativeDiagnosticLogs = new Queue<string>();
-        private const int NativeDiagnosticLogCapacity = 100;
+        private const int NativeDiagnosticLogCapacity = 512;
+        private static long _nativeDiagnosticLogDroppedCount;
         private const int NativeDiagnosticLogLineLimit = 512;
         private static long _nativeDiagnosticLogSequence;
         private static long _nativeDiagnosticLogSentSequence;
@@ -321,7 +322,12 @@ namespace MoonlightWmpHost
             try
             {
                 if (line == IntPtr.Zero) return;
-                RecordNativeDiagnostic(Marshal.PtrToStringAnsi(line));
+                string value = Marshal.PtrToStringAnsi(line);
+                bool trace = value != null &&
+                    value.IndexOf("video stream registration status=", StringComparison.Ordinal) >= 0;
+                if (trace) Log.Info("WMPDIAG NativeLogLine ENTER: registration result reached managed callback");
+                RecordNativeDiagnostic(value);
+                if (trace) Log.Info("WMPDIAG NativeLogLine RETURN: registration result enqueued");
             }
             catch (Exception ex)
             {
@@ -349,14 +355,22 @@ namespace MoonlightWmpHost
             if (String.IsNullOrEmpty(value)) return;
             if (value.Length > NativeDiagnosticLogLineLimit)
                 value = value.Substring(0, NativeDiagnosticLogLineLimit) + " [truncated]";
+            bool trace = value.IndexOf("video stream registration status=", StringComparison.Ordinal) >= 0;
+            if (trace) Log.Info("WMPDIAG native log waiting for HostProtocol.Gate");
+            long sequence;
             lock (Gate)
             {
                 while (NativeDiagnosticLogs.Count >= NativeDiagnosticLogCapacity)
+                {
                     NativeDiagnosticLogs.Dequeue();
+                    _nativeDiagnosticLogDroppedCount++;
+                }
                 NativeDiagnosticLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
                     CultureInfo.InvariantCulture) + " " + value);
-                _nativeDiagnosticLogSequence++;
+                sequence = ++_nativeDiagnosticLogSequence;
             }
+            if (trace) Log.Info("WMPDIAG native log enqueued sequence=" +
+                sequence.ToString(CultureInfo.InvariantCulture));
         }
 
         private static void SendDiagnosticLogs(string appId, string remotePort, string id)
@@ -385,10 +399,11 @@ namespace MoonlightWmpHost
         // Called from Moonlight Common C's native connection callback. Keep this
         // callback short: queue the UI notification and let one managed worker send
         // ordered MessagePort events outside the native networking thread.
-        private static void SendNewNativeDiagnosticLogs(string appId, string remotePort)
+        private static string SendNewNativeDiagnosticLogs(string appId, string remotePort)
         {
             string[] snapshot;
             int start;
+            long sequence, dropped;
             lock (Gate)
             {
                 snapshot = NativeDiagnosticLogs.ToArray();
@@ -396,10 +411,17 @@ namespace MoonlightWmpHost
                 long firstSequence = Math.Max(_nativeDiagnosticLogSentSequence + 1, oldestSequence);
                 start = (int)Math.Max(0, firstSequence - oldestSequence);
                 _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
+                sequence = _nativeDiagnosticLogSequence;
+                dropped = _nativeDiagnosticLogDroppedCount;
             }
 
             for (int i = start; i < snapshot.Length; i++)
                 Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+
+            return "{\"sent\":" + (snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
+                ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
+                ",\"buffered\":" + snapshot.Length.ToString(CultureInfo.InvariantCulture) +
+                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) + "}";
         }
 
         internal static void NativeStageStarting(int stage, string name)
@@ -525,8 +547,8 @@ namespace MoonlightWmpHost
                     case "get_new_logs":
                         // Incremental snapshot: safe to request while StartSessionV2
                         // is still blocked on the native startup path.
-                        SendNewNativeDiagnosticLogs(appId, remotePort);
-                        Respond(appId, remotePort, id, "ok", "{}");
+                        Respond(appId, remotePort, id, "ok",
+                            SendNewNativeDiagnosticLogs(appId, remotePort));
                         return;
                     case "toggle_stats":
                         ToggleStats(appId, remotePort, id);

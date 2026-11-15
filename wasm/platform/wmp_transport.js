@@ -23,7 +23,10 @@
   var nextRequestId = 0;
   var pending = Object.create(null);
   var startupDiagnosticPollTimer = null;
-  var startupDiagnosticPollsRemaining = 0;
+  var startupDiagnosticPollCount = 0;
+  var startupDiagnosticPollStartedAt = 0;
+  var startupDiagnosticPollingActive = false;
+  var startupDiagnosticFinalSnapshotRequested = false;
 
   // Passive log retrieval only: this never changes stream state, readiness,
   // recovery, or termination. It keeps diagnostics flowing while the native
@@ -218,9 +221,12 @@
     }
 
     if (message.type === 'event') {
-      if (message.event === 'wmpDiagnosticReady' ||
-          /^streamTerminated:/.test(String(message.event || ''))) {
-        stopStartupDiagnosticPolling();
+      if (message.event === 'wmpDiagnosticReady') {
+        stopStartupDiagnosticPolling('StartSessionV2_returned');
+        requestFinalStartupDiagnosticSnapshot('StartSessionV2_returned');
+      } else if (/^streamTerminated:/.test(String(message.event || ''))) {
+        stopStartupDiagnosticPolling('stream_terminated');
+        requestFinalStartupDiagnosticSnapshot('stream_terminated');
       }
       if (message.event === 'Connection Established') {
         nativeGamepadMask = 0;
@@ -236,24 +242,6 @@
         return;
       }
       if (message.event === 'wmpDiagnosticReady') {
-        if (global.DEBUG_MODE === true) {
-          if (global.console && typeof global.console.info === 'function') {
-            global.console.info('[esplusplayer] native diagnostic log requested (last 100 lines)');
-          }
-          request('get_logs').then(function(response) {
-            var payload = response && response.payload ? response.payload : {};
-            if (global.console && typeof global.console.info === 'function') {
-              global.console.info('[esplusplayer] native diagnostic log received (' +
-                Number(payload.count || 0) + ' lines)');
-              if (Number(payload.hostCount || 0) > 0) {
-                global.console.info('[esplusplayer] host diagnostic log (' +
-                  Number(payload.hostCount) + ' lines)');
-              }
-            }
-          }).catch(function(error) {
-            debugLog('could not retrieve native diagnostic log', errorDetails(error));
-          });
-        }
         return;
       }
       if (message.event === 'wmpNativeLog') {
@@ -602,22 +590,64 @@
     });
   }
 
-  function stopStartupDiagnosticPolling() {
+  function stopStartupDiagnosticPolling(reason) {
+    if (!startupDiagnosticPollingActive && startupDiagnosticPollTimer === null)
+      return;
     if (startupDiagnosticPollTimer !== null) {
       global.clearTimeout(startupDiagnosticPollTimer);
       startupDiagnosticPollTimer = null;
     }
-    startupDiagnosticPollsRemaining = 0;
+    startupDiagnosticPollingActive = false;
+    var elapsedMs = startupDiagnosticPollStartedAt
+      ? Date.now() - startupDiagnosticPollStartedAt : 0;
+    debugLog('passive startup log polling stopped', {
+      reason: reason || 'unspecified',
+      polls: startupDiagnosticPollCount,
+      elapsedMs: elapsedMs
+    });
+  }
+
+  function requestFinalStartupDiagnosticSnapshot(reason) {
+    if (global.DEBUG_MODE !== true || startupDiagnosticFinalSnapshotRequested)
+      return;
+    startupDiagnosticFinalSnapshotRequested = true;
+    debugLog('requesting final native diagnostic snapshot', {reason: reason});
+    request('get_logs').then(function(response) {
+      var payload = response && response.payload ? response.payload : {};
+      if (global.console && typeof global.console.info === 'function') {
+        global.console.info('[esplusplayer] final native diagnostic snapshot: ' +
+          Number(payload.count || 0) + ' native lines, ' +
+          Number(payload.hostCount || 0) + ' host lines');
+      }
+    }).catch(function(error) {
+      debugLog('could not retrieve final native diagnostic snapshot', errorDetails(error));
+    });
   }
 
   function pollStartupDiagnosticLogs() {
-    if (global.DEBUG_MODE !== true || startupDiagnosticPollsRemaining <= 0)
+    if (global.DEBUG_MODE !== true || !startupDiagnosticPollingActive)
       return;
     startupDiagnosticPollTimer = global.setTimeout(function() {
       startupDiagnosticPollTimer = null;
-      startupDiagnosticPollsRemaining--;
-      request('get_new_logs').catch(function(error) {
-        debugLog('startup diagnostic log poll failed', errorDetails(error));
+      if (!startupDiagnosticPollingActive) return;
+      startupDiagnosticPollCount++;
+      request('get_new_logs').then(function(response) {
+        var payload = response && response.payload ? response.payload : {};
+        if (startupDiagnosticPollCount === 1 || startupDiagnosticPollCount % 10 === 0) {
+          debugLog('passive startup log poll completed', {
+            poll: startupDiagnosticPollCount,
+            sent: Number(payload.sent || 0),
+            sequence: Number(payload.sequence || 0),
+            buffered: Number(payload.buffered || 0),
+            dropped: Number(payload.dropped || 0),
+            elapsedMs: Date.now() - startupDiagnosticPollStartedAt
+          });
+        }
+      }).catch(function(error) {
+        debugLog('startup diagnostic log poll failed', {
+          poll: startupDiagnosticPollCount,
+          error: errorDetails(error)
+        });
       }).then(function() {
         pollStartupDiagnosticLogs();
       });
@@ -625,11 +655,13 @@
   }
 
   function startStartupDiagnosticPolling() {
-    stopStartupDiagnosticPolling();
+    stopStartupDiagnosticPolling('restarted');
     if (global.DEBUG_MODE !== true) return;
-    // Fifteen bounded snapshots are enough to cover a prolonged startup
-    // without turning this into a session watchdog or an unbounded poll.
-    startupDiagnosticPollsRemaining = 15;
+    startupDiagnosticPollCount = 0;
+    startupDiagnosticPollStartedAt = Date.now();
+    startupDiagnosticPollingActive = true;
+    startupDiagnosticFinalSnapshotRequested = false;
+    debugLog('passive startup log polling started; continues until native startup returns or terminates', {});
     pollStartupDiagnosticLogs();
   }
 
@@ -785,7 +817,7 @@
   }
 
   function close() {
-    stopStartupDiagnosticPolling();
+    stopStartupDiagnosticPolling('transport_closed');
     Object.keys(gamepadSendTimers).forEach(function(index) {
       global.clearTimeout(gamepadSendTimers[index]);
       delete gamepadSendTimers[index];
