@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#ifndef OS_WASM
 extern void ml_engine_diag_log(const char *line) __attribute__((weak));
+#endif
 
 static int wmp_socket_diag_enabled(void)
 {
@@ -20,7 +22,9 @@ static void wmp_socket_diag(const char *format, ...)
     va_end(args);
     fprintf(stderr, "[wmp-socket-diag] %s\n", line);
     fflush(stderr);
+#ifndef OS_WASM
     if (ml_engine_diag_log) ml_engine_diag_log(line);
+#endif
 }
 #define WMP_SOCK_DIAG(...) wmp_socket_diag(__VA_ARGS__)
 
