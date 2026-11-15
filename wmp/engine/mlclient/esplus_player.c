@@ -421,7 +421,6 @@ static void on_prepared(bool ok, void *context)
     (void)context;
     MLT_DIAG("prepare_async_done callback ENTER ok=%d", ok ? 1 : 0);
     pthread_mutex_lock(&s_lock);
-    MLT_DIAG("prepare_async_done callback acquired s_lock");
     MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d",
         ok ? 1 : 0, s_prepared, s_start_tried);
     s_prepare_ok = ok ? 1 : 0;
@@ -442,6 +441,7 @@ static void on_prepared(bool ok, void *context)
         MLT("prepare_async_done=false; start skipped");
         if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
             LiReportVideoRendererError();
+        MLT_DIAG("prepare_async_done callback EXIT ok=0");
         return;
     }
     PLOG("callback prepare_async_done=true\n");
@@ -453,7 +453,6 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     (void)context;
     MLT_DIAG("ready_to_prepare callback ENTER stream=%d", (int)stream);
     pthread_mutex_lock(&s_lock);
-    MLT_DIAG("ready_to_prepare callback acquired s_lock stream=%d", (int)stream);
     MLT("stage ready_to_prepare callback ENTER stream=%d", (int)stream);
     if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         if (stream == WMP_ESPLUS_STREAM_VIDEO) {
@@ -1033,6 +1032,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             result.status = WMP_ESPLUS_SUBMIT_NOT_PREPARED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
+            if (diag_first_video_submit)
+                MLT_DIAG("first ESPlus video submit NOT_FORWARDED: ready_to_prepare callback has not arrived");
             return result;
         }
 
@@ -1047,6 +1048,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
+            if (diag_first_video_submit)
+                MLT_DIAG("first ESPlus video submit NOT_FORWARDED: startup state rejected the feeder");
             return result;
         }
 
@@ -1065,8 +1068,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         if (s_prepared && s_prepare_ok &&
             !__atomic_load_n(&s_started, __ATOMIC_ACQUIRE) && !s_start_tried) {
             s_start_tried = 1;
+            MLT_DIAG("ESPlus start CALL about_to_enter after prepare_async_done(true)");
             MLT("stage start CALL about_to_enter after prepare_async_done(true)");
             started = wmp_esplus_adapter_start(&s_adapter);
+            MLT_DIAG("ESPlus start RETURN status=%d raw=%d", (int)started.status, started.raw_status);
             MLT("stage start CALL returned status=%d raw=%d",
                 (int)started.status, started.raw_status);
             if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
@@ -1114,9 +1119,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
         MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
-    if (diag_first_video_submit)
-        MLT_DIAG("first ESPlus video submit native call RETURN status=%d raw=%d",
-                 (int)result.status, result.raw_status);
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
         result.raw_status = INT_MIN;
@@ -1150,6 +1152,9 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             (int)result.status, result.raw_status);
     last_raw = result.raw_status;
     pthread_mutex_unlock(&s_lock);
+    if (diag_first_video_submit)
+        MLT_DIAG("first ESPlus video submit RETURN status=%d raw=%d",
+                 (int)result.status, result.raw_status);
     return result;
 }
 

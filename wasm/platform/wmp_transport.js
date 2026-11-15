@@ -617,7 +617,9 @@
       if (global.console && typeof global.console.info === 'function') {
         global.console.info('[esplusplayer] final native diagnostic snapshot: ' +
           Number(payload.count || 0) + ' native lines, ' +
-          Number(payload.hostCount || 0) + ' host lines');
+          Number(payload.hostCount || 0) + ' host lines, sequence=' +
+          Number(payload.sequence || 0) + ', dropped=' +
+          Number(payload.dropped || 0));
       }
     }).catch(function(error) {
       debugLog('could not retrieve final native diagnostic snapshot', errorDetails(error));

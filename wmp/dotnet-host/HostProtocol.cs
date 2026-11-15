@@ -377,11 +377,14 @@ namespace MoonlightWmpHost
         {
             string[] nativeSnapshot;
             string[] hostSnapshot;
+            long sequence, dropped;
             lock (Gate)
             {
                 nativeSnapshot = NativeDiagnosticLogs.ToArray();
                 hostSnapshot = DiagnosticLogs.ToArray();
                 _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
+                sequence = _nativeDiagnosticLogSequence;
+                dropped = _nativeDiagnosticLogDroppedCount;
             }
 
             int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
@@ -393,7 +396,10 @@ namespace MoonlightWmpHost
 
             Respond(appId, remotePort, id, "ok",
                 "{\"count\":" + (nativeSnapshot.Length - nativeStart).ToString(CultureInfo.InvariantCulture) +
-                ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) + "}");
+                ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
+                ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
+                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) + "}");
+Culture) + "}");
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this

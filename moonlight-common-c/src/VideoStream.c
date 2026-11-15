@@ -357,10 +357,9 @@ int startVideoStream(void* rendererContext, int drFlags) {
                               SOCK_QOS_TYPE_VIDEO);
     WMP_VDIAG("startVideoStream bindUdpSocket RETURN valid=%d", rtpSocket != INVALID_SOCKET);
     if (rtpSocket == INVALID_SOCKET) {
-        err = LastSocketError();
-        WMP_VDIAG("startVideoStream bindUdpSocket FAILED err=%d", err);
+        WMP_VDIAG("startVideoStream bindUdpSocket FAILED");
         VideoCallbacks.cleanup();
-        return err;
+        return LastSocketError();
     }
 
     WMP_VDIAG("startVideoStream calling renderer start callback");
