@@ -113,14 +113,8 @@ namespace MoonlightWmpHost
             if (worker != null && worker.IsAlive)
                 worker.Join();
 
-            try
-            {
-                if (_engine != null) _engine.Stop();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("engine stop during host shutdown failed: " + ex);
-            }
+            // RunSession owns engine shutdown on every session exit path.
+            // OnTerminate only joins the worker and releases the control port.
 
             if (_port != null)
             {
