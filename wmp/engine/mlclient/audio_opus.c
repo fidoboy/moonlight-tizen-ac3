@@ -375,12 +375,13 @@ static void ar_decodePlay(char *data, int len)
             pthread_mutex_lock(&s_preroll_submit_lock);
             packet.pts_ns = esplus_stream_clock_pts_ns();
             result = esplus_submit(&packet);
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
-                __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
-                AudEsplus_StopSilence();
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
                 __atomic_store_n(&s_audio_codec_active,
                     __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
                     __ATOMIC_RELEASE);
+            if (result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
+                __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
+                AudEsplus_StopSilence();
             }
             pthread_mutex_unlock(&s_preroll_submit_lock);
             if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
@@ -408,10 +409,11 @@ static void ar_decodePlay(char *data, int len)
     pthread_mutex_lock(&s_preroll_submit_lock);
     packet.pts_ns = esplus_stream_clock_pts_ns();
     result = esplus_submit(&packet);
-    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
+    if (result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
         __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
         AudEsplus_StopSilence();
-        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
     }
     pthread_mutex_unlock(&s_preroll_submit_lock);
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
