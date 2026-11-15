@@ -25,6 +25,7 @@
   var startupDiagnosticPollTimer = null;
   var startupDiagnosticPollCount = 0;
   var startupDiagnosticPollStartedAt = 0;
+  var startupDiagnosticPollDelayMs = 1000;
   var startupDiagnosticPollingActive = false;
   var startupDiagnosticFinalSnapshotRequested = false;
   var startupDiagnosticTerminalEventSeen = false;
@@ -676,22 +677,28 @@
             elapsedMs: Date.now() - startupDiagnosticPollStartedAt
           });
         }
+        startupDiagnosticPollDelayMs = 1000;
       }).catch(function(error) {
-        debugLog('startup diagnostic log poll failed; stopping passive collection', {
+        var details = errorDetails(error);
+        startupDiagnosticPollDelayMs = 2000;
+        debugLog('startup diagnostic log poll failed; will retry', {
           poll: startupDiagnosticPollCount,
-          error: errorDetails(error)
+          errorName: details.name,
+          errorMessage: details.message,
+          errorCode: details.code,
+          errorDomain: details.domain
         });
-        stopStartupDiagnosticPolling('poll_request_failed');
       }).then(function() {
         pollStartupDiagnosticLogs();
       });
-    }, 1000);
+    }, startupDiagnosticPollDelayMs);
   }
 
   function startStartupDiagnosticPolling() {
     stopStartupDiagnosticPolling('restarted');
     if (global.DEBUG_MODE !== true || startupDiagnosticTerminalEventSeen) return;
     startupDiagnosticPollCount = 0;
+    startupDiagnosticPollDelayMs = 1000;
     startupDiagnosticPollStartedAt = Date.now();
     startupDiagnosticPollingActive = true;
     debugLog('passive startup log polling started; continues until video is ready or the session terminates', {});
