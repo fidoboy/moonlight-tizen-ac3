@@ -662,6 +662,9 @@ int esplus_create_open(void)
     s_video_ready = 0;
     s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
+    s_prepare_requested = 0;
+    s_prepare_started = 0;
+    s_audio_registration_done = 0;
     __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
@@ -1055,25 +1058,44 @@ void esplus_audio_registration_complete(int success)
 
 int esplus_prepare(void)
 {
+    int already_requested;
+
     pthread_mutex_lock(&s_lock);
     s_prepare_called = 1;
-    s_prepared = s_prepare_ok = 0;
-    s_video_ready = 0;
-    s_audio_ready = !s_audio_enabled;
-    s_prepare_failed = s_start_failed = 0;
-    s_start_tried = 0;
-    s_prepare_requested = 1;
-    s_prepare_started = 0;
-    s_audio_registration_done = 0;
-    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
-    s_idr_t0 = esplus_mono_ms();
-    s_idr_last = 0;
-    s_idr_n = 0;
-    s_video_tries = 0;
-    __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
+    already_requested = s_prepare_requested;
+    if (!already_requested) {
+        /*
+         * Initialize the preparation state only once per player/session.
+         * Renderer and stream-registration paths may both request prepare;
+         * a duplicate request must not erase ready callbacks or audio
+         * registration that arrived after the first request.
+         */
+        s_prepared = s_prepare_ok = 0;
+        s_video_ready = 0;
+        s_audio_ready = !s_audio_enabled;
+        s_prepare_failed = s_start_failed = 0;
+        s_start_tried = 0;
+        s_prepare_requested = 1;
+        s_prepare_started = 0;
+        s_audio_registration_done = 0;
+        __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
+        s_idr_t0 = esplus_mono_ms();
+        s_idr_last = 0;
+        s_idr_n = 0;
+        s_video_tries = 0;
+        __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
+    }
     pthread_mutex_unlock(&s_lock);
+
+    if (already_requested) {
+        MLT("esplus_prepare duplicate request ignored; preserving current preparation state");
+        MLT_DIAG("esplus_prepare duplicate request ignored");
+        /* Re-evaluate readiness without resetting any in-flight state. */
+        return esplus_start_prepare_if_ready();
+    }
+
     MLT("esplus_prepare requested audio_enabled=%d", s_audio_enabled);
     MLT_DIAG("esplus_prepare state set audio_enabled=%d; evaluating prepare_async", s_audio_enabled);
     return esplus_start_prepare_if_ready();
