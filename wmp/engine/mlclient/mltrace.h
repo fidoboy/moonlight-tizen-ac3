@@ -24,6 +24,7 @@
 
 extern void (*volatile ml_log_cb)(const char *line) __attribute__((weak));
 
+static void mlt_diag(const char *fmt, ...) __attribute__((unused, format(printf, 1, 2)));
 static void mlt_log(const char *fmt, ...) __attribute__((unused, format(printf, 1, 2)));
 static void mlt_log(const char *fmt, ...) {
   static int (*dlog)(int, const char *, const char *, ...);
@@ -48,13 +49,11 @@ static void mlt_log(const char *fmt, ...) {
     if (cb) {
       int trace_callback = strstr(buf, "video stream registration status=") != NULL;
       if (trace_callback) {
-        fprintf(stderr, "[mlt-callback] video registration callback ENTER\n");
-        fflush(stderr);
+        mlt_diag("ml_log_cb video registration callback ENTER");
       }
       cb(buf);
       if (trace_callback) {
-        fprintf(stderr, "[mlt-callback] video registration callback RETURN\n");
-        fflush(stderr);
+        mlt_diag("ml_log_cb video registration callback RETURN");
       }
     }
   }
