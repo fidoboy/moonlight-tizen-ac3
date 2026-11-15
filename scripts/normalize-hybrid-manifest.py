@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 NAMESPACE = "http://tizen.org/ns/packages"
 WMP_APPID = "MoonLightS.WmpService"
+SUPERVISOR_APPID = "MoonLightS.WmpSupervisor"
 # Tizen Core derives this temporary identity from the .NET assembly name.
 # It is replaced below with the canonical app declaration from the signed WMP TPK.
 WMP_GENERATED_APPID = "MoonLightS.MoonlightHost"
@@ -115,6 +116,7 @@ def main():
     wmp_keys = {
         normalized_appid(WMP_APPID),
         normalized_appid(WMP_GENERATED_APPID),
+        normalized_appid(SUPERVISOR_APPID),
     }
     unexpected = [
         node.get("appid") for node in service_apps
@@ -127,10 +129,12 @@ def main():
     with zipfile.ZipFile(wmp_tpk) as package:
         wmp_root = ET.fromstring(package.read("tizen-manifest.xml"))
     wmp_apps = [node for node in wmp_root.iter() if local_name(node) == "service-application"]
-    if len(wmp_apps) != 1 or wmp_apps[0].get("appid") != WMP_APPID:
-        fail("WMP TPK must contain exactly one canonical MoonLightS.WmpService application")
+    wmp_by_id = {node.get("appid"): node for node in wmp_apps}
+    if len(wmp_apps) != 2 or set(wmp_by_id) != {WMP_APPID, SUPERVISOR_APPID}:
+        fail("WMP TPK must contain exactly the WMP service and its independent supervisor")
 
-    canonical_wmp = wmp_apps[0]
+    canonical_wmp = wmp_by_id[WMP_APPID]
+    canonical_supervisor = wmp_by_id[SUPERVISOR_APPID]
     if wmp_root.get("package") != "MoonLightS" or wmp_root.get("api-version") != "6.0":
         fail("WMP .NET TPK must target Tizen 6.0 / API 8")
     with zipfile.ZipFile(wmp_tpk) as package:
@@ -149,16 +153,30 @@ def main():
     for key, value in expected_wmp.items():
         if canonical_wmp.get(key) != value:
             fail(f"WMP TPK service {key} must be {value!r}")
+    expected_supervisor = {
+        "exec": "MoonlightHost.dll", "api-version": "8", "nodisplay": "true",
+        "multiple": "false", "type": "dotnet", "taskmanage": "false",
+    }
+    for key, value in expected_supervisor.items():
+        if canonical_supervisor.get(key) != value:
+            fail(f"WMP supervisor manifest {key} must be {value!r}")
     if not any(
         local_name(node) == "background-category"
         and node.get("value") == "background-network"
         for node in canonical_wmp
     ):
         fail("WMP TPK service must declare the background-network category")
+    if not any(
+        local_name(node) == "background-category"
+        and node.get("value") == "background-network"
+        for node in canonical_supervisor
+    ):
+        fail("WMP supervisor TPK service must declare the background-network category")
 
     required_privileges = {
         "http://tizen.org/privilege/internet",
         "http://tizen.org/privilege/network.get",
+        "http://tizen.org/privilege/appmanager.launch",
         "http://developer.samsung.com/privilege/esplay",
     }
     declared_privileges = {
@@ -185,12 +203,14 @@ def main():
     ]
     if not existing_service_positions:
         fail("Hybrid manifest lost the Ambilight service while normalizing WMP")
-    root.insert(max(existing_service_positions) + 1, canonical_wmp)
+    insert_at = max(existing_service_positions) + 1
+    root.insert(insert_at, canonical_wmp)
+    root.insert(insert_at + 1, canonical_supervisor)
 
     final_apps = [node for node in root.iter() if local_name(node) == "service-application"]
     final_ids = [node.get("appid") for node in final_apps]
-    if len(final_apps) != 2 or set(final_ids) != {AMBILIGHT_APPID, WMP_APPID}:
-        fail(f"Final hybrid manifest must declare exactly Ambilight and WMP; found {final_ids!r}")
+    if len(final_apps) != 3 or set(final_ids) != {AMBILIGHT_APPID, WMP_APPID, SUPERVISOR_APPID}:
+        fail(f"Final hybrid manifest must declare Ambilight, WMP and supervisor; found {final_ids!r}")
 
     root_children = list(root)
     service_positions = [
@@ -212,11 +232,11 @@ def main():
     set_root_text(
         root,
         "description",
-        "Native Moonlight Tizen services: WMP playback and Ambilight.",
+        "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight.",
     )
 
     tree.write(hybrid_manifest, encoding="UTF-8", xml_declaration=True)
-    print("Hybrid manifest normalized: package metadata is accurate and exactly two services are declared.")
+    print("Hybrid manifest normalized: package metadata is accurate and exactly three services are declared.")
 
 
 if __name__ == "__main__":

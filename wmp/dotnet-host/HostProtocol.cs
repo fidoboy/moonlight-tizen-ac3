@@ -16,6 +16,8 @@ namespace MoonlightWmpHost
         private const string Protocol = "moonlight-wmp/1";
         private const string WebAppId = "MoonLightS.MoonlightWasm";
         private const string ControlPortName = "MoonlightWmpControl";
+        private const string SupervisorAppId = "MoonLightS.WmpSupervisor";
+        private const string SupervisorControlPortName = "MoonlightWmpSupervisorControl";
 
         private static readonly object Gate = new object();
         private static MessagePort _port;
@@ -77,13 +79,48 @@ namespace MoonlightWmpHost
             internal int DebugMode;
         }
 
+        internal static void NotifySupervisorExpectedExit(string reason)
+        {
+            try
+            {
+                if (_port == null)
+                {
+                    Log.Error("WMP_LIFECYCLE supervisor_expected_exit_not_sent reason=control_port_unavailable");
+                    return;
+                }
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "expect_exit");
+                message.AddItem("detail", reason ?? "WMP requested orderly process exit");
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_expected_exit_sent detail=" +
+                    (reason ?? "WMP requested orderly process exit"));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_expected_exit_send_failed " + ex);
+            }
+        }
+
+        internal static string GetLifecycleSnapshot()
+        {
+            lock (Gate)
+            {
+                return "ready=" + (_ready ? "1" : "0") +
+                    ",engineLoaded=" + (_engine != null ? "1" : "0") +
+                    ",workerActive=" + (_workerActive ? "1" : "0") +
+                    ",stopRequested=" + (_stopRequested ? "1" : "0");
+            }
+        }
+
         internal static void Start()
         {
+            Log.Info("WMP_LIFECYCLE control_port_start_enter");
             _ready = false;
             _port = new MessagePort(ControlPortName, true);
             _port.MessageReceived += OnMessage;
             _port.Listen();
-            Log.Info("Trusted WMP control port listening: " + ControlPortName);
+            Log.Info("WMP_LIFECYCLE control_port_listening name=" + ControlPortName);
         }
 
         internal static void UpdateEngine(
@@ -97,9 +134,10 @@ namespace MoonlightWmpHost
                 _loadError = loadError;
                 _ready = true;
             }
-            Log.Info("WMP engine status published: " +
+            Log.Info("WMP_LIFECYCLE engine_status_published engine=" +
                 (engine != null ? "loaded" : "unavailable") +
-                ", ESPlus=" + _esplusState + ", family=" + _esplusFamily);
+                " esplus=" + _esplusState + " family=" + _esplusFamily +
+                " loadError=" + (_loadError ?? "<none>"));
         }
 
         // Last-chance managed exception reporting. Normal session exceptions
@@ -670,6 +708,13 @@ namespace MoonlightWmpHost
                     return;
                 }
 
+                if (command == "start_session" || command == "stop_session")
+                    {
+                        Log.Info("WMP_LIFECYCLE command_received command=" + command +
+                            " requestId=" + (id ?? "<missing>") +
+                            " sender=" + appId + " remotePort=" + remotePort);
+                    }
+
                 switch (command)
                 {
                     case "input_key":
@@ -943,22 +988,26 @@ namespace MoonlightWmpHost
         private static void StartSession(Bundle bundle, string appId,
                                          string remotePort, string id)
         {
+            Log.Info("WMP_LIFECYCLE start_session_validation_begin requestId=" + id);
             LogStartArguments(bundle);
 
             if (!_ready)
             {
+                Log.Error("WMP_LIFECYCLE start_session_rejected reason=service_not_ready");
                 Respond(appId, remotePort, id, "error",
                     "{\"error\":\"service_not_ready\"}");
                 return;
             }
             if (_engine == null)
             {
+                Log.Error("WMP_LIFECYCLE start_session_rejected reason=engine_unavailable detail=" + (_loadError ?? "<none>"));
                 Respond(appId, remotePort, id, "error",
                     "{\"error\":\"engine_unavailable\",\"detail\":" + JsonQuote(_loadError) + "}");
                 return;
             }
             if (_esplusState != "symbols_detected")
             {
+                Log.Error("WMP_LIFECYCLE start_session_rejected reason=esplus_unavailable state=" + _esplusState);
                 Respond(appId, remotePort, id, "error",
                     "{\"error\":\"esplus_unavailable\"}");
                 return;
@@ -969,7 +1018,7 @@ namespace MoonlightWmpHost
             if (!ParseStart(bundle, out request, out invalidField))
             {
                 // Log only the rejected field name; never expose session secrets.
-                Log.Error("invalid_start_arguments: " + invalidField);
+                Log.Error("WMP_LIFECYCLE start_session_rejected reason=invalid_start_arguments field=" + invalidField);
                 Respond(appId, remotePort, id, "error",
                     "{\"error\":\"invalid_start_arguments\",\"field\":" +
                     JsonQuote(invalidField) + "}");
@@ -981,6 +1030,7 @@ namespace MoonlightWmpHost
             {
                 if (_workerActive)
                 {
+                    Log.Error("WMP_LIFECYCLE start_session_rejected reason=engine_busy");
                     Respond(appId, remotePort, id, "error",
                         "{\"error\":\"engine_busy\"}");
                     return;
@@ -1000,10 +1050,18 @@ namespace MoonlightWmpHost
                 _worker = worker;
             }
 
+            Log.Info("WMP_LIFECYCLE worker_created requestId=" + id);
             Respond(appId, remotePort, id, "ok", "{\"accepted\":true}");
-            try { worker.Start(); }
+            Log.Info("WMP_LIFECYCLE start_session_accepted requestId=" + id);
+            try
+            {
+                Log.Info("WMP_LIFECYCLE worker_start_begin");
+                worker.Start();
+                Log.Info("WMP_LIFECYCLE worker_start_returned");
+            }
             catch (Exception ex)
             {
+                Log.Error("WMP_LIFECYCLE worker_start_failed " + ex);
                 lock (Gate)
                 {
                     _workerActive = false; _worker = null;
@@ -1018,6 +1076,7 @@ namespace MoonlightWmpHost
 
         private static void StopSession(string appId, string remotePort, string id)
         {
+            Log.Info("WMP_LIFECYCLE stop_session_begin requestId=" + id);
             bool active;
             lock (Gate)
             {
@@ -1027,12 +1086,18 @@ namespace MoonlightWmpHost
 
             if (active)
             {
+                Log.Info("WMP_LIFECYCLE stop_session_queued requestId=" + id);
                 Respond(appId, remotePort, id, "ok", "{\"stopQueued\":true}");
                 return;
             }
 
-            try { if (_engine != null) _engine.Stop(); }
-            catch (Exception ex) { Log.Error("idempotent engine stop failed: " + ex.Message); }
+            try
+            {
+                Log.Info("WMP_LIFECYCLE idle_engine_stop_begin");
+                if (_engine != null) _engine.Stop();
+                Log.Info("WMP_LIFECYCLE idle_engine_stop_complete");
+            }
+            catch (Exception ex) { Log.Error("WMP_LIFECYCLE idle_engine_stop_failed " + ex); }
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
             App.RequestExitAfterSession();
@@ -1045,6 +1110,8 @@ namespace MoonlightWmpHost
 
         private static void RunSession(StartRequest request, string appId, string remotePort)
         {
+            Log.Info("WMP_LIFECYCLE session_worker_enter thread=" +
+                Thread.CurrentThread.ManagedThreadId.ToString(CultureInfo.InvariantCulture));
             _activeSessionAppId = appId;
             _activeSessionRemotePort = remotePort;
             int result = -1;
@@ -1079,6 +1146,7 @@ namespace MoonlightWmpHost
                     request.DebugMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
+                Log.Info("WMP_LIFECYCLE native_start_call_begin");
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
@@ -1086,6 +1154,8 @@ namespace MoonlightWmpHost
                     request.CodecMode, request.VideoCodec, request.Hdr,
                     request.AudioConfig, request.FullRange, request.AudioEnabled);
 
+                Log.Info("WMP_LIFECYCLE native_start_call_returned result=" +
+                    result.ToString(CultureInfo.InvariantCulture));
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 Log.Info("WMP native StartSessionV2 returned " +
                     result.ToString(CultureInfo.InvariantCulture));
@@ -1094,12 +1164,15 @@ namespace MoonlightWmpHost
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
                 if (result != 0)
                 {
+                    Log.Error("WMP_LIFECYCLE native_start_failed result=" + result.ToString(CultureInfo.InvariantCulture));
                     int nativeCode = _engine.ReadLastError(out diagnostic);
                     if (nativeCode == 0) nativeCode = result;
                     RecordDiagnostic("native startup failure: code=" +
                         nativeCode.ToString(CultureInfo.InvariantCulture) +
                         (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
+                    Log.Info("WMP_LIFECYCLE native_start_failure_stop_begin");
                     _engine.Stop();
+                    Log.Info("WMP_LIFECYCLE native_start_failure_stop_complete");
                     Event(appId, remotePort, "streamTerminated: " +
                         nativeCode.ToString(CultureInfo.InvariantCulture),
                         String.IsNullOrEmpty(diagnostic)
@@ -1235,16 +1308,25 @@ namespace MoonlightWmpHost
                     Thread.Sleep(200);
                 }
 
+                Log.Info("WMP_LIFECYCLE engine_running_loop_exited");
                 terminationCode = _engine.ReadLastError(out diagnostic);
+                Log.Info("WMP_LIFECYCLE terminal_error_read code=" +
+                    terminationCode.ToString(CultureInfo.InvariantCulture) +
+                    " diagnostic=" + (diagnostic ?? "<none>"));
                 RecordDiagnostic("host session ended: code=" + terminationCode.ToString(CultureInfo.InvariantCulture) +
                     (String.IsNullOrEmpty(diagnostic) ? String.Empty : ", diagnostic=" + diagnostic));
+                Log.Info("WMP_LIFECYCLE engine_stop_after_loop_begin");
                 _engine.Stop();
+                Log.Info("WMP_LIFECYCLE engine_stop_after_loop_complete");
                 Event(appId, remotePort, "streamTerminated: " +
                     terminationCode.ToString(CultureInfo.InvariantCulture), diagnostic);
             }
             catch (Exception ex)
             {
-                try { _engine.Stop(); } catch { }
+                Log.Error("WMP_LIFECYCLE session_worker_exception " + ex);
+                try { _engine.Stop(); } catch (Exception stopError) {
+                    Log.Error("WMP_LIFECYCLE engine_stop_after_exception_failed " + stopError);
+                }
                 RecordDiagnostic("host worker exception: " + ex.GetType().Name + ": " + ex.Message);
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP host session worker failed: " + ex.Message);
@@ -1252,6 +1334,7 @@ namespace MoonlightWmpHost
             }
             finally
             {
+                Log.Info("WMP_LIFECYCLE session_worker_finally_begin");
                 lock (Gate)
                 {
                     _workerActive = false;
@@ -1265,9 +1348,11 @@ namespace MoonlightWmpHost
                     StageMessages.Clear();
                 }
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
+                Log.Info("WMP_LIFECYCLE session_worker_bookkeeping_cleared");
                 App.RequestExitAfterSession();
                 _activeSessionAppId = null;
                 _activeSessionRemotePort = null;
+                Log.Info("WMP_LIFECYCLE session_worker_finally_complete");
             }
         }
     }

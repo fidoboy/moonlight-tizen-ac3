@@ -11,12 +11,15 @@
   // Keep the legacy service application ID, MessagePort names, and protocol stable
   // so an app update can continue using the already-registered native service.
   var SERVICE_APP_ID = 'MoonLightS.WmpService';
+  var SUPERVISOR_APP_ID = 'MoonLightS.WmpSupervisor';
+  var SUPERVISOR_CONTROL_PORT = 'MoonlightWmpSupervisorControl';
   var CONTROL_PORT = 'MoonlightWmpControl';
   var REPLY_PORT = 'MoonlightWmpReply';
   var PROTOCOL = 'moonlight-wmp/1';
 
   var localPort = null;
   var remotePort = null;
+  var supervisorRemotePort = null;
   var listenerId = null;
   var connectPromise = null;
   var connectionReady = false;
@@ -36,6 +39,8 @@
   var startSessionAccepted = false;
   var serviceExitObservedDuringStart = false;
   var unexpectedServiceExitReported = false;
+  var supervisorTerminationObserved = false;
+  var supervisorTerminationDetail = null;
 
   // Passive log retrieval only: this never changes stream state, readiness,
   // recovery, or termination. It keeps diagnostics flowing while the native
@@ -91,7 +96,8 @@
   var SERVICE_STOP_VERIFY_DELAY_MS = 100;
   var SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS = 5000;
 
-  function getRunningServiceContexts() {
+  function getRunningServiceContexts(applicationId) {
+    applicationId = applicationId || SERVICE_APP_ID;
     return new Promise(function(resolve, reject) {
       try {
         if (!global.tizen || !tizen.application ||
@@ -110,7 +116,7 @@
           global.clearTimeout(timeoutId);
           contexts = Array.isArray(contexts) ? contexts : [];
           resolve(contexts.filter(function(context) {
-            return context && context.appId === SERVICE_APP_ID;
+            return context && context.appId === applicationId;
           }));
         }, function(error) {
           if (settled) return;
@@ -128,8 +134,8 @@
     });
   }
 
-  function waitForServiceStopped(attempt) {
-    return getRunningServiceContexts().then(function(contexts) {
+  function waitForServiceStopped(applicationId, attempt) {
+    return getRunningServiceContexts(applicationId).then(function(contexts) {
       if (contexts.length === 0) return true;
       if (attempt >= SERVICE_STOP_VERIFY_ATTEMPTS) {
         throw makeError('previous native service did not stop completely');
@@ -137,16 +143,16 @@
       return new Promise(function(resolve) {
         global.setTimeout(resolve, SERVICE_STOP_VERIFY_DELAY_MS);
       }).then(function() {
-        return waitForServiceStopped(attempt + 1);
+        return waitForServiceStopped(applicationId, attempt + 1);
       });
     });
   }
 
-  function stopExistingService() {
-    return getRunningServiceContexts().then(function(contexts) {
+  function stopExistingApplication(applicationId, label) {
+    return getRunningServiceContexts(applicationId).then(function(contexts) {
       if (contexts.length === 0) {
-        debugLog('no previous ESPlusPlayer service process is running', {
-          serviceAppId: SERVICE_APP_ID
+        debugLog('no previous native application process is running', {
+          serviceAppId: applicationId
         });
         return true;
       }
@@ -154,8 +160,8 @@
         throw makeError('Tizen application termination is unavailable; cannot guarantee a clean service start');
       }
 
-      debugLog('stopping previous ESPlusPlayer service process', {
-        serviceAppId: SERVICE_APP_ID,
+      debugLog('stopping previous native application process', {
+        serviceAppId: applicationId,
         runningInstances: contexts.length
       });
 
@@ -177,8 +183,8 @@
             }
             try {
               tizen.application.kill(context.id, function() {
-                debugLog('previous ESPlusPlayer service process termination requested', {
-                  serviceAppId: SERVICE_APP_ID,
+                debugLog('previous native application process termination requested', {
+                  serviceAppId: applicationId,
                   contextId: context.id
                 });
                 finish();
@@ -199,8 +205,80 @@
           });
         });
       }, Promise.resolve()).then(function() {
-        return waitForServiceStopped(0);
+        return waitForServiceStopped(applicationId, 0);
       });
+    });
+  }
+
+  function stopExistingService() {
+    return stopExistingApplication(SERVICE_APP_ID, 'ESPlusPlayer');
+  }
+
+  function stopExistingSupervisor() {
+    return stopExistingApplication(SUPERVISOR_APP_ID, 'WMP supervisor');
+  }
+
+  function launchSupervisorAndWait() {
+    return new Promise(function(resolve, reject) {
+      if (!global.tizen || !tizen.application ||
+          typeof tizen.application.launch !== 'function' ||
+          !tizen.messageport ||
+          typeof tizen.messageport.requestTrustedRemoteMessagePort !== 'function') {
+        reject(makeError('Tizen APIs required by the independent WMP supervisor are unavailable'));
+        return;
+      }
+
+      var attempt = 0;
+      var maxAttempts = 30;
+      function openSupervisorPort() {
+        attempt++;
+        try {
+          var candidate = tizen.messageport.requestTrustedRemoteMessagePort(
+            SUPERVISOR_APP_ID, SUPERVISOR_CONTROL_PORT
+          );
+          if (!candidate || candidate.isTrusted !== true) {
+            throw makeError('trusted WMP supervisor control port is unavailable');
+          }
+          supervisorRemotePort = candidate;
+          debugLog('independent WMP process supervisor is ready', {
+            supervisorAppId: SUPERVISOR_APP_ID,
+            controlPort: SUPERVISOR_CONTROL_PORT,
+            attempts: attempt
+          });
+          resolve(true);
+        } catch (error) {
+          var notReady = error && (error.name === 'NotFoundError' ||
+            /port.{0,80}not found|not found.{0,80}port/i.test(error.message || ''));
+          if (notReady && attempt < maxAttempts) {
+            global.setTimeout(openSupervisorPort, 100);
+            return;
+          }
+          reject(makeError('independent WMP supervisor did not publish its trusted control port: ' +
+            (error && error.message ? error.message : String(error))));
+        }
+      }
+
+      try {
+        debugLog('launching independent WMP process supervisor', {
+          supervisorAppId: SUPERVISOR_APP_ID
+        });
+        tizen.application.launch(SUPERVISOR_APP_ID, function() {
+          debugLog('independent WMP supervisor launch callback succeeded', {
+            supervisorAppId: SUPERVISOR_APP_ID
+          });
+          openSupervisorPort();
+        }, function(error) {
+          debugLog('independent WMP supervisor launch failed', {
+            supervisorAppId: SUPERVISOR_APP_ID,
+            error: errorDetails(error)
+          });
+          reject(makeError('could not launch independent WMP supervisor: ' +
+            (error && error.message ? error.message : String(error))));
+        });
+      } catch (error) {
+        reject(makeError('could not launch independent WMP supervisor: ' +
+          (error && error.message ? error.message : String(error))));
+      }
     });
   }
 
@@ -221,6 +299,8 @@
     serviceExitObservedDuringStart = false;
     unexpectedServiceExitReported = false;
     nativeTerminationEventSeen = false;
+    supervisorTerminationObserved = false;
+    supervisorTerminationDetail = null;
 
     appStatusListenerId = tizen.application.addAppStatusChangeListener(
       function(appId, isActive) {
@@ -382,6 +462,34 @@
       if (/^streamTerminated:/.test(String(message.event || ''))) {
         nativeTerminationEventSeen = true;
         if (unexpectedServiceExitReported) return;
+      }
+      if (message.event === 'wmpSupervisorTerminated') {
+        supervisorTerminationObserved = true;
+        supervisorTerminationDetail = message.detail || 'Tizen ApplicationManager reported WMP termination';
+        debugLog('independent Tizen supervisor reported WMP process termination', {
+          detail: supervisorTerminationDetail,
+          startSessionPending: startSessionPending,
+          startSessionAccepted: startSessionAccepted
+        });
+        if (nativeTerminationEventSeen || unexpectedServiceExitReported) return;
+        if (startSessionPending) {
+          serviceExitObservedDuringStart = true;
+          var supervisorStartError = makeError('native service process terminated during startup: ' +
+            supervisorTerminationDetail);
+          Object.keys(pending).forEach(function(id) {
+            var supervisorPending = pending[id];
+            if (!supervisorPending || supervisorPending.command !== 'start_session') return;
+            delete pending[id];
+            if (supervisorPending.timeoutId !== null && supervisorPending.timeoutId !== undefined) {
+              global.clearTimeout(supervisorPending.timeoutId);
+            }
+            supervisorPending.reject(supervisorStartError);
+          });
+        } else if (startSessionAccepted) {
+          reportUnexpectedServiceExit('Independent Tizen supervisor confirmed native process termination: ' +
+            supervisorTerminationDetail);
+        }
+        return;
       }
       if (message.event === 'wmpDiagnosticReady') {
         // This event marks the StartSessionV2 call boundary, not video readiness.
@@ -564,7 +672,7 @@
         typeof global.tizen.application.launch === 'function')
     });
 
-    connectPromise = stopExistingService().then(function() {
+    connectPromise = stopExistingSupervisor().then(stopExistingService).then(function() {
       return new Promise(function(resolve, reject) {
         try {
           registerServiceStatusListener();
@@ -585,8 +693,12 @@
           listenerId = localPort.addMessagePortListener(handleMessage);
           debugLog('fresh local MessagePort listener registered', {listenerId: listenerId});
 
-          debugLog('launching fresh ESPlusPlayer ServiceApp', {serviceAppId: SERVICE_APP_ID});
-          tizen.application.launch(SERVICE_APP_ID, function() {
+          launchSupervisorAndWait().then(function() {
+            debugLog('launching fresh ESPlusPlayer ServiceApp', {
+              serviceAppId: SERVICE_APP_ID,
+              supervisorAppId: SUPERVISOR_APP_ID
+            });
+            tizen.application.launch(SERVICE_APP_ID, function() {
             debugLog('ESPlusPlayer ServiceApp launch callback succeeded', {
               serviceAppId: SERVICE_APP_ID,
               elapsedMs: Date.now() - connectStartedAt
@@ -676,6 +788,10 @@
             close();
             reject(makeError('could not launch native service: ' +
               (error && error.message ? error.message : String(error))));
+            });
+          }).catch(function(error) {
+            close();
+            reject(error);
           });
         } catch (error) {
           debugLog('ESPlusPlayer clean service startup failed synchronously', {
@@ -693,10 +809,17 @@
       close();
       // If launch succeeded but the reply port never appeared, do not leave
       // the half-started ServiceApplication behind for the next attempt.
-      return stopExistingService().catch(function(cleanupError) {
-        debugLog('native service cleanup after startup failure was unsuccessful', {
-          serviceAppId: SERVICE_APP_ID,
+      return stopExistingSupervisor().catch(function(cleanupError) {
+        debugLog('native supervisor cleanup after startup failure was unsuccessful', {
+          serviceAppId: SUPERVISOR_APP_ID,
           error: errorDetails(cleanupError)
+        });
+      }).then(function() {
+        return stopExistingService().catch(function(cleanupError) {
+          debugLog('native service cleanup after startup failure was unsuccessful', {
+            serviceAppId: SERVICE_APP_ID,
+            error: errorDetails(cleanupError)
+          });
         });
       }).then(function() {
         connectPromise = null;
@@ -897,15 +1020,23 @@
     });
 
     return connect(command === 'start_session').then(function() {
-      // The service publishes its control port before loading libmlengine.so
-      // and probing ESPlus. Do not submit a stream request until initialization
-      // has explicitly completed.
-      return command === 'start_session' ? waitForServiceReady(0) : true;
-    }).then(function() {
       if (command === 'start_session') {
         startSessionPending = true;
         startSessionAccepted = false;
-        serviceExitObservedDuringStart = false;
+        serviceExitObservedDuringStart = supervisorTerminationObserved;
+      }
+      // The service publishes its control port before loading libmlengine.so
+      // and probing ESPlus. Do not submit a stream request until initialization
+      // has explicitly completed.
+      if (command === 'start_session' && serviceExitObservedDuringStart) {
+        throw makeError('native service process terminated during startup: ' +
+          (supervisorTerminationDetail || 'supervisor notification received'));
+      }
+      return command === 'start_session' ? waitForServiceReady(0) : true;
+    }).then(function() {
+      if (command === 'start_session' && supervisorTerminationObserved) {
+        throw makeError('native service process terminated during startup: ' +
+          (supervisorTerminationDetail || 'supervisor notification received'));
       }
       return sendConnectedRequest(command, serializedPayload, payload);
     }).then(function(response) {
@@ -923,8 +1054,9 @@
     }).catch(function(error) {
       if (command === 'start_session') {
         startSessionPending = false;
-        if (serviceExitObservedDuringStart) {
-          error = makeError('native service exited unexpectedly while starting the stream');
+        if (serviceExitObservedDuringStart || supervisorTerminationObserved) {
+          error = makeError('native service exited unexpectedly while starting the stream: ' +
+            (supervisorTerminationDetail || 'Tizen process termination notification received'));
           serviceExitObservedDuringStart = false;
         }
         if (global.console && typeof global.console.error === 'function') {
@@ -943,10 +1075,17 @@
       // A failed readiness check or rejected start request must not leave the
       // just-launched service process behind as a partial startup.
       close();
-      return stopExistingService().catch(function(cleanupError) {
-        debugLog('native service cleanup after rejected stream startup was unsuccessful', {
-          serviceAppId: SERVICE_APP_ID,
+      return stopExistingSupervisor().catch(function(cleanupError) {
+        debugLog('native supervisor cleanup after rejected stream startup was unsuccessful', {
+          serviceAppId: SUPERVISOR_APP_ID,
           error: errorDetails(cleanupError)
+        });
+      }).then(function() {
+        return stopExistingService().catch(function(cleanupError) {
+          debugLog('native service cleanup after rejected stream startup was unsuccessful', {
+            serviceAppId: SERVICE_APP_ID,
+            error: errorDetails(cleanupError)
+          });
         });
       }).then(function() {
         throw error;
@@ -1087,6 +1226,7 @@
     }
     localPort = null;
     remotePort = null;
+    supervisorRemotePort = null;
     listenerId = null;
     connectionReady = false;
     connectPromise = null;

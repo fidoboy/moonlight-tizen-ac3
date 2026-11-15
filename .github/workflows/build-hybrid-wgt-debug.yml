@@ -341,12 +341,15 @@ jobs:
           if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
               raise SystemExit("WMP .NET package must target Tizen 6.0 / API 8")
           apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
-          if len(apps) != 1:
-              raise SystemExit("WMP manifest must contain exactly one service application")
-          expected = {"appid":"MoonLightS.WmpService","exec":"MoonlightHost.dll","api-version":"8","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"dotnet","taskmanage":"false"}
-          for key, value in expected.items():
-              if apps[0].get(key) != value:
-                  raise SystemExit(f"WMP manifest {key} must be {value!r}")
+          apps_by_id = {node.get("appid"): node for node in apps}
+          expected_ids = {"MoonLightS.WmpService", "MoonLightS.WmpSupervisor"}
+          if len(apps) != 2 or set(apps_by_id) != expected_ids:
+              raise SystemExit("WMP package must declare exactly WMP and its independent supervisor")
+          expected = {"exec":"MoonlightHost.dll","api-version":"8","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"dotnet","taskmanage":"false"}
+          for app_id in expected_ids:
+              for key, value in expected.items():
+                  if apps_by_id[app_id].get(key) != value:
+                      raise SystemExit(f"{app_id} manifest {key} must be {value!r}")
           manifest.set("version", version)
           tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
           print(f"WMP package manifest validated; version synchronized to {version}.")
@@ -395,13 +398,15 @@ jobs:
               if not package.read("bin/MoonlightHost.dll") or not package.read("res/lib/libmlengine.so"):
                   raise SystemExit("WMP TPK contains an empty managed host or engine library")
               manifest = ET.fromstring(package.read("tizen-manifest.xml"))
-              app = next((n for n in manifest.iter() if n.tag.endswith("service-application")), None)
+              apps = [n for n in manifest.iter() if n.tag.endswith("service-application")]
+              app_ids = {app.get("appid") for app in apps}
               if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
                   raise SystemExit("WMP TPK must target Tizen 6.0 / API 8")
-              if app is None or app.get("appid") != "MoonLightS.WmpService":
-                  raise SystemExit("WMP TPK service application identity changed")
-              if app.get("exec") != "MoonlightHost.dll" or app.get("type") != "dotnet" or app.get("api-version") != "8":
-                  raise SystemExit("WMP TPK service must be the Tizen API 8 .NET host")
+              if len(apps) != 2 or app_ids != {"MoonLightS.WmpService", "MoonLightS.WmpSupervisor"}:
+                  raise SystemExit("WMP TPK must declare exactly the WMP host and independent supervisor")
+              for app in apps:
+                  if app.get("exec") != "MoonlightHost.dll" or app.get("type") != "dotnet" or app.get("api-version") != "8":
+                      raise SystemExit("WMP TPK service must use the Tizen API 8 .NET host")
           print("WMP .NET service TPK payload and manifest verified.")
           PY
           echo "WMP service TPK: $wmp_tpk"
@@ -559,10 +564,11 @@ jobs:
               expected_service_ids = {
                   "MoonLightS.MoonlightAmbilight",
                   "MoonLightS.WmpService",
+                  "MoonLightS.WmpSupervisor",
               }
-              if len(service_app_nodes) != 2 or set(service_app_ids) != expected_service_ids:
+              if len(service_app_nodes) != 3 or set(service_app_ids) != expected_service_ids:
                   raise SystemExit(
-                      "Final hybrid manifest must declare exactly one Ambilight and one WMP service; "
+                      "Final hybrid manifest must declare Ambilight, WMP and its independent supervisor; "
                       f"found {service_app_ids!r}"
                   )
               if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
@@ -570,7 +576,7 @@ jobs:
               root_metadata = {
                   "label": "Moonlight Tizen Services",
                   "author": "Moonlight Tizen",
-                  "description": "Native Moonlight Tizen services: WMP playback and Ambilight.",
+                  "description": "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight.",
               }
               for tag, expected in root_metadata.items():
                   node = manifest.find("{http://tizen.org/ns/packages}" + tag)
@@ -622,9 +628,19 @@ jobs:
                   for node in wmp_app
               ):
                   raise SystemExit("Final WMP service is missing background-network capability")
+              supervisor_app = service_apps["MoonLightS.WmpSupervisor"]
+              for key, value in expected_wmp.items():
+                  if supervisor_app.get(key) != value:
+                      raise SystemExit(f"Final WMP supervisor manifest {key} must be {value!r}")
+              if not any(
+                  node.tag.endswith("background-category") and node.get("value") == "background-network"
+                  for node in supervisor_app
+              ):
+                  raise SystemExit("Final WMP supervisor is missing background-network capability")
               required_privileges = {
                   "http://tizen.org/privilege/internet",
                   "http://tizen.org/privilege/network.get",
+                  "http://tizen.org/privilege/appmanager.launch",
                   "http://developer.samsung.com/privilege/esplay",
               }
               declared_privileges = {

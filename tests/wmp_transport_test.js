@@ -11,10 +11,13 @@ const infoEntries = [];
 const errorEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const expectedServiceAppId = 'MoonLightS.WmpService';
+const expectedSupervisorAppId = 'MoonLightS.WmpSupervisor';
 assert.ok(manifest.includes('appid="' + expectedServiceAppId + '"'), 'ESPlusPlayer ServiceApp appid must match the transport');
+assert.ok(manifest.includes('appid="' + expectedSupervisorAppId + '"'), 'independent supervisor appid must be packaged');
 let messageListener = null;
 let listenerRemoved = false;
 let launchedAppId = null;
+const launchedAppIds = [];
 let remotePortNotReadyAttempts = 0;
 let remotePortRequests = 0;
 let nextNativeResponse = null;
@@ -122,6 +125,10 @@ const window = {
         return localPort;
       },
       requestTrustedRemoteMessagePort(appId, portName) {
+        if (appId === expectedSupervisorAppId) {
+          assert.strictEqual(portName, 'MoonlightWmpSupervisorControl');
+          return {isTrusted: true};
+        }
         assert.strictEqual(appId, expectedServiceAppId);
         assert.strictEqual(portName, 'MoonlightWmpControl');
         remotePortRequests++;
@@ -156,6 +163,12 @@ const window = {
       },
       launch(appId, success) {
         launchedAppId = appId;
+        launchedAppIds.push(appId);
+        if (appId === expectedSupervisorAppId) {
+          runningServiceContexts.push({id: 'wmp-supervisor-context-' + launchedAppIds.length, appId});
+          success();
+          return;
+        }
         launchedServiceCount++;
         runningServiceContexts.push({id: 'wmp-context-' + launchedServiceCount, appId});
         if (statusChangeListener) statusChangeListener(appId, true);
@@ -187,10 +200,13 @@ vm.runInNewContext(source, {
   assert.strictEqual(remotePortRequests, 4, 'ESPlusPlayer transport must retry while the ServiceApp registers its port');
   assert.strictEqual(connection.trusted, true);
   assert.strictEqual(launchedAppId, expectedServiceAppId);
+  assert.deepStrictEqual(launchedAppIds.slice(0, 2),
+    [expectedSupervisorAppId, expectedServiceAppId],
+    'the independent supervisor must be started and its trusted port verified before WMP launch');
   assert.deepStrictEqual(killedServiceContexts, ['stale-wmp-context'],
     'every new connection must terminate a previous WMP service process before relaunching it');
-  assert.strictEqual(runningServiceContexts.length, 1,
-    'the previous WMP service process must be confirmed stopped before relaunch');
+  assert.strictEqual(runningServiceContexts.length, 2,
+    'the previous WMP process and supervisor must be confirmed stopped before relaunch');
 
   const ping = await window.ESPlusPlayerTransport.ping();
   assert.strictEqual(ping.payload.pong, true);
@@ -279,8 +295,8 @@ vm.runInNewContext(source, {
     fullRange: false
   });
   assert.strictEqual(start.payload.accepted, true);
-  assert.strictEqual(killedServiceContexts.length, killedBeforeFirstStream + 1,
-    'each start_session must stop the previously connected service before launching a fresh process');
+  assert.strictEqual(killedServiceContexts.length, killedBeforeFirstStream + 2,
+    'each start_session must stop the previous WMP process and supervisor before launching fresh processes');
   const startMessage = pendingMessages[pendingMessages.length - 1];
   assert.strictEqual(startMessage.command, 'start_session');
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
@@ -320,8 +336,8 @@ vm.runInNewContext(source, {
     window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'}),
     /invalid_start_arguments: opticalOutputEnabled/
   );
-  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 2,
-    'a new stream must stop the previous process, and a rejected startup must stop its own new process');
+  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 4,
+    'a rejected startup must stop the previous WMP/supervisor pair and clean up the newly launched pair');
   const debugOutput = JSON.stringify(debugEntries);
   assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
   assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
@@ -394,6 +410,17 @@ vm.runInNewContext(source, {
   assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1,
     'the OS inactive notification after a native streamTerminated event must not create a duplicate UI failure');
 
+  // An independent native supervisor notification must use the same shared
+  // termination path, without relying on the WMP process or a JS watchdog.
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpSupervisorTerminated'},
+    {key: 'detail', value: 'source=ApplicationManager.ApplicationTerminated appId=' + expectedServiceAppId + ' pid=4321 expected=false'}
+  ]);
+  assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1,
+    'a supervisor notification after an already-received native terminal event must not duplicate recovery');
+
   window.ESPlusPlayerTransport.close();
   assert.strictEqual(listenerRemoved, true);
   assert.strictEqual(statusListenerRemoved, true, 'closing the transport must remove the Tizen app status listener');
@@ -421,6 +448,21 @@ vm.runInNewContext(source, {
   assert.ok(window.pendingStreamApiMessage.includes('exited unexpectedly'),
     'the unexpected process exit reason must be retained for the stream error dialog');
 
+  // Exercise the supervisor as the first source of an unexpected termination.
+  await window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'});
+  const beforeSupervisorTermination = handledEvents.filter(event => event === 'streamTerminated: -1').length;
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'wmpSupervisorTerminated'},
+    {key: 'detail', value: 'source=ApplicationManager.ApplicationTerminated appId=' + expectedServiceAppId + ' pid=9876 expected=false'}
+  ]);
+  assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length,
+    beforeSupervisorTermination + 1,
+    'an unexpected supervisor event after accepted start_session must trigger shared UI recovery');
+  assert.ok(window.pendingStreamApiMessage.includes('pid=9876'),
+    'the supervisor termination details must be retained for the stream error dialog');
+
   // A Tizen launch failure must retain the native error details in Debug logs.
   window.DEBUG_MODE = true;
   window.tizen.application.launch = function(appId, success, failure) {
@@ -435,13 +477,13 @@ vm.runInNewContext(source, {
   const failureLogStart = debugEntries.length;
   await assert.rejects(
     window.ESPlusPlayerTransport.connect(),
-    /could not launch native service: Application not found/
+    /could not launch independent WMP supervisor: Application not found/
   );
   const launchFailureLog = JSON.stringify(debugEntries.slice(failureLogStart));
-  assert.ok(launchFailureLog.includes('ESPlusPlayer ServiceApp launch failed'));
+  assert.ok(launchFailureLog.includes('launching independent WMP process supervisor'));
   assert.ok(launchFailureLog.includes('NotFoundError'));
   assert.ok(launchFailureLog.includes('Application not found'));
-  assert.ok(launchFailureLog.includes(expectedServiceAppId));
+  assert.ok(launchFailureLog.includes(expectedSupervisorAppId));
 
   // A missing native port must fail after a bounded number of retries.
   window.tizen.application.launch = function(appId, success) {
@@ -460,7 +502,7 @@ vm.runInNewContext(source, {
     'ESPlusPlayer transport must stop retrying after the configured attempt limit'
   );
   assert.strictEqual(runningServiceContexts.length, 0,
-    'a failed launch handshake must terminate the half-started service process');
+    'a failed launch handshake must terminate the half-started WMP process and supervisor');
 
   console.log('ESPlusPlayer trusted MessagePort bridge tests passed.');
 })().catch(error => {

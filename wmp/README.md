@@ -3,10 +3,12 @@
 WMP is an optional playback backend for the Moonlight Tizen WebApp. The
 existing EMSS backend remains integrated in the WebApp and is unchanged.
 
-The final installation is one hybrid WGT containing the WebApp and exactly
-two auxiliary .NET services: WMP and Ambilight. Tizen Core may create an
-intermediate TPK while assembling the hybrid package; that TPK is a packaging
-input, not a separately distributed or installed product.
+The final installation is one hybrid WGT containing the WebApp and three
+auxiliary .NET service applications: WMP, its independent process supervisor,
+and Ambilight. WMP and the supervisor use the same signed .NET host assembly
+but run as separate Tizen application IDs and separate processes. Tizen Core
+may create intermediate TPKs while assembling the hybrid package; those TPKs
+are packaging inputs, not separately distributed products.
 
 ## WMP .NET host
 
@@ -19,10 +21,18 @@ The trusted control and reply MessagePorts are:
 - Protocol: `moonlight-wmp/1`
 
 The host implements `ping`, `get_status`, `probe_esplus`,
-`start_session` and `stop_session`. The current process/session lifecycle,
-including the actual clean-start logic, host exit path, Tizen process-status
-observer, known limitations, and outstanding device verification, is described
-in [dotnet-host/README.md](dotnet-host/README.md). That document records
+`start_session` and `stop_session`. The independent supervisor is launched
+first as `MoonLightS.WmpSupervisor`; it listens for
+`Tizen.Applications.ApplicationManager.ApplicationTerminated` and filters
+events for `MoonLightS.WmpService`. It forwards unexpected termination over
+the trusted WebApp reply port. Before an orderly exit, WMP sends the supervisor
+an explicit expected-exit message so normal session completion is not reported
+as a crash.
+
+The current process/session lifecycle, clean-start sequence, diagnostic log
+markers, supervisor protocol, known limitations, and outstanding device
+verification are described in
+[dotnet-host/README.md](dotnet-host/README.md). That document records
 implemented behavior separately from unverified platform behavior; it must
 not be read as claiming that every crash mode has already been proven to
 recover correctly.
@@ -66,8 +76,9 @@ link-time `DT_NEEDED` dependency.
 
 ## Build and verification
 
-The hybrid workflows build the ARM engine, compile the `tizen80` .NET host,
-and package the WMP payload into the single hybrid WGT. The separate
+The hybrid workflows build the ARM engine, compile the `tizen80` .NET host
+(including the supervisor implementation), and package both service
+applications into the single hybrid WGT. The separate
 `wmp-native-build.yml` diagnostic workflow also builds the engine and
 managed host, but does not publish a standalone service package.
 
