@@ -157,6 +157,12 @@ void AudEsplus_StopSilence(void)
     __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
 }
 
+void AudEsplus_JoinSilence(void)
+{
+    AudEsplus_StopSilence();
+    preroll_join();
+}
+
 void AudEsplus_PrimeSilence(void)
 {
     int rc;
