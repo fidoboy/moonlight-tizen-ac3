@@ -1,32 +1,13 @@
 #include "Limelight-internal.h"
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 
-#ifndef OS_WASM
-extern void ml_engine_diag_log(const char *line) __attribute__((weak));
-#endif
-
-static int wmp_video_diag_enabled(void)
-{
-    const char *value = getenv("MLENGINE_DIAGNOSTICS");
-    return value && value[0] == '1' && value[1] == '\0';
-}
-static void wmp_video_diag(const char *format, ...)
-{
-    char line[512];
-    va_list args;
-    if (!wmp_video_diag_enabled()) return;
-    va_start(args, format);
-    vsnprintf(line, sizeof line, format, args);
-    va_end(args);
-    fprintf(stderr, "[wmp-video-diag] %s\n", line);
-    fflush(stderr);
-#ifndef OS_WASM
-    if (ml_engine_diag_log) ml_engine_diag_log(line);
-#endif
-}
-#define WMP_VDIAG(...) wmp_video_diag(__VA_ARGS__)
+/*
+ * Route WMP video diagnostics through Common C's normal log callback.
+ * Limelog() is wired to the application's logMessage callback by LC_LOG;
+ * stderr and getenv() are not reliable channels in the Tizen WASM runtime.
+ */
+#define WMP_VDIAG(format, ...) \
+    Limelog("[wmp-video-diag] " format "\n", ##__VA_ARGS__)
 
 #define FIRST_FRAME_MAX 1500
 #define FIRST_FRAME_TIMEOUT_SEC 10
