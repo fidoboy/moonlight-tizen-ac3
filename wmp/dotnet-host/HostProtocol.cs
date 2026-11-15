@@ -336,9 +336,17 @@ namespace MoonlightWmpHost
                 string value = Marshal.PtrToStringAnsi(line);
                 bool trace = value != null &&
                     value.IndexOf("video stream registration status=", StringComparison.Ordinal) >= 0;
-                if (trace) Log.Info("WMPDIAG NativeLogLine ENTER: registration result reached managed callback");
+                if (trace)
+                {
+                    RecordNativeDiagnosticMarker("HostProtocol.NativeLogLine ENTER; next operation acquires Gate");
+                    Log.Info("WMPDIAG NativeLogLine ENTER: registration result reached managed callback");
+                }
                 RecordNativeDiagnostic(value);
-                if (trace) Log.Info("WMPDIAG NativeLogLine RETURN: registration result enqueued");
+                if (trace)
+                {
+                    RecordNativeDiagnosticMarker("HostProtocol.NativeLogLine RETURN; target log enqueued");
+                    Log.Info("WMPDIAG NativeLogLine RETURN: registration result enqueued");
+                }
             }
             catch (Exception ex)
             {
@@ -354,26 +362,30 @@ namespace MoonlightWmpHost
             try
             {
                 if (line == IntPtr.Zero) return;
-                string value = Marshal.PtrToStringAnsi(line);
-                if (String.IsNullOrEmpty(value)) return;
-                if (value.Length > NativeDiagnosticLogLineLimit)
-                    value = value.Substring(0, NativeDiagnosticLogLineLimit) + " [truncated]";
-                lock (NativeDiagnosticMarkerGate)
-                {
-                    while (NativeDiagnosticMarkerLogs.Count >= NativeDiagnosticMarkerCapacity)
-                    {
-                        NativeDiagnosticMarkerLogs.Dequeue();
-                        _nativeDiagnosticMarkerDroppedCount++;
-                    }
-                    NativeDiagnosticMarkerLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
-                        CultureInfo.InvariantCulture) + " " + value);
-                    _nativeDiagnosticMarkerSequence++;
-                }
+                RecordNativeDiagnosticMarker(Marshal.PtrToStringAnsi(line));
             }
             catch (Exception ex)
             {
                 // Never allow managed exceptions to cross the native callback ABI.
                 Log.Error("WMP native diagnostic marker callback failed: " + ex.Message);
+            }
+        }
+
+        private static void RecordNativeDiagnosticMarker(string value)
+        {
+            if (String.IsNullOrEmpty(value)) return;
+            if (value.Length > NativeDiagnosticLogLineLimit)
+                value = value.Substring(0, NativeDiagnosticLogLineLimit) + " [truncated]";
+            lock (NativeDiagnosticMarkerGate)
+            {
+                while (NativeDiagnosticMarkerLogs.Count >= NativeDiagnosticMarkerCapacity)
+                {
+                    NativeDiagnosticMarkerLogs.Dequeue();
+                    _nativeDiagnosticMarkerDroppedCount++;
+                }
+                NativeDiagnosticMarkerLogs.Enqueue(DateTime.UtcNow.ToString("HH:mm:ss.fff",
+                    CultureInfo.InvariantCulture) + " " + value);
+                _nativeDiagnosticMarkerSequence++;
             }
         }
 
