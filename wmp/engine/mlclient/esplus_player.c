@@ -13,6 +13,10 @@
 #include <string.h>
 #include <time.h>
 #include <dlfcn.h>
+#ifdef MLT_TRACE
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
 
 #include "esplus_player.h"
 #include "Limelight.h"
@@ -58,6 +62,34 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 #define ecore_wl2_display_sync p_ecore_wl2_display_sync
 #define ecore_main_loop_thread_safe_call_sync p_ecore_main_loop_thread_safe_call_sync
 
+
+#ifdef MLT_TRACE
+/* One-shot diagnostic marker: bypass MLT, dlog and managed callbacks. */
+static void ecore_raw_marker(const char *marker)
+{
+    char line[192];
+    char digits[3 * sizeof(unsigned long) + 1];
+    const char prefix[] = "[ecore-raw] ";
+    const char tid_label[] = " tid=";
+    unsigned long tid = (unsigned long)syscall(SYS_gettid);
+    size_t n = 0, d = 0, i;
+
+    for (i = 0; i < sizeof(prefix) - 1; ++i) line[n++] = prefix[i];
+    for (i = 0; marker[i] && n < sizeof(line) - 32; ++i) line[n++] = marker[i];
+    for (i = 0; i < sizeof(tid_label) - 1; ++i) line[n++] = tid_label[i];
+    do {
+        digits[d++] = (char)('0' + (tid % 10));
+        tid /= 10;
+    } while (tid && d < sizeof(digits));
+    while (d) line[n++] = digits[--d];
+    line[n++] = '\n';
+    (void)write(STDERR_FILENO, line, n);
+}
+#define ECORE_RAW_MARKER(message) ecore_raw_marker(message)
+#else
+#define ECORE_RAW_MARKER(message) ((void)0)
+#endif
+
 #define LOAD_ECORE(handle, symbol) do { \
     MLT("ecore_runtime_load dlsym ENTER symbol=%s", #symbol); \
     *(void **)(&p_##symbol) = dlsym((handle), #symbol); \
@@ -85,8 +117,23 @@ static int ecore_runtime_load(void)
         s_ecore_wl2_lib);
     if (!s_ecore_wl2_lib) goto fail;
 
-    LOAD_ECORE(s_ecore_lib, ecore_init);
-    LOAD_ECORE(s_ecore_lib, ecore_shutdown);
+    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_init");
+    ECORE_RAW_MARKER("before dlsym ecore_init");
+    *(void **)(&p_ecore_init) = dlsym(s_ecore_lib, "ecore_init");
+    ECORE_RAW_MARKER("after dlsym ecore_init");
+    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_init address=%p",
+        (void *)p_ecore_init);
+    ECORE_RAW_MARKER("before null-check ecore_init");
+    if (!p_ecore_init) goto fail;
+    ECORE_RAW_MARKER("after null-check ecore_init");
+
+    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_shutdown");
+    ECORE_RAW_MARKER("before dlsym ecore_shutdown");
+    *(void **)(&p_ecore_shutdown) = dlsym(s_ecore_lib, "ecore_shutdown");
+    ECORE_RAW_MARKER("after dlsym ecore_shutdown");
+    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_shutdown address=%p",
+        (void *)p_ecore_shutdown);
+    if (!p_ecore_shutdown) goto fail;
     LOAD_ECORE(s_ecore_lib, ecore_main_loop_thread_safe_call_sync);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_init);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_shutdown);
