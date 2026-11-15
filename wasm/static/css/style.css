@@ -2053,7 +2053,7 @@ body[data-color-theme="black-orange"] #background-layer {
     font-weight: 700;
 }
 .settings-options label {
-    color: var(--theme-text-secondary);
+    color: var(--theme-text-primary);
     display: inline-block;
     margin-bottom: 12px;
     font-size: 1.7rem;
