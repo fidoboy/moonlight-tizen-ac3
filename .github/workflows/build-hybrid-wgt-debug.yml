@@ -45,9 +45,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}
             moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
             moonlight-web-ccache-${{ runner.os }}-
 
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Extract unsigned Moonlight Web files
         shell: bash
