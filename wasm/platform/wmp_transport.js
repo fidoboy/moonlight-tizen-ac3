@@ -243,6 +243,16 @@
 
         if (startSessionPending) {
           serviceExitObservedDuringStart = true;
+          var startError = makeError('native service exited unexpectedly while starting the stream');
+          Object.keys(pending).forEach(function(id) {
+            var pendingRequest = pending[id];
+            if (!pendingRequest || pendingRequest.command !== 'start_session') return;
+            delete pending[id];
+            if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
+              global.clearTimeout(pendingRequest.timeoutId);
+            }
+            pendingRequest.reject(startError);
+          });
           return;
         }
         if (startSessionAccepted) reportUnexpectedServiceExit();
