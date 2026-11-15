@@ -25,7 +25,6 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Mantenga pulsado START para alternar entre el control normal del mando y la emulación del ratón. Use el mando para manejar el puntero y los botones del ratón en el host.",
   "- If you encounter issues, here you can restart the app to resolve them.": "- Si encuentra algún problema, reiniciar la aplicación puede solucionarlo.",
   "- Increase for better image quality or decrease to improve performance on slower connections.": "- Auméntela para mejorar la calidad de imagen o redúzcala para mejorar el rendimiento en conexiones lentas.",
-  "- Increase for better video compression and quality or decrease to improve performance on lower-end devices.": "- Elija un códec más avanzado para mejorar la compresión y la calidad, o uno más sencillo para mejorar el rendimiento en dispositivos modestos.",
   "- Increase for smoother video stream or decrease for better performance on lower-end devices.": "- Auméntela para una retransmisión más fluida o redúzcala para mejorar el rendimiento en dispositivos modestos.",
   "- Increase to improve image clarity or decrease for better performance on lower-end devices and slower networks.": "- Auméntela para mejorar la nitidez de la imagen o redúzcala para mejorar el rendimiento en dispositivos modestos y redes lentas.",
   "- Increase to keep the sound smooth over an unstable network or decrease to lower the audio delay.": "- Auméntelo para suavizar el sonido en redes inestables o redúzcalo para disminuir el retardo de audio.",
@@ -639,5 +638,6 @@
   "Starting Ambilight service...": "Iniciando servicio Ambilight...",
   "Starting native video playback service...": "Iniciando el servicio nativo de reproducción de vídeo...",
   "Ambilight service failed to start.": "El servicio Ambilight no se ha podido iniciar.",
-  "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Para usar más de 30 FPS con resoluciones superiores a 1080p, deberá seleccionar un códec de vídeo compatible distinto de H.264."
+  "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Para usar más de 30 FPS con resoluciones superiores a 1080p, deberá seleccionar un códec de vídeo compatible distinto de H.264.",
+  "H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.": "H.264 es el códec más compatible con todo tipo de dispositivos. Sin embargo, para obtener el mejor rendimiento en resoluciones superiores a 1080p o utilizar el modo de alto rango dinámico (HDR), deberá seleccionar HEVC o AV1, siempre que el hardware del anfitrión sea compatible."
 }
