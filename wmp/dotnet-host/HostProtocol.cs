@@ -989,6 +989,7 @@ namespace MoonlightWmpHost
                 }
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP worker start failed: " + ex.Message);
+                App.RequestExitAfterSession();
             }
         }
 
@@ -1011,6 +1012,7 @@ namespace MoonlightWmpHost
             catch (Exception ex) { Log.Error("idempotent engine stop failed: " + ex.Message); }
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
+            App.RequestExitAfterSession();
         }
 
         private static bool StopWasRequested()
@@ -1238,6 +1240,7 @@ namespace MoonlightWmpHost
                     StageMessages.Clear();
                 }
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
+                App.RequestExitAfterSession();
             }
         }
     }
