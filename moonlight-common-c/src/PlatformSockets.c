@@ -1,13 +1,28 @@
 #include "Limelight-internal.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+
+extern void ml_engine_diag_log(const char *line) __attribute__((weak));
 
 static int wmp_socket_diag_enabled(void)
 {
     const char *value = getenv("MLENGINE_DIAGNOSTICS");
     return value && value[0] == '1' && value[1] == '\0';
 }
-#define WMP_SOCK_DIAG(...) do { if (wmp_socket_diag_enabled()) { fprintf(stderr, "[wmp-socket-diag] " __VA_ARGS__); fflush(stderr); } } while (0)
+static void wmp_socket_diag(const char *format, ...)
+{
+    char line[512];
+    va_list args;
+    if (!wmp_socket_diag_enabled()) return;
+    va_start(args, format);
+    vsnprintf(line, sizeof line, format, args);
+    va_end(args);
+    fprintf(stderr, "[wmp-socket-diag] %s\n", line);
+    fflush(stderr);
+    if (ml_engine_diag_log) ml_engine_diag_log(line);
+}
+#define WMP_SOCK_DIAG(...) wmp_socket_diag(__VA_ARGS__)
 
 #define TEST_PORT_TIMEOUT_SEC 3
 

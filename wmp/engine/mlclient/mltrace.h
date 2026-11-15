@@ -23,6 +23,7 @@
 #endif
 
 extern void (*volatile ml_log_cb)(const char *line) __attribute__((weak));
+extern void (*volatile ml_diag_cb)(const char *line) __attribute__((weak));
 
 static void mlt_diag(const char *fmt, ...) __attribute__((unused, format(printf, 1, 2)));
 static void mlt_log(const char *fmt, ...) __attribute__((unused, format(printf, 1, 2)));
@@ -83,6 +84,11 @@ static void mlt_diag(const char *fmt, ...)
     resolved = 1;
   }
   if (diag_dlog) diag_dlog(3 /* DLOG_DEBUG */, "MLENGINE_DIAG", "%s", buf);
+  /* Separate managed queue: never shares the normal ml_log_cb / HostProtocol.Gate path. */
+  if (&ml_diag_cb) {
+    void (*cb)(const char *) = __atomic_load_n(&ml_diag_cb, __ATOMIC_ACQUIRE);
+    if (cb) cb(buf);
+  }
 }
 #define MLT(...) mlt_log(__VA_ARGS__)
 #define MLT_DIAG(...) mlt_diag(__VA_ARGS__)

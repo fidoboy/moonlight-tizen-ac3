@@ -53,6 +53,7 @@ static uint32_t g_stream_info_prev_host_count, g_stream_info_prev_host_min, g_st
 static uint64_t g_stream_info_prev_host_total;
 
 void (*volatile ml_log_cb)(const char *line);   /* see mltrace.h */
+void (*volatile ml_diag_cb)(const char *line);   /* independent diagnostic-only queue */
 static ml_engine_stage_cb g_stage_cb;
 
 void ml_engine_set_stage_cb(ml_engine_stage_cb cb) {
@@ -67,6 +68,17 @@ void ml_engine_set_dolby_passthrough_enabled(int enabled) {
 void ml_engine_set_log_cb(ml_engine_log_cb cb) {
   ml_log_cb = cb;
   MLT("log forwarding %s", cb ? "on" : "off");
+}
+
+void ml_engine_set_diag_cb(ml_engine_log_cb cb) {
+  __atomic_store_n(&ml_diag_cb, cb, __ATOMIC_RELEASE);
+}
+
+/* Common C can report diagnostic milestones without entering the normal log callback. */
+void ml_engine_diag_log(const char *line) {
+  if (!line || !&ml_diag_cb) return;
+  void (*cb)(const char *) = __atomic_load_n(&ml_diag_cb, __ATOMIC_ACQUIRE);
+  if (cb) cb(line);
 }
 
 static STREAM_CONFIGURATION g_sc;  /* static: held by moonlight-common-c for the session */

@@ -170,13 +170,16 @@ namespace MoonlightWmpHost
 
         private static readonly StageCallbackFn NativeStageCallback = HostProtocol.NativeStageStarting;
         private static readonly LogCallbackFn NativeLogCallback = HostProtocol.NativeLogLine;
+        private static readonly LogCallbackFn NativeDiagnosticCallback = HostProtocol.NativeDiagnosticMarkerLine;
         private readonly SetStageCallbackFn _setStageCallback;
         private readonly SetLogCallbackFn _setLogCallback;
+        private readonly SetLogCallbackFn _setDiagnosticCallback;
 
         internal void EnableStageCallbacks()
         {
             _setStageCallback(NativeStageCallback);
             _setLogCallback(NativeLogCallback);
+            _setDiagnosticCallback(NativeDiagnosticCallback);
         }
 
         internal readonly RunningFn Running;
@@ -216,6 +219,7 @@ namespace MoonlightWmpHost
 
             _setStageCallback = Bind<SetStageCallbackFn>(resolve, "ml_engine_set_stage_cb");
             _setLogCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_log_cb");
+            _setDiagnosticCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_diag_cb");
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
             VideoReady = Bind<VideoReadyFn>(resolve, "ml_engine_video_ready");
             InputCapabilities = Bind<InputCapabilitiesFn>(resolve, "ml_engine_input_capabilities");

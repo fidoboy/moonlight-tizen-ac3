@@ -1,13 +1,28 @@
 #include "Limelight-internal.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
+
+extern void ml_engine_diag_log(const char *line) __attribute__((weak));
 
 static int wmp_video_diag_enabled(void)
 {
     const char *value = getenv("MLENGINE_DIAGNOSTICS");
     return value && value[0] == '1' && value[1] == '\0';
 }
-#define WMP_VDIAG(...) do { if (wmp_video_diag_enabled()) { fprintf(stderr, "[wmp-video-diag] " __VA_ARGS__); fflush(stderr); } } while (0)
+static void wmp_video_diag(const char *format, ...)
+{
+    char line[512];
+    va_list args;
+    if (!wmp_video_diag_enabled()) return;
+    va_start(args, format);
+    vsnprintf(line, sizeof line, format, args);
+    va_end(args);
+    fprintf(stderr, "[wmp-video-diag] %s\n", line);
+    fflush(stderr);
+    if (ml_engine_diag_log) ml_engine_diag_log(line);
+}
+#define WMP_VDIAG(...) wmp_video_diag(__VA_ARGS__)
 
 #define FIRST_FRAME_MAX 1500
 #define FIRST_FRAME_TIMEOUT_SEC 10
