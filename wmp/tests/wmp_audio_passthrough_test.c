@@ -70,15 +70,25 @@ static void assert_synthetic_packets(uint64_t duration_ns, const uint8_t *payloa
     }
 }
 
-static void test_dolby_silence_preroll(int eac3)
+static void test_dolby_silence_preroll(int eac3, int channels)
 {
     AUDIO_RENDERER_CALLBACKS callbacks;
-    const uint8_t *payload = eac3 ? wmp_silence_eac3_51 : wmp_silence_ac3_51;
-    uint32_t payload_size = eac3 ? WMP_SILENCE_EAC3_51_SIZE : WMP_SILENCE_AC3_51_SIZE;
+    const uint8_t *payload;
+    uint32_t payload_size;
+    int audio_config = channels == 2 ? AUDIO_CONFIGURATION_STEREO : AUDIO_CONFIGURATION_51_SURROUND;
+
+    if (eac3) {
+        payload = channels == 2 ? wmp_silence_eac3_stereo : wmp_silence_eac3_51;
+        payload_size = channels == 2 ? WMP_SILENCE_EAC3_STEREO_SIZE : WMP_SILENCE_EAC3_51_SIZE;
+    } else {
+        payload = channels == 2 ? wmp_silence_ac3_stereo : wmp_silence_ac3_51;
+        payload_size = channels == 2 ? WMP_SILENCE_AC3_STEREO_SIZE : WMP_SILENCE_AC3_51_SIZE;
+    }
+
     reset_capture(); g_ac3 = !eac3; g_eac3 = eac3;
     AudEsplus_FillCallbacks(&callbacks);
-    assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, NULL, NULL, 0) == 0);
-    assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
+    assert(callbacks.init(audio_config, NULL, NULL, 0) == 0);
+    assert(g_audio_info.channels == (uint32_t)channels && g_audio_info.sample_rate == 48000);
     g_clock_pts_ns = 320000000ull; g_auto_advance_ns = 32000000ull; g_stop_after = 10;
     AudEsplus_PrimeSilence(); preroll_join();
     assert_synthetic_packets(32000000ull, payload, payload_size);
@@ -196,8 +206,10 @@ int main(void)
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) != 0);
     assert(g_submit_count == 0);
 
-    test_dolby_silence_preroll(0);
-    test_dolby_silence_preroll(1);
+    test_dolby_silence_preroll(0, 2);
+    test_dolby_silence_preroll(0, 6);
+    test_dolby_silence_preroll(1, 2);
+    test_dolby_silence_preroll(1, 6);
     test_opus_silence_preroll(1, 1, 0, wmp_silence_opus_mono, WMP_SILENCE_OPUS_MONO_SIZE);
     test_opus_silence_preroll(2, 1, 1, wmp_silence_opus_stereo, WMP_SILENCE_OPUS_STEREO_SIZE);
     test_opus_silence_preroll(6, 4, 2, wmp_silence_opus_51, WMP_SILENCE_OPUS_51_SIZE);
