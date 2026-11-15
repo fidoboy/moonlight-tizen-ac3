@@ -1077,7 +1077,6 @@ int esplus_prepare(void)
         s_start_tried = 0;
         s_prepare_requested = 1;
         s_prepare_started = 0;
-        s_audio_registration_done = 0;
         __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
         s_idr_t0 = esplus_mono_ms();
         s_idr_last = 0;
