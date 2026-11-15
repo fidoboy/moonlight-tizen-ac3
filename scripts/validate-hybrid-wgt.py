@@ -382,6 +382,7 @@ def main():
             expected_services = {
                 "MoonLightS.MoonlightAmbilight",
                 "MoonLightS.WmpService",
+                "MoonLightS.WmpSupervisor",
             }
             require(
                 expected_services <= set(service_apps),

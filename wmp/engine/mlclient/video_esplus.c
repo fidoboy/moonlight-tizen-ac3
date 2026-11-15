@@ -176,7 +176,9 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
     VLOG("registering video stream mime=%d size=%ux%u fps=%u\n",
          (int)mime, info.width, info.height, info.frame_rate);
+    MLT_DIAG("VidDecSetup calling esplus_set_video_info");
     result = esplus_set_video_info(&info);
+    MLT_DIAG("VidDecSetup esplus_set_video_info RETURN result=%d", result);
     VLOG("video stream registration result=%d\n", result);
     MLT("video stream registration mime=%d -> %d", (int)mime, result);
     if (result != 0) {
@@ -190,6 +192,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
 
 static void VidDecStart(void)
 {
+    MLT_DIAG("VidDecStart ENTER");
     VLOG("decoder start: requesting ESPlus prepare\n");
     MLT("video start");
     s_base_pts_us = 0;
@@ -206,6 +209,7 @@ static void VidDecStart(void)
     esplus_stream_clock_reset();
     {
         int prepare_rc = esplus_prepare();
+        MLT_DIAG("VidDecStart esplus_prepare RETURN rc=%d", prepare_rc);
         VLOG("ESPlus prepare request returned %d\n", prepare_rc);
     }
 }
@@ -225,10 +229,13 @@ static void VidDecCleanup(void)
 static int VidDecSetup(int videoFormat, int width, int height,
                        int redrawRate, void *context, int drFlags)
 {
+    MLT_DIAG("VidDecSetup callback ENTER fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     int rc = VidDecSetup_(videoFormat, width, height, redrawRate, context, drFlags);
+    MLT_DIAG("VidDecSetup_ RETURN rc=%d", rc);
     if (rc != 0) esplus_close();   /* Common C skips cleanup when setup fails. */
     VLOG("setup complete rc=%d\n", rc);
     mldiag_video_setup(videoFormat, width, height, redrawRate, rc);
+    MLT_DIAG("VidDecSetup callback EXIT rc=%d", rc);
     return rc;
 }
 
@@ -240,6 +247,9 @@ static int VidDecSubmit(PDECODE_UNIT du)
     int64_t pts_ms;
 
     ++s_video_units;
+    if (s_video_units == 1)
+        MLT_DIAG("VidDecSubmit FIRST decode unit ENTER type=%d bytes=%d frame=%u",
+                 du->frameType, du->fullLength, du->frameNumber);
     const int collect_stats = __atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE);
     if (collect_stats) {
         __atomic_fetch_add(&esplus_stats.video_frames_received, 1, __ATOMIC_RELAXED);
@@ -363,6 +373,9 @@ static int VidDecSubmit(PDECODE_UNIT du)
              s_video_units, (int)result.status, result.raw_status,
              packet.size, (unsigned long long)packet.pts_ns);
     }
+    if (s_video_units == 1)
+        MLT_DIAG("VidDecSubmit FIRST decode unit EXIT status=%d raw=%d",
+                 (int)result.status, result.raw_status);
     if (result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE) {
         __atomic_fetch_add(&esplus_stats.dropped_full, 1, __ATOMIC_RELAXED);
         return DR_NEED_IDR;

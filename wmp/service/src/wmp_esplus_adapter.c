@@ -380,10 +380,25 @@ int wmp_esplus_adapter_get_playing_time(
 {
     typedef int (*playing_time_fn)(void *, uint64_t *);
     playing_time_fn fn;
+    int raw_status;
+
     if (!playing_time_ms || !wmp_esplus_adapter_has_playing_time(adapter))
         return 0;
+
     fn = (playing_time_fn)adapter->api->get_playing_time;
-    return fn(adapter->player, playing_time_ms) != 0;
+    raw_status = fn(adapter->player, playing_time_ms);
+
+    /*
+     * SET follows the Samsung error-code convention: ERROR_TYPE_NONE (0)
+     * is success. Legacy ADD exposes a C++ bool encoded as int: 1 is success.
+     * Keep the family distinction; treating both as boolean reverses SET.
+     */
+    if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_SET)
+        return raw_status == 0;
+    if (adapter->api->selected_family == WMP_ESPLUS_FAMILY_ADD)
+        return raw_status != 0;
+
+    return 0;
 }
 
 int wmp_esplus_adapter_has_seek(const wmp_esplus_adapter_t *adapter)

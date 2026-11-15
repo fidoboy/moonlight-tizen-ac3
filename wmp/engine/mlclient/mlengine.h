@@ -56,6 +56,9 @@ void ml_engine_free(void *p);
  * dlog/stderr output is unchanged. Release builds have no trace lines. */
 typedef void (*ml_engine_log_cb)(const char *line);
 void ml_engine_set_log_cb(ml_engine_log_cb cb);
+/* Diagnostic-only channel; bypasses the normal native log callback and its lock. */
+void ml_engine_set_diag_cb(ml_engine_log_cb cb);
+void ml_engine_diag_log(const char *line);
 
 /* Live Common C connection-stage notifications, delivered on the native callback thread. */
 typedef void (*ml_engine_stage_cb)(int stage, const char *name);

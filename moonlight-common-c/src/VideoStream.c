@@ -1,4 +1,13 @@
 #include "Limelight-internal.h"
+#include <stdlib.h>
+
+/*
+ * Route WMP video diagnostics through Common C's normal log callback.
+ * Limelog() is wired to the application's logMessage callback by LC_LOG;
+ * stderr and getenv() are not reliable channels in the Tizen WASM runtime.
+ */
+#define WMP_VDIAG(format, ...) \
+    Limelog("[wmp-video-diag] " format "\n", ##__VA_ARGS__)
 
 #define FIRST_FRAME_MAX 1500
 #define FIRST_FRAME_TIMEOUT_SEC 10
@@ -19,6 +28,9 @@ static PLT_THREAD decoderThread;
 static atomic_bool receivedDataFromPeer;
 static uint64_t firstDataTimeMs;
 static bool receivedFullFrame;
+static volatile int s_diag_first_udp_packet;
+static volatile int s_diag_first_rtp_queued;
+static volatile int s_diag_first_complete_frame;
 
 // We can't request an IDR frame until the depacketizer knows
 // that a packet was lost. This timeout bounds the time that
@@ -66,15 +78,26 @@ static void VideoPingThreadProc(void* context) {
     // issues related to receiving ICMP port unreachable messages due
     // to sending a packet prior to the host PC binding to that port.
     int pingCount = 0;
+    int firstSendLogged = 0;
     while (!PltIsThreadInterrupted(&udpPingThread)) {
+        SOCK_RET sent;
         if (VideoPingPayload.payload[0] != 0) {
             pingCount++;
             VideoPingPayload.sequenceNumber = BE32(pingCount);
 
-            sendto(rtpSocket, (char*)&VideoPingPayload, sizeof(VideoPingPayload), 0, (struct sockaddr*)&saddr, AddrLen);
+            sent = sendto(rtpSocket, (char*)&VideoPingPayload, sizeof(VideoPingPayload), 0, (struct sockaddr*)&saddr, AddrLen);
         }
         else {
-            sendto(rtpSocket, legacyPingData, sizeof(legacyPingData), 0, (struct sockaddr*)&saddr, AddrLen);
+            sent = sendto(rtpSocket, legacyPingData, sizeof(legacyPingData), 0, (struct sockaddr*)&saddr, AddrLen);
+        }
+
+        if (!firstSendLogged) {
+            int sendError = sent < 0 ? LastSocketError() : 0;
+            WMP_VDIAG("FIRST video UDP ping send result=%lld expected_bytes=%u error=%d",
+                      (long long)sent,
+                      VideoPingPayload.payload[0] != 0 ? (unsigned)sizeof(VideoPingPayload) : (unsigned)sizeof(legacyPingData),
+                      sendError);
+            firstSendLogged = 1;
         }
 
         PltSleepMsInterruptible(&udpPingThread, 500);
@@ -92,6 +115,7 @@ static void VideoReceiveThreadProc(void* context) {
     int waitingForVideoMs;
     bool encrypted;
 
+    WMP_VDIAG("VideoReceiveThreadProc ENTER encrypted=%d socket_valid=%d", !!(EncryptionFeaturesEnabled & SS_ENC_VIDEO), rtpSocket != INVALID_SOCKET);
     encrypted = !!(EncryptionFeaturesEnabled & SS_ENC_VIDEO);
     decryptedSize = StreamConfig.packetSize + MAX_RTP_HEADER_SIZE;
     minSize = sizeof(RTP_PACKET) + ((EncryptionFeaturesEnabled & SS_ENC_VIDEO) ? sizeof(ENC_VIDEO_HEADER) : 0);
@@ -150,6 +174,8 @@ static void VideoReceiveThreadProc(void* context) {
                 // If we wait many seconds without ever receiving a video packet,
                 // assume something is broken and terminate the connection.
                 waitingForVideoMs += UDP_RECV_POLL_TIMEOUT_MS;
+                if (waitingForVideoMs != 0 && waitingForVideoMs % 5000 == 0)
+                    WMP_VDIAG("VideoReceiveThreadProc still waiting for UDP video; elapsed_without_packet_ms=%d", waitingForVideoMs);
                 if (waitingForVideoMs >= FIRST_FRAME_TIMEOUT_SEC * 1000) {
                     Limelog("Terminating connection due to lack of video traffic\n");
                     ListenerCallbacks.connectionTerminated(ML_ERROR_NO_VIDEO_TRAFFIC);
@@ -161,6 +187,8 @@ static void VideoReceiveThreadProc(void* context) {
             continue;
         }
 
+        if (!__atomic_exchange_n(&s_diag_first_udp_packet, 1, __ATOMIC_ACQ_REL))
+            WMP_VDIAG("FIRST UDP video datagram received bytes=%d after_wait_ms=%d", err, waitingForVideoMs);
         if (!atomic_exchange_explicit(&receivedDataFromPeer, true, memory_order_relaxed)) {
             Limelog("Received first video packet after %d ms\n", waitingForVideoMs);
 
@@ -232,6 +260,8 @@ static void VideoReceiveThreadProc(void* context) {
         queueStatus = RtpvAddPacket(&rtpQueue, packet, err, (PRTPV_QUEUE_ENTRY)&buffer[decryptedSize]);
 
         if (queueStatus == RTPF_RET_QUEUED) {
+            if (!__atomic_exchange_n(&s_diag_first_rtp_queued, 1, __ATOMIC_ACQ_REL))
+                WMP_VDIAG("FIRST UDP video packet accepted into RTP reassembly queue");
             // The queue owns the buffer
             buffer = NULL;
         }
@@ -247,6 +277,8 @@ static void VideoReceiveThreadProc(void* context) {
 }
 
 void notifyKeyFrameReceived(void) {
+    if (!__atomic_exchange_n(&s_diag_first_complete_frame, 1, __ATOMIC_ACQ_REL))
+        WMP_VDIAG("FIRST complete video frame assembled by Common C");
     // Remember that we got a full frame successfully
     receivedFullFrame = true;
 }
@@ -319,28 +351,61 @@ void stopVideoStream(void) {
 int startVideoStream(void* rendererContext, int drFlags) {
     int err;
 
+    WMP_VDIAG("startVideoStream ENTER format=0x%x size=%dx%d fps=%d", NegotiatedVideoFormat, StreamConfig.width, StreamConfig.height, StreamConfig.fps);
+    __atomic_store_n(&s_diag_first_udp_packet, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_diag_first_rtp_queued, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_diag_first_complete_frame, 0, __ATOMIC_RELEASE);
     firstFrameSocket = INVALID_SOCKET;
 
     // This must be called before the decoder thread starts submitting
     // decode units
     LC_ASSERT(NegotiatedVideoFormat != 0);
+    WMP_VDIAG("startVideoStream calling renderer setup callback");
     err = VideoCallbacks.setup(NegotiatedVideoFormat, StreamConfig.width,
         StreamConfig.height, StreamConfig.fps, rendererContext, drFlags);
+    WMP_VDIAG("startVideoStream renderer setup RETURN rc=%d", err);
     if (err != 0) {
         return err;
     }
 
+    WMP_VDIAG("startVideoStream calling bindUdpSocket");
     rtpSocket = bindUdpSocket(RemoteAddr.ss_family, &LocalAddr, AddrLen,
                               RTP_RECV_PACKETS_BUFFERED * (StreamConfig.packetSize + MAX_RTP_HEADER_SIZE),
                               SOCK_QOS_TYPE_VIDEO);
+    WMP_VDIAG("startVideoStream bindUdpSocket RETURN valid=%d", rtpSocket != INVALID_SOCKET);
+    if (rtpSocket != INVALID_SOCKET) {
+        struct sockaddr_storage boundAddr;
+        SOCKADDR_LEN boundAddrLen = sizeof(boundAddr);
+        memset(&boundAddr, 0, sizeof(boundAddr));
+        if (getsockname(rtpSocket, (struct sockaddr*)&boundAddr, &boundAddrLen) == 0) {
+            unsigned int localPort = 0;
+            if (boundAddr.ss_family == AF_INET) {
+                localPort = (unsigned int)ntohs(((struct sockaddr_in*)&boundAddr)->sin_port);
+            }
+#ifdef AF_INET6
+            else if (boundAddr.ss_family == AF_INET6) {
+                localPort = (unsigned int)ntohs(((struct sockaddr_in6*)&boundAddr)->sin6_port);
+            }
+#endif
+            WMP_VDIAG("video UDP socket bound local_family=%d local_port=%u",
+                      (int)boundAddr.ss_family, localPort);
+        }
+        else {
+            WMP_VDIAG("video UDP socket getsockname FAILED error=%d", LastSocketError());
+        }
+    }
     if (rtpSocket == INVALID_SOCKET) {
+        WMP_VDIAG("startVideoStream bindUdpSocket FAILED");
         VideoCallbacks.cleanup();
         return LastSocketError();
     }
 
+    WMP_VDIAG("startVideoStream calling renderer start callback");
     VideoCallbacks.start();
+    WMP_VDIAG("startVideoStream renderer start callback RETURN");
 
     err = PltCreateThread("VideoRecv", VideoReceiveThreadProc, NULL, &receiveThread);
+    WMP_VDIAG("startVideoStream VideoRecv thread create RETURN err=%d", err);
     if (err != 0) {
         VideoCallbacks.stop();
         closeSocket(rtpSocket);
@@ -384,6 +449,7 @@ int startVideoStream(void* rendererContext, int drFlags) {
     // Start pinging before reading the first frame so GFE knows where
     // to send UDP data
     err = PltCreateThread("VideoPing", VideoPingThreadProc, NULL, &udpPingThread);
+    WMP_VDIAG("startVideoStream VideoPing thread create RETURN err=%d", err);
     if (err != 0) {
         VideoCallbacks.stop();
         stopVideoDepacketizer();
@@ -413,6 +479,7 @@ int startVideoStream(void* rendererContext, int drFlags) {
         }
     }
 
+    WMP_VDIAG("startVideoStream EXIT success; receive and ping threads active");
     return 0;
 }
 

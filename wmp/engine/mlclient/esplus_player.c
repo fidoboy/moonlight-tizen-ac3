@@ -13,6 +13,10 @@
 #include <string.h>
 #include <time.h>
 #include <dlfcn.h>
+#ifdef MLT_TRACE
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
 
 #include "esplus_player.h"
 #include "Limelight.h"
@@ -58,22 +62,78 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 #define ecore_wl2_display_sync p_ecore_wl2_display_sync
 #define ecore_main_loop_thread_safe_call_sync p_ecore_main_loop_thread_safe_call_sync
 
+
+#ifdef MLT_TRACE
+/* One-shot diagnostic marker: bypass MLT, dlog and managed callbacks. */
+static void ecore_raw_marker(const char *marker)
+{
+    char line[192];
+    char digits[3 * sizeof(unsigned long) + 1];
+    const char prefix[] = "[ecore-raw] ";
+    const char tid_label[] = " tid=";
+    unsigned long tid = (unsigned long)syscall(SYS_gettid);
+    size_t n = 0, d = 0, i;
+
+    for (i = 0; i < sizeof(prefix) - 1; ++i) line[n++] = prefix[i];
+    for (i = 0; marker[i] && n < sizeof(line) - 32; ++i) line[n++] = marker[i];
+    for (i = 0; i < sizeof(tid_label) - 1; ++i) line[n++] = tid_label[i];
+    do {
+        digits[d++] = (char)('0' + (tid % 10));
+        tid /= 10;
+    } while (tid && d < sizeof(digits));
+    while (d) line[n++] = digits[--d];
+    line[n++] = '\n';
+    (void)write(STDERR_FILENO, line, n);
+}
+#define ECORE_RAW_MARKER(message) ecore_raw_marker(message)
+#else
+#define ECORE_RAW_MARKER(message) ((void)0)
+#endif
+
 #define LOAD_ECORE(handle, symbol) do { \
+    MLT("ecore_runtime_load dlsym ENTER symbol=%s", #symbol); \
     *(void **)(&p_##symbol) = dlsym((handle), #symbol); \
+    MLT("ecore_runtime_load dlsym RETURN symbol=%s address=%p", #symbol, (void *)p_##symbol); \
     if (!p_##symbol) goto fail; \
 } while (0)
 
 static int ecore_runtime_load(void)
 {
     const char *error;
-    if (s_ecore_lib && s_ecore_wl2_lib) return 1;
+    if (s_ecore_lib && s_ecore_wl2_lib) {
+        MLT("ecore_runtime_load cached handles available");
+        return 1;
+    }
+
+    MLT("ecore_runtime_load dlopen ENTER library=libecore.so.1");
     s_ecore_lib = dlopen("libecore.so.1", RTLD_NOW | RTLD_LOCAL);
+    MLT("ecore_runtime_load dlopen RETURN library=libecore.so.1 handle=%p",
+        s_ecore_lib);
     if (!s_ecore_lib) goto fail;
+
+    MLT("ecore_runtime_load dlopen ENTER library=libecore_wl2.so.1");
     s_ecore_wl2_lib = dlopen("libecore_wl2.so.1", RTLD_NOW | RTLD_LOCAL);
+    MLT("ecore_runtime_load dlopen RETURN library=libecore_wl2.so.1 handle=%p",
+        s_ecore_wl2_lib);
     if (!s_ecore_wl2_lib) goto fail;
 
-    LOAD_ECORE(s_ecore_lib, ecore_init);
-    LOAD_ECORE(s_ecore_lib, ecore_shutdown);
+    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_init");
+    ECORE_RAW_MARKER("before dlsym ecore_init");
+    *(void **)(&p_ecore_init) = dlsym(s_ecore_lib, "ecore_init");
+    ECORE_RAW_MARKER("after dlsym ecore_init");
+    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_init address=%p",
+        (void *)p_ecore_init);
+    ECORE_RAW_MARKER("before null-check ecore_init");
+    if (!p_ecore_init) goto fail;
+    ECORE_RAW_MARKER("after null-check ecore_init");
+
+    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_shutdown");
+    ECORE_RAW_MARKER("before dlsym ecore_shutdown");
+    *(void **)(&p_ecore_shutdown) = dlsym(s_ecore_lib, "ecore_shutdown");
+    ECORE_RAW_MARKER("after dlsym ecore_shutdown");
+    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_shutdown address=%p",
+        (void *)p_ecore_shutdown);
+    if (!p_ecore_shutdown) goto fail;
     LOAD_ECORE(s_ecore_lib, ecore_main_loop_thread_safe_call_sync);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_init);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_shutdown);
@@ -81,21 +141,36 @@ static int ecore_runtime_load(void)
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_disconnect);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_new);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_show);
+
     /* Added in Tizen 6.0 EFL 1.24; optional for older firmware. */
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_window_lower");
     *(void **)(&p_ecore_wl2_window_lower) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_window_lower");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_window_lower address=%p",
+        (void *)p_ecore_wl2_window_lower);
+
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_alpha_set);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_free);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_flush);
 
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_screen_size_get");
     *(void **)(&p_ecore_wl2_display_screen_size_get) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_screen_size_get");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_screen_size_get address=%p",
+        (void *)p_ecore_wl2_display_screen_size_get);
+
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_sync");
     *(void **)(&p_ecore_wl2_display_sync) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_sync");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_sync address=%p",
+        (void *)p_ecore_wl2_display_sync);
+
+    MLT("ecore_runtime_load COMPLETE");
     return 1;
 
 fail:
     error = dlerror();
+    MLT("ecore_runtime_load FAILED error=%s", error ? error : "missing symbol");
     fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\n",
             error ? error : "missing symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
@@ -133,6 +208,9 @@ static int s_prepare_requested;
 static int s_prepare_started;
 static uint64_t s_idr_t0, s_idr_last;
 static unsigned s_idr_n, s_video_tries;
+static volatile int s_diag_submit_seen;
+static volatile int s_diag_playback_clock_seen;
+static volatile int s_diag_buffer_callbacks;
 #define IDR_FIRST_MS 300
 #define IDR_EVERY_MS 500
 #define IDR_MAX 10
@@ -282,6 +360,7 @@ void esplus_sample_tick(uint64_t now_ms)
 {
     uint64_t play;
     int request_idr = 0;
+    int diag_playback_clock = 0;
     pthread_mutex_lock(&s_lock);
     if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE)) {
         /* Playback-clock availability is detected independently of the
@@ -291,6 +370,9 @@ void esplus_sample_tick(uint64_t now_ms)
              esplus_cfg.catchup_ms > 0) &&
             wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
             esplus_stats.playing_ms = play > UINT32_MAX ? UINT32_MAX : (uint32_t)play;
+            if (play > 0 &&
+                !__atomic_exchange_n(&s_diag_playback_clock_seen, 1, __ATOMIC_ACQ_REL))
+                diag_playback_clock = 1;
             esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
             esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
             if (play > 0) nudge(esplus_stats.depth_ms, now_ms);
@@ -352,6 +434,9 @@ void esplus_sample_tick(uint64_t now_ms)
     }
     ++s_tick_seq;
     pthread_mutex_unlock(&s_lock);
+    if (diag_playback_clock)
+        MLT_DIAG("ESPlus playback clock became non-zero playing_ms=%llu",
+                 (unsigned long long)play);
     if (request_idr) LiRequestIdrFrame();
 }
 
@@ -409,6 +494,7 @@ static void on_prepared(bool ok, void *context)
 {
     int report_failure = 0;
     (void)context;
+    MLT_DIAG("prepare_async_done callback ENTER ok=%d", ok ? 1 : 0);
     pthread_mutex_lock(&s_lock);
     MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d",
         ok ? 1 : 0, s_prepared, s_start_tried);
@@ -421,6 +507,7 @@ static void on_prepared(bool ok, void *context)
     }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
+    MLT_DIAG("prepare_async_done callback state recorded ok=%d", ok ? 1 : 0);
 
     mldiag_player("pdone", ok ? 1 : 0);
     if (!ok) {
@@ -429,14 +516,17 @@ static void on_prepared(bool ok, void *context)
         MLT("prepare_async_done=false; start skipped");
         if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
             LiReportVideoRendererError();
+        MLT_DIAG("prepare_async_done callback EXIT ok=0");
         return;
     }
     PLOG("callback prepare_async_done=true\n");
     MLT("cb prepare_async_done=true");
+    MLT_DIAG("prepare_async_done callback EXIT ok=1");
 }
 static void on_ready(wmp_esplus_stream_e stream, void *context)
 {
     (void)context;
+    MLT_DIAG("ready_to_prepare callback ENTER stream=%d", (int)stream);
     pthread_mutex_lock(&s_lock);
     MLT("stage ready_to_prepare callback ENTER stream=%d", (int)stream);
     if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
@@ -451,8 +541,10 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
         pthread_cond_broadcast(&s_state_cv);
     }
     pthread_mutex_unlock(&s_lock);
+    MLT_DIAG("ready_to_prepare callback state recorded stream=%d", (int)stream);
     PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
+    MLT_DIAG("ready_to_prepare callback EXIT stream=%d", (int)stream);
 }
 static void on_error(int error, void *context)
 {
@@ -502,6 +594,11 @@ static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e sta
      */
     if (stream != WMP_ESPLUS_STREAM_VIDEO)
         return;
+    {
+        int n = __atomic_fetch_add(&s_diag_buffer_callbacks, 1, __ATOMIC_RELAXED);
+        if (n < 8)
+            MLT_DIAG("video buffer_status callback #%d status=%d", n + 1, (int)status);
+    }
     if (status == WMP_ESPLUS_BUFFER_STATUS_UNDERRUN)
         __atomic_fetch_add(&esplus_stats.underruns, 1, __ATOMIC_RELAXED);
     else if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
@@ -653,25 +750,57 @@ static void *win_create_main(void *arg)
     int sw = 0, sh = 0;
     const char *src = "no symbol, fallback";
     wmp_esplus_call_result_t display_result, mode_result;
+    uint64_t call_started;
 
+    MLT("win_create_main ENTER thread=%llu stream=%dx%d",
+        (unsigned long long)(uintptr_t)pthread_self(), r->w, r->h);
+    PLOG("win_create_main ENTER thread=%llu stream=%dx%d\n",
+         (unsigned long long)(uintptr_t)pthread_self(), r->w, r->h);
     MLT("win: XDG_RUNTIME_DIR=%s WAYLAND_DISPLAY=%s",
         getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "(unset)",
         getenv("WAYLAND_DISPLAY") ? getenv("WAYLAND_DISPLAY") : "(unset)");
     {
-        int n = ecore_wl2_init();
-        PLOG("ecore_wl2_init -> %d\n", n);
-    MLT("ecore_wl2_init -> %d", n);
+        int n;
+        call_started = esplus_mono_ms();
+        MLT("ecore_wl2_init ENTER");
+        PLOG("ecore_wl2_init ENTER\n");
+        n = ecore_wl2_init();
+        PLOG("ecore_wl2_init RETURN %d elapsed_ms=%llu\n", n,
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_wl2_init RETURN %d elapsed_ms=%llu", n,
+            (unsigned long long)(esplus_mono_ms() - call_started));
         if (n <= 0) { r->rc = -1; return NULL; }
     }
     s_ecore = 1;
+    call_started = esplus_mono_ms();
+    MLT("ecore_wl2_display_connect ENTER");
+    PLOG("ecore_wl2_display_connect ENTER\n");
     s_disp = ecore_wl2_display_connect(NULL);
-    PLOG("ecore_wl2_display_connect -> %p\n", s_disp);
-    MLT("ecore_wl2_display_connect -> %p", s_disp);
+    PLOG("ecore_wl2_display_connect RETURN %p elapsed_ms=%llu\n", s_disp,
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("ecore_wl2_display_connect RETURN %p elapsed_ms=%llu", s_disp,
+        (unsigned long long)(esplus_mono_ms() - call_started));
     if (!s_disp) { PLOG("display_connect failed\n"); r->rc = -1; return NULL; }
 
     if (ecore_wl2_display_screen_size_get) {
-        if (ecore_wl2_display_sync) ecore_wl2_display_sync(s_disp);
+        if (ecore_wl2_display_sync) {
+            call_started = esplus_mono_ms();
+            MLT("ecore_wl2_display_sync(before geometry) ENTER");
+            PLOG("ecore_wl2_display_sync(before geometry) ENTER\n");
+            ecore_wl2_display_sync(s_disp);
+            PLOG("ecore_wl2_display_sync(before geometry) RETURN elapsed_ms=%llu\n",
+                 (unsigned long long)(esplus_mono_ms() - call_started));
+            MLT("ecore_wl2_display_sync(before geometry) RETURN elapsed_ms=%llu",
+                (unsigned long long)(esplus_mono_ms() - call_started));
+        }
+        call_started = esplus_mono_ms();
+        MLT("ecore_wl2_display_screen_size_get ENTER");
+        PLOG("ecore_wl2_display_screen_size_get ENTER\n");
         ecore_wl2_display_screen_size_get(s_disp, &sw, &sh);
+        PLOG("ecore_wl2_display_screen_size_get RETURN %dx%d elapsed_ms=%llu\n", sw, sh,
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_wl2_display_screen_size_get RETURN %dx%d elapsed_ms=%llu", sw, sh,
+            (unsigned long long)(esplus_mono_ms() - call_started));
         src = sw > 0 && sh > 0 ? "api" : "api 0x0, fallback";
     }
     if (sw <= 0 || sh <= 0) { sw = 1920; sh = 1080; }
@@ -679,27 +808,76 @@ static void *win_create_main(void *arg)
     MLT("win: screen %dx%d (%s; stream %dx%d)", sw, sh, src, r->w, r->h);
     (void)src;
 
+    call_started = esplus_mono_ms();
+    MLT("ecore_wl2_window_new ENTER display=%p geometry=%dx%d", s_disp, sw, sh);
+    PLOG("ecore_wl2_window_new ENTER display=%p geometry=%dx%d\n", s_disp, sw, sh);
     s_win = ecore_wl2_window_new(s_disp, NULL, 0, 0, sw, sh);
-    PLOG("ecore_wl2_window_new -> %p\n", s_win);
-    MLT("ecore_wl2_window_new -> %p", s_win);
+    PLOG("ecore_wl2_window_new RETURN %p elapsed_ms=%llu\n", s_win,
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("ecore_wl2_window_new RETURN %p elapsed_ms=%llu", s_win,
+        (unsigned long long)(esplus_mono_ms() - call_started));
     if (!s_win) { PLOG("window_new failed\n"); r->rc = -1; return NULL; }
+    call_started = esplus_mono_ms();
+    MLT("ecore_wl2_window_alpha_set ENTER");
+    PLOG("ecore_wl2_window_alpha_set ENTER\n");
     ecore_wl2_window_alpha_set(s_win, 1);
+    PLOG("ecore_wl2_window_alpha_set RETURN elapsed_ms=%llu\n",
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("ecore_wl2_window_alpha_set RETURN elapsed_ms=%llu",
+        (unsigned long long)(esplus_mono_ms() - call_started));
+
+    call_started = esplus_mono_ms();
+    MLT("ecore_wl2_window_show ENTER");
+    PLOG("ecore_wl2_window_show ENTER\n");
     ecore_wl2_window_show(s_win);
+    PLOG("ecore_wl2_window_show RETURN elapsed_ms=%llu\n",
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("ecore_wl2_window_show RETURN elapsed_ms=%llu",
+        (unsigned long long)(esplus_mono_ms() - call_started));
     if (ecore_wl2_window_lower) {
+        call_started = esplus_mono_ms();
+        MLT("ecore_wl2_window_lower ENTER");
+        PLOG("ecore_wl2_window_lower ENTER\n");
         ecore_wl2_window_lower(s_win);
-        PLOG("ecore_wl2_window_lower requested for WMP window\n");
+        PLOG("ecore_wl2_window_lower RETURN elapsed_ms=%llu\n",
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_wl2_window_lower RETURN elapsed_ms=%llu",
+            (unsigned long long)(esplus_mono_ms() - call_started));
     } else {
         PLOG("ecore_wl2_window_lower unavailable on this firmware\n");
     }
+    call_started = esplus_mono_ms();
+    MLT("ecore_wl2_display_flush ENTER");
+    PLOG("ecore_wl2_display_flush ENTER\n");
     ecore_wl2_display_flush(s_disp);
+    PLOG("ecore_wl2_display_flush RETURN elapsed_ms=%llu\n",
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("ecore_wl2_display_flush RETURN elapsed_ms=%llu",
+        (unsigned long long)(esplus_mono_ms() - call_started));
     if (ecore_wl2_display_sync) {
+        call_started = esplus_mono_ms();
+        MLT("ecore_wl2_display_sync(after show) ENTER");
+        PLOG("ecore_wl2_display_sync(after show) ENTER\n");
         ecore_wl2_display_sync(s_disp);
+        PLOG("ecore_wl2_display_sync(after show) RETURN elapsed_ms=%llu\n",
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_wl2_display_sync(after show) RETURN elapsed_ms=%llu",
+            (unsigned long long)(esplus_mono_ms() - call_started));
         MLT("window show synchronized with compositor");
     }
     MLT("window shown");
 
+    call_started = esplus_mono_ms();
+    MLT("esplusplayer_set_ecore_display ENTER window=%p geometry=%dx%d", s_win, sw, sh);
+    PLOG("esplusplayer_set_ecore_display ENTER window=%p geometry=%dx%d\n", s_win, sw, sh);
     display_result = wmp_esplus_adapter_set_ecore_display(
         &s_adapter, 1 /* OVERLAY */, s_win, 0, 0, sw, sh);
+    PLOG("esplusplayer_set_ecore_display RETURN status=%d raw=%d elapsed_ms=%llu\n",
+         (int)display_result.status, display_result.raw_status,
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("esplusplayer_set_ecore_display RETURN status=%d raw=%d elapsed_ms=%llu",
+        (int)display_result.status, display_result.raw_status,
+        (unsigned long long)(esplus_mono_ms() - call_started));
     PLOG("ESPlus set_ecore_display status=%d raw=%d\n",
          (int)display_result.status, display_result.raw_status);
     MLT("esplusplayer_set_ecore_display(OVERLAY) -> status=%d raw=%d",
@@ -710,14 +888,30 @@ static void *win_create_main(void *arg)
         return NULL;
     }
 
+    call_started = esplus_mono_ms();
+    MLT("esplusplayer_set_display_mode ENTER mode=LETTER_BOX");
+    PLOG("esplusplayer_set_display_mode ENTER mode=LETTER_BOX\n");
     mode_result = wmp_esplus_adapter_set_display_mode(&s_adapter, 0 /* LETTER_BOX */);
+    PLOG("esplusplayer_set_display_mode RETURN status=%d raw=%d elapsed_ms=%llu\n",
+         (int)mode_result.status, mode_result.raw_status,
+         (unsigned long long)(esplus_mono_ms() - call_started));
+    MLT("esplusplayer_set_display_mode RETURN status=%d raw=%d elapsed_ms=%llu",
+        (int)mode_result.status, mode_result.raw_status,
+        (unsigned long long)(esplus_mono_ms() - call_started));
     PLOG("ESPlus set_display_mode status=%d raw=%d\n",
          (int)mode_result.status, mode_result.raw_status);
     MLT("esplusplayer_set_display_mode(LETTER_BOX) -> status=%d raw=%d",
         (int)mode_result.status, mode_result.raw_status);
-    (void)mode_result;
-    /* The legacy header labels LETTER_BOX as zero; display-mode setup is optional. */
+    /* Display-mode setup is optional, but its failure must remain visible. */
+    if (mode_result.status != WMP_ESPLUS_CALL_SUCCESS) {
+        PLOG("WARNING: optional set_display_mode failed status=%d raw=%d; continuing\n",
+             (int)mode_result.status, mode_result.raw_status);
+        MLT("WARNING: optional set_display_mode failed status=%d raw=%d; continuing",
+            (int)mode_result.status, mode_result.raw_status);
+    }
     r->rc = 0;
+    MLT("win_create_main EXIT rc=%d window=%p display=%p", r->rc, s_win, s_disp);
+    PLOG("win_create_main EXIT rc=%d window=%p display=%p\n", r->rc, s_win, s_disp);
     return NULL;
 }
 
@@ -736,13 +930,49 @@ int esplus_set_window(int width, int height)
     struct win_req req;
     int n;
     MLT("esplus_set_window %dx%d pl=%p", width, height, s_pl);
-    if (!s_pl || width <= 0 || height <= 0) return -1;
-    if (!ecore_runtime_load()) return -1;
-    n = ecore_init();
-    MLT("ecore_init -> %d", n);
+    if (!s_pl || width <= 0 || height <= 0) {
+        MLT("esplus_set_window rejected invalid state pl=%p size=%dx%d", s_pl, width, height);
+        return -1;
+    }
+    MLT("ecore_runtime_load ENTER");
+    PLOG("ecore_runtime_load ENTER\n");
+    {
+        uint64_t call_started = esplus_mono_ms();
+        if (!ecore_runtime_load()) {
+            PLOG("ecore_runtime_load FAILED elapsed_ms=%llu\n",
+                 (unsigned long long)(esplus_mono_ms() - call_started));
+            MLT("ecore_runtime_load FAILED elapsed_ms=%llu",
+                (unsigned long long)(esplus_mono_ms() - call_started));
+            return -1;
+        }
+        PLOG("ecore_runtime_load RETURN success elapsed_ms=%llu\n",
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_runtime_load RETURN success elapsed_ms=%llu",
+            (unsigned long long)(esplus_mono_ms() - call_started));
+    }
+    {
+        uint64_t call_started = esplus_mono_ms();
+        MLT("ecore_init ENTER");
+        PLOG("ecore_init ENTER\n");
+        n = ecore_init();
+        PLOG("ecore_init RETURN %d elapsed_ms=%llu\n", n,
+             (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_init RETURN %d elapsed_ms=%llu", n,
+            (unsigned long long)(esplus_mono_ms() - call_started));
+    }
     if (n <= 0) { ecore_runtime_unload(); return -1; }
     req.w = width; req.h = height; req.rc = -1;
-    ecore_main_loop_thread_safe_call_sync(win_create_main, &req);
+    MLT("ecore_main_loop_thread_safe_call_sync(win_create_main) ENTER thread=%llu",
+        (unsigned long long)(uintptr_t)pthread_self());
+    PLOG("ecore_main_loop_thread_safe_call_sync(win_create_main) ENTER\n");
+    {
+        uint64_t call_started = esplus_mono_ms();
+        ecore_main_loop_thread_safe_call_sync(win_create_main, &req);
+        PLOG("ecore_main_loop_thread_safe_call_sync(win_create_main) RETURN rc=%d elapsed_ms=%llu\n",
+             req.rc, (unsigned long long)(esplus_mono_ms() - call_started));
+        MLT("ecore_main_loop_thread_safe_call_sync(win_create_main) RETURN rc=%d elapsed_ms=%llu",
+            req.rc, (unsigned long long)(esplus_mono_ms() - call_started));
+    }
     if (req.rc != 0) {
         ecore_main_loop_thread_safe_call_sync(win_destroy_main, NULL);
         ecore_shutdown();
@@ -758,17 +988,28 @@ int esplus_set_window(int width, int height)
 static int esplus_start_prepare_if_ready(void)
 {
     wmp_esplus_call_result_t result;
+    int requested, audio_enabled, audio_registered, started, failed, have_player;
     pthread_mutex_lock(&s_lock);
-    if (!s_prepare_requested || (s_audio_enabled && !s_audio_registration_done) ||
-        s_prepare_started || s_prepare_failed || !s_pl) {
+    requested = s_prepare_requested;
+    audio_enabled = s_audio_enabled;
+    audio_registered = s_audio_registration_done;
+    started = s_prepare_started;
+    failed = s_prepare_failed;
+    have_player = s_pl != NULL;
+    if (!requested || (audio_enabled && !audio_registered) ||
+        started || failed || !have_player) {
         pthread_mutex_unlock(&s_lock);
+        MLT_DIAG("prepare_async NOT CALLED requested=%d audio_enabled=%d audio_registered=%d already_started=%d failed=%d player=%d",
+                 requested, audio_enabled, audio_registered, started, failed, have_player);
         return 0;
     }
     s_prepare_started = 1; /* exactly once, before dropping the lock */
     pthread_mutex_unlock(&s_lock);
 
+    MLT_DIAG("prepare_async CALL about_to_enter");
     PLOG("calling ESPlus prepare_async after stream registration\n");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
+    MLT_DIAG("prepare_async RETURN status=%d raw=%d", (int)result.status, result.raw_status);
     PLOG("ESPlus prepare_async returned status=%d raw=%d\n",
          (int)result.status, result.raw_status);
     MLT("prepare_async -> status=%d raw=%d", (int)result.status, result.raw_status);
@@ -827,8 +1068,12 @@ int esplus_prepare(void)
     s_idr_last = 0;
     s_idr_n = 0;
     s_video_tries = 0;
+    __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
     pthread_mutex_unlock(&s_lock);
     MLT("esplus_prepare requested audio_enabled=%d", s_audio_enabled);
+    MLT_DIAG("esplus_prepare state set audio_enabled=%d; evaluating prepare_async", s_audio_enabled);
     return esplus_start_prepare_if_ready();
 }
 
@@ -838,7 +1083,14 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     wmp_esplus_call_result_t started;
     static unsigned n;
     static int last_raw = 4;
+    int diag_first_video_submit = 0;
 
+    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
+        !__atomic_exchange_n(&s_diag_submit_seen, 1, __ATOMIC_ACQ_REL)) {
+        diag_first_video_submit = 1;
+        MLT_DIAG("first ESPlus video submit ENTER size=%u pts_ns=%llu",
+                 packet->size, (unsigned long long)packet->pts_ns);
+    }
     pthread_mutex_lock(&s_lock);
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO) {
         if (s_video_tries < 3)
@@ -855,6 +1107,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             result.status = WMP_ESPLUS_SUBMIT_NOT_PREPARED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
+            if (diag_first_video_submit)
+                MLT_DIAG("first ESPlus video submit NOT_FORWARDED: ready_to_prepare callback has not arrived");
             return result;
         }
 
@@ -869,6 +1123,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
+            if (diag_first_video_submit)
+                MLT_DIAG("first ESPlus video submit NOT_FORWARDED: startup state rejected the feeder");
             return result;
         }
 
@@ -887,8 +1143,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         if (s_prepared && s_prepare_ok &&
             !__atomic_load_n(&s_started, __ATOMIC_ACQUIRE) && !s_start_tried) {
             s_start_tried = 1;
+            MLT_DIAG("ESPlus start CALL about_to_enter after prepare_async_done(true)");
             MLT("stage start CALL about_to_enter after prepare_async_done(true)");
             started = wmp_esplus_adapter_start(&s_adapter);
+            MLT_DIAG("ESPlus start RETURN status=%d raw=%d", (int)started.status, started.raw_status);
             MLT("stage start CALL returned status=%d raw=%d",
                 (int)started.status, started.raw_status);
             if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
@@ -969,6 +1227,9 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             (int)result.status, result.raw_status);
     last_raw = result.raw_status;
     pthread_mutex_unlock(&s_lock);
+    if (diag_first_video_submit)
+        MLT_DIAG("first ESPlus video submit RETURN status=%d raw=%d",
+                 (int)result.status, result.raw_status);
     return result;
 }
 

@@ -66,6 +66,10 @@ add_library(moonlight-common-c STATIC
 )
 target_compile_definitions(moonlight-common-c PUBLIC
     LC_CHROME)
+# Keep the native-only WMP diagnostic callback out of the Emscripten build.
+# add_compile_options() is global; make this target's platform guard explicit.
+target_compile_definitions(moonlight-common-c PRIVATE
+    OS_WASM)
 # Keep Limelog() on the callback path in every build. ClLogMessage applies the debug filter.
 target_compile_definitions(moonlight-common-c PRIVATE
     LC_LOG)

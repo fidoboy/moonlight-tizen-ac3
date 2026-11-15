@@ -1,4 +1,32 @@
 #include "Limelight-internal.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+
+#ifndef OS_WASM
+extern void ml_engine_diag_log(const char *line) __attribute__((weak));
+#endif
+
+static int wmp_socket_diag_enabled(void)
+{
+    const char *value = getenv("MLENGINE_DIAGNOSTICS");
+    return value && value[0] == '1' && value[1] == '\0';
+}
+static void wmp_socket_diag(const char *format, ...)
+{
+    char line[512];
+    va_list args;
+    if (!wmp_socket_diag_enabled()) return;
+    va_start(args, format);
+    vsnprintf(line, sizeof line, format, args);
+    va_end(args);
+    fprintf(stderr, "[wmp-socket-diag] %s\n", line);
+    fflush(stderr);
+#ifndef OS_WASM
+    if (ml_engine_diag_log) ml_engine_diag_log(line);
+#endif
+}
+#define WMP_SOCK_DIAG(...) wmp_socket_diag(__VA_ARGS__)
 
 #define TEST_PORT_TIMEOUT_SEC 3
 
@@ -307,7 +335,9 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
     LC_SOCKADDR bindAddr;
     int err;
 
+    WMP_SOCK_DIAG("bindUdpSocket createSocket ENTER family=%d", addressFamily);
     s = createSocket(addressFamily, SOCK_DGRAM, IPPROTO_UDP, false);
+    WMP_SOCK_DIAG("bindUdpSocket createSocket RETURN valid=%d", s != INVALID_SOCKET);
     if (s == INVALID_SOCKET) {
         return INVALID_SOCKET;
     }
@@ -336,13 +366,16 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
     struct sockaddr_in *n3ds_addr = &bindAddr;
     n3ds_addr->sin_port = htons(n3ds_udp_port++);
 #endif
+    WMP_SOCK_DIAG("bindUdpSocket bind ENTER family=%d", addressFamily);
     if (bind(s, (struct sockaddr*) &bindAddr, addrLen) == SOCKET_ERROR) {
         err = LastSocketError();
+        WMP_SOCK_DIAG("bindUdpSocket bind FAILED err=%d", err);
         Limelog("bind() failed: %d\n", err);
         closeSocket(s);
         SetLastSocketError(err);
         return INVALID_SOCKET;
     }
+    WMP_SOCK_DIAG("bindUdpSocket bind RETURN success");
 
 #if defined(LC_DARWIN)
     {
