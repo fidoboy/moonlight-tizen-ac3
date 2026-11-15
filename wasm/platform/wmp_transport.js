@@ -22,6 +22,12 @@
   var connectionReady = false;
   var nextRequestId = 0;
   var pending = Object.create(null);
+  var startupDiagnosticPollTimer = null;
+  var startupDiagnosticPollsRemaining = 0;
+
+  // Passive log retrieval only: this never changes stream state, readiness,
+  // recovery, or termination. It keeps diagnostics flowing while the native
+  // StartSessionV2 call is still in progress. The service owns session state.
 
   function debugLog(stage, details) {
     // The runtime log policy also filters console.debug, but keep this guard
@@ -212,6 +218,11 @@
     }
 
     if (message.type === 'event') {
+      if (message.event === 'Connection Established' ||
+          message.event === 'wmpDiagnosticReady' ||
+          /^streamTerminated:/.test(String(message.event || ''))) {
+        stopStartupDiagnosticPolling();
+      }
       if (message.event === 'Connection Established') {
         nativeGamepadMask = 0;
       }
@@ -592,6 +603,37 @@
     });
   }
 
+  function stopStartupDiagnosticPolling() {
+    if (startupDiagnosticPollTimer !== null) {
+      global.clearTimeout(startupDiagnosticPollTimer);
+      startupDiagnosticPollTimer = null;
+    }
+    startupDiagnosticPollsRemaining = 0;
+  }
+
+  function pollStartupDiagnosticLogs() {
+    if (global.DEBUG_MODE !== true || startupDiagnosticPollsRemaining <= 0)
+      return;
+    startupDiagnosticPollTimer = global.setTimeout(function() {
+      startupDiagnosticPollTimer = null;
+      startupDiagnosticPollsRemaining--;
+      request('get_new_logs').catch(function(error) {
+        debugLog('startup diagnostic log poll failed', errorDetails(error));
+      }).then(function() {
+        pollStartupDiagnosticLogs();
+      });
+    }, 1000);
+  }
+
+  function startStartupDiagnosticPolling() {
+    stopStartupDiagnosticPolling();
+    if (global.DEBUG_MODE !== true) return;
+    // Fifteen bounded snapshots are enough to cover a prolonged startup
+    // without turning this into a session watchdog or an unbounded poll.
+    startupDiagnosticPollsRemaining = 15;
+    pollStartupDiagnosticLogs();
+  }
+
   function request(command, payload) {
     if (typeof command !== 'string' || !command) {
       return Promise.reject(makeError('command must be a non-empty string'));
@@ -630,6 +672,12 @@
       return command === 'start_session' ? waitForServiceReady(0) : true;
     }).then(function() {
       return sendConnectedRequest(command, serializedPayload, payload);
+    }).then(function(response) {
+      if (command === 'start_session' && response.status === 'ok' &&
+          response.payload && response.payload.accepted === true) {
+        startStartupDiagnosticPolling();
+      }
+      return response;
     }).catch(function(error) {
       debugLog('native command failed before receiving a response', {
         command: command,
@@ -738,6 +786,7 @@
   }
 
   function close() {
+    stopStartupDiagnosticPolling();
     Object.keys(gamepadSendTimers).forEach(function(index) {
       global.clearTimeout(gamepadSendTimers[index]);
       delete gamepadSendTimers[index];
