@@ -25,7 +25,6 @@
   "- Hold Start to switch between controller input and mouse emulation. Use the gamepad to control the host pointer and mouse buttons.": "- Maintenez Start pour passer du mode manette normal à l’émulation de la souris. Utilisez la manette pour contrôler le pointeur et les boutons de la souris sur l’hôte.",
   "- If you encounter issues, here you can restart the app to resolve them.": "- En cas de problème, vous pouvez redémarrer l’application ici pour tenter de le résoudre.",
   "- Increase for better image quality or decrease to improve performance on slower connections.": "- Augmentez le débit pour améliorer la qualité d’image, ou réduisez-le pour de meilleures performances sur les connexions lentes.",
-  "- Increase for better video compression and quality or decrease to improve performance on lower-end devices.": "- Choisissez un codec plus efficace pour améliorer la compression et la qualité, ou un codec plus léger pour les appareils moins puissants.",
   "- Increase for smoother video stream or decrease for better performance on lower-end devices.": "- Augmentez la fréquence pour une vidéo plus fluide, ou réduisez-la pour de meilleures performances sur les appareils moins puissants.",
   "- Increase to improve image clarity or decrease for better performance on lower-end devices and slower networks.": "- Augmentez la résolution pour améliorer la netteté, ou réduisez-la pour de meilleures performances sur les appareils moins puissants et les réseaux plus lents.",
   "- Increase to keep the sound smooth over an unstable network or decrease to lower the audio delay.": "- Augmentez cette valeur pour stabiliser le son sur un réseau instable, ou réduisez-la pour diminuer la latence audio.",
@@ -634,7 +633,7 @@
   "Starting native service...": "Démarrage du service natif...",
   "Starting Ambilight service...": "Démarrage du service Ambilight...",
   "Starting native video playback service...": "Démarrage du service natif de lecture vidéo...",
-  "Ambilight service failed to start.": "Échec du démarrage du service Ambilight."
-,
-  "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Pour utiliser plus de 30 FPS à des résolutions supérieures à 1080p, vous devez sélectionner un codec vidéo compatible autre que H.264."
+  "Ambilight service failed to start.": "Échec du démarrage du service Ambilight.",
+  "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Pour utiliser plus de 30 FPS à des résolutions supérieures à 1080p, vous devez sélectionner un codec vidéo compatible autre que H.264.",
+  "H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.": "H.264 est le codec le plus compatible avec les différents appareils. Toutefois, pour obtenir les meilleures performances à des résolutions supérieures à 1080p ou utiliser le mode HDR (High Dynamic Range), vous devez sélectionner HEVC ou AV1, à condition que le matériel de l’hôte soit compatible."
 }
