@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Diagnostics;
 using System.Threading;
 using Tizen.Applications;
 using Tizen.Applications.Messages;
@@ -29,7 +30,7 @@ namespace MoonlightWmpHost
         {
             Log.Info("WMP_SUPERVISOR phase=" + phase +
                 " utc=" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
-                " pid=" + Environment.ProcessId.ToString(CultureInfo.InvariantCulture) +
+                " pid=" + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
                 " detail=" + (detail ?? String.Empty));
         }
 
