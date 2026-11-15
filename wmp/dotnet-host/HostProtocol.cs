@@ -470,6 +470,7 @@ namespace MoonlightWmpHost
                 ",\"markerCount\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
+            }
 
             for (int i = markerStart; i < markerSnapshot.Length; i++)
                 Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
@@ -477,6 +478,12 @@ namespace MoonlightWmpHost
                 Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
             for (int i = hostStart; i < hostSnapshot.Length; i++)
                 Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
+        }
+
+        // Periodic worker snapshots have no request to acknowledge.
+        private static void SendNewNativeDiagnosticLogs(string appId, string remotePort)
+        {
+            SendNewNativeDiagnosticLogs(appId, remotePort, null);
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this
@@ -520,8 +527,10 @@ namespace MoonlightWmpHost
 
             // Respond before forwarding the event burst so the client request
             // timeout measures command handling, not diagnostic log delivery.
-            Respond(appId, remotePort, id, "ok",
-                "{\"sent\":" + (gateBusy ? 0 : snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
+            if (!String.IsNullOrEmpty(id))
+            {
+                Respond(appId, remotePort, id, "ok",
+                    "{\"sent\":" + (gateBusy ? 0 : snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
                 ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"buffered\":" + snapshot.Length.ToString(CultureInfo.InvariantCulture) +
                 ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
