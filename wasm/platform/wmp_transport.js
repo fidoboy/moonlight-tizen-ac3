@@ -27,6 +27,7 @@
   var startupDiagnosticPollStartedAt = 0;
   var startupDiagnosticPollingActive = false;
   var startupDiagnosticFinalSnapshotRequested = false;
+  var startupDiagnosticTerminalEventSeen = false;
 
   // Passive log retrieval only: this never changes stream state, readiness,
   // recovery, or termination. It keeps diagnostics flowing while the native
@@ -223,9 +224,11 @@
 
     if (message.type === 'event') {
       if (message.event === 'wmpDiagnosticReady') {
+        startupDiagnosticTerminalEventSeen = true;
         stopStartupDiagnosticPolling('StartSessionV2_returned');
         requestFinalStartupDiagnosticSnapshot('StartSessionV2_returned');
       } else if (/^streamTerminated:/.test(String(message.event || ''))) {
+        startupDiagnosticTerminalEventSeen = true;
         stopStartupDiagnosticPolling('stream_terminated');
         requestFinalStartupDiagnosticSnapshot('stream_terminated');
       }
@@ -676,11 +679,10 @@
 
   function startStartupDiagnosticPolling() {
     stopStartupDiagnosticPolling('restarted');
-    if (global.DEBUG_MODE !== true) return;
+    if (global.DEBUG_MODE !== true || startupDiagnosticTerminalEventSeen) return;
     startupDiagnosticPollCount = 0;
     startupDiagnosticPollStartedAt = Date.now();
     startupDiagnosticPollingActive = true;
-    startupDiagnosticFinalSnapshotRequested = false;
     debugLog('passive startup log polling started; continues until native startup returns or terminates', {});
     pollStartupDiagnosticLogs();
   }
@@ -1327,6 +1329,8 @@
         });
       }
       requestParameters.debugMode = global.DEBUG_MODE === true;
+      startupDiagnosticTerminalEventSeen = false;
+      startupDiagnosticFinalSnapshotRequested = false;
       return request('start_session', requestParameters);
     },
     stopStream: function() { return request('stop_session'); },
