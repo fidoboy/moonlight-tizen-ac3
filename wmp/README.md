@@ -19,14 +19,13 @@ The trusted control and reply MessagePorts are:
 - Protocol: `moonlight-wmp/1`
 
 The host implements `ping`, `get_status`, `probe_esplus`,
-`start_session` and `stop_session`. The complete payload, mandatory
-per-stream process lifecycle, failure handling, ownership boundaries and
-Tizen target contract are documented in
-[dotnet-host/README.md](dotnet-host/README.md). That lifecycle contract is
-normative: the service exists for one stream only, must be absent before a
-new stream is launched, and must exit when the stream ends or its attempt
-fails. Unexpected process disappearance must be detected by the WebApp and
-must trigger Moonlight's normal UI recovery path.
+`start_session` and `stop_session`. The current process/session lifecycle,
+including the actual clean-start logic, host exit path, Tizen process-status
+observer, known limitations, and outstanding device verification, is described
+in [dotnet-host/README.md](dotnet-host/README.md). That document records
+implemented behavior separately from unverified platform behavior; it must
+not be read as claiming that every crash mode has already been proven to
+recover correctly.
 
 The .NET host loads the ARM32 `libmlengine.so` through the managed
 `ManualLoader`. It does not contain a separate native ServiceApp executable.
@@ -81,7 +80,7 @@ bash wmp/tests/wmp_esplus_abi_test.sh
 ```
 
 The audio passthrough test is compiled and executed by the hybrid workflow.
-Successful CI compilation does not replace on-device lifecycle validation
-described in [dotnet-host/README.md](dotnet-host/README.md), including clean
-start, normal teardown, unexpected process exit, UI recovery, and a fresh
-service instance for the next stream.
+Successful CI compilation does not replace the on-device lifecycle checks
+listed in [dotnet-host/README.md](dotnet-host/README.md). In particular,
+Tizen process-status callback behavior, abrupt native-crash detection,
+actual service process exit, and UI recovery remain device-validation items.
