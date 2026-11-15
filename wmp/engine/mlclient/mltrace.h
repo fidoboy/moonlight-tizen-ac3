@@ -73,6 +73,11 @@ static void mlt_diag(const char *fmt, ...)
   va_end(a);
   fprintf(stderr, "[mlt-diag] %s\n", buf);
   fflush(stderr);
+  /* Separate managed queue first: never shares the normal ml_log_cb / HostProtocol.Gate path. */
+  if (&ml_diag_cb) {
+    void (*cb)(const char *) = __atomic_load_n(&ml_diag_cb, __ATOMIC_ACQUIRE);
+    if (cb) cb(buf);
+  }
   if (!resolved) {
     static const char *const libs[] = { "libdlog.so.0", "libdlog.so" };
     void *f = dlsym(RTLD_DEFAULT, "dlog_print");
@@ -82,11 +87,6 @@ static void mlt_diag(const char *fmt, ...)
     }
     diag_dlog = (int (*)(int, const char *, const char *, ...))f;
     resolved = 1;
-  }
-  /* Separate managed queue first: never shares the normal ml_log_cb / HostProtocol.Gate path. */
-  if (&ml_diag_cb) {
-    void (*cb)(const char *) = __atomic_load_n(&ml_diag_cb, __ATOMIC_ACQUIRE);
-    if (cb) cb(buf);
   }
   if (diag_dlog) diag_dlog(3 /* DLOG_DEBUG */, "MLENGINE_DIAG", "%s", buf);
 }
