@@ -7347,7 +7347,7 @@ function updateAmbilightDescription() {
   if (ambilightSupportState === 'checking') {
     description.textContent = t('Checking Ambilight support...');
   } else if (ambilightSupportState === 'supported') {
-    description.textContent = t('Capture the Moonlight video plane and send live colors to your WLED device.');
+    description.textContent = t('Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.');
   } else {
     description.textContent = '';
   }
