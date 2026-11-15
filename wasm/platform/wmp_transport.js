@@ -274,19 +274,55 @@
             }
             if (startSessionAccepted) reportUnexpectedServiceExit();
           }, function(error) {
+            var details = errorDetails(error);
+            var reason = 'Tizen reported the ESPlusPlayer service as inactive, but its process status could not be verified: ' +
+              details.message;
             if (global.console && typeof global.console.error === 'function') {
               global.console.error('[esplusplayer] Could not verify native service process after Tizen status change', {
                 serviceAppId: SERVICE_APP_ID,
-                error: errorDetails(error)
+                error: details
               });
+            }
+            if (startSessionPending) {
+              serviceExitObservedDuringStart = true;
+              var verificationError = makeError(reason);
+              Object.keys(pending).forEach(function(id) {
+                var pendingRequest = pending[id];
+                if (!pendingRequest || pendingRequest.command !== 'start_session') return;
+                delete pending[id];
+                if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
+                  global.clearTimeout(pendingRequest.timeoutId);
+                }
+                pendingRequest.reject(verificationError);
+              });
+            } else if (startSessionAccepted) {
+              reportUnexpectedServiceExit(reason);
             }
           });
         } catch (error) {
+          var details = errorDetails(error);
+          var reason = 'Tizen reported the ESPlusPlayer service as inactive, but process verification failed: ' +
+            details.message;
           if (global.console && typeof global.console.error === 'function') {
             global.console.error('[esplusplayer] Native service status verification failed', {
               serviceAppId: SERVICE_APP_ID,
-              error: errorDetails(error)
+              error: details
             });
+          }
+          if (startSessionPending) {
+            serviceExitObservedDuringStart = true;
+            var verificationError = makeError(reason);
+            Object.keys(pending).forEach(function(id) {
+              var pendingRequest = pending[id];
+              if (!pendingRequest || pendingRequest.command !== 'start_session') return;
+              delete pending[id];
+              if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
+                global.clearTimeout(pendingRequest.timeoutId);
+              }
+              pendingRequest.reject(verificationError);
+            });
+          } else if (startSessionAccepted) {
+            reportUnexpectedServiceExit(reason);
           }
         }
       },
@@ -298,10 +334,10 @@
     });
   }
 
-  function reportUnexpectedServiceExit() {
+  function reportUnexpectedServiceExit(reason) {
     if (unexpectedServiceExitReported || nativeTerminationEventSeen) return;
     unexpectedServiceExitReported = true;
-    var message = 'The ESPlusPlayer native service exited unexpectedly without reporting stream termination.';
+    var message = reason || 'The ESPlusPlayer native service exited unexpectedly without reporting stream termination.';
     if (global.console && typeof global.console.error === 'function') {
       global.console.error('[esplusplayer] Native service process exited unexpectedly', {
         serviceAppId: SERVICE_APP_ID,
