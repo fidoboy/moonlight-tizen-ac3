@@ -160,14 +160,14 @@ void AudEsplus_StopSilence(void)
 void AudEsplus_PrimeSilence(void)
 {
     int rc;
-    if (!__atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE) ||
+    if (__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) ||
+        !__atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE) ||
         __atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE)) return;
     pthread_mutex_lock(&s_preroll_thread_lock);
     if (s_preroll_thread_valid) {
         pthread_mutex_unlock(&s_preroll_thread_lock);
         return;
     }
-    __atomic_store_n(&s_preroll_stop, 0, __ATOMIC_RELEASE);
     rc = pthread_create(&s_preroll_thread, NULL, preroll_worker, NULL);
     if (rc == 0) s_preroll_thread_valid = 1;
     pthread_mutex_unlock(&s_preroll_thread_lock);
@@ -252,6 +252,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     (void)flags;
     AudEsplus_StopSilence();
     preroll_join();
+    __atomic_store_n(&s_preroll_stop, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_real_audio_seen, 0, __ATOMIC_RELEASE);
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
