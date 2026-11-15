@@ -2065,9 +2065,10 @@ body[data-color-theme="black-orange"] #background-layer {
     color: var(--theme-text-secondary);
     display: block;
     margin-bottom: 12px;
-    font-size: 1.4rem;
-    line-height: 1.5;
-    letter-spacing: 0.5px;
+    font-size: 1.25rem;
+    line-height: 1.45;
+    letter-spacing: 0.2px;
+    opacity: 0.82;
     text-align: left;
 }
 .settings-options .mdl-switch__label {
