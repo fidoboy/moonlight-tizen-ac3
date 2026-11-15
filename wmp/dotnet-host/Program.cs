@@ -115,6 +115,19 @@ namespace MoonlightWmpHost
 
         private static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += delegate(
+                object sender, UnhandledExceptionEventArgs eventArgs)
+            {
+                try
+                {
+                    HostProtocol.ReportUnhandledProcessException(eventArgs.ExceptionObject);
+                }
+                catch (Exception reportError)
+                {
+                    Log.Error("WMP fatal exception reporting failed: " + reportError);
+                }
+            };
+
             _instance = new App();
             _instance.Run(args);
         }
