@@ -344,7 +344,7 @@ vm.runInNewContext(source, {
     pendingMessages
       .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')
       .map(message => message.command),
-    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_logs', 'toggle_stats', 'get_logs']
+    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_logs', 'toggle_stats']
   );
 
   messageListener([
