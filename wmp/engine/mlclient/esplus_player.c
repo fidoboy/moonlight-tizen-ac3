@@ -26,6 +26,7 @@
 
 extern void AudEsplus_PrimeSilence(void);
 extern void AudEsplus_StopSilence(void);
+extern void AudEsplus_JoinSilence(void);
 
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
@@ -1271,6 +1272,7 @@ int esplus_video_ready(void)
 void esplus_close(void)
 {
     MLT("esplus_close");
+    AudEsplus_JoinSilence();
     sampler_stop();
 
     /* Wake a feeder blocked on ready_to_prepare and prevent it from
