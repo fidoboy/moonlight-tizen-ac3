@@ -97,15 +97,26 @@ static void VideoPingThreadProc(void* context) {
     // issues related to receiving ICMP port unreachable messages due
     // to sending a packet prior to the host PC binding to that port.
     int pingCount = 0;
+    int firstSendLogged = 0;
     while (!PltIsThreadInterrupted(&udpPingThread)) {
+        SOCK_RET sent;
         if (VideoPingPayload.payload[0] != 0) {
             pingCount++;
             VideoPingPayload.sequenceNumber = BE32(pingCount);
 
-            sendto(rtpSocket, (char*)&VideoPingPayload, sizeof(VideoPingPayload), 0, (struct sockaddr*)&saddr, AddrLen);
+            sent = sendto(rtpSocket, (char*)&VideoPingPayload, sizeof(VideoPingPayload), 0, (struct sockaddr*)&saddr, AddrLen);
         }
         else {
-            sendto(rtpSocket, legacyPingData, sizeof(legacyPingData), 0, (struct sockaddr*)&saddr, AddrLen);
+            sent = sendto(rtpSocket, legacyPingData, sizeof(legacyPingData), 0, (struct sockaddr*)&saddr, AddrLen);
+        }
+
+        if (!firstSendLogged) {
+            int sendError = sent < 0 ? LastSocketError() : 0;
+            WMP_VDIAG("FIRST video UDP ping send result=%lld expected_bytes=%u error=%d",
+                      (long long)sent,
+                      VideoPingPayload.payload[0] != 0 ? (unsigned)sizeof(VideoPingPayload) : (unsigned)sizeof(legacyPingData),
+                      sendError);
+            firstSendLogged = 1;
         }
 
         PltSleepMsInterruptible(&udpPingThread, 500);
@@ -381,6 +392,27 @@ int startVideoStream(void* rendererContext, int drFlags) {
                               RTP_RECV_PACKETS_BUFFERED * (StreamConfig.packetSize + MAX_RTP_HEADER_SIZE),
                               SOCK_QOS_TYPE_VIDEO);
     WMP_VDIAG("startVideoStream bindUdpSocket RETURN valid=%d", rtpSocket != INVALID_SOCKET);
+    if (rtpSocket != INVALID_SOCKET) {
+        struct sockaddr_storage boundAddr;
+        SOCKADDR_LEN boundAddrLen = sizeof(boundAddr);
+        memset(&boundAddr, 0, sizeof(boundAddr));
+        if (getsockname(rtpSocket, (struct sockaddr*)&boundAddr, &boundAddrLen) == 0) {
+            unsigned int localPort = 0;
+            if (boundAddr.ss_family == AF_INET) {
+                localPort = (unsigned int)ntohs(((struct sockaddr_in*)&boundAddr)->sin_port);
+            }
+#ifdef AF_INET6
+            else if (boundAddr.ss_family == AF_INET6) {
+                localPort = (unsigned int)ntohs(((struct sockaddr_in6*)&boundAddr)->sin6_port);
+            }
+#endif
+            WMP_VDIAG("video UDP socket bound local_family=%d local_port=%u",
+                      (int)boundAddr.ss_family, localPort);
+        }
+        else {
+            WMP_VDIAG("video UDP socket getsockname FAILED error=%d", LastSocketError());
+        }
+    }
     if (rtpSocket == INVALID_SOCKET) {
         WMP_VDIAG("startVideoStream bindUdpSocket FAILED");
         VideoCallbacks.cleanup();
