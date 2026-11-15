@@ -29,6 +29,13 @@
   var startupDiagnosticPollingActive = false;
   var startupDiagnosticFinalSnapshotRequested = false;
   var startupDiagnosticTerminalEventSeen = false;
+  var nativeTerminationEventSeen = false;
+  var appStatusListenerId = null;
+  var serviceStatusWasActive = false;
+  var startSessionPending = false;
+  var startSessionAccepted = false;
+  var serviceExitObservedDuringStart = false;
+  var unexpectedServiceExitReported = false;
 
   // Passive log retrieval only: this never changes stream state, readiness,
   // recovery, or termination. It keeps diagnostics flowing while the native
@@ -197,6 +204,75 @@
     });
   }
 
+  // Tizen reports application activation/deactivation directly. This is an
+  // OS lifecycle notification, not a JavaScript stream watchdog or a session
+  // state inference. It lets the UI report a native process that vanished
+  // without sending its streamTerminated event.
+  function registerServiceStatusListener() {
+    if (!global.tizen || !tizen.application ||
+        typeof tizen.application.addAppStatusChangeListener !== 'function' ||
+        typeof tizen.application.removeAppStatusChangeListener !== 'function') {
+      throw makeError('Tizen native service status notifications are unavailable');
+    }
+
+    serviceStatusWasActive = false;
+    startSessionPending = false;
+    startSessionAccepted = false;
+    serviceExitObservedDuringStart = false;
+    unexpectedServiceExitReported = false;
+    nativeTerminationEventSeen = false;
+
+    appStatusListenerId = tizen.application.addAppStatusChangeListener(
+      function(appId, isActive) {
+        if (appId !== SERVICE_APP_ID) return;
+        if (isActive) {
+          serviceStatusWasActive = true;
+          debugLog('Tizen reports the native service as active', {serviceAppId: SERVICE_APP_ID});
+          return;
+        }
+
+        if (!serviceStatusWasActive) return;
+        serviceStatusWasActive = false;
+        debugLog('Tizen reports the native service as inactive', {
+          serviceAppId: SERVICE_APP_ID,
+          startSessionPending: startSessionPending,
+          startSessionAccepted: startSessionAccepted,
+          nativeTerminationEventSeen: nativeTerminationEventSeen
+        });
+        if (nativeTerminationEventSeen || unexpectedServiceExitReported) return;
+
+        if (startSessionPending) {
+          serviceExitObservedDuringStart = true;
+          return;
+        }
+        if (startSessionAccepted) reportUnexpectedServiceExit();
+      },
+      SERVICE_APP_ID
+    );
+    debugLog('Tizen native service status listener registered', {
+      serviceAppId: SERVICE_APP_ID,
+      listenerId: appStatusListenerId
+    });
+  }
+
+  function reportUnexpectedServiceExit() {
+    if (unexpectedServiceExitReported || nativeTerminationEventSeen) return;
+    unexpectedServiceExitReported = true;
+    var message = 'The ESPlusPlayer native service exited unexpectedly without reporting stream termination.';
+    if (global.console && typeof global.console.error === 'function') {
+      global.console.error('[esplusplayer] Native service process exited unexpectedly', {
+        serviceAppId: SERVICE_APP_ID,
+        message: message
+      });
+    }
+    global.pendingStreamApiMessage = message;
+    stopStartupDiagnosticPolling('native_service_exited_unexpectedly');
+    close();
+    if (typeof global.handleMessage === 'function') {
+      global.handleMessage('streamTerminated: -1');
+    }
+  }
+
   function delay(milliseconds) {
     return new Promise(function(resolve) {
       global.setTimeout(resolve, milliseconds);
@@ -224,6 +300,10 @@
     }
 
     if (message.type === 'event') {
+      if (/^streamTerminated:/.test(String(message.event || ''))) {
+        nativeTerminationEventSeen = true;
+        if (unexpectedServiceExitReported) return;
+      }
       if (message.event === 'wmpDiagnosticReady') {
         // This event marks the StartSessionV2 call boundary, not video readiness.
         // Incremental polling already retrieves the buffered startup trace; avoid
@@ -408,6 +488,7 @@
     connectPromise = stopExistingService().then(function() {
       return new Promise(function(resolve, reject) {
         try {
+          registerServiceStatusListener();
           if (!global.tizen ||
               !tizen.messageport ||
               !tizen.application ||
@@ -742,6 +823,11 @@
       // has explicitly completed.
       return command === 'start_session' ? waitForServiceReady(0) : true;
     }).then(function() {
+      if (command === 'start_session') {
+        startSessionPending = true;
+        startSessionAccepted = false;
+        serviceExitObservedDuringStart = false;
+      }
       return sendConnectedRequest(command, serializedPayload, payload);
     }).then(function(response) {
       if (command === 'start_session' && response.status === 'ok' &&
@@ -750,6 +836,13 @@
       }
       return response;
     }).catch(function(error) {
+      if (command === 'start_session') {
+        startSessionPending = false;
+        if (serviceExitObservedDuringStart) {
+          error = makeError('native service exited unexpectedly while starting the stream');
+          serviceExitObservedDuringStart = false;
+        }
+      }
       debugLog('native command failed before receiving a response', {
         command: command,
         error: errorDetails(error)
@@ -858,6 +951,22 @@
 
   function close() {
     stopStartupDiagnosticPolling('transport_closed');
+    if (appStatusListenerId !== null && global.tizen && tizen.application &&
+        typeof tizen.application.removeAppStatusChangeListener === 'function') {
+      try {
+        tizen.application.removeAppStatusChangeListener(appStatusListenerId);
+      } catch (error) {
+        debugLog('failed to remove Tizen native service status listener', {
+          listenerId: appStatusListenerId,
+          error: errorDetails(error)
+        });
+      }
+    }
+    appStatusListenerId = null;
+    serviceStatusWasActive = false;
+    startSessionPending = false;
+    startSessionAccepted = false;
+    serviceExitObservedDuringStart = false;
     Object.keys(gamepadSendTimers).forEach(function(index) {
       global.clearTimeout(gamepadSendTimers[index]);
       delete gamepadSendTimers[index];
