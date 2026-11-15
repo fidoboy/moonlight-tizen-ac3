@@ -587,9 +587,9 @@ namespace MoonlightWmpHost
             SendNewNativeDiagnosticLogs(appId, remotePort, null);
         }
 
-        // Called from Moonlight Common C's native connection callback. Keep this
-        // callback short: queue the UI notification and let one managed worker send
-        // ordered MessagePort events outside the native networking thread.
+        // Snapshot bounded diagnostic queues and send their new entries over the
+        // trusted reply port. Native callbacks never call this method directly;
+        // they only schedule the ThreadPool dispatcher after enqueueing a line.
         private static void SendNewNativeDiagnosticLogs(string appId, string remotePort, string id)
         {
             string[] snapshot = new string[0];
@@ -1213,6 +1213,9 @@ namespace MoonlightWmpHost
                 Log.Info("WMP_LIFECYCLE native_start_call_returned result=" +
                     result.ToString(CultureInfo.InvariantCulture));
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
+                // Flush startup callbacks immediately after the blocking native
+                // startup call returns; do not wait for the periodic fallback.
+                SendNewNativeDiagnosticLogs(appId, remotePort);
                 Log.Info("WMP native StartSessionV2 returned " +
                     result.ToString(CultureInfo.InvariantCulture));
                 // The Debug Mode WebApp can now retrieve the native startup trace,
@@ -1403,6 +1406,9 @@ namespace MoonlightWmpHost
                     _stageRemotePort = null;
                     StageMessages.Clear();
                 }
+                // Deliver the final buffered host/native diagnostics before the
+                // orderly process-exit handshake closes this MessagePort.
+                SendNewNativeDiagnosticLogs(appId, remotePort);
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
                 Log.Info("WMP_LIFECYCLE session_worker_bookkeeping_cleared");
                 App.RequestExitAfterSession();
