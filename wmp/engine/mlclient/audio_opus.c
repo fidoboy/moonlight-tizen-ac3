@@ -6,11 +6,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
+#include <time.h>
 
 #include "Limelight.h"
 #include "esplus_player.h"
 #include "esplus_stats.h"
 #include "mltrace.h"
+#include "audio_silence_frames.h"
 
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
 #define DOLBY_SAMPLE_RATE 48000u
@@ -26,6 +29,151 @@ static wmp_esplus_audio_mime_e s_dolby_mime;
 static volatile int s_audio_codec_candidate;
 static volatile int s_audio_codec_active;
 
+static pthread_mutex_t s_preroll_submit_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t s_preroll_thread_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t s_preroll_thread;
+static int s_preroll_thread_valid;
+static volatile int s_preroll_stop;
+static volatile int s_real_audio_seen;
+#define ESPLUS_DOLBY_FRAME_NS 32000000ull
+#define ESPLUS_OPUS_FRAME_NS 10000000ull
+
+static int silence_payload(const uint8_t **data, uint32_t *size, uint64_t *duration_ns)
+{
+    *data = NULL;
+    *size = 0;
+    if (s_dolby) {
+        *duration_ns = ESPLUS_DOLBY_FRAME_NS;
+        if (s_channel_count == 2) {
+            if (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3) {
+                *data = wmp_silence_eac3_stereo; *size = WMP_SILENCE_EAC3_STEREO_SIZE;
+            } else {
+                *data = wmp_silence_ac3_stereo; *size = WMP_SILENCE_AC3_STEREO_SIZE;
+            }
+        } else if (s_channel_count == 6) {
+            if (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3) {
+                *data = wmp_silence_eac3_51; *size = WMP_SILENCE_EAC3_51_SIZE;
+            } else {
+                *data = wmp_silence_ac3_51; *size = WMP_SILENCE_AC3_51_SIZE;
+            }
+        }
+    } else {
+        *duration_ns = ESPLUS_OPUS_FRAME_NS;
+        switch (s_channel_count) {
+        case 1: *data = wmp_silence_opus_mono; *size = WMP_SILENCE_OPUS_MONO_SIZE; break;
+        case 2: *data = wmp_silence_opus_stereo; *size = WMP_SILENCE_OPUS_STEREO_SIZE; break;
+        case 6: *data = wmp_silence_opus_51; *size = WMP_SILENCE_OPUS_51_SIZE; break;
+        case 8: *data = wmp_silence_opus_71; *size = WMP_SILENCE_OPUS_71_SIZE; break;
+        default: break;
+        }
+    }
+    return *data != NULL && *size != 0;
+}
+
+static void *preroll_worker(void *unused)
+{
+    const uint8_t *silence;
+    uint32_t silence_size;
+    uint64_t duration_ns, next_pts_ns = UINT64_MAX;
+    unsigned submitted = 0;
+    struct timespec pause = { 0, 5000000L };
+    wmp_esplus_packet_t packet;
+    (void)unused;
+
+    if (!silence_payload(&silence, &silence_size, &duration_ns)) {
+        ALOG("no pre-encoded silence frame for negotiated codec/channels; preroll feeder disabled\n");
+        return NULL;
+    }
+
+    /* Feed silence at the stream clock rate until prepare_async_done or the
+     * first accepted host packet. Synthetic PTS never extend beyond live time. */
+    while (!__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) &&
+           !__atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE)) {
+        uint64_t now_ns = esplus_stream_clock_pts_ns();
+        int retry = 0;
+
+        if (next_pts_ns == UINT64_MAX) {
+            if (now_ns < duration_ns) { nanosleep(&pause, NULL); continue; }
+            next_pts_ns = now_ns - duration_ns;
+        }
+        if (now_ns < next_pts_ns + duration_ns) { nanosleep(&pause, NULL); continue; }
+
+        pthread_mutex_lock(&s_preroll_submit_lock);
+        now_ns = esplus_stream_clock_pts_ns();
+        if (__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) ||
+            __atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE) ||
+            now_ns < next_pts_ns + duration_ns) {
+            pthread_mutex_unlock(&s_preroll_submit_lock);
+            continue;
+        }
+
+        memset(&packet, 0, sizeof(packet));
+        packet.type = WMP_ESPLUS_STREAM_AUDIO;
+        packet.data = silence;
+        packet.size = silence_size;
+        packet.pts_ns = next_pts_ns;
+        packet.duration_ns = duration_ns;
+        {
+            wmp_esplus_submit_result_t result = esplus_submit(&packet);
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+                next_pts_ns += duration_ns;
+                ++submitted;
+            } else if (result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE) {
+                retry = 1;
+            } else {
+                ALOG("synthetic audio preroll stopped: status=%d raw=%d\n",
+                     (int)result.status, result.raw_status);
+                __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
+            }
+        }
+        pthread_mutex_unlock(&s_preroll_submit_lock);
+        if (retry) nanosleep(&pause, NULL);
+        if (submitted == 1)
+            ALOG("synthetic %s silence preroll started (%u channels)\n",
+                 s_dolby ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "E-AC-3" : "AC-3") : "Opus",
+                 (unsigned)s_channel_count);
+    }
+    if (submitted)
+        ALOG("synthetic audio preroll ended after %u accepted silence packets\n", submitted);
+    return NULL;
+}
+
+static void preroll_join(void)
+{
+    pthread_t thread;
+    int join = 0;
+    pthread_mutex_lock(&s_preroll_thread_lock);
+    if (s_preroll_thread_valid && !pthread_equal(pthread_self(), s_preroll_thread)) {
+        thread = s_preroll_thread;
+        s_preroll_thread_valid = 0;
+        join = 1;
+    }
+    pthread_mutex_unlock(&s_preroll_thread_lock);
+    if (join) pthread_join(thread, NULL);
+}
+
+void AudEsplus_StopSilence(void)
+{
+    __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
+}
+
+void AudEsplus_PrimeSilence(void)
+{
+    int rc;
+    if (!__atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE) ||
+        __atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE)) return;
+    pthread_mutex_lock(&s_preroll_thread_lock);
+    if (s_preroll_thread_valid) {
+        pthread_mutex_unlock(&s_preroll_thread_lock);
+        return;
+    }
+    __atomic_store_n(&s_preroll_stop, 0, __ATOMIC_RELEASE);
+    rc = pthread_create(&s_preroll_thread, NULL, preroll_worker, NULL);
+    if (rc == 0) s_preroll_thread_valid = 1;
+    pthread_mutex_unlock(&s_preroll_thread_lock);
+    if (rc != 0) ALOG("could not start synthetic audio preroll feeder: pthread error=%d\n", rc);
+}
+
 int AudEsplus_GetActiveAudioCodec(void)
 {
     return __atomic_load_n(&s_audio_codec_active, __ATOMIC_ACQUIRE);
@@ -33,6 +181,8 @@ int AudEsplus_GetActiveAudioCodec(void)
 
 void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
+    AudEsplus_StopSilence();
+    preroll_join();
     s_dolby_passthrough_enabled = enabled != 0;
     s_dolby = 0;
     s_opus_head_size = 0;
@@ -100,6 +250,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 
     (void)context;
     (void)flags;
+    AudEsplus_StopSilence();
+    preroll_join();
+    __atomic_store_n(&s_real_audio_seen, 0, __ATOMIC_RELEASE);
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -188,10 +341,12 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
 }
 
 static void ar_start(void) {}
-static void ar_stop(void) {}
+static void ar_stop(void) { AudEsplus_StopSilence(); }
 
 static void ar_cleanup(void)
 {
+    AudEsplus_StopSilence();
+    preroll_join();
     s_dolby = 0;
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
@@ -216,14 +371,19 @@ static void ar_decodePlay(char *data, int len)
             packet.type = WMP_ESPLUS_STREAM_AUDIO;
             packet.data = data;
             packet.size = (uint32_t)len;
-            packet.pts_ns = esplus_stream_clock_pts_ns();
             packet.duration_ns = duration_ns;
+            pthread_mutex_lock(&s_preroll_submit_lock);
+            packet.pts_ns = esplus_stream_clock_pts_ns();
             result = esplus_submit(&packet);
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+                __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
+                AudEsplus_StopSilence();
                 __atomic_store_n(&s_audio_codec_active,
                     __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
                     __ATOMIC_RELEASE);
-            else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+            }
+            pthread_mutex_unlock(&s_preroll_submit_lock);
+            if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
                      result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
                      (int)result.status, result.raw_status);
@@ -244,12 +404,17 @@ static void ar_decodePlay(char *data, int len)
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
     packet.data = data;                 /* original Opus packet, no PCM stage */
     packet.size = (uint32_t)len;
-    packet.pts_ns = esplus_stream_clock_pts_ns();
     packet.duration_ns = duration_ns;
+    pthread_mutex_lock(&s_preroll_submit_lock);
+    packet.pts_ns = esplus_stream_clock_pts_ns();
     result = esplus_submit(&packet);
-    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+        __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
+        AudEsplus_StopSilence();
         __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
-    else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+    }
+    pthread_mutex_unlock(&s_preroll_submit_lock);
+    if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
              result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
         ALOG("submit Opus audio failed status=%d raw=%d\n",
              (int)result.status, result.raw_status);
