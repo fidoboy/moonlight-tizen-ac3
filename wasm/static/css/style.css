@@ -2062,7 +2062,7 @@ body[data-color-theme="black-orange"] #background-layer {
     text-align: left;
 }
 .settings-options .mdl-list__item-text-body {
-    color: var(--theme-text-primary);
+    color: var(--theme-text-secondary);
     display: block;
     margin-bottom: 12px;
     font-size: 1.4rem;
