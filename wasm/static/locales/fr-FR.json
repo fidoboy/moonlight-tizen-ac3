@@ -444,7 +444,7 @@
   "Sort apps by usage frequency": "Trier les applications selon leur fréquence d’utilisation",
   "Sort the list of apps": "Trier la liste des applications",
   "Speed variation across 5-second intervals: %1$s–%2$s Mbps": "Variation du débit sur des intervalles de 5 secondes : %1$s–%2$s Mbps",
-  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variation : %1$s",
+  "Speed variation across complete image-set passes: %1$s–%2$s Mbps": "Variation: %1$s–%2$s Mbps",
   "Standard": "Standard",
   "Starting": "Démarrage",
   "Starting %1$s...": "Démarrage de %1$s…",
@@ -619,12 +619,10 @@
   "Checking Ambilight support...": "Vérification de la compatibilité avec Ambilight...",
   "Enable Ambilight": "Activer Ambilight",
   "WLED IP address": "Adresse IP WLED",
-  "Ambilight synchronise les couleurs de l’image à l’écran avec des bandes LED. Avant de l’activer, assurez-vous de disposer d’un appareil WLED configuré avec une adresse IP appartenant au même réseau que votre téléviseur.": "Ambilight synchronise les couleurs de l’image à l’écran avec des bandes LED. Avant de l’activer, assurez-vous de disposer d’un appareil WLED configuré avec une adresse IP appartenant au même réseau que votre téléviseur.",
   "Ambilight is not supported on this TV.": "Ambilight n’est pas pris en charge sur ce téléviseur.",
   "Show Ambilight settings": "Afficher les paramètres Ambilight",
   "Preview only. The Ambilight service is unavailable on this TV.": "Aperçu des paramètres uniquement. Le service Ambilight n’est pas disponible sur ce téléviseur.",
   "Streaming engine:": "Moteur de streaming :",
-  "Le moteur de lecture EMSS est recommandé et devrait fonctionner sur tous les téléviseurs équipés de Tizen 5.5 ou version ultérieure. Utilisez le moteur de lecture natif si vous souhaitez l’essayer sur votre téléviseur et évaluer son fonctionnement. Son implémentation est encore expérimentale et des résultats optimaux ne sont pas garantis sur tous les modèles.": "Le moteur de lecture EMSS est recommandé et devrait fonctionner sur tous les téléviseurs équipés de Tizen 5.5 ou version ultérieure. Utilisez le moteur de lecture natif si vous souhaitez l’essayer sur votre téléviseur et évaluer son fonctionnement. Son implémentation est encore expérimentale et des résultats optimaux ne sont pas garantis sur tous les modèles.",
   "Engine:": "Moteur :",
   "Native engine": "Moteur natif",
   "Native": "Natif",
@@ -635,5 +633,10 @@
   "Ambilight service failed to start.": "Échec du démarrage du service Ambilight.",
   "To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.": "Pour utiliser plus de 30 FPS à des résolutions supérieures à 1080p, vous devez sélectionner un codec vidéo compatible autre que H.264.",
   "H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.": "H.264 est le codec le plus compatible avec les différents appareils. Toutefois, pour obtenir les meilleures performances à des résolutions supérieures à 1080p ou utiliser le mode HDR (High Dynamic Range), vous devez sélectionner HEVC ou AV1, à condition que le matériel de l’hôte soit compatible.",
-  "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.": "- Activez cette option pour obtenir la réponse la plus rapide aux commandes de jeu en réduisant au minimum la latence d’entrée. Désactivez-la si vous préférez que le téléviseur applique ses différentes améliorations d’image, même si cela peut légèrement augmenter la latence."
+  "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.": "- Activez cette option pour obtenir la réponse la plus rapide aux commandes de jeu en réduisant au minimum la latence d’entrée. Désactivez-la si vous préférez que le téléviseur applique ses différentes améliorations d’image, même si cela peut légèrement augmenter la latence.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight synchronise les couleurs de l’image à l’écran avec des bandes LED. Avant de l’activer, assurez-vous de disposer d’un appareil WLED configuré avec une adresse IP appartenant au même réseau que votre téléviseur.",
+  "The EMSS streaming engine is recommended and should work on all TVs running Tizen 5.5 or later. Use the Native streaming engine if you want to try it on your TV and evaluate its performance. Its implementation is still experimental, and optimal results are not guaranteed on all models.": "Le moteur de lecture EMSS est recommandé et devrait fonctionner sur tous les téléviseurs équipés de Tizen 5.5 ou version ultérieure. Utilisez le moteur de lecture natif si vous souhaitez l’essayer sur votre téléviseur et évaluer son fonctionnement. Son implémentation est encore expérimentale et des résultats optimaux ne sont pas garantis sur tous les modèles.",
+  "Accepted": "Accepté",
+  "Average renderer submit time:": "Temps moyen de soumission du moteur de rendu :",
+  "Frames missing from stream:": "Images manquantes dans le flux :"
 }
