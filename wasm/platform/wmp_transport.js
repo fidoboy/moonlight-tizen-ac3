@@ -832,7 +832,13 @@
     }).then(function(response) {
       if (command === 'start_session' && response.status === 'ok' &&
           response.payload && response.payload.accepted === true) {
-        startStartupDiagnosticPolling();
+        startSessionPending = false;
+        startSessionAccepted = true;
+        if (serviceExitObservedDuringStart) {
+          reportUnexpectedServiceExit();
+        } else {
+          startStartupDiagnosticPolling();
+        }
       }
       return response;
     }).catch(function(error) {
