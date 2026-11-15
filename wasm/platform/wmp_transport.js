@@ -233,7 +233,7 @@
 
         if (!serviceStatusWasActive) return;
         serviceStatusWasActive = false;
-        debugLog('Tizen reports the native service as inactive', {
+        debugLog('Tizen reports the native service as inactive; verifying its process context', {
           serviceAppId: SERVICE_APP_ID,
           startSessionPending: startSessionPending,
           startSessionAccepted: startSessionAccepted,
@@ -241,21 +241,54 @@
         });
         if (nativeTerminationEventSeen || unexpectedServiceExitReported) return;
 
-        if (startSessionPending) {
-          serviceExitObservedDuringStart = true;
-          var startError = makeError('native service exited unexpectedly while starting the stream');
-          Object.keys(pending).forEach(function(id) {
-            var pendingRequest = pending[id];
-            if (!pendingRequest || pendingRequest.command !== 'start_session') return;
-            delete pending[id];
-            if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
-              global.clearTimeout(pendingRequest.timeoutId);
+        try {
+          tizen.application.getAppsContext(function(contexts) {
+            contexts = Array.isArray(contexts) ? contexts : [];
+            var stillRunning = contexts.some(function(context) {
+              return context && context.appId === SERVICE_APP_ID;
+            });
+            if (stillRunning) {
+              // An inactive application can still have a live process. Do not
+              // turn an activation-state change into a stream failure.
+              serviceStatusWasActive = true;
+              debugLog('native service became inactive but its process is still running', {
+                serviceAppId: SERVICE_APP_ID
+              });
+              return;
             }
-            pendingRequest.reject(startError);
+
+            if (nativeTerminationEventSeen || unexpectedServiceExitReported) return;
+            if (startSessionPending) {
+              serviceExitObservedDuringStart = true;
+              var startError = makeError('native service exited unexpectedly while starting the stream');
+              Object.keys(pending).forEach(function(id) {
+                var pendingRequest = pending[id];
+                if (!pendingRequest || pendingRequest.command !== 'start_session') return;
+                delete pending[id];
+                if (pendingRequest.timeoutId !== null && pendingRequest.timeoutId !== undefined) {
+                  global.clearTimeout(pendingRequest.timeoutId);
+                }
+                pendingRequest.reject(startError);
+              });
+              return;
+            }
+            if (startSessionAccepted) reportUnexpectedServiceExit();
+          }, function(error) {
+            if (global.console && typeof global.console.error === 'function') {
+              global.console.error('[esplusplayer] Could not verify native service process after Tizen status change', {
+                serviceAppId: SERVICE_APP_ID,
+                error: errorDetails(error)
+              });
+            }
           });
-          return;
+        } catch (error) {
+          if (global.console && typeof global.console.error === 'function') {
+            global.console.error('[esplusplayer] Native service status verification failed', {
+              serviceAppId: SERVICE_APP_ID,
+              error: errorDetails(error)
+            });
+          }
         }
-        if (startSessionAccepted) reportUnexpectedServiceExit();
       },
       SERVICE_APP_ID
     );
