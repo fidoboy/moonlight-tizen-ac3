@@ -50,6 +50,8 @@ namespace MoonlightWmpHost
         private static bool _stageDispatchScheduled;
         private static string _stageAppId;
         private static string _stageRemotePort;
+        private static string _activeSessionAppId;
+        private static string _activeSessionRemotePort;
 
         private sealed class StartRequest
         {
@@ -98,6 +100,33 @@ namespace MoonlightWmpHost
             Log.Info("WMP engine status published: " +
                 (engine != null ? "loaded" : "unavailable") +
                 ", ESPlus=" + _esplusState + ", family=" + _esplusFamily);
+        }
+
+        // Last-chance managed exception reporting. Normal session exceptions
+        // are handled by RunSession; this covers unhandled managed failures
+        // elsewhere while the process and MessagePort are still available.
+        internal static void ReportUnhandledProcessException(object exceptionObject)
+        {
+            string detail = exceptionObject == null
+                ? "Unknown unhandled managed exception"
+                : exceptionObject.ToString();
+            Log.Error("WMP unhandled process exception: " + detail);
+
+            string appId = _activeSessionAppId;
+            string remotePort = _activeSessionRemotePort;
+            if (!String.IsNullOrEmpty(appId) && !String.IsNullOrEmpty(remotePort))
+            {
+                try
+                {
+                    Event(appId, remotePort, "streamTerminated: -1",
+                        "WMP host process terminated after an unhandled managed exception: " + detail);
+                }
+                catch (Exception reportError)
+                {
+                    Log.Error("WMP unhandled exception could not be forwarded to Moonlight: " +
+                        reportError);
+                }
+            }
         }
 
         internal static void Shutdown()
@@ -1016,6 +1045,8 @@ namespace MoonlightWmpHost
 
         private static void RunSession(StartRequest request, string appId, string remotePort)
         {
+            _activeSessionAppId = appId;
+            _activeSessionRemotePort = remotePort;
             int result = -1;
             bool videoReady = false;
             int lastAudioCodec = -1;
@@ -1235,6 +1266,8 @@ namespace MoonlightWmpHost
                 }
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
                 App.RequestExitAfterSession();
+                _activeSessionAppId = null;
+                _activeSessionRemotePort = null;
             }
         }
     }
