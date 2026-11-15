@@ -218,8 +218,7 @@
     }
 
     if (message.type === 'event') {
-      if (message.event === 'Connection Established' ||
-          message.event === 'wmpDiagnosticReady' ||
+      if (message.event === 'wmpDiagnosticReady' ||
           /^streamTerminated:/.test(String(message.event || ''))) {
         stopStartupDiagnosticPolling();
       }
