@@ -80,6 +80,8 @@ namespace MoonlightWmpHost
             public IntPtr SetEcoreDisplay;
             public IntPtr SetDisplayMode;
             public IntPtr GetPlayingTime;
+            public IntPtr Seek;
+            public IntPtr GetErrorString;
             public IntPtr SetVideoStreamInfo;
             public IntPtr SetAudioStreamInfo;
             public IntPtr AddVideoStreamInfo;
