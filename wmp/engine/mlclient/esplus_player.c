@@ -59,17 +59,30 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 #define ecore_main_loop_thread_safe_call_sync p_ecore_main_loop_thread_safe_call_sync
 
 #define LOAD_ECORE(handle, symbol) do { \
+    MLT("ecore_runtime_load dlsym ENTER symbol=%s", #symbol); \
     *(void **)(&p_##symbol) = dlsym((handle), #symbol); \
+    MLT("ecore_runtime_load dlsym RETURN symbol=%s address=%p", #symbol, (void *)p_##symbol); \
     if (!p_##symbol) goto fail; \
 } while (0)
 
 static int ecore_runtime_load(void)
 {
     const char *error;
-    if (s_ecore_lib && s_ecore_wl2_lib) return 1;
+    if (s_ecore_lib && s_ecore_wl2_lib) {
+        MLT("ecore_runtime_load cached handles available");
+        return 1;
+    }
+
+    MLT("ecore_runtime_load dlopen ENTER library=libecore.so.1");
     s_ecore_lib = dlopen("libecore.so.1", RTLD_NOW | RTLD_LOCAL);
+    MLT("ecore_runtime_load dlopen RETURN library=libecore.so.1 handle=%p",
+        s_ecore_lib);
     if (!s_ecore_lib) goto fail;
+
+    MLT("ecore_runtime_load dlopen ENTER library=libecore_wl2.so.1");
     s_ecore_wl2_lib = dlopen("libecore_wl2.so.1", RTLD_NOW | RTLD_LOCAL);
+    MLT("ecore_runtime_load dlopen RETURN library=libecore_wl2.so.1 handle=%p",
+        s_ecore_wl2_lib);
     if (!s_ecore_wl2_lib) goto fail;
 
     LOAD_ECORE(s_ecore_lib, ecore_init);
@@ -81,21 +94,36 @@ static int ecore_runtime_load(void)
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_disconnect);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_new);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_show);
+
     /* Added in Tizen 6.0 EFL 1.24; optional for older firmware. */
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_window_lower");
     *(void **)(&p_ecore_wl2_window_lower) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_window_lower");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_window_lower address=%p",
+        (void *)p_ecore_wl2_window_lower);
+
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_alpha_set);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_free);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_flush);
 
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_screen_size_get");
     *(void **)(&p_ecore_wl2_display_screen_size_get) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_screen_size_get");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_screen_size_get address=%p",
+        (void *)p_ecore_wl2_display_screen_size_get);
+
+    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_sync");
     *(void **)(&p_ecore_wl2_display_sync) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_sync");
+    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_sync address=%p",
+        (void *)p_ecore_wl2_display_sync);
+
+    MLT("ecore_runtime_load COMPLETE");
     return 1;
 
 fail:
     error = dlerror();
+    MLT("ecore_runtime_load FAILED error=%s", error ? error : "missing symbol");
     fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\n",
             error ? error : "missing symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
