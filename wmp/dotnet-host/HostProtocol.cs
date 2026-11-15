@@ -470,7 +470,6 @@ namespace MoonlightWmpHost
                 ",\"markerCount\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
-            }
 
             for (int i = markerStart; i < markerSnapshot.Length; i++)
                 Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
