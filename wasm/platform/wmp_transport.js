@@ -633,7 +633,7 @@
       startupDiagnosticPollTimer = null;
       if (!startupDiagnosticPollingActive) return;
       startupDiagnosticPollCount++;
-      request('get_new_logs').then(function(response) {
+      sendConnectedRequest('get_new_logs', '{}', {}, 5000).then(function(response) {
         var payload = response && response.payload ? response.payload : {};
         if (startupDiagnosticPollCount === 1 || startupDiagnosticPollCount % 10 === 0) {
           debugLog('passive startup log poll completed', {
@@ -646,10 +646,11 @@
           });
         }
       }).catch(function(error) {
-        debugLog('startup diagnostic log poll failed', {
+        debugLog('startup diagnostic log poll failed; stopping passive collection', {
           poll: startupDiagnosticPollCount,
           error: errorDetails(error)
         });
+        stopStartupDiagnosticPolling('poll_request_failed');
       }).then(function() {
         pollStartupDiagnosticLogs();
       });

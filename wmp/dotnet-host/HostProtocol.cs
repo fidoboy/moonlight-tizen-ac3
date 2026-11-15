@@ -399,7 +399,6 @@ namespace MoonlightWmpHost
                 ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) + "}");
-Culture) + "}");
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this
