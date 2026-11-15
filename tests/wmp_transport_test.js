@@ -271,6 +271,8 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
   assert.strictEqual(startMessage.arg_videoCodec, 'H264');
   assert.strictEqual(startMessage.arg_audioEnabled, 'false');
+  assert.strictEqual(startMessage.arg_debugMode, 'true',
+    'Debug Mode must be forwarded to the native service for Common C diagnostic gating');
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
 
   // When evdev owns a device class, the browser must not forward duplicate
