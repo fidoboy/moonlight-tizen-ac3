@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using Tizen.Applications;
 
 namespace MoonlightWmpHost
@@ -7,6 +8,32 @@ namespace MoonlightWmpHost
     internal sealed class App : ServiceApplication
     {
         private static EngineApi _engine;
+        private static App _instance;
+        private static int _exitRequested;
+
+        // Keep the control port alive briefly after the terminal events so the
+        // WebApp can retrieve the final diagnostic snapshot before shutdown.
+        internal static void RequestExitAfterSession()
+        {
+            if (Interlocked.Exchange(ref _exitRequested, 1) != 0)
+                return;
+
+            ThreadPool.QueueUserWorkItem(delegate(object state)
+            {
+                Thread.Sleep(1500);
+                App app = _instance;
+                if (app == null) return;
+                try
+                {
+                    Log.Info("WMP session finished; exiting native service");
+                    app.Exit();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP service exit request failed: " + ex);
+                }
+            });
+        }
 
         protected override void OnCreate()
         {
@@ -75,11 +102,9 @@ namespace MoonlightWmpHost
             Log.Info("WMP .NET host process terminating");
             try
             {
+                // HostProtocol owns worker, engine, and MessagePort teardown.
+                // Do not stop the engine a second time here.
                 HostProtocol.Shutdown();
-                if (_engine != null)
-                {
-                    _engine.Stop();
-                }
             }
             catch (Exception ex)
             {
@@ -90,7 +115,8 @@ namespace MoonlightWmpHost
 
         private static void Main(string[] args)
         {
-            new App().Run(args);
+            _instance = new App();
+            _instance.Run(args);
         }
     }
 }
