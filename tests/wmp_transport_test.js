@@ -329,8 +329,9 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'wmpDiagnosticReady'}
   ]);
   for (let i = 0; i < 8; i++) await Promise.resolve();
-  assert.ok(infoEntries.some(entry => String(entry[0]).indexOf('native diagnostic log') >= 0),
-    'Debug builds must print the native diagnostic log after session teardown');
+  assert.ok(debugEntries.some(entry => entry[1] ===
+    'native StartSessionV2 call returned; incremental diagnostics remain active'),
+    'StartSessionV2 return must keep incremental diagnostics active without requesting a full snapshot');
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
