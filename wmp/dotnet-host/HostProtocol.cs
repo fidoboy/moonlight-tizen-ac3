@@ -459,13 +459,8 @@ namespace MoonlightWmpHost
             int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
             int hostStart = Math.Max(0, hostSnapshot.Length - 64);
             int markerStart = Math.Max(0, markerSnapshot.Length - NativeDiagnosticMarkerCapacity);
-            for (int i = markerStart; i < markerSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
-            for (int i = nativeStart; i < nativeSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
-            for (int i = hostStart; i < hostSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
-
+            // Reply before forwarding individual lines. MessagePort event delivery
+            // can be slow when the startup ring contains many entries.
             Respond(appId, remotePort, id, "ok",
                 "{\"count\":" + (nativeSnapshot.Length - nativeStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
@@ -475,12 +470,19 @@ namespace MoonlightWmpHost
                 ",\"markerCount\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
+
+            for (int i = markerStart; i < markerSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
+            for (int i = nativeStart; i < nativeSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
+            for (int i = hostStart; i < hostSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
         }
 
         // Called from Moonlight Common C's native connection callback. Keep this
         // callback short: queue the UI notification and let one managed worker send
         // ordered MessagePort events outside the native networking thread.
-        private static string SendNewNativeDiagnosticLogs(string appId, string remotePort)
+        private static void SendNewNativeDiagnosticLogs(string appId, string remotePort, string id)
         {
             string[] snapshot = new string[0];
             int start = 0;
@@ -516,15 +518,10 @@ namespace MoonlightWmpHost
                 markerDropped = _nativeDiagnosticMarkerDroppedCount;
             }
 
-            for (int i = markerStart; i < markerSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
-            if (!gateBusy)
-            {
-                for (int i = start; i < snapshot.Length; i++)
-                    Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
-            }
-
-            return "{\"sent\":" + (snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
+            // Respond before forwarding the event burst so the client request
+            // timeout measures command handling, not diagnostic log delivery.
+            Respond(appId, remotePort, id, "ok",
+                "{\"sent\":" + (gateBusy ? 0 : snapshot.Length - start).ToString(CultureInfo.InvariantCulture) +
                 ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"buffered\":" + snapshot.Length.ToString(CultureInfo.InvariantCulture) +
                 ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
@@ -532,7 +529,15 @@ namespace MoonlightWmpHost
                 ",\"markerSent\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
                 ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
                 ",\"markerBuffered\":" + markerSnapshot.Length.ToString(CultureInfo.InvariantCulture) +
-                ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}";
+                ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
+
+            for (int i = markerStart; i < markerSnapshot.Length; i++)
+                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
+            if (!gateBusy)
+            {
+                for (int i = start; i < snapshot.Length; i++)
+                    Event(appId, remotePort, "wmpNativeLog", snapshot[i]);
+            }
         }
 
         internal static void NativeStageStarting(int stage, string name)
@@ -656,10 +661,9 @@ namespace MoonlightWmpHost
                         SendDiagnosticLogs(appId, remotePort, id);
                         return;
                     case "get_new_logs":
-                        // Incremental snapshot: safe to request while StartSessionV2
-                        // is still blocked on the native startup path.
-                        Respond(appId, remotePort, id, "ok",
-                            SendNewNativeDiagnosticLogs(appId, remotePort));
+                        // Acknowledge before forwarding log events: a large event burst
+                        // must not hold the request response behind MessagePort sends.
+                        SendNewNativeDiagnosticLogs(appId, remotePort, id);
                         return;
                     case "toggle_stats":
                         ToggleStats(appId, remotePort, id);
