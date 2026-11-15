@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   build-hybrid:
-    if: github.ref == 'refs/heads/1.2.4-pre' || github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics'
+    if: github.ref == 'refs/heads/1.2.4-pre' || github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics' || github.ref == 'refs/heads/fix/wmp-video-sync-150ms'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -174,7 +174,7 @@ jobs:
             -e RUNNER_TEMP=/runner-temp \
             -e GITHUB_SHA="$GITHUB_SHA" \
             "$image" bash -s <<'PACKAGE'
-          
+
           set -euo pipefail
           cc -O2 -Wall -Wextra -I/usr/include/libxml2 /workspace/scripts/xml-c14n.c -o "$RUNNER_TEMP/xml-c14n" -lxml2
           run_tz() {
@@ -193,25 +193,25 @@ jobs:
               return "$command_status"
             fi
           }
-          
+
           TIZEN_CORE_CLI="/home/tizen/tizen-studio/tools/tizen-core/tz"
           export TIZEN_STUDIO_DATA_PATH="/home/tizen/tizen-studio-data"
           mkdir -p "$TIZEN_STUDIO_DATA_PATH"
-        
+
           cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
           set timeout -1
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
+            -re {Author password:} { send -- "123456\\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
             eof
           }
           set status [wait]
           exit [lindex $status 3]
           EXPECT
           chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
-        
+
           run_tz "create-signing-certificate" tizen certificate -a Moonlight -f Moonlight -p 123456
           author_key="$TIZEN_STUDIO_DATA_PATH/keystore/author/Moonlight.p12"
           openssl pkcs12 -legacy -in "$author_key" -passin pass:123456 -noout
@@ -229,12 +229,12 @@ jobs:
           ! grep -Fq '.pwd' "$profiles"
           run_tz "select-signing-profile" tizen cli-config "profiles.path=$profiles"
           run_tz "list-signing-profile" tizen security-profiles list -n Moonlight
-        
+
           workspace="$RUNNER_TEMP/tz-production-workspace"
           web_project="$workspace/MoonlightWeb"
           service_project="$workspace/AmbilightService/AmbilightService"
           mkdir -p "$workspace"
-        
+
           package_base_web() {
             local source="$1" name="$2" base_wgt="$3"
             local web="$workspace/$name"
@@ -242,9 +242,6 @@ jobs:
             run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
             test -d "$web"
             cp -a "$source/." "$web/"
-            # Keep the Tizen Core project metadata in the workspace because
-            # later tz build commands still need it. Package a clean copy as
-            # the base WGT, without the unused Basic_Empty template files.
             run_tz "set-web-build-type-$name" "$TIZEN_CORE_CLI" set -b Release -w "$web"
             grep -Fqx "build_type: Release" "$web/tizen_web_project.yaml"
             rm -rf "$base_project"
@@ -269,9 +266,9 @@ jobs:
               exit 1
             fi
           }
-        
+
           package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/Moonlight-base.wgt"
-        
+
           run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
           test -d "$service_project"
           rm -f "$service_project/AmbilightService_App.cs"
@@ -293,11 +290,11 @@ jobs:
             - shared/res/AmbilightService.png
           deps: []
           YAML
-        
+
           run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
           run_tz "add-service-dependency" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService
           run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-        
+
           mapfile -t service_pkgs < <(find "$service_project/bin/Release/net8.0-tizen10.0" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
           if (( ${#service_pkgs[@]} != 1 )); then
             echo "::error::Expected exactly one Tizen 10 service TPK; found ${#service_pkgs[@]}."
@@ -354,8 +351,6 @@ jobs:
           tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
           print(f"WMP package manifest validated; version synchronized to {version}.")
           PY
-          # Build an unsigned TPK archive from the prebuilt ServiceApp payload,
-          # then let Tizen Core repackage and sign it using the active profile.
           unsigned_wmp_tpk="$RUNNER_TEMP/WmpService-unsigned.tpk"
           python3 - "$wmp_project" "$unsigned_wmp_tpk" <<'PY'
           import sys
@@ -415,37 +410,22 @@ jobs:
             local source="$1" name="$2" base_wgt="$3" output="$4"
             local draft="$RUNNER_TEMP/$name-unsigned.wgt"
             local project="$RUNNER_TEMP/$name-final-project"
-          
-            # 1. Assemble the hybrid WGT without asking Tizen Core to sign it.
             run_tz "pack-hybrid-wgt-$name" "$TIZEN_CORE_CLI" pack --type wgt --ref-pkgs "$service_tpk;$wmp_tpk" --base-pkg "$base_wgt" --out-path "$draft"
             test -s "$draft"
             unzip -tq "$draft"
-          
-            # 2. Expand the assembled package so the standard Tizen CLI can sign
-            #    the complete hybrid payload, including the embedded service TPK.
             rm -rf "$project"
             mkdir -p "$project"
             unzip -q "$draft" -d "$project"
-
-            # Verify the managed WMP service and its private engine payload are present.
             test -s "$project/bin/MoonlightHost.dll"
             test -s "$project/res/lib/libmlengine.so"
-
-            # 3. Keep the Web installation floor at Tizen 5.5 and explicitly
-            #    merge both service-application declarations into the outer manifest.
-            #    Tizen Core embeds the referenced TPK payloads, but does not merge
-            #    every referenced service application into this manifest.
             python3 scripts/normalize-hybrid-manifest.py "$project/tizen-manifest.xml" "$service_tpk" "$wmp_tpk"
-          
-            # 4. Sign the already assembled hybrid project with the standard
-            #    Tizen package command. Prompts match the AC3 Dockerfile.
             cat > "$RUNNER_TEMP/tizen-package-expect.exp" <<'EXPECT'
           set timeout -1
           log_user 1
           spawn {*}$argv
           expect {
-            -re {Author password:} { send -- "123456\r"; exp_continue }
-            "Yes: (Y), No: (N) ?" { send -- "N\r"; exp_continue }
+            -re {Author password:} { send -- "123456\\r"; exp_continue }
+            "Yes: (Y), No: (N) ?" { send -- "N\\r"; exp_continue }
             eof
           }
           set status [wait]
@@ -453,19 +433,13 @@ jobs:
           EXPECT
             chmod 600 "$RUNNER_TEMP/tizen-package-expect.exp"
             expect "$RUNNER_TEMP/tizen-package-expect.exp" tizen package -t wgt -- "$project"
-          
             test -s "$project/Moonlight.wgt"
             cp "$project/Moonlight.wgt" "$output"
-
             unzip -tq "$output"
-
-            # Verify the XML signatures cryptographically using the certificates
-            # embedded in each signature, including all referenced package digests.
             local signature_check="$RUNNER_TEMP/$name-signature-check"
             rm -rf "$signature_check"
             mkdir -p "$signature_check"
             unzip -q "$output" -d "$signature_check"
-
             author_certificate="$RUNNER_TEMP/author-signing-certificate.pem"
             distributor_certificate="$RUNNER_TEMP/distributor-signing-certificate.pem"
             openssl pkcs12 -legacy -in "/home/tizen/tizen-studio-data/keystore/author/Moonlight.p12" \
@@ -475,65 +449,31 @@ jobs:
               -clcerts -nokeys -passin "pass:$distributor_password" -out "$distributor_certificate"
             python3 scripts/verify-tizen-xmlsig.py "$signature_check" \
               "$author_certificate" "$distributor_certificate" /runner-temp/xml-c14n
-          
-            # 5. Validate the final signed WGT, not the unsigned tz pack output.
             python3 - "$output" "$service_tpk" "$wmp_tpk" "$source" <<'PY'
           import sys
           import zipfile
           import xml.etree.ElementTree as ET
           from pathlib import Path, PurePosixPath
-          
           package_path, service_tpk_path, wmp_tpk_path, source_path = map(Path, sys.argv[1:])
           with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path) as service, zipfile.ZipFile(wmp_tpk_path) as wmp:
               names = set(package.namelist())
               service_names = set(service.namelist())
               wmp_names = set(wmp.namelist())
-              # Tizen Core's hybrid packer expands the referenced service TPK
-              # into the outer WGT; it does not retain a nested .tpk archive.
-              # Verify every service payload member byte-for-byte at its
-              # package-root path. The service manifest/signatures are metadata
-              # and are represented by the combined outer manifest/signatures.
-              service_metadata = {
-                  "tizen-manifest.xml", "author-signature.xml",
-                  "signature1.xml", "signature2.xml",
-              }
+              service_metadata = {"tizen-manifest.xml", "author-signature.xml", "signature1.xml", "signature2.xml"}
               embedded_service_count = 0
-              for label, archive, archive_names in (
-                  ("Ambilight", service, service_names),
-                  ("WMP", wmp, wmp_names),
-              ):
-                  service_payload = {
-                      name for name in archive_names
-                      if not name.endswith("/") and name not in service_metadata
-                  }
+              for label, archive, archive_names in (("Ambilight", service, service_names), ("WMP", wmp, wmp_names)):
+                  service_payload = {name for name in archive_names if not name.endswith("/") and name not in service_metadata}
                   missing_service = sorted(service_payload - names)
                   if missing_service:
-                      raise SystemExit(
-                          f"Final hybrid WGT is missing expanded {label} TPK files: "
-                          + ", ".join(missing_service)
-                      )
-                  changed_service = [
-                      name for name in sorted(service_payload)
-                      if package.read(name) != archive.read(name)
-                  ]
+                      raise SystemExit(f"Final hybrid WGT is missing expanded {label} TPK files: " + ", ".join(missing_service))
+                  changed_service = [name for name in sorted(service_payload) if package.read(name) != archive.read(name)]
                   if changed_service:
-                      raise SystemExit(
-                          f"Expanded {label} TPK payload changed during hybrid signing: "
-                          + ", ".join(changed_service)
-                      )
+                      raise SystemExit(f"Expanded {label} TPK payload changed during hybrid signing: " + ", ".join(changed_service))
                   embedded_service_count += len(service_payload)
-          
-              required = {
-                  "config.xml", "tizen-manifest.xml", "author-signature.xml",
-                  "signature1.xml", "bin/MoonlightHost.dll", "res/lib/libmlengine.so",
-                  "res/wgt/config.xml", "res/wgt/index.html",
-                  "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
-                  "res/wgt/service/service.js",
-              }
+              required = {"config.xml", "tizen-manifest.xml", "author-signature.xml", "signature1.xml", "bin/MoonlightHost.dll", "res/lib/libmlengine.so", "res/wgt/config.xml", "res/wgt/index.html", "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm", "res/wgt/service/service.js"}
               missing = sorted(required - names)
               if missing:
                   raise SystemExit("Final signed hybrid WGT missing: " + ", ".join(missing))
-          
               ds = "{http://www.w3.org/2000/09/xmldsig#}"
               for signature_name in ("author-signature.xml", "signature1.xml"):
                   try:
@@ -548,36 +488,17 @@ jobs:
                       refs = signature.findall(".//" + ds + "Reference")
                       if value is None or not (value.text or "").strip():
                           raise SystemExit(f"{signature_name} has an empty SignatureValue")
-                      if not refs or any(
-                          ref.find(ds + "DigestValue") is None or
-                          not (ref.find(ds + "DigestValue").text or "").strip()
-                          for ref in refs
-                      ):
+                      if not refs or any(ref.find(ds + "DigestValue") is None or not (ref.find(ds + "DigestValue").text or "").strip() for ref in refs):
                           raise SystemExit(f"{signature_name} has missing reference digests")
-          
               manifest = ET.fromstring(package.read("tizen-manifest.xml"))
-              service_app_nodes = [
-                  node for node in manifest.iter()
-                  if node.tag.endswith("service-application")
-              ]
+              service_app_nodes = [node for node in manifest.iter() if node.tag.endswith("service-application")]
               service_app_ids = [node.get("appid") for node in service_app_nodes]
-              expected_service_ids = {
-                  "MoonLightS.MoonlightAmbilight",
-                  "MoonLightS.WmpService",
-                  "MoonLightS.WmpSupervisor",
-              }
+              expected_service_ids = {"MoonLightS.MoonlightAmbilight", "MoonLightS.WmpService", "MoonLightS.WmpSupervisor"}
               if len(service_app_nodes) != 3 or set(service_app_ids) != expected_service_ids:
-                  raise SystemExit(
-                      "Final hybrid manifest must declare Ambilight, WMP and its independent supervisor; "
-                      f"found {service_app_ids!r}"
-                  )
+                  raise SystemExit("Final hybrid manifest must declare Ambilight, WMP and its independent supervisor; found " + repr(service_app_ids))
               if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
                   raise SystemExit("Final hybrid package identity/API floor changed")
-              root_metadata = {
-                  "label": "Moonlight Tizen Services",
-                  "author": "Moonlight Tizen",
-                  "description": "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight.",
-              }
+              root_metadata = {"label": "Moonlight Tizen Services", "author": "Moonlight Tizen", "description": "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight."}
               for tag, expected in root_metadata.items():
                   node = manifest.find("{http://tizen.org/ns/packages}" + tag)
                   if node is None or (node.text or "").strip() != expected:
@@ -587,107 +508,59 @@ jobs:
                   raise SystemExit("Final hybrid package version differs from the embedded Moonlight Web version")
               service_apps = {node.get("appid"): node for node in service_app_nodes}
               ambilight_app = service_apps["MoonLightS.MoonlightAmbilight"]
-              expected_ambilight = {
-                  "api-version": "13",
-                  "exec": "MoonlightAmbilight.dll",
-                  "type": "dotnet",
-                  "nodisplay": "true",
-                  "on-boot": "false",
-                  "auto-restart": "false",
-                  "multiple": "false",
-                  "taskmanage": "false",
-              }
+              expected_ambilight = {"api-version": "13", "exec": "MoonlightAmbilight.dll", "type": "dotnet", "nodisplay": "true", "on-boot": "false", "auto-restart": "false", "multiple": "false", "taskmanage": "false"}
               for key, value in expected_ambilight.items():
                   if ambilight_app.get(key) != value:
                       raise SystemExit(f"Final Ambilight service manifest {key} must be {value!r}")
-              if not any(
-                  node.tag.endswith("background-category") and node.get("value") == "background-network"
-                  for node in ambilight_app
-              ):
+              if not any(node.tag.endswith("background-category") and node.get("value") == "background-network" for node in ambilight_app):
                   raise SystemExit("Final Ambilight service is missing background-network capability")
               if "bin/MoonlightAmbilight.dll" not in names or not package.read("bin/MoonlightAmbilight.dll"):
                   raise SystemExit("Final WGT is missing the Ambilight service assembly")
               wmp_app = service_apps["MoonLightS.WmpService"]
-              expected_wmp = {
-                  "exec": "MoonlightHost.dll",
-                  "api-version": "8",
-                  "nodisplay": "true",
-                  "on-boot": "false",
-                  "auto-restart": "false",
-                  "multiple": "false",
-                  "type": "dotnet",
-                  "taskmanage": "false",
-              }
+              expected_wmp = {"exec": "MoonlightHost.dll", "api-version": "8", "nodisplay": "true", "on-boot": "false", "auto-restart": "false", "multiple": "false", "type": "dotnet", "taskmanage": "false"}
               if "bin/MoonlightHost.dll" not in names or not package.read("bin/MoonlightHost.dll"):
                   raise SystemExit("Final WGT is missing the WMP .NET service assembly")
               for key, value in expected_wmp.items():
                   if wmp_app.get(key) != value:
                       raise SystemExit(f"Final WMP service manifest {key} must be {value!r}")
-              if not any(
-                  node.tag.endswith("background-category") and node.get("value") == "background-network"
-                  for node in wmp_app
-              ):
+              if not any(node.tag.endswith("background-category") and node.get("value") == "background-network" for node in wmp_app):
                   raise SystemExit("Final WMP service is missing background-network capability")
               supervisor_app = service_apps["MoonLightS.WmpSupervisor"]
               for key, value in expected_wmp.items():
                   if supervisor_app.get(key) != value:
                       raise SystemExit(f"Final WMP supervisor manifest {key} must be {value!r}")
-              if not any(
-                  node.tag.endswith("background-category") and node.get("value") == "background-network"
-                  for node in supervisor_app
-              ):
+              if not any(node.tag.endswith("background-category") and node.get("value") == "background-network" for node in supervisor_app):
                   raise SystemExit("Final WMP supervisor is missing background-network capability")
-              required_privileges = {
-                  "http://tizen.org/privilege/internet",
-                  "http://tizen.org/privilege/network.get",
-                  "http://tizen.org/privilege/appmanager.launch",
-                  "http://developer.samsung.com/privilege/esplay",
-              }
-              declared_privileges = {
-                  (node.text or "").strip() for node in manifest.iter()
-                  if node.tag.endswith("privilege")
-              }
+              required_privileges = {"http://tizen.org/privilege/internet", "http://tizen.org/privilege/network.get", "http://tizen.org/privilege/appmanager.launch", "http://developer.samsung.com/privilege/esplay"}
+              declared_privileges = {(node.text or "").strip() for node in manifest.iter() if node.tag.endswith("privilege")}
               if not required_privileges <= declared_privileges:
                   raise SystemExit("Final hybrid manifest is missing required WMP/ESPlus privileges")
-          
               for name in names:
                   path = PurePosixPath(name)
                   if path.is_absolute() or ".." in path.parts:
                       raise SystemExit(f"Unsafe path in final hybrid WGT: {name}")
-          
               for item in source_path.rglob("*"):
                   if item.is_file():
                       member = "res/wgt/" + item.relative_to(source_path).as_posix()
                       if member not in names or package.read(member) != item.read_bytes():
                           raise SystemExit("Moonlight Web payload changed or missing after signing: " + member)
-          
               config = ET.fromstring(package.read("res/wgt/config.xml"))
               if any(node.tag.endswith("video_splash_screen") for node in config.iter()):
                   raise SystemExit("Obsolete native video splash declaration remains in the WGT")
-              obsolete_splash_assets = sorted(
-                  name for name in names
-                  if name.startswith("res/wgt/static/res/launch-screen")
-              )
+              obsolete_splash_assets = sorted(name for name in names if name.startswith("res/wgt/static/res/launch-screen"))
               if obsolete_splash_assets:
-                  raise SystemExit(
-                      "Obsolete static/animated splash assets remain in the WGT: "
-                      + ", ".join(obsolete_splash_assets)
-                  )
-
-          
+                  raise SystemExit("Obsolete static/animated splash assets remain in the WGT: " + ", ".join(obsolete_splash_assets))
               print("Final signed hybrid WGT verified:")
               print(f"  Expanded Ambilight and WMP TPK payloads byte-for-byte preserved: {embedded_service_count} files.")
               print("  Author and distributor XML signatures are present and structurally valid.")
               print("  Moonlight Web payload and manifest are preserved; obsolete native splash assets are absent.")
           PY
           }
-          
           package_hybrid "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/Moonlight-base.wgt" "$RUNNER_TEMP/Moonlight-Debug.wgt"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
           cp "$RUNNER_TEMP/Moonlight-Debug.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight-Debug.wgt"
           (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight-Debug.wgt > SHA256SUMS)
-          
-          
+
           PACKAGE
 
       - name: Show packaging diagnostics on failure
