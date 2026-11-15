@@ -411,7 +411,9 @@ vm.runInNewContext(source, {
   window.DEBUG_MODE = true;
   await window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'});
   assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1);
+  runningServiceContexts = [];
   statusChangeListener(expectedServiceAppId, false);
+  await Promise.resolve();
   assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 2,
     'an unexpected OS-reported ServiceApp exit must notify the shared stream termination handler');
   assert.ok(errorEntries.some(entry => entry[0] === '[esplusplayer] Native service process exited unexpectedly'),
