@@ -137,6 +137,45 @@ The following control-flow facts are established by the server-side implementati
 
 The numeric setting identifiers above are recorded as observed. Their individual user-facing names and semantic meanings are not established by these call sites.
 
+#### Special Game Mode branches: PC picture modes, AI Tech Mode, and Film Maker Mode
+
+Further control-flow analysis establishes these additional branches within `avocd_set_game_mode()`:
+
+- In the previous-picture-mode path, when the incoming `game_mode_type` is nonzero and the previously read setting value is zero, the function checks the current picture mode with `avocd_is_pc_picture_mode(tztv_picture_mode_e)`. If that check is true, it also checks `avocd_is_game_picture_mode_group(tztv_picture_mode_e)`. When the PC-picture-mode check is true and the Game-Picture-Mode-Group check is false, it writes the current picture mode to a DB setting identifier prepared by the preceding branch, using `save_type=1`. The setting identifier is branch-dependent and is not generalized here.
+- If the PC-picture-mode check is false, or the picture mode belongs to the Game Picture Mode group, execution follows the ordinary common application path instead.
+- A separate previous-picture-mode path calls `avocd_can_pmode_be_stored_in_prev_pmode(picture_mode)`. When true, it writes the picture mode to the previously prepared DB setting identifier with `save_type=1`. The exact identifier remains dependent on the preceding branch.
+- When the `AvocData` field at offset `0xAC` equals `1`, the function reads DB setting `0x44` with `save_type=1` and writes that value to DB setting `0x45`, also with `save_type=1`. This path then rejoins the picture-mode retrieval and selection flow.
+
+For the configuration-7 branch:
+
+1. The function reads DB setting `0x60` with `save_type=1).
+2. It reads volatile setting `0x34` and calls `avocd_get_ai_illumination(AvocData*, int*)`.
+3. If both the volatile setting and the returned AI-illumination output are nonzero, it calls:
+   ```cpp
+   avocd_set_ai_tech_mode(service, data, true);
+   ```
+   It then joins the Film Maker Mode/audio path.
+4. Otherwise, it calls `avocd_check_filmmaker_mode_on(AvocData*)`.
+   - If true, it joins the Film Maker Mode/audio path.
+   - If false, it reads DB setting `0x45) and joins the common picture/surround application path.
+
+The Film Maker Mode/audio path performs:
+
+```cpp
+avocd_set_filmmaker_mode(service, data, value);
+avocd_audio_set_sound_mode(service, data, sound_mode, 1);
+```
+
+The `value` passed to `avocd_set_filmmaker_mode()` and the `sound_mode` passed to the audio setter are prepared earlier in the function. The audio setter uses `save_type=1). If the requested mode differs from the previously tracked mode, the path emits event `0x0D) through `avocd_dbus_send_event()`; otherwise it returns through the normal epilogue. This path does not pass through the common Picture Mode/surround application sequence shown above.
+
+#### Low-frequency dimming and special mode-2 routing
+
+- One branch calls `avocd_set_game_mode_lfd(service, data, requested_mode, save_type)` and then proceeds to the common change-notification/return path. The internal behavior of this helper is not established here.
+- When `requested_mode == 2), the function reads volatile setting `3`. If it is zero, execution joins the `requested_mode == 0) path. If nonzero, the function changes the local `game_mode_type` argument to `1` and joins the main mode-configuration path.
+- In another branch, `avocd_update_wide_gaming(data, source, requested_mode)` is called before continuing through the surrounding mode-transition flow. Its complete gating conditions and side effects remain unresolved.
+
+The numeric setting identifiers and structure-field offsets in these observations are implementation evidence only; their user-facing names and semantic meanings are not established.
+
 #### Related server-side Game Mode helpers
 
 The following helpers have been identified in the server implementation:
