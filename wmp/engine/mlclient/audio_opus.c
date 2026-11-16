@@ -15,6 +15,8 @@
 #include "mltrace.h"
 #include "audio_silence_frames.h"
 
+extern void ml_engine_notify_audio_ready(void);
+
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
 #define DOLBY_SAMPLE_RATE 48000u
 
@@ -391,6 +393,8 @@ static void ar_decodePlay(char *data, int len)
                 AudEsplus_StopSilence();
             }
             pthread_mutex_unlock(&s_preroll_submit_lock);
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+                ml_engine_notify_audio_ready();
             if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
                      result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
                 ALOG("submit Dolby audio failed status=%d raw=%d\n",
@@ -423,6 +427,8 @@ static void ar_decodePlay(char *data, int len)
         AudEsplus_StopSilence();
     }
     pthread_mutex_unlock(&s_preroll_submit_lock);
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+        ml_engine_notify_audio_ready();
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
              result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
         ALOG("submit Opus audio failed status=%d raw=%d\n",
