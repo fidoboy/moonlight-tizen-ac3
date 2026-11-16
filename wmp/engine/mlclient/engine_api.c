@@ -40,7 +40,7 @@ static int g_audio_enabled = 1;
  * request and does not use argument 1. Older firmware (notably Tizen 5.x)
  * may expose a two-argument ABI instead. If Tizen 5 compatibility is added,
  * detect/select the ABI explicitly and provide separate call signatures,
- * following the set_*/add_* compatibility pattern used by ESPlus Player.
+ * following the set_... and add_... compatibility pattern used by ESPlus Player.
  * Do not assume this Tizen 6.0 prototype is valid across firmware families. */
 typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
 static pthread_mutex_t g_game_mode_lock = PTHREAD_MUTEX_INITIALIZER;
