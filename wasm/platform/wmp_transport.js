@@ -1251,6 +1251,57 @@
   var lastSentGamepadAxes = Object.create(null);
   var lastSentGamepadTriggers = Object.create(null);
   var lastSentGamepadFlags = Object.create(null);
+  var streamMenuInputBlocked = false;
+  var gamepadNeutralRequired = Object.create(null);
+
+  function isNeutralGamepadState(flags, buttons, axes) {
+    if (flags !== 0) return false;
+    for (var i = 0; i < buttons.length; i++) {
+      if (Number(buttons[i]) > 0.05) return false;
+    }
+    for (var j = 0; j < axes.length; j++) {
+      if (Math.abs(Number(axes[j] || 0)) > 0.15) return false;
+    }
+    return true;
+  }
+
+  function setStreamMenuInputBlocked(blocked) {
+    var nextState = blocked === true;
+    if (streamMenuInputBlocked === nextState) return;
+    streamMenuInputBlocked = nextState;
+
+    if (nextState) {
+      // Release every browser-forwarded input before the menu takes ownership.
+      releasePressedKeys();
+      lastMouseX = null;
+      lastMouseY = null;
+      wheelRemainder = 0;
+
+      for (var index = 0; index < 16; index++) {
+        if (!(nativeGamepadMask & (1 << index))) continue;
+        gamepadNeutralRequired[index] = true;
+        if (gamepadSendTimers[index] !== undefined) {
+          global.clearTimeout(gamepadSendTimers[index]);
+          delete gamepadSendTimers[index];
+        }
+        delete pendingGamepadStates[index];
+        if (browserGamepadInputActive()) {
+          sendGamepadState(index, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+        }
+        lastSentGamepadFlags[index] = 0;
+        lastSentGamepadAxes[index] = [0, 0, 0, 0];
+        lastSentGamepadTriggers[index] = [0, 0];
+      }
+    } else {
+      // Do not replay controls that were held while the menu was visible.
+      // Each controller must first return to neutral before host input resumes.
+      for (var gamepadIndex = 0; gamepadIndex < 16; gamepadIndex++) {
+        if (nativeGamepadMask & (1 << gamepadIndex)) {
+          gamepadNeutralRequired[gamepadIndex] = true;
+        }
+      }
+    }
+  }
 
   function transmitGamepadState(index, state) {
     sendGamepadState(index, nativeGamepadMask, state.flags,
@@ -1262,7 +1313,7 @@
   }
 
   function queueGamepadState(index, state, immediate) {
-    if (!browserGamepadInputActive()) return;
+    if (streamMenuInputBlocked || !browserGamepadInputActive()) return;
     var previousAxes = lastSentGamepadAxes[index];
     var previousTriggers = lastSentGamepadTriggers[index];
     var axesChanged = !previousAxes;
@@ -1307,7 +1358,7 @@
       delete gamepadSendTimers[index];
       var latest = pendingGamepadStates[index];
       delete pendingGamepadStates[index];
-      if (latest && browserGamepadInputActive() && (nativeGamepadMask & (1 << index))) {
+      if (latest && !streamMenuInputBlocked && browserGamepadInputActive() && (nativeGamepadMask & (1 << index))) {
         transmitGamepadState(index, latest);
       }
     }, GAMEPAD_SEND_INTERVAL_MS);
@@ -1356,7 +1407,7 @@
     lastSentGamepadFlags[index] = undefined;
     lastSentGamepadAxes[index] = undefined;
     lastSentGamepadTriggers[index] = undefined;
-    if (browserGamepadInputActive()) {
+    if (browserGamepadInputActive() && !streamMenuInputBlocked) {
       sendGamepadArrival(index, nativeGamepadMask, controllerType(detail.id),
         supportedButtons(Number(detail.buttonCount) || 0),
         Number(detail.buttonCount) > 7 ? 1 : 0);
@@ -1414,11 +1465,24 @@
       request('toggle_stats').catch(function() {});
       return;
     }
+
+    var normalizedAxes = Array.isArray(axes) ? axes : [];
+    if (streamMenuInputBlocked) {
+      if (isNeutralGamepadState(flags, buttons, normalizedAxes)) {
+        delete gamepadNeutralRequired[index];
+      }
+      return;
+    }
+    if (gamepadNeutralRequired[index]) {
+      if (!isNeutralGamepadState(flags, buttons, normalizedAxes)) return;
+      delete gamepadNeutralRequired[index];
+    }
+
     function axis(index) {
       var value = Number(axes[index] || 0);
       return Math.max(-32768, Math.min(32767, Math.round(value * 32767)));
     }
-    if (browserGamepadInputActive()) {
+    if (!streamMenuInputBlocked && browserGamepadInputActive()) {
       queueGamepadState(index, {
         flags: flags,
         leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
@@ -1473,12 +1537,12 @@
   }
 
   function keyboardInputUiBlocked() {
-    // The streaming menu is an overlay, not a text-entry dialog. Keep browser
-    // keyboard forwarding active there so the user can send host keys (including
-    // Meta/Windows) while using the menu. Other dialogs remain input barriers.
+    // Ordinary keyboard input belongs to the local menu while it is visible.
+    // Explicit Stream Menu shortcuts call sendKey() directly and remain allowed.
     var streamMenuOpen = !!(global.document &&
       global.document.getElementById('streamMenuDialogOverlay'));
-    return (global.isDialogOpen === true && !streamMenuOpen) ||
+    return streamMenuInputBlocked || streamMenuOpen ||
+      global.isDialogOpen === true ||
       global.isPairingInProgress === true ||
       global.isGamepadTestDialogOpen === true;
   }
@@ -1693,6 +1757,7 @@
     },
     stopStream: function() { return request('stop_session'); },
     sendKey: sendKey,
+    setStreamMenuInputBlocked: setStreamMenuInputBlocked,
     sendMouseMove: sendMouseMove,
     sendMouseButton: sendMouseButton,
     sendMouseScroll: sendMouseScroll,
