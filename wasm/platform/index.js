@@ -4299,7 +4299,7 @@ function updateAppDialog(latestVersion, releaseNotes) {
 
 function saveAutomaticUpdateChecks() {
   setTimeout(() => {
-    const enabled = $('#automaticUpdateChecksSwitch').parent().hasClass('is-checked');
+    const enabled = $('#automaticUpdateChecksSwitch').prop('checked');
     console.log('%c[index.js, saveAutomaticUpdateChecks]', 'color: green;', 'Saving automatic update checks state: ' + enabled);
     storeData('automaticUpdateChecks', enabled, null);
   }, 100);
@@ -6051,31 +6051,31 @@ function startGame(host, appID) {
         streamHeight = $('#selectResolution').data('value').split(':')[1];
         frameRate = $('#selectFramerate').data('value').toString();
         bitrate = parseFloat($('#bitrateSlider').val()) * 1000;
-        framePacing = $('#framePacingSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        optimizeGames = $('#optimizeGamesSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        rumbleFeedback = $('#rumbleFeedbackSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        mouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        selectHoldStreamMenu = $('#selectHoldStreamMenuSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        flipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        opticalOutputEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+        framePacing = $('#framePacingSwitch').prop('checked') ? 1 : 0;
+        optimizeGames = $('#optimizeGamesSwitch').prop('checked') ? 1 : 0;
+        rumbleFeedback = $('#rumbleFeedbackSwitch').prop('checked') ? 1 : 0;
+        mouseEmulation = $('#mouseEmulationSwitch').prop('checked') ? 1 : 0;
+        selectHoldStreamMenu = $('#selectHoldStreamMenuSwitch').prop('checked') ? 1 : 0;
+        flipABfaceButtons = $('#flipABfaceButtonsSwitch').prop('checked') ? 1 : 0;
+        flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').prop('checked') ? 1 : 0;
+        opticalOutputEnabled = $('#ac3AudioModeSwitch').prop('checked');
         // The selector already reflects the engine/DD policy. Do not force EMSS
         // here: ESPlusPlayer must remain ESPlusPlayer, and Disabled is valid with Dolby enabled.
         audioBackend = $('#selectAudioBackend').data('value').toString();
         audioConfig = $('#selectAudio').data('value').toString();
-        audioSync = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        audioSync = $('#audioSyncSwitch').prop('checked') ? 1 : 0;
         audioJitter = parseInt($('#jitterSlider').val());
-        playHostAudio = $('#playHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        decryptHostAudio = $('#decryptHostAudioSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        playHostAudio = $('#playHostAudioSwitch').prop('checked') ? 1 : 0;
+        decryptHostAudio = $('#decryptHostAudioSwitch').prop('checked') ? 1 : 0;
         videoCodec = $('#selectCodec').data('value').toString();
         h264Level = $('#selectH264Level').data('value') || 'Auto';
-        hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        fullRange = $('#fullRangeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        hdrMode = $('#hdrModeSwitch').prop('checked') ? 1 : 0;
+        fullRange = $('#fullRangeSwitch').prop('checked') ? 1 : 0;
         // Use the checkbox state shared with the configuration summary. MDL's
         // parent class can be stale after restoring a switch programmatically.
         gameMode = document.getElementById('gameModeSwitch').checked ? 1 : 0;
-        disableWarnings = $('#disableWarningsSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        performanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        disableWarnings = $('#disableWarningsSwitch').prop('checked') ? 1 : 0;
+        performanceStats = $('#performanceStatsSwitch').prop('checked') ? 1 : 0;
         dolbyChannelLayout = $('#selectDolbyChannelLayout').data('value') || 'Back';
         dolbyDecodingMode = $('#selectDolbyDecodingMode').data('value') || 'Hardware';
       }
@@ -7146,7 +7146,7 @@ function optimizeBitratePresets() {
   var height = parseInt($('#selectResolution').data('value').split(':')[1]);
   var frameRate = $('#selectFramerate').data('value').toString();
   var videoCodec = $('#selectCodec').data('value').toString();
-  var hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+  var hdrMode = $('#hdrModeSwitch').prop('checked') ? 1 : 0;
 
   // Multiplier to adjust bitrate based on codec efficiency
   // Sweet-spot formula reference: https://www.reddit.com/r/MoonlightStreaming/comments/1gg2cdy/sweet_spot_bitrate/
@@ -7177,7 +7177,7 @@ function optimizeBitratePresets() {
 
 function saveFramePacing() {
   setTimeout(() => {
-    const chosenFramePacing = $('#framePacingSwitch').parent().hasClass('is-checked');
+    const chosenFramePacing = $('#framePacingSwitch').prop('checked');
     console.log('%c[index.js, saveFramePacing]', 'color: green;', 'Saving frame pacing state: ' + chosenFramePacing);
     storeData('framePacing', chosenFramePacing, null);
   }, 100);
@@ -7196,7 +7196,7 @@ function saveLanguagePreference() {
 
 function saveIpAddressFieldMode() {
   setTimeout(() => {
-    const chosenIpAddressFieldMode = $('#ipAddressFieldModeSwitch').parent().hasClass('is-checked');
+    const chosenIpAddressFieldMode = $('#ipAddressFieldModeSwitch').prop('checked');
     console.log('%c[index.js, saveIpAddressFieldMode]', 'color: green;', 'Saving IP address field mode state: ' + chosenIpAddressFieldMode);
     storeData('ipAddressFieldMode', chosenIpAddressFieldMode, null);
     updateAmbilightWledIpInputMode();
@@ -7534,7 +7534,7 @@ function startAmbilightForStream(showTransitionStatus) {
 
 function saveNavigationSoundPreference() {
   setTimeout(function() {
-    const enabled = $('#navigationSoundSwitch').parent().hasClass('is-checked');
+    const enabled = $('#navigationSoundSwitch').prop('checked');
     navigationSoundPreferenceEnabled = enabled;
     console.log('%c[index.js, saveNavigationSoundPreference]', 'color: green;', 'Saving navigation sounds preference: ' + enabled);
     storeData('navigationSoundEnabled', enabled, null);
@@ -7865,7 +7865,7 @@ function saveAmbientBackgroundPreset() {
 
 function saveStreamTransitionBackground() {
   setTimeout(() => {
-    streamTransitionBackgroundEnabled = $('#streamTransitionBackgroundSwitch').parent().hasClass('is-checked');
+    streamTransitionBackgroundEnabled = $('#streamTransitionBackgroundSwitch').prop('checked');
     console.log('%c[index.js, saveStreamTransitionBackground]', 'color: green;', 'Saving animated stream transition background: ' + streamTransitionBackgroundEnabled);
     storeData('streamTransitionBackground', streamTransitionBackgroundEnabled, null);
   }, 100);
@@ -7873,7 +7873,7 @@ function saveStreamTransitionBackground() {
 
 function saveScreensaverPreference() {
   setTimeout(function() {
-    screensaverPreferenceEnabled = $('#screensaverSwitch').parent().hasClass('is-checked');
+    screensaverPreferenceEnabled = $('#screensaverSwitch').prop('checked');
     console.log('%c[index.js, saveScreensaverPreference]', 'color: green;', 'Saving screensaver preference: ' + screensaverPreferenceEnabled);
     storeData('screensaverEnabled', screensaverPreferenceEnabled, null);
     if (typeof setScreensaverEnabled === 'function') setScreensaverEnabled(screensaverPreferenceEnabled);
@@ -7882,7 +7882,7 @@ function saveScreensaverPreference() {
 
 function saveDiscoverNewHostsAtStartup() {
   setTimeout(() => {
-    const enabled = $('#discoverNewHostsAtStartupSwitch').parent().hasClass('is-checked');
+    const enabled = $('#discoverNewHostsAtStartupSwitch').prop('checked');
     console.log('%c[index.js, saveDiscoverNewHostsAtStartup]', 'color: green;', 'Saving startup host discovery state: ' + enabled);
     storeData('discoverNewHostsAtStartup', enabled, null);
   }, 100);
@@ -7890,7 +7890,7 @@ function saveDiscoverNewHostsAtStartup() {
 
 function saveSortAppsList() {
   setTimeout(() => {
-    const chosenSortAppsList = $('#sortAppsListSwitch').parent().hasClass('is-checked');
+    const chosenSortAppsList = $('#sortAppsListSwitch').prop('checked');
     console.log('%c[index.js, saveSortAppsList]', 'color: green;', 'Saving sort apps list state: ' + chosenSortAppsList);
     storeData('sortAppsList', chosenSortAppsList, null);
     
@@ -7911,7 +7911,7 @@ function saveSortAppsList() {
 
 function saveSortAppsByUsage() {
   setTimeout(() => {
-    const enabled = $('#sortAppsByUsageSwitch').parent().hasClass('is-checked');
+    const enabled = $('#sortAppsByUsageSwitch').prop('checked');
     storeData('sortAppsByUsage', enabled, null);
     let updated = false;
     Object.keys(_previewApps).forEach(function(serverUid) {
@@ -7929,7 +7929,7 @@ function saveSortAppsByUsage() {
 
 function saveOptimizeGames() {
   setTimeout(() => {
-    const chosenOptimizeGames = $('#optimizeGamesSwitch').parent().hasClass('is-checked');
+    const chosenOptimizeGames = $('#optimizeGamesSwitch').prop('checked');
     console.log('%c[index.js, saveOptimizeGames]', 'color: green;', 'Saving optimize games state: ' + chosenOptimizeGames);
     storeData('optimizeGames', chosenOptimizeGames, null);
   }, 100);
@@ -7937,7 +7937,7 @@ function saveOptimizeGames() {
 
 function saveQuitAppAfterDisconnect() {
   setTimeout(() => {
-    const enabled = $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
+    const enabled = $('#quitAppAfterDisconnectSwitch').prop('checked');
     console.log('%c[index.js, saveQuitAppAfterDisconnect]', 'color: green;', 'Saving quit host app on disconnect: ' + enabled);
     storeData('quitAppAfterDisconnect', enabled, null);
   }, 100);
@@ -7945,7 +7945,7 @@ function saveQuitAppAfterDisconnect() {
 
 function saveRumbleFeedback() {
   setTimeout(() => {
-    const chosenRumbleFeedback = $('#rumbleFeedbackSwitch').parent().hasClass('is-checked');
+    const chosenRumbleFeedback = $('#rumbleFeedbackSwitch').prop('checked');
     console.log('%c[index.js, saveRumbleFeedback]', 'color: green;', 'Saving rumble feedback state: ' + chosenRumbleFeedback);
     storeData('rumbleFeedback', chosenRumbleFeedback, null);
   }, 100);
@@ -7953,7 +7953,7 @@ function saveRumbleFeedback() {
 
 function saveMouseEmulation() {
   setTimeout(() => {
-    const chosenMouseEmulation = $('#mouseEmulationSwitch').parent().hasClass('is-checked');
+    const chosenMouseEmulation = $('#mouseEmulationSwitch').prop('checked');
     console.log('%c[index.js, saveMouseEmulation]', 'color: green;', 'Saving mouse emulation state: ' + chosenMouseEmulation);
     storeData('mouseEmulation', chosenMouseEmulation, null);
   }, 100);
@@ -7961,7 +7961,7 @@ function saveMouseEmulation() {
 
 function saveSelectHoldStreamMenu() {
   setTimeout(() => {
-    const enabled = $('#selectHoldStreamMenuSwitch').parent().hasClass('is-checked');
+    const enabled = $('#selectHoldStreamMenuSwitch').prop('checked');
     console.log('%c[index.js, saveSelectHoldStreamMenu]', 'color: green;', 'Saving Select hold stream menu state: ' + enabled);
     storeData('selectHoldStreamMenu', enabled, null);
   }, 100);
@@ -7969,7 +7969,7 @@ function saveSelectHoldStreamMenu() {
 
 function saveFlipABfaceButtons() {
   setTimeout(() => {
-    const chosenFlipABfaceButtons = $('#flipABfaceButtonsSwitch').parent().hasClass('is-checked');
+    const chosenFlipABfaceButtons = $('#flipABfaceButtonsSwitch').prop('checked');
     console.log('%c[index.js, saveFlipABfaceButtons]', 'color: green;', 'Saving flip A/B face buttons state: ' + chosenFlipABfaceButtons);
     storeData('flipABfaceButtons', chosenFlipABfaceButtons, null);
   }, 100);
@@ -7977,7 +7977,7 @@ function saveFlipABfaceButtons() {
 
 function saveFlipXYfaceButtons() {
   setTimeout(() => {
-    const chosenFlipXYfaceButtons = $('#flipXYfaceButtonsSwitch').parent().hasClass('is-checked');
+    const chosenFlipXYfaceButtons = $('#flipXYfaceButtonsSwitch').prop('checked');
     console.log('%c[index.js, saveFlipXYfaceButtons]', 'color: green;', 'Saving flip X/Y face buttons state: ' + chosenFlipXYfaceButtons);
     storeData('flipXYfaceButtons', chosenFlipXYfaceButtons, null);
   }, 100);
@@ -7986,7 +7986,7 @@ function saveFlipXYfaceButtons() {
 function saveAudioBackend() {
   var chosenAudioBackend = String($(this).data('value') || '');
   var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  var dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  var dolbyEnabled = $('#ac3AudioModeSwitch').prop('checked');
   var allowed = engine === 'ESPLUSPLAYER'
     ? ['ESPLUSPLAYER', 'Disabled']
     : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
@@ -8079,7 +8079,7 @@ function isAudioOutputDisabled() {
 
 function saveAudioConfiguration() {
   var chosenAudioConfig = $(this).data('value');
-  if ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') && chosenAudioConfig === '71Surround') {
+  if ($('#ac3AudioModeSwitch').prop('checked') && chosenAudioConfig === '71Surround') {
     chosenAudioConfig = '51Surround';
   }
   setAudioSelectorValue('#selectAudio', '.audioConfigMenu', chosenAudioConfig);
@@ -8110,7 +8110,7 @@ function setDolbySelectorValue(buttonSelector, menuSelector, value) {
 function updateDolbyAudioAdvancedSettings() {
   const audioEnabled = !isAudioOutputDisabled();
   const engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  const dolbyEnabled = audioEnabled && $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  const dolbyEnabled = audioEnabled && $('#ac3AudioModeSwitch').prop('checked');
   // These controls configure the EMSS Dolby track. ESPlusPlayer does not
   // currently consume either setting, so never expose them for that engine.
   const emssDolbyEnabled = engine === 'EMSS' && dolbyEnabled;
@@ -8186,7 +8186,7 @@ function setAudioBackendMenuAvailability(engine, dolbyEnabled) {
 
 function applyAudioBackendPolicy(reason) {
   var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  var dolbyEnabled = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+  var dolbyEnabled = $('#ac3AudioModeSwitch').prop('checked');
   var backend = String($('#selectAudioBackend').data('value') || 'EMSS');
 
   if (engine === 'ESPLUSPLAYER') {
@@ -8236,7 +8236,7 @@ function completeAudioBackendPolicyLoad() {
   var state = audioBackendPolicyLoadState;
   if (!state.streamingEngine || !state.audioBackend || !state.ac3AudioMode ||
       !state.beforeESPlusPlayer || !state.beforeAc3) return;
-  updateAc3AudioModeUI($('#ac3AudioModeSwitch').parent().hasClass('is-checked'), 'startup');
+  updateAc3AudioModeUI($('#ac3AudioModeSwitch').prop('checked'), 'startup');
   // The summary strip is revealed only after the engine and effective audio backend are final.
   configSummaryValuesReady = true;
   updateConfigSummaryBar();
@@ -8259,7 +8259,7 @@ function updateAc3AudioModeUI(enabled, reason) {
 
 function saveAc3AudioMode() {
   setTimeout(function() {
-    var chosenAc3Mode = $('#ac3AudioModeSwitch').parent().hasClass('is-checked');
+    var chosenAc3Mode = $('#ac3AudioModeSwitch').prop('checked');
     var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
     console.log('%c[index.js, saveAc3AudioMode]', 'color: green;', 'Saving AC-3 audio mode state: ' + chosenAc3Mode);
     storeData('ac3AudioMode', chosenAc3Mode, null);
@@ -8277,7 +8277,7 @@ function saveAc3AudioMode() {
 
 function saveAudioSync() {
   setTimeout(() => {
-    const chosenAudioSync = $('#audioSyncSwitch').parent().hasClass('is-checked');
+    const chosenAudioSync = $('#audioSyncSwitch').prop('checked');
     console.log('%c[index.js, saveAudioSync]', 'color: green;', 'Saving audio sync state: ' + chosenAudioSync);
     storeData('audioSync', chosenAudioSync, null);
   }, 100);
@@ -8292,7 +8292,7 @@ function saveAudioJitter() {
 
 function savePlayHostAudio() {
   setTimeout(() => {
-    const chosenPlayHostAudio = $('#playHostAudioSwitch').parent().hasClass('is-checked');
+    const chosenPlayHostAudio = $('#playHostAudioSwitch').prop('checked');
     console.log('%c[index.js, savePlayHostAudio]', 'color: green;', 'Saving play host audio state: ' + chosenPlayHostAudio);
     storeData('playHostAudio', chosenPlayHostAudio, null);
   }, 100);
@@ -8300,7 +8300,7 @@ function savePlayHostAudio() {
 
 function saveDecryptHostAudio() {
   setTimeout(() => {
-    const chosenDecryptHostAudio = $('#decryptHostAudioSwitch').parent().hasClass('is-checked');
+    const chosenDecryptHostAudio = $('#decryptHostAudioSwitch').prop('checked');
     console.log('%c[index.js, saveDecryptHostAudio]', 'color: green;', 'Saving decrypt host audio state: ' + chosenDecryptHostAudio);
     storeData('decryptHostAudio', chosenDecryptHostAudio, null);
 
@@ -8438,7 +8438,7 @@ function saveHdrMode() {
 
 function updateHdrMode() {
   setTimeout(() => {
-    const chosenHdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked');
+    const chosenHdrMode = $('#hdrModeSwitch').prop('checked');
     console.log('%c[index.js, updateHdrMode]', 'color: green;', 'Saving HDR mode state: ' + chosenHdrMode);
     storeData('hdrMode', chosenHdrMode, null);
 
@@ -8451,7 +8451,7 @@ function updateHdrMode() {
 
 function saveFullRange() {
   setTimeout(() => {
-    const chosenFullRange = $('#fullRangeSwitch').parent().hasClass('is-checked');
+    const chosenFullRange = $('#fullRangeSwitch').prop('checked');
     console.log('%c[index.js, saveFullRange]', 'color: green;', 'Saving full range state: ' + chosenFullRange);
     storeData('fullRange', chosenFullRange, null);
   }, 100);
@@ -8482,7 +8482,7 @@ function saveGameMode() {
 
 function saveUnlockAllFps() {
   setTimeout(() => {
-    const chosenUnlockAllFps = $('#unlockAllFpsSwitch').parent().hasClass('is-checked');
+    const chosenUnlockAllFps = $('#unlockAllFpsSwitch').prop('checked');
     console.log('%c[index.js, saveUnlockAllFps]', 'color: green;', 'Saving unlock all FPS state: ' + chosenUnlockAllFps);
     storeData('unlockAllFps', chosenUnlockAllFps, null);
 
@@ -8529,7 +8529,7 @@ function handleUnlockAllFps() {
 
 function saveOptimizeBitrate() {
   setTimeout(() => {
-    const chosenOptimizeBitrate = $('#optimizeBitrateSwitch').parent().hasClass('is-checked');
+    const chosenOptimizeBitrate = $('#optimizeBitrateSwitch').prop('checked');
     console.log('%c[index.js, saveOptimizeBitrate]', 'color: green;', 'Saving optimize bitrate state: ' + chosenOptimizeBitrate);
     storeData('optimizeBitrate', chosenOptimizeBitrate, null);
 
@@ -8540,7 +8540,7 @@ function saveOptimizeBitrate() {
 
 function saveDisableWarnings() {
   setTimeout(() => {
-    const chosenDisableWarnings = $('#disableWarningsSwitch').parent().hasClass('is-checked');
+    const chosenDisableWarnings = $('#disableWarningsSwitch').prop('checked');
     console.log('%c[index.js, saveDisableWarnings]', 'color: green;', 'Saving disable warnings state: ' + chosenDisableWarnings);
     storeData('disableWarnings', chosenDisableWarnings, null);
   }, 100);
@@ -8595,7 +8595,7 @@ function updatePerformanceStatsPositionAvailability(enabled) {
 
 function savePerformanceStats() {
   setTimeout(() => {
-    const chosenPerformanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked');
+    const chosenPerformanceStats = $('#performanceStatsSwitch').prop('checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
     storeData('performanceStats', chosenPerformanceStats, null);
     updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
@@ -9524,7 +9524,7 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#performanceStatsBtn').MaterialSwitch.on();
     }
-    updatePerformanceStatsPositionAvailability($('#performanceStatsSwitch').parent().hasClass('is-checked'));
+    updatePerformanceStatsPositionAvailability($('#performanceStatsSwitch').prop('checked'));
 
     _directSmartHubSettingsReady = true;
     maybeStartDirectSmartHubLaunch();
