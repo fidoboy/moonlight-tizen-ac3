@@ -6782,25 +6782,25 @@ function getData(key, callbackFunction) {
           callCb(key, value, callbackFunction);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
-          callCb(key, null, callbackFunction);
+          callCb(key, {}, callbackFunction);
         }
       };
       transaction.onerror = function(event) {
         console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', transaction.error || event);
-        callCb(key, null, callbackFunction);
+        callCb(key, {}, callbackFunction);
       };
       transaction.onabort = function() {
         console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
       };
     } catch (error) {
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
-      callCb(key, null, callbackFunction);
+      callCb(key, {}, callbackFunction);
     }
   };
   if (db) cb();
   else openIndexDB(cb, function(error) {
     console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
-    callCb(key, null, callbackFunction);
+    callCb(key, {}, callbackFunction);
   });
 }
 
