@@ -7167,11 +7167,10 @@ function standardBitratePresets() {
 
 function optimizeBitratePresets() {
   console.log('%c[index.js, optimizeBitratePresets]', 'color: green;', 'Applying optimize bitrate presets...');
-  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-  if (!preferences) {
-    console.warn('%c[index.js, optimizeBitratePresets]', 'color: gray;', 'Persisted streaming preferences are not ready; skipping automatic bitrate calculation.');
-    return;
-  }
+  // Read after the triggering preference write so rapid UI changes cannot
+  // calculate a bitrate from an older snapshot or from rendered controls.
+  return readStreamingSettingsSnapshot().then(function(snapshot) {
+  var preferences = snapshot.preferences;
   var resolution = String(preferences.resolution || '1280:720').split(':');
   var width = parseInt(resolution[0], 10);
   var height = parseInt(resolution[1], 10);
@@ -7202,8 +7201,11 @@ function optimizeBitratePresets() {
   // Set the bitrate slider value based on the calculated optimized bitrate
   $('#bitrateSlider')[0].MaterialSlider.change(finalBitrate / 1000);
 
-  // Update the bitrate value
+  // Update and persist the bitrate value after calculating from committed settings.
   saveBitrate();
+  }).catch(function(error) {
+    console.error('%c[index.js, optimizeBitratePresets]', 'color: red;', 'Could not calculate optimized bitrate from persisted settings:', error);
+  });
 }
 
 function saveFramePacing() {
@@ -8278,13 +8280,21 @@ function applyAudioBackendPolicy(reason) {
 function completeAudioBackendPolicyLoad() {
   var state = audioBackendPolicyLoadState;
   if (!state.streamingEngine || !state.audioBackend || !state.ac3AudioMode ||
-      !state.beforeESPlusPlayer || !state.beforeAc3) return;
-  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-  var dolbyValue = preferences && preferences.ac3AudioMode;
-  updateAc3AudioModeUI(dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1, 'startup');
-  // The summary strip is revealed only after the engine and effective audio backend are final.
-  configSummaryValuesReady = true;
-  updateConfigSummaryBar();
+      !state.beforeESPlusPlayer || !state.beforeAc3 || state.completed) return;
+  state.completed = true;
+  // The independent legacy preference reads can finish before the shared
+  // streaming snapshot. Wait for IndexedDB's normalized snapshot before applying
+  // any engine/Dolby/backend policy.
+  readStreamingSettingsSnapshot().then(function(snapshot) {
+    configSummarySnapshot = snapshot;
+    var dolbyValue = snapshot.preferences.ac3AudioMode;
+    updateAc3AudioModeUI(dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1, 'startup');
+    configSummaryValuesReady = true;
+    updateConfigSummaryBar(snapshot);
+  }).catch(function(error) {
+    state.completed = false;
+    console.error('%c[index.js, completeAudioBackendPolicyLoad]', 'color: red;', 'Could not load persisted audio preferences:', error);
+  });
 }
 
 function updateAc3AudioModeUI(enabled, reason) {
@@ -8309,16 +8319,21 @@ function saveAc3AudioMode() {
     var chosenAc3Mode = $('#ac3AudioModeSwitch').prop('checked');
     var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
     console.log('%c[index.js, saveAc3AudioMode]', 'color: green;', 'Saving AC-3 audio mode state: ' + chosenAc3Mode);
-    storeData('ac3AudioMode', chosenAc3Mode, null);
-
-    // DD controls format negotiation, not the playback engine. ESPlusPlayer remains
-    // the sole audio/video backend regardless of the DD switch.
-    if (engine !== 'ESPLUSPLAYER' && chosenAc3Mode &&
-        $('#selectAudioBackend').data('value') === 'WebAudio') {
-      audioBackendBeforeAc3Preference = 'WebAudio';
-      storeData('audioBackendBeforeAc3', 'WebAudio', null);
-    }
-    updateAc3AudioModeUI(chosenAc3Mode, chosenAc3Mode ? 'enable-dolby' : 'disable-dolby');
+    storeData('ac3AudioMode', chosenAc3Mode, null).then(function() {
+      // DD controls format negotiation, not the playback engine. ESPlusPlayer remains
+      // the sole audio/video backend regardless of the DD switch.
+      var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+      var persistedEngine = preferences && preferences.streamingEngine;
+      if (persistedEngine !== 'ESPLUSPLAYER' && chosenAc3Mode &&
+          preferences && preferences.audioBackend === 'WebAudio') {
+        audioBackendBeforeAc3Preference = 'WebAudio';
+        return storeData('audioBackendBeforeAc3', 'WebAudio', null);
+      }
+    }).then(function() {
+      updateAc3AudioModeUI(chosenAc3Mode, chosenAc3Mode ? 'enable-dolby' : 'disable-dolby');
+    }).catch(function(error) {
+      console.error('%c[index.js, saveAc3AudioMode]', 'color: red;', 'Could not apply the saved Dolby audio preference:', error);
+    });
   }, 100);
 }
 
