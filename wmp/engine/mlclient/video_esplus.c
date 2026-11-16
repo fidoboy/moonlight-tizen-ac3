@@ -31,6 +31,7 @@ static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static unsigned s_video_idrs;
+static volatile int s_first_video_submit_accepted;
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
 
@@ -418,6 +419,7 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     s_video_idrs = 0;
+    __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
     s_last_frame_number = 0;
     s_have_frame_number = 0;
     esplus_stream_clock_reset();
@@ -490,11 +492,6 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_last_frame_number = du->frameNumber;
     }
     if (du->frameType == FRAME_TYPE_IDR) ++s_video_idrs;
-    if (s_video_units <= 10 || s_video_units % 60 == 0 || du->frameType == FRAME_TYPE_IDR) {
-        VLOG("decode unit #%u type=%s bytes=%d pts_us=%llu idr_count=%u\n",
-             s_video_units, du->frameType == FRAME_TYPE_IDR ? "IDR" : "frame",
-             du->fullLength, (unsigned long long)du->presentationTimeUs, s_video_idrs);
-    }
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
 
     /* A flushing seek invalidates queued reference frames. Reject one following
@@ -616,14 +613,11 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
+            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL))
+                MLT_DIAG("first ESPlus video submit accepted size=%u pts_ns=%llu",
+                         packet.size, (unsigned long long)packet.pts_ns);
             ml_engine_notify_video_ready();
         }
-    }
-    if (s_video_units <= 10 || s_video_units % 60 == 0 ||
-        result.status != WMP_ESPLUS_SUBMIT_SUCCESS) {
-        VLOG("video submit #%u result status=%d raw=%d size=%u pts_ns=%llu\n",
-             s_video_units, (int)result.status, result.raw_status,
-             packet.size, (unsigned long long)packet.pts_ns);
     }
     if (s_video_units == 1)
         MLT_DIAG("VidDecSubmit FIRST decode unit EXIT status=%d raw=%d",
