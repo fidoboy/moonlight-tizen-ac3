@@ -11,7 +11,7 @@ const infoEntries = [];
 const errorEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const hostProtocol = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/HostProtocol.cs'), 'utf8');
-assert.ok(/case "get_logs":[\\s\\S]{0,220}SendNewNativeDiagnosticLogs\\(appId, remotePort, id\\)/.test(hostProtocol),
+assert.ok(/case "get_logs":[\s\S]{0,220}SendNewNativeDiagnosticLogs\(appId, remotePort, id\)/.test(hostProtocol),
   'legacy get_logs must use the same incremental cursor as get_new_logs');
 assert.ok(!hostProtocol.includes('SendDiagnosticLogs('),
   'historical full-ring diagnostic replay must not exist');
