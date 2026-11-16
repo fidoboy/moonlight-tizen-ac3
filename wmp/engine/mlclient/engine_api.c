@@ -33,7 +33,15 @@ static int g_audio_enabled = 1;
 
 /* Samsung's internal AVOC entry point controls the TV picture Game Mode.
  * It is optional firmware functionality: failure to load it must never block
- * a Moonlight session. Keep the library loaded for the process lifetime. */
+ * a Moonlight session. Keep the library loaded for the process lifetime.
+ *
+ * ABI note: the Tizen 6.0 libavoc.so wrapper takes three C arguments; the
+ * disassembly shows that it forwards arguments 2 and 3 to the D-Bus (ii)
+ * request and does not use argument 1. Older firmware (notably Tizen 5.x)
+ * may expose a two-argument ABI instead. If Tizen 5 compatibility is added,
+ * detect/select the ABI explicitly and provide separate call signatures,
+ * following the set_*/add_* compatibility pattern used by ESPlus Player.
+ * Do not assume this Tizen 6.0 prototype is valid across firmware families. */
 typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
 static pthread_mutex_t g_game_mode_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *g_avoc_library;
