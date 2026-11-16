@@ -8656,13 +8656,23 @@ function handleUnlockAllFps() {
     console.log('%c[index.js, handleUnlockAllFps]', 'color: green;', 'Removing higher framerate options: 90, 120, 144 FPS');
     // If unchecked, remove the higher FPS options from the selection menu
     $('.videoFramerateMenu li[data-value="90"], li[data-value="120"], li[data-value="144"]').remove();
-    // After removal, if a higher FPS option remains selected, then reset it to the default option
-    if (['90', '120', '144'].includes(String(currentFps))) {
-      $('#selectFramerate').text('60 FPS').attr('data-value', '60').data('value', '60');
-      console.log('%c[index.js, handleUnlockAllFps]', 'color: green;', 'Resetting framerate value to 60 FPS');
-      storeData('frameRate', '60', null);
-      // Update the bitrate value based on the selected frame rate
-      isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
+    // If the selected rate is no longer available, select the highest remaining option.
+    var availableFramerates = $('.videoFramerateMenu li').map(function() {
+      return parseInt($(this).data('value'), 10);
+    }).get().filter(function(value) {
+      return isFinite(value) && value > 0;
+    });
+    var highestAllowedFramerate = availableFramerates.length
+      ? String(Math.max.apply(Math, availableFramerates)) : '60';
+    if (!availableFramerates.includes(parseInt(currentFps, 10))) {
+      var fallbackOption = $('.videoFramerateMenu li').filter(function() {
+        return String($(this).data('value')) === highestAllowedFramerate;
+      }).first();
+      var fallbackLabel = fallbackOption.length ? fallbackOption.text() : highestAllowedFramerate + ' FPS';
+      $('#selectFramerate').text(fallbackLabel)
+        .attr('data-value', highestAllowedFramerate).data('value', highestAllowedFramerate);
+      console.log('%c[index.js, handleUnlockAllFps]', 'color: green;', 'Resetting unavailable framerate to highest allowed value: ' + highestAllowedFramerate);
+      storeData('frameRate', highestAllowedFramerate, null);
     }
   }
 }
@@ -9729,15 +9739,14 @@ function loadUserDataCb() {
       } else {
         document.querySelector('#gameModeBtn').MaterialSwitch.off();
       }
-      if (parseFloat(platformVer) === 5.5) {
-        document.querySelector('#gameModeBtn').MaterialSwitch.disable();
-      }
       storeData('gameMode', defaultGameMode, null);
     } else if (previousValue.gameMode == false) {
       document.querySelector('#gameModeBtn').MaterialSwitch.off();
     } else {
       document.querySelector('#gameModeBtn').MaterialSwitch.on();
     }
+    // Game Mode remains user-configurable on every supported Tizen version.
+    document.querySelector('#gameModeBtn').MaterialSwitch.enable();
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored optimizeBitrate preferences.');
