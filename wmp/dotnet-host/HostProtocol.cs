@@ -1215,8 +1215,11 @@ namespace MoonlightWmpHost
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
-                // Pass Game Mode through the native ABI explicitly; do not rely on
-                // managed/native environment-variable synchronization.
+                // Keep the player latency policy synchronized through its existing
+                // configuration variable. TV Game Mode itself is passed explicitly
+                // through the native ABI below, not read back from this environment.
+                Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
+                    request.GameMode != 0 ? "1" : "0");
                 // Common C startup markers are emitted only for explicit Debug Mode sessions.
                 Environment.SetEnvironmentVariable("MLENGINE_DIAGNOSTICS",
                     request.DebugMode != 0 ? "1" : "0");
