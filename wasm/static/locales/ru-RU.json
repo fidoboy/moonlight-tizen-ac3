@@ -639,5 +639,6 @@
   "Average renderer submit time:": "Среднее время отправки кадра рендерером:",
   "Frames missing from stream:": "Кадры, отсутствующие в потоке:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Если эта настройка включена, звук во время трансляции будет воспроизводиться и на хост-компьютере, и локально, при условии, что локальный аудиовыход также включён.",
-  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео. Рекомендуется оставлять эту функцию включённой."
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео. Рекомендуется оставлять эту функцию включённой.",
+  "Enable frame pacing": "Включить синхронизацию кадров"
 }
