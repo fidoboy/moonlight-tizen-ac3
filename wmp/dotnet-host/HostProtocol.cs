@@ -1058,6 +1058,7 @@ namespace MoonlightWmpHost
                 ", codecMode=" + DiagnosticArgument(bundle, "codecMode", false) +
                 ", hdr=" + DiagnosticArgument(bundle, "hdr", false) +
                 ", fullRange=" + DiagnosticArgument(bundle, "fullRange", false) +
+                ", gameMode=" + DiagnosticArgument(bundle, "gameMode", false) +
                 ", opticalOutputEnabled=" + DiagnosticArgument(bundle, "opticalOutputEnabled", false) +
                 ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false));
         }
@@ -1214,10 +1215,8 @@ namespace MoonlightWmpHost
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
-                // Game Mode is session configuration consumed by the native ESPlus renderer.
-                // Set it explicitly for every attempt so a previous session cannot leak its policy.
-                Environment.SetEnvironmentVariable("MLENGINE_GAME_MODE",
-                    request.GameMode != 0 ? "1" : "0");
+                // Pass Game Mode through the native ABI explicitly; do not rely on
+                // managed/native environment-variable synchronization.
                 // Common C startup markers are emitted only for explicit Debug Mode sessions.
                 Environment.SetEnvironmentVariable("MLENGINE_DIAGNOSTICS",
                     request.DebugMode != 0 ? "1" : "0");
@@ -1229,7 +1228,8 @@ namespace MoonlightWmpHost
                     request.Bitrate, request.Rikey, request.RikeyId,
                     request.AppVersion, request.GfeVersion, request.RtspUrl,
                     request.CodecMode, request.VideoCodec, request.Hdr,
-                    request.AudioConfig, request.FullRange, request.AudioEnabled);
+                    request.AudioConfig, request.FullRange, request.AudioEnabled,
+                    request.GameMode);
 
                 Log.Info("WMP_LIFECYCLE native_start_call_returned result=" +
                     result.ToString(CultureInfo.InvariantCulture));
