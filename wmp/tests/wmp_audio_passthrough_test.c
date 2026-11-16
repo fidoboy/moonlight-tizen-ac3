@@ -134,12 +134,16 @@ static void test_real_audio_follows_synthetic(void)
     AudEsplus_FillCallbacks(&callbacks);
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
 
-    /* Stop after three synthetic packets to model prepare_async_done(true). */
+    /* The synthetic stream remains the only audio until start() succeeds. */
     g_clock_pts_ns = 10000000ull; g_auto_advance_ns = 10000000ull; g_stop_after = 3;
     AudEsplus_PrimeSilence(); preroll_join();
     assert(g_submit_count == 3);
     assert(g_packets[2].pts_ns + g_packets[2].duration_ns <= g_clock_pts_ns);
 
+    callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
+    assert(g_submit_count == 3); /* Host audio is discarded before player start. */
+
+    AudEsplus_OnPlayerStarted();
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
     assert(g_submit_count == 4);
     assert(g_packets[3].data == real_packet);
@@ -160,16 +164,20 @@ static void test_real_audio_does_not_stop_preroll(void)
     for (i = 0; i < 6; ++i) opus.mapping[i] = (unsigned char)i;
     AudEsplus_FillCallbacks(&callbacks);
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
-    g_clock_pts_ns = 5000000ull;
+    g_clock_pts_ns = 10000000ull;
+    g_auto_advance_ns = 10000000ull;
+    g_stop_after = 3;
     AudEsplus_PrimeSilence();
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
-    assert(g_submit_count == 1 && g_last_packet.data == real_packet);
-    assert(g_last_packet.size == sizeof(real_packet));
-
-    /* Model prepare_async_done: real audio must not stop preroll; this
-     * lifecycle callback is the event that ends it. */
-    AudEsplus_StopSilence();
+    /* Host audio is discarded and cannot interrupt the synthetic feeder. */
     preroll_join();
+    assert(g_submit_count == 3);
+    for (int i = 0; i < g_submit_count; ++i)
+        assert(g_packets[i].data != real_packet);
+
+    AudEsplus_OnPlayerStarted();
+    callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
+    assert(g_submit_count == 4 && g_last_packet.data == real_packet);
     callbacks.cleanup();
 }
 
@@ -198,6 +206,7 @@ int main(void)
     reset_capture();
     g_ac3 = 0; g_eac3 = 1;
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
+    AudEsplus_OnPlayerStarted();
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_EAC3);
     assert(g_audio_info.codec_data == NULL && g_audio_info.codec_data_size == 0);
     assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
@@ -219,6 +228,7 @@ int main(void)
     reset_capture();
     g_ac3 = 0; g_eac3 = 0;
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
+    AudEsplus_OnPlayerStarted();
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_OPUS);
     assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
     assert(g_audio_info.codec_data_size == 27);

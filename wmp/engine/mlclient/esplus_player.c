@@ -27,6 +27,7 @@
 extern void AudEsplus_PrimeSilence(void);
 extern void AudEsplus_StopSilence(void);
 extern void AudEsplus_JoinSilence(void);
+extern void AudEsplus_OnPlayerStarted(void);
 
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
@@ -437,7 +438,6 @@ static void on_prepared(bool ok, void *context)
     }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
-    AudEsplus_StopSilence();
     MLT_DIAG("prepare_async_done callback state recorded ok=%d", ok ? 1 : 0);
 
     mldiag_player("pdone", ok ? 1 : 0);
@@ -937,6 +937,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             MLT_DIAG("ESPlus start RETURN status=%d raw=%d", (int)started.status, started.raw_status);
             if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
                 __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
+                AudEsplus_OnPlayerStarted();
                 pthread_cond_broadcast(&s_state_cv);
             } else {
                 s_start_failed = 1;

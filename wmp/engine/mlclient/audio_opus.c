@@ -30,6 +30,7 @@ static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
 static volatile int s_audio_codec_candidate;
 static volatile int s_audio_codec_active;
+static volatile int s_player_started;
 
 static pthread_mutex_t s_preroll_submit_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_preroll_thread_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -159,6 +160,13 @@ void AudEsplus_StopSilence(void)
     __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
 }
 
+/* Called only after native ESPlus start() succeeds. */
+void AudEsplus_OnPlayerStarted(void)
+{
+    __atomic_store_n(&s_player_started, 1, __ATOMIC_RELEASE);
+    AudEsplus_StopSilence();
+}
+
 void AudEsplus_JoinSilence(void)
 {
     AudEsplus_StopSilence();
@@ -260,6 +268,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     AudEsplus_StopSilence();
     preroll_join();
     __atomic_store_n(&s_preroll_stop, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_player_started, 0, __ATOMIC_RELEASE);
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -369,60 +378,49 @@ static void ar_decodePlay(char *data, int len)
     wmp_esplus_submit_result_t result;
     uint64_t duration_ns;
 
-    if (s_dolby) {
-        duration_ns = 32000000ull;
-        if (data && len > 0) {
-            if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
-                __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
-            memset(&packet, 0, sizeof(packet));
-            packet.type = WMP_ESPLUS_STREAM_AUDIO;
-            packet.data = data;
-            packet.size = (uint32_t)len;
-            packet.duration_ns = duration_ns;
-            pthread_mutex_lock(&s_preroll_submit_lock);
-            packet.pts_ns = esplus_stream_clock_pts_ns();
-            result = esplus_submit(&packet);
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
-                __atomic_store_n(&s_audio_codec_active,
-                    __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
-                    __ATOMIC_RELEASE);
-            pthread_mutex_unlock(&s_preroll_submit_lock);
-            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
-                ml_engine_notify_audio_ready();
-            if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
-                     result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
-                ALOG("submit Dolby audio failed status=%d raw=%d\n",
-                     (int)result.status, result.raw_status);
-        }
+    /*
+     * Before native start() succeeds, host audio is opaque to this renderer:
+     * no payload inspection, accounting, queuing, or submission. ESPlus is
+     * initialized exclusively with host video and codec-matched synthetic
+     * audio. Serialize the eventual handover with the synthetic feeder.
+     */
+    pthread_mutex_lock(&s_preroll_submit_lock);
+    if (!__atomic_load_n(&s_player_started, __ATOMIC_ACQUIRE)) {
+        pthread_mutex_unlock(&s_preroll_submit_lock);
         return;
     }
-
-    duration_ns = (uint64_t)s_samples_per_frame * 1000000000ull /
-                  (uint64_t)(s_sample_rate > 0 ? s_sample_rate : 48000);
     if (!data || len <= 0) {
-        /* A lost packet has no compressed payload to forward. */
+        pthread_mutex_unlock(&s_preroll_submit_lock);
         return;
     }
 
     if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
         __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
+
+    duration_ns = s_dolby
+        ? 32000000ull
+        : (uint64_t)s_samples_per_frame * 1000000000ull /
+          (uint64_t)(s_sample_rate > 0 ? s_sample_rate : 48000);
     memset(&packet, 0, sizeof(packet));
     packet.type = WMP_ESPLUS_STREAM_AUDIO;
-    packet.data = data;                 /* original Opus packet, no PCM stage */
+    packet.data = data; /* original negotiated compressed packet; no PCM stage */
     packet.size = (uint32_t)len;
     packet.duration_ns = duration_ns;
-    pthread_mutex_lock(&s_preroll_submit_lock);
     packet.pts_ns = esplus_stream_clock_pts_ns();
     result = esplus_submit(&packet);
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
-        __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_audio_codec_active,
+            __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
+            __ATOMIC_RELEASE);
     pthread_mutex_unlock(&s_preroll_submit_lock);
+
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
         ml_engine_notify_audio_ready();
-    if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS && result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
-             result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
-        ALOG("submit Opus audio failed status=%d raw=%d\n",
-             (int)result.status, result.raw_status);
+    if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
+        result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+        result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
+        ALOG("submit %s audio failed status=%d raw=%d\n",
+             s_dolby ? "Dolby" : "Opus", (int)result.status, result.raw_status);
 }
 
 void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS callbacks)
