@@ -125,8 +125,6 @@ static void ecore_runtime_unload(void)
     s_ecore_wl2_lib = s_ecore_lib = NULL;
 }
 
-#define PLOG(...) MLT("esplus: " __VA_ARGS__)
-
 static wmp_esplus_api_t s_api;
 static wmp_esplus_adapter_t s_adapter;
 static void *s_pl;
@@ -447,15 +445,12 @@ static void on_prepared(bool ok, void *context)
 
     mldiag_player("pdone", ok ? 1 : 0);
     if (!ok) {
-        fprintf(stderr, "[esplus] prepare_async_done reported false; start() will not be called\n");
-        PLOG("prepare_async_done reported false; start() will not be called\n");
-        MLT("prepare_async_done=false; start() skipped");
+            MLT("prepare_async_done=false; start() skipped");
         if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
             LiReportVideoRendererError();
         MLT_DIAG("prepare_async_done callback EXIT ok=0");
         return;
     }
-    PLOG("callback prepare_async_done=true\n");
     MLT("cb prepare_async_done=true");
     MLT_DIAG("prepare_async_done callback EXIT ok=1");
 }
@@ -477,7 +472,6 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     if (stream == WMP_ESPLUS_STREAM_AUDIO)
         AudEsplus_PrimeSilence();
     MLT_DIAG("ready_to_prepare callback state recorded stream=%d", (int)stream);
-    PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
     MLT_DIAG("ready_to_prepare callback EXIT stream=%d", (int)stream);
 }
@@ -509,10 +503,6 @@ static void on_error(int error, void *context)
         }
     }
 
-    fprintf(stderr, "[esplus] player error code=0x%08x (%d) description=%s\n",
-            (unsigned)error, error, description ? description : "unavailable");
-    PLOG("player error code=0x%08x (%d) description=%s\n",
-         (unsigned)error, error, description ? description : "unavailable");
     MLT("ESPlus player error code=0x%08x (%d): %s",
         (unsigned)error, error, description ? description : "unavailable");
     if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
@@ -546,9 +536,7 @@ static void on_conflict(void *context)
     (void)context;
     /* Record the native condition; Common C remains responsible for session state. */
     __atomic_store_n(&esplus_stats.recovery_state, 2, __ATOMIC_RELAXED);
-    fprintf(stderr, "[esplus] resource conflict\n");
-    PLOG("resource conflict\n");
-    MLT("cb resource_conflicted");
+    MLT("ESPlus resource conflict");
 }
 
 int esplus_create_open(void)
@@ -572,14 +560,10 @@ int esplus_create_open(void)
     memset(&s_adapter, 0, sizeof(s_adapter));
     memset(report, 0, sizeof(report));
     probe = wmp_esplus_probe(&s_api, report, sizeof(report));
-    PLOG("ESPlus probe=%s family=%s: %s\n",
-         wmp_esplus_probe_result_name(probe),
-         wmp_esplus_family_name(s_api.selected_family), report);
     MLT("ESPlus probe=%s family=%s: %s",
         wmp_esplus_probe_result_name(probe),
         wmp_esplus_family_name(s_api.selected_family), report);
     if (probe != WMP_ESPLUS_PROBE_OK) {
-        PLOG("ESPlus probe failed; native player will not be created\n");
         wmp_esplus_close(&s_api);
         pthread_mutex_unlock(&s_lock);
         return 0;
@@ -630,7 +614,6 @@ int esplus_create_open(void)
     callbacks.ready_to_prepare = on_ready;
     callbacks.prepare_async_done = on_prepared;
     if (wmp_esplus_adapter_bind(&s_adapter, &s_api, s_pl, &callbacks, NULL) != 0) {
-        PLOG("callback registration failed\n");
         (void)wmp_esplus_adapter_close(&s_adapter);
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
@@ -642,7 +625,6 @@ int esplus_create_open(void)
     opened = wmp_esplus_adapter_open(&s_adapter);
     mldiag_player("open", opened.raw_status);
     if (opened.status != WMP_ESPLUS_CALL_SUCCESS) {
-        PLOG("open failed (status=%d raw=%d)\n", (int)opened.status, opened.raw_status);
         (void)wmp_esplus_adapter_close(&s_adapter);
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
@@ -651,7 +633,6 @@ int esplus_create_open(void)
         return 0;
     }
 
-    PLOG("created+opened family=%s\n", wmp_esplus_family_name(s_api.selected_family));
     pthread_mutex_unlock(&s_lock);
     return 1;
 }
@@ -811,11 +792,8 @@ static int esplus_start_prepare_if_ready(void)
     pthread_mutex_unlock(&s_lock);
 
     MLT_DIAG("prepare_async CALL about_to_enter");
-    PLOG("calling ESPlus prepare_async after stream registration\n");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
     MLT_DIAG("prepare_async RETURN status=%d raw=%d", (int)result.status, result.raw_status);
-    PLOG("ESPlus prepare_async returned status=%d raw=%d\n",
-         (int)result.status, result.raw_status);
     MLT("prepare_async -> status=%d raw=%d", (int)result.status, result.raw_status);
     mldiag_player("prep", result.raw_status);
     if (result.status != WMP_ESPLUS_CALL_SUCCESS) {
@@ -823,8 +801,6 @@ static int esplus_start_prepare_if_ready(void)
         s_prepare_failed = 1;
         pthread_cond_broadcast(&s_state_cv);
         pthread_mutex_unlock(&s_lock);
-        PLOG("prepare_async failed (status=%d raw=%d)\n",
-             (int)result.status, result.raw_status);
         if (!__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL))
             LiReportVideoRendererError();
         return result_to_int(result);
@@ -937,7 +913,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
                                  s_start_failed ? "start() failed" : "player closing";
             if (!__atomic_exchange_n(&s_diag_feeder_rejection_logged, 1, __ATOMIC_ACQ_REL)) {
                 MLT("video feeder released without startup readiness: %s", reason);
-                PLOG("video submit rejected: %s\n", reason);
             }
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
@@ -971,18 +946,14 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             } else {
                 s_start_failed = 1;
                 pthread_cond_broadcast(&s_state_cv);
-                fprintf(stderr, "[esplus] start() failed after prepare_async_done(true): status=%d raw=%d\n",
-                        (int)started.status, started.raw_status);
-                PLOG("start() failed after prepare_async_done(true): status=%d raw=%d\n",
-                     (int)started.status, started.raw_status);
+                MLT("ESPlus start failed after prepare_async_done(true): status=%d raw=%d",
+                    (int)started.status, started.raw_status);
                 mldiag_player("start", started.raw_status);
                 result.status = WMP_ESPLUS_SUBMIT_REJECTED;
                 result.raw_status = INT_MIN;
                 pthread_mutex_unlock(&s_lock);
                 return result;
             }
-            PLOG("ESPlus start returned status=%d raw=%d (prepare callback=true)\n",
-                 (int)started.status, started.raw_status);
             mldiag_player("start", started.raw_status);
         }
     }
