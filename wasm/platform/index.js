@@ -7045,31 +7045,39 @@ function saveFramerate() {
 
 // ESPlusPlayer cannot sustain H.264 above 1080p at 60 FPS.
 function updateH264FramerateConstraint() {
-  var resolution = ($('#selectResolution').data('value') || '1280:720').split(':');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  if (!preferences) return;
+
+  // Derive the constraint exclusively from committed preferences.
+  var resolution = String(preferences.resolution || '1280:720').split(':');
   var height = parseInt(resolution[1], 10) || 0;
-  var isH264 = $('#selectCodec').data('value') === 'H264';
+  var isH264 = String(preferences.videoCodec || 'H264') === 'H264';
   var mustForce30Fps = isH264 && height > 1080;
   var framerateButton = $('#selectFramerate');
+  var currentFrameRate = String(preferences.frameRate == null ? '60' : preferences.frameRate);
 
-  if (mustForce30Fps && framerateButton.data('value') !== '30') {
+  if (mustForce30Fps && currentFrameRate !== '30') {
     var thirtyFpsOption = $('.videoFramerateMenu li[data-value="30"]').first();
-    if (thirtyFpsOption.length) {
-      framerateButton.text(thirtyFpsOption.text());
-    } else {
-      framerateButton.text('30 FPS');
-    }
+    framerateButton.text(thirtyFpsOption.length ? thirtyFpsOption.text() : '30 FPS')
+      .attr('data-value', '30').data('value', '30');
+    // Persist the enforced value; the committed snapshot is updated by storeData.
+    storeData('frameRate', '30', null).then(function() {
+      if (isBitrateOptimizationEnabled()) return optimizeBitratePresets();
+      return standardBitratePresets();
+    }).catch(function(error) {
+      console.error('%c[index.js, updateH264FramerateConstraint]', 'color: red;', 'Could not persist the H.264 frame-rate limit:', error);
+    });
+  } else if (mustForce30Fps) {
+    var selectedThirtyFpsOption = $('.videoFramerateMenu li[data-value="30"]').first();
+    if (selectedThirtyFpsOption.length) framerateButton.text(selectedThirtyFpsOption.text());
     framerateButton.attr('data-value', '30').data('value', '30');
-    storeData('frameRate', '30', null);
-    isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
   }
 
   framerateButton.prop('disabled', mustForce30Fps)
     .attr('aria-disabled', mustForce30Fps ? 'true' : 'false')
     .toggleClass('is-disabled', mustForce30Fps);
 
-  if (mustForce30Fps) {
-    closePopupMenu('selectFramerate');
-  }
+  if (mustForce30Fps) closePopupMenu('selectFramerate');
 }
 
 function warnResolutionFramerate() {
@@ -9156,6 +9164,9 @@ function refreshPersistedSettingDependencies() {
   }
   if (typeof updateHdrControlState === 'function') {
     updateHdrControlState();
+  }
+  if (typeof updateH264FramerateConstraint === 'function') {
+    updateH264FramerateConstraint();
   }
   if (typeof updateH264LevelControlState === 'function') {
     updateH264LevelControlState();
