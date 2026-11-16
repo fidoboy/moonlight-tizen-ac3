@@ -6972,25 +6972,39 @@ function cacheHostAppList(host, appList) {
 function saveStreamingEngine() {
   var chosenEngine = $(this).data('value');
   if (chosenEngine !== 'EMSS' && chosenEngine !== 'ESPLUSPLAYER') return;
-  var currentEngine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  if (chosenEngine === currentEngine) return;
+  var chosenLabel = $(this).text();
 
-  var currentBackend = String($('#selectAudioBackend').data('value') || 'EMSS');
-  if (chosenEngine === 'ESPLUSPLAYER') {
-    // Preserve the effective EMSS choice for the next time EMSS is selected.
-    audioBackendBeforeESPlusPlayerPreference = currentBackend === 'Disabled' ? 'Disabled' : currentBackend;
-    storeData('audioBackendBeforeWmp', audioBackendBeforeESPlusPlayerPreference, null);
-    currentBackend = currentBackend === 'Disabled' ? 'Disabled' : 'ESPLUSPLAYER';
-    setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', currentBackend);
-    storeData('audioBackend', currentBackend, null);
-    $('#selectStreamingEngine').text($(this).text()).attr('data-value', chosenEngine).data('value', chosenEngine);
-    storeData('streamingEngine', chosenEngine, null);
-    applyAudioBackendPolicy('enter-esplusplayer');
-  } else {
-    $('#selectStreamingEngine').text($(this).text()).attr('data-value', chosenEngine).data('value', chosenEngine);
-    storeData('streamingEngine', chosenEngine, null);
-    applyAudioBackendPolicy('leave-esplusplayer');
-  }
+  // Resolve the previous backend from IndexedDB, not from the selector being
+  // rendered. Apply the new engine policy only after its preference is committed.
+  readStreamingSettingsSnapshot().then(function(snapshot) {
+    configSummarySnapshot = snapshot;
+    var currentEngine = snapshot.preferences.streamingEngine === 'WMP'
+      ? 'ESPLUSPLAYER' : String(snapshot.preferences.streamingEngine || 'EMSS');
+    if (chosenEngine === currentEngine) return;
+
+    var currentBackend = String(snapshot.preferences.audioBackend || 'EMSS');
+    var preserveBackend = chosenEngine === 'ESPLUSPLAYER'
+      ? (currentBackend === 'Disabled' ? 'Disabled' : currentBackend)
+      : null;
+
+    $('#selectStreamingEngine').text(chosenLabel)
+      .attr('data-value', chosenEngine).data('value', chosenEngine);
+
+    var savePreviousBackend = preserveBackend !== null
+      ? storeData('audioBackendBeforeWmp', preserveBackend, null).then(function() {
+          audioBackendBeforeESPlusPlayerPreference = preserveBackend;
+        })
+      : Promise.resolve();
+
+    return savePreviousBackend.then(function() {
+      return storeData('streamingEngine', chosenEngine, null);
+    }).then(function() {
+      applyAudioBackendPolicy(chosenEngine === 'ESPLUSPLAYER'
+        ? 'enter-esplusplayer' : 'leave-esplusplayer');
+    });
+  }).catch(function(error) {
+    console.error('%c[index.js, saveStreamingEngine]', 'color: red;', 'Could not apply the persisted streaming-engine preference:', error);
+  });
 }
 
 function saveResolution() {
@@ -8272,9 +8286,12 @@ function applyAudioBackendPolicy(reason) {
   if (allowed.indexOf(backend) === -1) backend = engine === 'ESPLUSPLAYER' ? 'ESPLUSPLAYER' : 'EMSS';
 
   setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', backend);
-  storeData('audioBackend', backend, null);
   setAudioBackendMenuAvailability(engine, dolbyEnabled);
-  updateAudioBackendSettings();
+  storeData('audioBackend', backend, null).then(function() {
+    updateAudioBackendSettings();
+  }).catch(function(error) {
+    console.error('%c[index.js, applyAudioBackendPolicy]', 'color: red;', 'Could not persist the effective audio backend:', error);
+  });
 }
 
 function completeAudioBackendPolicyLoad() {
