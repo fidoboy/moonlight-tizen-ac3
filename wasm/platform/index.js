@@ -8499,16 +8499,20 @@ function updateHdrControlState() {
 function updateVideoCodec(chosenCodecId, chosenCodecValue) {
   $('#selectCodec').text($(chosenCodecId).text()).attr('data-value', chosenCodecValue).data('value', chosenCodecValue);
   console.log('%c[index.js, updateVideoCodec]', 'color: green;', 'Saving video codec value: ' + chosenCodecValue);
-  storeData('videoCodec', chosenCodecValue, null);
 
-  updateH264FramerateConstraint();
+  return storeData('videoCodec', chosenCodecValue, null).then(function() {
+    updateH264FramerateConstraint();
 
-  // Update the bitrate value based on the selected codec
-  if (isBitrateOptimizationEnabled()) {
-    optimizeBitratePresets();
-  }
-  // Trigger warning check after changing video codec
-  warnVideoCodec();
+    // Recalculate only after the selected codec is committed to IndexedDB.
+    if (isBitrateOptimizationEnabled()) {
+      return optimizeBitratePresets();
+    }
+  }).then(function() {
+    // Trigger warning check after changing video codec.
+    warnVideoCodec();
+  }).catch(function(error) {
+    console.error('%c[index.js, updateVideoCodec]', 'color: red;', 'Could not apply the selected video codec:', error);
+  });
 }
 
 function warnVideoCodec() {
@@ -8562,12 +8566,14 @@ function updateHdrMode() {
   setTimeout(() => {
     const chosenHdrMode = $('#hdrModeSwitch').prop('checked');
     console.log('%c[index.js, updateHdrMode]', 'color: green;', 'Saving HDR mode state: ' + chosenHdrMode);
-    storeData('hdrMode', chosenHdrMode, null);
-
-    // Update the bitrate value based on the selected HDR state
-    if (isBitrateOptimizationEnabled()) {
-      optimizeBitratePresets();
-    }
+    storeData('hdrMode', chosenHdrMode, null).then(function() {
+      // Recalculate only after the HDR preference is committed to IndexedDB.
+      if (isBitrateOptimizationEnabled()) {
+        return optimizeBitratePresets();
+      }
+    }).catch(function(error) {
+      console.error('%c[index.js, updateHdrMode]', 'color: red;', 'Could not apply the saved HDR preference:', error);
+    });
   }, 100);
 }
 
