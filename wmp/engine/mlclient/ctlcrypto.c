@@ -52,7 +52,9 @@ bool __wrap_PltEncryptMessage(void *ctx, int algorithm, int flags, unsigned char
     v = verify_gcm(key, iv, ivLength, tag, outputData, *outputDataLength, plain);
   unsigned call = mldiag_ctl_encrypt(r, ivLength, v);   /* per session: the trace below covers each session's first 8 */
 #ifdef MLT_TRACE
-  if (call <= 8 || v == 0) {
+  static volatile int verify_failure_logged;
+  if (call <= 8 || (v == 0 &&
+      !__atomic_exchange_n(&verify_failure_logged, 1, __ATOMIC_ACQ_REL))) {
     char hex[33] = "";
     for (int i = 0; i < ivLength && i < 16; i++) snprintf(hex + 2 * i, 3, "%02x", iv[i]);
     MLT("ctl gcm #%u ivlen=%d iv=%s in=%d out=%d real=%d verify=%d", call, ivLength, hex, inputDataLength,
