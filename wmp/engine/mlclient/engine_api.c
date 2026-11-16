@@ -34,7 +34,7 @@ static int g_audio_enabled = 1;
 /* Samsung's internal AVOC entry point controls the TV picture Game Mode.
  * It is optional firmware functionality: failure to load it must never block
  * a Moonlight session. Keep the library loaded for the process lifetime. */
-typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
+typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
 static pthread_mutex_t g_game_mode_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *g_avoc_library;
 static avoc_set_game_mode_fn g_avoc_set_game_mode;
@@ -98,8 +98,8 @@ static void set_tv_game_mode(int enabled) {
     MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
   } else {
     int mode = enabled ? 1 : 0;
-    MLT("AVOC: calling avoc_set_game_mode(save_type=1, mode=%d)", mode);
-    int rc = g_avoc_set_game_mode(1, mode);
+    MLT("AVOC: calling avoc_set_game_mode(unused=0, save_type=1, mode=%d)", mode);
+    int rc = g_avoc_set_game_mode(0, 1, mode);
     MLT("AVOC: avoc_set_game_mode returned rc=%d", rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
