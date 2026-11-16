@@ -128,12 +128,6 @@ class Tracker {
 // The streaming menu owns all remote input while it is visible.
 std::atomic<bool> streamMenuInputBlocked{false};
 
-// Stream termination can happen outside the gamepad polling loop. Reset the
-// local mode explicitly so it cannot carry over into a later session.
-extern "C" EMSCRIPTEN_KEEPALIVE int resetGamepadMouseEmulation() {
-  const bool wasActive = mouseEmulationActive.exchange(false, std::memory_order_acq_rel);
-  return wasActive ? 1 : 0;
-}
 
 // Bitmask for gamepad combo buttons to stop the streaming session
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
@@ -147,6 +141,13 @@ bool rumbleFeedbackSwitch = false;
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
 std::atomic<bool> mouseEmulationActive{false};
+
+// Stream termination can happen outside the gamepad polling loop. Reset the
+// local mode explicitly so it cannot carry over into a later session.
+extern "C" EMSCRIPTEN_KEEPALIVE int resetGamepadMouseEmulation() {
+  const bool wasActive = mouseEmulationActive.exchange(false, std::memory_order_acq_rel);
+  return wasActive ? 1 : 0;
+}
 bool selectHoldStreamMenuSwitch = false;
 std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
 std::map<int, bool> selectMenuTriggered;
@@ -545,7 +546,7 @@ void MoonlightInstance::PollGamepads() {
     }
 
     // If mouse emulation is active, then send mouse input to the desired handler (acts as a mouse)
-    if (mouseEmulationActive) {
+    if (mouseEmulationActive.load(std::memory_order_acquire)) {
       // Left Stick values are mapped to horizontal and vertical mouse movements
       const float baseMouseSpeed = 10.0f;
       const float leftStickMagnitude = std::sqrt(leftStickX * leftStickX + leftStickY * leftStickY) / std::numeric_limits<short>::max();
