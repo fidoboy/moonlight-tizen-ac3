@@ -189,6 +189,33 @@ The helper reads DB setting `0x38` using the incoming `save_type`. This value is
 - When requested mode is zero and the previous value in setting `0x38` is nonzero, it restores, in order: sound mode from setting `0x60`, Picture Mode from setting `0x04`, Film Mode from `0x44`, RGB Only from `0x46`, and Digital Clean View from `0x113`. The reads use `save_type=1`; the corresponding application calls use the observed zero-valued flags/arguments.
 - A changed-mode path emits event identifier `0x0D`. The helper's observed normal return value is zero.
 
+#### VRR and Game Motion Plus state coordination
+
+The LFD path and other Game Mode paths call the server helper:
+
+```cpp
+avocd_update_vrr_smc_state(
+    AvocData* data,
+    tztv_source_e source,
+    avoc_game_mode_e requested_mode
+);
+```
+
+The helper first checks Game Mode subfeature identifiers `1` and `2` independently through `avocd_check_game_feature_support()`. In the observed control flow:
+
+- If both subfeatures are unsupported, the helper returns without calling either AVE state-update operation.
+- When subfeature `1` is supported, the observed reset path calls `avocd_ave_api_set_vrr_mode(0)`.
+- When subfeature `1` is unsupported but subfeature `2` is supported, the observed reset path calls `avocd_ave_api_update_game_motion_plus(0, 0, 0, 0)), then writes zero to volatile setting `0x1E`.
+- For `requested_mode != 1`, the four arguments prepared for the Game Motion Plus update are initialized to zero before this reset path.
+
+For `requested_mode == 1`, the helper additionally calls `avocd_check_smooth_motion_control(data)`:
+
+- Return value `1` branches to a separate configuration path whose operations have not yet been reconstructed.
+- A nonzero return other than `1` exits the helper.
+- Return value `0` leads to checks of volatile settings `0x20` and `0x25`. A nonzero value from setting `0x20` selects another not-yet-reconstructed path. When setting `0x20` is zero, both outcomes of the subsequent setting-`0x25` test ultimately reach the reset path; the nonzero case additionally emits diagnostic logging.
+
+The observed AVE operations associate subfeature `1` with the VRR setter path and subfeature `2` with the Game Motion Plus update path. This is a control-flow association, not a recovered public enum definition. The meanings of volatile settings `0x1E`, `0x20`, and `0x25`, the four Game Motion Plus arguments in non-reset paths, and the remaining `requested_mode == 1` branches are unresolved. The `source` parameter's use is not established by the examined fragment.
+
 For `requested_mode == 1`, the helper reads the current sound mode with `AVOC_audio_get_sound_mode(data, &sound_mode, 1)` and checks it with `avocd_check_special_view_sound_mode(sound_mode)`. The observed paths then restore the sound mode through `avocd_audio_set_sound_mode(service, data, sound_mode, 1)`. When the special-view check is false, the current sound mode is first written to DB setting `0x60` with `save_type=1`.
 
 The helper reads DB setting `0x03` using the incoming `save_type`. Unless its value is in the inclusive range `0x20012`–`0x20013`, that value is copied to DB setting `0x04`, also using the incoming `save_type`. It then checks the effective HDR state through:
