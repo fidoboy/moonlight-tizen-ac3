@@ -555,6 +555,11 @@
         // Keep the event for lifecycle/UI consumers without printing it twice.
         return;
       }
+      // Performance-statistics samples are consumed by the overlay/graph handlers.
+      // They are high-frequency UI data, not diagnostic log events.
+      if (/^(StatMsg: |GraphMsg: |HostLatencyMsg: |ProgressMsg: )/.test(String(message.event || ''))) {
+        return;
+      }
       debugLog('native event received', {
         event: message.event || null,
         detail: message.detail || null
