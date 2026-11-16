@@ -216,7 +216,6 @@ static void report_failure(int code, int stage) {
 }
 
 static void cl_stageFailed(int stage, int errorCode) {
-  fprintf(stderr, "[ml] stage %d FAILED err=%d\n", stage, errorCode);
   MLT("stageFailed stage=%d err=%d", stage, errorCode);
   report_failure(errorCode, stage);
 }
@@ -224,7 +223,6 @@ static void cl_stageFailed(int stage, int errorCode) {
    caller runs ml_engine_stop(), which releases the HW overlay. Without this the
    overlay stays grabbed and blocks the TV's own broadcast video. */
 static void cl_connTerminated(int errorCode) {
-  fprintf(stderr, "[ml] connection terminated err=%d\n", errorCode);
   MLT("connectionTerminated err=%d", errorCode);
   if (errorCode != 0) report_failure(errorCode, -1);   /* before g_running = 0: the host reads it after */
   set_tv_game_mode(0);
@@ -236,7 +234,7 @@ static int cc_log_is_important(const char *line) {
   static const char *const markers[] = {
     "failed", "FAILED", "error", "Error", "ERROR", "corrupt", "Corrupt",
     "overflow", "Overflow", "Unrecoverable", "Protected content",
-    "Requesting IDR", "Received first video packet"
+    "Received first video packet"
   };
   for (unsigned i = 0; i < sizeof(markers) / sizeof(markers[0]); ++i)
     if (strstr(line, markers[i])) return 1;
@@ -247,7 +245,6 @@ static int cc_log_is_important(const char *line) {
 static void cl_logMessage(const char *format, ...) {
   mldiag_cc_line(format);
   if (!cc_log_is_important(format)) return;
-  fputs(format, stderr);
   MLT("cc: %s", format);
 }
 
@@ -255,11 +252,9 @@ static void cl_stageStarting(int stage) {
   const char *name = LiGetStageName(stage);
   ml_engine_stage_cb cb = __atomic_load_n(&g_stage_cb, __ATOMIC_ACQUIRE);
   if (cb) cb(stage, name ? name : "connection");
-  fprintf(stderr, "[ml] stage %d (%s) starting\n", stage, name ? name : "unknown");
   MLT("stage %d (%s) starting", stage, name ? name : "unknown");
 }
 static void cl_stageComplete(int stage) {
-  fprintf(stderr, "[ml] stage %d (%s) complete\n", stage, LiGetStageName(stage));
   MLT("stage %d (%s) complete", stage, LiGetStageName(stage));
 }
 
