@@ -639,5 +639,6 @@
   "Average renderer submit time:": "Tempo médio de envio do renderizador:",
   "Frames missing from stream:": "Quadros ausentes no fluxo:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Quando ativada, o áudio durante a transmissão será reproduzido tanto no computador host quanto localmente, desde que a saída de áudio local também esteja ativada.",
-  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo. Recomenda-se manter esta opção ativada."
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo. Recomenda-se manter esta opção ativada.",
+  "Enable frame pacing": "Ativar o ajuste do ritmo dos quadros"
 }
