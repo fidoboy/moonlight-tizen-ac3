@@ -67,7 +67,7 @@
   "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Se eliminarán de Moonlight todas las entradas de equipos guardadas. Para volver a utilizarlos, puede que tenga que añadirlos y emparejarlos de nuevo. Esto no afectará a los PC anfitriones ni a sus archivos.",
   "Allow audio synchronization support for optimal sound output": "Permitir la sincronización de audio para obtener una salida de sonido óptima",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "Permitir descifrar audio AES-CBC de equipos con Wolf o Punktfunk",
-  "Allow frame pacing to balance video latency and smoothness": "Permitir la sincronización de fotogramas para equilibrar la latencia y la fluidez del vídeo",
+  "Allow frame pacing to balance video latency and smoothness": "Permitir la sincronización de fotogramas para equilibrar la latencia y la fluidez del vídeo Se recomienda mantenerlo activado.",
   "Allow full color range for more detail in dark and bright areas of content": "Permitir el rango de color completo para mejorar los detalles en zonas claras y oscuras",
   "Allow game mode for optimal latency and performance while streaming": "Activar el modo de juego para optimizar la latencia y el rendimiento",
   "Allow gamepad rumble feedback support while streaming": "Permitir la vibración del mando durante la retransmisión",
