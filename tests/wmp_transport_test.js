@@ -364,6 +364,8 @@ vm.runInNewContext(source, {
     'Debug builds must print each native engine log line separately');
   const statsToggle = await window.ESPlusPlayerTransport.toggleStats();
   assert.strictEqual(statsToggle.payload.enabled, true);
+  assert.deepStrictEqual(handledEvents, [],
+    'high-frequency statistics events must be consumed by the overlay, not forwarded as application messages');
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
@@ -394,7 +396,7 @@ vm.runInNewContext(source, {
     {key: 'type', value: 'event'},
     {key: 'event', value: 'displayVideo'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo']);
+  assert.deepStrictEqual(handledEvents, ['displayVideo']);
 
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
@@ -403,7 +405,7 @@ vm.runInNewContext(source, {
     {key: 'detail', value: 'ESPlus player error 0x2001'}
   ]);
   assert.deepStrictEqual(handledEvents, [
-    'StatMsg: ', 'displayVideo'
+    'displayVideo'
   ], 'fatal ESPlusPlayer player errors must not show a transient warning; stream termination owns the shared error dialog');
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlus player error 0x2001');
 
@@ -413,7 +415,7 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'streamTerminated: -1'},
     {key: 'detail', value: 'ESPlusPlayer engine start failed (code -101)'}
   ]);
-  assert.deepStrictEqual(handledEvents, ['StatMsg: ', 'displayVideo', 'streamTerminated: -1']);
+  assert.deepStrictEqual(handledEvents, ['displayVideo', 'streamTerminated: -1']);
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlusPlayer engine start failed (code -101)');
   if (statusChangeListener) statusChangeListener(expectedServiceAppId, false);
   assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1,
