@@ -10202,17 +10202,8 @@ function updateConfigSummaryBar() {
 
   bar.classList.toggle('config-summary-bottom', summaryPosition === 'bottom');
 
-  // Keep the strip in normal layout flow, above or below the main content.
-  var mainContent = document.getElementById('main-content');
-  if (mainContent && mainContent.parentNode) {
-    if (summaryPosition === 'bottom') {
-      if (bar.parentNode !== mainContent.parentNode || bar.previousSibling !== mainContent) {
-        mainContent.parentNode.insertBefore(bar, mainContent.nextSibling);
-      }
-    } else if (bar.parentNode !== mainContent.parentNode || bar.nextSibling !== mainContent) {
-      mainContent.parentNode.insertBefore(bar, mainContent);
-    }
-  }
+  // The summary bar is fixed to the viewport; its DOM position must not
+  // participate in the layout of the Hosts or Apps content.
 
   // Keep the element in the DOM, but suppress it during UI transitions that must not show the summary bar.
   if (configSummaryTemporarilyHidden) {
