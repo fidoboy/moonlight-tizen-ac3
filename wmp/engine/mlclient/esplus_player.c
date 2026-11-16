@@ -110,8 +110,6 @@ static int ecore_runtime_load(void)
 fail:
     error = dlerror();
     MLT("ecore runtime load failed: %s", error ? error : "missing required symbol");
-    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\n",
-            error ? error : "missing required symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
     if (s_ecore_lib) dlclose(s_ecore_lib);
     s_ecore_wl2_lib = s_ecore_lib = NULL;
@@ -366,7 +364,6 @@ void esplus_sample_tick(uint64_t now_ms)
             s_idr_last = now_ms;
             ++s_idr_n;
             request_idr = 1;
-            MLT("no video packet yet: IDR request retry #%u", s_idr_n);
         }
     }
     ++s_tick_seq;
@@ -528,7 +525,7 @@ static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e sta
         __atomic_fetch_add(&esplus_stats.overruns, 1, __ATOMIC_RELAXED);
 }
 static void on_seek_done(void *context) { (void)context; }
-static void on_eos(void *context) { (void)context; MLT("cb eos"); }
+static void on_eos(void *context) { (void)context; }
 static void on_conflict(void *context)
 {
     (void)context;
