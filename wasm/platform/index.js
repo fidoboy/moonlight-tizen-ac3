@@ -6790,76 +6790,78 @@ function callCb(key, value, callbackFunction) {
 
 function getData(key, callbackFunction) {
   let cb = function() {
+    let value = null;
     try {
-      // Open a transaction to the database
       const transaction = db.transaction(storeName, 'readonly');
       const readRequest = transaction.objectStore(storeName).get(key);
-
-      // Retrieve the data that was stored
-      readRequest.onsuccess = function(e) {
-        if (DEBUG_MODE) {
-          var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA
-            ? '--- HIDDEN ---'
-            : readRequest.result;
-          console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
+      readRequest.onsuccess = function() {
+        try {
+          if (DEBUG_MODE) {
+            var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA
+              ? '--- HIDDEN ---'
+              : readRequest.result;
+            console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
+          }
+          value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
+          callCb(key, value, callbackFunction);
+        } catch (error) {
+          console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
+          callCb(key, null, callbackFunction);
         }
-        let value = null;
-        if (readRequest.result) {
-          value = JSON.parse(readRequest.result);
-        }
-        callCb(key, value, callbackFunction);
       };
-
-      transaction.onerror = function(e) {
-        console.error('%c[index.js, getData]', 'color: green;', 'Error: Unable to read data at the: ' + key + ' from IndexedDB: ' + e);
-        callCb(key, value, callbackFunction);
+      transaction.onerror = function(event) {
+        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', transaction.error || event);
+        callCb(key, null, callbackFunction);
       };
-    } catch (err) {
-      console.error('%c[index.js, getData]', 'color: green;', 'Error: Something went wrong while reading data at the key: ' + key + ' from IndexedDB: ' + err);
-      callCb(key, value, callbackFunction);
+      transaction.onabort = function() {
+        console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
+      };
+    } catch (error) {
+      console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
+      callCb(key, null, callbackFunction);
     }
   };
-
-  if (db) {
-    cb();
-  } else {
-    openIndexDB(cb);
-  }
+  if (db) cb();
+  else openIndexDB(cb);
 }
 
 function storeData(key, data, callbackFunction) {
-  let cb = function() {
-    try {
-      // Open a transaction to the database
-      const transaction = db.transaction(storeName, 'readwrite');
-      // Put the text into the database
-      const put = transaction.objectStore(storeName).put(JSON.stringify(data), key);
-
-      transaction.oncomplete = function(e) {
-        if (DEBUG_MODE) {
-          var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA
-            ? '--- HIDDEN ---'
-            : data;
-          console.log('%c[index.js, storeData]', 'color: green;', 'Storing data at key: ' + key + ' with data: ', databaseValue);
-        }
-        if (callbackFunction) {
-          callbackFunction();
-        }
-      };
-
-      transaction.onerror = function(e) {
-        console.error('%c[index.js, storeData]', 'color: green;', 'Error: Unable to store data in IndexedDB: ' + e);
-      };
-    } catch (err) {
-      console.error('%c[index.js, storeData]', 'color: green;', 'Error: Something went wrong while storing data at the key: ' + key + ' from IndexedDB: ' + err);
+  var operation = new Promise(function(resolve, reject) {
+    function write() {
+      try {
+        const transaction = db.transaction(storeName, 'readwrite');
+        transaction.objectStore(storeName).put(JSON.stringify(data), key);
+        transaction.oncomplete = function() {
+          if (DEBUG_MODE) {
+            var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
+            console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
+          }
+          if (typeof callbackFunction === 'function') callbackFunction();
+          resolve(data);
+        };
+        transaction.onerror = function(event) {
+          var error = transaction.error || (event && event.target && event.target.error) ||
+            new Error('IndexedDB write failed for key: ' + key);
+          console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
+          reject(error);
+        };
+        transaction.onabort = function() {
+          var error = transaction.error || new Error('IndexedDB write aborted for key: ' + key);
+          console.error('%c[index.js, storeData]', 'color: red;', 'Write transaction aborted for key ' + key + ':', error);
+          reject(error);
+        };
+      } catch (error) {
+        console.error('%c[index.js, storeData]', 'color: red;', 'Could not store key ' + key + ':', error);
+        reject(error);
+      }
     }
-  };
-
-  if (db) {
-    cb();
-  } else {
-    openIndexDB(cb);
-  }
+    if (db) write();
+    else {
+      try { openIndexDB(write); }
+      catch (error) { reject(error); }
+    }
+  });
+  return operation;
 }
 
 // Storing data takes the data as an object, and shoves it into JSON to store.
@@ -8928,38 +8930,46 @@ function readStoredPreferences(keys) {
       var objectStore = transaction.objectStore(storeName);
       var values = {};
       var remaining = keys.length;
-
+      var failed = false;
       if (remaining === 0) {
-        resolve(values);
+        transaction.oncomplete = function() { resolve(values); };
         return;
       }
-
       keys.forEach(function(key) {
         var request = objectStore.get(key);
         request.onsuccess = function() {
+          if (failed) return;
           try {
-            var storedValue = request.result !== undefined && request.result !== null
-              ? JSON.parse(request.result) : null;
+            var storedValue = request.result != null ? JSON.parse(request.result) : null;
             values[key] = storedValue !== null && typeof storedValue === 'object' &&
-              Object.prototype.hasOwnProperty.call(storedValue, key)
-                ? storedValue[key] : storedValue;
+              Object.prototype.hasOwnProperty.call(storedValue, key) ? storedValue[key] : storedValue;
             remaining--;
-            if (remaining === 0) resolve(values);
           } catch (error) {
-            reject(error);
+            failed = true;
+            reject(new Error('Invalid stored setting "' + key + '": ' + error.message));
           }
         };
         request.onerror = function() {
+          if (failed) return;
+          failed = true;
           reject(request.error || new Error('Could not read setting: ' + key));
         };
       });
-
+      transaction.oncomplete = function() {
+        if (!failed && remaining === 0) resolve(values);
+        else if (!failed) reject(new Error('IndexedDB completed without returning every requested setting.'));
+      };
       transaction.onerror = function() {
+        if (failed) return;
+        failed = true;
         reject(transaction.error || new Error('Could not read streaming settings.'));
       };
-    } catch (error) {
-      reject(error);
-    }
+      transaction.onabort = function() {
+        if (failed) return;
+        failed = true;
+        reject(transaction.error || new Error('Streaming settings read was aborted.'));
+      };
+    } catch (error) { reject(error); }
   });
 }
 
