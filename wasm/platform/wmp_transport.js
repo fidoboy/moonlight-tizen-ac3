@@ -1448,6 +1448,14 @@
     for (var i = 0; i < buttons.length && i < map.length; i++) {
       if (Number(buttons[i]) > 0.5) flags |= map[i];
     }
+    var normalizedAxes = Array.isArray(axes) ? axes : [];
+    if (streamMenuInputBlocked) {
+      if (isNeutralGamepadState(flags, buttons, normalizedAxes)) {
+        delete gamepadNeutralRequired[index];
+      }
+      return;
+    }
+
     if (flags === (0x0020 | 0x0010 | 0x0100 | 0x0200)) {
       if (typeof global.requestManualStreamStop === 'function') {
         global.requestManualStreamStop();
@@ -1463,14 +1471,6 @@
     }
     if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
       request('toggle_stats').catch(function() {});
-      return;
-    }
-
-    var normalizedAxes = Array.isArray(axes) ? axes : [];
-    if (streamMenuInputBlocked) {
-      if (isNeutralGamepadState(flags, buttons, normalizedAxes)) {
-        delete gamepadNeutralRequired[index];
-      }
       return;
     }
     if (gamepadNeutralRequired[index]) {
@@ -1575,6 +1575,10 @@
     // DOM keyboard events carry a physical KeyboardEvent.code; Samsung's
     // platform remote callback is handled separately by remote_controller.js.
     if (isSamsungRemoteKey && (!event.code || event.code === 'Unidentified')) return;
+
+    // The visible Stream Menu owns physical keyboard input. Its explicit
+    // host-shortcut buttons use sendKey() directly and bypass this event gate.
+    if (keyboardInputUiBlocked()) return;
 
     // Reserve Ctrl+Alt+Shift+Q for Moonlight while WMP owns the stream.
     // It must never be forwarded as a host keyboard shortcut.
