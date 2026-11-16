@@ -6030,6 +6030,24 @@ function startGame(host, appID) {
         return;
       }
 
+      var optimizeBitrate = streamSettings.optimizeBitrate === true ||
+        streamSettings.optimizeBitrate === 'true' || streamSettings.optimizeBitrate === 1;
+      if (optimizeBitrate) {
+        var optimizedBitrateKbps = calculateOptimizedBitrate(streamSettings.preferences || {});
+        var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
+        try {
+          await storeData('bitrate', optimizedBitrateMbps, null);
+          streamSettings.bitrate = optimizedBitrateKbps;
+          if (streamSettings.preferences) streamSettings.preferences.bitrate = optimizedBitrateMbps;
+          console.log('%c[index.js, startGame]', 'color: green;', 'Persisted startup-optimized bitrate: ' + optimizedBitrateMbps + ' Mbps');
+        } catch (bitrateError) {
+          console.error('%c[index.js, startGame]', 'color: red;', 'Could not persist the optimized bitrate; aborting stream startup:', bitrateError);
+          if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not save the optimized streaming bitrate.');
+          else streamStartupTimeoutFailure('connection', t('Could not save the optimized streaming bitrate.'));
+          return;
+        }
+      }
+
       var streamWidth = streamSettings.streamWidth;
       var streamHeight = streamSettings.streamHeight;
       var frameRate = streamSettings.frameRate;
@@ -7025,8 +7043,8 @@ function saveResolution() {
 
   updateH264FramerateConstraint();
 
-  // Update the bitrate value based on the selected resolution
-  isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
+  // Optimized bitrate is calculated once from persisted settings at stream startup.
+  if (!isBitrateOptimizationEnabled()) standardBitratePresets();
   // Trigger warning check after changing video resolution
   warnResolutionFramerate();
 }
@@ -7037,8 +7055,8 @@ function saveFramerate() {
   console.log('%c[index.js, saveFramerate]', 'color: green;', 'Saving framerate value: ' + chosenFramerate);
   storeData('frameRate', chosenFramerate, null);
 
-  // Update the bitrate value based on the selected frame rate
-  isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
+  // Optimized bitrate is calculated once from persisted settings at stream startup.
+  if (!isBitrateOptimizationEnabled()) standardBitratePresets();
   // Trigger warning check after changing video frame rate
   warnResolutionFramerate();
 }
@@ -7062,8 +7080,7 @@ function updateH264FramerateConstraint() {
       .attr('data-value', '30').data('value', '30');
     // Persist the enforced value; the committed snapshot is updated by storeData.
     storeData('frameRate', '30', null).then(function() {
-      if (isBitrateOptimizationEnabled()) return optimizeBitratePresets();
-      return standardBitratePresets();
+      if (!isBitrateOptimizationEnabled()) return standardBitratePresets();
     }).catch(function(error) {
       console.error('%c[index.js, updateH264FramerateConstraint]', 'color: red;', 'Could not persist the H.264 frame-rate limit:', error);
     });
@@ -7208,47 +7225,19 @@ function isBitrateOptimizationEnabled() {
   return value === true || value === 'true' || value === 1;
 }
 
-function optimizeBitratePresets() {
-  console.log('%c[index.js, optimizeBitratePresets]', 'color: green;', 'Applying optimize bitrate presets...');
-  // Read after the triggering preference write so rapid UI changes cannot
-  // calculate a bitrate from an older snapshot or from rendered controls.
-  return readStreamingSettingsSnapshot().then(function(snapshot) {
-  var preferences = snapshot.preferences;
+function calculateOptimizedBitrate(preferences) {
   var resolution = String(preferences.resolution || '1280:720').split(':');
   var width = parseInt(resolution[0], 10);
   var height = parseInt(resolution[1], 10);
   var frameRate = Number(preferences.frameRate || 60);
   var videoCodec = String(preferences.videoCodec || 'H264');
-  var hdrMode = preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1 ? 1 : 0;
-
-  // Multiplier to adjust bitrate based on codec efficiency
-  // Sweet-spot formula reference: https://www.reddit.com/r/MoonlightStreaming/comments/1gg2cdy/sweet_spot_bitrate/
-  var codecMultiplier = {
-    "H264": 1.0,
-    "HEVC": 0.6,
-    "AV1": 0.4
-  }[videoCodec];
-
-  // Bitrate factor depends on HDR state
+  var hdrMode = preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1;
+  var codecMultipliers = { H264: 1.0, HEVC: 0.6, AV1: 0.4 };
+  var codecMultiplier = codecMultipliers[videoCodec];
   var bitrateFactor = hdrMode ? 6630.5 : 8309;
-
-  // Calculate optimized bitrate based on resolution, framerate, codec efficiency, and HDR state
-  var baseBitrate = width * height * frameRate / bitrateFactor;
-  var finalBitrate = Math.round(baseBitrate * codecMultiplier);
-
-  // Apply the default bitrate value in case of invalid calculation
-  if (finalBitrate <= 0) {
-    finalBitrate = 10;
-  }
-
-  // Set the bitrate slider value based on the calculated optimized bitrate
-  $('#bitrateSlider')[0].MaterialSlider.change(finalBitrate / 1000);
-
-  // Update and persist the bitrate value after calculating from committed settings.
-  saveBitrate();
-  }).catch(function(error) {
-    console.error('%c[index.js, optimizeBitratePresets]', 'color: red;', 'Could not calculate optimized bitrate from persisted settings:', error);
-  });
+  var finalBitrate = Math.round(width * height * frameRate / bitrateFactor * codecMultiplier);
+  if (!isFinite(finalBitrate) || finalBitrate <= 0) finalBitrate = 10;
+  return finalBitrate;
 }
 
 function saveFramePacing() {
@@ -8463,9 +8452,8 @@ function updateH264LevelControlState() {
   if (!button) return;
 
   const preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-  const codec = preferences && preferences.videoCodec != null
-    ? preferences.videoCodec : $('#selectCodec').data('value');
-  const enabled = codec === 'H264';
+  if (!preferences) return;
+  const enabled = preferences.videoCodec === 'H264';
   button.disabled = !enabled;
   button.setAttribute('aria-disabled', String(!enabled));
   button.classList.toggle('is-disabled', !enabled);
@@ -8475,15 +8463,10 @@ function updateHdrControlState() {
   const hdrInput = document.getElementById('hdrModeSwitch');
   const hdrSwitch = document.getElementById('hdrModeBtn');
   const preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-  const codec = preferences && preferences.videoCodec != null
-    ? preferences.videoCodec : $('#selectCodec').data('value');
-  const isH264 = codec === 'H264';
-  const persistedHdr = preferences && (
-    preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1
-  );
+  if (!preferences || !hdrInput || !hdrSwitch) return;
+  const isH264 = preferences.videoCodec === 'H264';
+  const persistedHdr = preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1;
   const isUnavailable = isH264 || isHdrCapable === false;
-
-  if (!hdrInput || !hdrSwitch) return;
 
   // HDR requires a compatible codec. Disable it for the TV only when lack of HDR is confirmed.
   if (isUnavailable && (hdrInput.checked || persistedHdr)) {
@@ -8492,7 +8475,9 @@ function updateHdrControlState() {
     } else {
       hdrInput.checked = false;
     }
-    updateHdrMode();
+    storeData('hdrMode', false, null).catch(function(error) {
+      console.error('%c[index.js, updateHdrControlState]', 'color: red;', 'Could not persist the forced HDR-off state:', error);
+    });
   }
 
   // Update both the native input and MDL's own disabled state. Changing only
@@ -8515,10 +8500,7 @@ function updateVideoCodec(chosenCodecId, chosenCodecValue) {
   return storeData('videoCodec', chosenCodecValue, null).then(function() {
     updateH264FramerateConstraint();
 
-    // Recalculate only after the selected codec is committed to IndexedDB.
-    if (isBitrateOptimizationEnabled()) {
-      return optimizeBitratePresets();
-    }
+    // Optimized bitrate is recalculated at the next stream startup, not while editing settings.
   }).then(function() {
     // Trigger warning check after changing video codec.
     warnVideoCodec();
@@ -8578,12 +8560,7 @@ function updateHdrMode() {
   setTimeout(() => {
     const chosenHdrMode = $('#hdrModeSwitch').prop('checked');
     console.log('%c[index.js, updateHdrMode]', 'color: green;', 'Saving HDR mode state: ' + chosenHdrMode);
-    storeData('hdrMode', chosenHdrMode, null).then(function() {
-      // Recalculate only after the HDR preference is committed to IndexedDB.
-      if (isBitrateOptimizationEnabled()) {
-        return optimizeBitratePresets();
-      }
-    }).catch(function(error) {
+    storeData('hdrMode', chosenHdrMode, null).catch(function(error) {
       console.error('%c[index.js, updateHdrMode]', 'color: red;', 'Could not apply the saved HDR preference:', error);
     });
   }, 100);
@@ -8683,8 +8660,9 @@ function saveOptimizeBitrate() {
     console.log('%c[index.js, saveOptimizeBitrate]', 'color: green;', 'Saving optimize bitrate state: ' + chosenOptimizeBitrate);
     storeData('optimizeBitrate', chosenOptimizeBitrate, null);
 
-    // Update the bitrate value based on the selected preset mode
-    chosenOptimizeBitrate ? optimizeBitratePresets() : standardBitratePresets();
+    // Enabling optimization takes effect at the next stream startup.
+    // Disabling it restores the standard preset immediately.
+    if (!chosenOptimizeBitrate) standardBitratePresets();
   }, 100);
 }
 
@@ -8747,8 +8725,15 @@ function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').prop('checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
-    storeData('performanceStats', chosenPerformanceStats, null);
-    updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
+    storeData('performanceStats', chosenPerformanceStats, null).then(function() {
+      var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+      var persistedValue = preferences && preferences.performanceStats;
+      updatePerformanceStatsPositionAvailability(
+        persistedValue === true || persistedValue === 'true' || persistedValue === 1
+      );
+    }).catch(function(error) {
+      console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not update persisted statistics availability:', error);
+    });
     if (!chosenPerformanceStats && Views.SelectPerformanceStatsPositionMenu.isActive()) {
       closePopupMenu('selectPerformanceStatsPosition');
       closeActiveVisibleMenu();
@@ -9184,6 +9169,10 @@ function refreshPersistedSettingDependencies() {
   }
   if (typeof updateH264LevelControlState === 'function') {
     updateH264LevelControlState();
+  }
+  if (typeof updatePerformanceStatsPositionAvailability === 'function') {
+    var statsValue = preferences.performanceStats;
+    updatePerformanceStatsPositionAvailability(statsValue === true || statsValue === 'true' || statsValue === 1);
   }
 }
 
@@ -9785,8 +9774,7 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#performanceStatsBtn').MaterialSwitch.on();
     }
-    updatePerformanceStatsPositionAvailability($('#performanceStatsSwitch').prop('checked'));
-
+    // Availability is applied from the persisted snapshot, never from the HTML switch.
     _directSmartHubSettingsReady = true;
     maybeStartDirectSmartHubLaunch();
   });
