@@ -58,6 +58,109 @@ All three functions call `avoc_init_gdbus_connections` before obtaining the prox
 
 This disassembly confirms wrapper control flow and argument forwarding only. It does not establish the forwarded arguments' semantic names or types, the D-Bus/GVariant signatures, or the meaning of proxy return codes.
 
+### Server-side Game Mode implementation
+
+The server-side implementation contains a separate orchestration function:
+
+```cpp
+int avocd_set_game_mode(
+    _AvocService* service,
+    AvocData* data,
+    avoc_game_mode_e requested_mode,
+    avocd_game_mode_type_e game_mode_type,
+    avoc_save_type_e save_type
+);
+```
+
+The function coordinates AVE Game Mode state with picture, sound, and other TV settings. Its normal observed epilogue returns `0`; this is distinct from the AVE operation and from any D-Bus method result.
+
+#### AVE Game Mode operation
+
+In the general path, the requested mode is normalized to a boolean-like integer before calling:
+
+```cpp
+avocd_ave_set_game_mode(int mode);
+```
+
+The value passed to AVE is `0` when the requested mode is zero and `1` when it is nonzero. The original enum value is therefore not necessarily forwarded unchanged.
+
+This AVE call is only one part of the server-side operation. Other paths and settings updates are coordinated by `avocd_set_game_mode()`; calling the AVE function alone is not established as equivalent to the complete server-side behavior.
+
+#### Common picture and sound application path
+
+The common application path performs the following operations:
+
+1. Determine a picture mode:
+   ```cpp
+   tztv_picture_mode_e avocd_determine_game_picture_mode(
+       AvocData* data,
+       avocd_game_mode_type_e game_mode_type
+   );
+   ```
+2. Read the current sound mode with `AVOC_audio_get_sound_mode(data, &sound_mode, 1)`.
+3. Read the game surround-sound value with `avocd_get_game_surround_sound(data, &surround, 1)`.
+4. Apply it with `avocd_set_game_surround_sound(service, data, surround, 1)`.
+5. Apply the selected picture mode with `avocd_set_picture_mode(service, data, picture_mode, 1)`.
+
+The two setters in steps 4 and 5 use `save_type=1`, rather than forwarding the `save_type` argument of `avocd_set_game_mode()`.
+
+After picture-mode application, the function checks the previously read sound mode using:
+
+```cpp
+bool avocd_check_special_view_sound_mode(
+    avoc_audio_sound_mode_e sound_mode
+);
+```
+
+When this check is true, the observed path additionally:
+- Restores the previously read sound mode with `avocd_audio_set_sound_mode(service, data, sound_mode, 1)`.
+- Gets the Low Input Lag value using `avocd_get_low_input_lag_mode(data, source, requested_mode)`.
+- Applies that value using `avocd_set_low_input_lag_mode(data, source, value)`.
+- Calls `avocd_update_HGiG_mode(service, data)`.
+- Calls `avocd_set_film_mode(data, film_mode, 1)`.
+
+The Low Input Lag getter receives the original requested mode. The boolean-like result is zero-extended before being passed to the setter. The film-mode value is prepared by an earlier branch; its enum semantics are not established here.
+
+If the requested mode differs from the previous mode tracked by the function, it emits D-Bus event identifier `0x0D` through `avocd_dbus_send_event()`. The event payload contract is not established.
+
+#### Requested-mode branches and setting selection
+
+The following control-flow facts are established by the server-side implementation:
+
+- For `requested_mode == 0`, the function reads DB setting `0x36` using the incoming `save_type`, checks HDR state, sets the local `game_mode_type` argument to zero, and joins the shared mode-configuration path.
+- In the picture-mode conversion path, SDR content is passed through `_avocd_convert_sdr_picture_mode(tztv_picture_mode_e)`; HDR content uses the corresponding HDR conversion helper.
+- A conditional persistence path is reached when the requested mode satisfies `(requested_mode & ~2) == 1` (the observed integer cases are 1 and 3), volatile setting `0x34` is nonzero, and the current source field equals `3`. It writes the converted picture mode to DB setting `3` when `game_mode_type == 0`, or setting `5` when `game_mode_type` is nonzero. The incoming `save_type` is forwarded to this write.
+- For `requested_mode == 1`, one branch checks the field at offset `0xAC` in `AvocData`. If it equals `1`, the function copies DB setting `0x44` to DB setting `0x45`, using `save_type=1`. Otherwise it reads the current picture mode through `avocd_get_picture_mode(data, &picture_mode, 1)` and continues through conditional previous-picture-mode handling.
+- The previous-picture-mode path calls `avocd_can_pmode_be_stored_in_prev_pmode(picture_mode)`. If true, it reaches a separate setting-write path; the exact setting identifier depends on values prepared by the preceding branch and is not generalized here.
+- A separate path calls `avocd_update_wide_gaming(data, source, requested_mode)`. Its broader gating conditions and setting side effects are not fully established.
+- Another conditional path calls `_avocd_detect_gmp_condition_in_resolution(data, &condition)`; the effect of its result on the full mode transition is not fully established.
+
+The numeric setting identifiers above are recorded as observed. Their individual user-facing names and semantic meanings are not established by these call sites.
+
+#### Related server-side Game Mode helpers
+
+The following helpers have been identified in the server implementation:
+
+| Function | Confirmed behavior |
+|---|---|
+| `avocd_set_game_mode_by_source(AvocData*, tztv_source_e, avoc_game_mode_e, avoc_save_type_e)` | Requires the source to satisfy `(source & 0xff0000) == 0x80000`; otherwise returns `-1`. For a valid source, first writes DB value `0x103` for that source. If it is the current source, it also writes setting `0x103` through the current-source DB setter using the supplied `save_type`. For a non-current source and game-mode values 1 or 2, it checks UHD Color Mode and enables it if the retrieved value is zero. The observed valid-source paths return `0`; setter/getter results are not used to determine that return. |
+| `avocd_determine_game_picture_mode(AvocData*, avocd_game_mode_type_e)` | Returns a `tztv_picture_mode_e`. Selects a base mode using `game_mode_type`, volatile setting `3`, HDR state, Game Mode subfeature `4`, and (when that subfeature is supported) volatile settings `0x42` and `0x43`. Observed constants include `0x1000B`, `0x70002`, `0x60006`, `0x60007`, `0x50010`, `0x70005`, `0x70006`, and `0x70007`. The symbolic names and semantics of these values and volatile settings are unknown. |
+| `avocd_get_game_mode(AvocData*, avoc_game_mode_e*, avoc_save_type_e)` | Writes the mode through the output pointer and returns a separate status value. Its selection logic depends on model configuration, DB setting `0x36` or `0x39`, volatile setting `3`, and in some paths DICOM or Picture Mode state. Some paths normalize the output to `0` or `1`; a Picture Mode value of `0x20003` produces output `1`. |
+| `avocd_get_picture_mode(AvocData*, tztv_picture_mode_e*, avoc_save_type_e)` | Reads DB setting `3`, `5`, or `0x132`, selected by model configuration `7`, volatile setting `0x2F`, and volatile setting `3). Copies the setting value to the output pointer and returns `0` in the observed paths. |
+| `avocd_save_picture_mode_into_db(AvocData*, tztv_picture_mode_e, avoc_save_type_e)` | Writes Picture Mode to DB setting `3`, `5`, or `0x132`, using the same selection conditions as `avocd_get_picture_mode()`. For setting `0x132`, values outside `0x5000C`–`0x5000F` are replaced with `0x5000D`. The supplied `save_type` is forwarded to the DB setter. |
+| `avocd_check_multiview_picture_mode(tztv_picture_mode_e)` | Returns true only for values in the inclusive range `0x5000C`–`0x5000F`. |
+| `avocd_check_dynamic_black_eq(AvocData*)` | Checks Game Mode subfeature `3). Returns `2` when unsupported; otherwise gets Game Mode with save type `1` and returns `1` if the resulting mode is `1`, or `0` otherwise. |
+| `avocd_set_dynamic_black_eq(AvocData*, int, avoc_save_type_e)` | When the check above returns `1`, stores the supplied value in DB setting `0x115`; otherwise calls the imported `avocd_ave_api_set_dynamic_black_eq(int)`. |
+| `avocd_get_dynamic_black_eq(AvocData*, int*)` | When the check above returns `1`, reads DB setting `0x115` with save type `1`; otherwise writes zero to the output pointer. Returns `0` in both observed paths. |
+
+The return values of `avocd_check_dynamic_black_eq()` are recorded as observed control values; their symbolic meanings are not established.
+
+#### Handler behavior
+
+The D-Bus `on_set_game_mode()` handler validates its first integer method argument against `0` and `1), and validates the requested mode with `avocd_data_check_boundary(data, 0x36, requested_mode)`. A failed validation returns service result `-2). A further rejection occurs when custom feature flag `13` is true, the current source is `0x80004`, and requested mode is `2). The successful path calls `avocd_set_game_mode_by_source()` and then the server-side `avocd_set_game_mode()` orchestration function. The complete enum and boundary-table semantics remain unknown.
+
+The D-Bus `on_get_game_mode()` handler accepts save-type values `0` and `1`; values greater than `1` are rejected with `-2`. It calls `avocd_get_game_mode()`. An unchanged output sentinel is treated as an error and converted to result `-1). If a subsequent getter returns mode `2`, the handler overrides its main result with `2). The handler's own return value is separate from the method result.
+
 ### Related proxy and signal names
 
 - `avoc_proxy_call_set_game_mode`
