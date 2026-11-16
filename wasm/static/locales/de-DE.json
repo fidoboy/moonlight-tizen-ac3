@@ -71,7 +71,6 @@
   "Allow game mode for optimal latency and performance while streaming": "Spielmodus für optimale Latenz und Streaming-Leistung aktivieren",
   "Allow gamepad rumble feedback support while streaming": "Controller-Vibration während des Streamings aktivieren",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Durch Gedrückthalten der Start-Taste den Controller in den Mausmodus wechseln lassen",
-  "Allow high dynamic range for vibrant colors and enhanced contrast": "High Dynamic Range für kräftigere Farben und stärkeren Kontrast aktivieren",
   "Allow playing audio from the computer and this device": "Ton gleichzeitig auf dem Computer und diesem Gerät wiedergeben",
   "Allow sorting the list of apps and games in descending order": "Absteigende Sortierung von Apps und Spielen erlauben",
   "Allow the host to modify game settings for optimal streaming": "Dem Host erlauben, Spieleinstellungen für optimales Streaming anzupassen",
@@ -640,5 +639,6 @@
   "Frames missing from stream:": "Im Stream fehlende Frames:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Wenn diese Option aktiviert ist, wird der Ton während des Streamings sowohl auf dem Host-Computer als auch lokal wiedergegeben, sofern die lokale Audioausgabe ebenfalls aktiviert ist.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen.",
-  "Enable frame pacing": "Frame-Pacing aktivieren"
+  "Enable frame pacing": "Frame-Pacing aktivieren",
+  "Enable high dynamic range": "Hoher Dynamikbereich aktivieren"
 }
