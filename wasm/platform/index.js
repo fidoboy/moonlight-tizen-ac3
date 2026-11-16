@@ -6817,8 +6817,12 @@ function storeData(key, data, callbackFunction) {
           }
           if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
             configSummaryRevision++;
-            configSummarySnapshot = null;
-            updateConfigSummaryBar();
+            if (configSummarySnapshot) {
+              applyPersistedPreferenceToSnapshot(key, data);
+              updateConfigSummaryBar(configSummarySnapshot);
+            } else {
+              updateConfigSummaryBar();
+            }
           }
           resolve(data);
           if (typeof callbackFunction === 'function') {
@@ -8992,6 +8996,28 @@ var STREAMING_PREFERENCE_KEYS = [
   'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
   'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate', 'showConfigSummaryBar', 'performanceStatsPosition', 'streamTransitionBackground', 'colorTheme', 'quitAppAfterDisconnect'
 ];
+
+function applyPersistedPreferenceToSnapshot(key, value) {
+  if (!configSummarySnapshot || !configSummarySnapshot.preferences) return;
+  var preferences = configSummarySnapshot.preferences;
+  preferences[key] = value;
+  var engine = preferences.streamingEngine === 'WMP' ? 'ESPLUSPLAYER' : preferences.streamingEngine;
+  if (engine !== 'EMSS' && engine !== 'ESPLUSPLAYER') engine = 'EMSS';
+  var ac3Enabled = preferences.ac3AudioMode === true ||
+    preferences.ac3AudioMode === 'true' || preferences.ac3AudioMode === 1;
+  var storedBackend = preferences.audioBackend || 'EMSS';
+  if (engine === 'ESPLUSPLAYER') {
+    configSummarySnapshot.audioBackend = storedBackend === 'Disabled' ? 'Disabled' : 'ESPLUSPLAYER';
+  } else if (ac3Enabled) {
+    configSummarySnapshot.audioBackend = storedBackend === 'Disabled' ? 'Disabled' : 'EMSS';
+  } else {
+    configSummarySnapshot.audioBackend = ['EMSS', 'WebAudio', 'Disabled'].indexOf(storedBackend) !== -1
+      ? storedBackend : 'EMSS';
+  }
+  configSummarySnapshot.streamingEngine = engine;
+  configSummarySnapshot.audioConfig = ac3Enabled && preferences.audioConfig === '71Surround'
+    ? '51Surround' : (preferences.audioConfig || 'Stereo');
+}
 
 function readStreamingSettingsSnapshot() {
   return withOperationTimeout(new Promise(function(resolve, reject) {
