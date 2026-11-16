@@ -35,7 +35,6 @@
   "- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.": "- Показывает анимированное звёздное поле при запуске или остановке трансляции. Если отключить эту настройку, будет отображаться однотонный чёрный фон.",
   "- Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.": "- Сортирует список приложений хоста по названию в порядке возрастания (от А до Я) или убывания (от Я до А).",
   "- This can help reduce delays by keeping audio in sync for a consistent sound while streaming.": "- Это помогает уменьшить задержки, поддерживая синхронизацию звука во время трансляции.",
-  "- This can help reduce micro-stutter by delaying frames that arrive too early while streaming.": "- Это помогает уменьшить микроподёргивания, задерживая кадры, поступающие слишком рано во время трансляции.",
   "- This is only necessary for Wolf and Punktfunk-style hosts that encrypt GameStream audio without advertising it.": "- Это необходимо только для хостов типа Wolf и Punktfunk, которые шифруют звук GameStream, не объявляя об этом.",
   "When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.": "При включении эта настройка позволяет отображать больше деталей в самых тёмных и самых светлых областях изображения. Выберите вариант, при котором изображение на вашем телевизоре выглядит лучше.",
   "- Useful for users who need guidance or help navigating the app.": "- Полезно тем, кому нужны подсказки или помощь при навигации по приложению.",
@@ -67,7 +66,7 @@
   "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Все сохранённые записи хостов будут удалены из Moonlight. Чтобы использовать эти хосты снова, возможно, потребуется добавить их и выполнить сопряжение заново. Это не затронет сами ПК и их файлы.",
   "Allow audio synchronization support for optimal sound output": "Разрешить синхронизацию звука для оптимального воспроизведения",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "Разрешить расшифровку звука AES-CBC с хостов типа Wolf и Punktfunk",
-  "Allow frame pacing to balance video latency and smoothness": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео. Рекомендуется оставлять эту функцию включённой.",
+  "Allow frame pacing to balance video latency and smoothness": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео",
   "Allow full color range for more detail in dark and bright areas of content": "Разрешить полный цветовой диапазон для большей детализации в тёмных и светлых областях изображения",
   "Allow game mode for optimal latency and performance while streaming": "Разрешить игровой режим для оптимальной задержки и производительности во время трансляции",
   "Allow gamepad rumble feedback support while streaming": "Разрешить виброотклик геймпада во время трансляции",
@@ -639,5 +638,6 @@
   "Accepted": "Принято",
   "Average renderer submit time:": "Среднее время отправки кадра рендерером:",
   "Frames missing from stream:": "Кадры, отсутствующие в потоке:",
-  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Если эта настройка включена, звук во время трансляции будет воспроизводиться и на хост-компьютере, и локально, при условии, что локальный аудиовыход также включён."
+  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Если эта настройка включена, звук во время трансляции будет воспроизводиться и на хост-компьютере, и локально, при условии, что локальный аудиовыход также включён.",
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео. Рекомендуется оставлять эту функцию включённой."
 }
