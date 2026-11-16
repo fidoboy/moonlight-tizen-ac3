@@ -8677,8 +8677,8 @@ function restoreDefaultsSettingsValues() {
   document.querySelector('#quitAppAfterDisconnectBtn').MaterialSwitch.off();
   storeData('quitAppAfterDisconnect', defaultQuitAppAfterDisconnect, null);
 
-  const defaultRumbleFeedback = false;
-  document.querySelector('#rumbleFeedbackBtn').MaterialSwitch.off();
+  const defaultRumbleFeedback = true;
+  document.querySelector('#rumbleFeedbackBtn').MaterialSwitch.on();
   storeData('rumbleFeedback', defaultRumbleFeedback, null);
 
   const defaultMouseEmulation = false;
@@ -9003,7 +9003,7 @@ function loadDirectSmartHubStreamSettings() {
       bitrate: (parseFloat(stored.bitrate != null ? stored.bitrate : 10) * 1000),
       framePacing: boolValue(stored.framePacing, true) ? 1 : 0,
       optimizeGames: boolValue(stored.optimizeGames, false) ? 1 : 0,
-      rumbleFeedback: boolValue(stored.rumbleFeedback, false) ? 1 : 0,
+      rumbleFeedback: boolValue(stored.rumbleFeedback, true) ? 1 : 0,
       mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
       selectHoldStreamMenu: boolValue(stored.selectHoldStreamMenu, true) ? 1 : 0,
       flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
@@ -9257,7 +9257,7 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored rumbleFeedback preferences.');
   getData('rumbleFeedback', function(previousValue) {
     if (previousValue.rumbleFeedback == null) {
-      document.querySelector('#rumbleFeedbackBtn').MaterialSwitch.off(); // Set the default state
+      document.querySelector('#rumbleFeedbackBtn').MaterialSwitch.on(); // Set the default state
     } else if (previousValue.rumbleFeedback == false) {
       document.querySelector('#rumbleFeedbackBtn').MaterialSwitch.off();
     } else {
