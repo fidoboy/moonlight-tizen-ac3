@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - master
+      - 1.2.4-pre
     paths:
       - '.github/workflows/**'
   pull_request:
     branches:
       - master
+      - 1.2.4-pre
     paths:
       - '.github/workflows/**'
   workflow_dispatch:
