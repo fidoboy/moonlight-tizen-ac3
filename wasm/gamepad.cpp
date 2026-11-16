@@ -128,6 +128,13 @@ class Tracker {
 // The streaming menu owns all remote input while it is visible.
 std::atomic<bool> streamMenuInputBlocked{false};
 
+// Stream termination can happen outside the gamepad polling loop. Reset the
+// local mode explicitly so it cannot carry over into a later session.
+extern "C" EMSCRIPTEN_KEEPALIVE int resetGamepadMouseEmulation() {
+  const bool wasActive = mouseEmulationActive.exchange(false, std::memory_order_acq_rel);
+  return wasActive ? 1 : 0;
+}
+
 // Bitmask for gamepad combo buttons to stop the streaming session
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
 
@@ -139,7 +146,7 @@ bool rumbleFeedbackSwitch = false;
 
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
-bool mouseEmulationActive = false;
+std::atomic<bool> mouseEmulationActive{false};
 bool selectHoldStreamMenuSwitch = false;
 std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
 std::map<int, bool> selectMenuTriggered;
@@ -482,6 +489,16 @@ void MoonlightInstance::PollGamepads() {
       selectButtonConsumed[gamepadID] = false;
     }
 
+    // If the stream stops being ready (including when its closing transition
+    // appears), stop local mouse mode before dispatching any further mouse input.
+    if (mouseEmulationActive.load(std::memory_order_acquire) && !MAIN_THREAD_EM_ASM_INT({
+      return !!(window.isGamepadMouseEmulationReady &&
+                window.isGamepadMouseEmulationReady());
+    })) {
+      mouseEmulationActive.store(false, std::memory_order_release);
+      PostToJs(std::string("mouseEmulationOff"));
+    }
+
     // Start/PLAY toggles mouse emulation once per hold. Activation is only
     // allowed while the selected streaming engine has a ready video and the
     // transition screen is no longer visible; deactivation is always allowed.
@@ -496,14 +513,14 @@ void MoonlightInstance::PollGamepads() {
             currentTime - activatePressTimes[gamepadID]).count();
         if (durationTime >= 1000 && !activatePressTriggered[gamepadID]) {
           activatePressTriggered[gamepadID] = true;
-          if (mouseEmulationActive) {
-            mouseEmulationActive = false;
+          if (mouseEmulationActive.load(std::memory_order_acquire)) {
+            mouseEmulationActive.store(false, std::memory_order_release);
             PostToJs(std::string("mouseEmulationOff"));
           } else if (MAIN_THREAD_EM_ASM_INT({
             return !!(window.isGamepadMouseEmulationReady &&
                       window.isGamepadMouseEmulationReady());
           })) {
-            mouseEmulationActive = true;
+            mouseEmulationActive.store(true, std::memory_order_release);
             PostToJs(std::string("mouseEmulationOn"));
           }
           // If the stream is not ready, discard this hold. A fresh press is required.
@@ -514,7 +531,7 @@ void MoonlightInstance::PollGamepads() {
       }
     } else {
       // Deactivate mouse emulation if the mouse emulation switch is unchecked.
-      mouseEmulationActive = false;
+      mouseEmulationActive.store(false, std::memory_order_release);
       activatePressTimes.erase(gamepadID);
       activatePressTriggered.erase(gamepadID);
     }
