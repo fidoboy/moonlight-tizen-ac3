@@ -36,7 +36,6 @@ static pthread_mutex_t s_preroll_thread_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t s_preroll_thread;
 static int s_preroll_thread_valid;
 static volatile int s_preroll_stop;
-static volatile int s_real_audio_seen;
 #define ESPLUS_DOLBY_FRAME_NS 32000000ull
 #define ESPLUS_OPUS_FRAME_NS 10000000ull
 
@@ -87,10 +86,9 @@ static void *preroll_worker(void *unused)
         return NULL;
     }
 
-    /* Feed silence at the stream clock rate until prepare_async_done or the
-     * first accepted host packet. Synthetic PTS never extend beyond live time. */
-    while (!__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) &&
-           !__atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE)) {
+    /* Keep the audio stream fed for the entire asynchronous preparation.
+     * Only prepare_async_done (or player teardown) stops this worker. */
+    while (!__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE)) {
         uint64_t now_ns = esplus_stream_clock_pts_ns();
         int retry = 0;
 
@@ -103,7 +101,6 @@ static void *preroll_worker(void *unused)
         pthread_mutex_lock(&s_preroll_submit_lock);
         now_ns = esplus_stream_clock_pts_ns();
         if (__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) ||
-            __atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE) ||
             now_ns < next_pts_ns + duration_ns) {
             pthread_mutex_unlock(&s_preroll_submit_lock);
             continue;
@@ -123,9 +120,12 @@ static void *preroll_worker(void *unused)
             } else if (result.status == WMP_ESPLUS_SUBMIT_BACKPRESSURE) {
                 retry = 1;
             } else {
-                ALOG("synthetic audio preroll stopped: status=%d raw=%d\n",
-                     (int)result.status, result.raw_status);
-                __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
+                /* A transient rejection must not terminate preroll. The
+                 * prepare_async_done callback owns the normal stop decision. */
+                retry = 1;
+                if (submitted == 0)
+                    ALOG("synthetic audio preroll not accepted yet: status=%d raw=%d\n",
+                         (int)result.status, result.raw_status);
             }
         }
         pthread_mutex_unlock(&s_preroll_submit_lock);
@@ -169,8 +169,7 @@ void AudEsplus_PrimeSilence(void)
 {
     int rc;
     if (__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE) ||
-        !__atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE) ||
-        __atomic_load_n(&s_real_audio_seen, __ATOMIC_ACQUIRE)) return;
+        !__atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE)) return;
     pthread_mutex_lock(&s_preroll_thread_lock);
     if (s_preroll_thread_valid) {
         pthread_mutex_unlock(&s_preroll_thread_lock);
@@ -261,7 +260,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     AudEsplus_StopSilence();
     preroll_join();
     __atomic_store_n(&s_preroll_stop, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_real_audio_seen, 0, __ATOMIC_RELEASE);
     s_opus_head_size = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -388,10 +386,6 @@ static void ar_decodePlay(char *data, int len)
                 __atomic_store_n(&s_audio_codec_active,
                     __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
                     __ATOMIC_RELEASE);
-            if (result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
-                __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
-                AudEsplus_StopSilence();
-            }
             pthread_mutex_unlock(&s_preroll_submit_lock);
             if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
                 ml_engine_notify_audio_ready();
@@ -422,10 +416,6 @@ static void ar_decodePlay(char *data, int len)
     result = esplus_submit(&packet);
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
         __atomic_store_n(&s_audio_codec_active, 1, __ATOMIC_RELEASE);
-    if (result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
-        __atomic_store_n(&s_real_audio_seen, 1, __ATOMIC_RELEASE);
-        AudEsplus_StopSilence();
-    }
     pthread_mutex_unlock(&s_preroll_submit_lock);
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
         ml_engine_notify_audio_ready();
