@@ -6811,6 +6811,11 @@ function storeData(key, data, callbackFunction) {
             var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
             console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
           }
+          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
+            configSummaryRevision++;
+            configSummarySnapshot = null;
+            updateConfigSummaryBar();
+          }
           if (typeof callbackFunction === 'function') callbackFunction();
           resolve(data);
         };
@@ -8952,6 +8957,7 @@ function readStoredPreferences(keys) {
 // data and never applied to the hidden Material Design controls or UI subsystems.
 var configSummarySnapshot = null;
 var configSummaryRefreshPromise = null;
+var configSummaryRevision = 0;
 
 var STREAMING_PREFERENCE_KEYS = [
   'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
@@ -8959,7 +8965,7 @@ var STREAMING_PREFERENCE_KEYS = [
   'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
   'audioJitter', 'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level',
   'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-  'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate'
+  'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate', 'showConfigSummaryBar', 'performanceStatsPosition', 'streamTransitionBackground', 'colorTheme', 'quitAppAfterDisconnect'
 ];
 
 function readStreamingSettingsSnapshot() {
@@ -10201,10 +10207,29 @@ function createConfigSummaryBar() {
   return bar;
 }
 
-function updateConfigSummaryBar() {
-  var positionButton = document.getElementById('selectConfigSummaryPosition');
-  var summaryPosition = configSummaryPreferenceLoaded && positionButton
-    ? normalizeConfigSummaryPosition(positionButton.getAttribute('data-value')) : 'hidden';
+function updateConfigSummaryBar(snapshot) {
+  if (!snapshot) {
+    if (configSummarySnapshot) {
+      updateConfigSummaryBar(configSummarySnapshot);
+      return;
+    }
+    if (configSummaryRefreshPromise) return;
+    var requestedRevision = configSummaryRevision;
+    configSummaryRefreshPromise = readStreamingSettingsSnapshot().then(function(loadedSnapshot) {
+      if (requestedRevision !== configSummaryRevision) return;
+      configSummarySnapshot = loadedSnapshot;
+      updateConfigSummaryBar(loadedSnapshot);
+    }).catch(function(error) {
+      console.error('%c[index.js, updateConfigSummaryBar]', 'color: red;', 'Cannot render configuration summary without persisted settings:', error);
+    }).finally(function() {
+      configSummaryRefreshPromise = null;
+      if (!configSummarySnapshot && requestedRevision !== configSummaryRevision) updateConfigSummaryBar();
+    });
+    return;
+  }
+  var summaryPosition = configSummaryPreferenceLoaded
+    ? normalizeConfigSummaryPosition(snapshot.preferences.showConfigSummaryBar == null
+      ? 'bottom' : snapshot.preferences.showConfigSummaryBar) : 'hidden';
   var bar = document.getElementById('configSummaryBar');
 
   // Hidden removes the element entirely instead of retaining an invisible DOM subtree.
@@ -10253,18 +10278,14 @@ function updateConfigSummaryBar() {
     (onHostsScreen || onAppsScreen || onHostsOrAppsTransition) ? 'flex' : 'none';
   if (bar.style.display !== desiredDisplay) bar.style.display = desiredDisplay;
 
-  function textFor(selector, fallback) {
-    var element = document.querySelector(selector);
-    if (!element) return fallback;
-    var value = element.getAttribute('data-value');
-    if (value == null || value === '') value = element.textContent;
-    value = String(value || '').trim();
-    return value || fallback;
+  function storedText(key, fallback) {
+    var value = snapshot.preferences[key];
+    return value == null || value === '' ? fallback : String(value).trim();
   }
 
-  function toggleFor(selector, summarySelector) {
-    var input = document.querySelector(selector);
-    var enabled = !!input && input.checked;
+  function toggleFor(key, summarySelector) {
+    var value = snapshot.preferences[key];
+    var enabled = value === true || value === 'true' || value === 1;
     var output = document.querySelector(summarySelector);
     if (!output) return;
     output.textContent = enabled ? 'on' : 'off';
@@ -10272,7 +10293,7 @@ function updateConfigSummaryBar() {
     output.classList.toggle('is-off', !enabled);
   }
 
-  var resolution = textFor('#selectResolution', '1280:720')
+  var resolution = storedText('resolution', '1280:720')
     .replace(/[:×]/g, 'x')
     .replace(/\s+/g, '');
   var resolutionNames = {
@@ -10286,23 +10307,23 @@ function updateConfigSummaryBar() {
   if (resolutionNames[resolution]) {
     resolution += ' (' + resolutionNames[resolution] + ')';
   }
-  var fps = textFor('#selectFramerate', '60');
+  var fps = storedText('frameRate', '60');
   fps = /fps/i.test(fps) ? fps : fps + ' FPS';
-  var bitrate = textFor('#selectBitrate', '10 Mbps');
+  var bitrate = storedText('bitrate', '10') + ' Mbps';
   if (!/mbps/i.test(bitrate)) bitrate += ' Mbps';
-  var codec = textFor('#selectCodec', 'H264').replace(/^H\.264$/i, 'H264');
+  var codec = storedText('videoCodec', 'H264').replace(/^H\.264$/i, 'H264');
   if (/^H264$/i.test(codec)) {
-    var h264Level = textFor('#selectH264Level', 'Auto');
+    var h264Level = storedText('h264Level', 'Auto');
     var displayH264Level = /^Auto$/i.test(h264Level) ? 'auto' : 'L' + h264Level.replace(/_/g, '.');
     codec = 'H264 (' + displayH264Level + ')';
   }
-  var audioDisabled = isAudioOutputDisabled();
-  var audioValue = textFor('#selectAudio', 'Stereo');
+  var audioDisabled = snapshot.audioBackend === 'Disabled';
+  var audioValue = snapshot.audioConfig || 'Stereo';
   var audio = audioDisabled ? 'off' :
     (audioValue === '51Surround' ? '5.1' :
       (audioValue === '71Surround' ? '7.1' :
         (/stereo/i.test(audioValue) ? 'Stereo' : audioValue)));
-  var playbackEngine = String($('#selectStreamingEngine').data('value') || 'EMSS');
+  var playbackEngine = String(snapshot.streamingEngine || 'EMSS');
   playbackEngine = playbackEngine === 'ESPLUSPLAYER' ? t('Native') : 'EMSS';
 
   function setSummaryText(selector, value) {
@@ -10328,10 +10349,10 @@ function updateConfigSummaryBar() {
   }
   var dolbySummaryItem = bar.querySelector('[data-summary-id="summaryDolby"]');
   if (dolbySummaryItem) dolbySummaryItem.style.display = audioDisabled ? 'none' : '';
-  toggleFor('#optimizeBitrateSwitch', '#summaryOptimalBitrate');
-  toggleFor('#hdrModeSwitch', '#summaryHdr');
-  if (!audioDisabled) toggleFor('#ac3AudioModeSwitch', '#summaryDolby');
-  toggleFor('#gameModeSwitch', '#summaryGameMode');
+  toggleFor('optimizeBitrate', '#summaryOptimalBitrate');
+  toggleFor('hdrMode', '#summaryHdr');
+  if (!audioDisabled) toggleFor('ac3AudioMode', '#summaryDolby');
+  toggleFor('gameMode', '#summaryGameMode');
 }
 
 var configSummaryBarInitialized = false;
