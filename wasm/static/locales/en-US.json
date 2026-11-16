@@ -71,7 +71,6 @@
   "Allow game mode for optimal latency and performance while streaming": "Allow game mode for optimal latency and performance while streaming",
   "Allow gamepad rumble feedback support while streaming": "Allow gamepad rumble feedback support while streaming",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Allow gamepad to switch to mouse mode when holding the Start button",
-  "Allow high dynamic range for vibrant colors and enhanced contrast": "Allow high dynamic range for vibrant colors and enhanced contrast",
   "Allow playing audio from the computer and this device": "Allow playing audio from the computer and this device",
   "Allow sorting the list of apps and games in descending order": "Allow sorting the list of apps and games in descending order",
   "Allow the host to modify game settings for optimal streaming": "Allow the host to modify game settings for optimal streaming",
@@ -640,5 +639,6 @@
   "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.": "- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.",
-  "Enable frame pacing": "Enable frame pacing"
+  "Enable frame pacing": "Enable frame pacing",
+  "Enable high dynamic range": "Enable high dynamic range"
 }
