@@ -255,7 +255,7 @@ static void cl_stageStarting(int stage) {
   MLT("stage %d (%s) starting", stage, name ? name : "unknown");
 }
 static void cl_stageComplete(int stage) {
-  MLT("stage %d (%s) complete", stage, LiGetStageName(stage));
+  (void)stage;
 }
 
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
