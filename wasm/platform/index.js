@@ -6703,6 +6703,28 @@ function directSmartHubVideoReady(videoElement) {
   return true;
 }
 
+window.isGamepadMouseEmulationReady = function() {
+  var videoElement = document.getElementById('wasm_module');
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  var transitionActive = streamTransitionVisible ||
+    (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none');
+  if (transitionActive) return false;
+
+  var engineState = window.getStreamingEngineState();
+  var isNativeStream = engineState.active === 'ESPLUSPLAYER' && engineState.confirmed === true;
+  // Native readiness is reported by ESPlus Player; never inspect the HTML video
+  // dimensions for this engine.
+  var videoReady = isNativeStream
+    ? engineState.videoReady === true
+    : (videoElement && videoElement.style.display !== 'none' &&
+      videoElement.readyState >= 2 && videoElement.videoWidth > 0 && videoElement.videoHeight > 0);
+  var streamReady = isNativeStream
+    ? engineState.videoReady === true
+    : (window._normalStreamVideoReady === true || window._directSmartHubVideoReady === true);
+
+  return (isNativeStream || isInGame) && !!streamReady && !!videoReady;
+};
+
 function openStreamMenuFromGamepad() {
   // A long press is a one-shot request: if the stream UI is not ready now,
   // toggleStreamMenuDialog() rejects it and it must not be replayed later.
