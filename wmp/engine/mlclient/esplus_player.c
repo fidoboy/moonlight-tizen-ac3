@@ -67,77 +67,25 @@ static void *(*p_ecore_main_loop_thread_safe_call_sync)(void *(*)(void *), void 
 #define ecore_main_loop_thread_safe_call_sync p_ecore_main_loop_thread_safe_call_sync
 
 
-#ifdef MLT_TRACE
-/* One-shot diagnostic marker: bypass MLT, dlog and managed callbacks. */
-static void ecore_raw_marker(const char *marker)
-{
-    char line[192];
-    char digits[3 * sizeof(unsigned long) + 1];
-    const char prefix[] = "[ecore-raw] ";
-    const char tid_label[] = " tid=";
-    unsigned long tid = (unsigned long)syscall(SYS_gettid);
-    size_t n = 0, d = 0, i;
-
-    for (i = 0; i < sizeof(prefix) - 1; ++i) line[n++] = prefix[i];
-    for (i = 0; marker[i] && n < sizeof(line) - 32; ++i) line[n++] = marker[i];
-    for (i = 0; i < sizeof(tid_label) - 1; ++i) line[n++] = tid_label[i];
-    do {
-        digits[d++] = (char)('0' + (tid % 10));
-        tid /= 10;
-    } while (tid && d < sizeof(digits));
-    while (d) line[n++] = digits[--d];
-    line[n++] = '\n';
-    (void)write(STDERR_FILENO, line, n);
-}
-#define ECORE_RAW_MARKER(message) ecore_raw_marker(message)
-#else
-#define ECORE_RAW_MARKER(message) ((void)0)
-#endif
-
 #define LOAD_ECORE(handle, symbol) do { \
-    MLT("ecore_runtime_load dlsym ENTER symbol=%s", #symbol); \
     *(void **)(&p_##symbol) = dlsym((handle), #symbol); \
-    MLT("ecore_runtime_load dlsym RETURN symbol=%s address=%p", #symbol, (void *)p_##symbol); \
     if (!p_##symbol) goto fail; \
 } while (0)
 
 static int ecore_runtime_load(void)
 {
     const char *error;
-    if (s_ecore_lib && s_ecore_wl2_lib) {
-        MLT("ecore_runtime_load cached handles available");
-        return 1;
-    }
 
-    MLT("ecore_runtime_load dlopen ENTER library=libecore.so.1");
+    if (s_ecore_lib && s_ecore_wl2_lib) return 1;
+
     s_ecore_lib = dlopen("libecore.so.1", RTLD_NOW | RTLD_LOCAL);
-    MLT("ecore_runtime_load dlopen RETURN library=libecore.so.1 handle=%p",
-        s_ecore_lib);
     if (!s_ecore_lib) goto fail;
 
-    MLT("ecore_runtime_load dlopen ENTER library=libecore_wl2.so.1");
     s_ecore_wl2_lib = dlopen("libecore_wl2.so.1", RTLD_NOW | RTLD_LOCAL);
-    MLT("ecore_runtime_load dlopen RETURN library=libecore_wl2.so.1 handle=%p",
-        s_ecore_wl2_lib);
     if (!s_ecore_wl2_lib) goto fail;
 
-    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_init");
-    ECORE_RAW_MARKER("before dlsym ecore_init");
-    *(void **)(&p_ecore_init) = dlsym(s_ecore_lib, "ecore_init");
-    ECORE_RAW_MARKER("after dlsym ecore_init");
-    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_init address=%p",
-        (void *)p_ecore_init);
-    ECORE_RAW_MARKER("before null-check ecore_init");
-    if (!p_ecore_init) goto fail;
-    ECORE_RAW_MARKER("after null-check ecore_init");
-
-    MLT("ecore_runtime_load dlsym ENTER symbol=ecore_shutdown");
-    ECORE_RAW_MARKER("before dlsym ecore_shutdown");
-    *(void **)(&p_ecore_shutdown) = dlsym(s_ecore_lib, "ecore_shutdown");
-    ECORE_RAW_MARKER("after dlsym ecore_shutdown");
-    MLT("ecore_runtime_load dlsym RETURN symbol=ecore_shutdown address=%p",
-        (void *)p_ecore_shutdown);
-    if (!p_ecore_shutdown) goto fail;
+    LOAD_ECORE(s_ecore_lib, ecore_init);
+    LOAD_ECORE(s_ecore_lib, ecore_shutdown);
     LOAD_ECORE(s_ecore_lib, ecore_main_loop_thread_safe_call_sync);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_init);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_shutdown);
@@ -146,37 +94,28 @@ static int ecore_runtime_load(void)
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_new);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_show);
 
-    /* Added in Tizen 6.0 EFL 1.24; optional for older firmware. */
-    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_window_lower");
+    /* Optional across firmware versions. Their absence is not a load failure. */
     *(void **)(&p_ecore_wl2_window_lower) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_window_lower");
-    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_window_lower address=%p",
-        (void *)p_ecore_wl2_window_lower);
-
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_alpha_set);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_window_free);
     LOAD_ECORE(s_ecore_wl2_lib, ecore_wl2_display_flush);
-
-    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_screen_size_get");
     *(void **)(&p_ecore_wl2_display_screen_size_get) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_screen_size_get");
-    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_screen_size_get address=%p",
-        (void *)p_ecore_wl2_display_screen_size_get);
-
-    MLT("ecore_runtime_load dlsym optional ENTER symbol=ecore_wl2_display_sync");
     *(void **)(&p_ecore_wl2_display_sync) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_sync");
-    MLT("ecore_runtime_load dlsym optional RETURN symbol=ecore_wl2_display_sync address=%p",
-        (void *)p_ecore_wl2_display_sync);
 
-    MLT("ecore_runtime_load COMPLETE");
+    MLT("ecore runtime ready optional_window_lower=%d optional_screen_size=%d optional_display_sync=%d",
+        p_ecore_wl2_window_lower != NULL,
+        p_ecore_wl2_display_screen_size_get != NULL,
+        p_ecore_wl2_display_sync != NULL);
     return 1;
 
 fail:
     error = dlerror();
-    MLT("ecore_runtime_load FAILED error=%s", error ? error : "missing symbol");
-    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\n",
-            error ? error : "missing symbol");
+    MLT("ecore runtime load failed: %s", error ? error : "missing required symbol");
+    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\\n",
+            error ? error : "missing required symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
     if (s_ecore_lib) dlclose(s_ecore_lib);
     s_ecore_wl2_lib = s_ecore_lib = NULL;
@@ -944,20 +883,14 @@ int esplus_set_window(int width, int height)
         MLT("esplus_set_window rejected invalid state pl=%p size=%dx%d", s_pl, width, height);
         return -1;
     }
-    MLT("ecore_runtime_load ENTER");
-    PLOG("ecore_runtime_load ENTER\n");
     {
         uint64_t call_started = esplus_mono_ms();
         if (!ecore_runtime_load()) {
-            PLOG("ecore_runtime_load FAILED elapsed_ms=%llu\n",
-                 (unsigned long long)(esplus_mono_ms() - call_started));
-            MLT("ecore_runtime_load FAILED elapsed_ms=%llu",
+            MLT("ecore runtime initialization failed elapsed_ms=%llu",
                 (unsigned long long)(esplus_mono_ms() - call_started));
             return -1;
         }
-        PLOG("ecore_runtime_load RETURN success elapsed_ms=%llu\n",
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_runtime_load RETURN success elapsed_ms=%llu",
+        MLT("ecore runtime initialized elapsed_ms=%llu",
             (unsigned long long)(esplus_mono_ms() - call_started));
     }
     {
