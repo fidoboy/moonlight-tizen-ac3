@@ -123,7 +123,7 @@ static void *preroll_worker(void *unused)
                 retry = 1;
             } else {
                 /* A transient rejection must not terminate preroll. The
-                 * prepare_async_done callback owns the normal stop decision. */
+                 * video-ready handover or player teardown owns the stop decision. */
                 retry = 1;
                 if (submitted == 0)
                     ALOG("synthetic audio preroll not accepted yet: status=%d raw=%d\n",
@@ -161,7 +161,7 @@ void AudEsplus_StopSilence(void)
     __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
 }
 
-/* Called only after native ESPlus start() succeeds. */
+/* Called after native start() succeeds and the first real video packet is accepted. */
 void AudEsplus_OnPlayerStarted(void)
 {
     __atomic_store_n(&s_player_started, 1, __ATOMIC_RELEASE);
@@ -380,10 +380,11 @@ static void ar_decodePlay(char *data, int len)
     uint64_t duration_ns;
 
     /*
-     * Before native start() succeeds, host audio is opaque to this renderer:
-     * no payload inspection, accounting, queuing, or submission. ESPlus is
-     * initialized exclusively with host video and codec-matched synthetic
-     * audio. Serialize the eventual handover with the synthetic feeder.
+     * Until native start() succeeds and ESPlus accepts the first real video
+     * packet, host audio is opaque to this renderer: no payload inspection,
+     * accounting, queuing, or submission. ESPlus is initialized exclusively
+     * with host video and codec-matched synthetic audio. Serialize the
+     * eventual handover with the synthetic feeder.
      */
     pthread_mutex_lock(&s_preroll_submit_lock);
     if (!__atomic_load_n(&s_player_started, __ATOMIC_ACQUIRE)) {
