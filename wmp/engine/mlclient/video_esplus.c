@@ -16,6 +16,7 @@
 #include "mltrace.h"
 
 extern void ml_engine_notify_video_ready(void);
+extern void AudEsplus_OnPlayerStarted(void);
 
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
@@ -613,9 +614,15 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
-            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL))
+            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL)) {
                 MLT_DIAG("first ESPlus video submit accepted size=%u pts_ns=%llu",
                          packet.size, (unsigned long long)packet.pts_ns);
+                /* Handover only after start() succeeded AND ESPlus accepted
+                 * the first real video access unit. Until this point the
+                 * synthetic audio feeder remains the exclusive audio source. */
+                if (esplus_video_ready())
+                    AudEsplus_OnPlayerStarted();
+            }
             ml_engine_notify_video_ready();
         }
     }

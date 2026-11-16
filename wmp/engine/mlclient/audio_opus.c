@@ -87,8 +87,9 @@ static void *preroll_worker(void *unused)
         return NULL;
     }
 
-    /* Keep the audio stream fed for the entire asynchronous preparation.
-     * Only prepare_async_done (or player teardown) stops this worker. */
+    /* Keep the audio stream fed through preparation, native start(), and
+     * acceptance of the first real video packet. The video-ready handover
+     * (or player teardown) stops this worker. */
     while (!__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE)) {
         uint64_t now_ns = esplus_stream_clock_pts_ns();
         int retry = 0;
