@@ -317,6 +317,7 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     s_hevc_sei_inspection_failed = 0;
     s_hevc_hdr_status_logged = 0;
     __atomic_store_n(&esplus_stats.video_format, (uint32_t)videoFormat, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_hdr_active, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_width, (uint32_t)width, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)height, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
@@ -598,6 +599,10 @@ static int VidDecSubmit(PDECODE_UNIT du)
             result = esplus_submit(&packet);
         }
         if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+            __atomic_store_n(&esplus_stats.video_hdr_active,
+                (du->hdrActive &&
+                 (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_H265_MAIN10)) ? 1u : 0u,
+                __ATOMIC_RELAXED);
             uint64_t submit_end_us = LiGetMicroseconds();
             if (collect_stats) __atomic_fetch_add(&esplus_stats.video_frames_rendered, 1, __ATOMIC_RELAXED);
             if (collect_stats && submit_end_us >= submit_start_us)
