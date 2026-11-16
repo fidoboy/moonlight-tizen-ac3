@@ -71,7 +71,6 @@
   "Allow game mode for optimal latency and performance while streaming": "Consenti la modalità Gioco per ottenere latenza e prestazioni ottimali durante lo streaming",
   "Allow gamepad rumble feedback support while streaming": "Consenti il supporto della vibrazione del gamepad durante lo streaming",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Consenti al gamepad di passare alla modalità mouse tenendo premuto il pulsante Start",
-  "Allow high dynamic range for vibrant colors and enhanced contrast": "Consenti la gamma dinamica elevata per colori più vividi e un contrasto migliore",
   "Allow playing audio from the computer and this device": "Consenti la riproduzione dell’audio sia sul computer sia su questo dispositivo",
   "Allow sorting the list of apps and games in descending order": "Consenti di ordinare in modo decrescente l’elenco di applicazioni e giochi",
   "Allow the host to modify game settings for optimal streaming": "Consenti all’host di modificare le impostazioni di gioco per ottimizzare lo streaming",
@@ -640,5 +639,6 @@
   "Frames missing from stream:": "Fotogrammi mancanti nel flusso:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Se attivata, l’audio durante la trasmissione verrà riprodotto sia sul computer host sia localmente, purché anche l’uscita audio locale sia attivata.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Consenti la sincronizzazione dei fotogrammi per bilanciare la latenza e la fluidità del video. Si consiglia di mantenerla attivata.",
-  "Enable frame pacing": "Attivare la sincronizzazione dei fotogrammi"
+  "Enable frame pacing": "Attivare la sincronizzazione dei fotogrammi",
+  "Enable high dynamic range": "Attivare la gamma dinamica elevata"
 }
