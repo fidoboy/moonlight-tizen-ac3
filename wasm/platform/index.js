@@ -6703,11 +6703,46 @@ function directSmartHubVideoReady(videoElement) {
   return true;
 }
 
+var gamepadStreamMenuPending = false;
+var gamepadStreamMenuRetryTimeout = null;
+
+function schedulePendingGamepadStreamMenuOpen() {
+  if (!gamepadStreamMenuPending || gamepadStreamMenuRetryTimeout !== null) return;
+  gamepadStreamMenuRetryTimeout = window.setTimeout(function() {
+    gamepadStreamMenuRetryTimeout = null;
+    if (!gamepadStreamMenuPending) return;
+
+    var engineState = typeof window.getStreamingEngineState === 'function'
+      ? window.getStreamingEngineState()
+      : { active: null, confirmed: false };
+    var isNativeStream = engineState.active === 'ESPLUSPLAYER' && engineState.confirmed === true;
+    if (!isInGame && !isNativeStream) {
+      gamepadStreamMenuPending = false;
+      return;
+    }
+
+    // Keep the request pending while another dialog or the stream transition owns the UI.
+    if (isDialogOpen || $('#streamMenuDialogOverlay').length > 0) {
+      if ($('#streamMenuDialogOverlay').length > 0) gamepadStreamMenuPending = false;
+      else schedulePendingGamepadStreamMenuOpen();
+      return;
+    }
+
+    if (typeof toggleStreamMenuDialog === 'function' && toggleStreamMenuDialog()) {
+      gamepadStreamMenuPending = false;
+      return;
+    }
+    // The engine-specific readiness checks remain authoritative. Retry after the
+    // transition/video state changes instead of dropping this one-shot native event.
+    schedulePendingGamepadStreamMenuOpen();
+  }, 100);
+}
+
 function openStreamMenuFromGamepad() {
-  // Never let a duplicate controller event toggle an already-open menu closed.
-  if (isDialogOpen || $('#streamMenuDialogOverlay').length > 0) return;
-  // Reuse the same stream-state and video-readiness checks as the remote-control shortcut.
-  if (typeof toggleStreamMenuDialog === 'function') toggleStreamMenuDialog();
+  // Native gamepad input emits this event only once per long press. Preserve the
+  // request until the active engine and UI satisfy their own stream-menu guards.
+  gamepadStreamMenuPending = true;
+  schedulePendingGamepadStreamMenuOpen();
 }
 
 function toggleStreamMenuDialog() {
@@ -6735,7 +6770,9 @@ function toggleStreamMenuDialog() {
     // A confirmed native session plus native video readiness is authoritative
     // for WMP; do not additionally depend on the HTML/EMSS game-state flag.
     streamMenuDialog();
+    return true;
   }
+  return false;
 }
 
 let indexedDB = null;
