@@ -891,7 +891,7 @@ body[data-color-theme="black-orange"] #background-layer {
     transform-origin: 50% 50%;
     will-change: transform;
     border: 3px solid rgba(255, 255, 255, 0.28);
-    border-top-color: #fff;
+    border-top-color: var(--theme-accent);
     border-radius: 50%;
     box-sizing: border-box;
     animation: snackbar-spinner-rotation 0.8s linear infinite;
