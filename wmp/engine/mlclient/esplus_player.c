@@ -24,6 +24,10 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
+extern void AudEsplus_PrimeSilence(void);
+extern void AudEsplus_StopSilence(void);
+extern void AudEsplus_JoinSilence(void);
+
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
  * against it: Ecore_Wl2 pulls in a large firmware-specific EFL/Wayland/TBM
@@ -272,18 +276,20 @@ static void load_cfg(void)
 {
     const char *m = getenv("MLENGINE_LATENCY_MODE");
     const char *game_mode = getenv("MLENGINE_GAME_MODE");
-    /* Game Mode uses arrival-based PTS for both SET and ADD. */
+    /* Game Mode uses arrival-based PTS for both SET and ADD. Otherwise,
+     * restore clock-based PTS nudging by default; an explicit "off" keeps
+     * the uncorrected host-PTS path available for A/B testing. */
     esplus_cfg.latency_mode = (game_mode && !strcmp(game_mode, "1")) ? ESPLUS_LAT_ARRIVAL :
-        (!m ? ESPLUS_LAT_OFF :
-        !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
+        (!m || !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
         !strcmp(m, "arrival") ? ESPLUS_LAT_ARRIVAL : ESPLUS_LAT_OFF);
     esplus_cfg.target_depth_ms = mlc_env_int("MLENGINE_TARGET_DEPTH_MS", 50);
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
+    /* Keep frame shedding opt-in: DR_NEED_IDR can discard dependent frames. */
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
-    esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 250);
-    /* Catch-up seek is disabled by default for the playback stability A/B test.
-     * It can still be enabled explicitly with MLENGINE_CATCHUP_MS. */
-    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 0);
+    esplus_cfg.depth_poll_ms = mlc_env_int("MLENGINE_DEPTH_POLL_MS", 150);
+    /* Recover once when the native playback queue exceeds 150 ms for two
+     * consecutive samples. Requires the verified playback clock and seek API. */
+    esplus_cfg.catchup_ms = mlc_env_int("MLENGINE_CATCHUP_MS", 150);
     if (!s_api.get_playing_time || !s_api.seek) esplus_cfg.catchup_ms = 0;
     /* Arrival timestamps need no player query; nudge requires the optional playback clock. */
     if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE && !s_api.get_playing_time)
@@ -507,6 +513,7 @@ static void on_prepared(bool ok, void *context)
     }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
+    AudEsplus_StopSilence();
     MLT_DIAG("prepare_async_done callback state recorded ok=%d", ok ? 1 : 0);
 
     mldiag_player("pdone", ok ? 1 : 0);
@@ -541,6 +548,8 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
         pthread_cond_broadcast(&s_state_cv);
     }
     pthread_mutex_unlock(&s_lock);
+    if (stream == WMP_ESPLUS_STREAM_AUDIO)
+        AudEsplus_PrimeSilence();
     MLT_DIAG("ready_to_prepare callback state recorded stream=%d", (int)stream);
     PLOG("callback ready_to_prepare stream=%d\n", (int)stream);
     MLT("cb ready_to_prepare stream=%d", (int)stream);
@@ -660,6 +669,9 @@ int esplus_create_open(void)
     s_video_ready = 0;
     s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
+    s_prepare_requested = 0;
+    s_prepare_started = 0;
+    s_audio_registration_done = 0;
     __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
@@ -1053,25 +1065,43 @@ void esplus_audio_registration_complete(int success)
 
 int esplus_prepare(void)
 {
+    int already_requested;
+
     pthread_mutex_lock(&s_lock);
     s_prepare_called = 1;
-    s_prepared = s_prepare_ok = 0;
-    s_video_ready = 0;
-    s_audio_ready = !s_audio_enabled;
-    s_prepare_failed = s_start_failed = 0;
-    s_start_tried = 0;
-    s_prepare_requested = 1;
-    s_prepare_started = 0;
-    s_audio_registration_done = 0;
-    __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
-    s_idr_t0 = esplus_mono_ms();
-    s_idr_last = 0;
-    s_idr_n = 0;
-    s_video_tries = 0;
-    __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
+    already_requested = s_prepare_requested;
+    if (!already_requested) {
+        /*
+         * Initialize the preparation state only once per player/session.
+         * Renderer and stream-registration paths may both request prepare;
+         * a duplicate request must not erase ready callbacks or audio
+         * registration that arrived after the first request.
+         */
+        s_prepared = s_prepare_ok = 0;
+        s_video_ready = 0;
+        s_audio_ready = !s_audio_enabled;
+        s_prepare_failed = s_start_failed = 0;
+        s_start_tried = 0;
+        s_prepare_requested = 1;
+        s_prepare_started = 0;
+        __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
+        s_idr_t0 = esplus_mono_ms();
+        s_idr_last = 0;
+        s_idr_n = 0;
+        s_video_tries = 0;
+        __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
+    }
     pthread_mutex_unlock(&s_lock);
+
+    if (already_requested) {
+        MLT("esplus_prepare duplicate request ignored; preserving current preparation state");
+        MLT_DIAG("esplus_prepare duplicate request ignored");
+        /* Re-evaluate readiness without resetting any in-flight state. */
+        return esplus_start_prepare_if_ready();
+    }
+
     MLT("esplus_prepare requested audio_enabled=%d", s_audio_enabled);
     MLT_DIAG("esplus_prepare state set audio_enabled=%d; evaluating prepare_async", s_audio_enabled);
     return esplus_start_prepare_if_ready();
@@ -1242,6 +1272,7 @@ int esplus_video_ready(void)
 void esplus_close(void)
 {
     MLT("esplus_close");
+    AudEsplus_JoinSilence();
     sampler_stop();
 
     /* Wake a feeder blocked on ready_to_prepare and prevent it from

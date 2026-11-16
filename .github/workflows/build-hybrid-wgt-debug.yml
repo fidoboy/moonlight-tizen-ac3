@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   build-hybrid:
-    if: github.ref == 'refs/heads/1.2.4-pre' || github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics'
+    if: github.ref == 'refs/heads/1.2.4-pre' || github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics' || github.ref == 'refs/heads/fix/wmp-video-sync-150ms'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:

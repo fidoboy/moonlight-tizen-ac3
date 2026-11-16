@@ -33,6 +33,10 @@ else
   test -x "$EMSDK/emsdk"
   eval "$(EMSDK_BASH=1 "$EMSDK/emsdk" construct_env)"
 fi
+
+export EM_CACHE="${EM_CACHE:-$HOME/.emscripten_cache}"
+mkdir -p "$EM_CACHE"
+
 command -v emcc >/dev/null
 command -v cmake >/dev/null
 command -v ninja >/dev/null
