@@ -44,7 +44,8 @@ static int g_game_mode_requested;
 
 static void set_tv_game_mode(int enabled) {
   pthread_mutex_lock(&g_game_mode_lock);
-  if ((enabled && (!g_game_mode_requested || g_game_mode_active)) ||
+  if ((enabled && (!__atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) ||
+                    g_game_mode_active)) ||
       (!enabled && !g_game_mode_active)) {
     pthread_mutex_unlock(&g_game_mode_lock);
     return;
@@ -306,7 +307,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
       bitrate_kbps, datadir ? datadir : "(null)");
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
-  g_game_mode_requested = 0;
+  __atomic_store_n(&g_game_mode_requested, 0, __ATOMIC_RELEASE);
   g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host) { MLT("ml_engine_start -> 2 (no host)"); return 2; }
@@ -637,8 +638,9 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
   const char *game_mode = getenv("MLENGINE_GAME_MODE");
-  g_game_mode_requested = game_mode && !strcmp(game_mode, "1");
-  MLT("TV Game Mode requested=%d", g_game_mode_requested);
+  int game_mode_requested = game_mode && !strcmp(game_mode, "1");
+  __atomic_store_n(&g_game_mode_requested, game_mode_requested, __ATOMIC_RELEASE);
+  MLT("TV Game Mode requested=%d", game_mode_requested);
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
