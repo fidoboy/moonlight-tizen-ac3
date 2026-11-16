@@ -44,38 +44,69 @@ static int g_game_mode_requested;
 
 static void set_tv_game_mode(int enabled) {
   pthread_mutex_lock(&g_game_mode_lock);
-  if ((enabled && (!__atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) ||
-                    g_game_mode_active)) ||
+  int requested = __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE);
+  MLT("TV Game Mode: transition requested=%d preference=%d current_api_state=%d",
+      enabled, requested, g_game_mode_active);
+
+  if (enabled && !requested) {
+    MLT("TV Game Mode: activation skipped (disabled in session settings)");
+    pthread_mutex_unlock(&g_game_mode_lock);
+    return;
+  }
+  if ((enabled && g_game_mode_active) ||
       (!enabled && !g_game_mode_active)) {
+    MLT("TV Game Mode: no API call needed (already %s)",
+        g_game_mode_active ? "active according to AVOC return status" : "inactive");
     pthread_mutex_unlock(&g_game_mode_lock);
     return;
   }
 
   if (!g_avoc_lookup_attempted) {
     g_avoc_lookup_attempted = 1;
+
+    dlerror(); /* Discard any error left by an earlier dynamic-loader operation. */
     g_avoc_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
-    if (g_avoc_library) {
+    const char *load_error = dlerror();
+    if (!g_avoc_library) {
+      MLT("AVOC: dlopen(libavoc.so) FAILED: %s",
+          load_error ? load_error : "no dynamic-loader diagnostic");
+    } else {
+      MLT("AVOC: dlopen(libavoc.so) SUCCEEDED handle=%p", g_avoc_library);
+      dlerror(); /* dlsym errors must be read immediately after dlsym. */
       *(void **)(&g_avoc_set_game_mode) =
           dlsym(g_avoc_library, "avoc_set_game_mode");
-    }
-    if (!g_avoc_set_game_mode) {
-      const char *error = dlerror();
-      MLT("TV Game Mode unavailable: %s",
-          error ? error : "libavoc.so or avoc_set_game_mode missing");
-      if (g_avoc_library) {
+      const char *symbol_error = dlerror();
+      if (symbol_error || !g_avoc_set_game_mode) {
+        MLT("AVOC: dlsym(avoc_set_game_mode) FAILED: %s",
+            symbol_error ? symbol_error : "symbol address is NULL");
         dlclose(g_avoc_library);
         g_avoc_library = NULL;
+      } else {
+        MLT("AVOC: symbol avoc_set_game_mode RESOLVED address=%p",
+            (void *)g_avoc_set_game_mode);
       }
     }
+  } else {
+    MLT("AVOC: reusing cached lookup library=%s symbol=%s",
+        g_avoc_library ? "loaded" : "unavailable",
+        g_avoc_set_game_mode ? "resolved" : "unavailable");
   }
 
-  if (g_avoc_set_game_mode) {
-    int rc = g_avoc_set_game_mode(1, enabled ? 1 : 0);
+  if (!g_avoc_library) {
+    MLT("TV Game Mode: cannot change state (libavoc.so unavailable)");
+  } else if (!g_avoc_set_game_mode) {
+    MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
+  } else {
+    int mode = enabled ? 1 : 0;
+    MLT("AVOC: calling avoc_set_game_mode(save_type=1, mode=%d)", mode);
+    int rc = g_avoc_set_game_mode(1, mode);
+    MLT("AVOC: avoc_set_game_mode returned rc=%d", rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
-      MLT("TV Game Mode %s", enabled ? "enabled" : "restored");
+      MLT("TV Game Mode: AVOC API reported %s; actual TV picture mode is NOT independently verified",
+          enabled ? "success enabling" : "success restoring");
     } else {
-      MLT("TV Game Mode %s failed rc=%d",
+      MLT("TV Game Mode: AVOC API reported failure transition=%s rc=%d",
           enabled ? "enable" : "restore", rc);
     }
   }
