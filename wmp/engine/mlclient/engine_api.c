@@ -230,12 +230,24 @@ static void cl_connTerminated(int errorCode) {
   set_tv_game_mode(0);
   __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
 }
-/* moonlight-common-c is built with LC_LOG (build-deps-lib.sh): Limelog formats the line
-   itself and passes it as the only argument, so it is plain text here; a '%' in it must
-   not be expanded again. */
+/* moonlight-common-c can emit high-frequency packet diagnostics. Keep every
+   line in the compact failure counters/ring, but forward only actionable events. */
+static int cc_log_is_important(const char *line) {
+  static const char *const markers[] = {
+    "failed", "FAILED", "error", "Error", "ERROR", "corrupt", "Corrupt",
+    "overflow", "Overflow", "Unrecoverable", "Protected content",
+    "Requesting IDR", "Received first video packet"
+  };
+  for (unsigned i = 0; i < sizeof(markers) / sizeof(markers[0]); ++i)
+    if (strstr(line, markers[i])) return 1;
+  return 0;
+}
+
+/* Limelight passes a preformatted line; never interpret it as a format string. */
 static void cl_logMessage(const char *format, ...) {
-  fputs(format, stderr);
   mldiag_cc_line(format);
+  if (!cc_log_is_important(format)) return;
+  fputs(format, stderr);
   MLT("cc: %s", format);
 }
 
