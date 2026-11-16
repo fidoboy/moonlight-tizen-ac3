@@ -29,7 +29,7 @@ Do not infer argument types, accepted values, return-code meanings, availability
 | `check_game_mode` | None observed | `ret` |
 | `set_game_mode_by_source` | `save_type`, `source`, `game_mode` | `ret` |
 
-These are logical argument names, not confirmed C or D-Bus type declarations. The accepted values and semantics of `save_type`, `mode`, `source`, and `game_mode` have not been fully established.
+These are logical argument names. The Game Mode D-Bus/GVariant tuple types are documented below; the accepted values and semantics of `save_type`, `mode`, `source`, and `game_mode` have not been fully established.
 
 ### Experimental C signature reference
 
@@ -69,6 +69,9 @@ This disassembly confirms wrapper control flow and argument forwarding only. It 
 - `avoc_proxy_call_check_game_mode`
 - `avoc_proxy_call_check_game_mode_sync`
 - `avoc_proxy_call_check_game_mode_finish`
+- `avoc_proxy_call_set_game_mode_by_source`
+- `avoc_proxy_call_set_game_mode_by_source_sync`
+- `avoc_proxy_call_set_game_mode_by_source_finish`
 - `avoc_proxy_complete_set_game_mode`
 - `avoc_proxy_complete_get_game_mode`
 - `avoc_proxy_complete_check_game_mode`
@@ -91,8 +94,22 @@ Disassembly of the Game Mode synchronous proxy helpers establishes this common c
 | `avoc_proxy_call_set_game_mode_sync` | Two incoming arguments | One output: the AVOC `ret` value |
 | `avoc_proxy_call_get_game_mode_sync` | One incoming argument | Two outputs: the mode value and AVOC `ret` |
 | `avoc_proxy_call_check_game_mode_sync` | No arguments | One output: the AVOC `ret` value |
+| `avoc_proxy_call_set_game_mode_by_source_sync` | Three incoming arguments | One output: the AVOC `ret` value |
 
-The format-string addresses are visible in the disassembly, but their literal contents and therefore the exact GVariant tuple signatures have not yet been decoded. The helper argument names and C types also remain to be confirmed from further evidence.
+### Confirmed Game Mode GVariant signatures
+
+The synchronous helpers pass the following literal format strings to `g_variant_new` and `g_variant_get`. This establishes the method tuple signatures and the order and types of their fields:
+
+| Method | Request tuple | Reply tuple | Reply fields |
+|---|---|---|---|
+| `SetGameMode` | `(ii)` | `(i)` | `ret` |
+| `GetGameMode` | `(i)` | `(ii)` | `mode`, `ret` |
+| `CheckGameMode` | `()` | `(i)` | `ret` |
+| `SetGameModeBySource` | `(iii)` | `(i)` | `ret` |
+
+Each `i` is a 32-bit signed integer in the GVariant type system. Thus, `SetGameModeBySource` sends three integer fields, including `source`; it does not send a string field in this proxy method signature. The reply field order for `GetGameMode` is `mode` followed by `ret`, matching the order of the output pointers supplied to `g_variant_get`.
+
+The helper disassembly also confirms the request argument counts: two for `SetGameMode`, one for `GetGameMode`, none for `CheckGameMode`, and three for `SetGameModeBySource`. The exact semantic meaning and accepted values of those integer fields remain unresolved.
 
 The helpers pass timeout `-1`, `NULL` for `GCancellable`, and a caller-provided `GError **` to `g_dbus_proxy_call_sync`.
 
