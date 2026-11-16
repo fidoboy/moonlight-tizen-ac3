@@ -6071,7 +6071,9 @@ function startGame(host, appID) {
         h264Level = $('#selectH264Level').data('value') || 'Auto';
         hdrMode = $('#hdrModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
         fullRange = $('#fullRangeSwitch').parent().hasClass('is-checked') ? 1 : 0;
-        gameMode = $('#gameModeSwitch').parent().hasClass('is-checked') ? 1 : 0;
+        // Use the checkbox state shared with the configuration summary. MDL's
+        // parent class can be stale after restoring a switch programmatically.
+        gameMode = document.getElementById('gameModeSwitch').checked ? 1 : 0;
         disableWarnings = $('#disableWarningsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         performanceStats = $('#performanceStatsSwitch').parent().hasClass('is-checked') ? 1 : 0;
         dolbyChannelLayout = $('#selectDolbyChannelLayout').data('value') || 'Back';
@@ -8457,7 +8459,7 @@ function saveFullRange() {
 
 function saveGameMode() {
   setTimeout(() => {
-    const chosenGameMode = $('#gameModeSwitch').parent().hasClass('is-checked');
+    const chosenGameMode = document.getElementById('gameModeSwitch').checked;
     console.log('%c[index.js, saveGameMode]', 'color: green;', 'Saving game mode state: ' + chosenGameMode);
     storeData('gameMode', chosenGameMode, null);
 
@@ -9467,14 +9469,18 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored gameMode preferences.');
   getData('gameMode', function(previousValue) {
     if (previousValue.gameMode == null) {
-      if (parseFloat(platformVer) >= 9.0) {
-        document.querySelector('#gameModeBtn').MaterialSwitch.off(); // Turn off for Tizen 9.0 and newer to avoid compatibility issues
-      } else if (parseFloat(platformVer) === 5.5) {
-        document.querySelector('#gameModeBtn').MaterialSwitch.off(); // Turn off for Tizen 5.5 due to lack of support
-        document.querySelector('#gameModeBtn').MaterialSwitch.disable(); // Disable the switch to prevent user interaction
+      // Materialize the platform-specific default as a real saved preference.
+      // This keeps the settings UI, summary bar and native session request aligned.
+      const defaultGameMode = parseFloat(platformVer) < 9.0 && parseFloat(platformVer) !== 5.5;
+      if (defaultGameMode) {
+        document.querySelector('#gameModeBtn').MaterialSwitch.on();
       } else {
-        document.querySelector('#gameModeBtn').MaterialSwitch.on(); // Turn on for compatible Tizen versions (e.g., 6.0, 6.5, 7.0, 8.0)
+        document.querySelector('#gameModeBtn').MaterialSwitch.off();
       }
+      if (parseFloat(platformVer) === 5.5) {
+        document.querySelector('#gameModeBtn').MaterialSwitch.disable();
+      }
+      storeData('gameMode', defaultGameMode, null);
     } else if (previousValue.gameMode == false) {
       document.querySelector('#gameModeBtn').MaterialSwitch.off();
     } else {
