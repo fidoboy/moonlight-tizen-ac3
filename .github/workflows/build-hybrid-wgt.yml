@@ -23,6 +23,28 @@ on:
         required: false
         type: boolean
         default: false
+  push:
+    branches: ["1.2.4-pre"]
+    paths:
+      - "CMakeLists.txt"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "res/**"
+      - "h264bitstream/**"
+      - "libgamestream/**"
+      - "moonlight-common-c/**"
+      - "opus/**"
+      - "ports/**"
+      - "wasm/**"
+      - "ambilight-service/**"
+      - "wmp/**"
+      - "tests/wmp_transport_test.js"
+      - ".github/workflows/build-hybrid-wgt.yml"
+      - "scripts/build-moonlight-web.sh"
+      - "scripts/validate-hybrid-wgt.py"
+      - "scripts/verify-tizen-xmlsig.py"
+      - "scripts/xml-c14n.c"
+
 
 permissions:
   contents: read
@@ -34,29 +56,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  configure:
+    name: Configure requested WGT variants
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build the requested variant matrix
+        id: set-matrix
+        shell: bash
+        env:
+          BUILD_RELEASE: ${{ inputs.build_release }}
+          BUILD_DEBUG: ${{ inputs.build_debug }}
+          SHOW_PRIVATE_DATA: ${{ inputs.show_private_data }}
+          ENABLE_NATIVE_TRACES: ${{ inputs.enable_native_traces }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          matrix='{"include":[]}'
+          if [[ "$BUILD_RELEASE" == "true" && "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]]; then
+            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":("Moonlight-" + env.GITHUB_SHA)}]' <<< "$matrix")"
+          fi
+          if [[ "$BUILD_DEBUG" == "true" ]] && {
+            [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]] ||
+            [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre-wmp-startup-diagnostics" ]] ||
+            [[ "$GITHUB_REF" == "refs/heads/fix/wmp-video-sync-150ms" ]]
+          }; then
+            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
+          fi
+          if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
+            echo "::error::No build variant is enabled for this branch and selection. Release is available on 1.2.4-pre; Debug is available on the configured experimental branches."
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build-hybrid:
-    name: ${{ matrix.variant }} hybrid WGT
-    if: |
-      (matrix.variant == 'release' && inputs.build_release && github.ref == 'refs/heads/1.2.4-pre') ||
-      (matrix.variant == 'debug' && inputs.build_debug && (
-        github.ref == 'refs/heads/1.2.4-pre' ||
-        github.ref == 'refs/heads/1.2.4-pre-wmp-startup-diagnostics' ||
-        github.ref == 'refs/heads/fix/wmp-video-sync-150ms'
-      ))
+    needs: configure
+    name: Build ${{ matrix.variant }} hybrid WGT
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - variant: release
-            build_variant: release
-            debug_mode: "false"
-            base_wgt: MoonlightWeb-base.wgt
-            output_name: Moonlight.wgt
-          - variant: debug
-            build_variant: debug
-            debug_mode: "true"
-            base_wgt: Moonlight-Debug-base.wgt
-            output_name: Moonlight-Debug.wgt
+      matrix: ${{ fromJSON(needs.configure.outputs.matrix) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -130,7 +170,7 @@ jobs:
               export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
               ccache --version
               WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/engine/build/build-deps-lib.sh
-              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=${{ matrix.build_variant }} WMP_MLT_TRACE=${{ matrix.variant == 'debug' && inputs.enable_native_traces || false }} bash wmp/engine/mlclient/build-engine-so.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=${{ matrix.build_variant }} WMP_MLT_TRACE=${{ matrix.enable_native_traces }} bash wmp/engine/mlclient/build-engine-so.sh
               echo "::group::WMP ARM ccache statistics"
               ccache --show-stats
               echo "::endgroup::"
@@ -164,7 +204,7 @@ jobs:
             -e EMSDK=/opt/emscripten-release-bundle/emsdk \
             -e BUILD_TYPE=release \
             -e DEBUG_MODE=${{ matrix.debug_mode }} \
-            -e LOG_SHOW_PRIVATE_DATA=${{ matrix.variant == 'debug' && inputs.show_private_data || false }} \
+            -e LOG_SHOW_PRIVATE_DATA=${{ matrix.show_private_data }} \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
@@ -757,7 +797,7 @@ jobs:
       - name: Upload ${{ matrix.variant }} hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.variant == 'release' && format('Moonlight-{0}', github.sha) || 'Moonlight-Debug' }}
+          name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/hybrid-output/${{ matrix.output_name }}
           if-no-files-found: error
           retention-days: 14
