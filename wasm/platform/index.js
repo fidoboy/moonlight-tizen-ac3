@@ -7016,7 +7016,7 @@ function saveResolution() {
   updateH264FramerateConstraint();
 
   // Update the bitrate value based on the selected resolution
-  $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
+  isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
   // Trigger warning check after changing video resolution
   warnResolutionFramerate();
 }
@@ -7028,7 +7028,7 @@ function saveFramerate() {
   storeData('frameRate', chosenFramerate, null);
 
   // Update the bitrate value based on the selected frame rate
-  $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
+  isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
   // Trigger warning check after changing video frame rate
   warnResolutionFramerate();
 }
@@ -7050,7 +7050,7 @@ function updateH264FramerateConstraint() {
     }
     framerateButton.attr('data-value', '30').data('value', '30');
     storeData('frameRate', '30', null);
-    $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
+    isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
   }
 
   framerateButton.prop('disabled', mustForce30Fps)
@@ -7177,6 +7177,12 @@ function standardBitratePresets() {
 
   // Update the bitrate value
   saveBitrate();
+}
+
+function isBitrateOptimizationEnabled() {
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var value = preferences && preferences.optimizeBitrate;
+  return value === true || value === 'true' || value === 1;
 }
 
 function optimizeBitratePresets() {
@@ -8461,7 +8467,7 @@ function updateVideoCodec(chosenCodecId, chosenCodecValue) {
   updateH264FramerateConstraint();
 
   // Update the bitrate value based on the selected codec
-  if ($('#optimizeBitrateSwitch').prop('checked')) {
+  if (isBitrateOptimizationEnabled()) {
     optimizeBitratePresets();
   }
   // Trigger warning check after changing video codec
@@ -8601,7 +8607,7 @@ function handleUnlockAllFps() {
       console.log('%c[index.js, handleUnlockAllFps]', 'color: green;', 'Resetting framerate value to 60 FPS');
       storeData('frameRate', '60', null);
       // Update the bitrate value based on the selected frame rate
-      $('#optimizeBitrateSwitch').prop('checked') ? optimizeBitratePresets() : standardBitratePresets();
+      isBitrateOptimizationEnabled() ? optimizeBitratePresets() : standardBitratePresets();
     }
   }
 }
