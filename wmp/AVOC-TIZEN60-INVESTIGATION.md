@@ -168,11 +168,49 @@ avocd_audio_set_sound_mode(service, data, sound_mode, 1);
 
 The `value` passed to `avocd_set_filmmaker_mode()` and the `sound_mode` passed to the audio setter are prepared earlier in the function. The audio setter uses `save_type=1). If the requested mode differs from the previously tracked mode, the path emits event `0x0D) through `avocd_dbus_send_event()`; otherwise it returns through the normal epilogue. This path does not pass through the common Picture Mode/surround application sequence shown above.
 
-#### Low-frequency dimming and special mode-2 routing
+#### Low-frequency dimming (LFD) Game Mode path and HDR-dependent picture selection
 
-- One branch calls `avocd_set_game_mode_lfd(service, data, requested_mode, save_type)` and then proceeds to the common change-notification/return path. The internal behavior of this helper is not established here.
-- When `requested_mode == 2`, the function reads volatile setting `3`. If it is zero, execution joins the `requested_mode == 0` path. If nonzero, the function changes the local `game_mode_type` argument to `1` and joins the main mode-configuration path.
-- In another branch, `avocd_update_wide_gaming(data, source, requested_mode)` is called before continuing through the surrounding mode-transition flow. Its complete gating conditions and side effects remain unresolved.
+The configuration-7 branch delegates to:
+
+```cpp
+int avocd_set_game_mode_lfd(
+    _AvocService* service,
+    AvocData* data,
+    avoc_game_mode_e requested_mode,
+    avoc_save_type_e save_type
+);
+```
+
+The helper reads DB setting `0x38` using the incoming `save_type`. This value is the previously stored mode used by the helper's change and restoration decisions; it is not an independent flag.
+
+- If the previous value equals `requested_mode` and the `AvocData` field at offset `0x20` equals `6`, the helper takes a special path that calls `_avocd_detect_gmp_condition_in_resolution(data, &condition)`. When the returned condition is true, it calls `avocd_update_vrr_smc_state(data, source, requested_mode)` and follows the associated special path.
+- Otherwise, it writes the requested mode to DB setting `0x36`, using the incoming `save_type`. For requested mode zero, the local requested mode is changed to one before the AVE operation.
+- The helper reads DB setting `0x38` with `save_type=1`, calls `avocd_ave_set_game_mode(mode)`, and compares the requested/normalized mode with the previously read value. When they differ, it writes setting `0x38` with `save_type=1` and calls `avocd_set_secaudio_info(data)`.
+- When requested mode is zero and the previous value in setting `0x38` is nonzero, it restores, in order: sound mode from setting `0x60`, Picture Mode from setting `0x04`, Film Mode from `0x44`, RGB Only from `0x46`, and Digital Clean View from `0x113`. The reads use `save_type=1`; the corresponding application calls use the observed zero-valued flags/arguments.
+- A changed-mode path emits event identifier `0x0D`. The helper's observed normal return value is zero.
+
+For `requested_mode == 1`, the helper reads the current sound mode with `AVOC_audio_get_sound_mode(data, &sound_mode, 1)` and checks it with `avocd_check_special_view_sound_mode(sound_mode)`. The observed paths then restore the sound mode through `avocd_audio_set_sound_mode(service, data, sound_mode, 1)`. When the special-view check is false, the current sound mode is first written to DB setting `0x60` with `save_type=1`.
+
+The helper reads DB setting `0x03` using the incoming `save_type`. Unless its value is in the inclusive range `0x20012`–`0x20013`, that value is copied to DB setting `0x04`, also using the incoming `save_type`. It then checks the effective HDR state through:
+
+```cpp
+bool avocd_hdr_meta_is_hdr_mode(AvocData* data);
+```
+
+The HDR result directly selects the Picture Mode applied by `avocd_set_picture_mode()`:
+
+| HDR state at the time Game Mode is applied | Picture Mode value |
+|---|---:|
+| HDR active | `0x20013` |
+| HDR inactive | `0x20012` |
+
+The selected Picture Mode is applied with the incoming `save_type`. Both branches then call `avocd_set_film_mode(data, 0, 0)`, `_AVOC_set_rgb_only_mode(data, 0, 0, 0)`, and `avocd_set_digital_clean_view(data, 0, 0)`.
+
+**Streaming-client integration implication:** this AVOC path selects its Picture Mode from the HDR state that exists when Game Mode is applied; it does not establish that a later HDR transition will cause the selection to be revisited. A client that enables HDR for a stream should therefore defer its Game Mode request until the player has received video and completed the corresponding display-mode transition. If the stream is SDR, Game Mode can be applied after the player has established the SDR display mode. This is an integration-ordering inference from the observed server behavior, not a documented AVOC callback or synchronization API; the player event that guarantees completion still needs to be identified.
+
+When `requested_mode == 2`, the outer `avocd_set_game_mode()` function reads volatile setting `3`. If it is zero, execution joins the `requested_mode == 0` path. If nonzero, it changes the local `game_mode_type` argument to `1` and joins the main mode-configuration path.
+
+In another branch, `avocd_update_wide_gaming(data, source, requested_mode)` is called before continuing through the surrounding mode-transition flow. Its complete gating conditions and side effects remain unresolved.
 
 The numeric setting identifiers and structure-field offsets in these observations are implementation evidence only; their user-facing names and semantic meanings are not established.
 
