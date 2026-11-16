@@ -8528,7 +8528,7 @@ function updateHdrMode() {
     storeData('hdrMode', chosenHdrMode, null);
 
     // Update the bitrate value based on the selected HDR state
-    if ($('#optimizeBitrateSwitch').prop('checked')) {
+    if (isBitrateOptimizationEnabled()) {
       optimizeBitratePresets();
     }
   }, 100);
