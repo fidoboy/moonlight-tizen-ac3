@@ -95,9 +95,8 @@ Successful CI compilation does not replace the lifecycle checks listed in
 status callback behavior, abrupt native-crash detection, actual service
 process exit, and UI recovery remain verification items.
 
-## AVOC platform API research
+## AVOC API reference
 
-The separate [AVOC Game Mode API research](AVOC-TIZEN60-INVESTIGATION.md)
-documents the discovered Game Mode API surface, method metadata, related
-platform API families, an observed error return, and the unresolved questions
-that must be answered before relying on AVOC from a native application.
+[AVOC API inventory](AVOC-TIZEN60-INVESTIGATION.md) records discovered
+library functions, known parameter names, related proxy and managed symbols,
+and API details that remain undocumented or unverified.
