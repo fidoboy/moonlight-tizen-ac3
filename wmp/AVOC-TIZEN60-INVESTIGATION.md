@@ -171,7 +171,7 @@ The `value` passed to `avocd_set_filmmaker_mode()` and the `sound_mode` passed t
 #### Low-frequency dimming and special mode-2 routing
 
 - One branch calls `avocd_set_game_mode_lfd(service, data, requested_mode, save_type)` and then proceeds to the common change-notification/return path. The internal behavior of this helper is not established here.
-- When `requested_mode == 2), the function reads volatile setting `3`. If it is zero, execution joins the `requested_mode == 0) path. If nonzero, the function changes the local `game_mode_type` argument to `1` and joins the main mode-configuration path.
+- When `requested_mode == 2`, the function reads volatile setting `3`. If it is zero, execution joins the `requested_mode == 0` path. If nonzero, the function changes the local `game_mode_type` argument to `1` and joins the main mode-configuration path.
 - In another branch, `avocd_update_wide_gaming(data, source, requested_mode)` is called before continuing through the surrounding mode-transition flow. Its complete gating conditions and side effects remain unresolved.
 
 The numeric setting identifiers and structure-field offsets in these observations are implementation evidence only; their user-facing names and semantic meanings are not established.
