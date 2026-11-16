@@ -35,7 +35,6 @@
   "- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.": "- Mostra uno sfondo animato con un campo stellare quando lo streaming inizia o termina. Se disattivato, viene mostrato uno sfondo nero uniforme.",
   "- Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.": "- Ordina l’elenco delle applicazioni dell’host in ordine crescente (dalla A alla Z) o decrescente (dalla Z alla A) in base al titolo.",
   "- This can help reduce delays by keeping audio in sync for a consistent sound while streaming.": "- Può ridurre i ritardi mantenendo l’audio sincronizzato e uniforme durante lo streaming.",
-  "- This can help reduce micro-stutter by delaying frames that arrive too early while streaming.": "- Può ridurre i micro-scatti ritardando i fotogrammi che arrivano troppo presto durante lo streaming.",
   "- This is only necessary for Wolf and Punktfunk-style hosts that encrypt GameStream audio without advertising it.": "- Necessario solo per gli host di tipo Wolf e Punktfunk che cifrano l’audio GameStream senza dichiararlo.",
   "When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.": "Quando è attivata, questa impostazione può mostrare più dettagli nelle aree più scure e più luminose dell’immagine. Scegliere l’impostazione che offre il risultato migliore sul proprio televisore.",
   "- Useful for users who need guidance or help navigating the app.": "- Utile per chi ha bisogno di indicazioni o assistenza per navigare nell’applicazione.",
@@ -67,7 +66,7 @@
   "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Tutti gli host salvati verranno rimossi da Moonlight. Per utilizzarli di nuovo, potrebbe essere necessario aggiungerli e associarli nuovamente. I PC host e i loro file non verranno modificati.",
   "Allow audio synchronization support for optimal sound output": "Consenti la sincronizzazione audio per un’uscita sonora ottimale",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "Consenti la decifratura dell’audio AES-CBC dagli host di tipo Wolf e Punktfunk",
-  "Allow frame pacing to balance video latency and smoothness": "Consenti la sincronizzazione dei fotogrammi per bilanciare la latenza e la fluidità del video. Si consiglia di mantenerla attivata.",
+  "Allow frame pacing to balance video latency and smoothness": "Consenti la sincronizzazione dei fotogrammi per bilanciare la latenza e la fluidità del video",
   "Allow full color range for more detail in dark and bright areas of content": "Consenti la gamma cromatica completa per ottenere più dettagli nelle aree scure e luminose",
   "Allow game mode for optimal latency and performance while streaming": "Consenti la modalità Gioco per ottenere latenza e prestazioni ottimali durante lo streaming",
   "Allow gamepad rumble feedback support while streaming": "Consenti il supporto della vibrazione del gamepad durante lo streaming",
@@ -639,5 +638,6 @@
   "Accepted": "Accettato",
   "Average renderer submit time:": "Tempo medio di invio del renderer:",
   "Frames missing from stream:": "Fotogrammi mancanti nel flusso:",
-  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Se attivata, l’audio durante la trasmissione verrà riprodotto sia sul computer host sia localmente, purché anche l’uscita audio locale sia attivata."
+  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Se attivata, l’audio durante la trasmissione verrà riprodotto sia sul computer host sia localmente, purché anche l’uscita audio locale sia attivata.",
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Consenti la sincronizzazione dei fotogrammi per bilanciare la latenza e la fluidità del video. Si consiglia di mantenerla attivata."
 }
