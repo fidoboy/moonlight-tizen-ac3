@@ -1476,8 +1476,13 @@ function handleMessage(msg) {
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
-    var shouldQuitHostApp = errorCode === 0 && !hasStreamError &&
-      $('#quitAppAfterDisconnectSwitch').prop('checked');
+    var persistedPreferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
+    var quitAfterDisconnect = persistedPreferences && (
+      persistedPreferences.quitAppAfterDisconnect === true ||
+      persistedPreferences.quitAppAfterDisconnect === 'true' ||
+      persistedPreferences.quitAppAfterDisconnect === 1
+    );
+    var shouldQuitHostApp = errorCode === 0 && !hasStreamError && !!quitAfterDisconnect;
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
       console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
