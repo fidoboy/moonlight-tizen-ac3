@@ -147,7 +147,7 @@
   "Compatibility Warning": "Предупреждение о совместимости",
   "Completed image-set passes: %1$s": "Полных проходов по набору изображений: %1$s",
   "Configuration summary bar": "Панель сводки настроек",
-  "Connecting to %1$s...": "Connecting to %1$s...",
+  "Connecting to %1$s...": "Подключение к %1$s...",
   "Connection Error": "Ошибка подключения",
   "Connection ended. Frame loss detected.": "Соединение прервано. Обнаружена потеря видеокадров.",
   "Connection terminated": "Соединение разорвано",
