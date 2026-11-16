@@ -2,6 +2,27 @@ name: Build Hybrid WGT (CI)
 
 on:
   workflow_dispatch:
+    inputs:
+      build_release:
+        description: "Generate Moonlight.wgt (Release)"
+        required: false
+        type: boolean
+        default: true
+      build_debug:
+        description: "Generate Moonlight-Debug.wgt (Debug)"
+        required: false
+        type: boolean
+        default: false
+      show_private_data:
+        description: "Include private data in application debug logs (Debug only)"
+        required: false
+        type: boolean
+        default: false
+      enable_native_traces:
+        description: "Enable verbose ESPlusPlayer/WMP native traces (Debug only)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -13,9 +34,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  configure:
+    name: Configure requested WGT variants
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build the requested variant matrix
+        id: set-matrix
+        shell: bash
+        env:
+          BUILD_RELEASE: ${{ inputs.build_release }}
+          BUILD_DEBUG: ${{ inputs.build_debug }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          matrix='{"include":[]}'
+          if [[ "$BUILD_RELEASE" == "true" && "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]]; then
+            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight-" + env.GITHUB_SHA}]' <<< "$matrix")"
+          fi
+          if [[ "$BUILD_DEBUG" == "true" ]] && {
+            [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]] ||
+            [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre-wmp-startup-diagnostics" ]] ||
+            [[ "$GITHUB_REF" == "refs/heads/fix/wmp-video-sync-150ms" ]]
+          }; then
+            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' --arg SHOW_PRIVATE_DATA "${{ inputs.show_private_data }}" --arg ENABLE_NATIVE_TRACES "${{ inputs.enable_native_traces }}" <<< "$matrix")"
+          fi
+          if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
+            echo "::error::No build variant is enabled for this branch and selection. Release is available on 1.2.4-pre; Debug is available on the configured experimental branches."
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build-hybrid:
-    if: github.ref == 'refs/heads/1.2.4-pre'
-    name: Build and package one hybrid WGT
+    needs: configure
+    name: Build ${{ matrix.variant }} hybrid WGT
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.configure.outputs.matrix) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -34,9 +91,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ matrix.variant }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ matrix.variant }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}
             moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
             moonlight-web-ccache-${{ runner.os }}-
 
@@ -89,7 +146,7 @@ jobs:
               export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
               ccache --version
               WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/engine/build/build-deps-lib.sh
-              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=release bash wmp/engine/mlclient/build-engine-so.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=${{ matrix.build_variant }} WMP_MLT_TRACE=${{ matrix.enable_native_traces }} bash wmp/engine/mlclient/build-engine-so.sh
               echo "::group::WMP ARM ccache statistics"
               ccache --show-stats
               echo "::endgroup::"
@@ -108,7 +165,7 @@ jobs:
           set -euo pipefail
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
-      - name: Build the single Moonlight Web payload inside optimized v5 image
+      - name: Build the ${{ matrix.variant }} Moonlight Web payload inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
@@ -122,6 +179,8 @@ jobs:
             -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
             -e EMSDK=/opt/emscripten-release-bundle/emsdk \
             -e BUILD_TYPE=release \
+            -e DEBUG_MODE=${{ matrix.debug_mode }} \
+            -e LOG_SHOW_PRIVATE_DATA=${{ matrix.show_private_data }} \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
@@ -139,7 +198,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
-          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ matrix.variant }}-${{ hashFiles('CMakeLists.txt', 'wasm/**', 'libgamestream/**', 'moonlight-common-c/**', 'opus/**', 'h264bitstream/**', 'ports/**', 'scripts/build-moonlight-web.sh', 'wmp/**', 'tests/wmp_*.c', 'tests/wmp_*.sh') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Extract unsigned Moonlight Web files
         shell: bash
@@ -164,6 +223,8 @@ jobs:
             -w /workspace \
             -e RUNNER_TEMP=/runner-temp \
             -e GITHUB_SHA="$GITHUB_SHA" \
+            -e BUILD_OUTPUT_NAME="${{ matrix.output_name }}" \
+            -e BASE_WGT_NAME="${{ matrix.base_wgt }}" \
             "$image" bash -s <<'PACKAGE'
           
           set -euo pipefail
@@ -261,7 +322,7 @@ jobs:
             fi
           }
         
-          package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt"
+          package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/${{ matrix.base_wgt }}"
         
           run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
           test -d "$service_project"
@@ -690,10 +751,10 @@ jobs:
           PY
           }
           
-          package_hybrid "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/MoonlightWeb-base.wgt" "$RUNNER_TEMP/Moonlight.wgt"
+          package_hybrid "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/$BASE_WGT_NAME" "$RUNNER_TEMP/$BUILD_OUTPUT_NAME"
           mkdir -p "$RUNNER_TEMP/hybrid-output"
-          cp "$RUNNER_TEMP/Moonlight.wgt" "$RUNNER_TEMP/hybrid-output/Moonlight.wgt"
-          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum Moonlight.wgt > SHA256SUMS)
+          cp "$RUNNER_TEMP/$BUILD_OUTPUT_NAME" "$RUNNER_TEMP/hybrid-output/$BUILD_OUTPUT_NAME"
+          (cd "$RUNNER_TEMP/hybrid-output" && sha256sum "$BUILD_OUTPUT_NAME" > SHA256SUMS)
           
           
           PACKAGE
@@ -709,11 +770,11 @@ jobs:
               echo "--- $log (last 300 lines) ---"
               tail -n 300 "$log"
             done
-      - name: Upload standard hybrid WGT for Apps2Samsung
+      - name: Upload ${{ matrix.variant }} hybrid WGT for Apps2Samsung
         uses: actions/upload-artifact@v6
         with:
-          name: Moonlight-${{ github.sha }}
-          path: ${{ runner.temp }}/hybrid-output/Moonlight.wgt
+          name: ${{ matrix.artifact_name }}
+          path: ${{ runner.temp }}/hybrid-output/${{ matrix.output_name }}
           if-no-files-found: error
           retention-days: 14
 
