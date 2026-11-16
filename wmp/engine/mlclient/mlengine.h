@@ -105,6 +105,7 @@ typedef struct ml_engine_stream_info {
   uint32_t audio_fec_recovered, audio_fec_failed, audio_fec_out_of_order;
   uint32_t video_fps_total;
   int32_t encryption_status;
+  uint32_t video_hdr_active; /* 1 only after ESPlus accepts an HDR-active HEVC Main10 packet. */
 } ml_engine_stream_info;
 int ml_engine_get_stream_info(ml_engine_stream_info *out);
 /* 1 after ESPlus has started and accepted at least one video packet. */
