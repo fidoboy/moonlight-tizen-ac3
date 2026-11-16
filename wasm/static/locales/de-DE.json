@@ -639,5 +639,6 @@
   "Average renderer submit time:": "Durchschnittliche Übermittlungszeit des Renderers:",
   "Frames missing from stream:": "Im Stream fehlende Frames:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Wenn diese Option aktiviert ist, wird der Ton während des Streamings sowohl auf dem Host-Computer als auch lokal wiedergegeben, sofern die lokale Audioausgabe ebenfalls aktiviert ist.",
-  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen."
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen.",
+  "Enable frame pacing": "Frame-Pacing aktivieren"
 }
