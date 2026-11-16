@@ -47,7 +47,6 @@ jobs:
           BUILD_DEBUG: ${{ inputs.build_debug }}
           SHOW_PRIVATE_DATA: ${{ inputs.show_private_data }}
           ENABLE_NATIVE_TRACES: ${{ inputs.enable_native_traces }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           : "${BUILD_RELEASE:=true}"
@@ -62,7 +61,7 @@ jobs:
             matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
           fi
           if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
-            echo "::error::No build variant is enabled for this branch and selection. Release is available on 1.2.4-pre; Debug is available on the configured experimental branches."
+            echo "::error::No build variant is enabled. Select Release and/or Debug."
             exit 1
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
