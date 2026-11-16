@@ -10592,8 +10592,9 @@ function updateConfigSummaryBar(snapshot) {
   }
   var fps = storedText('frameRate', '60');
   fps = /fps/i.test(fps) ? fps : fps + ' FPS';
-  var bitrate = storedText('bitrate', '10') + ' Mbps';
-  if (!/mbps/i.test(bitrate)) bitrate += ' Mbps';
+  var bitrateValue = Number.parseFloat(storedText('bitrate', '10'));
+  var hasValidBitrate = Number.isFinite(bitrateValue) && bitrateValue > 0;
+  var bitrate = hasValidBitrate ? bitrateValue.toFixed(1) + ' Mbps' : '';
   var codec = storedText('videoCodec', 'H264').replace(/^H\.264$/i, 'H264');
   if (/^H264$/i.test(codec)) {
     var h264Level = storedText('h264Level', 'Auto');
@@ -10617,6 +10618,8 @@ function updateConfigSummaryBar(snapshot) {
   setSummaryText('#summaryResolution', resolution);
   setSummaryText('#summaryFps', fps);
   setSummaryText('#summaryBitrate', bitrate);
+  var bitrateSummaryItem = document.querySelector('[data-summary-id="summaryBitrate"]');
+  if (bitrateSummaryItem) bitrateSummaryItem.style.display = hasValidBitrate ? '' : 'none';
   setSummaryText('#summaryCodec', codec);
   setSummaryText('#summaryPlaybackEngine', playbackEngine);
   setSummaryText('#summaryAudio', audio);
