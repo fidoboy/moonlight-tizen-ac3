@@ -7106,8 +7106,10 @@ function warnBitrate() {
 
 function standardBitratePresets() {
   console.log('%c[index.js, standardBitratePresets]', 'color: green;', 'Applying standard bitrate presets...');
-  var res = $('#selectResolution').data('value');
-  var frameRate = $('#selectFramerate').data('value').toString();
+  // Standard presets also use the committed resolution and frame rate.
+  return readStreamingSettingsSnapshot().then(function(snapshot) {
+  var res = String(snapshot.preferences.resolution || '1280:720');
+  var frameRate = String(snapshot.preferences.frameRate || '60');
 
   // Set the bitrate based on the selected resolution and frame rate
   if (res === '854:480') { // 480p
@@ -7175,8 +7177,11 @@ function standardBitratePresets() {
     $('#bitrateSlider')[0].MaterialSlider.change('10');
   }
 
-  // Update the bitrate value
+  // Update and persist the bitrate value after calculating from committed settings.
   saveBitrate();
+  }).catch(function(error) {
+    console.error('%c[index.js, standardBitratePresets]', 'color: red;', 'Could not calculate standard bitrate from persisted settings:', error);
+  });
 }
 
 function isBitrateOptimizationEnabled() {
