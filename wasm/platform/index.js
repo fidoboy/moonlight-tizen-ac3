@@ -8975,94 +8975,126 @@ function readStoredPreferences(keys) {
 
 // Smart Hub launches read only stream-related preferences. They are kept as plain
 // data and never applied to the hidden Material Design controls or UI subsystems.
-function loadDirectSmartHubStreamSettings() {
-  var keys = [
-    'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
-    'rumbleFeedback', 'mouseEmulation', 'flipABfaceButtons', 'flipXYfaceButtons',
-    'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync', 'audioJitter',
-    'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level', 'hdrMode',
-    'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
-    'dolbyChannelLayout', 'dolbyDecodingMode', 'streamTransitionBackground', 'performanceStatsPosition', 'colorTheme', 'quitAppAfterDisconnect', 'streamingEngine'
-  ];
+var configSummarySnapshot = null;
+var configSummaryRefreshPromise = null;
 
-  return withOperationTimeout(new Promise(function(resolve) {
-    openIndexDB(resolve);
+var STREAMING_PREFERENCE_KEYS = [
+  'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
+  'rumbleFeedback', 'mouseEmulation', 'selectHoldStreamMenu', 'flipABfaceButtons',
+  'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
+  'audioJitter', 'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level',
+  'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
+  'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate'
+];
+
+function readStreamingSettingsSnapshot() {
+  return withOperationTimeout(new Promise(function(resolve, reject) {
+    try {
+      if (db) resolve();
+      else openIndexDB(resolve);
+    } catch (error) { reject(error); }
   }).then(function() {
-    return readStoredPreferences(keys);
+    return readStoredPreferences(STREAMING_PREFERENCE_KEYS);
   }), 10000, 'Saved streaming preferences load').then(function(stored) {
-    var resolution = stored.resolution || '1280:720';
-    var width = parseInt(resolution.split(':')[0], 10);
-    if (!isFinite(width) || width <= 0) resolution = '1280:720';
-
-    var ac3Enabled = stored.ac3AudioMode === true || stored.ac3AudioMode === 'true' || stored.ac3AudioMode === 1;
-    var streamingEngine = (stored.streamingEngine === 'ESPLUSPLAYER' || stored.streamingEngine === 'WMP') ? 'ESPLUSPLAYER' : 'EMSS';
-    var storedAudioBackend = stored.audioBackend || 'EMSS';
-    var audioBackend;
-    if (streamingEngine === 'ESPLUSPLAYER') {
-      audioBackend = storedAudioBackend === 'Disabled' ? 'Disabled' : 'ESPLUSPLAYER';
-    } else if (ac3Enabled) {
-      audioBackend = storedAudioBackend === 'Disabled' ? 'Disabled' : 'EMSS';
-    } else {
-      audioBackend = ['EMSS', 'WebAudio', 'Disabled'].indexOf(storedAudioBackend) !== -1
-        ? storedAudioBackend : 'EMSS';
-    }
-    var audioConfig = stored.audioConfig || 'Stereo';
-    if (ac3Enabled && audioConfig === '71Surround') audioConfig = '51Surround';
-
-    var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
-    function boolValue(value, defaultValue) {
-      if (value == null) return defaultValue;
+    var defaults = {
+      resolution: '1280:720', frameRate: '60', bitrate: 10,
+      framePacing: true, optimizeGames: false, rumbleFeedback: true,
+      mouseEmulation: false, selectHoldStreamMenu: true, flipABfaceButtons: false,
+      flipXYfaceButtons: false, audioBackend: 'EMSS', audioConfig: 'Stereo',
+      ac3AudioMode: false, audioSync: false, audioJitter: 100,
+      playHostAudio: false, decryptHostAudio: false, videoCodec: 'H264',
+      h264Level: 'Auto', hdrMode: false, fullRange: false,
+      disableWarnings: false, performanceStats: false,
+      dolbyChannelLayout: 'Back', dolbyDecodingMode: 'Hardware',
+      streamingEngine: 'EMSS', optimizeBitrate: false
+    };
+    var values = Object.assign({}, defaults, stored);
+    function boolValue(value, fallback) {
+      if (value == null) return fallback;
       return value === true || value === 'true' || value === 1;
     }
-
-    _directSmartHubStreamSettings = {
+    var resolution = String(values.resolution || defaults.resolution);
+    var resolutionParts = resolution.split(':');
+    var width = parseInt(resolutionParts[0], 10);
+    var height = parseInt(resolutionParts[1], 10);
+    if (!isFinite(width) || width <= 0 || !isFinite(height) || height <= 0) {
+      resolution = defaults.resolution;
+      resolutionParts = resolution.split(':');
+    }
+    var engine = values.streamingEngine === 'WMP' ? 'ESPLUSPLAYER' : values.streamingEngine;
+    if (engine !== 'EMSS' && engine !== 'ESPLUSPLAYER') engine = 'EMSS';
+    var ac3Enabled = boolValue(values.ac3AudioMode, false);
+    var storedBackend = values.audioBackend || 'EMSS';
+    var backend;
+    if (engine === 'ESPLUSPLAYER') {
+      backend = storedBackend === 'Disabled' ? 'Disabled' : 'ESPLUSPLAYER';
+    } else if (ac3Enabled) {
+      backend = storedBackend === 'Disabled' ? 'Disabled' : 'EMSS';
+    } else {
+      backend = ['EMSS', 'WebAudio', 'Disabled'].indexOf(storedBackend) !== -1 ? storedBackend : 'EMSS';
+    }
+    var audioConfig = values.audioConfig || 'Stereo';
+    if (ac3Enabled && audioConfig === '71Surround') audioConfig = '51Surround';
+    var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
+    var snapshot = {
+      preferences: values,
       resolution: resolution,
-      streamWidth: resolution.split(':')[0],
-      streamHeight: resolution.split(':')[1],
-      frameRate: String(stored.frameRate || '60'),
-      bitrate: (parseFloat(stored.bitrate != null ? stored.bitrate : 10) * 1000),
-      framePacing: boolValue(stored.framePacing, true) ? 1 : 0,
-      optimizeGames: boolValue(stored.optimizeGames, false) ? 1 : 0,
-      rumbleFeedback: boolValue(stored.rumbleFeedback, true) ? 1 : 0,
-      mouseEmulation: boolValue(stored.mouseEmulation, false) ? 1 : 0,
-      selectHoldStreamMenu: boolValue(stored.selectHoldStreamMenu, true) ? 1 : 0,
-      flipABfaceButtons: boolValue(stored.flipABfaceButtons, false) ? 1 : 0,
-      flipXYfaceButtons: boolValue(stored.flipXYfaceButtons, false) ? 1 : 0,
+      streamWidth: resolutionParts[0],
+      streamHeight: resolutionParts[1],
+      frameRate: String(values.frameRate || defaults.frameRate),
+      bitrate: parseFloat(values.bitrate != null ? values.bitrate : defaults.bitrate) * 1000,
+      framePacing: boolValue(values.framePacing, true) ? 1 : 0,
+      optimizeGames: boolValue(values.optimizeGames, false) ? 1 : 0,
+      rumbleFeedback: boolValue(values.rumbleFeedback, true) ? 1 : 0,
+      mouseEmulation: boolValue(values.mouseEmulation, false) ? 1 : 0,
+      selectHoldStreamMenu: boolValue(values.selectHoldStreamMenu, true) ? 1 : 0,
+      flipABfaceButtons: boolValue(values.flipABfaceButtons, false) ? 1 : 0,
+      flipXYfaceButtons: boolValue(values.flipXYfaceButtons, false) ? 1 : 0,
       opticalOutputEnabled: ac3Enabled,
-      audioBackend: audioBackend,
+      audioBackend: backend,
       audioConfig: audioConfig,
-      audioSync: boolValue(stored.audioSync, false) ? 1 : 0,
-      audioJitter: parseInt(stored.audioJitter != null ? stored.audioJitter : 100, 10),
-      playHostAudio: boolValue(stored.playHostAudio, false) ? 1 : 0,
-      decryptHostAudio: boolValue(stored.decryptHostAudio, false) ? 1 : 0,
-      videoCodec: stored.videoCodec || 'H264',
-      h264Level: normalizeH264LevelId(stored.h264Level),
-      hdrMode: boolValue(stored.hdrMode, false) ? 1 : 0,
-      fullRange: boolValue(stored.fullRange, false) ? 1 : 0,
-      gameMode: boolValue(stored.gameMode, gameModeDefault) ? 1 : 0,
-      disableWarnings: boolValue(stored.disableWarnings, false) ? 1 : 0,
-      performanceStats: boolValue(stored.performanceStats, false) ? 1 : 0,
-      performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
-      quitAppAfterDisconnect: boolValue(stored.quitAppAfterDisconnect, false),
-      streamingEngine: streamingEngine,
-      dolbyChannelLayout: stored.dolbyChannelLayout || 'Back',
-      dolbyDecodingMode: stored.dolbyDecodingMode || 'Hardware'
+      audioSync: boolValue(values.audioSync, false) ? 1 : 0,
+      audioJitter: parseInt(values.audioJitter != null ? values.audioJitter : defaults.audioJitter, 10),
+      playHostAudio: boolValue(values.playHostAudio, false) ? 1 : 0,
+      decryptHostAudio: boolValue(values.decryptHostAudio, false) ? 1 : 0,
+      videoCodec: values.videoCodec || 'H264',
+      h264Level: normalizeH264LevelId(values.h264Level),
+      hdrMode: boolValue(values.hdrMode, false) ? 1 : 0,
+      fullRange: boolValue(values.fullRange, false) ? 1 : 0,
+      gameMode: boolValue(values.gameMode, gameModeDefault) ? 1 : 0,
+      disableWarnings: boolValue(values.disableWarnings, false) ? 1 : 0,
+      performanceStats: boolValue(values.performanceStats, false) ? 1 : 0,
+      dolbyChannelLayout: values.dolbyChannelLayout || 'Back',
+      dolbyDecodingMode: values.dolbyDecodingMode || 'Hardware',
+      streamingEngine: engine,
+      optimizeBitrate: boolValue(values.optimizeBitrate, false)
     };
+    return snapshot;
+  });
+}
 
-    streamTransitionBackgroundEnabled = boolValue(stored.streamTransitionBackground, true);
-
-    // Apply only the saved theme token needed by the transition's CSS variables.
-    // Do not run applyColorTheme(), which also initializes the hidden theme cards.
+function loadDirectSmartHubStreamSettings() {
+  return readStreamingSettingsSnapshot().then(function(snapshot) {
+    var stored = snapshot.preferences;
+    _directSmartHubStreamSettings = Object.assign({}, snapshot, {
+      quitAppAfterDisconnect: stored.quitAppAfterDisconnect === true ||
+        stored.quitAppAfterDisconnect === 'true' || stored.quitAppAfterDisconnect === 1,
+      performanceStatsPosition: stored.performanceStatsPosition || 'top-left'
+    });
+    streamTransitionBackgroundEnabled = stored.streamTransitionBackground == null ||
+      stored.streamTransitionBackground === true || stored.streamTransitionBackground === 'true' ||
+      stored.streamTransitionBackground === 1;
     activeColorTheme = normalizeColorTheme(stored.colorTheme);
     focusedColorTheme = activeColorTheme;
     document.body.setAttribute('data-color-theme', activeColorTheme);
-
     _directSmartHubSettingsReady = true;
-    console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB:', _directSmartHubStreamSettings);
+    console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB.');
     maybeStartDirectSmartHubLaunch();
+    return _directSmartHubStreamSettings;
   }).catch(function(error) {
     console.error('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: red;', 'Could not load direct stream preferences:', error);
     directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+    throw error;
   });
 }
 
