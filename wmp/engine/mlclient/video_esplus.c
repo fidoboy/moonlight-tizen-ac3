@@ -93,6 +93,213 @@ static int ensure_scratch(size_t need)
     return 0;
 }
 
+
+/*
+ * Sunshine carries mastering-display and content-light metadata separately
+ * from the HEVC access units. Add the corresponding prefix SEI only when the
+ * bitstream does not already contain it. This is shared by ESPlus SET and ADD.
+ */
+static int s_hevc_mdcv_available;
+static int s_hevc_cll_available;
+static int s_hevc_sei_inspection_failed;
+static int s_hevc_hdr_status_logged;
+
+static int find_annexb_start_code(const uint8_t *data, size_t length,
+                                  size_t from, size_t *offset, size_t *code_len)
+{
+    size_t i;
+    if (!data || !offset || !code_len || from >= length) return 0;
+    for (i = from; i + 3 <= length; ++i) {
+        if (data[i] != 0 || data[i + 1] != 0) continue;
+        if (data[i + 2] == 1) {
+            *offset = i; *code_len = 3; return 1;
+        }
+        if (i + 4 <= length && data[i + 2] == 0 && data[i + 3] == 1) {
+            *offset = i; *code_len = 4; return 1;
+        }
+    }
+    return 0;
+}
+
+static int parse_hevc_sei_nal(const uint8_t *nal, size_t length,
+                              int *has_mdcv, int *has_cll)
+{
+    uint8_t *rbsp;
+    size_t rbsp_len = 0, i, pos, payload_end;
+    unsigned zero_count = 0;
+    int valid = 0;
+    if (!nal || length < 3) return 0;
+    {
+        unsigned type = (nal[0] >> 1) & 0x3f;
+        if (type != 39 && type != 40) return 0;
+    }
+    rbsp = malloc(length);
+    if (!rbsp) return 0;
+    for (i = 2; i < length; ++i) {
+        uint8_t value = nal[i];
+        if (zero_count >= 2 && value == 3 && i + 1 < length && nal[i + 1] <= 3) {
+            zero_count = 0;
+            continue;
+        }
+        rbsp[rbsp_len++] = value;
+        zero_count = value == 0 ? zero_count + 1 : 0;
+    }
+    /* Annex-B trailing_zero_8bits may follow rbsp_trailing_bits. */
+    while (rbsp_len && rbsp[rbsp_len - 1] == 0) --rbsp_len;
+    if (!rbsp_len || rbsp[rbsp_len - 1] != 0x80) goto done;
+    payload_end = rbsp_len - 1;
+    pos = 0;
+    while (pos < payload_end) {
+        size_t payload_type = 0, payload_size = 0;
+        unsigned value;
+        do {
+            if (pos >= payload_end) goto done;
+            value = rbsp[pos++];
+            if (payload_type > SIZE_MAX - value) goto done;
+            payload_type += value;
+        } while (value == 0xff);
+        do {
+            if (pos >= payload_end) goto done;
+            value = rbsp[pos++];
+            if (payload_size > SIZE_MAX - value) goto done;
+            payload_size += value;
+        } while (value == 0xff);
+        if (payload_size > payload_end - pos) goto done;
+        if (payload_type == 137 && payload_size >= 24) *has_mdcv = 1;
+        if (payload_type == 144 && payload_size >= 4) *has_cll = 1;
+        pos += payload_size;
+    }
+    valid = pos == payload_end;
+done:
+    free(rbsp);
+    return valid;
+}
+
+static void sei_append_value(uint8_t *out, size_t *length, size_t value)
+{
+    while (value >= 255) { out[(*length)++] = 0xff; value -= 255; }
+    out[(*length)++] = (uint8_t)value;
+}
+
+static void sei_append_be16(uint8_t *out, size_t *length, uint16_t value)
+{
+    out[(*length)++] = (uint8_t)(value >> 8);
+    out[(*length)++] = (uint8_t)value;
+}
+
+static void sei_append_be32(uint8_t *out, size_t *length, uint32_t value)
+{
+    out[(*length)++] = (uint8_t)(value >> 24);
+    out[(*length)++] = (uint8_t)(value >> 16);
+    out[(*length)++] = (uint8_t)(value >> 8);
+    out[(*length)++] = (uint8_t)value;
+}
+
+static size_t build_hevc_hdr_sei(const SS_HDR_METADATA *metadata,
+                                 int add_mdcv, int add_cll, uint8_t *nal)
+{
+    uint8_t rbsp[64];
+    size_t rbsp_len = 0, nal_len = 0, i;
+    unsigned zero_count = 0;
+    static const unsigned primary_order[3] = { 1, 2, 0 };
+    if (add_mdcv) {
+        sei_append_value(rbsp, &rbsp_len, 137);
+        sei_append_value(rbsp, &rbsp_len, 24);
+        for (i = 0; i < 3; ++i) {
+            unsigned index = primary_order[i];
+            sei_append_be16(rbsp, &rbsp_len, metadata->displayPrimaries[index].x);
+            sei_append_be16(rbsp, &rbsp_len, metadata->displayPrimaries[index].y);
+        }
+        sei_append_be16(rbsp, &rbsp_len, metadata->whitePoint.x);
+        sei_append_be16(rbsp, &rbsp_len, metadata->whitePoint.y);
+        sei_append_be32(rbsp, &rbsp_len, metadata->maxDisplayLuminance);
+        sei_append_be32(rbsp, &rbsp_len, metadata->minDisplayLuminance);
+    }
+    if (add_cll) {
+        sei_append_value(rbsp, &rbsp_len, 144);
+        sei_append_value(rbsp, &rbsp_len, 4);
+        sei_append_be16(rbsp, &rbsp_len, metadata->maxContentLightLevel);
+        sei_append_be16(rbsp, &rbsp_len, metadata->maxFrameAverageLightLevel);
+    }
+    rbsp[rbsp_len++] = 0x80;
+    nal[nal_len++] = 0; nal[nal_len++] = 0; nal[nal_len++] = 0; nal[nal_len++] = 1;
+    nal[nal_len++] = 0x4e; nal[nal_len++] = 0x01; /* HEVC prefix SEI, temporal_id_plus1=1 */
+    for (i = 0; i < rbsp_len; ++i) {
+        uint8_t value = rbsp[i];
+        if (zero_count >= 2 && value <= 3) {
+            nal[nal_len++] = 3;
+            zero_count = 0;
+        }
+        nal[nal_len++] = value;
+        zero_count = value == 0 ? zero_count + 1 : 0;
+    }
+    return nal_len;
+}
+
+static int supplement_hevc_hdr_metadata(uint8_t **data, size_t *length,
+                                        size_t *capacity,
+                                        const SS_HDR_METADATA *metadata,
+                                        int is_idr)
+{
+    size_t first_offset, first_len, search, first_vcl = SIZE_MAX;
+    int found_mdcv = 0, found_cll = 0, add_mdcv, add_cll;
+    uint8_t sei[80];
+    size_t sei_len;
+    if (is_idr) {
+        s_hevc_mdcv_available = 0;
+        s_hevc_cll_available = 0;
+        s_hevc_sei_inspection_failed = 0;
+    }
+    if (s_hevc_sei_inspection_failed) return 0;
+    if (!*length || !find_annexb_start_code(*data, *length, 0, &first_offset, &first_len)) {
+        s_hevc_sei_inspection_failed = 1;
+        return 0;
+    }
+    search = first_offset;
+    while (search < *length) {
+        size_t start, code_len, nal_offset, next_start, next_len, nal_end;
+        int has_next;
+        unsigned type;
+        if (!find_annexb_start_code(*data, *length, search, &start, &code_len)) break;
+        nal_offset = start + code_len;
+        if (nal_offset + 2 > *length) { s_hevc_sei_inspection_failed = 1; return 0; }
+        has_next = find_annexb_start_code(*data, *length, nal_offset + 2, &next_start, &next_len);
+        nal_end = has_next ? next_start : *length;
+        if (nal_end < nal_offset + 2) { s_hevc_sei_inspection_failed = 1; return 0; }
+        type = ((*data)[nal_offset] >> 1) & 0x3f;
+        if (type == 39 || type == 40) {
+            if (!parse_hevc_sei_nal(*data + nal_offset, nal_end - nal_offset,
+                                    &found_mdcv, &found_cll)) {
+                s_hevc_sei_inspection_failed = 1;
+                return 0;
+            }
+        } else if (type <= 31 && first_vcl == SIZE_MAX) {
+            first_vcl = start;
+        }
+        if (!has_next) break;
+        search = next_start;
+    }
+    s_hevc_mdcv_available |= found_mdcv;
+    s_hevc_cll_available |= found_cll;
+    add_mdcv = !s_hevc_mdcv_available &&
+               metadata->displayPrimaries[0].x != 0 &&
+               metadata->maxDisplayLuminance != 0;
+    add_cll = !s_hevc_cll_available &&
+              (metadata->maxContentLightLevel != 0 ||
+               metadata->maxFrameAverageLightLevel != 0);
+    if ((!add_mdcv && !add_cll) || first_vcl == SIZE_MAX) return 0;
+    sei_len = build_hevc_hdr_sei(metadata, add_mdcv, add_cll, sei);
+    if (*length > SIZE_MAX - sei_len || ensure_scratch(*length + sei_len) != 0) return -1;
+    *data = s_scratch;
+    memmove(*data + first_vcl + sei_len, *data + first_vcl, *length - first_vcl);
+    memcpy(*data + first_vcl, sei, sei_len);
+    *length += sei_len;
+    if (add_mdcv) s_hevc_mdcv_available = 1;
+    if (add_cll) s_hevc_cll_available = 1;
+    return (add_mdcv ? 1 : 0) | (add_cll ? 2 : 0);
+}
+
+
 static int VidDecSetup_(int videoFormat, int width, int height,
                         int redrawRate, void *context, int drFlags)
 {
