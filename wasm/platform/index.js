@@ -6030,10 +6030,42 @@ function startGame(host, appID) {
         return;
       }
 
+      var persistedPreferences = streamSettings.preferences || {};
+      var requiredPreferenceWrites = [];
+      var persistedCodec = String(persistedPreferences.videoCodec || streamSettings.videoCodec || 'H264');
+      var persistedResolutionParts = String(persistedPreferences.resolution || streamSettings.resolution || '1280:720').split(':');
+      var persistedResolutionHeight = parseInt(persistedResolutionParts[1], 10) || 0;
+      var persistedHdrEnabled = persistedPreferences.hdrMode === true ||
+        persistedPreferences.hdrMode === 'true' || persistedPreferences.hdrMode === 1;
+
+      // Resolve mandatory codec dependencies before deriving this session's bitrate
+      // or constructing the host request. Do not let an in-flight UI refresh race startup.
+      if (persistedCodec === 'H264' && persistedResolutionHeight > 1080 &&
+          String(streamSettings.frameRate) !== '30') {
+        streamSettings.frameRate = '30';
+        persistedPreferences.frameRate = '30';
+        requiredPreferenceWrites.push(storeData('frameRate', '30', null));
+      }
+      if ((persistedCodec === 'H264' || isHdrCapable === false) && persistedHdrEnabled) {
+        streamSettings.hdrMode = 0;
+        persistedPreferences.hdrMode = false;
+        requiredPreferenceWrites.push(storeData('hdrMode', false, null));
+      }
+      if (requiredPreferenceWrites.length) {
+        try {
+          await Promise.all(requiredPreferenceWrites);
+        } catch (dependencyError) {
+          console.error('%c[index.js, startGame]', 'color: red;', 'Could not persist mandatory streaming-setting dependencies:', dependencyError);
+          if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not apply the saved streaming-setting requirements.');
+          else streamStartupTimeoutFailure('connection', t('Could not apply the saved streaming-setting requirements.'));
+          return;
+        }
+      }
+
       var optimizeBitrate = streamSettings.optimizeBitrate === true ||
         streamSettings.optimizeBitrate === 'true' || streamSettings.optimizeBitrate === 1;
       if (optimizeBitrate) {
-        var optimizedBitrateKbps = calculateOptimizedBitrate(streamSettings.preferences || {});
+        var optimizedBitrateKbps = calculateOptimizedBitrate(persistedPreferences);
         var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
         try {
           await storeData('bitrate', optimizedBitrateMbps, null);
