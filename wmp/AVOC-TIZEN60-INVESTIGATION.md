@@ -210,11 +210,15 @@ The helper first checks Game Mode subfeature identifiers `1` and `2` independent
 
 For `requested_mode == 1`, the helper additionally calls `avocd_check_smooth_motion_control(data)`:
 
-- Return value `1` branches to a separate configuration path whose operations have not yet been reconstructed.
+- Return value `1` enters a path that retrieves source-specific Smooth Motion Control settings, each with `save_type=1`:
+  - `avocd_get_smooth_motion_control(data, source, &value, 1)`
+  - `avocd_get_smc_blur_reduction(data, source, &value, 1)`
+  - `avocd_get_smc_judder_reduction(data, source, &value, 1)`
+- In that path, the code tests the retrieved Smooth Motion Control value. A nonzero value calls `avocd_get_smc_led_clear_motion(data, source, &value, 1)`; the subsequent control flow re-tests the Smooth Motion Control value. The complete intended loop/termination condition has not been established from this fragment, so no behavior should be inferred for the LED Clear Motion value.
 - A nonzero return other than `1` exits the helper.
-- Return value `0` leads to checks of volatile settings `0x20` and `0x25`. A nonzero value from setting `0x20` selects another not-yet-reconstructed path. When setting `0x20` is zero, both outcomes of the subsequent setting-`0x25` test ultimately reach the reset path; the nonzero case additionally emits diagnostic logging.
+- Return value `0` leads to checks of volatile settings `0x20` and `0x25`. A nonzero value from setting `0x20` selects a separate diagnostic/early-return path (the helper returns `1` there). When setting `0x20` is zero, the setting-`0x25` test either reaches the reset path directly or reaches it after diagnostic logging.
 
-The observed AVE operations associate subfeature `1` with the VRR setter path and subfeature `2` with the Game Motion Plus update path. This is a control-flow association, not a recovered public enum definition. The meanings of volatile settings `0x1E`, `0x20`, and `0x25`, the four Game Motion Plus arguments in non-reset paths, and the remaining `requested_mode == 1` branches are unresolved. The `source` parameter's use is not established by the examined fragment.
+The observed AVE operations associate subfeature `1` with the VRR setter path and subfeature `2` with the Game Motion Plus update path. This is a control-flow association, not a recovered public enum definition. The meanings of volatile settings `0x1E`, `0x20`, and `0x25`, the four Game Motion Plus arguments in non-reset paths, and the complete Smooth Motion Control/LED Clear Motion path remain unresolved. The `source` parameter is confirmed to be passed to the Smooth Motion Control getters; its use in the other paths is not established by the examined fragment.
 
 For `requested_mode == 1`, the helper reads the current sound mode with `AVOC_audio_get_sound_mode(data, &sound_mode, 1)` and checks it with `avocd_check_special_view_sound_mode(sound_mode)`. The observed paths then restore the sound mode through `avocd_audio_set_sound_mode(service, data, sound_mode, 1)`. When the special-view check is false, the current sound mode is first written to DB setting `0x60` with `save_type=1`.
 
