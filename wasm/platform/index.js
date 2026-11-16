@@ -8353,13 +8353,11 @@ function updateAc3AudioModeUI(enabled, reason) {
   }
 
   applyAudioBackendPolicy(reason || 'refresh');
-  updateAudioBackendSettings();
 }
 
 function saveAc3AudioMode() {
   setTimeout(function() {
     var chosenAc3Mode = $('#ac3AudioModeSwitch').prop('checked');
-    var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
     console.log('%c[index.js, saveAc3AudioMode]', 'color: green;', 'Saving AC-3 audio mode state: ' + chosenAc3Mode);
     storeData('ac3AudioMode', chosenAc3Mode, null).then(function() {
       // DD controls format negotiation, not the playback engine. ESPlusPlayer remains
