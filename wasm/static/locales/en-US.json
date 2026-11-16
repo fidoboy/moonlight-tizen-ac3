@@ -67,7 +67,6 @@
   "Allow audio synchronization support for optimal sound output": "Allow audio synchronization support for optimal sound output",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts",
   "Allow frame pacing to balance video latency and smoothness": "Allow frame pacing to balance video latency and smoothness",
-  "Allow full color range for more detail in dark and bright areas of content": "Allow full color range for more detail in dark and bright areas of content",
   "Allow game mode for optimal latency and performance while streaming": "Allow game mode for optimal latency and performance while streaming",
   "Allow gamepad rumble feedback support while streaming": "Allow gamepad rumble feedback support while streaming",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Allow gamepad to switch to mouse mode when holding the Start button",
@@ -640,5 +639,6 @@
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.",
   "Enable frame pacing": "Enable frame pacing",
-  "Enable high dynamic range": "Enable high dynamic range"
+  "Enable high dynamic range": "Enable high dynamic range",
+  "Enable full color range": "Enable full color range"
 }
