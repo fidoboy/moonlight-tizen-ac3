@@ -1181,6 +1181,12 @@ function handleMessage(msg) {
     engineState.confirmed = false;
     engineState.videoReady = false;
     window._activeStreamingEngineConfirmed = false;
+    // Reset the native gamepad's local mouse mode even if polling has already
+    // stopped; it must never leak into the next streaming session.
+    if (typeof Module !== 'undefined' &&
+        typeof Module._resetGamepadMouseEmulation === 'function') {
+      Module._resetGamepadMouseEmulation();
+    }
     window._esplusActiveAudioCodec = null;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
