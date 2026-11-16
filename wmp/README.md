@@ -95,3 +95,14 @@ Successful CI compilation does not replace the on-device lifecycle checks
 listed in [dotnet-host/README.md](dotnet-host/README.md). In particular,
 Tizen process-status callback behavior, abrupt native-crash detection,
 actual service process exit, and UI recovery remain device-validation items.
+
+## AVOC and platform API research
+
+Reverse-engineering notes and platform API discoveries are kept separately
+from the WMP implementation. See
+[AVOC on Tizen 6.0: investigation and API inventory](AVOC-TIZEN60-INVESTIGATION.md)
+for the emulator findings, AVOC libraries and daemon, Game Mode symbols and
+D-Bus metadata, related API families, the observed `-2` return, and remaining
+verification steps. The note distinguishes emulator findings from facts
+verified on the target TV and is not proof that the AVOC contract is stable
+across Tizen versions or architectures.
