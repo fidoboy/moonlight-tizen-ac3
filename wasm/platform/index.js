@@ -8443,7 +8443,10 @@ function updateH264LevelControlState() {
   const button = document.getElementById('selectH264Level');
   if (!button) return;
 
-  const enabled = $('#selectCodec').data('value') === 'H264';
+  const preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  const codec = preferences && preferences.videoCodec != null
+    ? preferences.videoCodec : $('#selectCodec').data('value');
+  const enabled = codec === 'H264';
   button.disabled = !enabled;
   button.setAttribute('aria-disabled', String(!enabled));
   button.classList.toggle('is-disabled', !enabled);
@@ -8452,13 +8455,19 @@ function updateH264LevelControlState() {
 function updateHdrControlState() {
   const hdrInput = document.getElementById('hdrModeSwitch');
   const hdrSwitch = document.getElementById('hdrModeBtn');
-  const isH264 = $('#selectCodec').data('value') === 'H264';
+  const preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  const codec = preferences && preferences.videoCodec != null
+    ? preferences.videoCodec : $('#selectCodec').data('value');
+  const isH264 = codec === 'H264';
+  const persistedHdr = preferences && (
+    preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1
+  );
   const isUnavailable = isH264 || isHdrCapable === false;
 
   if (!hdrInput || !hdrSwitch) return;
 
   // HDR requires a compatible codec. Disable it for the TV only when lack of HDR is confirmed.
-  if (isUnavailable && hdrInput.checked) {
+  if (isUnavailable && (hdrInput.checked || persistedHdr)) {
     if (hdrSwitch.MaterialSwitch) {
       hdrSwitch.MaterialSwitch.off();
     } else {
