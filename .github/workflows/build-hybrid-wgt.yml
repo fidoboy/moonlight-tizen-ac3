@@ -57,7 +57,7 @@ jobs:
           : "${ENABLE_NATIVE_TRACES:=false}"
           matrix='{"include":[]}'
           if [[ "$BUILD_RELEASE" == "true" && "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":("Moonlight-" + env.GITHUB_SHA)}]' <<< "$matrix")"
+            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight"}]' <<< "$matrix")"
           fi
           if [[ "$BUILD_DEBUG" == "true" ]] && {
             [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]] ||
