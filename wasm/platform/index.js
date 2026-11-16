@@ -6004,81 +6004,56 @@ function startGame(host, appID) {
         return;
       }
 
-      // Normal launches read the live controls. Smart Hub launches use the
-      // stream-only snapshot loaded directly from IndexedDB, without touching UI controls.
-      var streamWidth, streamHeight, frameRate, bitrate, rikey, rikeyid, gamepadMask;
-      var framePacing, optimizeGames, rumbleFeedback, mouseEmulation, selectHoldStreamMenu;
-      var flipABfaceButtons, flipXYfaceButtons, opticalOutputEnabled;
-      var audioBackend, audioConfig, audioSync, audioJitter, playHostAudio, decryptHostAudio;
-      var videoCodec, h264Level, hdrMode, fullRange, gameMode, disableWarnings, performanceStats;
-      var dolbyChannelLayout, dolbyDecodingMode;
-
-      if (_directSmartHubLaunch) {
-        var directSettings = _directSmartHubStreamSettings;
-        if (!directSettings) {
+      // Both launch paths consume one fresh, normalized IndexedDB snapshot.
+      // The controls are presentation only and are never consulted for session configuration.
+      var streamSettings;
+      try {
+        streamSettings = _directSmartHubLaunch
+          ? _directSmartHubStreamSettings
+          : await readStreamingSettingsSnapshot();
+      } catch (settingsError) {
+        console.error('%c[index.js, startGame]', 'color: red;', 'Could not read persisted streaming settings:', settingsError);
+        if (_directSmartHubLaunch) {
           directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
-          return;
+        } else {
+          streamStartupTimeoutFailure('connection', t('Could not load the saved streaming settings.'));
         }
-        streamWidth = directSettings.streamWidth;
-        streamHeight = directSettings.streamHeight;
-        frameRate = directSettings.frameRate;
-        bitrate = directSettings.bitrate;
-        framePacing = directSettings.framePacing;
-        optimizeGames = directSettings.optimizeGames;
-        rumbleFeedback = directSettings.rumbleFeedback;
-        mouseEmulation = directSettings.mouseEmulation;
-        selectHoldStreamMenu = directSettings.selectHoldStreamMenu;
-        flipABfaceButtons = directSettings.flipABfaceButtons;
-        flipXYfaceButtons = directSettings.flipXYfaceButtons;
-        opticalOutputEnabled = directSettings.opticalOutputEnabled;
-        audioBackend = directSettings.audioBackend;
-        audioConfig = directSettings.audioConfig;
-        audioSync = directSettings.audioSync;
-        audioJitter = directSettings.audioJitter;
-        playHostAudio = directSettings.playHostAudio;
-        decryptHostAudio = directSettings.decryptHostAudio;
-        videoCodec = directSettings.videoCodec;
-        h264Level = directSettings.h264Level;
-        hdrMode = directSettings.hdrMode;
-        fullRange = directSettings.fullRange;
-        gameMode = directSettings.gameMode;
-        disableWarnings = directSettings.disableWarnings;
-        performanceStats = directSettings.performanceStats;
-        dolbyChannelLayout = directSettings.dolbyChannelLayout;
-        dolbyDecodingMode = directSettings.dolbyDecodingMode;
-      } else {
-        streamWidth = $('#selectResolution').data('value').split(':')[0];
-        streamHeight = $('#selectResolution').data('value').split(':')[1];
-        frameRate = $('#selectFramerate').data('value').toString();
-        bitrate = parseFloat($('#bitrateSlider').val()) * 1000;
-        framePacing = $('#framePacingSwitch').prop('checked') ? 1 : 0;
-        optimizeGames = $('#optimizeGamesSwitch').prop('checked') ? 1 : 0;
-        rumbleFeedback = $('#rumbleFeedbackSwitch').prop('checked') ? 1 : 0;
-        mouseEmulation = $('#mouseEmulationSwitch').prop('checked') ? 1 : 0;
-        selectHoldStreamMenu = $('#selectHoldStreamMenuSwitch').prop('checked') ? 1 : 0;
-        flipABfaceButtons = $('#flipABfaceButtonsSwitch').prop('checked') ? 1 : 0;
-        flipXYfaceButtons = $('#flipXYfaceButtonsSwitch').prop('checked') ? 1 : 0;
-        opticalOutputEnabled = $('#ac3AudioModeSwitch').prop('checked');
-        // The selector already reflects the engine/DD policy. Do not force EMSS
-        // here: ESPlusPlayer must remain ESPlusPlayer, and Disabled is valid with Dolby enabled.
-        audioBackend = $('#selectAudioBackend').data('value').toString();
-        audioConfig = $('#selectAudio').data('value').toString();
-        audioSync = $('#audioSyncSwitch').prop('checked') ? 1 : 0;
-        audioJitter = parseInt($('#jitterSlider').val());
-        playHostAudio = $('#playHostAudioSwitch').prop('checked') ? 1 : 0;
-        decryptHostAudio = $('#decryptHostAudioSwitch').prop('checked') ? 1 : 0;
-        videoCodec = $('#selectCodec').data('value').toString();
-        h264Level = $('#selectH264Level').data('value') || 'Auto';
-        hdrMode = $('#hdrModeSwitch').prop('checked') ? 1 : 0;
-        fullRange = $('#fullRangeSwitch').prop('checked') ? 1 : 0;
-        // Use the checkbox state shared with the configuration summary. MDL's
-        // parent class can be stale after restoring a switch programmatically.
-        gameMode = document.getElementById('gameModeSwitch').checked ? 1 : 0;
-        disableWarnings = $('#disableWarningsSwitch').prop('checked') ? 1 : 0;
-        performanceStats = $('#performanceStatsSwitch').prop('checked') ? 1 : 0;
-        dolbyChannelLayout = $('#selectDolbyChannelLayout').data('value') || 'Back';
-        dolbyDecodingMode = $('#selectDolbyDecodingMode').data('value') || 'Hardware';
+        return;
       }
+      if (!streamSettings) {
+        if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
+        else streamStartupTimeoutFailure('connection', t('Could not load the saved streaming settings.'));
+        return;
+      }
+
+      var streamWidth = streamSettings.streamWidth;
+      var streamHeight = streamSettings.streamHeight;
+      var frameRate = streamSettings.frameRate;
+      var bitrate = streamSettings.bitrate;
+      var rikey, rikeyid, gamepadMask;
+      var framePacing = streamSettings.framePacing;
+      var optimizeGames = streamSettings.optimizeGames;
+      var rumbleFeedback = streamSettings.rumbleFeedback;
+      var mouseEmulation = streamSettings.mouseEmulation;
+      var selectHoldStreamMenu = streamSettings.selectHoldStreamMenu;
+      var flipABfaceButtons = streamSettings.flipABfaceButtons;
+      var flipXYfaceButtons = streamSettings.flipXYfaceButtons;
+      var opticalOutputEnabled = streamSettings.opticalOutputEnabled;
+      var audioBackend = streamSettings.audioBackend;
+      var audioConfig = streamSettings.audioConfig;
+      var audioSync = streamSettings.audioSync;
+      var audioJitter = streamSettings.audioJitter;
+      var playHostAudio = streamSettings.playHostAudio;
+      var decryptHostAudio = streamSettings.decryptHostAudio;
+      var videoCodec = streamSettings.videoCodec;
+      var h264Level = streamSettings.h264Level;
+      var hdrMode = streamSettings.hdrMode;
+      var fullRange = streamSettings.fullRange;
+      var gameMode = streamSettings.gameMode;
+      var disableWarnings = streamSettings.disableWarnings;
+      var performanceStats = streamSettings.performanceStats;
+      var dolbyChannelLayout = streamSettings.dolbyChannelLayout;
+      var dolbyDecodingMode = streamSettings.dolbyDecodingMode;
 
       // Keep H.264 level identifiers transport-safe and compatible with older saved preferences.
       h264Level = normalizeH264LevelId(h264Level);
