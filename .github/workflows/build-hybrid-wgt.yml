@@ -46,6 +46,8 @@ jobs:
         env:
           BUILD_RELEASE: ${{ inputs.build_release }}
           BUILD_DEBUG: ${{ inputs.build_debug }}
+          SHOW_PRIVATE_DATA: ${{ inputs.show_private_data }}
+          ENABLE_NATIVE_TRACES: ${{ inputs.enable_native_traces }}
           GITHUB_REF: ${{ github.ref }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
