@@ -67,7 +67,6 @@
   "Allow audio synchronization support for optimal sound output": "Audiosynchronisierung für optimale Tonausgabe aktivieren",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "AES-CBC-Audio von Wolf- und Punktfunk-Hosts entschlüsseln erlauben",
   "Allow frame pacing to balance video latency and smoothness": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren",
-  "Allow full color range for more detail in dark and bright areas of content": "Vollen Farbbereich für mehr Details in dunklen und hellen Bildbereichen verwenden",
   "Allow game mode for optimal latency and performance while streaming": "Spielmodus für optimale Latenz und Streaming-Leistung aktivieren",
   "Allow gamepad rumble feedback support while streaming": "Controller-Vibration während des Streamings aktivieren",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Durch Gedrückthalten der Start-Taste den Controller in den Mausmodus wechseln lassen",
@@ -640,5 +639,6 @@
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Wenn diese Option aktiviert ist, wird der Ton während des Streamings sowohl auf dem Host-Computer als auch lokal wiedergegeben, sofern die lokale Audioausgabe ebenfalls aktiviert ist.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen.",
   "Enable frame pacing": "Frame-Pacing aktivieren",
-  "Enable high dynamic range": "Hoher Dynamikbereich aktivieren"
+  "Enable high dynamic range": "Hoher Dynamikbereich aktivieren",
+  "Enable full color range": "Vollen Farbbereich aktivieren"
 }
