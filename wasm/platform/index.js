@@ -8211,15 +8211,19 @@ function updateDolbyAudioAdvancedSettings() {
   // currently consume either setting, so never expose them for that engine.
   const emssDolbyEnabled = engine === 'EMSS' && dolbyEnabled;
   const is51Selected = preferences && preferences.audioConfig === '51Surround';
-  const layoutEnabled = emssDolbyEnabled && is51Selected;
+  const layoutVisible = emssDolbyEnabled && is51Selected;
 
-  $('#dolbyChannelLayoutOption').toggle(emssDolbyEnabled);
+  // Speaker placement has no effect in Stereo, so hide the entire option instead
+  // of leaving a disabled control visible.
+  $('#dolbyChannelLayoutOption').toggle(layoutVisible);
   $('#selectDolbyChannelLayout')
-    .prop('disabled', !layoutEnabled)
-    .toggleClass('mdl-button--disabled', !layoutEnabled)
-    .attr('aria-disabled', layoutEnabled ? 'false' : 'true')
-    .attr('tabindex', layoutEnabled ? '0' : '-1');
+    .prop('disabled', !layoutVisible)
+    .toggleClass('mdl-button--disabled', !layoutVisible)
+    .attr('aria-disabled', layoutVisible ? 'false' : 'true')
+    .attr('tabindex', layoutVisible ? '0' : '-1');
 
+  // EMSS exposes decoder selection only when the running version supports it.
+  // ESPlusPlayer does not consume this setting and must never display the option.
   const decodingModeVisible = emssDolbyEnabled &&
     dolbyDecodingModeSupportChecked && dolbyDecodingModeSupported;
   $('#dolbyDecodingModeOption').toggle(decodingModeVisible);
