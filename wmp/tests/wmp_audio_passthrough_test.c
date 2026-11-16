@@ -147,7 +147,7 @@ static void test_real_audio_follows_synthetic(void)
     callbacks.cleanup();
 }
 
-static void test_real_audio_preempts_silence(void)
+static void test_real_audio_does_not_stop_preroll(void)
 {
     AUDIO_RENDERER_CALLBACKS callbacks;
     OPUS_MULTISTREAM_CONFIGURATION opus;
@@ -163,9 +163,13 @@ static void test_real_audio_preempts_silence(void)
     g_clock_pts_ns = 5000000ull;
     AudEsplus_PrimeSilence();
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
-    preroll_join();
     assert(g_submit_count == 1 && g_last_packet.data == real_packet);
     assert(g_last_packet.size == sizeof(real_packet));
+
+    /* Model prepare_async_done: real audio must not stop preroll; this
+     * lifecycle callback is the event that ends it. */
+    AudEsplus_StopSilence();
+    preroll_join();
     callbacks.cleanup();
 }
 
@@ -246,7 +250,7 @@ int main(void)
     test_opus_silence_preroll(2, 1, 1, wmp_silence_opus_stereo, WMP_SILENCE_OPUS_STEREO_SIZE);
     test_opus_silence_preroll(6, 4, 2, wmp_silence_opus_51, WMP_SILENCE_OPUS_51_SIZE);
     test_opus_silence_preroll(8, 5, 3, wmp_silence_opus_71, WMP_SILENCE_OPUS_71_SIZE);
-    test_real_audio_preempts_silence();
+    test_real_audio_does_not_stop_preroll();
     test_real_audio_follows_synthetic();
     puts("WMP audio passthrough and synthetic silence preroll tests passed.");
     return 0;
