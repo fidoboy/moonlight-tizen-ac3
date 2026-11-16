@@ -22,6 +22,7 @@ typedef struct {
   volatile uint32_t playing_ms;     /* UINT32_MAX when playback clock unavailable */
   volatile uint32_t fps_submitted;  /* accepted video packets/sec, independent of player clock */
   volatile uint32_t video_format, video_width, video_height, video_fps, h264_level_idc;
+  volatile uint32_t video_hdr_active;
   volatile uint32_t audio_codec, audio_channels, audio_sample_rate;
   volatile uint64_t video_bytes_received, audio_bytes_received;
   volatile uint64_t video_frames_received, video_frames_decoded, video_frames_rendered;
