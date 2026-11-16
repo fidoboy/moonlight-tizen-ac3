@@ -40,6 +40,9 @@ namespace MoonlightWmpHost
         // Native callbacks only enqueue diagnostics. A ThreadPool worker forwards
         // them over MessagePort so no IPC or blocking work runs on native threads.
         private static int _diagnosticDispatchScheduled;
+        // Serializes snapshot-and-send so concurrent timer, callback and request drains
+        // cannot overtake one another after advancing the per-queue sent cursors.
+        private static readonly object DiagnosticDispatchGate = new object();
         private static readonly Queue<string> NativeDiagnosticLogs = new Queue<string>();
         private const int NativeDiagnosticLogCapacity = 512;
         private static long _nativeDiagnosticLogDroppedCount;
@@ -547,59 +550,6 @@ namespace MoonlightWmpHost
             }
         }
 
-        private static void SendDiagnosticLogs(string appId, string remotePort, string id)
-        {
-            string[] nativeSnapshot = new string[0];
-            string[] hostSnapshot = new string[0];
-            long sequence = -1;
-            long dropped = -1;
-            bool gateBusy = !Monitor.TryEnter(Gate);
-            if (!gateBusy)
-            {
-                try
-                {
-                    nativeSnapshot = NativeDiagnosticLogs.ToArray();
-                    hostSnapshot = DiagnosticLogs.ToArray();
-                    _nativeDiagnosticLogSentSequence = _nativeDiagnosticLogSequence;
-                    sequence = _nativeDiagnosticLogSequence;
-                    dropped = _nativeDiagnosticLogDroppedCount;
-                }
-                finally { Monitor.Exit(Gate); }
-            }
-
-            string[] markerSnapshot;
-            long markerSequence, markerDropped;
-            lock (NativeDiagnosticMarkerGate)
-            {
-                markerSnapshot = NativeDiagnosticMarkerLogs.ToArray();
-                _nativeDiagnosticMarkerSentSequence = _nativeDiagnosticMarkerSequence;
-                markerSequence = _nativeDiagnosticMarkerSequence;
-                markerDropped = _nativeDiagnosticMarkerDroppedCount;
-            }
-
-            int nativeStart = Math.Max(0, nativeSnapshot.Length - NativeDiagnosticLogCapacity);
-            int hostStart = Math.Max(0, hostSnapshot.Length - 64);
-            int markerStart = Math.Max(0, markerSnapshot.Length - NativeDiagnosticMarkerCapacity);
-            // Reply before forwarding individual lines. MessagePort event delivery
-            // can be slow when the startup ring contains many entries.
-            Respond(appId, remotePort, id, "ok",
-                "{\"count\":" + (nativeSnapshot.Length - nativeStart).ToString(CultureInfo.InvariantCulture) +
-                ",\"hostCount\":" + (hostSnapshot.Length - hostStart).ToString(CultureInfo.InvariantCulture) +
-                ",\"sequence\":" + sequence.ToString(CultureInfo.InvariantCulture) +
-                ",\"dropped\":" + dropped.ToString(CultureInfo.InvariantCulture) +
-                ",\"gateBusy\":" + (gateBusy ? "true" : "false") +
-                ",\"markerCount\":" + (markerSnapshot.Length - markerStart).ToString(CultureInfo.InvariantCulture) +
-                ",\"markerSequence\":" + markerSequence.ToString(CultureInfo.InvariantCulture) +
-                ",\"markerDropped\":" + markerDropped.ToString(CultureInfo.InvariantCulture) + "}");
-
-            for (int i = markerStart; i < markerSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeDiag", markerSnapshot[i]);
-            for (int i = nativeStart; i < nativeSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpNativeLog", nativeSnapshot[i]);
-            for (int i = hostStart; i < hostSnapshot.Length; i++)
-                Event(appId, remotePort, "wmpHostDiagnostic", hostSnapshot[i]);
-        }
-
         // Periodic worker snapshots have no request to acknowledge.
         private static void SendNewNativeDiagnosticLogs(string appId, string remotePort)
         {
@@ -610,6 +560,14 @@ namespace MoonlightWmpHost
         // trusted reply port. Native callbacks never call this method directly;
         // they only schedule the ThreadPool dispatcher after enqueueing a line.
         private static void SendNewNativeDiagnosticLogs(string appId, string remotePort, string id)
+        {
+            lock (DiagnosticDispatchGate)
+            {
+                SendNewNativeDiagnosticLogsLocked(appId, remotePort, id);
+            }
+        }
+
+        private static void SendNewNativeDiagnosticLogsLocked(string appId, string remotePort, string id)
         {
             string[] snapshot = new string[0];
             string[] hostSnapshot = new string[0];
@@ -810,7 +768,9 @@ namespace MoonlightWmpHost
                         SendStatus(appId, remotePort, id);
                         return;
                     case "get_logs":
-                        SendDiagnosticLogs(appId, remotePort, id);
+                        // Historical replay is forbidden: every diagnostic entry is
+                        // delivered only through the shared incremental sent cursors.
+                        SendNewNativeDiagnosticLogs(appId, remotePort, id);
                         return;
                     case "get_new_logs":
                         // Acknowledge before forwarding log events: a large event burst
