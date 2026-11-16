@@ -75,6 +75,11 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          # Push events do not populate workflow_dispatch inputs; default them to a Release build.
+          : "${BUILD_RELEASE:=true}"
+          : "${BUILD_DEBUG:=false}"
+          : "${SHOW_PRIVATE_DATA:=false}"
+          : "${ENABLE_NATIVE_TRACES:=false}"
           matrix='{"include":[]}'
           if [[ "$BUILD_RELEASE" == "true" && "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]]; then
             matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":("Moonlight-" + env.GITHUB_SHA)}]' <<< "$matrix")"
