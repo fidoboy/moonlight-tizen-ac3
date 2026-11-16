@@ -8061,9 +8061,12 @@ function saveAudioBackend() {
   }
   setAudioSelectorValue('#selectAudioBackend', '.audioBackendMenu', chosenAudioBackend);
   console.log('%c[index.js, saveAudioBackend]', 'color: green;', 'Saving audioBackend value: ' + chosenAudioBackend);
-  storeData('audioBackend', chosenAudioBackend, null);
-  updateAudioBackendSettings();
-  updateDolbyAudioAdvancedSettings();
+  storeData('audioBackend', chosenAudioBackend, null).then(function() {
+    updateAudioBackendSettings();
+    updateDolbyAudioAdvancedSettings();
+  }).catch(function(error) {
+    console.error('%c[index.js, saveAudioBackend]', 'color: red;', 'Could not persist the selected audio backend:', error);
+  });
 }
 
 function setAudioButtonEnabled(selector, enabled) {
@@ -8151,8 +8154,11 @@ function saveAudioConfiguration() {
   }
   setAudioSelectorValue('#selectAudio', '.audioConfigMenu', chosenAudioConfig);
   console.log('%c[index.js, saveAudioConfiguration]', 'color: green;', 'Saving audioConfig value: ' + chosenAudioConfig);
-  storeData('audioConfig', chosenAudioConfig, null);
-  updateDolbyAudioAdvancedSettings();
+  storeData('audioConfig', chosenAudioConfig, null).then(function() {
+    updateDolbyAudioAdvancedSettings();
+  }).catch(function(error) {
+    console.error('%c[index.js, saveAudioConfiguration]', 'color: red;', 'Could not persist the audio layout:', error);
+  });
 }
 
 // Update a backend/layout selector by its stable value, using the localized menu label.
