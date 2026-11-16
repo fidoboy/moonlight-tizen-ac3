@@ -661,7 +661,8 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
                               const char *rikey_hex, int rikeyid, const char *app_version,
                               const char *gfe_version, const char *rtsp_url,
                               int server_codec_mode_support, const char *video_codec, int hdr,
-                              const char *audio_config, int full_range, int audio_enabled) {
+                              const char *audio_config, int full_range, int audio_enabled,
+                              int game_mode) {
   MLT("ml_engine_start_session host=%s %dx%d@%d %dkbps rikey=%s rikeyid=%d appver=%s gfever=%s rtsp=%s scm=%d codec=%s hdr=%d audio=%s full_range=%d audio_enabled=%d",
       host ? "(configured)" : "(null)", width, height, fps, bitrate_kbps, rikey_hex ? "(set)" : "(null)",
       rikeyid, app_version ? app_version : "(null)", gfe_version ? gfe_version : "(null)",
@@ -669,8 +670,7 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
       hdr, audio_config ? audio_config : "(null)", full_range, audio_enabled != 0);
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
-  const char *game_mode = getenv("MLENGINE_GAME_MODE");
-  int game_mode_requested = game_mode && !strcmp(game_mode, "1");
+  int game_mode_requested = game_mode != 0;
   __atomic_store_n(&g_game_mode_requested, game_mode_requested, __ATOMIC_RELEASE);
   MLT("TV Game Mode requested=%d", game_mode_requested);
   g_audio_enabled = audio_enabled != 0;
@@ -743,15 +743,16 @@ int ml_engine_start_session(const char *host, int width, int height, int fps, in
                             const char *audio_config) {
   return start_session_impl(host, width, height, fps, bitrate_kbps, rikey_hex, rikeyid, app_version,
                             gfe_version, rtsp_url, server_codec_mode_support, video_codec, hdr,
-                            audio_config, 0, 1);
+                            audio_config, 0, 1, 0);
 }
 
 int ml_engine_start_session_v2(const char *host, int width, int height, int fps, int bitrate_kbps,
                                const char *rikey_hex, int rikeyid, const char *app_version,
                                const char *gfe_version, const char *rtsp_url,
                                int server_codec_mode_support, const char *video_codec, int hdr,
-                               const char *audio_config, int full_range, int audio_enabled) {
+                               const char *audio_config, int full_range, int audio_enabled,
+                               int game_mode) {
   return start_session_impl(host, width, height, fps, bitrate_kbps, rikey_hex, rikeyid, app_version,
                             gfe_version, rtsp_url, server_codec_mode_support, video_codec, hdr,
-                            audio_config, full_range, audio_enabled);
+                            audio_config, full_range, audio_enabled, game_mode);
 }
