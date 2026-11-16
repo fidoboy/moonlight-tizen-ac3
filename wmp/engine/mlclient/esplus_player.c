@@ -105,10 +105,6 @@ static int ecore_runtime_load(void)
     *(void **)(&p_ecore_wl2_display_sync) =
         dlsym(s_ecore_wl2_lib, "ecore_wl2_display_sync");
 
-    MLT("ecore runtime ready optional_window_lower=%d optional_screen_size=%d optional_display_sync=%d",
-        p_ecore_wl2_window_lower != NULL,
-        p_ecore_wl2_display_screen_size_get != NULL,
-        p_ecore_wl2_display_sync != NULL);
     return 1;
 
 fail:
@@ -417,7 +413,6 @@ static void sampler_start(void)
     pthread_condattr_destroy(&attr);
     s_smp_stop = 0;
     s_smp_run = pthread_create(&s_smp_th, NULL, sampler, NULL) == 0;
-    MLT("sampler start -> %d", s_smp_run);
 }
 
 static void sampler_stop(void)
@@ -430,7 +425,6 @@ static void sampler_stop(void)
     pthread_join(s_smp_th, NULL);
     pthread_cond_destroy(&s_smp_cv);
     s_smp_run = 0;
-    MLT("sampler stopped");
 }
 
 static void on_prepared(bool ok, void *context)
@@ -439,8 +433,6 @@ static void on_prepared(bool ok, void *context)
     (void)context;
     MLT_DIAG("prepare_async_done callback ENTER ok=%d", ok ? 1 : 0);
     pthread_mutex_lock(&s_lock);
-    MLT("stage prepare_async_done callback ENTER ok=%d prepared_before=%d start_tried=%d",
-        ok ? 1 : 0, s_prepared, s_start_tried);
     s_prepare_ok = ok ? 1 : 0;
     s_prepared = 1;
     if (!ok) {
@@ -457,7 +449,7 @@ static void on_prepared(bool ok, void *context)
     if (!ok) {
         fprintf(stderr, "[esplus] prepare_async_done reported false; start() will not be called\n");
         PLOG("prepare_async_done reported false; start() will not be called\n");
-        MLT("prepare_async_done=false; start skipped");
+        MLT("prepare_async_done=false; start() skipped");
         if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
             LiReportVideoRendererError();
         MLT_DIAG("prepare_async_done callback EXIT ok=0");
@@ -472,15 +464,12 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     (void)context;
     MLT_DIAG("ready_to_prepare callback ENTER stream=%d", (int)stream);
     pthread_mutex_lock(&s_lock);
-    MLT("stage ready_to_prepare callback ENTER stream=%d", (int)stream);
     if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         if (stream == WMP_ESPLUS_STREAM_VIDEO) {
             s_video_ready = 1;
-            MLT("ready_to_prepare(STREAM_VIDEO)");
         }
         else if (stream == WMP_ESPLUS_STREAM_AUDIO) {
             s_audio_ready = 1;
-            MLT("ready_to_prepare(STREAM_AUDIO)");
         }
         pthread_cond_broadcast(&s_state_cv);
     }
@@ -524,7 +513,7 @@ static void on_error(int error, void *context)
             (unsigned)error, error, description ? description : "unavailable");
     PLOG("player error code=0x%08x (%d) description=%s\n",
          (unsigned)error, error, description ? description : "unavailable");
-    MLT("cb player error code=0x%08x (%d) description=%s",
+    MLT("ESPlus player error code=0x%08x (%d): %s",
         (unsigned)error, error, description ? description : "unavailable");
     if (report_failure && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
         LiReportVideoRendererError();
@@ -550,7 +539,7 @@ static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e sta
     else if (status == WMP_ESPLUS_BUFFER_STATUS_OVERRUN)
         __atomic_fetch_add(&esplus_stats.overruns, 1, __ATOMIC_RELAXED);
 }
-static void on_seek_done(void *context) { (void)context; MLT("cb seek_done"); }
+static void on_seek_done(void *context) { (void)context; }
 static void on_eos(void *context) { (void)context; MLT("cb eos"); }
 static void on_conflict(void *context)
 {
@@ -626,7 +615,6 @@ int esplus_create_open(void)
     s_tick_seq = 0;
 
     s_pl = wmp_esplus_adapter_create(&s_api);
-    MLT("esplusplayer_create -> %p", s_pl);
     if (!s_pl) {
         wmp_esplus_close(&s_api);
         pthread_mutex_unlock(&s_lock);
@@ -652,7 +640,6 @@ int esplus_create_open(void)
     }
 
     opened = wmp_esplus_adapter_open(&s_adapter);
-    MLT("esplusplayer_open -> status=%d raw=%d", (int)opened.status, opened.raw_status);
     mldiag_player("open", opened.raw_status);
     if (opened.status != WMP_ESPLUS_CALL_SUCCESS) {
         PLOG("open failed (status=%d raw=%d)\n", (int)opened.status, opened.raw_status);
@@ -680,14 +667,16 @@ static int result_to_int(wmp_esplus_call_result_t result)
 int esplus_set_video_info(const wmp_esplus_video_info_t *info)
 {
     wmp_esplus_call_result_t result = wmp_esplus_adapter_set_video_info(&s_adapter, info);
-    MLT("video stream registration status=%d raw=%d", (int)result.status, result.raw_status);
+    if (result.status != WMP_ESPLUS_CALL_SUCCESS)
+        MLT("video stream registration failed status=%d raw=%d", (int)result.status, result.raw_status);
     return result_to_int(result);
 }
 
 int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
 {
     wmp_esplus_call_result_t result = wmp_esplus_adapter_set_audio_info(&s_adapter, info);
-    MLT("audio stream registration status=%d raw=%d", (int)result.status, result.raw_status);
+    if (result.status != WMP_ESPLUS_CALL_SUCCESS)
+        MLT("audio stream registration failed status=%d raw=%d", (int)result.status, result.raw_status);
     return result_to_int(result);
 }
 
@@ -862,7 +851,7 @@ void esplus_audio_registration_complete(int success)
         pthread_cond_broadcast(&s_state_cv);
     }
     pthread_mutex_unlock(&s_lock);
-    MLT("audio stream registration completion success=%d", success != 0);
+    if (!success) MLT("audio stream registration failed");
     if (success) (void)esplus_start_prepare_if_ready();
 }
 
@@ -974,11 +963,8 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             !__atomic_load_n(&s_started, __ATOMIC_ACQUIRE) && !s_start_tried) {
             s_start_tried = 1;
             MLT_DIAG("ESPlus start CALL about_to_enter after prepare_async_done(true)");
-            MLT("stage start CALL about_to_enter after prepare_async_done(true)");
             started = wmp_esplus_adapter_start(&s_adapter);
             MLT_DIAG("ESPlus start RETURN status=%d raw=%d", (int)started.status, started.raw_status);
-            MLT("stage start CALL returned status=%d raw=%d",
-                (int)started.status, started.raw_status);
             if (started.status == WMP_ESPLUS_CALL_SUCCESS) {
                 __atomic_store_n(&s_started, 1, __ATOMIC_RELEASE);
                 pthread_cond_broadcast(&s_state_cv);
