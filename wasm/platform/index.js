@@ -10594,7 +10594,8 @@ function updateConfigSummaryBar(snapshot) {
   fps = /fps/i.test(fps) ? fps : fps + ' FPS';
   var bitrateValue = Number.parseFloat(storedText('bitrate', '10'));
   var hasValidBitrate = Number.isFinite(bitrateValue) && bitrateValue > 0;
-  var bitrate = hasValidBitrate ? bitrateValue.toFixed(1) + ' Mbps' : '';
+  var formattedBitrate = hasValidBitrate ? bitrateValue.toFixed(1).replace(/\.0$/, '') : '';
+  var bitrate = hasValidBitrate ? formattedBitrate + ' Mbps' : '';
   var codec = storedText('videoCodec', 'H264').replace(/^H\.264$/i, 'H264');
   if (/^H264$/i.test(codec)) {
     var h264Level = storedText('h264Level', 'Auto');
