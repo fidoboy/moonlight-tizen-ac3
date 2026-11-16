@@ -312,6 +312,10 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     VLOG("setup begin fmt=0x%x %dx%d@%d\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
+    s_hevc_mdcv_available = 0;
+    s_hevc_cll_available = 0;
+    s_hevc_sei_inspection_failed = 0;
+    s_hevc_hdr_status_logged = 0;
     __atomic_store_n(&esplus_stats.video_format, (uint32_t)videoFormat, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_width, (uint32_t)width, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)height, __ATOMIC_RELAXED);
@@ -505,6 +509,33 @@ static int VidDecSubmit(PDECODE_UNIT du)
     for (PLENTRY entry = du->bufferList; entry; entry = entry->next) {
         memcpy(s_scratch + offset, entry->data, (size_t)entry->length);
         offset += (size_t)entry->length;
+    }
+
+    /*
+     * Sunshine's HDR metadata arrives on the control channel. Some hosts omit
+     * MDCV/CLL SEI from the HEVC bitstream, so supplement only missing messages.
+     * The resulting access unit is identical for the SET and legacy ADD APIs.
+     */
+    if (du->hdrActive &&
+        (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_H265_MAIN10)) {
+        SS_HDR_METADATA hdr_metadata;
+        if (LiGetHdrMetadata(&hdr_metadata)) {
+            int hdr_result = supplement_hevc_hdr_metadata(
+                &s_scratch, &offset, &s_scratch_cap, &hdr_metadata,
+                du->frameType == FRAME_TYPE_IDR);
+            if (hdr_result < 0) {
+                VLOG("HDR metadata fallback: unable to grow HEVC access unit; requesting IDR\n");
+                return DR_NEED_IDR;
+            }
+            if (!s_hevc_hdr_status_logged) {
+                VLOG("HDR metadata fallback: MDCV=%s, CLL=%s, inserted=%s%s\n",
+                     s_hevc_mdcv_available ? "available" : "missing",
+                     s_hevc_cll_available ? "available" : "missing",
+                     (hdr_result & 1) ? "MDCV" : "",
+                     (hdr_result & 2) ? (hdr_result & 1 ? "+CLL" : "CLL") : "");
+                s_hevc_hdr_status_logged = 1;
+            }
+        }
     }
     if (collect_stats)
         __atomic_fetch_add(&esplus_stats.video_bytes_received, (uint64_t)offset, __ATOMIC_RELAXED);
