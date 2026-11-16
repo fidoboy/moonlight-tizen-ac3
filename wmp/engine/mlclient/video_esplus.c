@@ -30,7 +30,6 @@ static int64_t s_prev_pts_ms;
 static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
-static unsigned s_video_idrs;
 static volatile int s_first_video_submit_accepted;
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
@@ -491,7 +490,6 @@ static int VidDecSubmit(PDECODE_UNIT du)
         /* A reset or wrap starts a new frame-number baseline. */
         s_last_frame_number = du->frameNumber;
     }
-    if (du->frameType == FRAME_TYPE_IDR) ++s_video_idrs;
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
 
     /* A flushing seek invalidates queued reference frames. Reject one following
