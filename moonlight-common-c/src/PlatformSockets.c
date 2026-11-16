@@ -550,9 +550,9 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
 #elif defined(TCP_MAXSEG)
     int val = dstaddr->ss_family == AF_INET ? TCPv4_MSS : TCPv6_MSS;
 
-    if (setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, (char*)&val, sizeof(val)) < 0) {
-        Limelog("setsockopt(TCP_MAXSEG, %d) failed: %d\n", val, (int)LastSocketError());
-    }
+    // Best-effort receive-MSS optimization. Some Tizen kernels reject TCP_MAXSEG;
+    // the socket remains usable, so avoid one warning for every TCP connection.
+    (void)setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, (char*)&val, sizeof(val));
 #endif
 
     // Start connection
