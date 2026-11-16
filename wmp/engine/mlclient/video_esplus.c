@@ -261,7 +261,6 @@ static int supplement_hevc_hdr_metadata(uint8_t **data, size_t *length,
         int has_next;
         unsigned type;
         if (!find_annexb_start_code(*data, *length, search, &start, &code_len)) break;
-        (void)next_len;
         nal_offset = start + code_len;
         if (nal_offset + 2 > *length) { s_hevc_sei_inspection_failed = 1; return 0; }
         has_next = find_annexb_start_code(*data, *length, nal_offset + 2, &next_start, &next_len);
