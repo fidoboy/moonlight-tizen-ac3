@@ -213,6 +213,7 @@ static int s_prepare_started;
 static uint64_t s_idr_t0, s_idr_last;
 static unsigned s_idr_n, s_video_tries;
 static volatile int s_diag_submit_seen;
+static volatile int s_diag_feeder_rejection_logged;
 static volatile int s_diag_playback_clock_seen;
 static volatile int s_diag_buffer_callbacks;
 #define IDR_FIRST_MS 300
@@ -1087,6 +1088,7 @@ int esplus_prepare(void)
         s_idr_n = 0;
         s_video_tries = 0;
         __atomic_store_n(&s_diag_submit_seen, 0, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_diag_feeder_rejection_logged, 0, __ATOMIC_RELEASE);
         __atomic_store_n(&s_diag_playback_clock_seen, 0, __ATOMIC_RELEASE);
         __atomic_store_n(&s_diag_buffer_callbacks, 0, __ATOMIC_RELEASE);
     }
@@ -1139,8 +1141,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             const char *reason = __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) ? "native ESPlusPlayer error" :
                                  s_prepare_failed ? "prepare_async_done(false)" :
                                  s_start_failed ? "start() failed" : "player closing";
-            MLT("video feeder released without startup readiness: %s", reason);
-            PLOG("video submit rejected: %s\n", reason);
+            if (!__atomic_exchange_n(&s_diag_feeder_rejection_logged, 1, __ATOMIC_ACQ_REL)) {
+                MLT("video feeder released without startup readiness: %s", reason);
+                PLOG("video submit rejected: %s\n", reason);
+            }
             result.status = WMP_ESPLUS_SUBMIT_REJECTED;
             result.raw_status = INT_MIN;
             pthread_mutex_unlock(&s_lock);
