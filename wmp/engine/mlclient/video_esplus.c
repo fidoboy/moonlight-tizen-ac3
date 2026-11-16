@@ -15,6 +15,8 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
+extern void ml_engine_notify_video_ready(void);
+
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
 static int s_fps;
@@ -614,6 +616,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
+            ml_engine_notify_video_ready();
         }
     }
     if (s_video_units <= 10 || s_video_units % 60 == 0 ||
