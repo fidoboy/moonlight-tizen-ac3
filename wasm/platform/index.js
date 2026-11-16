@@ -6795,6 +6795,8 @@ function getData(key, callbackFunction) {
       };
       transaction.onabort = function() {
         console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
+        // Match the legacy callback contract on every terminal read outcome.
+        callCb(key, {}, callbackFunction);
       };
     } catch (error) {
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
@@ -6854,6 +6856,7 @@ function storeData(key, data, callbackFunction) {
             configSummaryRevision++;
             if (configSummarySnapshot) {
               applyPersistedPreferenceToSnapshot(key, data);
+              refreshPersistedSettingDependencies();
               updateConfigSummaryBar(configSummarySnapshot);
             } else {
               updateConfigSummaryBar();
@@ -8329,6 +8332,7 @@ function completeAudioBackendPolicyLoad() {
   // any engine/Dolby/backend policy.
   readStreamingSettingsSnapshot().then(function(snapshot) {
     configSummarySnapshot = snapshot;
+    refreshPersistedSettingDependencies();
     var dolbyValue = snapshot.preferences.ac3AudioMode;
     updateAc3AudioModeUI(dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1, 'startup');
     configSummaryValuesReady = true;
@@ -9108,6 +9112,32 @@ function applyPersistedPreferenceToSnapshot(key, value) {
   configSummarySnapshot.streamingEngine = engine;
   configSummarySnapshot.audioConfig = ac3Enabled && preferences.audioConfig === '71Surround'
     ? '51Surround' : (preferences.audioConfig || 'Stereo');
+}
+
+// Re-evaluate the settings dependency matrix only from the committed snapshot.
+// This keeps controls usable/disabled state synchronized with IndexedDB rather
+// than with whichever HTML controls happened to be rendered during restoration.
+function refreshPersistedSettingDependencies() {
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  if (!preferences) return;
+
+  var engine = preferences.streamingEngine === 'WMP'
+    ? 'ESPLUSPLAYER' : String(preferences.streamingEngine || 'EMSS');
+  var dolbyValue = preferences.ac3AudioMode;
+  var dolbyEnabled = dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1;
+
+  if (typeof setAudioBackendMenuAvailability === 'function') {
+    setAudioBackendMenuAvailability(engine, dolbyEnabled);
+  }
+  if (typeof updateAudioBackendSettings === 'function') {
+    updateAudioBackendSettings();
+  }
+  if (typeof updateHdrControlState === 'function') {
+    updateHdrControlState();
+  }
+  if (typeof updateH264LevelControlState === 'function') {
+    updateH264LevelControlState();
+  }
 }
 
 function readStreamingSettingsSnapshot() {
@@ -10462,7 +10492,7 @@ function updateConfigSummaryBar(snapshot) {
     '854x480': 'SD',
     '1280x720': 'HD',
     '1920x1080': 'FHD',
-    '2560x1440': '2K',
+    '2560x1440': 'QHD',
     '3840x2160': '4K',
     '7680x4320': '8K'
   };
