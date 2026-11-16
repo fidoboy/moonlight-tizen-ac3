@@ -10149,7 +10149,7 @@ function createConfigSummaryBar() {
     var label = document.createElement('span');
     label.className = 'config-summary-label';
     label.setAttribute('data-i18n', entry.label);
-    label.textContent = (typeof t === 'function' ? t(entry.label) : entry.label).replace(/:\s*$/, '');
+    label.textContent = (typeof t === 'function' ? t(entry.label) : entry.label).replace(/[:：\s]+$/, '');
 
     var value = document.createElement('span');
     value.id = entry.id;
@@ -10281,7 +10281,7 @@ function updateConfigSummaryBar() {
       (audioValue === '71Surround' ? '7.1' :
         (/stereo/i.test(audioValue) ? 'Stereo' : audioValue)));
   var playbackEngine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  playbackEngine = playbackEngine === 'ESPLUSPLAYER' ? t('Native engine') : 'EMSS';
+  playbackEngine = playbackEngine === 'ESPLUSPLAYER' ? t('Native') : 'EMSS';
 
   function setSummaryText(selector, value) {
     var output = document.querySelector(selector);
