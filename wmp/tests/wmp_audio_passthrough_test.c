@@ -13,6 +13,10 @@
 esplus_stats_t esplus_stats;
 volatile int esplus_performance_stats_enabled;
 
+/* audio_opus.c notifies the engine after the first accepted real audio packet.
+ * This isolated unit test does not link engine_api.c, so provide the test stub. */
+void ml_engine_notify_audio_ready(void) {}
+
 static int g_ac3, g_eac3, g_submit_count, g_registration_result, g_audio_registered;
 static uint64_t g_clock_pts_ns;
 static wmp_esplus_audio_info_t g_audio_info;
