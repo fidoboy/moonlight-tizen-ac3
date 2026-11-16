@@ -2438,7 +2438,9 @@ body[data-color-theme="black-orange"] #background-layer {
 #configSummaryBar.config-summary-bottom {
     top: auto;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    /* Keep the bottom strip visibly translucent so the active background
+       remains visible through it. */
+    background: rgba(0, 0, 0, 0.4);
 }
 
 .config-summary-item {
