@@ -9,7 +9,10 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
+#include <dlfcn.h>
+#include <pthread.h>
 
 #include "Limelight.h"
 #include "errors.h"
@@ -27,6 +30,56 @@ extern int AudEsplus_GetActiveAudioCodec(void);
 
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
+
+/* Samsung's internal AVOC entry point controls the TV picture Game Mode.
+ * It is optional firmware functionality: failure to load it must never block
+ * a Moonlight session. Keep the library loaded for the process lifetime. */
+typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
+static pthread_mutex_t g_game_mode_lock = PTHREAD_MUTEX_INITIALIZER;
+static void *g_avoc_library;
+static avoc_set_game_mode_fn g_avoc_set_game_mode;
+static int g_avoc_lookup_attempted;
+static int g_game_mode_active;
+static int g_game_mode_requested;
+
+static void set_tv_game_mode(int enabled) {
+  pthread_mutex_lock(&g_game_mode_lock);
+  if ((enabled && (!g_game_mode_requested || g_game_mode_active)) ||
+      (!enabled && !g_game_mode_active)) {
+    pthread_mutex_unlock(&g_game_mode_lock);
+    return;
+  }
+
+  if (!g_avoc_lookup_attempted) {
+    g_avoc_lookup_attempted = 1;
+    g_avoc_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
+    if (g_avoc_library) {
+      *(void **)(&g_avoc_set_game_mode) =
+          dlsym(g_avoc_library, "avoc_set_game_mode");
+    }
+    if (!g_avoc_set_game_mode) {
+      const char *error = dlerror();
+      MLT("TV Game Mode unavailable: %s",
+          error ? error : "libavoc.so or avoc_set_game_mode missing");
+      if (g_avoc_library) {
+        dlclose(g_avoc_library);
+        g_avoc_library = NULL;
+      }
+    }
+  }
+
+  if (g_avoc_set_game_mode) {
+    int rc = g_avoc_set_game_mode(1, enabled ? 1 : 0);
+    if (rc == 0) {
+      g_game_mode_active = enabled;
+      MLT("TV Game Mode %s", enabled ? "enabled" : "restored");
+    } else {
+      MLT("TV Game Mode %s failed rc=%d",
+          enabled ? "enable" : "restore", rc);
+    }
+  }
+  pthread_mutex_unlock(&g_game_mode_lock);
+}
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
 extern unsigned input_get_capabilities(void);
@@ -110,6 +163,7 @@ static void cl_connTerminated(int errorCode) {
   fprintf(stderr, "[ml] connection terminated err=%d\n", errorCode);
   MLT("connectionTerminated err=%d", errorCode);
   if (errorCode != 0) report_failure(errorCode, -1);   /* before g_running = 0: the host reads it after */
+  set_tv_game_mode(0);
   __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
 }
 /* moonlight-common-c is built with LC_LOG (build-deps-lib.sh): Limelog formats the line
@@ -234,6 +288,8 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
+  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE))
+    set_tv_game_mode(1);
 
   int in = input_init();
   MLT("input_init -> %d", in);
@@ -250,6 +306,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
       bitrate_kbps, datadir ? datadir : "(null)");
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
+  g_game_mode_requested = 0;
   g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host) { MLT("ml_engine_start -> 2 (no host)"); return 2; }
@@ -532,6 +589,7 @@ void ml_engine_wait(void) {
 
 void ml_engine_stop(void) {
   MLT("ml_engine_stop started=%d", g_started);
+  set_tv_game_mode(0);
   g_running = 0;
   if (!g_started) { MLT("ml_engine_stop -> nothing to stop"); return; }
   g_started = 0;
@@ -578,6 +636,9 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
       hdr, audio_config ? audio_config : "(null)", full_range, audio_enabled != 0);
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
+  const char *game_mode = getenv("MLENGINE_GAME_MODE");
+  g_game_mode_requested = game_mode && !strcmp(game_mode, "1");
+  MLT("TV Game Mode requested=%d", g_game_mode_requested);
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
