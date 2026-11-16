@@ -114,7 +114,7 @@ static int ecore_runtime_load(void)
 fail:
     error = dlerror();
     MLT("ecore runtime load failed: %s", error ? error : "missing required symbol");
-    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\\n",
+    fprintf(stderr, "[esplus] Ecore runtime unavailable: %s\n",
             error ? error : "missing required symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
     if (s_ecore_lib) dlclose(s_ecore_lib);
