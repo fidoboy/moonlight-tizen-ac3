@@ -87,9 +87,8 @@ static void *preroll_worker(void *unused)
         return NULL;
     }
 
-    /* Keep the audio stream fed through preparation, native start(), and
-     * acceptance of the first real video packet. The video-ready handover
-     * (or player teardown) stops this worker. */
+    /* Keep synthetic audio as the only audio source until the WebApp transition
+     * layer has completely disappeared (or the player is torn down). */
     while (!__atomic_load_n(&s_preroll_stop, __ATOMIC_ACQUIRE)) {
         uint64_t now_ns = esplus_stream_clock_pts_ns();
         int retry = 0;
@@ -161,11 +160,16 @@ void AudEsplus_StopSilence(void)
     __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
 }
 
-/* Called after native start() succeeds and the first real video packet is accepted. */
-void AudEsplus_OnPlayerStarted(void)
+/* Called only when the WebApp transition layer has completely disappeared.
+ * Serialize the handover with both submit paths, stop the feeder, and join it
+ * before allowing any host packet through. */
+void AudEsplus_CompleteStartupHandover(void)
 {
+    pthread_mutex_lock(&s_preroll_submit_lock);
     __atomic_store_n(&s_player_started, 1, __ATOMIC_RELEASE);
-    AudEsplus_StopSilence();
+    __atomic_store_n(&s_preroll_stop, 1, __ATOMIC_RELEASE);
+    pthread_mutex_unlock(&s_preroll_submit_lock);
+    preroll_join();
 }
 
 void AudEsplus_JoinSilence(void)
@@ -380,11 +384,11 @@ static void ar_decodePlay(char *data, int len)
     uint64_t duration_ns;
 
     /*
-     * Until native start() succeeds and ESPlus accepts the first real video
-     * packet, host audio is opaque to this renderer: no payload inspection,
-     * accounting, queuing, or submission. ESPlus is initialized exclusively
-     * with host video and codec-matched synthetic audio. Serialize the
-     * eventual handover with the synthetic feeder.
+     * Until the WebApp confirms that the transition layer has completely
+     * disappeared, host audio is opaque to this renderer: no payload
+     * inspection, accounting, queuing, or submission. ESPlus is initialized
+     * exclusively with host video and codec-matched synthetic audio. Serialize
+     * the eventual handover with the synthetic feeder.
      */
     pthread_mutex_lock(&s_preroll_submit_lock);
     if (!__atomic_load_n(&s_player_started, __ATOMIC_ACQUIRE)) {

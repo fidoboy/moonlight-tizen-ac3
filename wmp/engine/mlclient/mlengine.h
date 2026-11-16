@@ -110,6 +110,8 @@ typedef struct ml_engine_stream_info {
 int ml_engine_get_stream_info(ml_engine_stream_info *out);
 /* 1 after ESPlus has started and accepted at least one video packet. */
 int ml_engine_video_ready(void);
+/* Switch to subsequent host audio only after the stream transition layer disappears. */
+int ml_engine_complete_startup_audio_handover(void);
 /* Bitmask: 1=evdev keyboard, 2=evdev mouse, 4=evdev gamepad. */
 int ml_engine_input_capabilities(void);
 /* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */

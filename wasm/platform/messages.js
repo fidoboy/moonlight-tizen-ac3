@@ -46,6 +46,7 @@ function getSelectedStreamingEngine() {
 }
 
 function startESPlusPlayerSession(args) {
+  window._esplusStartupAudioHandoverRequested = false;
   if (!window.ESPlusPlayerTransport || typeof window.ESPlusPlayerTransport.startStream !== 'function') {
     pendingStreamApiMessage = 'ESPlusPlayer native transport is unavailable.';
     handleMessage('streamTerminated: -1');

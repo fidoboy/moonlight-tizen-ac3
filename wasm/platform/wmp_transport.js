@@ -1764,6 +1764,7 @@
     getStatus: function() { return request('get_status'); },
     getLogs: function() { return request('get_new_logs'); },
     toggleStats: function() { return request('toggle_stats'); },
+    completeStartupAudioHandover: function() { return request('complete_startup_audio_handover'); },
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) {
       var requestParameters = {};

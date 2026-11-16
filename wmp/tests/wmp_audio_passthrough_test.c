@@ -143,7 +143,7 @@ static void test_real_audio_follows_synthetic(void)
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
     assert(g_submit_count == 3); /* Host audio is discarded before player start. */
 
-    AudEsplus_OnPlayerStarted();
+    AudEsplus_CompleteStartupHandover();
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
     assert(g_submit_count == 4);
     assert(g_packets[3].data == real_packet);
@@ -175,7 +175,7 @@ static void test_real_audio_does_not_stop_preroll(void)
     for (int i = 0; i < g_submit_count; ++i)
         assert(g_packets[i].data != real_packet);
 
-    AudEsplus_OnPlayerStarted();
+    AudEsplus_CompleteStartupHandover();
     callbacks.decodeAndPlaySample((char *)real_packet, sizeof(real_packet));
     assert(g_submit_count == 4 && g_last_packet.data == real_packet);
     callbacks.cleanup();
@@ -206,7 +206,7 @@ int main(void)
     reset_capture();
     g_ac3 = 0; g_eac3 = 1;
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
-    AudEsplus_OnPlayerStarted();
+    AudEsplus_CompleteStartupHandover();
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_EAC3);
     assert(g_audio_info.codec_data == NULL && g_audio_info.codec_data_size == 0);
     assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
@@ -228,7 +228,7 @@ int main(void)
     reset_capture();
     g_ac3 = 0; g_eac3 = 0;
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
-    AudEsplus_OnPlayerStarted();
+    AudEsplus_CompleteStartupHandover();
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_OPUS);
     assert(g_audio_info.channels == 6 && g_audio_info.sample_rate == 48000);
     assert(g_audio_info.codec_data_size == 27);

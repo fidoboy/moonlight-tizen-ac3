@@ -16,7 +16,6 @@
 #include "mltrace.h"
 
 extern void ml_engine_notify_video_ready(void);
-extern void AudEsplus_OnPlayerStarted(void);
 
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
@@ -617,15 +616,9 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL))
                 MLT_DIAG("first ESPlus video submit accepted size=%u pts_ns=%llu",
                          packet.size, (unsigned long long)packet.pts_ns);
-            /*
-             * A video packet can be accepted while prepare_async is still
-             * completing, before start() is legal. Therefore evaluate the
-             * combined readiness condition on every accepted video packet,
-             * not only the first one. The handover occurs once both start()
-             * has succeeded and at least one real video packet was accepted.
-             */
-            if (esplus_video_ready())
-                AudEsplus_OnPlayerStarted();
+            /* Video readiness controls the UI transition only. Synthetic audio
+             * remains active until the WebApp confirms that the transition has
+             * completely disappeared and explicitly requests the handover. */
             ml_engine_notify_video_ready();
         }
     }

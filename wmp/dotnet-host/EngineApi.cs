@@ -153,6 +153,9 @@ namespace MoonlightWmpHost
         internal delegate void SetPerformanceStatsEnabledFn(int enabled);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int CompleteStartupAudioHandoverFn();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate int LastErrorFn([Out] byte[] buffer, int capacity);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -201,6 +204,7 @@ namespace MoonlightWmpHost
         internal readonly GetStreamInfoFn GetStreamInfo;
         internal readonly GetEncryptionStatusFn GetEncryptionStatus;
         internal readonly SetPerformanceStatsEnabledFn SetPerformanceStatsEnabled;
+        internal readonly CompleteStartupAudioHandoverFn CompleteStartupAudioHandover;
         internal readonly LastErrorFn LastError;
         internal readonly StartSessionV2Fn StartSessionV2;
 
@@ -243,6 +247,8 @@ namespace MoonlightWmpHost
                 resolve, "ml_engine_get_encryption_status");
             SetPerformanceStatsEnabled = Bind<SetPerformanceStatsEnabledFn>(
                 resolve, "ml_engine_set_performance_stats_enabled");
+            CompleteStartupAudioHandover = Bind<CompleteStartupAudioHandoverFn>(
+                resolve, "ml_engine_complete_startup_audio_handover");
             LastError = Bind<LastErrorFn>(resolve, "ml_engine_last_error");
             StartSessionV2 = Bind<StartSessionV2Fn>(
                 resolve, "ml_engine_start_session_v2");
