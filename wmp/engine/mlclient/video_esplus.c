@@ -237,7 +237,6 @@ static size_t build_hevc_hdr_sei(const SS_HDR_METADATA *metadata,
 }
 
 static int supplement_hevc_hdr_metadata(uint8_t **data, size_t *length,
-                                        size_t *capacity,
                                         const SS_HDR_METADATA *metadata,
                                         int is_idr)
 {
@@ -255,12 +254,14 @@ static int supplement_hevc_hdr_metadata(uint8_t **data, size_t *length,
         s_hevc_sei_inspection_failed = 1;
         return 0;
     }
+    (void)first_len;
     search = first_offset;
     while (search < *length) {
         size_t start, code_len, nal_offset, next_start, next_len, nal_end;
         int has_next;
         unsigned type;
         if (!find_annexb_start_code(*data, *length, search, &start, &code_len)) break;
+        (void)next_len;
         nal_offset = start + code_len;
         if (nal_offset + 2 > *length) { s_hevc_sei_inspection_failed = 1; return 0; }
         has_next = find_annexb_start_code(*data, *length, nal_offset + 2, &next_start, &next_len);
@@ -521,7 +522,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
         SS_HDR_METADATA hdr_metadata;
         if (LiGetHdrMetadata(&hdr_metadata)) {
             int hdr_result = supplement_hevc_hdr_metadata(
-                &s_scratch, &offset, &s_scratch_cap, &hdr_metadata,
+                &s_scratch, &offset, &hdr_metadata,
                 du->frameType == FRAME_TYPE_IDR);
             if (hdr_result < 0) {
                 VLOG("HDR metadata fallback: unable to grow HEVC access unit; requesting IDR\n");
