@@ -122,7 +122,7 @@ static void *preroll_worker(void *unused)
                 retry = 1;
             } else {
                 /* A transient rejection must not terminate preroll. The
-                 * video-ready handover or player teardown owns the stop decision. */
+                 * transition-hidden handover or player teardown owns the stop decision. */
                 retry = 1;
                 if (submitted == 0)
                     ALOG("synthetic audio preroll not accepted yet: status=%d raw=%d\n",
