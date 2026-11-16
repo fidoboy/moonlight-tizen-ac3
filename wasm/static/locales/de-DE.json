@@ -35,7 +35,6 @@
   "- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.": "- Zeigt beim Starten oder Beenden eines Streams einen animierten Sternenhimmel. Wenn die Option deaktiviert ist, wird ein einheitlich schwarzer Hintergrund angezeigt.",
   "- Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.": "- Sortiert die Host-Apps anhand ihrer Titel aufsteigend (A bis Z) oder absteigend (Z bis A).",
   "- This can help reduce delays by keeping audio in sync for a consistent sound while streaming.": "- Diese Option kann Verzögerungen verringern, indem der Ton während des Streamings synchron gehalten wird.",
-  "- This can help reduce micro-stutter by delaying frames that arrive too early while streaming.": "- Diese Option kann Mikroruckler reduzieren, indem während des Streamings zu früh eintreffende Frames verzögert werden.",
   "- This is only necessary for Wolf and Punktfunk-style hosts that encrypt GameStream audio without advertising it.": "- Nur für Hosts wie Wolf und Punktfunk erforderlich, die GameStream-Audio verschlüsseln, ohne dies anzukündigen.",
   "When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.": "Bei Aktivierung kann diese Einstellung mehr Details in den dunkelsten und hellsten Bildbereichen sichtbar machen. Wählen Sie die Einstellung, mit der das Bild auf Ihrem Fernseher besser aussieht.",
   "- Useful for users who need guidance or help navigating the app.": "- Hilfreich, wenn Sie Unterstützung bei der Navigation in der App benötigen.",
@@ -67,7 +66,7 @@
   "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Alle gespeicherten Host-Einträge werden aus Moonlight entfernt. Um diese Hosts wieder zu verwenden, müssen Sie sie möglicherweise erneut hinzufügen und koppeln. Die Host-PCs und ihre Dateien bleiben unberührt.",
   "Allow audio synchronization support for optimal sound output": "Audiosynchronisierung für optimale Tonausgabe aktivieren",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "AES-CBC-Audio von Wolf- und Punktfunk-Hosts entschlüsseln erlauben",
-  "Allow frame pacing to balance video latency and smoothness": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen.",
+  "Allow frame pacing to balance video latency and smoothness": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren",
   "Allow full color range for more detail in dark and bright areas of content": "Vollen Farbbereich für mehr Details in dunklen und hellen Bildbereichen verwenden",
   "Allow game mode for optimal latency and performance while streaming": "Spielmodus für optimale Latenz und Streaming-Leistung aktivieren",
   "Allow gamepad rumble feedback support while streaming": "Controller-Vibration während des Streamings aktivieren",
@@ -639,5 +638,6 @@
   "Accepted": "Akzeptiert",
   "Average renderer submit time:": "Durchschnittliche Übermittlungszeit des Renderers:",
   "Frames missing from stream:": "Im Stream fehlende Frames:",
-  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Wenn diese Option aktiviert ist, wird der Ton während des Streamings sowohl auf dem Host-Computer als auch lokal wiedergegeben, sofern die lokale Audioausgabe ebenfalls aktiviert ist."
+  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Wenn diese Option aktiviert ist, wird der Ton während des Streamings sowohl auf dem Host-Computer als auch lokal wiedergegeben, sofern die lokale Audioausgabe ebenfalls aktiviert ist.",
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen."
 }
