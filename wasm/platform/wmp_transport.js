@@ -983,13 +983,13 @@
           errorDomain: details.domain
         });
       });
-      startupDiagnosticPollInFlight = pollRequest.then(function() {
+      var trackedPollRequest = pollRequest.then(function() {
         if (startupDiagnosticPollInFlight === trackedPollRequest) {
           startupDiagnosticPollInFlight = null;
         }
         pollStartupDiagnosticLogs();
       });
-      var trackedPollRequest = startupDiagnosticPollInFlight;
+      startupDiagnosticPollInFlight = trackedPollRequest;
     }, startupDiagnosticPollDelayMs);
   }
 
