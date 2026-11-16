@@ -404,9 +404,6 @@ void esplus_sample_tick(uint64_t now_ms)
                 }
             }
             s_tick_prev_ms = now_ms;
-            MLT("stats depth=%dms audio=%dms playing=%u",
-                esplus_stats.depth_ms, esplus_stats.audio_depth_ms,
-                esplus_stats.playing_ms);
         }
 
         if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE)) {
@@ -1111,8 +1108,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 {
     wmp_esplus_submit_result_t result;
     wmp_esplus_call_result_t started;
-    static unsigned n;
-    static int last_raw = 4;
     int diag_first_video_submit = 0;
 
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
@@ -1123,10 +1118,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     }
     pthread_mutex_lock(&s_lock);
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO) {
-        if (s_video_tries < 3)
-            MLT("stage first_video_submit ENTER video_ready=%d prepared=%d prepare_ok=%d",
-                s_video_ready, s_prepared, s_prepare_ok);
-
         /*
          * ESPlusPlayer's ready_to_prepare callback opens the video feeder
          * during prepare_async. Do not wait for prepare_async_done here:
@@ -1221,22 +1212,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         pthread_mutex_unlock(&s_lock);
         return result;
     }
-    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
-        MLT("stage submit CALL about_to_enter packet_size=%u pts_ns=%llu", packet->size, (unsigned long long)packet->pts_ns);
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
         result.raw_status = INT_MIN;
-    }
-    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO && s_video_tries < 3)
-        MLT("stage submit CALL returned status=%d raw=%d", (int)result.status, result.raw_status);
-    if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
-        (s_video_tries <= 10 || s_video_tries % 60 == 0 ||
-         result.status != WMP_ESPLUS_SUBMIT_SUCCESS)) {
-        PLOG("video submit #%u size=%u pts_ns=%llu status=%d raw=%d prepared=%d started=%d\n",
-             s_video_tries, packet->size, (unsigned long long)packet->pts_ns,
-             (int)result.status, result.raw_status, s_prepared,
-             __atomic_load_n(&s_started, __ATOMIC_ACQUIRE));
     }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO)
         ++s_video_tries;
@@ -1251,11 +1230,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             s_last_audio_pts_ms = ms;
         }
     }
-    ++n;
-    if (n <= 30 || n % 300 == 0 || result.raw_status != last_raw)
-        MLT("esplus_submit #%u -> status=%d raw=%d", n,
-            (int)result.status, result.raw_status);
-    last_raw = result.raw_status;
     pthread_mutex_unlock(&s_lock);
     if (diag_first_video_submit)
         MLT_DIAG("first ESPlus video submit RETURN status=%d raw=%d",
