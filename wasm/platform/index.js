@@ -8977,6 +8977,7 @@ function readStreamingSettingsSnapshot() {
   }).then(function() {
     return readStoredPreferences(STREAMING_PREFERENCE_KEYS);
   }), 10000, 'Saved streaming preferences load').then(function(stored) {
+    var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var defaults = {
       resolution: '1280:720', frameRate: '60', bitrate: 10,
       framePacing: true, optimizeGames: false, rumbleFeedback: true,
@@ -8984,11 +8985,29 @@ function readStreamingSettingsSnapshot() {
       flipXYfaceButtons: false, audioBackend: 'EMSS', audioConfig: 'Stereo',
       ac3AudioMode: false, audioSync: false, audioJitter: 100,
       playHostAudio: false, decryptHostAudio: false, videoCodec: 'H264',
-      h264Level: 'Auto', hdrMode: false, fullRange: false,
+      h264Level: 'Auto', hdrMode: false, fullRange: false, gameMode: gameModeDefault,
       disableWarnings: false, performanceStats: false,
       dolbyChannelLayout: 'Back', dolbyDecodingMode: 'Hardware',
-      streamingEngine: 'EMSS', optimizeBitrate: false
+      streamingEngine: 'EMSS', optimizeBitrate: false,
+      performanceStatsPosition: 'top-left', streamTransitionBackground: true,
+      colorTheme: 'default', quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom'
     };
+    var missingKeys = STREAMING_PREFERENCE_KEYS.filter(function(key) {
+      return stored[key] == null && Object.prototype.hasOwnProperty.call(defaults, key);
+    });
+    var persistDefaults = missingKeys.length ? new Promise(function(resolve, reject) {
+      try {
+        var transaction = db.transaction(storeName, 'readwrite');
+        var objectStore = transaction.objectStore(storeName);
+        missingKeys.forEach(function(key) {
+          objectStore.put(JSON.stringify(defaults[key]), key);
+        });
+        transaction.oncomplete = function() { resolve(); };
+        transaction.onerror = function() { reject(transaction.error || new Error('Could not persist default streaming preferences.')); };
+        transaction.onabort = function() { reject(transaction.error || new Error('Default streaming preference write was aborted.')); };
+      } catch (error) { reject(error); }
+    }) : Promise.resolve();
+    return persistDefaults.then(function() {
     var values = Object.assign({}, defaults, stored);
     function boolValue(value, fallback) {
       if (value == null) return fallback;
@@ -9016,7 +9035,6 @@ function readStreamingSettingsSnapshot() {
     }
     var audioConfig = values.audioConfig || 'Stereo';
     if (ac3Enabled && audioConfig === '71Surround') audioConfig = '51Surround';
-    var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var snapshot = {
       preferences: values,
       resolution: resolution,
@@ -9051,6 +9069,7 @@ function readStreamingSettingsSnapshot() {
       optimizeBitrate: boolValue(values.optimizeBitrate, false)
     };
     return snapshot;
+    });
   });
 }
 
