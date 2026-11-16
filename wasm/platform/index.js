@@ -6804,8 +6804,39 @@ function getData(key, callbackFunction) {
   });
 }
 
+var preferenceRestoreInProgress = false;
+
+function restorePersistedSettingsAfterWriteFailure() {
+  if (preferenceRestoreInProgress) return;
+  preferenceRestoreInProgress = true;
+  try {
+    if (typeof loadUserDataCb === 'function') loadUserDataCb();
+    if (typeof loadConfigSummarySettings === 'function') {
+      loadConfigSummarySettings(function() { preferenceRestoreInProgress = false; });
+    } else {
+      preferenceRestoreInProgress = false;
+    }
+  } catch (error) {
+    preferenceRestoreInProgress = false;
+    console.error('%c[index.js, storeData]', 'color: red;', 'Could not restore controls after a failed preference write:', error);
+  }
+}
+
 function storeData(key, data, callbackFunction) {
   var operation = new Promise(function(resolve, reject) {
+    var failureHandled = false;
+    function fail(error) {
+      if (failureHandled) return;
+      failureHandled = true;
+      console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
+      if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
+        configSummaryRevision++;
+        // The cached snapshot still represents the last successfully committed state.
+        updateConfigSummaryBar();
+        restorePersistedSettingsAfterWriteFailure();
+      }
+      reject(error);
+    }
     function write() {
       try {
         const transaction = db.transaction(storeName, 'readwrite');
@@ -6815,7 +6846,7 @@ function storeData(key, data, callbackFunction) {
             var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
             console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
           }
-          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
+          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
             configSummaryRevision++;
             if (configSummarySnapshot) {
               applyPersistedPreferenceToSnapshot(key, data);
@@ -6833,45 +6864,25 @@ function storeData(key, data, callbackFunction) {
           }
         };
         transaction.onerror = function(event) {
-          var error = transaction.error || (event && event.target && event.target.error) ||
-            new Error('IndexedDB write failed for key: ' + key);
-          console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
-          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
-            configSummaryRevision++;
-            configSummarySnapshot = null;
-            if (typeof loadUserDataCb === 'function') loadUserDataCb();
-            if (typeof loadConfigSummarySettings === 'function') loadConfigSummarySettings(function() {});
-            updateConfigSummaryBar();
-          }
-          reject(error);
+          fail(transaction.error || (event && event.target && event.target.error) ||
+            new Error('IndexedDB write failed for key: ' + key));
         };
         transaction.onabort = function() {
-          var error = transaction.error || new Error('IndexedDB write aborted for key: ' + key);
-          console.error('%c[index.js, storeData]', 'color: red;', 'Write transaction aborted for key ' + key + ':', error);
-          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
-            configSummaryRevision++;
-            configSummarySnapshot = null;
-            if (typeof loadUserDataCb === 'function') loadUserDataCb();
-            if (typeof loadConfigSummarySettings === 'function') loadConfigSummarySettings(function() {});
-            updateConfigSummaryBar();
-          }
-          reject(error);
+          fail(transaction.error || new Error('IndexedDB write aborted for key: ' + key));
         };
       } catch (error) {
-        console.error('%c[index.js, storeData]', 'color: red;', 'Could not store key ' + key + ':', error);
-        reject(error);
+        fail(error);
       }
     }
     if (db) write();
     else {
-      try { openIndexDB(write, reject); }
-      catch (error) { reject(error); }
+      try { openIndexDB(write, fail); }
+      catch (error) { fail(error); }
     }
   });
-  operation.catch(function() {}); // Preserve rejection for callers while avoiding unhandled rejections from legacy fire-and-forget saves.
+  operation.catch(function() {}); // Legacy fire-and-forget callers still get logged failures without unhandled rejections.
   return operation;
 }
-
 // Storing data takes the data as an object, and shoves it into JSON to store.
 // Unfortunately, objects with function instances (classes) are stripped of their function instances
 // when converted to a raw object, so we cannot forget to revive the object after we load it.
