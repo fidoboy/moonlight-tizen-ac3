@@ -5890,12 +5890,16 @@ function fullscreenWasmModule(configuredWidth, configuredHeight) {
 
 // Handle on-screen overlays when the streaming session starts
 function handleOnScreenOverlays() {
-  // Find the existing toggle switch elements
-  const disableWarningsSwitch = document.getElementById('disableWarningsSwitch');
-  const performanceStatsSwitch = document.getElementById('performanceStatsSwitch');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var disableWarnings = !!(preferences && (
+    preferences.disableWarnings === true ||
+    preferences.disableWarnings === 'true' ||
+    preferences.disableWarnings === 1
+  ));
 
-  // Check if the disable warnings switch is checked, then hide or show the connection warning messages
-  disableWarningsSwitch.checked ? fadeOutUiElement('connection-warnings') : fadeInUiElement('connection-warnings', 'inline-block');
+  // The persisted preference, not the rendered switch, controls stream warnings.
+  if (disableWarnings) fadeOutUiElement('connection-warnings');
+  else fadeInUiElement('connection-warnings', 'inline-block');
 
   // Keep statistics hidden until the startup transition has fully disappeared.
   // The first populated StatMsg reveals them after the required post-transition delay.
@@ -7163,11 +7167,17 @@ function standardBitratePresets() {
 
 function optimizeBitratePresets() {
   console.log('%c[index.js, optimizeBitratePresets]', 'color: green;', 'Applying optimize bitrate presets...');
-  var width = parseInt($('#selectResolution').data('value').split(':')[0]);
-  var height = parseInt($('#selectResolution').data('value').split(':')[1]);
-  var frameRate = $('#selectFramerate').data('value').toString();
-  var videoCodec = $('#selectCodec').data('value').toString();
-  var hdrMode = $('#hdrModeSwitch').prop('checked') ? 1 : 0;
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  if (!preferences) {
+    console.warn('%c[index.js, optimizeBitratePresets]', 'color: gray;', 'Persisted streaming preferences are not ready; skipping automatic bitrate calculation.');
+    return;
+  }
+  var resolution = String(preferences.resolution || '1280:720').split(':');
+  var width = parseInt(resolution[0], 10);
+  var height = parseInt(resolution[1], 10);
+  var frameRate = Number(preferences.frameRate || 60);
+  var videoCodec = String(preferences.videoCodec || 'H264');
+  var hdrMode = preferences.hdrMode === true || preferences.hdrMode === 'true' || preferences.hdrMode === 1 ? 1 : 0;
 
   // Multiplier to adjust bitrate based on codec efficiency
   // Sweet-spot formula reference: https://www.reddit.com/r/MoonlightStreaming/comments/1gg2cdy/sweet_spot_bitrate/
@@ -8131,8 +8141,13 @@ function setDolbySelectorValue(buttonSelector, menuSelector, value) {
 
 function updateDolbyAudioAdvancedSettings() {
   const audioEnabled = !isAudioOutputDisabled();
-  const engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  const dolbyEnabled = audioEnabled && $('#ac3AudioModeSwitch').prop('checked');
+  const preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  const engineValue = preferences && preferences.streamingEngine;
+  const engine = engineValue === 'WMP' ? 'ESPLUSPLAYER' : (engineValue || 'EMSS');
+  const dolbyValue = preferences && preferences.ac3AudioMode;
+  const dolbyEnabled = audioEnabled && (
+    dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1
+  );
   // These controls configure the EMSS Dolby track. ESPlusPlayer does not
   // currently consume either setting, so never expose them for that engine.
   const emssDolbyEnabled = engine === 'EMSS' && dolbyEnabled;
@@ -8207,9 +8222,15 @@ function setAudioBackendMenuAvailability(engine, dolbyEnabled) {
 }
 
 function applyAudioBackendPolicy(reason) {
-  var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  var dolbyEnabled = $('#ac3AudioModeSwitch').prop('checked');
-  var backend = String($('#selectAudioBackend').data('value') || 'EMSS');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  if (!preferences) {
+    console.warn('%c[index.js, applyAudioBackendPolicy]', 'color: gray;', 'Persisted audio preferences are not ready; deferring audio policy.');
+    return;
+  }
+  var engine = preferences.streamingEngine === 'WMP' ? 'ESPLUSPLAYER' : String(preferences.streamingEngine || 'EMSS');
+  var dolbyValue = preferences.ac3AudioMode;
+  var dolbyEnabled = dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1;
+  var backend = String(preferences.audioBackend || 'EMSS');
 
   if (engine === 'ESPLUSPLAYER') {
     // ESPlusPlayer owns both media tracks. DD must never redirect audio to EMSS.
@@ -8258,16 +8279,20 @@ function completeAudioBackendPolicyLoad() {
   var state = audioBackendPolicyLoadState;
   if (!state.streamingEngine || !state.audioBackend || !state.ac3AudioMode ||
       !state.beforeESPlusPlayer || !state.beforeAc3) return;
-  updateAc3AudioModeUI($('#ac3AudioModeSwitch').prop('checked'), 'startup');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var dolbyValue = preferences && preferences.ac3AudioMode;
+  updateAc3AudioModeUI(dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1, 'startup');
   // The summary strip is revealed only after the engine and effective audio backend are final.
   configSummaryValuesReady = true;
   updateConfigSummaryBar();
 }
 
 function updateAc3AudioModeUI(enabled, reason) {
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var audioConfig = preferences ? preferences.audioConfig : null;
   if (enabled) {
     $('.audioConfigMenu li[data-optical-incompatible="true"]').hide();
-    if ($('#selectAudio').data('value') === '71Surround') {
+    if (audioConfig === '71Surround') {
       setAudioSelectorValue('#selectAudio', '.audioConfigMenu', '51Surround');
       storeData('audioConfig', '51Surround', null);
     }
@@ -10518,11 +10543,16 @@ window.addEventListener('gamepadconnected', function(e) {
   const gamepadIndex = connectedGamepad.index;
   const gamepadName = typeof connectedGamepad.id === 'string' && connectedGamepad.id.trim()
     ? (connectedGamepad.id.trim().split('(')[0].trim() || gamepadIndex) : gamepadIndex;
-  const rumbleFeedbackSwitch = document.getElementById('rumbleFeedbackSwitch');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var rumbleFeedbackEnabled = !!(preferences && (
+    preferences.rumbleFeedback === true ||
+    preferences.rumbleFeedback === 'true' ||
+    preferences.rumbleFeedback === 1
+  ));
   console.log('%c[index.js, gamepadconnected]', 'color: green;', 'Gamepad connected:\n' + JSON.stringify(connectedGamepad), connectedGamepad);
   snackbarLog('Gamepad %1$s has been connected.', gamepadName);
-  // Check if the rumble feedback switch is checked
-  if (rumbleFeedbackSwitch.checked) {
+  // Check the persisted gamepad vibration preference.
+  if (rumbleFeedbackEnabled) {
     // Check if the connected gamepad has a vibrationActuator associated with it
     if (connectedGamepad.vibrationActuator) {
       console.log('%c[index.js, gamepadconnected]', 'color: green;', 'Playing rumble on the connected gamepad ' + gamepadIndex + '...');
