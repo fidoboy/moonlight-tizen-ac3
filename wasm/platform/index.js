@@ -6769,6 +6769,12 @@ function callCb(key, value, callbackFunction) {
 }
 
 function getData(key, callbackFunction) {
+  var callbackCompleted = false;
+  function finishRead(value) {
+    if (callbackCompleted) return;
+    callbackCompleted = true;
+    finishRead(value);
+  }
   let cb = function() {
     let value = null;
     try {
@@ -6786,12 +6792,12 @@ function getData(key, callbackFunction) {
           callCb(key, value, callbackFunction);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
-          callCb(key, {}, callbackFunction);
+          finishRead({});
         }
       };
       transaction.onerror = function(event) {
         console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', transaction.error || event);
-        callCb(key, {}, callbackFunction);
+        finishRead({});
       };
       transaction.onabort = function() {
         console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
