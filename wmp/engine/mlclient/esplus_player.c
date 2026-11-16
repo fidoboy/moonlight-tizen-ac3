@@ -451,7 +451,6 @@ static void on_prepared(bool ok, void *context)
         MLT_DIAG("prepare_async_done callback EXIT ok=0");
         return;
     }
-    MLT("cb prepare_async_done=true");
     MLT_DIAG("prepare_async_done callback EXIT ok=1");
 }
 static void on_ready(wmp_esplus_stream_e stream, void *context)
@@ -472,7 +471,6 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
     if (stream == WMP_ESPLUS_STREAM_AUDIO)
         AudEsplus_PrimeSilence();
     MLT_DIAG("ready_to_prepare callback state recorded stream=%d", (int)stream);
-    MLT("cb ready_to_prepare stream=%d", (int)stream);
     MLT_DIAG("ready_to_prepare callback EXIT stream=%d", (int)stream);
 }
 static void on_error(int error, void *context)
@@ -614,6 +612,7 @@ int esplus_create_open(void)
     callbacks.ready_to_prepare = on_ready;
     callbacks.prepare_async_done = on_prepared;
     if (wmp_esplus_adapter_bind(&s_adapter, &s_api, s_pl, &callbacks, NULL) != 0) {
+        MLT("ESPlus callback registration failed");
         (void)wmp_esplus_adapter_close(&s_adapter);
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
@@ -625,6 +624,7 @@ int esplus_create_open(void)
     opened = wmp_esplus_adapter_open(&s_adapter);
     mldiag_player("open", opened.raw_status);
     if (opened.status != WMP_ESPLUS_CALL_SUCCESS) {
+        MLT("ESPlus open failed status=%d raw=%d", (int)opened.status, opened.raw_status);
         (void)wmp_esplus_adapter_close(&s_adapter);
         wmp_esplus_adapter_unbind(&s_adapter);
         s_pl = NULL;
