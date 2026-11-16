@@ -81,6 +81,7 @@
       videoCodec: payload.videoCodec,
       hdr: !!payload.hdr,
       fullRange: !!payload.fullRange,
+      gameMode: payload.gameMode === true,
       debugMode: payload.debugMode === true
     };
   }
