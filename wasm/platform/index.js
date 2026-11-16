@@ -8043,8 +8043,11 @@ function saveFlipXYfaceButtons() {
 
 function saveAudioBackend() {
   var chosenAudioBackend = String($(this).data('value') || '');
-  var engine = String($('#selectStreamingEngine').data('value') || 'EMSS');
-  var dolbyEnabled = $('#ac3AudioModeSwitch').prop('checked');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var engineValue = preferences && preferences.streamingEngine;
+  var engine = engineValue === 'WMP' ? 'ESPLUSPLAYER' : String(engineValue || 'EMSS');
+  var dolbyValue = preferences && preferences.ac3AudioMode;
+  var dolbyEnabled = dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1;
   var allowed = engine === 'ESPLUSPLAYER'
     ? ['ESPLUSPLAYER', 'Disabled']
     : (dolbyEnabled ? ['EMSS', 'Disabled'] : ['EMSS', 'WebAudio', 'Disabled']);
@@ -8098,7 +8101,9 @@ function setAudioSliderEnabled(selector, enabled) {
 // become meaningless with Disabled remain visible but are visibly unavailable.
 function updateAudioBackendSettings() {
   var audioEnabled = !isAudioOutputDisabled();
-  var backend = String($('#selectAudioBackend').data('value') || 'EMSS');
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var backend = String(configSummarySnapshot && configSummarySnapshot.audioBackend ||
+    (preferences && preferences.audioBackend) || 'EMSS');
 
   $('#audioConfigOption').show();
   $('#decryptHostAudioOption').show();
@@ -8138,7 +8143,10 @@ function isAudioOutputDisabled() {
 
 function saveAudioConfiguration() {
   var chosenAudioConfig = $(this).data('value');
-  if ($('#ac3AudioModeSwitch').prop('checked') && chosenAudioConfig === '71Surround') {
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  var dolbyValue = preferences && preferences.ac3AudioMode;
+  var dolbyEnabled = dolbyValue === true || dolbyValue === 'true' || dolbyValue === 1;
+  if (dolbyEnabled && chosenAudioConfig === '71Surround') {
     chosenAudioConfig = '51Surround';
   }
   setAudioSelectorValue('#selectAudio', '.audioConfigMenu', chosenAudioConfig);
@@ -8178,7 +8186,7 @@ function updateDolbyAudioAdvancedSettings() {
   // These controls configure the EMSS Dolby track. ESPlusPlayer does not
   // currently consume either setting, so never expose them for that engine.
   const emssDolbyEnabled = engine === 'EMSS' && dolbyEnabled;
-  const is51Selected = $('#selectAudio').data('value') === '51Surround';
+  const is51Selected = preferences && preferences.audioConfig === '51Surround';
   const layoutEnabled = emssDolbyEnabled && is51Selected;
 
   $('#dolbyChannelLayoutOption').toggle(emssDolbyEnabled);
