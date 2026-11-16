@@ -1170,7 +1170,6 @@ namespace MoonlightWmpHost
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; bitrateKbps=" + request.Bitrate.ToString(CultureInfo.InvariantCulture) +
                     "; gameMode=" + (request.GameMode != 0 ? "on" : "off"));
-                Log.Info("WMP session starting: video=" + request.VideoCodec + " " +
                     request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
@@ -1195,7 +1194,6 @@ namespace MoonlightWmpHost
                 // Flush startup callbacks immediately after the blocking native
                 // startup call returns; do not wait for the periodic fallback.
                 SendNewNativeDiagnosticLogs(appId, remotePort);
-                Log.Info("WMP native StartSessionV2 returned " +
                     result.ToString(CultureInfo.InvariantCulture));
                 // The Debug Mode WebApp can now retrieve the native startup trace,
                 // including ESPlus window/display and prepare diagnostics.
@@ -1335,7 +1333,6 @@ namespace MoonlightWmpHost
                             ", video_queue_empty_events=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", video_queue_full_events=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
                         RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
-                        Log.Info("WMP stream diagnostic: " + streamStatsDiagnostic);
                         Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
                         // Refresh the native ring buffer after each lifecycle snapshot so
                         // callbacks emitted after startup (prepare_async_done/start) are visible.
