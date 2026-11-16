@@ -1169,11 +1169,8 @@ namespace MoonlightWmpHost
                     request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
                     request.Fps.ToString(CultureInfo.InvariantCulture) +
                     "; bitrateKbps=" + request.Bitrate.ToString(CultureInfo.InvariantCulture) +
+                    "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled") +
                     "; gameMode=" + (request.GameMode != 0 ? "on" : "off"));
-                    request.Width.ToString(CultureInfo.InvariantCulture) + "x" +
-                    request.Height.ToString(CultureInfo.InvariantCulture) + "@" +
-                    request.Fps.ToString(CultureInfo.InvariantCulture) +
-                    "; audio=" + (request.AudioEnabled != 0 ? "enabled" : "disabled"));
                 // Common C startup markers are emitted only for explicit Debug Mode sessions.
                 Environment.SetEnvironmentVariable("MLENGINE_DIAGNOSTICS",
                     request.DebugMode != 0 ? "1" : "0");
@@ -1188,13 +1185,10 @@ namespace MoonlightWmpHost
                     request.AudioConfig, request.FullRange, request.AudioEnabled,
                     request.GameMode);
 
-                Log.Info("WMP_LIFECYCLE native_start_call_returned result=" +
-                    result.ToString(CultureInfo.InvariantCulture));
                 RecordDiagnostic("host StartSessionV2 returned " + result.ToString(CultureInfo.InvariantCulture));
                 // Flush startup callbacks immediately after the blocking native
                 // startup call returns; do not wait for the periodic fallback.
                 SendNewNativeDiagnosticLogs(appId, remotePort);
-                    result.ToString(CultureInfo.InvariantCulture));
                 // The Debug Mode WebApp can now retrieve the native startup trace,
                 // including ESPlus window/display and prepare diagnostics.
                 Event(appId, remotePort, "wmpDiagnosticReady", null);
