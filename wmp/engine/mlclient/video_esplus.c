@@ -614,15 +614,18 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
-            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL)) {
+            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL))
                 MLT_DIAG("first ESPlus video submit accepted size=%u pts_ns=%llu",
                          packet.size, (unsigned long long)packet.pts_ns);
-                /* Handover only after start() succeeded AND ESPlus accepted
-                 * the first real video access unit. Until this point the
-                 * synthetic audio feeder remains the exclusive audio source. */
-                if (esplus_video_ready())
-                    AudEsplus_OnPlayerStarted();
-            }
+            /*
+             * A video packet can be accepted while prepare_async is still
+             * completing, before start() is legal. Therefore evaluate the
+             * combined readiness condition on every accepted video packet,
+             * not only the first one. The handover occurs once both start()
+             * has succeeded and at least one real video packet was accepted.
+             */
+            if (esplus_video_ready())
+                AudEsplus_OnPlayerStarted();
             ml_engine_notify_video_ready();
         }
     }
