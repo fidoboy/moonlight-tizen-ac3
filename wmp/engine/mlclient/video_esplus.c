@@ -426,13 +426,17 @@ static void VidDecStart(void)
     }
 }
 
-static void VidDecStop(void) {}
+static void VidDecStop(void)
+{
+    __atomic_store_n(&esplus_stats.video_hdr_active, 0, __ATOMIC_RELAXED);
+}
 
 static void VidDecCleanup(void)
 {
     VLOG("video renderer cleanup\n");
     MLT("video cleanup");
     esplus_close();
+    __atomic_store_n(&esplus_stats.video_hdr_active, 0, __ATOMIC_RELAXED);
     free(s_scratch);
     s_scratch = NULL;
     s_scratch_cap = 0;
@@ -599,10 +603,12 @@ static int VidDecSubmit(PDECODE_UNIT du)
             result = esplus_submit(&packet);
         }
         if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
-            __atomic_store_n(&esplus_stats.video_hdr_active,
-                (du->hdrActive &&
-                 (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_H265_MAIN10)) ? 1u : 0u,
-                __ATOMIC_RELAXED);
+            /* HDR-active is a stream state, not a per-packet flag. Latch it
+             * once ESPlus accepts an HDR-active Main10 access unit; clear it
+             * only when the renderer stops or is reconfigured. */
+            if (du->hdrActive &&
+                (__atomic_load_n(&esplus_stats.video_format, __ATOMIC_RELAXED) & VIDEO_FORMAT_H265_MAIN10))
+                __atomic_store_n(&esplus_stats.video_hdr_active, 1, __ATOMIC_RELAXED);
             uint64_t submit_end_us = LiGetMicroseconds();
             if (collect_stats) __atomic_fetch_add(&esplus_stats.video_frames_rendered, 1, __ATOMIC_RELAXED);
             if (collect_stats && submit_end_us >= submit_start_us)
