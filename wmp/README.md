@@ -30,11 +30,10 @@ an explicit expected-exit message so normal session completion is not reported
 as a crash.
 
 The current process/session lifecycle, clean-start sequence, diagnostic log
-markers, supervisor protocol, known limitations, and outstanding device
-verification are described in
-[dotnet-host/README.md](dotnet-host/README.md). That document records
-implemented behavior separately from unverified platform behavior; it must
-not be read as claiming that every crash mode has already been proven to
+markers, supervisor protocol, known limitations, and outstanding verification
+are described in [dotnet-host/README.md](dotnet-host/README.md). That document
+records implemented behavior separately from unverified platform behavior; it
+must not be read as claiming that every crash mode has already been proven to
 recover correctly.
 
 The .NET host loads the ARM32 `libmlengine.so` through the managed
@@ -91,18 +90,14 @@ bash wmp/tests/wmp_esplus_abi_test.sh
 ```
 
 The audio passthrough test is compiled and executed by the hybrid workflow.
-Successful CI compilation does not replace the on-device lifecycle checks
-listed in [dotnet-host/README.md](dotnet-host/README.md). In particular,
-Tizen process-status callback behavior, abrupt native-crash detection,
-actual service process exit, and UI recovery remain device-validation items.
+Successful CI compilation does not replace the lifecycle checks listed in
+[dotnet-host/README.md](dotnet-host/README.md). In particular, Tizen process
+status callback behavior, abrupt native-crash detection, actual service
+process exit, and UI recovery remain verification items.
 
-## AVOC and platform API research
+## AVOC platform API research
 
-Reverse-engineering notes and platform API discoveries are kept separately
-from the WMP implementation. See
-[AVOC on Tizen 6.0: investigation and API inventory](AVOC-TIZEN60-INVESTIGATION.md)
-for the emulator findings, AVOC libraries and daemon, Game Mode symbols and
-D-Bus metadata, related API families, the observed `-2` return, and remaining
-verification steps. The note distinguishes emulator findings from facts
-verified on the target TV and is not proof that the AVOC contract is stable
-across Tizen versions or architectures.
+The separate [AVOC Game Mode API research](AVOC-TIZEN60-INVESTIGATION.md)
+documents the discovered Game Mode API surface, method metadata, related
+platform API families, an observed error return, and the unresolved questions
+that must be answered before relying on AVOC from a native application.
