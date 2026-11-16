@@ -6586,6 +6586,10 @@ function streamMenuDialog() {
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
   Module._setStreamMenuInputBlocked(1);
+  if (window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+    window.ESPlusPlayerTransport.setStreamMenuInputBlocked(true);
+  }
   fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
   isDialogOpen = true;
@@ -6621,6 +6625,10 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
     closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
     Module._setStreamMenuInputBlocked(0);
+    if (window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+      window.ESPlusPlayerTransport.setStreamMenuInputBlocked(false);
+    }
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
       videoElement.focus();
