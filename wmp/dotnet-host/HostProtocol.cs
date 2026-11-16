@@ -1158,7 +1158,6 @@ namespace MoonlightWmpHost
             string diagnostic = null;
             int terminationCode = 0;
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(1);
-            string lastStreamStatsDiagnostic = null;
             DateTime nextStatsMessage = DateTime.UtcNow;
             bool encryptionStatusPublished = false;
             uint lastReportedPlayerErrors = 0;
@@ -1316,22 +1315,6 @@ namespace MoonlightWmpHost
 
                     if (DateTime.UtcNow >= nextDiagnosticLog)
                     {
-                        string streamStatsDiagnostic = "stats_rc=" + statsResult.ToString(CultureInfo.InvariantCulture) +
-                            ", running=" + (statsResult == 0 ? stats.Running.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", submitted=" + (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", video_ready=" + (_engine.VideoReady() != 0 ? "1" : "0") +
-                            ", playing_ms=" + (statsResult != 0 ? "unknown" :
-                                stats.PlayingMs == UInt32.MaxValue ? "n/a" : stats.PlayingMs.ToString(CultureInfo.InvariantCulture)) +
-                            ", fps=" + (statsResult == 0 ? stats.FpsSubmitted.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", player_errors=" + (statsResult == 0 ? stats.Errors.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", video_queue_empty_events=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
-                            ", video_queue_full_events=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
-                        if (!String.Equals(lastStreamStatsDiagnostic, streamStatsDiagnostic, StringComparison.Ordinal))
-                        {
-                            RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
-                            lastStreamStatsDiagnostic = streamStatsDiagnostic;
-                        }
                         // Refresh the native ring buffer after each lifecycle snapshot so
                         // callbacks emitted after startup (prepare_async_done/start) are visible.
                         SendNewNativeDiagnosticLogs(appId, remotePort);
