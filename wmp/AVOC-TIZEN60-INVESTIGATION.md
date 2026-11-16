@@ -205,7 +205,7 @@ The helper first checks Game Mode subfeature identifiers `1` and `2` independent
 
 - If both subfeatures are unsupported, the helper returns without calling either AVE state-update operation.
 - When subfeature `1` is supported, the observed reset path calls `avocd_ave_api_set_vrr_mode(0)`.
-- When subfeature `1` is unsupported but subfeature `2` is supported, the observed reset path calls `avocd_ave_api_update_game_motion_plus(0, 0, 0, 0)), then writes zero to volatile setting `0x1E`.
+- When subfeature `1` is unsupported but subfeature `2` is supported, the observed reset path calls `avocd_ave_api_update_game_motion_plus(0, 0, 0, 0), then writes zero to volatile setting `0x1E`.
 - For `requested_mode != 1`, the four arguments prepared for the Game Motion Plus update are initialized to zero before this reset path.
 
 For `requested_mode == 1`, the helper additionally calls `avocd_check_smooth_motion_control(data)`:
