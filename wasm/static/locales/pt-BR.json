@@ -35,7 +35,6 @@
   "- Shows an animated starfield background when a stream starts or stops. When disabled, a solid black background is shown.": "- Exibe um campo de estrelas animado quando a transmissão começa ou termina. Se desativado, será exibido um fundo preto uniforme.",
   "- Sorts the list of host apps from ascending order (A to Z) to descending order (Z to A) based on their titles.": "- Ordena a lista de apps do host da ordem crescente (A a Z) para a ordem decrescente (Z a A), com base nos títulos.",
   "- This can help reduce delays by keeping audio in sync for a consistent sound while streaming.": "- Isso pode ajudar a reduzir atrasos mantendo o áudio sincronizado para um som consistente durante a transmissão.",
-  "- This can help reduce micro-stutter by delaying frames that arrive too early while streaming.": "- Isso pode ajudar a reduzir microtravamentos ao atrasar quadros que chegam cedo demais durante a transmissão.",
   "- This is only necessary for Wolf and Punktfunk-style hosts that encrypt GameStream audio without advertising it.": "- Isso só é necessário para hosts do tipo Wolf e Punktfunk que criptografam o áudio do GameStream sem anunciá-lo.",
   "When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.": "Quando ativada, esta configuração pode revelar mais detalhes nas áreas mais escuras e mais claras da imagem. Escolha a opção que apresentar a melhor imagem na sua TV.",
   "- Useful for users who need guidance or help navigating the app.": "- Útil para usuários que precisam de orientação ou ajuda para navegar no app.",
@@ -67,7 +66,7 @@
   "All saved host entries will be removed from Moonlight. To use these hosts again, you may need to add and pair them again. The host PCs and their files will not be affected.": "Todas as entradas de hosts salvas serão removidas do Moonlight. Para usá-los novamente, talvez seja necessário adicioná-los e pareá-los outra vez. Os PCs host e seus arquivos não serão afetados.",
   "Allow audio synchronization support for optimal sound output": "Permitir suporte à sincronização de áudio para saída de som ideal",
   "Allow decrypting AES-CBC audio from Wolf and Punktfunk-style hosts": "Permitir a descriptografia de áudio AES-CBC de hosts do tipo Wolf e Punktfunk",
-  "Allow frame pacing to balance video latency and smoothness": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo. Recomenda-se manter esta opção ativada.",
+  "Allow frame pacing to balance video latency and smoothness": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo",
   "Allow full color range for more detail in dark and bright areas of content": "Permitir faixa de cores completa para mais detalhes em áreas escuras e claras do conteúdo",
   "Allow game mode for optimal latency and performance while streaming": "Permitir modo jogo para latência e desempenho ideais durante a transmissão",
   "Allow gamepad rumble feedback support while streaming": "Permitir suporte ao feedback de vibração do gamepad durante a transmissão",
@@ -639,5 +638,6 @@
   "Accepted": "Aceito",
   "Average renderer submit time:": "Tempo médio de envio do renderizador:",
   "Frames missing from stream:": "Quadros ausentes no fluxo:",
-  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Quando ativada, o áudio durante a transmissão será reproduzido tanto no computador host quanto localmente, desde que a saída de áudio local também esteja ativada."
+  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Quando ativada, o áudio durante a transmissão será reproduzido tanto no computador host quanto localmente, desde que a saída de áudio local também esteja ativada.",
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo. Recomenda-se manter esta opção ativada."
 }
