@@ -901,7 +901,7 @@ namespace MoonlightWmpHost
             }
             else if ((stream.VideoFormat & 0x0F00u) != 0 ||
                      String.Equals(request.VideoCodec, "HEVC", StringComparison.Ordinal))
-                codec = (request.Hdr != 0 || (stream.VideoFormat & 0xAA00u) != 0)
+                codec = request.Hdr != 0
                     ? "HEVC 10-bit HDR"
                     : ((stream.VideoFormat & 0xAA00u) != 0 ? "HEVC 10-bit SDR" : "HEVC");
             else if ((stream.VideoFormat & 0xF000u) != 0)
