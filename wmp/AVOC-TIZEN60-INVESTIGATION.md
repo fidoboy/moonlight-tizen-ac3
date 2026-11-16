@@ -41,6 +41,23 @@ typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
 
 It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. Treat this as an experimental usage reference, not a complete API specification.
 
+
+### Native wrapper control flow (Tizen 6.0 x86 build)
+
+Disassembly of the three native Game Mode entry points establishes the following wrapper behavior:
+
+| Function | Proxy operation | Arguments forwarded by the native wrapper | Output handling |
+|---|---|---|---|
+| `avoc_set_game_mode` | `avoc_proxy_call_set_game_mode_sync` | The second and third incoming stack arguments (cdecl offsets `[ebp+0xc]` and `[ebp+0x10]`) | Returns a local result value populated through the proxy-call dispatch path. |
+| `avoc_get_game_mode` | `avoc_proxy_call_get_game_mode_sync` | The second incoming stack argument (`[ebp+0xc]`) | Copies the proxy-provided mode value to the pointer supplied as the third incoming stack argument (`[ebp+0x10]`); returns a separate result value. |
+| `avoc_check_game_mode` | `avoc_proxy_call_check_game_mode_sync` | No incoming arguments are read or forwarded | Returns a local result value populated through the proxy-call dispatch path. |
+
+For both `avoc_set_game_mode` and `avoc_get_game_mode`, the first incoming stack argument (`[ebp+8]`) is not referenced in the disassembled function body. Its purpose is unknown. Consequently, the experimental two-argument Tizen 5.0 setter declaration above must not be assumed to describe the complete Tizen 6.0 entry-point ABI.
+
+All three functions call `avoc_init_gdbus_connections` before obtaining the proxy and making a synchronous proxy call. If initialization returns nonzero, each function follows an error path that returns `-7` (`0xfffffff9`). Their result locals are initialized to `-1` before the proxy-call path; the final meaning of that value, and the values written by the dispatch helper, are not yet established.
+
+This disassembly confirms wrapper control flow and argument forwarding only. It does not establish the forwarded arguments' semantic names or types, the D-Bus/GVariant signatures, or the meaning of proxy return codes.
+
 ### Related proxy and signal names
 
 - `avoc_proxy_call_set_game_mode`
