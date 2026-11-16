@@ -2028,9 +2028,9 @@ const Views = {
       'ac3AudioModeBtn',
       isAudioOutputDisabled() ? null : 'selectAudio',
       // Dolby controls are navigable only when their corresponding setting is available.
-      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
+      ($('#ac3AudioModeSwitch').prop('checked') &&
         $('#selectAudio').data('value') === '51Surround') ? 'selectDolbyChannelLayout' : null,
-      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
+      ($('#ac3AudioModeSwitch').prop('checked') &&
         $('#dolbyDecodingModeOption').is(':visible')) ? 'selectDolbyDecodingMode' : null,
       // At most one of these settings is shown at a time, as each one belongs to a single backend,
       // and neither is shown when the audio output is disabled
