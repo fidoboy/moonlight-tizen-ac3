@@ -120,6 +120,30 @@ extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned s
                            SERVER_INFORMATION *si, const char *datadir);
 
 static volatile int g_running;   /* 1 while a session is up */
+static volatile int g_game_mode_startup_activated;
+
+/* Called by the ESPlus audio/video sinks after their first real packet is
+ * accepted. Activate only once the player has also completed start(). */
+static void maybe_activate_tv_game_mode(void) {
+  int expected = 0;
+  if (!__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) ||
+      !esplus_video_ready() ||
+      !AudEsplus_GetActiveAudioCodec())
+    return;
+  if (__atomic_compare_exchange_n(&g_game_mode_startup_activated, &expected, 1,
+                                  0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+    MLT("TV Game Mode: startup playback readiness reached (ESPlus started, video submitted, real audio accepted)");
+    set_tv_game_mode(1);
+  }
+}
+
+void ml_engine_notify_video_ready(void) {
+  maybe_activate_tv_game_mode();
+}
+
+void ml_engine_notify_audio_ready(void) {
+  maybe_activate_tv_game_mode();
+}
 static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 static char g_host[256];         /* si.address is held by moonlight-common-c for the
                                     session, so the host string must outlive the call */
@@ -309,6 +333,7 @@ static int start_connection(void) {
    * connectionTerminated may be called from a renderer callback as soon as
    * LiStartConnectionEx starts processing. Setting g_running after the call
    * could overwrite that termination and leave the host worker running forever. */
+  __atomic_store_n(&g_game_mode_startup_activated, 0, __ATOMIC_RELEASE);
   __atomic_store_n(&g_running, 1, __ATOMIC_RELEASE);
   int err = LiStartConnectionEx(&g_si, &g_sc, &cl, &dr, arCallbacks, NULL, 0, NULL, 0,
                                 g_audio_enabled);
@@ -320,8 +345,8 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
-  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE))
-    set_tv_game_mode(1);
+  /* Game Mode is deferred until ESPlus has started and accepted real audio
+   * and video packets. LiStartConnectionEx() only establishes the transport. */
 
   int in = input_init();
   MLT("input_init -> %d", in);
