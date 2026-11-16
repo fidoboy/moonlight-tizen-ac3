@@ -10599,16 +10599,13 @@ window.addEventListener('gamepadconnected', function(e) {
   const gamepadName = typeof connectedGamepad.id === 'string' && connectedGamepad.id.trim()
     ? (connectedGamepad.id.trim().split('(')[0].trim() || gamepadIndex) : gamepadIndex;
   var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-  var rumbleFeedbackEnabled = !!(preferences && (
-    preferences.rumbleFeedback === true ||
-    preferences.rumbleFeedback === 'true' ||
-    preferences.rumbleFeedback === 1
-  ));
   console.log('%c[index.js, gamepadconnected]', 'color: green;', 'Gamepad connected:\n' + JSON.stringify(connectedGamepad), connectedGamepad);
   snackbarLog('Gamepad %1$s has been connected.', gamepadName);
-  // Check the persisted gamepad vibration preference.
-  if (rumbleFeedbackEnabled) {
-    // Check if the connected gamepad has a vibrationActuator associated with it
+
+  function playConnectionRumbleIfEnabled(rumbleFeedbackValue) {
+    var enabled = rumbleFeedbackValue === true || rumbleFeedbackValue === 'true' || rumbleFeedbackValue === 1;
+    if (!enabled) return;
+    // Check if the connected gamepad has a vibrationActuator associated with it.
     if (connectedGamepad.vibrationActuator) {
       console.log('%c[index.js, gamepadconnected]', 'color: green;', 'Playing rumble on the connected gamepad ' + gamepadIndex + '...');
       connectedGamepad.vibrationActuator.playEffect('dual-rumble', {
@@ -10620,6 +10617,19 @@ window.addEventListener('gamepadconnected', function(e) {
     } else {
       console.warn('%c[index.js, gamepadconnected]', 'color: green;', 'Warning: Connected gamepad ' + gamepadIndex + ' does not support the rumble feature!');
     }
+  }
+
+  // A controller can connect before the startup summary snapshot is ready.
+  // In that case, obtain the normalized preference directly from IndexedDB.
+  if (preferences) {
+    playConnectionRumbleIfEnabled(preferences.rumbleFeedback);
+  } else {
+    readStreamingSettingsSnapshot().then(function(snapshot) {
+      configSummarySnapshot = snapshot;
+      playConnectionRumbleIfEnabled(snapshot.preferences.rumbleFeedback);
+    }).catch(function(error) {
+      console.warn('%c[index.js, gamepadconnected]', 'color: gray;', 'Could not read the saved gamepad vibration preference:', error);
+    });
   }
 });
 
