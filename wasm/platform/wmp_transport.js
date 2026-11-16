@@ -30,6 +30,7 @@
   var startupDiagnosticPollStartedAt = 0;
   var startupDiagnosticPollDelayMs = 1000;
   var startupDiagnosticPollingActive = false;
+  var startupDiagnosticPollInFlight = null;
   var startupDiagnosticFinalSnapshotRequested = false;
   var startupDiagnosticTerminalEventSeen = false;
   var nativeTerminationEventSeen = false;
@@ -918,22 +919,31 @@
     if (global.DEBUG_MODE !== true || startupDiagnosticFinalSnapshotRequested)
       return;
     startupDiagnosticFinalSnapshotRequested = true;
-    debugLog('requesting final native diagnostic snapshot', {reason: reason});
-    request('get_logs').then(function(response) {
+    debugLog('draining final incremental native diagnostics', {reason: reason});
+
+    // get_logs replays the complete retained ring buffer. Native log events
+    // have already streamed most of those entries through wmpNativeLog, so a
+    // full snapshot duplicates old lines and places them at the snapshot time.
+    // Drain only entries not yet consumed by the incremental get_new_logs API.
+    var pendingPoll = startupDiagnosticPollInFlight || Promise.resolve();
+    pendingPoll.then(function() {
+      return sendConnectedRequest('get_new_logs', '{}', {}, 5000);
+    }).then(function(response) {
       var payload = response && response.payload ? response.payload : {};
       if (global.console && typeof global.console.info === 'function') {
-        global.console.info('[esplusplayer] final native diagnostic log snapshot: ' +
-          Number(payload.count || 0) + ' native lines, ' +
-          Number(payload.hostCount || 0) + ' host lines, sequence=' +
-          Number(payload.sequence || 0) + ', dropped=' +
+        global.console.info('[esplusplayer] final incremental native diagnostic drain: ' +
+          Number(payload.sent || 0) + ' native lines, sequence=' +
+          Number(payload.sequence || 0) + ', buffered=' +
+          Number(payload.buffered || 0) + ', dropped=' +
           Number(payload.dropped || 0) + ', independent markers=' +
-          Number(payload.markerCount || 0) + ', marker sequence=' +
-          Number(payload.markerSequence || 0) + ', marker dropped=' +
+          Number(payload.markerSent || 0) + ', marker sequence=' +
+          Number(payload.markerSequence || 0) + ', marker buffered=' +
+          Number(payload.markerBuffered || 0) + ', marker dropped=' +
           Number(payload.markerDropped || 0) + ', Gate busy=' +
           (payload.gateBusy === true));
       }
     }).catch(function(error) {
-      debugLog('could not retrieve final native diagnostic snapshot', errorDetails(error));
+      debugLog('could not drain final incremental native diagnostics', errorDetails(error));
     });
   }
 
@@ -944,7 +954,7 @@
       startupDiagnosticPollTimer = null;
       if (!startupDiagnosticPollingActive) return;
       startupDiagnosticPollCount++;
-      sendConnectedRequest('get_new_logs', '{}', {}, 5000).then(function(response) {
+      var pollRequest = sendConnectedRequest('get_new_logs', '{}', {}, 5000).then(function(response) {
         var payload = response && response.payload ? response.payload : {};
         if (startupDiagnosticPollCount === 1 || startupDiagnosticPollCount % 10 === 0) {
           debugLog('passive startup log poll completed', {
@@ -972,9 +982,14 @@
           errorCode: details.code,
           errorDomain: details.domain
         });
-      }).then(function() {
+      });
+      startupDiagnosticPollInFlight = pollRequest.then(function() {
+        if (startupDiagnosticPollInFlight === trackedPollRequest) {
+          startupDiagnosticPollInFlight = null;
+        }
         pollStartupDiagnosticLogs();
       });
+      var trackedPollRequest = startupDiagnosticPollInFlight;
     }, startupDiagnosticPollDelayMs);
   }
 
