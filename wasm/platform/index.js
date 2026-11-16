@@ -6773,8 +6773,9 @@ function getData(key, callbackFunction) {
   function finishRead(value) {
     if (callbackCompleted) return;
     callbackCompleted = true;
-    finishRead(value);
+    callCb(key, value, callbackFunction);
   }
+
   let cb = function() {
     let value = null;
     try {
@@ -6789,7 +6790,7 @@ function getData(key, callbackFunction) {
             console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
           }
           value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
-          callCb(key, value, callbackFunction);
+          finishRead(value);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
           finishRead({});
@@ -6802,17 +6803,17 @@ function getData(key, callbackFunction) {
       transaction.onabort = function() {
         console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
         // Match the legacy callback contract on every terminal read outcome.
-        callCb(key, {}, callbackFunction);
+        finishRead({});
       };
     } catch (error) {
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
-      callCb(key, {}, callbackFunction);
+      finishRead({});
     }
   };
   if (db) cb();
   else openIndexDB(cb, function(error) {
     console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
-    callCb(key, {}, callbackFunction);
+    finishRead({});
   });
 }
 
