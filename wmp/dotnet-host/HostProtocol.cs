@@ -1158,6 +1158,7 @@ namespace MoonlightWmpHost
             string diagnostic = null;
             int terminationCode = 0;
             DateTime nextDiagnosticLog = DateTime.UtcNow.AddSeconds(1);
+            string lastStreamStatsDiagnostic = null;
             DateTime nextStatsMessage = DateTime.UtcNow;
             bool encryptionStatusPublished = false;
             uint lastReportedPlayerErrors = 0;
@@ -1326,8 +1327,11 @@ namespace MoonlightWmpHost
                             ", last_player_error=" + (statsResult == 0 ? stats.LastError.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", video_queue_empty_events=" + (statsResult == 0 ? stats.Underruns.ToString(CultureInfo.InvariantCulture) : "unknown") +
                             ", video_queue_full_events=" + (statsResult == 0 ? stats.Overruns.ToString(CultureInfo.InvariantCulture) : "unknown");
-                        RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
-                        Event(appId, remotePort, "wmpDiagnostic", streamStatsDiagnostic);
+                        if (!String.Equals(lastStreamStatsDiagnostic, streamStatsDiagnostic, StringComparison.Ordinal))
+                        {
+                            RecordDiagnostic("host stream stats: " + streamStatsDiagnostic);
+                            lastStreamStatsDiagnostic = streamStatsDiagnostic;
+                        }
                         // Refresh the native ring buffer after each lifecycle snapshot so
                         // callbacks emitted after startup (prepare_async_done/start) are visible.
                         SendNewNativeDiagnosticLogs(appId, remotePort);
