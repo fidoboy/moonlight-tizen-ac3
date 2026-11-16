@@ -6698,7 +6698,7 @@ function createObjectStore(dataBase) {
   }
 }
 
-function openIndexDB(callback) {
+function openIndexDB(callback, errorCallback) {
   if (db) {
     // Database already opened
     callback();
@@ -6728,7 +6728,8 @@ function openIndexDB(callback) {
   const request = indexedDB.open(dbName, dbVersion);
 
   request.onerror = function(e) {
-    console.error('%c[index.js, openIndexDB]', 'color: green;', 'Error: Cannot create or access the IndexedDB database: ', e);
+    console.error('%c[index.js, openIndexDB]', 'color: red;', 'Cannot create or access IndexedDB:', e);
+    if (typeof errorCallback === 'function') errorCallback(request.error || e);
     if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
   };
 
@@ -6816,18 +6817,37 @@ function storeData(key, data, callbackFunction) {
             configSummarySnapshot = null;
             updateConfigSummaryBar();
           }
-          if (typeof callbackFunction === 'function') callbackFunction();
           resolve(data);
+          if (typeof callbackFunction === 'function') {
+            try { callbackFunction(); }
+            catch (callbackError) {
+              console.error('%c[index.js, storeData]', 'color: red;', 'Post-write callback failed for key ' + key + ':', callbackError);
+            }
+          }
         };
         transaction.onerror = function(event) {
           var error = transaction.error || (event && event.target && event.target.error) ||
             new Error('IndexedDB write failed for key: ' + key);
           console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
+          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
+            configSummaryRevision++;
+            configSummarySnapshot = null;
+            if (typeof loadUserDataCb === 'function') loadUserDataCb();
+            if (typeof loadConfigSummarySettings === 'function') loadConfigSummarySettings(function() {});
+            updateConfigSummaryBar();
+          }
           reject(error);
         };
         transaction.onabort = function() {
           var error = transaction.error || new Error('IndexedDB write aborted for key: ' + key);
           console.error('%c[index.js, storeData]', 'color: red;', 'Write transaction aborted for key ' + key + ':', error);
+          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1 || key === 'showConfigSummaryBar') {
+            configSummaryRevision++;
+            configSummarySnapshot = null;
+            if (typeof loadUserDataCb === 'function') loadUserDataCb();
+            if (typeof loadConfigSummarySettings === 'function') loadConfigSummarySettings(function() {});
+            updateConfigSummaryBar();
+          }
           reject(error);
         };
       } catch (error) {
@@ -6841,6 +6861,7 @@ function storeData(key, data, callbackFunction) {
       catch (error) { reject(error); }
     }
   });
+  operation.catch(function() {}); // Preserve rejection for callers while avoiding unhandled rejections from legacy fire-and-forget saves.
   return operation;
 }
 
@@ -8051,12 +8072,13 @@ function updateAudioBackendSettings() {
 
 // Check whether the Web Audio backend is the currently selected audio backend
 function isWebAudioBackendSelected() {
-  return $('#selectAudioBackend').data('value') === 'WebAudio';
+  return !!configSummarySnapshot && configSummarySnapshot.audioBackend === 'WebAudio';
 }
 
-// Check whether the audio output is disabled in the audio backend setting
+// Audio-output policy is derived from the persisted settings snapshot, never
+// from the currently rendered selector.
 function isAudioOutputDisabled() {
-  return $('#selectAudioBackend').data('value') === 'Disabled';
+  return !!configSummarySnapshot && configSummarySnapshot.audioBackend === 'Disabled';
 }
 
 function saveAudioConfiguration() {
@@ -8990,7 +9012,7 @@ function readStreamingSettingsSnapshot() {
       dolbyChannelLayout: 'Back', dolbyDecodingMode: 'Hardware',
       streamingEngine: 'EMSS', optimizeBitrate: false,
       performanceStatsPosition: 'top-left', streamTransitionBackground: true,
-      colorTheme: 'default', quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom'
+      colorTheme: COLOR_THEME_DEFAULT, quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom'
     };
     var missingKeys = STREAMING_PREFERENCE_KEYS.filter(function(key) {
       return stored[key] == null && Object.prototype.hasOwnProperty.call(defaults, key);
@@ -9068,6 +9090,7 @@ function readStreamingSettingsSnapshot() {
       streamingEngine: engine,
       optimizeBitrate: boolValue(values.optimizeBitrate, false)
     };
+    configSummarySnapshot = snapshot;
     return snapshot;
     });
   });
