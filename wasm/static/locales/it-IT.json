@@ -308,7 +308,7 @@
   "Loading Settings...": "Caricamento delle impostazioni...",
   "Loading configured hosts...": "Caricamento degli host configurati...",
   "Local Address: %1$s": "Indirizzo locale: %1$s",
-  "MAC Address: %1$s": "MAC Address: %1$s",
+  "MAC Address: %1$s": "Indirizzo MAC: %1$s",
   "Media error code: %1$s": "Codice errore multimediale: %1$s",
   "Midnight & Violet": "Mezzanotte e viola",
   "Moonlight": "Moonlight",
