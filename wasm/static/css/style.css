@@ -2414,6 +2414,11 @@ body[data-color-theme="black-orange"] #background-layer {
 /* Compact current-configuration strip, shown only on the Hosts and Apps screens. */
 #configSummaryBar {
     display: none;
+    position: fixed;
+    top: 80px;
+    right: 0;
+    left: 0;
+    z-index: 5;
     align-items: center;
     justify-content: safe center;
     gap: 0;
@@ -2431,6 +2436,8 @@ body[data-color-theme="black-orange"] #background-layer {
 
 /* The bottom summary overlays the background with a stronger translucent backing. */
 #configSummaryBar.config-summary-bottom {
+    top: auto;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.7);
 }
 
