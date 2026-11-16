@@ -697,170 +697,62 @@ static void *win_create_main(void *arg)
 {
     struct win_req *r = arg;
     int sw = 0, sh = 0;
-    const char *src = "no symbol, fallback";
     wmp_esplus_call_result_t display_result, mode_result;
-    uint64_t call_started;
+    int n;
 
-    MLT("win_create_main ENTER thread=%llu stream=%dx%d",
-        (unsigned long long)(uintptr_t)pthread_self(), r->w, r->h);
-    PLOG("win_create_main ENTER thread=%llu stream=%dx%d\n",
-         (unsigned long long)(uintptr_t)pthread_self(), r->w, r->h);
-    MLT("win: XDG_RUNTIME_DIR=%s WAYLAND_DISPLAY=%s",
-        getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "(unset)",
-        getenv("WAYLAND_DISPLAY") ? getenv("WAYLAND_DISPLAY") : "(unset)");
-    {
-        int n;
-        call_started = esplus_mono_ms();
-        MLT("ecore_wl2_init ENTER");
-        PLOG("ecore_wl2_init ENTER\n");
-        n = ecore_wl2_init();
-        PLOG("ecore_wl2_init RETURN %d elapsed_ms=%llu\n", n,
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_wl2_init RETURN %d elapsed_ms=%llu", n,
-            (unsigned long long)(esplus_mono_ms() - call_started));
-        if (n <= 0) { r->rc = -1; return NULL; }
+    n = ecore_wl2_init();
+    if (n <= 0) {
+        MLT("window setup failed: ecore_wl2_init returned %d", n);
+        r->rc = -1;
+        return NULL;
     }
     s_ecore = 1;
-    call_started = esplus_mono_ms();
-    MLT("ecore_wl2_display_connect ENTER");
-    PLOG("ecore_wl2_display_connect ENTER\n");
+
     s_disp = ecore_wl2_display_connect(NULL);
-    PLOG("ecore_wl2_display_connect RETURN %p elapsed_ms=%llu\n", s_disp,
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("ecore_wl2_display_connect RETURN %p elapsed_ms=%llu", s_disp,
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    if (!s_disp) { PLOG("display_connect failed\n"); r->rc = -1; return NULL; }
+    if (!s_disp) {
+        MLT("window setup failed: Wayland display connection unavailable");
+        r->rc = -1;
+        return NULL;
+    }
 
     if (ecore_wl2_display_screen_size_get) {
-        if (ecore_wl2_display_sync) {
-            call_started = esplus_mono_ms();
-            MLT("ecore_wl2_display_sync(before geometry) ENTER");
-            PLOG("ecore_wl2_display_sync(before geometry) ENTER\n");
-            ecore_wl2_display_sync(s_disp);
-            PLOG("ecore_wl2_display_sync(before geometry) RETURN elapsed_ms=%llu\n",
-                 (unsigned long long)(esplus_mono_ms() - call_started));
-            MLT("ecore_wl2_display_sync(before geometry) RETURN elapsed_ms=%llu",
-                (unsigned long long)(esplus_mono_ms() - call_started));
-        }
-        call_started = esplus_mono_ms();
-        MLT("ecore_wl2_display_screen_size_get ENTER");
-        PLOG("ecore_wl2_display_screen_size_get ENTER\n");
+        if (ecore_wl2_display_sync) ecore_wl2_display_sync(s_disp);
         ecore_wl2_display_screen_size_get(s_disp, &sw, &sh);
-        PLOG("ecore_wl2_display_screen_size_get RETURN %dx%d elapsed_ms=%llu\n", sw, sh,
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_wl2_display_screen_size_get RETURN %dx%d elapsed_ms=%llu", sw, sh,
-            (unsigned long long)(esplus_mono_ms() - call_started));
-        src = sw > 0 && sh > 0 ? "api" : "api 0x0, fallback";
     }
-    if (sw <= 0 || sh <= 0) { sw = 1920; sh = 1080; }
-    PLOG("window geometry screen=%dx%d (%s), stream=%dx%d\n", sw, sh, src, r->w, r->h);
-    MLT("win: screen %dx%d (%s; stream %dx%d)", sw, sh, src, r->w, r->h);
-    (void)src;
+    if (sw <= 0 || sh <= 0) {
+        sw = 1920;
+        sh = 1080;
+    }
 
-    call_started = esplus_mono_ms();
-    MLT("ecore_wl2_window_new ENTER display=%p geometry=%dx%d", s_disp, sw, sh);
-    PLOG("ecore_wl2_window_new ENTER display=%p geometry=%dx%d\n", s_disp, sw, sh);
     s_win = ecore_wl2_window_new(s_disp, NULL, 0, 0, sw, sh);
-    PLOG("ecore_wl2_window_new RETURN %p elapsed_ms=%llu\n", s_win,
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("ecore_wl2_window_new RETURN %p elapsed_ms=%llu", s_win,
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    if (!s_win) { PLOG("window_new failed\n"); r->rc = -1; return NULL; }
-    call_started = esplus_mono_ms();
-    MLT("ecore_wl2_window_alpha_set ENTER");
-    PLOG("ecore_wl2_window_alpha_set ENTER\n");
+    if (!s_win) {
+        MLT("window setup failed: ecore_wl2_window_new returned NULL");
+        r->rc = -1;
+        return NULL;
+    }
+
     ecore_wl2_window_alpha_set(s_win, 1);
-    PLOG("ecore_wl2_window_alpha_set RETURN elapsed_ms=%llu\n",
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("ecore_wl2_window_alpha_set RETURN elapsed_ms=%llu",
-        (unsigned long long)(esplus_mono_ms() - call_started));
-
-    call_started = esplus_mono_ms();
-    MLT("ecore_wl2_window_show ENTER");
-    PLOG("ecore_wl2_window_show ENTER\n");
     ecore_wl2_window_show(s_win);
-    PLOG("ecore_wl2_window_show RETURN elapsed_ms=%llu\n",
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("ecore_wl2_window_show RETURN elapsed_ms=%llu",
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    if (ecore_wl2_window_lower) {
-        call_started = esplus_mono_ms();
-        MLT("ecore_wl2_window_lower ENTER");
-        PLOG("ecore_wl2_window_lower ENTER\n");
-        ecore_wl2_window_lower(s_win);
-        PLOG("ecore_wl2_window_lower RETURN elapsed_ms=%llu\n",
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_wl2_window_lower RETURN elapsed_ms=%llu",
-            (unsigned long long)(esplus_mono_ms() - call_started));
-    } else {
-        PLOG("ecore_wl2_window_lower unavailable on this firmware\n");
-    }
-    call_started = esplus_mono_ms();
-    MLT("ecore_wl2_display_flush ENTER");
-    PLOG("ecore_wl2_display_flush ENTER\n");
+    if (ecore_wl2_window_lower) ecore_wl2_window_lower(s_win);
     ecore_wl2_display_flush(s_disp);
-    PLOG("ecore_wl2_display_flush RETURN elapsed_ms=%llu\n",
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("ecore_wl2_display_flush RETURN elapsed_ms=%llu",
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    if (ecore_wl2_display_sync) {
-        call_started = esplus_mono_ms();
-        MLT("ecore_wl2_display_sync(after show) ENTER");
-        PLOG("ecore_wl2_display_sync(after show) ENTER\n");
-        ecore_wl2_display_sync(s_disp);
-        PLOG("ecore_wl2_display_sync(after show) RETURN elapsed_ms=%llu\n",
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_wl2_display_sync(after show) RETURN elapsed_ms=%llu",
-            (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("window show synchronized with compositor");
-    }
-    MLT("window shown");
+    if (ecore_wl2_display_sync) ecore_wl2_display_sync(s_disp);
 
-    call_started = esplus_mono_ms();
-    MLT("esplusplayer_set_ecore_display ENTER window=%p geometry=%dx%d", s_win, sw, sh);
-    PLOG("esplusplayer_set_ecore_display ENTER window=%p geometry=%dx%d\n", s_win, sw, sh);
     display_result = wmp_esplus_adapter_set_ecore_display(
         &s_adapter, 1 /* OVERLAY */, s_win, 0, 0, sw, sh);
-    PLOG("esplusplayer_set_ecore_display RETURN status=%d raw=%d elapsed_ms=%llu\n",
-         (int)display_result.status, display_result.raw_status,
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("esplusplayer_set_ecore_display RETURN status=%d raw=%d elapsed_ms=%llu",
-        (int)display_result.status, display_result.raw_status,
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    PLOG("ESPlus set_ecore_display status=%d raw=%d\n",
-         (int)display_result.status, display_result.raw_status);
-    MLT("esplusplayer_set_ecore_display(OVERLAY) -> status=%d raw=%d",
-        (int)display_result.status, display_result.raw_status);
     if (display_result.status != WMP_ESPLUS_CALL_SUCCESS) {
-        PLOG("set_ecore_display failed\n");
+        MLT("window setup failed: set_ecore_display status=%d raw=%d",
+            (int)display_result.status, display_result.raw_status);
         r->rc = -2;
         return NULL;
     }
 
-    call_started = esplus_mono_ms();
-    MLT("esplusplayer_set_display_mode ENTER mode=LETTER_BOX");
-    PLOG("esplusplayer_set_display_mode ENTER mode=LETTER_BOX\n");
     mode_result = wmp_esplus_adapter_set_display_mode(&s_adapter, 0 /* LETTER_BOX */);
-    PLOG("esplusplayer_set_display_mode RETURN status=%d raw=%d elapsed_ms=%llu\n",
-         (int)mode_result.status, mode_result.raw_status,
-         (unsigned long long)(esplus_mono_ms() - call_started));
-    MLT("esplusplayer_set_display_mode RETURN status=%d raw=%d elapsed_ms=%llu",
-        (int)mode_result.status, mode_result.raw_status,
-        (unsigned long long)(esplus_mono_ms() - call_started));
-    PLOG("ESPlus set_display_mode status=%d raw=%d\n",
-         (int)mode_result.status, mode_result.raw_status);
-    MLT("esplusplayer_set_display_mode(LETTER_BOX) -> status=%d raw=%d",
-        (int)mode_result.status, mode_result.raw_status);
-    /* Display-mode setup is optional, but its failure must remain visible. */
     if (mode_result.status != WMP_ESPLUS_CALL_SUCCESS) {
-        PLOG("WARNING: optional set_display_mode failed status=%d raw=%d; continuing\n",
-             (int)mode_result.status, mode_result.raw_status);
-        MLT("WARNING: optional set_display_mode failed status=%d raw=%d; continuing",
+        MLT("window setup warning: optional set_display_mode status=%d raw=%d",
             (int)mode_result.status, mode_result.raw_status);
     }
+
     r->rc = 0;
-    MLT("win_create_main EXIT rc=%d window=%p display=%p", r->rc, s_win, s_disp);
-    PLOG("win_create_main EXIT rc=%d window=%p display=%p\n", r->rc, s_win, s_disp);
     return NULL;
 }
 
@@ -870,7 +762,6 @@ static void *win_destroy_main(void *arg)
     if (s_win) { ecore_wl2_window_free(s_win); s_win = NULL; }
     if (s_disp) { ecore_wl2_display_disconnect(s_disp); s_disp = NULL; }
     if (s_ecore) { ecore_wl2_shutdown(); s_ecore = 0; }
-    MLT("window destroyed");
     return NULL;
 }
 
@@ -878,53 +769,34 @@ int esplus_set_window(int width, int height)
 {
     struct win_req req;
     int n;
-    MLT("esplus_set_window %dx%d pl=%p", width, height, s_pl);
+
     if (!s_pl || width <= 0 || height <= 0) {
-        MLT("esplus_set_window rejected invalid state pl=%p size=%dx%d", s_pl, width, height);
+        MLT("esplus_set_window rejected invalid state pl=%p size=%dx%d",
+            s_pl, width, height);
         return -1;
     }
-    {
-        uint64_t call_started = esplus_mono_ms();
-        if (!ecore_runtime_load()) {
-            MLT("ecore runtime initialization failed elapsed_ms=%llu",
-                (unsigned long long)(esplus_mono_ms() - call_started));
-            return -1;
-        }
-        MLT("ecore runtime initialized elapsed_ms=%llu",
-            (unsigned long long)(esplus_mono_ms() - call_started));
+    if (!ecore_runtime_load()) return -1;
+
+    n = ecore_init();
+    if (n <= 0) {
+        MLT("window setup failed: ecore_init returned %d", n);
+        ecore_runtime_unload();
+        return -1;
     }
-    {
-        uint64_t call_started = esplus_mono_ms();
-        MLT("ecore_init ENTER");
-        PLOG("ecore_init ENTER\n");
-        n = ecore_init();
-        PLOG("ecore_init RETURN %d elapsed_ms=%llu\n", n,
-             (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_init RETURN %d elapsed_ms=%llu", n,
-            (unsigned long long)(esplus_mono_ms() - call_started));
-    }
-    if (n <= 0) { ecore_runtime_unload(); return -1; }
-    req.w = width; req.h = height; req.rc = -1;
-    MLT("ecore_main_loop_thread_safe_call_sync(win_create_main) ENTER thread=%llu",
-        (unsigned long long)(uintptr_t)pthread_self());
-    PLOG("ecore_main_loop_thread_safe_call_sync(win_create_main) ENTER\n");
-    {
-        uint64_t call_started = esplus_mono_ms();
-        ecore_main_loop_thread_safe_call_sync(win_create_main, &req);
-        PLOG("ecore_main_loop_thread_safe_call_sync(win_create_main) RETURN rc=%d elapsed_ms=%llu\n",
-             req.rc, (unsigned long long)(esplus_mono_ms() - call_started));
-        MLT("ecore_main_loop_thread_safe_call_sync(win_create_main) RETURN rc=%d elapsed_ms=%llu",
-            req.rc, (unsigned long long)(esplus_mono_ms() - call_started));
-    }
+
+    req.w = width;
+    req.h = height;
+    req.rc = -1;
+    ecore_main_loop_thread_safe_call_sync(win_create_main, &req);
+
     if (req.rc != 0) {
         ecore_main_loop_thread_safe_call_sync(win_destroy_main, NULL);
         ecore_shutdown();
         ecore_runtime_unload();
-        MLT("esplus_set_window -> -1 (%s)",
-            req.rc == -2 ? "set_ecore_display" : "no window/display access");
+        MLT("esplus_set_window failed (%s)",
+            req.rc == -2 ? "set_ecore_display" : "Wayland window setup");
         return -1;
     }
-    MLT("esplus_set_window -> 0");
     return 0;
 }
 
