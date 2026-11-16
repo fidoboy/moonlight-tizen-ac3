@@ -71,7 +71,6 @@
   "Allow game mode for optimal latency and performance while streaming": "Разрешить игровой режим для оптимальной задержки и производительности во время трансляции",
   "Allow gamepad rumble feedback support while streaming": "Разрешить виброотклик геймпада во время трансляции",
   "Allow gamepad to switch to mouse mode when holding the Start button": "Разрешить переключение геймпада в режим мыши при удержании кнопки Start",
-  "Allow high dynamic range for vibrant colors and enhanced contrast": "Разрешить расширенный динамический диапазон для более насыщенных цветов и повышенной контрастности",
   "Allow playing audio from the computer and this device": "Разрешить воспроизведение звука одновременно на компьютере и этом устройстве",
   "Allow sorting the list of apps and games in descending order": "Разрешить сортировку списка приложений и игр в порядке убывания",
   "Allow the host to modify game settings for optimal streaming": "Разрешить хосту изменять настройки игры для оптимальной трансляции",
@@ -640,5 +639,6 @@
   "Frames missing from stream:": "Кадры, отсутствующие в потоке:",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Если эта настройка включена, звук во время трансляции будет воспроизводиться и на хост-компьютере, и локально, при условии, что локальный аудиовыход также включён.",
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Включите синхронизацию кадров для баланса между задержкой и плавностью видео. Рекомендуется оставлять эту функцию включённой.",
-  "Enable frame pacing": "Включить синхронизацию кадров"
+  "Enable frame pacing": "Включить синхронизацию кадров",
+  "Enable high dynamic range": "Включить расширенный динамический диапазон"
 }
