@@ -1172,7 +1172,7 @@ function handleMessage(msg) {
   if (msg.indexOf('StatMsg: ') !== 0 &&
       msg.indexOf('GraphMsg: ') !== 0 &&
       msg.indexOf('HostLatencyMsg: ') !== 0 &&
-      !(window._activeStreamingEngine === 'ESPLUSPLAYER' && msg.indexOf('ProgressMsg: ') === 0)) {
+      msg.indexOf('ProgressMsg: ') !== 0) {
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   }
   // If it's a recognized event, notify the appropriate function
