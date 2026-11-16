@@ -128,7 +128,7 @@ static void maybe_activate_tv_game_mode(void) {
   int expected = 0;
   if (!__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) ||
       !esplus_video_ready() ||
-      !AudEsplus_GetActiveAudioCodec())
+      (g_audio_enabled && !AudEsplus_GetActiveAudioCodec()))
     return;
   if (__atomic_compare_exchange_n(&g_game_mode_startup_activated, &expected, 1,
                                   0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
