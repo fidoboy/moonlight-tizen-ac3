@@ -308,7 +308,7 @@
   "Loading Settings...": "Загрузка настроек...",
   "Loading configured hosts...": "Загрузка настроенных хостов...",
   "Local Address: %1$s": "Локальный адрес: %1$s",
-  "MAC Address: %1$s": "MAC Address: %1$s",
+  "MAC Address: %1$s": "MAC-адрес: %1$s",
   "Media error code: %1$s": "Код ошибки мультимедиа: %1$s",
   "Midnight & Violet": "Полночь и фиолетовый",
   "Moonlight": "Moonlight",
