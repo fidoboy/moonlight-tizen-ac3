@@ -6798,7 +6798,10 @@ function getData(key, callbackFunction) {
     }
   };
   if (db) cb();
-  else openIndexDB(cb);
+  else openIndexDB(cb, function(error) {
+    console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
+    callCb(key, null, callbackFunction);
+  });
 }
 
 function storeData(key, data, callbackFunction) {
@@ -6857,7 +6860,7 @@ function storeData(key, data, callbackFunction) {
     }
     if (db) write();
     else {
-      try { openIndexDB(write); }
+      try { openIndexDB(write, reject); }
       catch (error) { reject(error); }
     }
   });
