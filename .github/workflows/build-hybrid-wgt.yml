@@ -54,14 +54,14 @@ jobs:
           set -euo pipefail
           matrix='{"include":[]}'
           if [[ "$BUILD_RELEASE" == "true" && "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight-" + env.GITHUB_SHA}]' <<< "$matrix")"
+            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":("Moonlight-" + env.GITHUB_SHA)}]' <<< "$matrix")"
           fi
           if [[ "$BUILD_DEBUG" == "true" ]] && {
             [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre" ]] ||
             [[ "$GITHUB_REF" == "refs/heads/1.2.4-pre-wmp-startup-diagnostics" ]] ||
             [[ "$GITHUB_REF" == "refs/heads/fix/wmp-video-sync-150ms" ]]
           }; then
-            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' --arg SHOW_PRIVATE_DATA "${{ inputs.show_private_data }}" --arg ENABLE_NATIVE_TRACES "${{ inputs.enable_native_traces }}" <<< "$matrix")"
+            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
           fi
           if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
             echo "::error::No build variant is enabled for this branch and selection. Release is available on 1.2.4-pre; Debug is available on the configured experimental branches."
