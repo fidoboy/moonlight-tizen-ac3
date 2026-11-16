@@ -147,6 +147,7 @@ std::map<int, bool> selectButtonConsumed;
 std::map<int, std::chrono::steady_clock::time_point> selectClickPulseUntil;
 std::map<int, bool> comboTriggered;
 std::map<int, std::chrono::steady_clock::time_point> activatePressTimes;
+std::map<int, bool> activatePressTriggered;
 
 // Flags for gamepad to track face buttons state
 bool flipABfaceButtonsSwitch = false;
@@ -340,6 +341,7 @@ void MoonlightInstance::PollGamepads() {
     selectClickPulseUntil.clear();
     comboTriggered.clear();
     activatePressTimes.clear();
+    activatePressTriggered.clear();
   }
 
   // Keep sampling paused at the native input boundary while the UI owns the controller.
@@ -356,6 +358,8 @@ void MoonlightInstance::PollGamepads() {
     selectMenuTriggered.erase(i);
     selectButtonConsumed.erase(i);
     selectClickPulseUntil.erase(i);
+    activatePressTimes.erase(i);
+    activatePressTriggered.erase(i);
     LiSendMultiControllerEvent(i, activeGamepadMask & ~(1u << i), 0, 0, 0, 0, 0, 0, 0);
   }
   for (const auto i : changes.arrived) {
@@ -478,38 +482,41 @@ void MoonlightInstance::PollGamepads() {
       selectButtonConsumed[gamepadID] = false;
     }
 
-    // Check if the mouse emulation switch is checked
+    // Start/PLAY toggles mouse emulation once per hold. Activation is only
+    // allowed while the selected streaming engine has a ready video and the
+    // transition screen is no longer visible; deactivation is always allowed.
     if (mouseEmulationSwitch) {
-      // Toggle mouse emulation on and off based on how long the PLAY/START button is pressed
       if (buttonFlags & PLAY_FLAG) {
         if (activatePressTimes.find(gamepadID) == activatePressTimes.end()) {
           activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+          activatePressTriggered[gamepadID] = false;
         }
-        auto currentTime = std::chrono::steady_clock::now();
-        // Calculate the duration in milliseconds since the PLAY/START button was pressed
-        auto durationTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - activatePressTimes[gamepadID]).count();
-        // If the button has been pressed for at least 1000 milliseconds (1 second)
-        if (durationTime >= 1000) {
-          // Toggle mouse emulation state
-          if (!mouseEmulationActive) {
-            // Activate mouse emulation and notify the user
-            mouseEmulationActive = true;
-            PostToJs(std::string("mouseEmulationOn"));
-          } else {
-            // Deactivate mouse emulation and notify the user
+        const auto currentTime = std::chrono::steady_clock::now();
+        const auto durationTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            currentTime - activatePressTimes[gamepadID]).count();
+        if (durationTime >= 1000 && !activatePressTriggered[gamepadID]) {
+          activatePressTriggered[gamepadID] = true;
+          if (mouseEmulationActive) {
             mouseEmulationActive = false;
             PostToJs(std::string("mouseEmulationOff"));
+          } else if (MAIN_THREAD_EM_ASM_INT({
+            return !!(window.isGamepadMouseEmulationReady &&
+                      window.isGamepadMouseEmulationReady());
+          })) {
+            mouseEmulationActive = true;
+            PostToJs(std::string("mouseEmulationOn"));
           }
-          // Reset the PLAY/START press time to the current time after toggling
-          activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+          // If the stream is not ready, discard this hold. A fresh press is required.
         }
       } else {
-        // If the PLAY/START button is not pressed, reset PLAY/START press time to the current time
-        activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+        activatePressTimes.erase(gamepadID);
+        activatePressTriggered.erase(gamepadID);
       }
     } else {
-      // Deactivate mouse emulation if the mouse emulation switch is unchecked
+      // Deactivate mouse emulation if the mouse emulation switch is unchecked.
       mouseEmulationActive = false;
+      activatePressTimes.erase(gamepadID);
+      activatePressTriggered.erase(gamepadID);
     }
 
     // Serialize the final dispatch with menu ownership changes. The opening
