@@ -551,9 +551,8 @@
         return;
       }
       if (message.event === 'wmpDiagnostic') {
-        debugLog('native service lifecycle diagnostic received', {
-          detail: message.detail || null
-        });
+        // This snapshot is also forwarded through the host diagnostic log.
+        // Keep the event for lifecycle/UI consumers without printing it twice.
         return;
       }
       debugLog('native event received', {
