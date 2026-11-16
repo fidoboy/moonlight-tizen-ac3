@@ -8469,15 +8469,17 @@ function updateHdrControlState() {
   const isUnavailable = isH264 || isHdrCapable === false;
 
   // HDR requires a compatible codec. Disable it for the TV only when lack of HDR is confirmed.
-  if (isUnavailable && (hdrInput.checked || persistedHdr)) {
+  if (isUnavailable) {
     if (hdrSwitch.MaterialSwitch) {
       hdrSwitch.MaterialSwitch.off();
     } else {
       hdrInput.checked = false;
     }
-    storeData('hdrMode', false, null).catch(function(error) {
-      console.error('%c[index.js, updateHdrControlState]', 'color: red;', 'Could not persist the forced HDR-off state:', error);
-    });
+    if (persistedHdr) {
+      storeData('hdrMode', false, null).catch(function(error) {
+        console.error('%c[index.js, updateHdrControlState]', 'color: red;', 'Could not persist the forced HDR-off state:', error);
+      });
+    }
   }
 
   // Update both the native input and MDL's own disabled state. Changing only
@@ -9277,6 +9279,7 @@ function readStreamingSettingsSnapshot() {
       optimizeBitrate: boolValue(values.optimizeBitrate, false)
     };
     configSummarySnapshot = snapshot;
+    refreshPersistedSettingDependencies();
     return snapshot;
     });
   });
