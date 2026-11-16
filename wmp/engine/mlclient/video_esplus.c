@@ -416,15 +416,14 @@ static void VidDecStart(void)
     s_prev_pts_ms = 0;
     s_have_prev = 0;
     s_skip_seq = esplus_sample_seq() - 1;
-    /* Establish the common PTS origin before either stream starts feeding.
-     * The audio preroll must not wait for the first accepted video packet. */
-    esplus_stream_clock_start();
     s_video_units = 0;
-    s_video_idrs = 0;
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
     s_last_frame_number = 0;
     s_have_frame_number = 0;
+    /* Reset first, then establish the common PTS origin before either stream
+     * starts feeding. Audio preroll must not wait for accepted video. */
     esplus_stream_clock_reset();
+    esplus_stream_clock_start();
     {
         int prepare_rc = esplus_prepare();
         MLT_DIAG("VidDecStart esplus_prepare RETURN rc=%d", prepare_rc);
