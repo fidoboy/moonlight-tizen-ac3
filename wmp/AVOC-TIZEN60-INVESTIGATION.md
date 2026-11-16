@@ -124,6 +124,49 @@ The native Game Mode wrappers initialize their result local to `-1` before the p
 
 This dispatcher mapping concerns GDBus transport/error handling. It is separate from the AVOC `ret` integer decoded from a successful method reply. In particular, the observed dispatcher does not itself map a service reply value of `-2`; such a value can pass through as the method's returned `ret` when a reply is successfully decoded. The meaning of any AVOC service return value remains unknown.
 
+## Picture-mode settings reset
+
+Disassembly of `avocd_db_utils_reset_picture_mode()` establishes two sequential SQL operations against the `SETTING` table. The SQL format strings and the arguments passed to `g_string_append_printf()` establish the following behavior.
+
+### First operation: delete settings without a default
+
+```sql
+DELETE FROM SETTING
+WHERE picture_mode NOT IN (0x10003, 0x10004, 0x60002, 0x60003)
+  AND default_value = -1
+  AND setting_id NOT IN (
+      0x4E, 0x4F, 0x50, 0x51, 0x52,
+      0x53, 0x34, 0x01, 0x5B
+  );
+```
+
+This operation deletes rows whose `picture_mode` is not one of the four protected values, whose `default_value` is `-1`, and whose `setting_id` is not one of the nine protected identifiers.
+
+### Second operation: restore settings with a default
+
+```sql
+UPDATE SETTING
+SET current_value = default_value
+WHERE picture_mode NOT IN (0x10003, 0x10004, 0x60002, 0x60003)
+  AND default_value != -1
+  AND setting_id NOT IN (
+      0x4E, 0x4F, 0x50, 0x51, 0x52,
+      0x53, 0x34, 0x01, 0x5B, 0x5D
+  );
+```
+
+This operation copies `default_value` into `current_value` for rows whose `picture_mode` is not protected, whose `default_value` is not `-1`, and whose `setting_id` is not one of the ten protected identifiers.
+
+### Execution and return behavior
+
+- The delete operation runs first.
+- A nonzero result from the delete operation is logged, but execution continues to the update operation.
+- The update operation is then executed regardless of whether the delete operation succeeded.
+- The function returns the result of the update operation; it does not return the delete operation's result.
+- The two protected `setting_id` lists are not identical: `0x5D` is excluded by the update but not by the delete.
+
+The numeric identifiers are recorded as observed. Their individual setting names and semantic meanings have not been established.
+
 ## Picture and video processing
 
 The following native function names occur in the supplied library inventory:
