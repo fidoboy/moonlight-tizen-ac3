@@ -51,7 +51,7 @@ const remotePort = {
         ? {accepted: true}
         : request.command === 'stop_session'
           ? {stopped: true}
-          : request.command === 'get_logs'
+          : request.command === 'get_new_logs'
             ? {count: 2, hostCount: 0}
             : request.command === 'toggle_stats'
               ? {enabled: true}
@@ -61,7 +61,7 @@ const remotePort = {
       : {status: 'ok', payload};
     if (request.command === 'start_session') nextNativeResponse = null;
     Promise.resolve().then(() => {
-      if (request.command === 'get_logs') {
+      if (request.command === 'get_new_logs') {
         ['native stage RTSP complete', 'video submit #1 status=ok'].forEach(line => {
           messageListener([
             {key: 'protocol', value: request.protocol},
@@ -377,7 +377,7 @@ vm.runInNewContext(source, {
     pendingMessages
       .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')
       .map(message => message.command),
-    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_logs', 'toggle_stats']
+    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_new_logs', 'toggle_stats']
   );
 
   messageListener([
