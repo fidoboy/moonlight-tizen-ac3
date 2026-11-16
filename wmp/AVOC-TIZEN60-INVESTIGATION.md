@@ -76,6 +76,37 @@ This disassembly confirms wrapper control flow and argument forwarding only. It 
 
 The library also contains the `game_mode_changed` signal name. Its payload and subscription contract are unknown.
 
+### Synchronous proxy-call behavior and dispatch error handling
+
+Disassembly of the Game Mode synchronous proxy helpers establishes this common call pattern:
+
+- Build a request `GVariant` with `g_variant_new`.
+- Cast the supplied object to `GDBusProxy`.
+- Call `g_dbus_proxy_call_sync` with no `GCancellable` and timeout `-1`.
+- If a reply `GVariant` is returned, extract reply fields with `g_variant_get` and release the reply with `g_variant_unref`.
+- Return a boolean indicating whether a reply `GVariant` was returned. This boolean is distinct from the AVOC method's `ret` value extracted from the reply.
+
+| Helper | Request arguments passed to `g_variant_new` | Reply outputs extracted with `g_variant_get` |
+|---|---|---|
+| `avoc_proxy_call_set_game_mode_sync` | Two incoming arguments | One output: the AVOC `ret` value |
+| `avoc_proxy_call_get_game_mode_sync` | One incoming argument | Two outputs: the mode value and AVOC `ret` |
+| `avoc_proxy_call_check_game_mode_sync` | No arguments | One output: the AVOC `ret` value |
+
+The format-string addresses are visible in the disassembly, but their literal contents and therefore the exact GVariant tuple signatures have not yet been decoded. The helper argument names and C types also remain to be confirmed from further evidence.
+
+The helpers pass timeout `-1`, `NULL` for `GCancellable`, and a caller-provided `GError **` to `g_dbus_proxy_call_sync`.
+
+The shared `avoc_dispatch_proxy_call_f` helper receives the proxy-call boolean, the `GError *`, and a pointer to the caller's integer result. Its observed result handling is:
+
+- If the proxy-call boolean is true and the error pointer is `NULL`, it returns without changing the result.
+- If the error pointer is non-NULL and the `GError.code` field equals `2`, it writes `-19` to the result.
+- If the error pointer is `NULL` and the proxy-call boolean is false, it writes `-7` to the result.
+- Other non-NULL error cases are logged and freed; this helper does not overwrite the result in the observed path.
+
+The native Game Mode wrappers initialize their result local to `-1` before the proxy call. Therefore, in the observed control flow, an error case not explicitly mapped by the dispatcher can leave that initial value unchanged.
+
+This dispatcher mapping concerns GDBus transport/error handling. It is separate from the AVOC `ret` integer decoded from a successful method reply. In particular, the observed dispatcher does not itself map a service reply value of `-2`; such a value can pass through as the method's returned `ret` when a reply is successfully decoded. The meaning of any AVOC service return value remains unknown.
+
 ## Picture and video processing
 
 The following native function names occur in the supplied library inventory:
