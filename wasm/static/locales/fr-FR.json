@@ -639,5 +639,6 @@
   "Average renderer submit time:": "Temps moyen de soumission du moteur de rendu :",
   "Frames missing from stream:": "Images manquantes dans le flux :",
   "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Lorsque cette option est activée, le son diffusé est lu à la fois sur l’ordinateur hôte et localement, à condition que la sortie audio locale soit également activée.",
-  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Activer la régularisation des images pour équilibrer latence et fluidité. Il est recommandé de laisser cette option activée."
+  "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Activer la régularisation des images pour équilibrer latence et fluidité. Il est recommandé de laisser cette option activée.",
+  "Enable frame pacing": "Activer la régularisation des images"
 }
