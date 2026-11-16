@@ -865,13 +865,11 @@ int esplus_prepare(void)
     pthread_mutex_unlock(&s_lock);
 
     if (already_requested) {
-        MLT("esplus_prepare duplicate request ignored; preserving current preparation state");
-        MLT_DIAG("esplus_prepare duplicate request ignored");
+            MLT_DIAG("esplus_prepare duplicate request ignored");
         /* Re-evaluate readiness without resetting any in-flight state. */
         return esplus_start_prepare_if_ready();
     }
 
-    MLT("esplus_prepare requested audio_enabled=%d", s_audio_enabled);
     MLT_DIAG("esplus_prepare state set audio_enabled=%d; evaluating prepare_async", s_audio_enabled);
     return esplus_start_prepare_if_ready();
 }
@@ -1011,7 +1009,6 @@ int esplus_video_ready(void)
 
 void esplus_close(void)
 {
-    MLT("esplus_close");
     AudEsplus_JoinSilence();
     sampler_stop();
 
@@ -1025,9 +1022,12 @@ void esplus_close(void)
     if (s_pl) {
         wmp_esplus_call_result_t stopped = wmp_esplus_adapter_stop(&s_adapter);
         wmp_esplus_call_result_t closed = wmp_esplus_adapter_close(&s_adapter);
-        MLT("esplusplayer_stop status=%d raw=%d, close status=%d raw=%d",
-            (int)stopped.status, stopped.raw_status,
-            (int)closed.status, closed.raw_status);
+        if (stopped.status != WMP_ESPLUS_CALL_SUCCESS ||
+            closed.status != WMP_ESPLUS_CALL_SUCCESS) {
+            MLT("ESPlus teardown warning: stop status=%d raw=%d, close status=%d raw=%d",
+                (int)stopped.status, stopped.raw_status,
+                (int)closed.status, closed.raw_status);
+        }
         (void)stopped;
         (void)closed;
         wmp_esplus_adapter_unbind(&s_adapter);
