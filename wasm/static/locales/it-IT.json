@@ -638,5 +638,6 @@
   "The EMSS streaming engine is recommended and should work on all TVs running Tizen 5.5 or later. Use the Native streaming engine if you want to try it on your TV and evaluate its performance. Its implementation is still experimental, and optimal results are not guaranteed on all models.": "Il motore di riproduzione EMSS è quello consigliato e dovrebbe funzionare su tutti i televisori con Tizen 5.5 o versioni successive. Utilizzi il motore di riproduzione nativo se desidera provarlo sul proprio televisore e valutarne il funzionamento. La sua implementazione è ancora sperimentale e non è garantito che funzioni in modo ottimale su tutti i modelli.",
   "Accepted": "Accettato",
   "Average renderer submit time:": "Tempo medio di invio del renderer:",
-  "Frames missing from stream:": "Fotogrammi mancanti nel flusso:"
+  "Frames missing from stream:": "Fotogrammi mancanti nel flusso:",
+  "- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.": "- Se attivata, l’audio durante la trasmissione verrà riprodotto sia sul computer host sia localmente, purché anche l’uscita audio locale sia attivata."
 }
