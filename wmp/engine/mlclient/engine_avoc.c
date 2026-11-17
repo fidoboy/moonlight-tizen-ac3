@@ -1,8 +1,10 @@
 /*
  * engine_avoc.c - Samsung AVOC Game Mode integration.
  *
- * Follow the working ARMv7 implementation used by WMP/moonlight-tizen50:
- *   int avoc_set_game_mode(int save_type, int mode)
+ * The UE50AU7172 libavoc.so wrapper consumes incoming ARM registers r1/r2
+ * as (save_type, mode); r0 is currently ignored by this implementation.
+ * Keep the three-argument call shape so the two operation arguments land
+ * in the registers actually forwarded to the AVOC D-Bus proxy.
  *
  * save_type=1 applies a temporary source override; save_type=0 restores the
  * stored setting. A complete off sequence sends (1,0), then (0,0).
@@ -15,7 +17,7 @@
 
 #include "mltrace.h"
 
-typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
+typedef int (*avoc_set_game_mode_fn)(int reserved, int save_type, int mode);
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
@@ -51,7 +53,7 @@ static int resolve_avoc(void)
         return 0;
     }
 
-    MLT("AVOC: library loaded; avoc_set_game_mode resolved (ARM two-argument ABI)");
+    MLT("AVOC: library loaded; avoc_set_game_mode resolved (3-argument ARM ABI)");
     return 1;
 }
 
@@ -74,13 +76,13 @@ int ml_avoc_set_game_mode(int enabled)
     }
 
     if (mode) {
-        rc = s_set_game_mode(0, 1);
-        MLT("AVOC: avoc_set_game_mode(0, 1) returned rc=%d", rc);
+        rc = s_set_game_mode(0, 0, 1);
+        MLT("AVOC: avoc_set_game_mode(0, 0, 1) returned rc=%d", rc);
     } else {
-        int rc1 = s_set_game_mode(1, 0);
-        int rc0 = s_set_game_mode(0, 0);
+        int rc1 = s_set_game_mode(0, 1, 0);
+        int rc0 = s_set_game_mode(0, 0, 0);
         rc = rc1 ? rc1 : rc0;
-        MLT("AVOC: avoc_set_game_mode(1, 0) returned rc=%d; (0, 0) returned rc=%d",
+        MLT("AVOC: avoc_set_game_mode(0, 1, 0) returned rc=%d; (0, 0, 0) returned rc=%d",
             rc1, rc0);
     }
 
