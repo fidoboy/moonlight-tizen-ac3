@@ -1654,22 +1654,6 @@
       }
       return;
     }
-    // Pressing both stick buttons opens the in-stream menu. This remains
-    // available when navigation is stopped for the fullscreen stream.
-    if (flags === (0x0040 | 0x0080) &&
-        typeof global.openStreamMenuFromGamepad === 'function') {
-      global.openStreamMenuFromGamepad();
-      return;
-    }
-    if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
-      if (selectHoldTimers[index] !== undefined) {
-        global.clearTimeout(selectHoldTimers[index]);
-        delete selectHoldTimers[index];
-      }
-      delete selectHoldTriggered[index];
-      request('toggle_stats').catch(function() {});
-      return;
-    }
     if (gamepadNeutralRequired[index]) {
       if (!isNeutralGamepadState(flags, buttons, normalizedAxes)) return;
       delete gamepadNeutralRequired[index];
