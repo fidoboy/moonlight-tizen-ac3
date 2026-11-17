@@ -444,10 +444,6 @@ int ml_engine_get_encryption_status(void) {
   return LiGetEncryptionStatus();
 }
 
-int ml_engine_video_ready(void) {
-  return esplus_video_ready();
-}
-
 int ml_engine_input_capabilities(void) {
   return (int)input_get_capabilities();
 }
