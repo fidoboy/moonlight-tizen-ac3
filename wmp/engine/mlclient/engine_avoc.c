@@ -121,18 +121,20 @@ int ml_avoc_set_game_mode(int enabled)
         }
 
         query_rc = query_game_mode(&current_mode);
-        if (query_rc != 0) {
-            s_active = -1;
-            MLT("AVOC: cannot verify Game Mode before activation; not treating it as disabled");
-            pthread_mutex_unlock(&s_lock);
-            return query_rc;
-        }
-
-        if (current_mode == 1) {
+        if (query_rc == 0 && current_mode == 1) {
             s_active = 1;
             MLT("AVOC: Game Mode already enabled on TV; no activation call needed");
             pthread_mutex_unlock(&s_lock);
             return 0;
+        }
+        if (query_rc != 0) {
+            /*
+             * A failed read is not evidence that Game Mode is disabled.
+             * Still issue the requested activation once; the post-call
+             * query below must confirm the resulting state.
+             */
+            MLT("AVOC: pre-activation state unknown (rc=%d); issuing activation request anyway",
+                query_rc);
         }
 
         rc = s_set_game_mode(0, 0, 1);
