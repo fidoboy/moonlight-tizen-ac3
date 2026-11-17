@@ -603,8 +603,8 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '20+ !' }
   ];
   var fecLegend = [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery') },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC error') }
   ];
 
   // Widen the overlay only when necessary to keep the complete one-line legend visible.
@@ -704,8 +704,9 @@ function drawPerformanceStatsGraph() {
     context.fillStyle = getPerformanceStatsGraphColor(sample);
     context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
 
-    // RTT bar colors remain dedicated to latency; FEC is shown in separate markers below.
-    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0 || sample.audioFecOutOfOrder > 0) {
+    // Only recovered and failed FEC events get markers. Out-of-order packets
+    // remain in the numeric statistics line, not as graph markers.
+    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0) {
       context.beginPath();
       context.fillStyle = sample.audioFecFailed > 0
         ? PERFORMANCE_STATS_GRAPH_COLORS.critical
