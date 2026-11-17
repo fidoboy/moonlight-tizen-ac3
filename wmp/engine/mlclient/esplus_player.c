@@ -253,6 +253,12 @@ int esplus_take_need_idr(void)
     return __atomic_exchange_n(&s_need_idr, 0, __ATOMIC_ACQ_REL);
 }
 
+int esplus_video_ready(void)
+{
+    return __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
+           __atomic_load_n(&esplus_stats.submitted, __ATOMIC_ACQUIRE) > 0;
+}
+
 static uint64_t esplus_mono_ns(void)
 {
     struct timespec t;
