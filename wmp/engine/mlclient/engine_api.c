@@ -108,7 +108,6 @@ static void set_tv_game_mode(int enabled) {
     int rc = g_avoc_set_game_mode(0, 1, enabled ? 1 : 0);
     MLT("AVOC: avoc_set_game_mode(unused=0, save_type=1, mode=%d) returned rc=%d",
         enabled ? 1 : 0, rc);
-    MLT("AVOC: avoc_set_game_mode returned rc=%d", rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
       MLT("TV Game Mode: AVOC API reported %s; actual TV picture mode is NOT independently verified",
