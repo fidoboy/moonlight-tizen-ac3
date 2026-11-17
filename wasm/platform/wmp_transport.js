@@ -1611,7 +1611,7 @@
     if (!Number.isInteger(index) || index < 0 || index > 15) return;
     nativeGamepadMask &= ~(1 << index);
     clearGamepadShortcutTimers(index);
-    if (mouseEmulationOwner === index) setMouseEmulationActive(false);
+    if (mouseEmulationActive) setMouseEmulationActive(false);
     if (gamepadSendTimers[index] !== undefined) {
       global.clearTimeout(gamepadSendTimers[index]);
       delete gamepadSendTimers[index];
