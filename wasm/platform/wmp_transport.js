@@ -1951,6 +1951,12 @@
     probeEsplus: function() { return request('probe_esplus'); },
     startStream: function(parameters) {
       var requestParameters = {};
+      if (mouseEmulationActive) setMouseEmulationActive(false);
+      if (mouseEmulationTimer !== null) {
+        global.clearTimeout(mouseEmulationTimer);
+        mouseEmulationTimer = null;
+      }
+      mouseEmulationLastState = null;
       nativeInputCapabilities = 0;
       nativeGamepadMask = 0;
       mouseEmulationEnabled = parameters && parameters.mouseEmulation === true;
