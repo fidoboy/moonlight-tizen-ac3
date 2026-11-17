@@ -155,6 +155,7 @@ volatile int esplus_performance_stats_enabled;
 
 
 static uint64_t s_last_video_pts_ms, s_last_audio_pts_ms;
+static uint64_t s_last_video_t; /* monotonic time of newest accepted video packet */
 static volatile int s_need_idr;
 static int s_catchup_done, s_catchup_hits;
 static uint64_t s_stream_clock_origin_ns;
@@ -200,17 +201,22 @@ static int mlc_env_int(const char *name, int def)
     return *end || n < 0 ? def : (int)n;
 }
 
+static int s_latency_env_unset;
+static volatile int s_auto_nudge;
+
 static void load_cfg(void)
 {
     const char *m = getenv("MLENGINE_LATENCY_MODE");
     const char *game_mode = getenv("MLENGINE_GAME_MODE");
-    /* Game Mode uses arrival-based PTS for both SET and ADD. Otherwise,
-     * restore clock-based PTS nudging by default; an explicit "off" keeps
-     * the uncorrected host-PTS path available for A/B testing. */
+    s_latency_env_unset = !m;
+    /* Game Mode retains arrival-based PTS. Otherwise, only an explicitly
+     * requested nudge is unconditional; the automatic default is selected
+     * after video stream registration confirms exactly 60 fps. */
     esplus_cfg.latency_mode = (game_mode && !strcmp(game_mode, "1")) ? ESPLUS_LAT_ARRIVAL :
-        (!m || !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
+        (!m ? ESPLUS_LAT_OFF :
+        !strcmp(m, "nudge") ? ESPLUS_LAT_NUDGE :
         !strcmp(m, "arrival") ? ESPLUS_LAT_ARRIVAL : ESPLUS_LAT_OFF);
-    esplus_cfg.target_depth_ms = mlc_env_int("MLENGINE_TARGET_DEPTH_MS", 50);
+    esplus_cfg.target_depth_ms = mlc_env_int("MLENGINE_TARGET_DEPTH_MS", 100);
     esplus_cfg.nudge_max_ms_per_s = mlc_env_int("MLENGINE_NUDGE_MAX_MS_PER_S", 10);
     /* Keep frame shedding opt-in: DR_NEED_IDR can discard dependent frames. */
     esplus_cfg.drop_after_ms = mlc_env_int("MLENGINE_DROP_AFTER_MS", 0);
@@ -229,18 +235,57 @@ static void load_cfg(void)
         wmp_esplus_family_name(s_api.selected_family));
 }
 
-static void nudge(int32_t depth, uint64_t now_ms)
+int esplus_lat_mode(void)
 {
-    int64_t err, hyst, step;
-    if (esplus_cfg.latency_mode != ESPLUS_LAT_NUDGE) return;
+    if (esplus_cfg.latency_mode == ESPLUS_LAT_OFF &&
+        __atomic_load_n(&s_auto_nudge, __ATOMIC_RELAXED))
+        return ESPLUS_LAT_NUDGE;
+    return esplus_cfg.latency_mode;
+}
+
+#define NUDGE_FRESH_MS 100
+#define NUDGE_HYST_MS 10
+#define NUDGE_BASE_TICKS 4
+#define NUDGE_BACKOFF 4
+static int s_base_n;
+static int32_t s_base_min;
+static volatile int32_t s_lead0;
+
+static void nudge_reset(void)
+{
+    s_corr_us = 0;
+    s_corr_ms = 0;
+    s_base_n = 0;
+    s_base_min = 0;
+    s_lead0 = 0;
+}
+
+static void nudge(int32_t lead, uint64_t now_ms)
+{
+    int64_t err, step, cap;
+    int target = esplus_cfg.target_depth_ms;
+
+    if (esplus_lat_mode() != ESPLUS_LAT_NUDGE) return;
+    if (s_base_n < NUDGE_BASE_TICKS) {
+        if (!s_base_n || lead < s_base_min) s_base_min = lead;
+        if (++s_base_n < NUDGE_BASE_TICKS) return;
+        s_lead0 = s_base_min > 0 ? s_base_min : 1;
+        MLT("nudge: baseline lead=%dms target=%dms", s_lead0, target);
+    }
     if (!s_tick_prev_ms) return;
-    err = (int64_t)depth - esplus_cfg.target_depth_ms;
-    hyst = esplus_cfg.target_depth_ms / 2;
-    if (hyst < 10) hyst = 10;
+
+    err = (int64_t)lead - target;
     step = (int64_t)esplus_cfg.nudge_max_ms_per_s *
            (int64_t)(now_ms - s_tick_prev_ms);
-    if (err > hyst) s_corr_us += err * 1000 < step ? err * 1000 : step;
-    else if (err < -hyst) s_corr_us -= -err * 1000 < step ? -err * 1000 : step;
+    if (err > NUDGE_HYST_MS)
+        s_corr_us += err * 1000 < step ? err * 1000 : step;
+    else if (err < -NUDGE_HYST_MS)
+        s_corr_us -= -err * 1000 < step * NUDGE_BACKOFF
+            ? -err * 1000 : step * NUDGE_BACKOFF;
+
+    cap = ((int64_t)s_lead0 - target) * 1000;
+    if (cap < 0) cap = 0;
+    if (s_corr_us > cap) s_corr_us = cap;
     if (s_corr_us > 1000000) s_corr_us = 1000000;
     if (s_corr_us < -1000000) s_corr_us = -1000000;
     s_corr_ms = (int32_t)((s_corr_us + (s_corr_us < 0 ? -500 : 500)) / 1000);
@@ -306,7 +351,7 @@ void esplus_sample_tick(uint64_t now_ms)
         /* Playback-clock availability is detected independently of the
          * selected stream-registration family; FPS remains measurable either way. */
         if ((__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE) ||
-             esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0 ||
+             esplus_lat_mode() == ESPLUS_LAT_NUDGE || esplus_cfg.drop_after_ms > 0 ||
              esplus_cfg.catchup_ms > 0) &&
             wmp_esplus_adapter_get_playing_time(&s_adapter, &play)) {
             esplus_stats.playing_ms = play > UINT32_MAX ? UINT32_MAX : (uint32_t)play;
@@ -315,7 +360,12 @@ void esplus_sample_tick(uint64_t now_ms)
                 diag_playback_clock = 1;
             esplus_stats.depth_ms = (int32_t)(s_last_video_pts_ms - play);
             esplus_stats.audio_depth_ms = (int32_t)(s_last_audio_pts_ms - play);
-            if (play > 0) nudge(esplus_stats.depth_ms, now_ms);
+            {
+                uint64_t age = s_last_video_t ? esplus_mono_ms() - s_last_video_t : UINT64_MAX;
+                int fresh = age <= NUDGE_FRESH_MS;
+                int32_t lead = esplus_stats.depth_ms + (fresh ? (int32_t)age : 0);
+                if (play > 0 && fresh) nudge(lead, now_ms);
+            }
             /* Two consecutive deep samples trigger one flushing seek to the
              * newest accepted video PTS; a single transient spike is ignored. */
             if (esplus_cfg.catchup_ms > 0 && !s_catchup_done && play > 0) {
@@ -330,8 +380,7 @@ void esplus_sample_tick(uint64_t now_ms)
                     MLT("catchup: depth=%dms seek=%llu ms raw=%d",
                         esplus_stats.depth_ms,
                         (unsigned long long)s_last_video_pts_ms, seek_rc);
-                    s_corr_us = 0;
-                    s_corr_ms = 0;
+                    nudge_reset();
                     s_tick_prev_ms = 0;
                     __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
                     request_idr = 1;
@@ -603,13 +652,14 @@ int esplus_create_open(void)
     s_idr_t0 = s_idr_last = 0;
     s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
+    s_last_video_t = 0;
     __atomic_store_n(&s_need_idr, 0, __ATOMIC_RELEASE);
     s_catchup_done = s_catchup_hits = 0;
     s_fps_t0 = 0;
-    s_corr_us = 0;
-    s_corr_ms = 0;
+    nudge_reset();
     s_tick_prev_ms = 0;
     s_tick_seq = 0;
+    __atomic_store_n(&s_auto_nudge, 0, __ATOMIC_RELAXED);
 
     s_pl = wmp_esplus_adapter_create(&s_api);
     if (!s_pl) {
@@ -662,7 +712,17 @@ static int result_to_int(wmp_esplus_call_result_t result)
 
 int esplus_set_video_info(const wmp_esplus_video_info_t *info)
 {
-    wmp_esplus_call_result_t result = wmp_esplus_adapter_set_video_info(&s_adapter, info);
+    wmp_esplus_call_result_t result;
+    if (info) {
+        int fps60 = info->frame_rate == 60;
+        __atomic_store_n(&s_auto_nudge,
+            s_latency_env_unset && fps60 && s_api.get_playing_time,
+            __ATOMIC_RELAXED);
+        MLT("nudge default=%d fps=%u env_mode=%s",
+            s_latency_env_unset && fps60 && s_api.get_playing_time,
+            info->frame_rate, s_latency_env_unset ? "unset" : "set");
+    }
+    result = wmp_esplus_adapter_set_video_info(&s_adapter, info);
     if (result.status != WMP_ESPLUS_CALL_SUCCESS)
         MLT("video stream registration failed status=%d raw=%d", (int)result.status, result.raw_status);
     return result_to_int(result);
@@ -1004,6 +1064,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         uint64_t ms = packet->pts_ns / 1000000ull;
         if (packet->type == WMP_ESPLUS_STREAM_VIDEO) {
             s_last_video_pts_ms = ms;
+            s_last_video_t = esplus_mono_ms();
             __atomic_fetch_add(&esplus_stats.submitted, 1, __ATOMIC_RELAXED);
         } else if (packet->type == WMP_ESPLUS_STREAM_AUDIO) {
             s_last_audio_pts_ms = ms;
@@ -1051,10 +1112,12 @@ void esplus_close(void)
     s_idr_t0 = s_idr_last = 0;
     s_idr_n = s_video_tries = 0;
     s_last_video_pts_ms = s_last_audio_pts_ms = 0;
+    s_last_video_t = 0;
     __atomic_store_n(&s_need_idr, 0, __ATOMIC_RELEASE);
     s_catchup_done = s_catchup_hits = 0;
     s_fps_t0 = 0;
-    s_corr_us = 0; s_corr_ms = 0; s_tick_prev_ms = 0;
+    nudge_reset(); s_tick_prev_ms = 0;
+    __atomic_store_n(&s_auto_nudge, 0, __ATOMIC_RELAXED);
     /* Serialize dlclose with a possible next esplus_create_open(). */
     wmp_esplus_close(&s_api);
     __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
