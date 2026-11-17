@@ -327,6 +327,8 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_selectHoldStreamMenu, 'true',
     'the native transport must receive the Select long-press preference');
 
+  const nativeNeutralButtons = Array(16).fill(0);
+
   // Undocumented combinations must pass through without opening UI or toggling stats.
   const menuEventsBeforeUnreservedCombos = handledEvents.filter(event => event === 'openStreamMenuFromGamepad').length;
   const statsRequestsBeforeUnreservedCombos = pendingMessages.filter(message => message.command === 'toggle_stats').length;
@@ -364,7 +366,6 @@ vm.runInNewContext(source, {
     type: 'esplusgamepadconnected',
     detail: {gamepadIndex: 0, id: 'Xbox Controller', buttonCount: 16}
   });
-  const nativeNeutralButtons = Array(16).fill(0);
   window.dispatchEvent({
     type: 'esplusgamepadstate',
     detail: {gamepadIndex: 0, buttons: nativeNeutralButtons, axes: [0, 0, 0, 0]}
