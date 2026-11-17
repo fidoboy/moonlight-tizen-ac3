@@ -6098,6 +6098,9 @@ function startGame(host, appID) {
       var audioSync = streamSettings.audioSync;
       var audioJitter = streamSettings.audioJitter;
       var playHostAudio = streamSettings.playHostAudio;
+      // Request continuous audio only for the native ESPlusPlayer audio path.
+      var continuousAudio = streamSettings.streamingEngine === 'ESPLUSPLAYER' &&
+        streamSettings.audioBackend === 'ESPLUSPLAYER';
       var decryptHostAudio = streamSettings.decryptHostAudio;
       var videoCodec = streamSettings.videoCodec;
       var h264Level = streamSettings.h264Level;
@@ -6214,7 +6217,8 @@ function startGame(host, appID) {
           hdrMode, // Auto HDR video streaming
           playHostAudio, // Play audio on host and client device
           0x030002, // Surround channel mask << 16 | Surround channel count
-          gamepadMask // Connect gamepad mask
+          gamepadMask, // Connect gamepad mask
+          continuousAudio // Native audio path only
         ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app resume').then(function(launchResult) {
           if (!isStreamStartupCurrent(startupGeneration)) return;
           $xml = $($.parseXML(launchResult.toString()));
@@ -6282,7 +6286,8 @@ function startGame(host, appID) {
         hdrMode, // Auto HDR video streaming
         playHostAudio, // Play audio on host and client device
         0x030002, // Surround channel mask << 16 | Surround channel count
-        gamepadMask // Connect gamepad mask
+        gamepadMask, // Connect gamepad mask
+        continuousAudio // Native audio path only
       ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app launch').then(function(launchResult) {
         if (!isStreamStartupCurrent(startupGeneration)) return;
         $xml = $($.parseXML(launchResult.toString()));
