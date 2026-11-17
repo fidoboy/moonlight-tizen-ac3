@@ -299,6 +299,7 @@ vm.runInNewContext(source, {
     rtspUrl: 'rtsp://host/session',
     codecMode: 1,
     audioEnabled: false,
+    disableWarnings: true,
     mouseEmulation: true,
     selectHoldStreamMenu: true,
     audioConfig: '51Surround',
@@ -316,6 +317,8 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_rikey, '00112233445566778899aabbccddeeff');
   assert.strictEqual(startMessage.arg_videoCodec, 'H264');
   assert.strictEqual(startMessage.arg_audioEnabled, 'false');
+  assert.strictEqual(startMessage.arg_disableWarnings, 'true',
+    'the native service must receive the saved connection-warning preference');
   assert.strictEqual(startMessage.arg_debugMode, 'true',
     'Debug Mode must be forwarded to the native service for Common C diagnostic gating');
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
@@ -521,6 +524,21 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'displayVideo'}
   ]);
   assert.deepStrictEqual(handledEvents, performanceSamples.concat(['displayVideo']));
+
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'WarningMsg: Slow connection to PC.\\nReduce your bitrate!'}
+  ]);
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'NoWarningMsg: Connection to PC has been improved.'}
+  ]);
+  assert.deepStrictEqual(handledEvents.slice(-2), [
+    'WarningMsg: Slow connection to PC.\\nReduce your bitrate!',
+    'NoWarningMsg: Connection to PC has been improved.'
+  ], 'native connection-quality events must reach the shared EMSS warning overlay handler');
 
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
