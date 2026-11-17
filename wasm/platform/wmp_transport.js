@@ -555,15 +555,15 @@
         // Keep the event for lifecycle/UI consumers without printing it twice.
         return;
       }
-      // Performance-statistics samples are consumed by the overlay/graph handlers.
-      // They are high-frequency UI data, not diagnostic log events.
-      if (/^(StatMsg: |GraphMsg: |HostLatencyMsg: |ProgressMsg: )/.test(String(message.event || ''))) {
-        return;
+      // Forward performance samples to the WebApp overlay, but keep their
+      // high-frequency payloads out of the transport diagnostic log.
+      var isPerformanceStatsSample = /^(StatMsg: |GraphMsg: |HostLatencyMsg: |ProgressMsg: )/.test(String(message.event || ''));
+      if (!isPerformanceStatsSample) {
+        debugLog('native event received', {
+          event: message.event || null,
+          detail: message.detail || null
+        });
       }
-      debugLog('native event received', {
-        event: message.event || null,
-        detail: message.detail || null
-      });
       if (message.event && /^wmpPlayerError: /.test(String(message.event))) {
         var playerErrorCode = String(message.event).slice('wmpPlayerError: '.length);
         global.pendingStreamApiMessage = message.detail || ('ESPlus player error ' + playerErrorCode);
