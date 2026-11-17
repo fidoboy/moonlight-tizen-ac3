@@ -24,10 +24,6 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
-extern void AudEsplus_PrimeSilence(void);
-extern void AudEsplus_StopSilence(void);
-extern void AudEsplus_JoinSilence(void);
-
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
  * against it: Ecore_Wl2 pulls in a large firmware-specific EFL/Wayland/TBM
@@ -464,8 +460,6 @@ static void on_ready(wmp_esplus_stream_e stream, void *context)
         pthread_cond_broadcast(&s_state_cv);
     }
     pthread_mutex_unlock(&s_lock);
-    if (stream == WMP_ESPLUS_STREAM_AUDIO)
-        AudEsplus_PrimeSilence();
     MLT_DIAG("ready_to_prepare callback state recorded stream=%d", (int)stream);
     MLT_DIAG("ready_to_prepare callback EXIT stream=%d", (int)stream);
 }
@@ -1005,11 +999,7 @@ int esplus_video_ready(void)
 
 void esplus_close(void)
 {
-    AudEsplus_JoinSilence();
-    sampler_stop();
 
-    /* Wake a feeder blocked on ready_to_prepare and prevent it from
-     * submitting or starting a player that is being torn down. */
     pthread_mutex_lock(&s_lock);
     __atomic_store_n(&s_player_closing, 1, __ATOMIC_RELEASE);
     pthread_cond_broadcast(&s_state_cv);
