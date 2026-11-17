@@ -74,8 +74,8 @@ int ml_avoc_set_game_mode(int enabled)
     }
 
     if (mode) {
-        rc = s_set_game_mode(1, 1);
-        MLT("AVOC: avoc_set_game_mode(1, 1) returned rc=%d", rc);
+        rc = s_set_game_mode(0, 1);
+        MLT("AVOC: avoc_set_game_mode(0, 1) returned rc=%d", rc);
     } else {
         int rc1 = s_set_game_mode(1, 0);
         int rc0 = s_set_game_mode(0, 0);
