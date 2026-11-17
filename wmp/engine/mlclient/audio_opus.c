@@ -12,7 +12,6 @@
 #include "esplus_stats.h"
 #include "mltrace.h"
 
-extern void ml_engine_notify_audio_ready(void);
 
 #define ALOG(...) fprintf(stderr, "[audio] " __VA_ARGS__)
 #define DOLBY_SAMPLE_RATE 48000u
@@ -230,7 +229,6 @@ static void ar_decodePlay(char *data, int len)
             __ATOMIC_RELEASE);
 
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
-        ml_engine_notify_audio_ready();
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
         result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
         result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
