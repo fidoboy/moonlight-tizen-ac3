@@ -15,7 +15,7 @@ Do not infer argument types, accepted values, return-code meanings, availability
 
 | Function | Known information |
 |---|---|
-| `avoc_set_game_mode` | Setter. The public Tizen 5.0 reference declares a two-argument C function; Tizen 6.0 x86 disassembly strongly indicates a three-argument entry-point ABI, with the first argument unused by the wrapper. The version boundary and later-version consistency remain unverified. |
+| `avoc_set_game_mode` | Setter. ARM Thumb disassembly of the Tizen 5.0 emulator, Tizen 6.0 emulator, and Samsung UE50AU7172 library shows the same relevant convention: incoming `r1` and `r2` are forwarded as the two operational arguments; incoming `r0` is not used as an operational argument. See the cross-library ABI verification below. |
 | `avoc_get_game_mode` | Getter. Proxy metadata: input `save_type`; outputs `mode`, `ret`. |
 | `avoc_check_game_mode` | Check operation. Proxy metadata: no input arguments observed; output `ret`. |
 | `avoc_set_game_mode_by_source` | Setter by source. Proxy metadata: inputs `save_type`, `source`, `game_mode`; output `ret`. |
@@ -42,6 +42,25 @@ typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
 It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. Treat this as an experimental usage reference, not a complete API specification.
 
 
+
+### Cross-library ARM ABI verification (correction to the historical reference)
+
+The exported `avoc_set_game_mode` entry point was disassembled from three ARM libraries:
+
+- `libavoc.so` from the Tizen 5.0 emulator used with the WMP Moonlight Tizen 5.0 reference.
+- `libavoc.so` from the Tizen 6.0 emulator.
+- `libavoc.so` extracted directly from the Samsung UE50AU7172 TV.
+
+The three implementations exhibit the same relevant wrapper convention. The entry point preserves and forwards the values arriving in `r1` and `r2` to `avoc_proxy_call_set_game_mode_sync`; the incoming `r0` value is not used as one of the two operational `SetGameMode` arguments. The synchronous proxy helper constructs the two-integer `SetGameMode(ii)` request.
+
+Under the ARM procedure-call convention, a normal C call through a function pointer declared as `int (*)(int save_type, int mode)` places its two arguments in `r0` and `r1`. It does not define the value in `r2`, while the examined AVOC wrapper consumes `r1` and `r2`. Therefore, the two-argument declaration and calls in the public WMP Tizen 5.0 implementation are **not ABI-compatible with the Tizen 5.0 emulator library examined here**. The same mismatch applies to the Tizen 6.0 emulator and UE50AU7172 libraries examined.
+
+The three-argument call shape used by this project places the two operational values in the second and third C argument positions, which arrive in `r1` and `r2`. The first C argument is currently named `reserved` in the integration as a pragmatic placeholder only. Its contractual meaning is unknown; this document does not establish that it is formally a reserved parameter.
+
+This finding supersedes the earlier tentative statement in this document that the two-argument WMP declaration might describe an older Tizen 5.0 ABI. It does not. The WMP source is evidence of how that implementation called the function, not proof that its prototype matches the library ABI.
+
+**Scope and remaining uncertainties:** this comparison establishes the relevant register convention only for the three libraries listed above. It does not prove that every Samsung model, firmware revision, Tizen release, or architecture uses the same convention. The argument positions are established by the examined wrapper/proxy flow; the semantic meaning of the first argument, the accepted values and meanings of the two operational arguments, the native return-value contract, and whether a call at a particular point in stream startup actually changes the TV's Game Mode state remain separate unresolved questions.
+
 ### Native wrapper control flow (Tizen 6.0 x86 build)
 
 Disassembly of the three native Game Mode entry points establishes the following wrapper behavior:
@@ -58,7 +77,7 @@ All three functions call `avoc_init_gdbus_connections` before obtaining the prox
 
 This disassembly provides strong evidence that the **Tizen 6.0 x86 C entry point has three stack arguments**, even though the wrapper does not read the first one. In cdecl terms, the wrapper reads the second and third incoming arguments at `[ebp+0xc]` and `[ebp+0x10]`; the first slot at `[ebp+8]` is present in the call frame but unused. This is materially different from the two-argument C declaration in the Tizen 5.0 reference.
 
-The most plausible current interpretation is therefore a **version-dependent native ABI**:
+The earlier version-dependent interpretation is superseded by the cross-library ARM verification above. The three examined ARM libraries share the same relevant `r1`/`r2` argument convention; do not treat the WMP two-argument declaration as evidence of a different Tizen 5.0 ABI. The following x86-specific notes describe the separately examined Tizen 6.0 x86 binary:
 - **Tizen 5.0 reference:** two C arguments, `(save_type, mode)`.
 - **Tizen 6.0 x86 disassembly:** three C arguments, with the first argument currently of unknown purpose and ignored by this wrapper; the second and third are forwarded to the two-field D-Bus method.
 - **Tizen 6.0 and later in general:** a three-argument ABI is a well-founded working hypothesis, but it has not yet been verified against additional Tizen releases or architectures. Do not treat “6.0+” as proven solely from this one Tizen 6.0 x86 binary.
