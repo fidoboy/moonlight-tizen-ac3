@@ -123,6 +123,8 @@ const window = {
   handleMessage(message) {
     handledEvents.push(message);
   },
+  isGamepadMouseEmulationReady() { return true; },
+  openStreamMenuFromGamepad() { handledEvents.push('openStreamMenuFromGamepad'); },
   setTimeout,
   clearTimeout,
   tizen: {
@@ -297,6 +299,8 @@ vm.runInNewContext(source, {
     rtspUrl: 'rtsp://host/session',
     codecMode: 1,
     audioEnabled: false,
+    mouseEmulation: true,
+    selectHoldStreamMenu: true,
     audioConfig: '51Surround',
     opticalOutputEnabled: true,
     videoCodec: 'H264',
@@ -315,6 +319,67 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_debugMode, 'true',
     'Debug Mode must be forwarded to the native service for Common C diagnostic gating');
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
+  assert.strictEqual(startMessage.arg_mouseEmulation, 'true',
+    'the native transport must receive the mouse emulation preference');
+  assert.strictEqual(startMessage.arg_selectHoldStreamMenu, 'true',
+    'the native transport must receive the Select long-press preference');
+
+  // Native Select long-press must open the existing stream menu.
+  window.dispatchEvent({
+    type: 'esplusgamepadconnected',
+    detail: {gamepadIndex: 0, id: 'Xbox Controller', buttonCount: 16}
+  });
+  const nativeNeutralButtons = Array(16).fill(0);
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: nativeNeutralButtons, axes: [0, 0, 0, 0]}
+  });
+  const selectHeld = nativeNeutralButtons.slice();
+  selectHeld[8] = 1;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: selectHeld, axes: [0, 0, 0, 0]}
+  });
+  await new Promise(resolve => setTimeout(resolve, 1050));
+  assert.ok(handledEvents.includes('openStreamMenuFromGamepad'),
+    'holding Select for one second must open the stream menu on ESPlusPlayer');
+
+  // Native Start long-press must toggle mouse mode and route stick motion to mouse input.
+  const selectReleased = nativeNeutralButtons.slice();
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: selectReleased, axes: [0, 0, 0, 0]}
+  });
+  const startHeld = nativeNeutralButtons.slice();
+  startHeld[9] = 1;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0, 0, 0, 0]}
+  });
+  await new Promise(resolve => setTimeout(resolve, 1050));
+  assert.ok(handledEvents.includes('mouseEmulationOn'),
+    'holding Start for one second must activate native mouse emulation');
+  const mouseMoveCount = pendingMessages.filter(message => message.command === 'mouse_move').length;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0.5, 0, 0, 0]}
+  });
+  assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCount,
+    'the left stick must generate native mouse movement while mouse emulation is active');
+
+  // A second Start long-press disables mouse mode.
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: nativeNeutralButtons, axes: [0, 0, 0, 0]}
+  });
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0, 0, 0, 0]}
+  });
+  await new Promise(resolve => setTimeout(resolve, 1050));
+  assert.ok(handledEvents.includes('mouseEmulationOff'),
+    'holding Start again must deactivate native mouse emulation');
+
 
   // When evdev owns a device class, the browser must not forward duplicate
   // events for that class through MessagePort.
