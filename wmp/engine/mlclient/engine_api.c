@@ -31,6 +31,7 @@ extern int AudEsplus_GetActiveAudioCodec(void);
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 static int g_game_mode_requested;
+static int g_game_mode_retry_pending; /* retry only AVOC's transient -2 response */
 
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
@@ -269,7 +270,10 @@ static int start_connection(void) {
   if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
       __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
     MLT("TV Game Mode: requesting activation immediately after LiStartConnectionEx");
-    ml_avoc_set_game_mode(1);
+    int avoc_rc = ml_avoc_set_game_mode(1);
+    __atomic_store_n(&g_game_mode_retry_pending, avoc_rc == -2, __ATOMIC_RELEASE);
+    if (avoc_rc == -2)
+      MLT("TV Game Mode: transient rc=-2; retry scheduled every 2 seconds");
   }
 
   int in = input_init();
@@ -288,6 +292,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
   __atomic_store_n(&g_game_mode_requested, 0, __ATOMIC_RELEASE);
+  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
   g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host) { MLT("ml_engine_start -> 2 (no host)"); return 2; }
@@ -564,13 +569,36 @@ int ml_engine_running(void) {   /* polled every 500 ms by the host: trace only c
 }
 
 void ml_engine_wait(void) {
+  unsigned retry_ticks = 0;
   MLT("ml_engine_wait");
-  while (g_running) { struct timespec ts = {0, 200000000}; nanosleep(&ts, NULL); }
+  while (g_running) {
+    struct timespec ts = {0, 200000000};
+    nanosleep(&ts, NULL);
+    if (__atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE) &&
+        __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) &&
+        __atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
+      if (++retry_ticks >= 10) { /* 10 x 200 ms = 2 seconds */
+        int rc;
+        retry_ticks = 0;
+        MLT("TV Game Mode: retrying activation after transient rc=-2");
+        rc = ml_avoc_set_game_mode(1);
+        if (rc != -2) {
+          __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
+          MLT("TV Game Mode: retry sequence finished with rc=%d; periodic retry disabled", rc);
+        } else {
+          MLT("TV Game Mode: TV still returned rc=-2; next retry in 2 seconds");
+        }
+      }
+    } else {
+      retry_ticks = 0;
+    }
+  }
   MLT("ml_engine_wait -> returned");
 }
 
 void ml_engine_stop(void) {
   MLT("ml_engine_stop started=%d", g_started);
+  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
   g_running = 0;
   if (g_started) {
     g_started = 0;
@@ -624,6 +652,7 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
   __atomic_store_n(&g_game_mode_requested, game_mode != 0, __ATOMIC_RELEASE);
+  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
   MLT("TV Game Mode requested=%d", game_mode != 0);
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
