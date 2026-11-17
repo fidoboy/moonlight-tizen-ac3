@@ -256,13 +256,6 @@ static int start_connection(void) {
    * LiStartConnectionEx starts processing. Setting g_running after the call
    * could overwrite that termination and leave the host worker running forever. */
   __atomic_store_n(&g_running, 1, __ATOMIC_RELEASE);
-  /* Resolve the ESPlus family before connection callbacks can create the player.
-   * AVOC uses this same ADD/SET split to select its native function prototype. */
-  int avoc_family = esplus_detect_abi_family();
-  ml_avoc_set_abi_family((wmp_esplus_family_e)avoc_family);
-  MLT("AVOC: selected ABI family=%s",
-      wmp_esplus_family_name((wmp_esplus_family_e)avoc_family));
-
   int err = LiStartConnectionEx(&g_si, &g_sc, &cl, &dr, arCallbacks, NULL, 0, NULL, 0,
                                 g_audio_enabled);
   if (err != 0) {
