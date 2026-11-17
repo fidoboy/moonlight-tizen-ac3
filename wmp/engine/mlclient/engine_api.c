@@ -572,13 +572,17 @@ void ml_engine_wait(void) {
 
 void ml_engine_stop(void) {
   MLT("ml_engine_stop started=%d", g_started);
-  ml_avoc_set_game_mode(0);
   g_running = 0;
-  if (!g_started) { MLT("ml_engine_stop -> nothing to stop"); return; }
-  g_started = 0;
-  fprintf(stderr, "[ml] stopping, releasing overlay\n");
-  input_shutdown();
-  LiStopConnection();   /* tears down stages -> video sink cleanup -> esplus_close */
+  if (g_started) {
+    g_started = 0;
+    fprintf(stderr, "[ml] stopping, releasing overlay\n");
+    input_shutdown();
+    LiStopConnection();   /* tears down stages -> video sink cleanup -> esplus_close */
+  } else {
+    MLT("ml_engine_stop -> no active connection to tear down");
+  }
+  /* AVOC off must happen after LiStopConnection has released the player/window. */
+  ml_avoc_set_game_mode(0);
   MLT("ml_engine_stop -> done");
 }
 
