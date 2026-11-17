@@ -1276,6 +1276,8 @@
   var selectHoldStreamMenuEnabled = false;
   var mouseEmulationActive = false;
   var mouseEmulationOwner = null;
+  var mouseEmulationTimer = null;
+  var mouseEmulationLastState = null;
   var selectHoldTimers = Object.create(null);
   var selectHoldTriggered = Object.create(null);
   var startHoldTimers = Object.create(null);
@@ -1430,15 +1432,43 @@
           !global.isGamepadMouseEmulationReady()) return false;
       mouseEmulationActive = true;
       mouseEmulationOwner = owner;
+      if (browserGamepadInputActive() && owner !== null &&
+          (nativeGamepadMask & (1 << owner))) {
+        if (gamepadSendTimers[owner] !== undefined) {
+          global.clearTimeout(gamepadSendTimers[owner]);
+          delete gamepadSendTimers[owner];
+        }
+        delete pendingGamepadStates[owner];
+        sendGamepadState(owner, nativeGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+        lastSentGamepadFlags[owner] = 0;
+        lastSentGamepadAxes[owner] = [0, 0, 0, 0];
+        lastSentGamepadTriggers[owner] = [0, 0];
+      }
+      scheduleMouseEmulationTick();
       if (global.handleMessage) global.handleMessage('mouseEmulationOn');
       return true;
     } else {
       mouseEmulationActive = false;
       mouseEmulationOwner = null;
+      if (mouseEmulationTimer !== null) {
+        global.clearTimeout(mouseEmulationTimer);
+        mouseEmulationTimer = null;
+      }
+      mouseEmulationLastState = null;
       releaseMouseEmulationButtons();
       if (global.handleMessage) global.handleMessage('mouseEmulationOff');
       return true;
     }
+  }
+
+  function scheduleMouseEmulationTick() {
+    if (!mouseEmulationActive || streamMenuInputBlocked || mouseEmulationTimer !== null) return;
+    mouseEmulationTimer = global.setTimeout(function() {
+      mouseEmulationTimer = null;
+      if (!mouseEmulationActive || streamMenuInputBlocked) return;
+      if (mouseEmulationLastState) updateMouseEmulation(mouseEmulationLastState);
+      scheduleMouseEmulationTick();
+    }, 16);
   }
 
   function updateMouseEmulation(state) {
@@ -1652,6 +1682,7 @@
       rsX: axis(2),
       rsY: -axis(3)
     };
+    mouseEmulationLastState = gamepadState;
     handleGamepadShortcuts(index, buttons, gamepadState);
     if (mouseEmulationActive) {
       updateMouseEmulation(gamepadState);
