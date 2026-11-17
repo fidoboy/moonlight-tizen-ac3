@@ -61,6 +61,56 @@ This finding supersedes the earlier tentative statement in this document that th
 
 **Scope and remaining uncertainties:** this comparison establishes the relevant register convention only for the three libraries listed above. It does not prove that every Samsung model, firmware revision, Tizen release, or architecture uses the same convention. The argument positions are established by the examined wrapper/proxy flow; the semantic meaning of the first argument, the accepted values and meanings of the two operational arguments, the native return-value contract, and whether a call at a particular point in stream startup actually changes the TV's Game Mode state remain separate unresolved questions.
 
+### Samsung UE50AU7172 ARM getter ABI and Game Mode state polling
+
+The exported `avoc_get_game_mode` and `avoc_check_game_mode` wrappers were disassembled from the `libavoc.so` extracted directly from the Samsung UE50AU7172 TV. The corresponding synchronous proxy helpers were also disassembled.
+
+#### `avoc_get_game_mode` native ABI
+
+The ARM Thumb wrapper preserves the incoming `r1` value as the `save_type`, preserves the incoming `r2` value as the output pointer, and forwards `save_type` to `avoc_proxy_call_get_game_mode_sync`. After the proxy call, it copies the first reply field (`mode`) through the supplied output pointer. The second reply field (`ret`) is handled separately as the AVOC method result.
+
+The compatible function-pointer declaration for this examined ARM library is:
+
+```c
+typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);
+```
+
+The first argument occupies `r0` but is not used as an operational argument by the examined wrapper. `reserved` is only a pragmatic placeholder name; its contractual meaning is unknown.
+
+The call shape is therefore:
+
+```c
+int mode = -1;
+int ret = get_game_mode(0, save_type, &mode);
+```
+
+The proxy helper confirms that `GetGameMode` sends one integer (`save_type`) and extracts two integer reply fields in this order: `mode`, then `ret`. The native wrapper writes `mode` through the caller's pointer; it does not substitute the method's `ret` field for that value. The D-Bus method result and the state value must therefore be kept distinct.
+
+The server-side `on_get_game_mode()` handler accepts `save_type` values 0 and 1 and rejects values greater than 1. The caller should use the appropriate save type for the setting being queried.
+
+#### Meaning of the returned `mode` value on the target TV
+
+For the Samsung UE50AU7172 target, the state interpretation used by this project is:
+
+- `mode == 1`: Game Mode is enabled.
+- `mode == 0`: Game Mode is disabled.
+
+This is the state field to inspect when determining whether activation has taken effect. Do not use the separate `ret` result as the Game Mode state.
+
+#### Activation polling strategy
+
+After requesting Game Mode activation, query the state with `avoc_get_game_mode` and inspect the output `mode`:
+
+1. If the query succeeds and `mode == 1`, consider Game Mode active and stop retrying.
+2. If the query succeeds and `mode == 0`, Game Mode is still inactive; another activation attempt may be made, subject to the integration's retry limit/timing.
+3. If the query itself fails, treat the state as unknown. Do not interpret a failed query as `mode == 0` and do not claim that the TV has confirmed the disabled state.
+
+This replaces blind periodic activation retries with retries gated by the state reported by AVOC. The retry limit, interval, and exact stream-startup hook are integration policy and are not established by this ABI analysis.
+
+#### `avoc_check_game_mode` is not the state getter
+
+The ARM wrapper takes no caller-supplied arguments and calls `avoc_proxy_call_check_game_mode_sync`. That proxy method has an empty request tuple and a one-integer reply tuple. Its reply field is `ret`; it does not provide the `mode` state used above. It is therefore not a substitute for `avoc_get_game_mode` when polling whether Game Mode is enabled.
+
 ### Native wrapper control flow (Tizen 6.0 x86 build)
 
 Disassembly of the three native Game Mode entry points establishes the following wrapper behavior:
