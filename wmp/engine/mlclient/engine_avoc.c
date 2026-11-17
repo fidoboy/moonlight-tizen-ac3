@@ -10,10 +10,11 @@
  * Game Mode state is read from avoc_get_game_mode: mode=1 means enabled,
  * mode=0 means disabled. Its function return is a separate AVOC result.
  * The getter uses save_type=0 here to query the same setting domain used
- * by the activation request (avoc_set_game_mode(0, 0, 1)).
+ * by the activation request (avoc_set_game_mode(0, 1, 1)).
  *
- * save_type=1 applies a temporary source override; save_type=0 restores the
- * stored setting. A complete off sequence sends (1,0), then (0,0).
+ * Activation uses save_type=1 (temporary source override), matching the
+ * source-specific Game Mode domain. Restoration clears that override with
+ * (1,0), then restores the stored setting with (0,0).
  */
 #define _GNU_SOURCE
 #include "engine_avoc.h"
@@ -82,18 +83,18 @@ static int resolve_avoc(void)
  * Returns the AVOC method result. The current Game Mode state is written
  * separately to *mode: 1=enabled, 0=disabled. Any other value is unknown.
  */
-static int query_game_mode(int *mode)
+static int query_game_mode(int save_type, int *mode)
 {
     int rc;
 
     *mode = -1;
-    rc = s_get_game_mode(0, 0, mode);
+    rc = s_get_game_mode(0, save_type, mode);
     if (rc != 0) {
-        MLT("AVOC: avoc_get_game_mode(0, 0, &mode) returned rc=%d", rc);
+        MLT("AVOC: avoc_get_game_mode(0, %d, &mode) returned rc=%d", save_type, rc);
         return rc;
     }
 
-    MLT("AVOC: avoc_get_game_mode(0, 0, &mode) -> rc=0, mode=%d", *mode);
+    MLT("AVOC: avoc_get_game_mode(0, %d, &mode) -> rc=0, mode=%d", save_type, *mode);
     if (*mode != 0 && *mode != 1) {
         MLT("AVOC: unexpected Game Mode value=%d; state remains unknown", *mode);
         return -1;
@@ -120,7 +121,7 @@ int ml_avoc_set_game_mode(int enabled)
             return -1;
         }
 
-        query_rc = query_game_mode(&current_mode);
+        query_rc = query_game_mode(1, &current_mode);
         if (query_rc == 0 && current_mode == 1) {
             s_active = 1;
             MLT("AVOC: Game Mode already enabled on TV; no activation call needed");
@@ -137,8 +138,8 @@ int ml_avoc_set_game_mode(int enabled)
                 query_rc);
         }
 
-        rc = s_set_game_mode(0, 0, 1);
-        MLT("AVOC: avoc_set_game_mode(0, 0, 1) returned rc=%d", rc);
+        rc = s_set_game_mode(0, 1, 1);
+        MLT("AVOC: avoc_set_game_mode(0, 1, 1) returned rc=%d", rc);
 
         query_rc = query_game_mode(&current_mode);
         if (query_rc != 0) {
