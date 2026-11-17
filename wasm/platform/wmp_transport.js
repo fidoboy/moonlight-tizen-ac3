@@ -1280,6 +1280,7 @@
   var selectHoldTriggered = Object.create(null);
   var startHoldTimers = Object.create(null);
   var startHoldTriggered = Object.create(null);
+  var startHoldSuppress = Object.create(null);
   var mouseButtonsState = {left: false, middle: false, right: false};
 
 
@@ -1406,6 +1407,7 @@
     }
     delete selectHoldTriggered[index];
     delete startHoldTriggered[index];
+    delete startHoldSuppress[index];
   }
 
   function resetGamepadShortcutState() {
@@ -1425,15 +1427,17 @@
     if (active) {
       if (!mouseEmulationEnabled || streamMenuInputBlocked ||
           typeof global.isGamepadMouseEmulationReady !== 'function' ||
-          !global.isGamepadMouseEmulationReady()) return;
+          !global.isGamepadMouseEmulationReady()) return false;
       mouseEmulationActive = true;
       mouseEmulationOwner = owner;
       if (global.handleMessage) global.handleMessage('mouseEmulationOn');
+      return true;
     } else {
       mouseEmulationActive = false;
       mouseEmulationOwner = null;
       releaseMouseEmulationButtons();
       if (global.handleMessage) global.handleMessage('mouseEmulationOff');
+      return true;
     }
   }
 
@@ -1501,15 +1505,16 @@
         startHoldTimers[index] = global.setTimeout(function() {
           delete startHoldTimers[index];
           startHoldTriggered[index] = true;
-          setMouseEmulationActive(!mouseEmulationActive, index);
+          startHoldSuppress[index] = setMouseEmulationActive(!mouseEmulationActive, index);
         }, 1000);
       } else if (!startPressed && startHoldTimers[index] !== undefined) {
         global.clearTimeout(startHoldTimers[index]);
         delete startHoldTimers[index];
       } else if (!startPressed && startHoldTriggered[index]) {
         delete startHoldTriggered[index];
+        delete startHoldSuppress[index];
       }
-      if (startPressed && startHoldTriggered[index]) state.flags &= ~0x0010;
+      if (startPressed && startHoldSuppress[index]) state.flags &= ~0x0010;
     }
   }
 
