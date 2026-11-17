@@ -9,7 +9,7 @@
  *
  * Game Mode state is read from avoc_get_game_mode: mode=1 means enabled,
  * mode=0 means disabled. Its function return is a separate AVOC result.
- * The getter uses save_type=0 here to query the same setting domain used
+ * The getter uses save_type=1 here to query the same setting domain used
  * by the activation request (avoc_set_game_mode(0, 1, 1)).
  *
  * Activation uses save_type=1 (temporary source override), matching the
@@ -141,7 +141,7 @@ int ml_avoc_set_game_mode(int enabled)
         rc = s_set_game_mode(0, 1, 1);
         MLT("AVOC: avoc_set_game_mode(0, 1, 1) returned rc=%d", rc);
 
-        query_rc = query_game_mode(&current_mode);
+        query_rc = query_game_mode(1, &current_mode);
         if (query_rc != 0) {
             s_active = -1;
             MLT("AVOC: activation result is unverified because the state query failed");
