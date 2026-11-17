@@ -1408,6 +1408,11 @@
     delete startHoldTriggered[index];
   }
 
+  function resetGamepadShortcutState() {
+    for (var index = 0; index < 16; index++) clearGamepadShortcutTimers(index);
+    if (mouseEmulationActive) setMouseEmulationActive(false);
+  }
+
   function releaseMouseEmulationButtons() {
     if (mouseButtonsState.left) sendMouseButton(0, false);
     if (mouseButtonsState.middle) sendMouseButton(1, false);
@@ -1917,7 +1922,10 @@
       startupDiagnosticFinalSnapshotRequested = false;
       return request('start_session', requestParameters);
     },
-    stopStream: function() { return request('stop_session'); },
+    stopStream: function() {
+      resetGamepadShortcutState();
+      return request('stop_session');
+    },
     sendKey: sendKey,
     setStreamMenuInputBlocked: setStreamMenuInputBlocked,
     sendMouseMove: sendMouseMove,
@@ -1926,6 +1934,9 @@
     sendGamepadArrival: sendGamepadArrival,
     sendGamepadState: sendGamepadState,
     syncGamepads: syncNativeGamepads,
-    close: close
+    close: function() {
+      resetGamepadShortcutState();
+      close();
+    }
   };
 })(window);
