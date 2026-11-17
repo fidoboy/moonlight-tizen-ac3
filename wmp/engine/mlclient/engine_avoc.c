@@ -1,9 +1,11 @@
 /*
- * engine_avoc.c - isolated Samsung AVOC Game Mode integration.
+ * engine_avoc.c - Samsung AVOC Game Mode integration.
  *
- * Tizen 5.0+ exports avoc_set_game_mode with a three-argument ABI. The first
- * argument is unused by the wrapper; save_type=1 preserves/restores the
- * setting per source rather than changing it globally.
+ * Follow the working ARMv7 implementation used by WMP/moonlight-tizen50:
+ *   int avoc_set_game_mode(int save_type, int mode)
+ *
+ * save_type=1 applies a temporary source override; save_type=0 restores the
+ * stored setting. A complete off sequence sends (1,0), then (0,0).
  */
 #define _GNU_SOURCE
 #include "engine_avoc.h"
@@ -13,13 +15,13 @@
 
 #include "mltrace.h"
 
-typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
+typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
 static avoc_set_game_mode_fn s_set_game_mode;
 static int s_lookup_attempted;
-static int s_active;
+static int s_active = -1; /* -1 = unknown / retry required */
 
 static int resolve_avoc(void)
 {
@@ -49,7 +51,7 @@ static int resolve_avoc(void)
         return 0;
     }
 
-    MLT("AVOC: library loaded; avoc_set_game_mode resolved (three-argument ABI)");
+    MLT("AVOC: library loaded; avoc_set_game_mode resolved (ARM two-argument ABI)");
     return 1;
 }
 
@@ -59,9 +61,9 @@ int ml_avoc_set_game_mode(int enabled)
     int rc;
 
     pthread_mutex_lock(&s_lock);
-    if ((mode && s_active) || (!mode && !s_active)) {
+    if (s_active == mode) {
         MLT("AVOC: Game Mode already %s according to last successful API return",
-            s_active ? "enabled" : "restored");
+            mode ? "enabled" : "restored");
         pthread_mutex_unlock(&s_lock);
         return 0;
     }
@@ -71,16 +73,26 @@ int ml_avoc_set_game_mode(int enabled)
         return -1;
     }
 
-    rc = s_set_game_mode(0, 1, mode);
-    MLT("AVOC: avoc_set_game_mode(0, 1, %d) returned rc=%d", mode, rc);
-    if (rc == 0) {
-        s_active = mode;
-        MLT("AVOC: API accepted %s request; TV picture mode is not independently verified",
-            mode ? "Game Mode activation" : "source-setting restoration");
+    if (mode) {
+        rc = s_set_game_mode(1, 1);
+        MLT("AVOC: avoc_set_game_mode(1, 1) returned rc=%d", rc);
     } else {
-        MLT("AVOC: API rejected %s request rc=%d; state retained for possible retry",
+        int rc1 = s_set_game_mode(1, 0);
+        int rc0 = s_set_game_mode(0, 0);
+        rc = rc1 ? rc1 : rc0;
+        MLT("AVOC: avoc_set_game_mode(1, 0) returned rc=%d; (0, 0) returned rc=%d",
+            rc1, rc0);
+    }
+
+    s_active = rc == 0 ? mode : -1;
+    if (rc == 0) {
+        MLT("AVOC: API accepted %s request; TV picture mode is not independently verified",
+            mode ? "Game Mode activation" : "Game Mode restoration");
+    } else {
+        MLT("AVOC: API rejected %s request rc=%d; state reset for retry",
             mode ? "activation" : "restoration", rc);
     }
+
     pthread_mutex_unlock(&s_lock);
     return rc;
 }
