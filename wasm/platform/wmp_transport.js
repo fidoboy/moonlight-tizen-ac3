@@ -1272,6 +1272,16 @@
   var lastSentGamepadFlags = Object.create(null);
   var streamMenuInputBlocked = false;
   var gamepadNeutralRequired = Object.create(null);
+  var mouseEmulationEnabled = false;
+  var selectHoldStreamMenuEnabled = false;
+  var mouseEmulationActive = false;
+  var mouseEmulationOwner = null;
+  var selectHoldTimers = Object.create(null);
+  var selectHoldTriggered = Object.create(null);
+  var startHoldTimers = Object.create(null);
+  var startHoldTriggered = Object.create(null);
+  var mouseButtonsState = {left: false, middle: false, right: false};
+
 
   function isNeutralGamepadState(flags, buttons, axes) {
     if (flags !== 0) return false;
@@ -1290,6 +1300,8 @@
     streamMenuInputBlocked = nextState;
 
     if (nextState) {
+      for (var shortcutIndex = 0; shortcutIndex < 16; shortcutIndex++) clearGamepadShortcutTimers(shortcutIndex);
+      if (mouseEmulationActive) setMouseEmulationActive(false);
       // Release every browser-forwarded input before the menu takes ownership.
       releasePressedKeys();
       lastMouseX = null;
@@ -1383,6 +1395,119 @@
     }, GAMEPAD_SEND_INTERVAL_MS);
   }
 
+  function clearGamepadShortcutTimers(index) {
+    if (selectHoldTimers[index] !== undefined) {
+      global.clearTimeout(selectHoldTimers[index]);
+      delete selectHoldTimers[index];
+    }
+    if (startHoldTimers[index] !== undefined) {
+      global.clearTimeout(startHoldTimers[index]);
+      delete startHoldTimers[index];
+    }
+    delete selectHoldTriggered[index];
+    delete startHoldTriggered[index];
+  }
+
+  function releaseMouseEmulationButtons() {
+    if (mouseButtonsState.left) sendMouseButton(0, false);
+    if (mouseButtonsState.middle) sendMouseButton(1, false);
+    if (mouseButtonsState.right) sendMouseButton(2, false);
+    mouseButtonsState = {left: false, middle: false, right: false};
+  }
+
+  function setMouseEmulationActive(active, owner) {
+    if (active === mouseEmulationActive) return;
+    if (active) {
+      if (!mouseEmulationEnabled || streamMenuInputBlocked ||
+          typeof global.isGamepadMouseEmulationReady !== 'function' ||
+          !global.isGamepadMouseEmulationReady()) return;
+      mouseEmulationActive = true;
+      mouseEmulationOwner = owner;
+      if (global.handleMessage) global.handleMessage('mouseEmulationOn');
+    } else {
+      mouseEmulationActive = false;
+      mouseEmulationOwner = null;
+      releaseMouseEmulationButtons();
+      if (global.handleMessage) global.handleMessage('mouseEmulationOff');
+    }
+  }
+
+  function updateMouseEmulation(state) {
+    var leftX = state.lsX / 32767;
+    var leftY = state.lsY / 32767;
+    var leftMagnitude = Math.min(1, Math.sqrt(leftX * leftX + leftY * leftY));
+    var mouseSpeed = 10 * leftMagnitude;
+    var deltaX = Math.round(leftX * mouseSpeed);
+    var deltaY = Math.round(-leftY * mouseSpeed);
+    if (deltaX || deltaY) sendMouseMove(deltaX, deltaY);
+
+    var rightX = state.rsX / 32767;
+    var rightY = state.rsY / 32767;
+    var scrollMagnitude = Math.min(1, Math.sqrt(rightX * rightX + rightY * rightY));
+    var scroll = Math.round(-rightY * scrollMagnitude);
+    if (scroll) sendMouseScroll(scroll);
+
+    var nextButtons = {
+      left: !!(state.flags & (0x1000 | 0x0100)),
+      middle: !!(state.flags & (0x4000 | 0x8000)),
+      right: !!(state.flags & (0x2000 | 0x0200))
+    };
+    if (nextButtons.left !== mouseButtonsState.left) sendMouseButton(0, nextButtons.left);
+    if (nextButtons.middle !== mouseButtonsState.middle) sendMouseButton(1, nextButtons.middle);
+    if (nextButtons.right !== mouseButtonsState.right) sendMouseButton(2, nextButtons.right);
+    mouseButtonsState = nextButtons;
+  }
+
+  function handleGamepadShortcuts(index, buttons, state) {
+    var selectPressed = Number(buttons[8] || 0) > 0.5;
+    var startPressed = Number(buttons[9] || 0) > 0.5;
+
+    if (selectHoldStreamMenuEnabled) {
+      if (selectPressed && selectHoldTimers[index] === undefined &&
+          !selectHoldTriggered[index]) {
+        selectHoldTimers[index] = global.setTimeout(function() {
+          delete selectHoldTimers[index];
+          selectHoldTriggered[index] = true;
+          if (!streamMenuInputBlocked && typeof global.openStreamMenuFromGamepad === 'function') {
+            global.openStreamMenuFromGamepad();
+          }
+        }, 1000);
+      } else if (!selectPressed && selectHoldTimers[index] !== undefined) {
+        global.clearTimeout(selectHoldTimers[index]);
+        delete selectHoldTimers[index];
+        if (!selectHoldTriggered[index] && browserGamepadInputActive()) {
+          var pulseState = Object.assign({}, state, {flags: state.flags | 0x0020});
+          queueGamepadState(index, pulseState, true);
+          global.setTimeout(function() {
+            if (!streamMenuInputBlocked && browserGamepadInputActive()) {
+              queueGamepadState(index, state, true);
+            }
+          }, 50);
+        }
+      } else if (!selectPressed && selectHoldTriggered[index]) {
+        delete selectHoldTriggered[index];
+      }
+      if (selectPressed) state.flags &= ~0x0020;
+    }
+
+    if (mouseEmulationEnabled) {
+      if (startPressed && startHoldTimers[index] === undefined &&
+          !startHoldTriggered[index]) {
+        startHoldTimers[index] = global.setTimeout(function() {
+          delete startHoldTimers[index];
+          startHoldTriggered[index] = true;
+          setMouseEmulationActive(!mouseEmulationActive, index);
+        }, 1000);
+      } else if (!startPressed && startHoldTimers[index] !== undefined) {
+        global.clearTimeout(startHoldTimers[index]);
+        delete startHoldTimers[index];
+      } else if (!startPressed && startHoldTriggered[index]) {
+        delete startHoldTriggered[index];
+      }
+      if (startPressed && startHoldTriggered[index]) state.flags &= ~0x0010;
+    }
+  }
+
   function nativeInputActive() {
     var state = global.getStreamingEngineState && global.getStreamingEngineState();
     return !!state && state.active === 'ESPLUSPLAYER' && state.confirmed === true;
@@ -1439,6 +1564,8 @@
     var index = Number(detail.gamepadIndex);
     if (!Number.isInteger(index) || index < 0 || index > 15) return;
     nativeGamepadMask &= ~(1 << index);
+    clearGamepadShortcutTimers(index);
+    if (mouseEmulationOwner === index) setMouseEmulationActive(false);
     if (gamepadSendTimers[index] !== undefined) {
       global.clearTimeout(gamepadSendTimers[index]);
       delete gamepadSendTimers[index];
@@ -1497,20 +1624,26 @@
       delete gamepadNeutralRequired[index];
     }
 
-    function axis(index) {
-      var value = Number(axes[index] || 0);
+    function axis(axisIndex) {
+      var value = Number(axes[axisIndex] || 0);
       return Math.max(-32768, Math.min(32767, Math.round(value * 32767)));
     }
+    var gamepadState = {
+      flags: flags,
+      leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
+      rightTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
+      lsX: axis(0),
+      lsY: -axis(1),
+      rsX: axis(2),
+      rsY: -axis(3)
+    };
+    handleGamepadShortcuts(index, buttons, gamepadState);
+    if (mouseEmulationActive) {
+      updateMouseEmulation(gamepadState);
+      return;
+    }
     if (!streamMenuInputBlocked && browserGamepadInputActive()) {
-      queueGamepadState(index, {
-        flags: flags,
-        leftTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[6] || 0))) * 255),
-        rightTrigger: Math.round(Math.max(0, Math.min(1, Number(buttons[7] || 0))) * 255),
-        lsX: axis(0),
-        lsY: -axis(1),
-        rsX: axis(2),
-        rsY: -axis(3)
-      }, false);
+      queueGamepadState(index, gamepadState, false);
     }
   }
 
@@ -1768,6 +1901,12 @@
       var requestParameters = {};
       nativeInputCapabilities = 0;
       nativeGamepadMask = 0;
+      mouseEmulationEnabled = parameters && parameters.mouseEmulation === true;
+      selectHoldStreamMenuEnabled = parameters && parameters.selectHoldStreamMenu === true;
+      mouseEmulationActive = false;
+      mouseEmulationOwner = null;
+      mouseButtonsState = {left: false, middle: false, right: false};
+      for (var shortcutIndex = 0; shortcutIndex < 16; shortcutIndex++) clearGamepadShortcutTimers(shortcutIndex);
       if (parameters && typeof parameters === 'object') {
         Object.keys(parameters).forEach(function(key) {
           requestParameters[key] = parameters[key];
