@@ -105,9 +105,9 @@ static void set_tv_game_mode(int enabled) {
   } else if (!g_avoc_set_game_mode) {
     MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
   } else {
-    int mode = 0;
-    MLT("AVOC: calling avoc_set_game_mode(unused=0, save_type=1, mode=%d)", mode);
-    int rc = g_avoc_set_game_mode(0, 1, mode);
+    int rc = g_avoc_set_game_mode(0, 1, enabled ? 1 : 0);
+    MLT("AVOC: avoc_set_game_mode(unused=0, save_type=1, mode=%d) returned rc=%d",
+        enabled ? 1 : 0, rc);
     MLT("AVOC: avoc_set_game_mode returned rc=%d", rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
@@ -729,9 +729,8 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
       hdr, audio_config ? audio_config : "(null)", full_range, audio_enabled != 0);
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
-  int game_mode_requested = game_mode != 0;
-  __atomic_store_n(&g_game_mode_requested, game_mode_requested, __ATOMIC_RELEASE);
-  MLT("TV Game Mode requested=%d", game_mode_requested);
+  __atomic_store_n(&g_game_mode_requested, game_mode != 0, __ATOMIC_RELEASE);
+  MLT("TV Game Mode requested=%d", game_mode != 0);
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
