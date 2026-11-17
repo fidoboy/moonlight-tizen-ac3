@@ -342,8 +342,6 @@ namespace MoonlightWmpHost
                 invalidField = "performanceStats";
             else if (!TryBool(Arg(bundle, "gameMode"), out value.GameMode))
                 invalidField = "gameMode";
-            else if (!TryBool(Arg(bundle, "disableWarnings"), out value.DisableWarnings))
-                value.DisableWarnings = 0; // Older Web clients default to EMSS-compatible warnings.
             else if (value.Width <= 0) invalidField = "w";
             else if (value.Height <= 0) invalidField = "h";
             else if (value.Fps <= 0) invalidField = "fps";
@@ -353,6 +351,10 @@ namespace MoonlightWmpHost
                      value.VideoCodec != "AV1") invalidField = "videoCodec";
             else if (value.AudioConfig != "Stereo" && value.AudioConfig != "51Surround" &&
                      value.AudioConfig != "71Surround") invalidField = "audioConfig";
+
+            // Optional for older Web clients; default to the EMSS behavior (warnings enabled).
+            if (!TryBool(Arg(bundle, "disableWarnings"), out value.DisableWarnings))
+                value.DisableWarnings = 0;
 
             if (!TryBool(Arg(bundle, "debugMode"), out value.DebugMode))
                 value.DebugMode = 0; // Optional: older Web clients do not send this field.
@@ -684,7 +686,7 @@ namespace MoonlightWmpHost
                 string message = status == 0
                     ? "NoWarningMsg: Connection to PC has been improved."
                     : status == 1
-                        ? "WarningMsg: Slow connection to PC.\\nReduce your bitrate!"
+                        ? "WarningMsg: Slow connection to PC.\nReduce your bitrate!"
                         : null;
                 if (message == null) return;
 
