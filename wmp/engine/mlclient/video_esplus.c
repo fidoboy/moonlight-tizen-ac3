@@ -567,7 +567,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_base_pts_us = du->presentationTimeUs;
         s_have_base = 1;
     }
-    if (esplus_cfg.latency_mode == ESPLUS_LAT_ARRIVAL) {
+    if (esplus_lat_mode() == ESPLUS_LAT_ARRIVAL) {
         uint64_t now = esplus_mono_ms();
         if (!s_have_arrival) {
             s_arrival_base_ms = now;
@@ -577,7 +577,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
     } else {
         /* Common C timestamps are microseconds; ESPlus timing is milliseconds. */
         pts_ms = (int64_t)((du->presentationTimeUs - s_base_pts_us) / 1000ull);
-        if (esplus_cfg.latency_mode == ESPLUS_LAT_NUDGE)
+        if (esplus_lat_mode() == ESPLUS_LAT_NUDGE)
             pts_ms -= esplus_correction_ms();
     }
     if (pts_ms < 0) pts_ms = 0;
