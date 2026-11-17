@@ -108,6 +108,8 @@ typedef struct ml_engine_stream_info {
   uint32_t video_hdr_active; /* 1 only after ESPlus accepts an HDR-active HEVC Main10 packet. */
 } ml_engine_stream_info;
 int ml_engine_get_stream_info(ml_engine_stream_info *out);
+/* 1 once ESPlus has started and accepted video output; used for displayVideo. */
+int ml_engine_video_ready(void);
 /* Bitmask: 1=evdev keyboard, 2=evdev mouse, 4=evdev gamepad. */
 int ml_engine_input_capabilities(void);
 /* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */
