@@ -27,7 +27,6 @@ extern void VidEsplus_FillCallbacks(PDECODER_RENDERER_CALLBACKS cb);
 extern void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS cb);  /* audio_opus.c */
 extern void AudEsplus_SetDolbyPassthroughEnabled(int enabled);      /* audio_opus.c */
 extern int AudEsplus_GetActiveAudioCodec(void);
-extern void AudEsplus_CompleteStartupHandover(void);
 
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
@@ -447,14 +446,6 @@ int ml_engine_get_encryption_status(void) {
 
 int ml_engine_video_ready(void) {
   return esplus_video_ready();
-}
-
-int ml_engine_complete_startup_audio_handover(void) {
-  if (!__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) || !esplus_video_ready())
-    return -1;
-  AudEsplus_CompleteStartupHandover();
-  MLT("startup audio handover completed after transition layer disappeared");
-  return 0;
 }
 
 int ml_engine_input_capabilities(void) {
