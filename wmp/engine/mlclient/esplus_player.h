@@ -3,6 +3,7 @@
 
 #include "wmp_esplus_adapter.h"
 
+int esplus_detect_abi_family(void);
 int esplus_create_open(void);
 int esplus_set_video_info(const wmp_esplus_video_info_t *info);
 int esplus_set_audio_info(const wmp_esplus_audio_info_t *info);
