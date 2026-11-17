@@ -1621,6 +1621,11 @@
       return;
     }
     if (flags === (0x0020 | 0x0100 | 0x0200 | 0x4000)) {
+      if (selectHoldTimers[index] !== undefined) {
+        global.clearTimeout(selectHoldTimers[index]);
+        delete selectHoldTimers[index];
+      }
+      delete selectHoldTriggered[index];
       request('toggle_stats').catch(function() {});
       return;
     }
