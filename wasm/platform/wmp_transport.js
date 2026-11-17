@@ -1466,6 +1466,12 @@
     mouseEmulationTimer = global.setTimeout(function() {
       mouseEmulationTimer = null;
       if (!mouseEmulationActive || streamMenuInputBlocked) return;
+      if (!nativeInputActive() ||
+          typeof global.isGamepadMouseEmulationReady !== 'function' ||
+          !global.isGamepadMouseEmulationReady()) {
+        setMouseEmulationActive(false);
+        return;
+      }
       if (mouseEmulationLastState) updateMouseEmulation(mouseEmulationLastState);
       scheduleMouseEmulationTick();
     }, 16);
