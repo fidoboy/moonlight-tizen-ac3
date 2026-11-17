@@ -15,7 +15,6 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
-extern void ml_engine_notify_video_ready(void);
 
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
@@ -619,7 +618,6 @@ static int VidDecSubmit(PDECODE_UNIT du)
             /* Video readiness controls the UI transition only. Synthetic audio
              * remains active until the WebApp confirms that the transition has
              * completely disappeared and explicitly requests the handover. */
-            ml_engine_notify_video_ready();
         }
     }
     if (s_video_units == 1)
