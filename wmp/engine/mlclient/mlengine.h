@@ -64,6 +64,11 @@ void ml_engine_diag_log(const char *line);
 typedef void (*ml_engine_stage_cb)(int stage, const char *name);
 void ml_engine_set_stage_cb(ml_engine_stage_cb cb);
 
+/* Live Common C connection-quality notifications (0=okay, 1=poor). */
+typedef void (*ml_engine_connection_status_cb)(int status);
+void ml_engine_set_connection_status_cb(ml_engine_connection_status_cb cb);
+void ml_engine_set_connection_warnings_enabled(int enabled);
+
 /* Select whether the WMP audio renderer may advertise optional AC-3/E-AC-3
  * passthrough during the next session's RTSP negotiation. */
 void ml_engine_set_dolby_passthrough_enabled(int enabled);
