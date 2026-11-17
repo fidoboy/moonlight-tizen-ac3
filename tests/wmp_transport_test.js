@@ -324,6 +324,38 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_selectHoldStreamMenu, 'true',
     'the native transport must receive the Select long-press preference');
 
+  // Undocumented combinations must pass through without opening UI or toggling stats.
+  const menuEventsBeforeUnreservedCombos = handledEvents.filter(event => event === 'openStreamMenuFromGamepad').length;
+  const statsRequestsBeforeUnreservedCombos = pendingMessages.filter(message => message.command === 'toggle_stats').length;
+  const bothStickButtons = nativeNeutralButtons.slice();
+  bothStickButtons[10] = 1;
+  bothStickButtons[11] = 1;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: bothStickButtons, axes: [0, 0, 0, 0]}
+  });
+  assert.strictEqual(
+    handledEvents.filter(event => event === 'openStreamMenuFromGamepad').length,
+    menuEventsBeforeUnreservedCombos,
+    'pressing both stick buttons must not open the stream menu');
+  const oldStatsCombo = nativeNeutralButtons.slice();
+  oldStatsCombo[8] = 1;
+  oldStatsCombo[4] = 1;
+  oldStatsCombo[5] = 1;
+  oldStatsCombo[2] = 1;
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: oldStatsCombo, axes: [0, 0, 0, 0]}
+  });
+  window.dispatchEvent({
+    type: 'esplusgamepadstate',
+    detail: {gamepadIndex: 0, buttons: nativeNeutralButtons, axes: [0, 0, 0, 0]}
+  });
+  assert.strictEqual(
+    pendingMessages.filter(message => message.command === 'toggle_stats').length,
+    statsRequestsBeforeUnreservedCombos,
+    'the undocumented gamepad statistics combination must not be intercepted');
+
   // Native Select long-press must open the existing stream menu.
   window.dispatchEvent({
     type: 'esplusgamepadconnected',
