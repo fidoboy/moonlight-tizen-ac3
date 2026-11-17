@@ -12,12 +12,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <dlfcn.h>
-#include <pthread.h>
 
 #include "Limelight.h"
 #include "errors.h"
 #include "esplus_stats.h"
 #include "esplus_player.h"
+#include "engine_avoc.h"
 #include "mlengine.h"
 #include "mldiag.h"
 #include "mltrace.h"
@@ -31,95 +31,6 @@ extern int AudEsplus_GetActiveAudioCodec(void);
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 
-/* Samsung's internal AVOC entry point controls the TV picture Game Mode.
- * It is optional firmware functionality: failure to load it must never block
- * a Moonlight session. Keep the library loaded for the process lifetime.
- *
- * ABI note: the Tizen 6.0 libavoc.so wrapper takes three C arguments; the
- * disassembly shows that it forwards arguments 2 and 3 to the D-Bus (ii)
- * request and does not use argument 1. Older firmware (notably Tizen 5.x)
- * may expose a two-argument ABI instead. If Tizen 5 compatibility is added,
- * detect/select the ABI explicitly and provide separate call signatures,
- * following the set_... and add_... compatibility pattern used by ESPlus Player.
- * Do not assume this Tizen 6.0 prototype is valid across firmware families. */
-typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
-static pthread_mutex_t g_game_mode_lock = PTHREAD_MUTEX_INITIALIZER;
-static void *g_avoc_library;
-static avoc_set_game_mode_fn g_avoc_set_game_mode;
-static int g_avoc_lookup_attempted;
-static int g_game_mode_active;
-static int g_game_mode_requested;
-
-static void set_tv_game_mode(int enabled) {
-  pthread_mutex_lock(&g_game_mode_lock);
-  int requested = __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE);
-  MLT("TV Game Mode: transition requested=%d preference=%d current_api_state=%d",
-      enabled, requested, g_game_mode_active);
-
-  if (enabled && !requested) {
-    MLT("TV Game Mode: activation skipped (disabled in session settings)");
-    pthread_mutex_unlock(&g_game_mode_lock);
-    return;
-  }
-  if ((enabled && g_game_mode_active) ||
-      (!enabled && !g_game_mode_active)) {
-    MLT("TV Game Mode: no API call needed (already %s)",
-        g_game_mode_active ? "active according to AVOC return status" : "inactive");
-    pthread_mutex_unlock(&g_game_mode_lock);
-    return;
-  }
-
-  if (!g_avoc_lookup_attempted) {
-    g_avoc_lookup_attempted = 1;
-
-    dlerror(); /* Discard any error left by an earlier dynamic-loader operation. */
-    g_avoc_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
-    const char *load_error = dlerror();
-    if (!g_avoc_library) {
-      MLT("AVOC: dlopen(libavoc.so) FAILED: %s",
-          load_error ? load_error : "no dynamic-loader diagnostic");
-    } else {
-      MLT("AVOC: dlopen(libavoc.so) SUCCEEDED handle=%p", g_avoc_library);
-      dlerror(); /* dlsym errors must be read immediately after dlsym. */
-      *(void **)(&g_avoc_set_game_mode) =
-          dlsym(g_avoc_library, "avoc_set_game_mode");
-      const char *symbol_error = dlerror();
-      if (symbol_error || !g_avoc_set_game_mode) {
-        MLT("AVOC: dlsym(avoc_set_game_mode) FAILED: %s",
-            symbol_error ? symbol_error : "symbol address is NULL");
-        dlclose(g_avoc_library);
-        g_avoc_library = NULL;
-      } else {
-        MLT("AVOC: symbol avoc_set_game_mode RESOLVED address=%p",
-            (void *)g_avoc_set_game_mode);
-      }
-    }
-  } else {
-    MLT("AVOC: reusing cached lookup library=%s symbol=%s",
-        g_avoc_library ? "loaded" : "unavailable",
-        g_avoc_set_game_mode ? "resolved" : "unavailable");
-  }
-
-  if (!g_avoc_library) {
-    MLT("TV Game Mode: cannot change state (libavoc.so unavailable)");
-  } else if (!g_avoc_set_game_mode) {
-    MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
-  } else {
-    int mode = enabled ? 1 : 0;
-    int rc = g_avoc_set_game_mode(0, 0, mode);
-    MLT("AVOC: avoc_set_game_mode(unused=0, save_type=0, mode=%d) returned rc=%d",
-        mode, rc);
-    if (rc == 0) {
-      g_game_mode_active = enabled;
-      MLT("TV Game Mode: AVOC API reported %s; actual TV picture mode is NOT independently verified",
-          enabled ? "success enabling" : "success restoring");
-    } else {
-      MLT("TV Game Mode: AVOC API reported failure transition=%s rc=%d",
-          enabled ? "enable" : "restore", rc);
-    }
-  }
-  pthread_mutex_unlock(&g_game_mode_lock);
-}
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
 extern unsigned input_get_capabilities(void);
@@ -128,30 +39,6 @@ extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned s
                            SERVER_INFORMATION *si, const char *datadir);
 
 static volatile int g_running;   /* 1 while a session is up */
-static volatile int g_game_mode_startup_activated;
-
-/* Called by the ESPlus audio/video sinks after their first real packet is
- * accepted. Activate only once the player has also completed start(). */
-static void maybe_activate_tv_game_mode(void) {
-  int expected = 0;
-  if (!__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) ||
-      !esplus_video_ready() ||
-      (g_audio_enabled && !AudEsplus_GetActiveAudioCodec()))
-    return;
-  if (__atomic_compare_exchange_n(&g_game_mode_startup_activated, &expected, 1,
-                                  0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-    MLT("TV Game Mode: startup playback readiness reached (ESPlus started, video submitted, real audio accepted)");
-    set_tv_game_mode(1);
-  }
-}
-
-void ml_engine_notify_video_ready(void) {
-  maybe_activate_tv_game_mode();
-}
-
-void ml_engine_notify_audio_ready(void) {
-  maybe_activate_tv_game_mode();
-}
 static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 static char g_host[256];         /* si.address is held by moonlight-common-c for the
                                     session, so the host string must outlive the call */
@@ -243,7 +130,7 @@ static void cl_stageFailed(int stage, int errorCode) {
 static void cl_connTerminated(int errorCode) {
   MLT("connectionTerminated err=%d", errorCode);
   if (errorCode != 0) report_failure(errorCode, -1);   /* before g_running = 0: the host reads it after */
-  set_tv_game_mode(0);
+  ml_avoc_set_game_mode(0);
   __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
 }
 /* moonlight-common-c can emit high-frequency packet diagnostics. Keep every
@@ -367,8 +254,14 @@ static int start_connection(void) {
    * connectionTerminated may be called from a renderer callback as soon as
    * LiStartConnectionEx starts processing. Setting g_running after the call
    * could overwrite that termination and leave the host worker running forever. */
-  __atomic_store_n(&g_game_mode_startup_activated, 0, __ATOMIC_RELEASE);
   __atomic_store_n(&g_running, 1, __ATOMIC_RELEASE);
+  /* Resolve the ESPlus family before connection callbacks can create the player.
+   * AVOC uses this same ADD/SET split to select its native function prototype. */
+  int avoc_family = esplus_detect_abi_family();
+  ml_avoc_set_abi_family((wmp_esplus_family_e)avoc_family);
+  MLT("AVOC: selected ABI family=%s",
+      wmp_esplus_family_name((wmp_esplus_family_e)avoc_family));
+
   int err = LiStartConnectionEx(&g_si, &g_sc, &cl, &dr, arCallbacks, NULL, 0, NULL, 0,
                                 g_audio_enabled);
   if (err != 0) {
@@ -379,8 +272,12 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
-  /* Game Mode is deferred until ESPlus has started and accepted real audio
-   * and video packets. LiStartConnectionEx() only establishes the transport. */
+  /* Request Game Mode as soon as connection startup succeeds. */
+  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
+      __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
+    MLT("TV Game Mode: requesting activation immediately after LiStartConnectionEx");
+    ml_avoc_set_game_mode(1);
+  }
 
   int in = input_init();
   MLT("input_init -> %d", in);
@@ -681,7 +578,7 @@ void ml_engine_wait(void) {
 
 void ml_engine_stop(void) {
   MLT("ml_engine_stop started=%d", g_started);
-  set_tv_game_mode(0);
+  ml_avoc_set_game_mode(0);
   g_running = 0;
   if (!g_started) { MLT("ml_engine_stop -> nothing to stop"); return; }
   g_started = 0;
