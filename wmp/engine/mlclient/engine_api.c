@@ -105,9 +105,10 @@ static void set_tv_game_mode(int enabled) {
   } else if (!g_avoc_set_game_mode) {
     MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
   } else {
-    int rc = g_avoc_set_game_mode(0, 1, enabled ? 1 : 0);
+    int mode = enabled ? 2 : 0;
+    int rc = g_avoc_set_game_mode(0, 1, mode);
     MLT("AVOC: avoc_set_game_mode(unused=0, save_type=1, mode=%d) returned rc=%d",
-        enabled ? 1 : 0, rc);
+        mode, rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
       MLT("TV Game Mode: AVOC API reported %s; actual TV picture mode is NOT independently verified",
