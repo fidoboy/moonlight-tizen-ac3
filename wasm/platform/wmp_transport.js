@@ -499,8 +499,7 @@
         // a full snapshot here, which would flood MessagePort during initialization.
         debugLog('native StartSessionV2 call returned; incremental diagnostics remain active', {});
       } else if (message.event === 'displayVideo') {
-        // The native host emits displayVideo only after ml_engine_video_ready()
-        // confirms that the video pipeline is producing output.
+        // The native host emits displayVideo after confirming that video output is ready.
         startupDiagnosticTerminalEventSeen = true;
         stopStartupDiagnosticPolling('video_ready');
         startupDiagnosticFinalSnapshotRequested = false;
