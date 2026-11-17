@@ -780,9 +780,6 @@ namespace MoonlightWmpHost
                     case "toggle_stats":
                         ToggleStats(appId, remotePort, id);
                         return;
-                    case "complete_startup_audio_handover":
-                        CompleteStartupAudioHandover(appId, remotePort, id);
-                        return;
                     case "start_session":
                         StartSession(bundle, appId, remotePort, id);
                         return;
@@ -799,26 +796,6 @@ namespace MoonlightWmpHost
             {
                 Log.Error("WMP MessagePort request failed: " + ex);
             }
-        }
-
-        private static void CompleteStartupAudioHandover(string appId, string remotePort, string id)
-        {
-            if (_engine == null || _engine.Running() == 0)
-            {
-                Respond(appId, remotePort, id, "error", "{\"error\":\"session_not_running\"}");
-                return;
-            }
-            if (_engine.VideoReady() == 0)
-            {
-                Respond(appId, remotePort, id, "error", "{\"error\":\"video_not_ready\"}");
-                return;
-            }
-
-            int result = _engine.CompleteStartupAudioHandover();
-            if (result == 0)
-                Respond(appId, remotePort, id, "ok", "{\"audioHandover\":true}");
-            else
-                Respond(appId, remotePort, id, "error", "{\"error\":\"audio_handover_rejected\",\"code\":" + result.ToString(CultureInfo.InvariantCulture) + "}");
         }
 
         private static void ToggleStats(string appId, string remotePort, string id)
