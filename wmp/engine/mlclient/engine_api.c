@@ -11,6 +11,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
+#include <errno.h>
 #include <dlfcn.h>
 
 #include "Limelight.h"
@@ -32,6 +34,60 @@ static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 static int g_game_mode_requested;
 static int g_game_mode_retry_pending; /* retry only AVOC's transient -2 response */
+static pthread_t g_game_mode_retry_thread;
+static int g_game_mode_retry_thread_started;
+static volatile int g_game_mode_retry_stop;
+
+/* The .NET host does not drive ml_engine_wait() as a blocking session loop. */
+static void *game_mode_retry_worker(void *unused) {
+  (void)unused;
+  MLT("TV Game Mode: retry worker started (interval=2000ms)");
+  while (!__atomic_load_n(&g_game_mode_retry_stop, __ATOMIC_ACQUIRE) &&
+         __atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE) &&
+         __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) &&
+         __atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
+    struct timespec ts = {2, 0};
+    while (nanosleep(&ts, &ts) != 0 && errno == EINTR) {
+      if (__atomic_load_n(&g_game_mode_retry_stop, __ATOMIC_ACQUIRE)) break;
+    }
+    if (__atomic_load_n(&g_game_mode_retry_stop, __ATOMIC_ACQUIRE) ||
+        !__atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE) ||
+        !__atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) ||
+        !__atomic_load_n(&g_running, __ATOMIC_ACQUIRE))
+      break;
+    MLT("TV Game Mode: retrying activation after transient rc=-2");
+    int rc = ml_avoc_set_game_mode(1);
+    if (rc != -2) {
+      __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
+      MLT("TV Game Mode: retry sequence finished with rc=%d; periodic retry disabled", rc);
+      break;
+    }
+    MLT("TV Game Mode: TV still returned rc=-2; next retry in 2 seconds");
+  }
+  MLT("TV Game Mode: retry worker stopped");
+  return NULL;
+}
+
+static void game_mode_retry_start(void) {
+  if (!__atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE)) return;
+  __atomic_store_n(&g_game_mode_retry_stop, 0, __ATOMIC_RELEASE);
+  int err = pthread_create(&g_game_mode_retry_thread, NULL, game_mode_retry_worker, NULL);
+  if (err == 0) {
+    g_game_mode_retry_thread_started = 1;
+  } else {
+    __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
+    MLT("TV Game Mode: could not start retry worker (pthread_create=%d)", err);
+  }
+}
+
+static void game_mode_retry_stop(void) {
+  __atomic_store_n(&g_game_mode_retry_stop, 1, __ATOMIC_RELEASE);
+  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
+  if (g_game_mode_retry_thread_started) {
+    pthread_join(g_game_mode_retry_thread, NULL);
+    g_game_mode_retry_thread_started = 0;
+  }
+}
 
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
@@ -272,8 +328,10 @@ static int start_connection(void) {
     MLT("TV Game Mode: requesting activation immediately after LiStartConnectionEx");
     int avoc_rc = ml_avoc_set_game_mode(1);
     __atomic_store_n(&g_game_mode_retry_pending, avoc_rc == -2, __ATOMIC_RELEASE);
-    if (avoc_rc == -2)
-      MLT("TV Game Mode: transient rc=-2; retry scheduled every 2 seconds");
+    if (avoc_rc == -2) {
+      MLT("TV Game Mode: transient rc=-2; starting independent 2-second retry worker");
+      game_mode_retry_start();
+    }
   }
 
   int in = input_init();
@@ -569,36 +627,17 @@ int ml_engine_running(void) {   /* polled every 500 ms by the host: trace only c
 }
 
 void ml_engine_wait(void) {
-  unsigned retry_ticks = 0;
   MLT("ml_engine_wait");
   while (g_running) {
     struct timespec ts = {0, 200000000};
     nanosleep(&ts, NULL);
-    if (__atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE) &&
-        __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) &&
-        __atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
-      if (++retry_ticks >= 10) { /* 10 x 200 ms = 2 seconds */
-        int rc;
-        retry_ticks = 0;
-        MLT("TV Game Mode: retrying activation after transient rc=-2");
-        rc = ml_avoc_set_game_mode(1);
-        if (rc != -2) {
-          __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
-          MLT("TV Game Mode: retry sequence finished with rc=%d; periodic retry disabled", rc);
-        } else {
-          MLT("TV Game Mode: TV still returned rc=-2; next retry in 2 seconds");
-        }
-      }
-    } else {
-      retry_ticks = 0;
-    }
   }
   MLT("ml_engine_wait -> returned");
 }
 
 void ml_engine_stop(void) {
   MLT("ml_engine_stop started=%d", g_started);
-  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
+  game_mode_retry_stop();
   g_running = 0;
   if (g_started) {
     g_started = 0;
