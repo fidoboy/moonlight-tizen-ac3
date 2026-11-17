@@ -228,7 +228,7 @@ static void ar_decodePlay(char *data, int len)
         __atomic_store_n(&s_audio_codec_active,
             __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
             __ATOMIC_RELEASE);
-    
+
     if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
         ml_engine_notify_audio_ready();
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
