@@ -131,7 +131,6 @@ static void cl_stageFailed(int stage, int errorCode) {
 static void cl_connTerminated(int errorCode) {
   MLT("connectionTerminated err=%d", errorCode);
   if (errorCode != 0) report_failure(errorCode, -1);   /* before g_running = 0: the host reads it after */
-  ml_avoc_set_game_mode(0);
   __atomic_store_n(&g_running, 0, __ATOMIC_RELEASE);
 }
 /* moonlight-common-c can emit high-frequency packet diagnostics. Keep every
