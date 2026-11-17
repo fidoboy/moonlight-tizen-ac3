@@ -75,6 +75,7 @@ function startESPlusPlayerSession(args) {
     hdr: args[26],
     fullRange: args[27],
     gameMode: !!args[28],
+    disableWarnings: args[29] === true || args[29] === 1 || args[29] === 'true',
     performanceStats: Number(args[30]) !== 0
   };
 
