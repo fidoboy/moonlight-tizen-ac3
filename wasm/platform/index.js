@@ -5501,23 +5501,6 @@ function scheduleStreamTransitionHideAfterVideoReady() {
       streamVideoReadyHideTimeout = null;
       if (generation !== streamVideoReadyHideGeneration) return;
       hideStreamTransitionBackground(function() {
-        /*
-         * hideUiLayer() has completed: stream-transition-layer is now
-         * display:none. This is the sole point where the synthetic startup
-         * audio may be replaced by subsequent host audio.
-         */
-        if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
-            !window._esplusStartupAudioHandoverRequested) {
-          window._esplusStartupAudioHandoverRequested = true;
-          if (window.ESPlusPlayerTransport &&
-              typeof window.ESPlusPlayerTransport.completeStartupAudioHandover === 'function') {
-            window.ESPlusPlayerTransport.completeStartupAudioHandover().catch(function(error) {
-              console.error('[stream] ESPlus startup audio handover failed; host audio remains blocked:', error);
-            });
-          } else {
-            console.error('[stream] ESPlus startup audio handover unavailable; host audio remains blocked.');
-          }
-        }
         if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
           onPerformanceStatsStreamTransitionHidden();
         }
