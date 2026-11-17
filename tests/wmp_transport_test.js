@@ -528,21 +528,6 @@ vm.runInNewContext(source, {
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'WarningMsg: Slow connection to PC.\\nReduce your bitrate!'}
-  ]);
-  messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
-    {key: 'type', value: 'event'},
-    {key: 'event', value: 'NoWarningMsg: Connection to PC has been improved.'}
-  ]);
-  assert.deepStrictEqual(handledEvents.slice(-2), [
-    'WarningMsg: Slow connection to PC.\\nReduce your bitrate!',
-    'NoWarningMsg: Connection to PC has been improved.'
-  ], 'native connection-quality events must reach the shared EMSS warning overlay handler');
-
-  messageListener([
-    {key: 'protocol', value: 'moonlight-wmp/1'},
-    {key: 'type', value: 'event'},
     {key: 'event', value: 'wmpPlayerError: 8193'},
     {key: 'detail', value: 'ESPlus player error 0x2001'}
   ]);
@@ -558,6 +543,21 @@ vm.runInNewContext(source, {
     {key: 'detail', value: 'ESPlusPlayer engine start failed (code -101)'}
   ]);
   assert.deepStrictEqual(handledEvents, performanceSamples.concat(['displayVideo', 'streamTerminated: -1']));
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'WarningMsg: Slow connection to PC.\\nReduce your bitrate!'}
+  ]);
+  messageListener([
+    {key: 'protocol', value: 'moonlight-wmp/1'},
+    {key: 'type', value: 'event'},
+    {key: 'event', value: 'NoWarningMsg: Connection to PC has been improved.'}
+  ]);
+  assert.deepStrictEqual(handledEvents.slice(-2), [
+    'WarningMsg: Slow connection to PC.\\nReduce your bitrate!',
+    'NoWarningMsg: Connection to PC has been improved.'
+  ], 'native connection-quality events must reach the shared EMSS warning overlay handler');
+
   assert.strictEqual(window.pendingStreamApiMessage, 'ESPlusPlayer engine start failed (code -101)');
   if (statusChangeListener) statusChangeListener(expectedServiceAppId, false);
   assert.strictEqual(handledEvents.filter(event => event === 'streamTerminated: -1').length, 1,
