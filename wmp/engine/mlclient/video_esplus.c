@@ -612,9 +612,11 @@ static int VidDecSubmit(PDECODE_UNIT du)
             if (collect_stats && submit_end_us >= submit_start_us)
                 __atomic_fetch_add(&esplus_stats.total_render_us,
                     submit_end_us - submit_start_us, __ATOMIC_RELAXED);
-            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL))
+            if (!__atomic_exchange_n(&s_first_video_submit_accepted, 1, __ATOMIC_ACQ_REL)) {
                 MLT_DIAG("first ESPlus video submit accepted size=%u pts_ns=%llu",
                          packet.size, (unsigned long long)packet.pts_ns);
+                esplus_reveal_window();
+            }
             /* Video readiness controls the UI transition only. Synthetic audio
              * remains active until the WebApp confirms that the transition has
              * completely disappeared and explicitly requests the handover. */
