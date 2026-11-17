@@ -48,6 +48,8 @@ extern esplus_cfg_t esplus_cfg;       /* read once per session in esplus_create_
  * depth_poll_ms; the host test calls it with a fake clock. */
 void esplus_sample_tick(uint64_t now_ms);
 
+/* Effective latency mode: explicit setting, or automatic 60 fps default. */
+int esplus_lat_mode(void);
 /* Latency nudge (mode nudge): ms the video sink subtracts from each PTS. Lock-free. */
 int32_t esplus_correction_ms(void);
 /* Counts sampler ticks; video uses it to skip at most one late frame per tick. */
