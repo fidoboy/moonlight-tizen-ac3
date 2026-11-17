@@ -133,7 +133,6 @@ std::atomic<bool> streamMenuInputBlocked{false};
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
 
 // Bitmask for gamepad combo buttons to toggle the performance stats overlay
-const short PERF_STATS_BUTTONS = BACK_FLAG | LB_FLAG | RB_FLAG | X_FLAG;
 
 // Flag for gamepad to track controller rumble state
 bool rumbleFeedbackSwitch = false;
@@ -153,7 +152,6 @@ std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
 std::map<int, bool> selectMenuTriggered;
 std::map<int, bool> selectButtonConsumed;
 std::map<int, std::chrono::steady_clock::time_point> selectClickPulseUntil;
-std::map<int, bool> comboTriggered;
 std::map<int, std::chrono::steady_clock::time_point> activatePressTimes;
 std::map<int, bool> activatePressTriggered;
 
@@ -347,7 +345,6 @@ void MoonlightInstance::PollGamepads() {
     selectMenuTriggered.clear();
     selectButtonConsumed.clear();
     selectClickPulseUntil.clear();
-    comboTriggered.clear();
     activatePressTimes.clear();
     activatePressTriggered.clear();
   }
@@ -423,19 +420,9 @@ void MoonlightInstance::PollGamepads() {
 
     // Check if the current button flags match the defined button combination on the gamepad
     if (buttonFlags == STOP_STREAM_BUTTONS) {
-      // Terminate the connection
+      // Terminate the connection. This is the only reserved gamepad button combination.
       stopStream();
       return;
-    } else if (buttonFlags == PERF_STATS_BUTTONS) {
-      if (!comboTriggered[gamepadID]) {
-        // Toggle performance stats overlay
-        toggleStats();
-        // Mark combo as triggered until buttons are released
-        comboTriggered[gamepadID] = true;
-      }
-    } else {
-      // Reset when buttons are released
-      comboTriggered[gamepadID] = false;
     }
 
     // Hold Select locally until the gesture is known: a short press is replayed as a
@@ -443,9 +430,9 @@ void MoonlightInstance::PollGamepads() {
     if (selectHoldStreamMenuSwitch) {
       const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
       if (selectPressed) selectClickPulseUntil.erase(gamepadID);
-      const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS || buttonFlags == PERF_STATS_BUTTONS;
+      const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS;
       if (selectPressed && reservedCombo) {
-        // Preserve the existing stop/statistics combinations; they take precedence over this shortcut.
+        // Preserve the stream-stop combination; it takes precedence over this shortcut.
         selectPressTimes.erase(gamepadID);
         if (!selectButtonConsumed[gamepadID]) {
           selectMenuTriggered[gamepadID] = false;
