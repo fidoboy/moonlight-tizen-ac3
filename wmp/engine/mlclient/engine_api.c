@@ -177,6 +177,24 @@ void ml_engine_set_stage_cb(ml_engine_stage_cb cb) {
   __atomic_store_n(&g_stage_cb, cb, __ATOMIC_RELEASE);
 }
 
+static ml_engine_connection_status_cb g_connection_status_cb;
+static int g_connection_warnings_enabled = 1;
+
+void ml_engine_set_connection_status_cb(ml_engine_connection_status_cb cb) {
+  __atomic_store_n(&g_connection_status_cb, cb, __ATOMIC_RELEASE);
+}
+
+void ml_engine_set_connection_warnings_enabled(int enabled) {
+  __atomic_store_n(&g_connection_warnings_enabled, enabled != 0, __ATOMIC_RELEASE);
+}
+
+static void cl_connectionStatusUpdate(int status) {
+  if (!__atomic_load_n(&g_connection_warnings_enabled, __ATOMIC_ACQUIRE)) return;
+  ml_engine_connection_status_cb cb =
+      __atomic_load_n(&g_connection_status_cb, __ATOMIC_ACQUIRE);
+  if (cb) cb(status);
+}
+
 void ml_engine_set_dolby_passthrough_enabled(int enabled) {
   g_dolby_passthrough_enabled = enabled != 0;
   MLT("Dolby passthrough preference %s", g_dolby_passthrough_enabled ? "enabled" : "disabled");
@@ -325,6 +343,7 @@ static int start_connection(void) {
   cl.stageComplete = cl_stageComplete;
   cl.stageFailed = cl_stageFailed;
   cl.connectionTerminated = cl_connTerminated;
+  cl.connectionStatusUpdate = cl_connectionStatusUpdate;
   cl.logMessage = cl_logMessage;
 
   MLT("LiStartConnection %dx%d@%d %dkbps fmt=0x%x audio=0x%x pkt=%d", g_sc.width, g_sc.height, g_sc.fps,
