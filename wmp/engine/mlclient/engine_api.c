@@ -34,6 +34,8 @@ static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 static int g_game_mode_requested;
 static int g_game_mode_retry_pending; /* retry only AVOC's transient -2 response */
+static volatile int g_running;   /* 1 while a session is up */
+static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 static pthread_t g_game_mode_retry_thread;
 static int g_game_mode_retry_thread_started;
 static volatile int g_game_mode_retry_stop;
@@ -96,8 +98,6 @@ extern int  gs_orchestrate(const char *host, unsigned short httpPort, unsigned s
                            int appId, const char *pin, STREAM_CONFIGURATION *sc,
                            SERVER_INFORMATION *si, const char *datadir);
 
-static volatile int g_running;   /* 1 while a session is up */
-static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 static char g_host[256];         /* si.address is held by moonlight-common-c for the
                                     session, so the host string must outlive the call */
 static uint64_t g_stream_info_last_time_ms, g_stream_info_last_video_bytes, g_stream_info_last_audio_bytes;
