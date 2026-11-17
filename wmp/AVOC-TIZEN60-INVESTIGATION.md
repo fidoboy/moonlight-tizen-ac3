@@ -39,7 +39,7 @@ The public [WMP Tizen 5.0 implementation](https://github.com/WMP/moonlight-tizen
 typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
 ```
 
-It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. Treat this as an experimental usage reference, not a complete API specification.
+It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. These calls document the behavior of that source code, but the two-argument prototype is incompatible with the three examined ARM libraries as explained in the cross-library verification below; its argument semantics are not independently validated.
 
 
 
@@ -77,10 +77,7 @@ All three functions call `avoc_init_gdbus_connections` before obtaining the prox
 
 This disassembly provides strong evidence that the **Tizen 6.0 x86 C entry point has three stack arguments**, even though the wrapper does not read the first one. In cdecl terms, the wrapper reads the second and third incoming arguments at `[ebp+0xc]` and `[ebp+0x10]`; the first slot at `[ebp+8]` is present in the call frame but unused. This is materially different from the two-argument C declaration in the Tizen 5.0 reference.
 
-The earlier version-dependent interpretation is superseded by the cross-library ARM verification above. The three examined ARM libraries share the same relevant `r1`/`r2` argument convention; do not treat the WMP two-argument declaration as evidence of a different Tizen 5.0 ABI. The following x86-specific notes describe the separately examined Tizen 6.0 x86 binary:
-- **Tizen 5.0 reference:** two C arguments, `(save_type, mode)`.
-- **Tizen 6.0 x86 disassembly:** three C arguments, with the first argument currently of unknown purpose and ignored by this wrapper; the second and third are forwarded to the two-field D-Bus method.
-- **Tizen 6.0 and later in general:** a three-argument ABI is a well-founded working hypothesis, but it has not yet been verified against additional Tizen releases or architectures. Do not treat “6.0+” as proven solely from this one Tizen 6.0 x86 binary.
+The x86 disassembly independently shows a three-slot cdecl call frame: the first incoming stack slot is unused, while the second and third are forwarded to the two-field D-Bus method. This agrees with the general distinction established by the ARM evidence: the native entry point has a first non-operational argument slot followed by the two operational arguments. The ARM and x86 observations come from different binaries and architectures; they should not be conflated into a claim that every firmware uses an identical ABI.
 
 The native C argument count must not be confused with the D-Bus method tuple. The Tizen 6.0 wrapper accepts three C arguments but forwards only two integers to `SetGameMode(ii)`. The unused first C argument is not a third D-Bus field. Conversely, the fact that the proxy method takes two D-Bus integers does not imply that the native wrapper also has a two-argument C ABI.
 
