@@ -991,12 +991,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     return result;
 }
 
-int esplus_video_ready(void)
-{
-    return __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
-           __atomic_load_n(&esplus_stats.submitted, __ATOMIC_ACQUIRE) > 0;
-}
-
 void esplus_close(void)
 {
 
