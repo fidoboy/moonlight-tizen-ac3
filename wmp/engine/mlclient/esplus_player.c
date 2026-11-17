@@ -533,6 +533,25 @@ static void on_conflict(void *context)
     MLT("ESPlus resource conflict");
 }
 
+int esplus_detect_abi_family(void)
+{
+    wmp_esplus_api_t probe_api;
+    char report[2048];
+    wmp_esplus_probe_result_e result;
+    wmp_esplus_family_e family;
+
+    memset(&probe_api, 0, sizeof(probe_api));
+    memset(report, 0, sizeof(report));
+    result = wmp_esplus_probe(&probe_api, report, sizeof(report));
+    family = result == WMP_ESPLUS_PROBE_OK
+        ? probe_api.selected_family : WMP_ESPLUS_FAMILY_NONE;
+    MLT("ESPlus ABI preflight=%s family=%s: %s",
+        wmp_esplus_probe_result_name(result),
+        wmp_esplus_family_name(family), report);
+    wmp_esplus_close(&probe_api);
+    return (int)family;
+}
+
 int esplus_create_open(void)
 {
     char report[2048];
