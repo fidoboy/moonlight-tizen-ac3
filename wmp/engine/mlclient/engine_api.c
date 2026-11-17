@@ -440,6 +440,10 @@ int ml_engine_get_active_audio_codec(void) {
   return AudEsplus_GetActiveAudioCodec();
 }
 
+int ml_engine_video_ready(void) {
+  return esplus_video_ready();
+}
+
 int ml_engine_get_encryption_status(void) {
   return LiGetEncryptionStatus();
 }
