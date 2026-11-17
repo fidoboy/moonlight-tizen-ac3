@@ -15,6 +15,7 @@ void esplus_stream_clock_reset(void);
 void esplus_stream_clock_start(void);
 uint64_t esplus_stream_clock_pts_ns(void);
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet);
+int esplus_video_ready(void);
 void esplus_close(void);
 
 #endif
