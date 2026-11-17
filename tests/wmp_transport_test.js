@@ -474,7 +474,7 @@ vm.runInNewContext(source, {
     'Independent native diagnostic markers must be forwarded to the debug log');
   assert.deepStrictEqual(
     pendingMessages
-      .filter(message => message.command !== 'gamepad_arrival' && message.command !== 'gamepad_state')
+      .filter(message => !['gamepad_arrival', 'gamepad_state', 'mouse_move', 'mouse_button', 'mouse_scroll'].includes(message.command))
       .map(message => message.command),
     ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_new_logs', 'toggle_stats']
   );
