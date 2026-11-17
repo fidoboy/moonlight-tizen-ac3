@@ -546,7 +546,7 @@ vm.runInNewContext(source, {
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
     {key: 'type', value: 'event'},
-    {key: 'event', value: 'WarningMsg: Slow connection to PC.\\nReduce your bitrate!'}
+    {key: 'event', value: 'WarningMsg: Slow connection to PC.\nReduce your bitrate!'}
   ]);
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
@@ -554,7 +554,7 @@ vm.runInNewContext(source, {
     {key: 'event', value: 'NoWarningMsg: Connection to PC has been improved.'}
   ]);
   assert.deepStrictEqual(handledEvents.slice(-2), [
-    'WarningMsg: Slow connection to PC.\\nReduce your bitrate!',
+    'WarningMsg: Slow connection to PC.\nReduce your bitrate!',
     'NoWarningMsg: Connection to PC has been improved.'
   ], 'native connection-quality events must reach the shared EMSS warning overlay handler');
 
