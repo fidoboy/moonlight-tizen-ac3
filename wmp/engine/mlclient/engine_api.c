@@ -30,6 +30,7 @@ extern int AudEsplus_GetActiveAudioCodec(void);
 
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
+static int g_game_mode_requested;
 
 extern int  input_init(void);                                      /* input_evdev.c */
 extern void input_shutdown(void);
