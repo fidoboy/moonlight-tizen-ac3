@@ -35,7 +35,7 @@ ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
 INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$CRYPTO_PREFIX/include"
 
-for src in cert_init engine_api engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
+for src in cert_init engine_api engine_avoc engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
 
