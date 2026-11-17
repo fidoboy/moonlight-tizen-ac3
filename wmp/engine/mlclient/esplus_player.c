@@ -736,6 +736,30 @@ int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
     return result_to_int(result);
 }
 
+
+static int s_window_reveal_requested;
+
+static void window_reveal_main(void *arg)
+{
+    (void)arg;
+    if (s_win && p_ecore_wl2_window_alpha_set) {
+        __atomic_store_n(&s_window_reveal_requested, 0, __ATOMIC_RELEASE);
+    ecore_wl2_window_alpha_set(s_win, 0);
+        if (s_disp) ecore_wl2_display_flush(s_disp);
+        MLT("Wayland video window revealed (alpha=1)");
+    }
+}
+
+void esplus_reveal_window(void)
+{
+    if (!s_win || !p_ecore_wl2_window_alpha_set) return;
+    if (__atomic_exchange_n(&s_window_reveal_requested, 1, __ATOMIC_ACQ_REL)) return;
+    if (ecore_main_loop_thread_safe_call_sync)
+        ecore_main_loop_thread_safe_call_sync(window_reveal_main, NULL);
+    else
+        __atomic_store_n(&s_window_reveal_requested, 0, __ATOMIC_RELEASE);
+}
+
 struct win_req { int w, h, rc; };
 
 static void *win_create_main(void *arg)
