@@ -512,12 +512,16 @@ vm.runInNewContext(source, {
   assert.ok(infoEntries.some(entry => entry[0] === '[esplusplayer/diag]' &&
     entry[1] === 'ml_log_cb video registration callback ENTER'),
     'Independent native diagnostic markers must be forwarded to the debug log');
+  const foregroundCommands = pendingMessages
+    .filter(message => !['gamepad_arrival', 'gamepad_state', 'mouse_move', 'mouse_button', 'mouse_scroll', 'get_new_logs'].includes(message.command))
+    .map(message => message.command);
   assert.deepStrictEqual(
-    pendingMessages
-      .filter(message => !['gamepad_arrival', 'gamepad_state', 'mouse_move', 'mouse_button', 'mouse_scroll'].includes(message.command))
-      .map(message => message.command),
-    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'get_new_logs', 'toggle_stats']
+    foregroundCommands,
+    ['ping', 'get_status', 'ping', 'start_session', 'ping', 'start_session', 'stop_session', 'toggle_stats'],
+    'foreground transport requests must retain their order independently of passive diagnostic polling'
   );
+  assert.ok(pendingMessages.some(message => message.command === 'get_new_logs'),
+    'incremental diagnostic retrieval must issue get_new_logs');
 
   messageListener([
     {key: 'protocol', value: 'moonlight-wmp/1'},
