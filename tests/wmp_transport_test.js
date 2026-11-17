@@ -366,6 +366,10 @@ vm.runInNewContext(source, {
   });
   assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCount,
     'the left stick must generate native mouse movement while mouse emulation is active');
+  const mouseMoveCountAfterAxisChange = pendingMessages.filter(message => message.command === 'mouse_move').length;
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCountAfterAxisChange,
+    'holding the left stick must continue generating mouse movement without further Gamepad API change events');
 
   // A second Start long-press disables mouse mode.
   window.dispatchEvent({
