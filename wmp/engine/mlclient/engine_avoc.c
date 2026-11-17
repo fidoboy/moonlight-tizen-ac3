@@ -1,9 +1,9 @@
 /*
  * engine_avoc.c - isolated Samsung AVOC Game Mode integration.
  *
- * The legacy ESPlus ADD family uses the two-argument AVOC ABI; the modern
- * SET family uses the three-argument wrapper ABI. save_type is always 1:
- * preserve/restore the setting per source rather than changing it globally.
+ * Tizen 5.0+ exports avoc_set_game_mode with a three-argument ABI. The first
+ * argument is unused by the wrapper; save_type=1 preserves/restores the
+ * setting per source rather than changing it globally.
  */
 #define _GNU_SOURCE
 #include "engine_avoc.h"
@@ -13,37 +13,20 @@
 
 #include "mltrace.h"
 
-typedef int (*avoc_set_game_mode_legacy_fn)(int save_type, int mode);
-typedef int (*avoc_set_game_mode_modern_fn)(int unused, int save_type, int mode);
+typedef int (*avoc_set_game_mode_fn)(int unused, int save_type, int mode);
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
-static avoc_set_game_mode_legacy_fn s_legacy_fn;
-static avoc_set_game_mode_modern_fn s_modern_fn;
+static avoc_set_game_mode_fn s_set_game_mode;
 static int s_lookup_attempted;
 static int s_active;
-static wmp_esplus_family_e s_family = WMP_ESPLUS_FAMILY_NONE;
-
-void ml_avoc_set_abi_family(wmp_esplus_family_e family)
-{
-    pthread_mutex_lock(&s_lock);
-    if (family != WMP_ESPLUS_FAMILY_SET && family != WMP_ESPLUS_FAMILY_ADD)
-        family = WMP_ESPLUS_FAMILY_NONE;
-    if (s_family != family) {
-        s_family = family;
-        MLT("AVOC: ABI family set to %s", wmp_esplus_family_name(s_family));
-    }
-    pthread_mutex_unlock(&s_lock);
-}
 
 static int resolve_avoc(void)
 {
     const char *error;
 
     if (s_lookup_attempted)
-        return s_library != NULL &&
-            ((s_family == WMP_ESPLUS_FAMILY_ADD && s_legacy_fn != NULL) ||
-             (s_family == WMP_ESPLUS_FAMILY_SET && s_modern_fn != NULL));
+        return s_library != NULL && s_set_game_mode != NULL;
 
     s_lookup_attempted = 1;
     (void)dlerror();
@@ -56,12 +39,9 @@ static int resolve_avoc(void)
     }
 
     (void)dlerror();
-    if (s_family == WMP_ESPLUS_FAMILY_ADD)
-        *(void **)(&s_legacy_fn) = dlsym(s_library, "avoc_set_game_mode");
-    else if (s_family == WMP_ESPLUS_FAMILY_SET)
-        *(void **)(&s_modern_fn) = dlsym(s_library, "avoc_set_game_mode");
+    *(void **)(&s_set_game_mode) = dlsym(s_library, "avoc_set_game_mode");
     error = dlerror();
-    if (error || (!s_legacy_fn && !s_modern_fn)) {
+    if (error || !s_set_game_mode) {
         MLT("AVOC: dlsym(avoc_set_game_mode) failed: %s",
             error ? error : "symbol address is NULL");
         (void)dlclose(s_library);
@@ -69,8 +49,7 @@ static int resolve_avoc(void)
         return 0;
     }
 
-    MLT("AVOC: library loaded; avoc_set_game_mode resolved for %s ABI",
-        wmp_esplus_family_name(s_family));
+    MLT("AVOC: library loaded; avoc_set_game_mode resolved (three-argument ABI)");
     return 1;
 }
 
@@ -80,12 +59,6 @@ int ml_avoc_set_game_mode(int enabled)
     int rc;
 
     pthread_mutex_lock(&s_lock);
-    if (s_family != WMP_ESPLUS_FAMILY_ADD &&
-        s_family != WMP_ESPLUS_FAMILY_SET) {
-        MLT("AVOC: request skipped; ESPlus ABI family is unknown");
-        pthread_mutex_unlock(&s_lock);
-        return -1;
-    }
     if ((mode && s_active) || (!mode && !s_active)) {
         MLT("AVOC: Game Mode already %s according to last successful API return",
             s_active ? "enabled" : "restored");
@@ -93,19 +66,13 @@ int ml_avoc_set_game_mode(int enabled)
         return 0;
     }
     if (!resolve_avoc()) {
-        MLT("AVOC: request unavailable for ABI family=%s",
-            wmp_esplus_family_name(s_family));
+        MLT("AVOC: request unavailable");
         pthread_mutex_unlock(&s_lock);
         return -1;
     }
 
-    if (s_family == WMP_ESPLUS_FAMILY_ADD)
-        rc = s_legacy_fn(1, mode);
-    else
-        rc = s_modern_fn(0, 1, mode);
-
-    MLT("AVOC: avoc_set_game_mode(%s) save_type=1 mode=%d returned rc=%d",
-        wmp_esplus_family_name(s_family), mode, rc);
+    rc = s_set_game_mode(0, 1, mode);
+    MLT("AVOC: avoc_set_game_mode(0, 1, %d) returned rc=%d", mode, rc);
     if (rc == 0) {
         s_active = mode;
         MLT("AVOC: API accepted %s request; TV picture mode is not independently verified",
