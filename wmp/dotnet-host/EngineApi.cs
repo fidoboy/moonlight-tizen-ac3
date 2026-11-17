@@ -97,6 +97,15 @@ namespace MoonlightWmpHost
         internal delegate void SetStageCallbackFn(StageCallbackFn callback);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void ConnectionStatusCallbackFn(int status);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SetConnectionStatusCallbackFn(ConnectionStatusCallbackFn callback);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void SetConnectionWarningsEnabledFn(int enabled);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate void LogCallbackFn(IntPtr line);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -172,15 +181,18 @@ namespace MoonlightWmpHost
         private delegate void EsplusCloseFn(ref EsplusApi api);
 
         private static readonly StageCallbackFn NativeStageCallback = HostProtocol.NativeStageStarting;
+        private static readonly ConnectionStatusCallbackFn NativeConnectionStatusCallback = HostProtocol.NativeConnectionStatusUpdate;
         private static readonly LogCallbackFn NativeLogCallback = HostProtocol.NativeLogLine;
         private static readonly LogCallbackFn NativeDiagnosticCallback = HostProtocol.NativeDiagnosticMarkerLine;
         private readonly SetStageCallbackFn _setStageCallback;
+        private readonly SetConnectionStatusCallbackFn _setConnectionStatusCallback;
         private readonly SetLogCallbackFn _setLogCallback;
         private readonly SetLogCallbackFn _setDiagnosticCallback;
 
         internal void EnableStageCallbacks()
         {
             _setStageCallback(NativeStageCallback);
+            _setConnectionStatusCallback(NativeConnectionStatusCallback);
             _setLogCallback(NativeLogCallback);
             _setDiagnosticCallback(NativeDiagnosticCallback);
         }
@@ -201,6 +213,7 @@ namespace MoonlightWmpHost
         internal readonly GetStreamInfoFn GetStreamInfo;
         internal readonly GetEncryptionStatusFn GetEncryptionStatus;
         internal readonly SetPerformanceStatsEnabledFn SetPerformanceStatsEnabled;
+        internal readonly SetConnectionWarningsEnabledFn SetConnectionWarningsEnabled;
         internal readonly LastErrorFn LastError;
         internal readonly StartSessionV2Fn StartSessionV2;
 
@@ -221,6 +234,8 @@ namespace MoonlightWmpHost
             if (resolve == null) throw new ArgumentNullException("resolve");
 
             _setStageCallback = Bind<SetStageCallbackFn>(resolve, "ml_engine_set_stage_cb");
+            _setConnectionStatusCallback = Bind<SetConnectionStatusCallbackFn>(
+                resolve, "ml_engine_set_connection_status_cb");
             _setLogCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_log_cb");
             _setDiagnosticCallback = Bind<SetLogCallbackFn>(resolve, "ml_engine_set_diag_cb");
             Running = Bind<RunningFn>(resolve, "ml_engine_running");
@@ -243,6 +258,8 @@ namespace MoonlightWmpHost
                 resolve, "ml_engine_get_encryption_status");
             SetPerformanceStatsEnabled = Bind<SetPerformanceStatsEnabledFn>(
                 resolve, "ml_engine_set_performance_stats_enabled");
+            SetConnectionWarningsEnabled = Bind<SetConnectionWarningsEnabledFn>(
+                resolve, "ml_engine_set_connection_warnings_enabled");
             LastError = Bind<LastErrorFn>(resolve, "ml_engine_last_error");
             StartSessionV2 = Bind<StartSessionV2Fn>(
                 resolve, "ml_engine_start_session_v2");
