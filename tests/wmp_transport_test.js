@@ -364,6 +364,12 @@ vm.runInNewContext(source, {
     'Debug builds must print each native engine log line separately');
   const statsToggle = await window.ESPlusPlayerTransport.toggleStats();
   assert.strictEqual(statsToggle.payload.enabled, true);
+  assert.ok(handledEvents.includes('StatMsg: '),
+    'the statistics toggle event must reach the WebApp overlay handler');
+  // toggleStats() legitimately emits an initial empty StatMsg. Keep that
+  // assertion separate so the following sample-forwarding test measures only
+  // the four events injected below.
+  handledEvents.length = 0;
   const performanceSamples = [
     'StatMsg: sample',
     'GraphMsg: sample',
