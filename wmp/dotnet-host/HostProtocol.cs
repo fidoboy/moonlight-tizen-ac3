@@ -32,6 +32,8 @@ namespace MoonlightWmpHost
         private static string _esplusFamily = "none";
         private static string _loadError;
         private static readonly Queue<string> StageMessages = new Queue<string>();
+        private static readonly Queue<string> ConnectionStatusMessages = new Queue<string>();
+        private static bool _connectionStatusDispatchScheduled;
         private static readonly Queue<string> DiagnosticLogs = new Queue<string>();
         private const int DiagnosticLogCapacity = 256;
         private const int DiagnosticLogLineLimit = 384;
@@ -84,6 +86,7 @@ namespace MoonlightWmpHost
             internal int OpticalOutputEnabled;
             internal int PerformanceStats;
             internal int GameMode;
+            internal int DisableWarnings;
             internal int DebugMode;
         }
 
@@ -339,6 +342,8 @@ namespace MoonlightWmpHost
                 invalidField = "performanceStats";
             else if (!TryBool(Arg(bundle, "gameMode"), out value.GameMode))
                 invalidField = "gameMode";
+            else if (!TryBool(Arg(bundle, "disableWarnings"), out value.DisableWarnings))
+                value.DisableWarnings = 0; // Older Web clients default to EMSS-compatible warnings.
             else if (value.Width <= 0) invalidField = "w";
             else if (value.Height <= 0) invalidField = "h";
             else if (value.Fps <= 0) invalidField = "fps";
@@ -667,6 +672,64 @@ namespace MoonlightWmpHost
             {
                 // Never allow a managed exception to cross the native callback ABI.
                 Log.Error("WMP stage callback failed: " + ex.Message);
+            }
+        }
+
+        // Common C callbacks may run on packet-processing threads. Queue the
+        // shared EMSS message strings and send them from a managed worker instead.
+        internal static void NativeConnectionStatusUpdate(int status)
+        {
+            try
+            {
+                string message = status == 0
+                    ? "NoWarningMsg: Connection to PC has been improved."
+                    : status == 1
+                        ? "WarningMsg: Slow connection to PC.\\nReduce your bitrate!"
+                        : null;
+                if (message == null) return;
+
+                lock (Gate)
+                {
+                    if (!_workerActive || _stopRequested ||
+                        String.IsNullOrEmpty(_stageAppId) || String.IsNullOrEmpty(_stageRemotePort))
+                        return;
+
+                    ConnectionStatusMessages.Enqueue(message);
+                    if (!_connectionStatusDispatchScheduled)
+                    {
+                        _connectionStatusDispatchScheduled = true;
+                        if (!ThreadPool.QueueUserWorkItem(DrainConnectionStatusMessages))
+                            _connectionStatusDispatchScheduled = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never allow managed exceptions to cross the native callback ABI.
+                Log.Error("WMP connection-status callback failed: " + ex.Message);
+            }
+        }
+
+        private static void DrainConnectionStatusMessages(object state)
+        {
+            while (true)
+            {
+                string message;
+                string appId;
+                string remotePort;
+                lock (Gate)
+                {
+                    if (ConnectionStatusMessages.Count == 0)
+                    {
+                        _connectionStatusDispatchScheduled = false;
+                        return;
+                    }
+                    message = ConnectionStatusMessages.Dequeue();
+                    appId = _stageAppId;
+                    remotePort = _stageRemotePort;
+                }
+                if (!String.IsNullOrEmpty(appId) && !String.IsNullOrEmpty(remotePort))
+                    Event(appId, remotePort, message, null);
             }
         }
 
@@ -1078,6 +1141,8 @@ namespace MoonlightWmpHost
                 _stopRequested = false;
                 _statsEnabled = request.PerformanceStats != 0;
                 _statsSnapshotPending = _statsEnabled;
+                ConnectionStatusMessages.Clear();
+                _connectionStatusDispatchScheduled = false;
                 Event(appId, remotePort, "StatsStateMsg: " + (_statsEnabled ? "1" : "0"), null);
                 _stageAppId = appId;
                 _stageRemotePort = remotePort;
@@ -1176,6 +1241,7 @@ namespace MoonlightWmpHost
                     request.DebugMode != 0 ? "1" : "0");
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
+                _engine.SetConnectionWarningsEnabled(request.DisableWarnings == 0 ? 1 : 0);
                 Log.Info("WMP_LIFECYCLE native_start_call_begin");
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
@@ -1362,6 +1428,8 @@ namespace MoonlightWmpHost
                     _stageAppId = null;
                     _stageRemotePort = null;
                     StageMessages.Clear();
+                    ConnectionStatusMessages.Clear();
+                    _connectionStatusDispatchScheduled = false;
                 }
                 // Deliver the final buffered host/native diagnostics before the
                 // orderly process-exit handshake closes this MessagePort.
