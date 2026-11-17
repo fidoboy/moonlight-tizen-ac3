@@ -743,8 +743,7 @@ static void window_reveal_main(void *arg)
 {
     (void)arg;
     if (s_win && p_ecore_wl2_window_alpha_set) {
-        __atomic_store_n(&s_window_reveal_requested, 0, __ATOMIC_RELEASE);
-    ecore_wl2_window_alpha_set(s_win, 0);
+        ecore_wl2_window_alpha_set(s_win, 1);
         if (s_disp) ecore_wl2_display_flush(s_disp);
         MLT("Wayland video window revealed (alpha=1)");
     }
@@ -800,7 +799,8 @@ static void *win_create_main(void *arg)
         return NULL;
     }
 
-    ecore_wl2_window_alpha_set(s_win, 1);
+    __atomic_store_n(&s_window_reveal_requested, 0, __ATOMIC_RELEASE);
+    ecore_wl2_window_alpha_set(s_win, 0);
     ecore_wl2_window_show(s_win);
     if (ecore_wl2_window_lower) ecore_wl2_window_lower(s_win);
     ecore_wl2_display_flush(s_disp);
