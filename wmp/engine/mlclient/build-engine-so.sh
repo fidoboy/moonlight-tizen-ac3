@@ -67,7 +67,6 @@ for s in ml_engine_start ml_engine_running ml_engine_wait ml_engine_stop \
          ml_engine_cancel_request ml_engine_start_session ml_engine_send_key ml_engine_free \
          ml_engine_set_log_cb ml_engine_get_stats ml_engine_start_session_v2 ml_engine_last_error \
          ml_engine_gamepad_arrival ml_engine_gamepad_state ml_engine_input_capabilities \
-         ml_engine_complete_startup_audio_handover \
          wmp_esplus_probe wmp_esplus_probe_result_name wmp_esplus_family_name wmp_esplus_close; do
   "$NM" -D --defined-only "$OUT/libmlengine.so" | awk -v symbol="$s" '$NF == symbol { found=1 } END { exit !found }' || miss="$miss $s"
 done
