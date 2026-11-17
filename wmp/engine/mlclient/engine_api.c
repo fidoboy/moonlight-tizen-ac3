@@ -105,9 +105,9 @@ static void set_tv_game_mode(int enabled) {
   } else if (!g_avoc_set_game_mode) {
     MLT("TV Game Mode: cannot change state (avoc_set_game_mode not exported)");
   } else {
-    int mode = enabled ? 2 : 0;
-    int rc = g_avoc_set_game_mode(0, 1, mode);
-    MLT("AVOC: avoc_set_game_mode(unused=0, save_type=1, mode=%d) returned rc=%d",
+    int mode = enabled ? 1 : 0;
+    int rc = g_avoc_set_game_mode(0, 0, mode);
+    MLT("AVOC: avoc_set_game_mode(unused=0, save_type=0, mode=%d) returned rc=%d",
         mode, rc);
     if (rc == 0) {
       g_game_mode_active = enabled;
