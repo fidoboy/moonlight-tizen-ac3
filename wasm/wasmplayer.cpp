@@ -549,6 +549,16 @@ MoonlightInstance::AudioTrackListener::AudioTrackListener(
 
 void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackOpen\n");
+  if (m_Instance->m_OpusPassthrough.load()) {
+    const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
+    const bool hardwareActive = activeMode &&
+      *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
+    m_Instance->m_OpusHardwareActive.store(hardwareActive);
+    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
+      hardwareActive ? "Hardware" : "Software/unknown");
+  } else {
+    m_Instance->m_OpusHardwareActive.store(false);
+  }
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_AudioStarted = true;
   m_Instance->m_EmssAudioStateChanged.notify_all();
@@ -742,22 +752,86 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           return -1;
       }
 
-      auto add_track_result = g_Instance->m_Source->AddTrack(
-        samsung::wasm::ElementaryAudioTrackConfig {
-          "audio/webm; codecs=\"pcm\"", // Pulse Code Modulation (PCM)
-          {}, // Extradata: Empty
-          samsung::wasm::DecodingMode::kHardware, // Decoding mode: Hardware
-          samsung::wasm::SampleFormat::kS16, // 16-bit signed PCM
-          channelLayout,
-          kSampleRate, // Sample Rate: 48 kHz (48000 Hz)
+      // Probe native Opus hardware support once per streaming session. The asynchronous
+      // AddTrack overload reports hardware-decoder unavailability; the legacy synchronous
+      // overload cannot report that failure.
+      const bool firstProbe = !g_Instance->m_OpusProbeAttempted.exchange(true);
+      const auto emssVersion = samsung::wasm::EmssVersionInfo::Create();
+      // Legacy EMSS lacks the AddTrack overload that reports unavailable hardware decoders.
+      // On that API generation, retain the known-good libopus 1.6.1 software path.
+      const bool supportsHardwareOpusProbe = !emssVersion.has_legacy_emss;
+      const bool shouldConfigureOpus = supportsHardwareOpusProbe &&
+        (firstProbe || g_Instance->m_OpusPassthrough.load());
+      bool useOpusPassthrough = false;
+
+      if (shouldConfigureOpus) {
+        g_Instance->m_OpusTrackAddCompleted.store(false);
+        g_Instance->m_OpusTrackAddSucceeded.store(false);
+        g_Instance->m_OpusHardwareActive.store(false);
+
+        auto addTrackRequest = g_Instance->m_Source->AddTrack(
+          samsung::wasm::ElementaryAudioTrackConfig {
+            "audio/webm; codecs=\"opus\"",
+            {},
+            samsung::wasm::DecodingMode::kHardware,
+            samsung::wasm::SampleFormat::kPlanarF32,
+            channelLayout,
+            kSampleRate,
+          },
+          [](samsung::wasm::OperationResult result, samsung::wasm::ElementaryMediaTrack track) {
+            const bool succeeded = result == samsung::wasm::OperationResult::kSuccess && track.IsValid();
+            if (succeeded) {
+              g_Instance->m_AudioTrack = std::move(track);
+              g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+            }
+            g_Instance->m_OpusTrackAddSucceeded.store(succeeded);
+            g_Instance->m_OpusTrackAddCompleted.store(true);
+            g_Instance->m_OpusTrackAddChanged.notify_all();
+          }
+        );
+
+        if (!addTrackRequest) {
+          useOpusPassthrough = false;
+        } else if (!g_Instance->WaitFor(&g_Instance->m_OpusTrackAddChanged, [] {
+          return g_Instance->m_OpusTrackAddCompleted.load();
+        }, kMediaSetupTimeout)) {
+          // Do not race a still-pending EMSS AddTrack operation by adding a second
+          // audio track. A real hardware-unavailable result is handled by the fallback below.
+          return g_Instance->m_ConnectionCancelled
+            ? -1
+            : MediaSetupWaitFailed("Opus hardware track negotiation");
+        } else {
+          useOpusPassthrough = g_Instance->m_OpusTrackAddSucceeded.load();
         }
-      );
-      if (add_track_result) {
-        g_Instance->m_AudioTrack = std::move(*add_track_result);
-        g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
-      } else {
-        ClLogMessage("The TV rejected the audio track\n");
-        return -1;
+
+        g_Instance->m_OpusPassthrough.store(useOpusPassthrough);
+        if (useOpusPassthrough) {
+          ClLogMessage("Opus passthrough probe: EMSS accepted hardware Opus track configuration\\n");
+        } else {
+          ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\\n");
+        }
+      }
+
+      if (!useOpusPassthrough) {
+        g_Instance->m_OpusPassthrough.store(false);
+        g_Instance->m_OpusHardwareActive.store(false);
+        auto add_track_result = g_Instance->m_Source->AddTrack(
+          samsung::wasm::ElementaryAudioTrackConfig {
+            "audio/webm; codecs=\"pcm\"", // PCM produced by libopus 1.6.1
+            {},
+            samsung::wasm::DecodingMode::kHardware,
+            samsung::wasm::SampleFormat::kS16,
+            channelLayout,
+            kSampleRate,
+          }
+        );
+        if (add_track_result) {
+          g_Instance->m_AudioTrack = std::move(*add_track_result);
+          g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+        } else {
+          ClLogMessage("The TV rejected the PCM fallback track; audio cannot be initialized\\n");
+          return -1;
+        }
       }
     }
   }
@@ -1409,8 +1483,15 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
 
     if (audioStreamEnabled && audioChannels > 0 &&
         std::isfinite(stats.receivedAudioBitrateKbps) && stats.receivedAudioBitrateKbps >= 0) {
-      append("Audio stream: %s (%s, %d channels, %.0f kbps)\n",
-        audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps);
+      if (ac3Negotiated || eac3Negotiated) {
+        append("Audio stream: %s (%s, %d channels, %.0f kbps)\n",
+          audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps);
+      } else {
+        const char* opusDecodingMode = g_Instance->m_OpusHardwareActive.load() ? "Hardware" : "Software";
+        append("Audio stream: %s (%s, %d channels, %.0f kbps) [%s]\n",
+          audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps,
+          opusDecodingMode);
+      }
     } else {
       append("Audio stream: -\n");
     }
