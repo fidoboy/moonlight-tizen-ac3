@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - 1.2.4-pre
+      - fix/smarthub-previews-1.2.4-pre
     paths:
       - 'docker/tizen-build-env/**'
       - 'wmp/engine/build/fetch-tizen-sources.sh'
       - 'wmp/engine/build/build-static-crypto.sh'
+      - 'docker/tizen-build-env/Dockerfile'
+      - 'scripts/build-ffmpeg.sh'
       - '.github/workflows/build-tizen-build-env.yml'
   workflow_dispatch:
   workflow_call:
