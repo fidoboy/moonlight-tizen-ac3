@@ -99,6 +99,7 @@
   "Audio configuration": "Configuration audio",
   "Audio jitter buffer": "Tampon de gigue audio",
   "Audio stream:": "Flux audio :",
+  "Audio delay:": "Délai audio :",
   "Audio synchronization": "Synchronisation audio",
   "Automatic": "Automatique",
   "Automatic (recommended)": "Automatique (recommandé)",
