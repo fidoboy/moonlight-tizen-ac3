@@ -10031,11 +10031,11 @@ function loadHTTPCertsCb() {
           hosts[hostUID] = revivedHost;
         }
         isHostsLoaded = true;
-        // Load stored preview app lists and update Smart Hub Preview tiles.
-        // Using the persisted list avoids requiring live host connections at startup.
+        // Restore the cached preview metadata only. Do not publish Smart Hub tiles
+        // during startup: host app lists have not yet been refreshed from the hosts.
+        // The normal update path runs after a host's current app list is retrieved.
         getData('previewApps', function(storedPreview) {
           _previewApps = (storedPreview.previewApps != null) ? storedPreview.previewApps : {};
-          updatePreviewData();
         });
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
