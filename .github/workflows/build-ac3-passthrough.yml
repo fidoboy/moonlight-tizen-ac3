@@ -14,6 +14,7 @@ on:
       - 'libgamestream/**'
       - 'moonlight-common-c/**'
       - 'opus/**'
+      - 'scripts/build-ffmpeg.sh'
       - 'ports/**'
       - 'wasm/**'
   pull_request:
@@ -29,6 +30,7 @@ on:
       - 'libgamestream/**'
       - 'moonlight-common-c/**'
       - 'opus/**'
+      - 'scripts/build-ffmpeg.sh'
       - 'ports/**'
       - 'wasm/**'
       - '.github/release-notes.md'
