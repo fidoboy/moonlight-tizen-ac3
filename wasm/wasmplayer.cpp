@@ -706,8 +706,8 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
 
       const bool useSoftwareDecoder = g_Instance->m_DolbyDecodingMode == "Software";
       const char* mimeType = useSoftwareDecoder
-        ? "audio/webm; codecs=\\"pcm\\""
-        : (isEac3 ? "audio/mp4; codecs=\\"ec-3\\"" : "audio/mp4; codecs=\\"ac-3\\"");
+        ? "audio/webm; codecs=\"pcm\""
+        : (isEac3 ? "audio/mp4; codecs=\"ec-3\"" : "audio/mp4; codecs=\"ac-3\"");
       const auto sampleFormat = useSoftwareDecoder
         ? samsung::wasm::SampleFormat::kS16
         : (isEac3
@@ -720,7 +720,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
         decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
       }
-      ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\\n",
+      ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\n",
         isEac3 ? "E-AC-3" : "AC-3", channelCount,
         g_Instance->m_DolbyChannelLayout.c_str(),
         useSoftwareDecoder ? "Software (FFmpeg)" :
