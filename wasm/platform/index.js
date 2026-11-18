@@ -738,19 +738,23 @@ function syncDisabledSwitchAppearance(input) {
   }
 }
 
-function initializeDisabledSwitchAppearance() {
-  document.querySelectorAll('.mdl-switch__input').forEach(syncDisabledSwitchAppearance);
+var disabledSwitchAppearanceObserver = null;
 
-  if (typeof MutationObserver !== 'function' || !document.body) {
-    return;
-  }
-
+// Observe disabled-state changes only while the Settings screen is active.
+function startDisabledSwitchAppearanceObserver() {
   const settingsRoot = document.getElementById('settings-list');
   if (!settingsRoot) {
     return;
   }
 
-  const observer = new MutationObserver((mutations) => {
+  // Reconcile every existing switch before observing future changes.
+  settingsRoot.querySelectorAll('.mdl-switch__input').forEach(syncDisabledSwitchAppearance);
+
+  if (disabledSwitchAppearanceObserver || typeof MutationObserver !== 'function') {
+    return;
+  }
+
+  disabledSwitchAppearanceObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'attributes' && mutation.attributeName === 'disabled') {
         syncDisabledSwitchAppearance(mutation.target);
@@ -773,7 +777,7 @@ function initializeDisabledSwitchAppearance() {
     });
   });
 
-  observer.observe(settingsRoot, {
+  disabledSwitchAppearanceObserver.observe(settingsRoot, {
     subtree: true,
     attributes: true,
     attributeFilter: ['disabled'],
@@ -781,9 +785,17 @@ function initializeDisabledSwitchAppearance() {
   });
 }
 
+function stopDisabledSwitchAppearanceObserver() {
+  if (!disabledSwitchAppearanceObserver) {
+    return;
+  }
+
+  disabledSwitchAppearanceObserver.disconnect();
+  disabledSwitchAppearanceObserver = null;
+}
+
 // Called by the common.js module
 function attachListeners() {
-  initializeDisabledSwitchAppearance();
   if (!window._streamTransitionResizeListenerAttached) {
     window.addEventListener('resize', resizeStreamTransitionBackground);
     window._streamTransitionResizeListenerAttached = true;
@@ -1742,6 +1754,7 @@ function refreshHosts() {
 
 // Handle layout elements when displaying the Hosts view
 function showHostsMode(deferAmbientBackgroundActivation) {
+  stopDisabledSwitchAppearanceObserver();
   $('#background-layer').show();
   if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
   if (!deferAmbientBackgroundActivation) updateAmbientBackgroundActivation(true);
@@ -3772,6 +3785,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
+  startDisabledSwitchAppearanceObserver();
   $('#main-ui-layer').removeClass('waves-active');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
   $('#main-content').addClass('settings-view-active');
@@ -4857,6 +4871,7 @@ function sortAppsForHost(host, appList) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
+  stopDisabledSwitchAppearanceObserver();
   if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
   $('#main-content').removeClass('settings-view-active');
