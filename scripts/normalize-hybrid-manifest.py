@@ -63,7 +63,7 @@ def main():
 
     ambilight = ambilight_apps[0]
     expected_ambilight = {
-        "api-version": "13",
+        "api-version": "8",
         "exec": "MoonlightAmbilight.dll",
         "type": "dotnet",
     }
@@ -84,7 +84,7 @@ def main():
             fail("Ambilight TPK is missing bin/MoonlightAmbilight.dll")
         if not package.read("bin/MoonlightAmbilight.dll"):
             fail("Ambilight TPK contains an empty MoonlightAmbilight.dll")
-    if ambilight_root.get("package") != "MoonLightS" or ambilight_root.get("api-version") != "10.0":
+    if ambilight_root.get("package") != "MoonLightS" or ambilight_root.get("api-version") != "6.0":
         fail("Ambilight TPK package identity/API target changed")
     ambilight_privileges = {
         (node.text or "").strip()
