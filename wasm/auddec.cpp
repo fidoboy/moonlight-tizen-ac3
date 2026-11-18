@@ -274,7 +274,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   s_DolbyDecoderInitializationFailed = false;
 
   if (softwareDolbySelected) {
-    if (!InitializeDolbySoftwareDecoder(audioConfiguration,
+    if (!InitializeDolbySoftwareDecoder(g_Instance->m_AudioConfig,
           g_Instance->m_DolbyChannelLayout, g_Instance->m_AudioSyncEnabled)) {
       return -1;
     }
