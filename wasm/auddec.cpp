@@ -5,6 +5,7 @@
 #include <emscripten.h>
 
 #include "samsung/wasm/elementary_media_packet.h"
+#include "dolby_decoder.hpp"
 
 using std::chrono_literals::operator""s;
 using std::chrono_literals::operator""ms;
@@ -34,6 +35,11 @@ static constexpr int kDefaultAudioJitterMs = 100;
 static constexpr TimeStamp kDolbyFrameDuration = 32ms;
 
 static std::vector<opus_int16> s_DecodeBuffer;
+
+static DolbySoftwareDecoder s_DolbyDecoder;
+static std::vector<int16_t> s_DolbyPcm;
+static bool s_DolbySoftwareDecode = false;
+static int s_DolbyDecodeErrors = 0;
 
 static TimeStamp s_frameDuration;
 static TimeStamp s_pktPts;
@@ -221,6 +227,38 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   // Initialize packet timestamp to zero
   s_pktPts = 0s;
 
+  const bool isDolbyStream = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
+  s_DolbySoftwareDecode = isDolbyStream &&
+    g_Instance->m_DolbyDecodingMode == "Software";
+  g_Instance->m_DolbySoftwareDecode.store(s_DolbySoftwareDecode);
+
+  if (s_DolbySoftwareDecode) {
+    if (s_AudioBackend != AudioBackend::Emss) {
+      ClLogMessage("FFmpeg Dolby software decoding currently requires the EMSS audio backend\\n");
+      return -1;
+    }
+
+    s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+    s_sampleRate = 48000;
+    s_frameDuration = kDolbyFrameDuration;
+    const bool useBackSurround = g_Instance->m_DolbyChannelLayout != "Normal";
+    if (!s_DolbyDecoder.Initialize(
+          LiIsEac3AudioNegotiated(), static_cast<int>(s_channelCount), useBackSurround)) {
+      ClLogMessage("Failed to initialize FFmpeg %s software decoder\\n",
+        LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3");
+      return -1;
+    }
+
+    s_DolbyPcm.clear();
+    s_DolbyDecodeErrors = 0;
+    s_estimatedAudioEnd = 0s;
+    s_hasFirstFrame = false;
+    s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
+    ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\\n",
+      LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3", static_cast<int>(s_channelCount));
+    return 0;
+  }
+
   // Initialize samples per frame (240 or 480), channels count (2, 6, 8) and sample rate (48000)
   s_samplesPerFrame = opusConfig->samplesPerFrame;
   s_channelCount = opusConfig->channelCount;
@@ -288,6 +326,13 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 }
 
 void MoonlightInstance::AudDecCleanup(void) {
+  s_DolbyDecoder.Cleanup();
+  s_DolbyPcm.clear();
+  s_DolbySoftwareDecode = false;
+  if (g_Instance != nullptr) {
+    g_Instance->m_DolbySoftwareDecode.store(false);
+  }
+
   // Stop the audio scheduler so it does not keep playing frames that were decoded
   // before the streaming session ended
   if (s_AudioBackend == AudioBackend::WebAudio) {
@@ -316,23 +361,17 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     return;
   }
 
-  // Negotiated AC-3/E-AC-3 frames are compressed Dolby audio. Submit them directly to the
-  // native track, never through the Opus decoder or the Web Audio PCM scheduler.
+  // Negotiated AC-3/E-AC-3 frames are either submitted as compressed passthrough
+  // or decoded by FFmpeg when the user explicitly selects Software.
   if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
     if (s_AudioBackend != AudioBackend::Emss || !g_Instance->m_AudioStarted) {
       return;
     }
 
     const char* codecName = LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3";
-    s_frameDuration = kDolbyFrameDuration;
-
-    // Advance the elementary-stream timeline for every packet slot, including a lost or
-    // dropped packet. Otherwise the next valid AC-3 frame would reuse the previous PTS.
     const TimeStamp packetPts = s_pktPts;
     s_pktPts += kDolbyFrameDuration;
 
-    // AudioStream reports unrecovered packet loss with a NULL/zero-length sample. The
-    // timeline still advances above, but there is no compressed frame to submit to Tizen.
     if (sampleData == nullptr || sampleLength <= 0) {
       return;
     }
@@ -345,23 +384,57 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     auto now = std::chrono::steady_clock::now();
     TimeStamp ntp = now - s_firstAppend;
     if (s_AudioSyncEnabled && ntp + kAudioBufferMargin < s_estimatedAudioEnd) {
-      ClLogMessage("Dropping %s packet to avoid audio overflow: PTS=%.03f NTP=%.03f\n",
+      ClLogMessage("Dropping %s packet to avoid audio overflow: PTS=%.03f NTP=%.03f\\n",
         codecName, packetPts.count(), ntp.count());
       return;
     }
 
-    samsung::wasm::ElementaryMediaPacket pkt {
-      packetPts, // presentation timestamp
-      packetPts, // decoding timestamp
-      kDolbyFrameDuration, // 32 ms per AC-3 frame at 48 kHz
-      true, // keyframe flag required by the API
-      static_cast<size_t>(sampleLength), // compressed bitstream size
-      reinterpret_cast<unsigned char*>(sampleData), // compressed AC-3 payload, not PCM
-      0, 0, 0, 1, // packet of width, height, framerate numerator and denominator
-      g_Instance->m_AudioSessionId.load() // session identifier
+    if (s_DolbySoftwareDecode) {
+      int decodedSamples = 0;
+      if (!s_DolbyDecoder.Decode(
+            reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
+            s_DolbyPcm, decodedSamples)) {
+        if (++s_DolbyDecodeErrors % 100 == 1) {
+          ClLogMessage("FFmpeg rejected %s audio packet (%d consecutive decode errors)\\n",
+            codecName, s_DolbyDecodeErrors);
+        }
+        return;
+      }
+
+      const TimeStamp decodedDuration = FrameDuration(decodedSamples, s_sampleRate);
+      samsung::wasm::ElementaryMediaPacket pcmPacket {
+        packetPts,
+        packetPts,
+        decodedDuration,
+        true,
+        s_DolbyPcm.size() * sizeof(int16_t),
+        reinterpret_cast<unsigned char*>(s_DolbyPcm.data()),
+        0, 0, 0, 1,
+        g_Instance->m_AudioSessionId.load()
+      };
+      if (!g_Instance->m_AudioTrack.AppendPacket(pcmPacket)) {
+        ClLogMessage("Append FFmpeg-decoded %s PCM packet failed\\n", codecName);
+        return;
+      }
+
+      s_DolbyDecodeErrors = 0;
+      s_pktPts = packetPts + decodedDuration;
+      s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + decodedDuration;
+      return;
+    }
+
+    samsung::wasm::ElementaryMediaPacket compressedPacket {
+      packetPts,
+      packetPts,
+      kDolbyFrameDuration,
+      true,
+      static_cast<size_t>(sampleLength),
+      reinterpret_cast<unsigned char*>(sampleData),
+      0, 0, 0, 1,
+      g_Instance->m_AudioSessionId.load()
     };
-    if (!g_Instance->m_AudioTrack.AppendPacket(pkt)) {
-      ClLogMessage("Append %s audio packet failed\n", codecName);
+    if (!g_Instance->m_AudioTrack.AppendPacket(compressedPacket)) {
+      ClLogMessage("Append %s audio packet failed\\n", codecName);
       return;
     }
 
