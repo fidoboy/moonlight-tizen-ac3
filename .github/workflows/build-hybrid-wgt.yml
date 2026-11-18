@@ -1,6 +1,15 @@
 name: Build Hybrid WGT (CI)
 
 on:
+  push:
+    branches:
+      - fix/smarthub-previews-1.2.4-pre
+    paths:
+      - .github/workflows/build-hybrid-wgt.yml
+      - scripts/build-ffmpeg.sh
+      - scripts/build-moonlight-web.sh
+      - CMakeLists.txt
+      - ffmpeg/**
   workflow_dispatch:
     inputs:
       build_release:
