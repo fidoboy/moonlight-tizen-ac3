@@ -59,16 +59,22 @@ function sendMessage(value, key) {
       remoteMessagePort = tizen.messageport.requestRemoteMessagePort(applicationId, packageId);
     } catch (e) {
       console.error('%c[service.js, sendMessage]', 'color: gray;', '[SmartHub Service] Could not get remote message port: ' + e.message);
-      return;
+      return false;
     }
   }
   if (remoteMessagePort) {
     try {
       remoteMessagePort.sendMessage([{key: key, value: value}]);
+      if (key === 'PROBE' || key === 'PROBE_DIAG') {
+        console.log('%c[service.js, sendMessage]', 'color: gray;', '[SmartHub Probe] MessagePort sendMessage succeeded for key ' + key + '.');
+      }
+      return true;
     } catch (e) {
       console.error('%c[service.js, sendMessage]', 'color: gray;', '[SmartHub Service] Error sending message: ' + e.message);
+      return false;
     }
   }
+  return false;
 }
 
 /**
@@ -206,6 +212,7 @@ function handleDataInRequest() {
     for (var i = 0; i < appControlData.length; i++) {
       var key = appControlData[i].key;
       var value = appControlData[i].value;
+      probeDiagnostic('AppControl entry ' + i + ' key: ' + key + '.');
 
       if (key === 'Probe') {
         probeDiagnostic('Found Probe AppControl entry; value: ' + JSON.stringify(value) + '.');
