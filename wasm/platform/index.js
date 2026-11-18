@@ -3545,10 +3545,10 @@ function deleteHostDialog(host) {
     delete hosts[host.serverUid];
     // Save the updated hosts
     saveHosts();
-    // Remove the host from the preview app cache and update Smart Hub Preview
+    // Remove the host from the cached preview app list. Publishing is only
+    // triggered by a successful host app-list query.
     delete _previewApps[host.serverUid];
     savePreviewApps();
-    updatePreviewData();
     // If host removed, show snackbar message
     snackbarLog('%1$s has been deleted successfully.', host.hostname);
     fadeOutUiElement(deleteHostOverlay);
@@ -3616,10 +3616,10 @@ function deleteAllHostsDialog() {
       storeData('discoverNewHostsAtStartup', true, null);
       // If all hosts removed, show snackbar message
       snackbarLog('All hosts have been deleted successfully.');
-      // Clear the preview app cache and update Smart Hub Preview
+      // Clear the cached preview app list. Do not publish as a side effect
+      // of host deletion; publishing is triggered only by successful app-list queries.
       _previewApps = {};
       savePreviewApps();
-      updatePreviewData();
       fadeOutUiElement(deleteHostOverlay);
       closeUiDialog(deleteHostDialog);
       isDialogOpen = false;
@@ -7033,7 +7033,7 @@ function incrementAppRunCount(host, appId, appTitle) {
   var usageSwitch = document.getElementById('sortAppsByUsageSwitch');
   if (usageSwitch && usageSwitch.checked) hostCache.apps = sortAppsForHost(host, hostCache.apps);
   savePreviewApps();
-  if (usageSwitch && usageSwitch.checked) updatePreviewData();
+  // App usage changes do not trigger Smart Hub publication.
 }
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
@@ -8038,8 +8038,7 @@ function saveSortAppsList() {
       }
     });
     if (updated) {
-      savePreviewApps();
-      updatePreviewData();
+      savePreviewApps(); // Sorting preferences do not trigger Smart Hub publication.
     }
   }, 100);
 }
@@ -10072,7 +10071,7 @@ function waitForHostAndNavigate(serverUid) {
       clearInterval(interval);
       console.warn('%c[index.js, waitForHostAndNavigate]', 'color: orange;', 'Host ' + serverUid + ' no longer exists in Moonlight.');
       snackbarLogLong('The selected host is no longer available on Moonlight.');
-      if (typeof updatePreviewData === 'function') updatePreviewData();
+      // A missing deep-link host does not trigger Smart Hub publication.
     } else if (attempts > 30) {
       clearInterval(interval);
       console.warn('%c[index.js, waitForHostAndNavigate]', 'color: orange;', 'Warning: Timed out waiting for host ' + serverUid + ' to load.');
@@ -10151,7 +10150,7 @@ function waitForHostAndNavigateToApp(serverUid, appId) {
       clearInterval(interval);
       console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'Host ' + serverUid + ' no longer exists in Moonlight.');
       snackbarLogLong('The selected host is no longer available on Moonlight.');
-      if (typeof updatePreviewData === 'function') updatePreviewData();
+      // A missing deep-link host does not trigger Smart Hub publication.
     } else if (attempts > 30) { // 30s timeout
       clearInterval(interval);
       console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'Warning: Timed out waiting for host ' + serverUid + ' to load.');
