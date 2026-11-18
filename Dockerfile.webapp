@@ -205,7 +205,11 @@ RUN rm -rf \
 	.emscripten_cache \
 	.emscripten_cache.lock \
 	.emscripten_ports \
-	.emscripten_sanity
+	.emscripten_sanity \
+	ffmpeg-4.4.8 \
+	ffmpeg-install \
+	ffmpeg-download \
+	build-ffmpeg.sh
 
 # Use a multi-stage build to reclaim space from deleted files
 FROM ubuntu:22.04
