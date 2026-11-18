@@ -987,7 +987,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
         modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
           audioModeMatch[1].toLowerCase();
         modeIcon.setAttribute('aria-hidden', 'true');
-        modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'warning';
+        modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'error';
         value.appendChild(modeIcon);
         value.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']' + valueText.slice(modeEnd)));
       } else {
