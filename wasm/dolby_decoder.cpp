@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cstring>
 
 DolbySoftwareDecoder::~DolbySoftwareDecoder() {
   Cleanup();
@@ -119,10 +120,15 @@ bool DolbySoftwareDecoder::Decode(
 
   AVPacket packet;
   av_init_packet(&packet);
-  packet.data = const_cast<uint8_t*>(data);
-  packet.size = size;
+  packet.data = nullptr;
+  packet.size = 0;
+  if (av_new_packet(&packet, size) < 0) {
+    return false;
+  }
+  std::memcpy(packet.data, data, static_cast<size_t>(size));
 
   const int sendResult = avcodec_send_packet(m_CodecContext, &packet);
+  av_packet_unref(&packet);
   if (sendResult < 0) {
     return false;
   }
