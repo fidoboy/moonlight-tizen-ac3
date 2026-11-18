@@ -133,6 +133,10 @@ RUN mkdir -p /opt \
         /opt/emscripten-release-bundle/emsdk/fastcomp/emscripten/tools/ports/tizen/crypto.py \
     && cd /opt/emscripten-release-bundle/emsdk \
     && ./emsdk activate latest-fastcomp \
+    # Generate the Emscripten command wrappers, including emnm, which FFmpeg's \
+    # configure script requires through --nm=emnm. \
+    && python3 fastcomp/emscripten/tools/maint/create_entry_points.py \
+    && test -x fastcomp/emscripten/emnm \
     && rm -f /tmp/emscripten-1.39.4.7-linux64.zip \
     && test -f fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake
 
@@ -201,6 +205,8 @@ RUN set -euo pipefail \
          eval "$(/opt/emscripten-release-bundle/emsdk/emsdk construct_env)"; \
        fi \
     && emcc --version \
+    && command -v emnm \
+    && emnm --version \
     && cmake --version \
     && ninja --version \
     && rsvg-convert --version \
