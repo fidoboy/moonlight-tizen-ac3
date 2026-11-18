@@ -253,9 +253,21 @@ target_compile_definitions(opus PUBLIC
      FIXED_POINT
      OPUS_BUILD)
 
+set(FFMPEG_ROOT "/home/moonlight/ffmpeg-install" CACHE PATH "Minimal Emscripten FFmpeg installation")
+
+foreach(component avcodec swresample avutil)
+    if(NOT EXISTS "${FFMPEG_ROOT}/lib/lib${component}.a")
+        message(FATAL_ERROR "Missing FFmpeg static library: ${FFMPEG_ROOT}/lib/lib${component}.a")
+    endif()
+    add_library(ffmpeg_${component} STATIC IMPORTED GLOBAL)
+    set_target_properties(ffmpeg_${component} PROPERTIES
+        IMPORTED_LOCATION "${FFMPEG_ROOT}/lib/lib${component}.a")
+endforeach()
+
 add_executable(moonlight-wasm
     wasm/libchelper.c
     wasm/auddec.cpp
+    wasm/dolby_decoder.cpp
     wasm/connectionlistener.cpp
     wasm/gamepad.cpp
     wasm/http.cpp
@@ -282,6 +294,7 @@ target_include_directories(moonlight-wasm PUBLIC
     opus/silk
     opus/silk/fixed
     opus/celt
+    ${FFMPEG_ROOT}/include
 )
 set_target_properties(moonlight-wasm
     PROPERTIES
@@ -309,6 +322,9 @@ target_link_libraries(moonlight-wasm PUBLIC
     libgamestream
     h264bitstream
     opus
+    ffmpeg_avcodec
+    ffmpeg_swresample
+    ffmpeg_avutil
     moonlight-common-c
     moonlight-enet
     moonlight-rs
