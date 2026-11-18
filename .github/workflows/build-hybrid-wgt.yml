@@ -162,6 +162,11 @@ jobs:
           set -euo pipefail
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
+      - name: Restore FFmpeg WebAssembly build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ffmpeg/install
+          key: ffmpeg-wasm-4.4.8-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg/build/**', '!ffmpeg/install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
       - name: Build the ${{ matrix.variant }} Moonlight Web payload inside optimized v5 image
         shell: bash
         run: |
@@ -182,6 +187,12 @@ jobs:
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
 
+      - name: Save FFmpeg WebAssembly build cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: ffmpeg/install
+          key: ffmpeg-wasm-4.4.8-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg/build/**', '!ffmpeg/install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
       - name: Prepare compiler cache ownership for saving
         if: always()
         shell: bash
