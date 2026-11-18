@@ -253,7 +253,7 @@ target_compile_definitions(opus PUBLIC
      FIXED_POINT
      OPUS_BUILD)
 
-set(FFMPEG_ROOT "/home/moonlight/ffmpeg-install" CACHE PATH "Minimal Emscripten FFmpeg installation")
+set(FFMPEG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/install" CACHE PATH "Minimal Emscripten FFmpeg installation")
 
 foreach(component avcodec swresample avutil)
     if(NOT EXISTS "${FFMPEG_ROOT}/lib/lib${component}.a")
