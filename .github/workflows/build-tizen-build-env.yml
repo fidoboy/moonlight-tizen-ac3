@@ -10,7 +10,6 @@ on:
       - 'wmp/engine/build/fetch-tizen-sources.sh'
       - 'wmp/engine/build/build-static-crypto.sh'
       - 'docker/tizen-build-env/Dockerfile'
-      - 'scripts/build-ffmpeg.sh'
       - '.github/workflows/build-tizen-build-env.yml'
   workflow_dispatch:
   workflow_call:
