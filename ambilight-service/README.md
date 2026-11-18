@@ -12,14 +12,13 @@ The .NET service captures the decoded TV video plane through Samsung's `libvideo
 
 ## Build and package
 
-GitHub Actions workflow **Build Moonlight Samsung TV hybrid WGT** on branch `1.2.4-pre`:
+The production hybrid workflow builds Ambilight with the same Tizen .NET toolchain and runtime target as WMP:
 
-1. Builds Moonlight Web/WASM and obtains its base WGT.
-2. Builds `TizenAmbilight.csproj` with the upstream project's toolchain and target: .NET 8, `Tizen.NET.Sdk/1.1.9`, `tizen90` (Tizen API 9), and the same `dotnet msbuild -restore -t:Rebuild -p:Configuration=Release -v:m` command used by the upstream CI. Only the service entry point, application identity and lifecycle are adapted for Moonlight; the Tizen build target is not downgraded.
-3. Uses Tizen Core CLI to merge the Web WGT and .NET TPK into one signed hybrid WGT.
-4. Validates package/application identities, the .NET assembly, signatures and the Web-to-service AppControl fields.
+- `Tizen.NET.Sdk/1.1.6` and `tizen80` (Tizen 6.0 / API 8).
+- Package manifest API `6.0` and service-application API `8`.
+- Tizen Core project profile `tv-samsung-6.0` and project metadata API `6.0`.
 
-The Web UI and service use package ID `MoonLightS`, with distinct application IDs `MoonLightS.MoonlightWasm` and `MoonLightS.MoonlightAmbilight`. The original .NET TPK is built and retained with package API 6.5, service API 9 and the `tizen90` target. After the hybrid package is assembled, only the outer hybrid manifest's package API floor is set to 5.5 and the WGT is re-signed. The embedded service application remains API 9; its build target and capture implementation are not downgraded. Before sending AppControl, Moonlight reads `http://tizen.org/feature/platform.version`: on Tizen 5.5–6.0 it does not launch the service at all and disables only Ambilight. On Tizen 6.5 or later it probes the service; the service then checks the Samsung capture library and symbol before enabling the setting.
+WMP and Ambilight therefore share the Tizen 6.0 / API 8 service target. The outer hybrid WGT retains its existing package API floor of 5.5; that outer floor does not change the API level required by either embedded service. The Web UI and the two services retain their distinct application IDs under package ID `MoonLightS`.
 
 ## Capture compatibility
 
