@@ -1,4 +1,4 @@
-FFmpeg 4.4.8 is used by this application. See the full LGPL license below.
+This application statically links FFmpeg 4.4.8 (libavcodec, libswresample and libavutil), built with only the native AC-3 and E-AC-3 decoders enabled. The build does not enable GPL or nonfree components.\n\nFFmpeg source: https://ffmpeg.org/releases/ffmpeg-4.4.8.tar.xz\nProject and license information: https://ffmpeg.org/legal.html\n\nFull LGPLv2.1 license text:
 
                   GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
