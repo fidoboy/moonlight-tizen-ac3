@@ -10284,7 +10284,7 @@ function updatePreviewDataAfterSupportCheck() {
     var previewData = {
       sections: sections
     };
-    var serviceId = packageId + '.service';
+    var serviceId = packageId + '.preview';
 
     console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Launching Smart Hub service with preview data: ', previewData);
 
@@ -10432,7 +10432,7 @@ function probeSmartHubSupport() {
 
     try {
       packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-      serviceId = packageId + '.service';
+      serviceId = packageId + '.preview';
       probePort = tizen.messageport.requestLocalMessagePort(packageId);
       probeListener = probePort.addMessagePortListener(function(data) {
         if (!data || !data[0]) return;
