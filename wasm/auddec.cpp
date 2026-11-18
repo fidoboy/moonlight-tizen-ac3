@@ -38,7 +38,8 @@ static std::vector<opus_int16> s_DecodeBuffer;
 
 static DolbySoftwareDecoder s_DolbyDecoder;
 static std::vector<int16_t> s_DolbyPcm;
-static bool s_DolbySoftwareDecode = false;
+static bool s_DolbyDecoderInitialized = false;
+static bool s_DolbyDecoderInitializationFailed = false;
 static int s_DolbyDecodeErrors = 0;
 
 static TimeStamp s_frameDuration;
@@ -82,6 +83,42 @@ static int s_AudioDecodeErrors = 0;
 static inline TimeStamp FrameDuration(double samplesPerFrame, double sampleRate) {
   // Calculate the duration of a frame based on the number of samples per frame and the sample rate
   return TimeStamp(samplesPerFrame / sampleRate);
+}
+
+static bool InitializeDolbySoftwareDecoder() {
+  if (s_DolbyDecoderInitialized) {
+    return true;
+  }
+  if (s_DolbyDecoderInitializationFailed || g_Instance == nullptr ||
+      s_AudioBackend != AudioBackend::Emss) {
+    return false;
+  }
+
+  s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+  if (!LiIsEac3AudioNegotiated() && s_channelCount == 8) {
+    s_channelCount = 6;
+  }
+  s_sampleRate = 48000;
+  s_frameDuration = kDolbyFrameDuration;
+
+  const bool useBackSurround = g_Instance->m_DolbyChannelLayout != "Normal";
+  if (!s_DolbyDecoder.Initialize(
+        LiIsEac3AudioNegotiated(), static_cast<int>(s_channelCount), useBackSurround)) {
+    s_DolbyDecoderInitializationFailed = true;
+    MoonlightInstance::ClLogMessage("Failed to initialize FFmpeg %s software decoder\n",
+      LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3");
+    return false;
+  }
+
+  s_DolbyDecoderInitialized = true;
+  s_DolbyPcm.clear();
+  s_DolbyDecodeErrors = 0;
+  s_estimatedAudioEnd = 0s;
+  s_hasFirstFrame = false;
+  s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
+  MoonlightInstance::ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\n",
+    LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3", static_cast<int>(s_channelCount));
+  return true;
 }
 
 static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
@@ -228,33 +265,17 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   s_pktPts = 0s;
 
   const bool isDolbyStream = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
-  s_DolbySoftwareDecode = isDolbyStream &&
+  const bool softwareDolbySelected = isDolbyStream &&
     g_Instance->m_DolbyDecodingMode == "Software" &&
     s_AudioBackend == AudioBackend::Emss;
-  g_Instance->m_DolbySoftwareDecode.store(s_DolbySoftwareDecode);
+  g_Instance->m_DolbySoftwareDecode.store(softwareDolbySelected);
+  s_DolbyDecoderInitialized = false;
+  s_DolbyDecoderInitializationFailed = false;
 
-  if (s_DolbySoftwareDecode) {
-    s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
-    if (!LiIsEac3AudioNegotiated() && s_channelCount == 8) {
-      s_channelCount = 6;
-    }
-    s_sampleRate = 48000;
-    s_frameDuration = kDolbyFrameDuration;
-    const bool useBackSurround = g_Instance->m_DolbyChannelLayout != "Normal";
-    if (!s_DolbyDecoder.Initialize(
-          LiIsEac3AudioNegotiated(), static_cast<int>(s_channelCount), useBackSurround)) {
-      ClLogMessage("Failed to initialize FFmpeg %s software decoder\n",
-        LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3");
+  if (softwareDolbySelected) {
+    if (!InitializeDolbySoftwareDecoder()) {
       return -1;
     }
-
-    s_DolbyPcm.clear();
-    s_DolbyDecodeErrors = 0;
-    s_estimatedAudioEnd = 0s;
-    s_hasFirstFrame = false;
-    s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
-    ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\n",
-      LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3", static_cast<int>(s_channelCount));
     return 0;
   }
 
@@ -327,7 +348,8 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 void MoonlightInstance::AudDecCleanup(void) {
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
-  s_DolbySoftwareDecode = false;
+  s_DolbyDecoderInitialized = false;
+  s_DolbyDecoderInitializationFailed = false;
   if (g_Instance != nullptr) {
     g_Instance->m_DolbySoftwareDecode.store(false);
   }
@@ -388,7 +410,11 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
-    if (s_DolbySoftwareDecode) {
+    if (g_Instance->m_DolbySoftwareDecode.load()) {
+      if (!InitializeDolbySoftwareDecoder()) {
+        return;
+      }
+
       int decodedSamples = 0;
       if (!s_DolbyDecoder.Decode(
             reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
