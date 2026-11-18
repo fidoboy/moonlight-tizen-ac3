@@ -10716,15 +10716,8 @@ function updateConfigSummaryBar(snapshot) {
   toggleFor('gameMode', '#summaryGameMode');
 }
 
-var configSummaryBarInitialized = false;
-
 function initializeConfigSummaryBar() {
   updateConfigSummaryBar();
-  if (configSummaryBarInitialized || typeof MutationObserver !== 'function' || !document.body) return;
-  configSummaryBarInitialized = true;
-
-  // Summary refreshes are driven explicitly by setting persistence and
-  // screen-navigation handlers; no DOM observer is needed.
 }
 
 function onWindowLoad() {
