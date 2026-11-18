@@ -10435,9 +10435,15 @@ function probeSmartHubSupport() {
       serviceId = packageId + '.service';
       probePort = tizen.messageport.requestLocalMessagePort(packageId);
       probeListener = probePort.addMessagePortListener(function(data) {
-        if (settled || !data || !data[0] || data[0].key !== 'PROBE') return;
+        if (!data || !data[0]) return;
+        if (data[0].key === 'PROBE_DIAG') {
+          console.warn('[SmartHub Probe] Service diagnostic: ' + data[0].value);
+          return;
+        }
+        if (settled || data[0].key !== 'PROBE') return;
 
         var value = data[0].value;
+        console.warn('[SmartHub Probe] Response received: ' + value);
         if (value === 'SMART_HUB_SUPPORTED') {
           finishProbe(true);
         } else if (value === 'SMART_HUB_NOT_SUPPORTED') {
@@ -10449,6 +10455,7 @@ function probeSmartHubSupport() {
 
       // A missing response is a communication failure, not an unsupported result.
       probeTimeout = setTimeout(function() {
+        console.warn('[SmartHub Probe] TIMEOUT: no PROBE response received within 10000 ms.');
         failProbe(new Error('Timed out waiting for the Smart Hub support response.'));
       }, 10000);
 
@@ -10458,8 +10465,9 @@ function probeSmartHubSupport() {
           [new tizen.ApplicationControlData('Probe', ['check'])]
         ),
         serviceId, function() {
-          console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe request dispatched.');
+          console.warn('[SmartHub Probe] launchAppControl success callback: request dispatched.');
         }, function(err) {
+          console.warn('[SmartHub Probe] launchAppControl error callback: ' + err.message);
           failProbe(new Error('Probe launch failed: ' + err.message));
         }
       );
