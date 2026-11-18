@@ -1227,6 +1227,8 @@ function startDeferredNormalStartup() {
     ensureSmartHubSupport().then(function() {
       handleDeepLink();
       window.addEventListener('appcontrol', handleDeepLink);
+    }).catch(function(error) {
+      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Smart Hub deep-link handling unavailable because the support check failed: ' + error.message);
     });
   };
 
@@ -10200,12 +10202,16 @@ function handleDeepLink() {
 // The webapis.preview API is only accessible from within a Tizen background service.
 // The preview is populated only from successfully connected hosts (stored in _previewApps).
 function updatePreviewData() {
-  return ensureSmartHubSupport().then(function() {
-    if (!_isSmartHubSupported) {
+  return ensureSmartHubSupport().then(function(supported) {
+    if (!supported) {
       console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub Preview is not supported on this device. Skipping!');
       return;
     }
-    updatePreviewDataAfterSupportCheck();
+    return updatePreviewDataAfterSupportCheck();
+  }).catch(function(error) {
+    // A failed or missing probe response must never be treated as unsupported
+    // or allow preview data to be published.
+    console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub Preview update blocked because the support check failed: ' + error.message);
   });
 }
 
@@ -10384,41 +10390,19 @@ function maybeStartDirectSmartHubLaunch() {
 }
 
 function probeSmartHubSupport() {
-  return new Promise(function(resolve) {
-    // Check localStorage cache first
-    var cached = localStorage.getItem('smartHubSupported');
-    if (cached === 'true') {
-      _isSmartHubSupported = true;
-      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (cached): true');
-      resolve();
-      return;
-    }
-
-    // A negative result may have been caused by a transient service or message-port
-    // failure. Re-probe on every launch until support is positively confirmed.
-    if (cached === 'false') {
-      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Ignoring cached negative Smart Hub result; probing again.');
-    }
-
-    // Probe the service whenever support has not been positively confirmed.
-    var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-    var serviceId = packageId + '.service';
+  return new Promise(function(resolve, reject) {
+    var packageId;
+    var serviceId;
     var probePort = null;
     var probeListener = null;
     var probeTimeout = null;
     var settled = false;
 
-    function finishProbe(supported, reason) {
-      if (settled) {
-        return;
-      }
-      settled = true;
-
+    function cleanupProbe() {
       if (probeTimeout !== null) {
         clearTimeout(probeTimeout);
         probeTimeout = null;
       }
-
       if (probePort && probeListener !== null) {
         try {
           probePort.removeMessagePortListener(probeListener);
@@ -10427,48 +10411,61 @@ function probeSmartHubSupport() {
         }
         probeListener = null;
       }
+    }
 
+    function finishProbe(supported) {
+      if (settled) return;
+      settled = true;
+      cleanupProbe();
       _isSmartHubSupported = supported;
-      localStorage.setItem('smartHubSupported', String(supported));
-      if (reason) {
-        console.warn('%c[index.js, probeSmartHubSupport]', 'color: green;', reason);
-      }
-      resolve();
+      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (probed): ' + supported);
+      resolve(supported);
+    }
+
+    function failProbe(error) {
+      if (settled) return;
+      settled = true;
+      cleanupProbe();
+      _isSmartHubSupported = false;
+      console.error('%c[index.js, probeSmartHubSupport]', 'color: red;', 'Smart Hub support probe failed: ' + error.message);
+      reject(error);
     }
 
     try {
+      packageId = tizen.application.getCurrentApplication().appInfo.packageId;
+      serviceId = packageId + '.service';
       probePort = tizen.messageport.requestLocalMessagePort(packageId);
       probeListener = probePort.addMessagePortListener(function(data) {
-        if (settled || !data || !data[0] || data[0].key !== 'PROBE') {
-          return;
-        }
+        if (settled || !data || !data[0] || data[0].key !== 'PROBE') return;
 
         var value = data[0].value;
-        var supported = (value === 'SMART_HUB_SUPPORTED');
-        console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (probed): ' + supported);
-        finishProbe(supported);
+        if (value === 'SMART_HUB_SUPPORTED') {
+          finishProbe(true);
+        } else if (value === 'SMART_HUB_NOT_SUPPORTED') {
+          finishProbe(false);
+        } else {
+          failProbe(new Error('Unexpected Smart Hub probe response: ' + value));
+        }
       });
 
-      // Do not leave startup and preview updates waiting forever if the service
-      // launches but never sends the PROBE response.
+      // A missing response is a communication failure, not an unsupported result.
       probeTimeout = setTimeout(function() {
-        finishProbe(false, 'Smart Hub probe timed out; assuming unsupported for this app session.');
+        failProbe(new Error('Timed out waiting for the Smart Hub support response.'));
       }, 10000);
 
-      // Launch service with Probe request
       tizen.application.launchAppControl(
         new tizen.ApplicationControl(
           'http://tizen.org/appcontrol/operation/pick', null, null, null,
           [new tizen.ApplicationControlData('Probe', ['check'])]
         ),
         serviceId, function() {
-          console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe sent to service.');
+          console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe request dispatched.');
         }, function(err) {
-          finishProbe(false, 'Probe failed: ' + err.message);
+          failProbe(new Error('Probe launch failed: ' + err.message));
         }
       );
     } catch (e) {
-      finishProbe(false, 'Error probing Smart Hub support: ' + e.message);
+      failProbe(e);
     }
   });
 }
