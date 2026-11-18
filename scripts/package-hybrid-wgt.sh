@@ -122,7 +122,16 @@ YAML
 # Its managed sources, manifest and native engine payload are built and
 # packaged by Tizen Core as a dependency of the main Web project.
 run_tz "create-wmp-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n WmpService -T dotnet -p tv-samsung-6.0 -w "$workspace"
-test -d "$wmp_service_project"
+# Resolve the project root from Tizen Core metadata; do not assume the
+# template's directory nesting.
+mapfile -t wmp_project_metadata < <(find "$workspace/WmpService" -type f -name tizen_dotnet_project.yaml -print)
+if (( ${#wmp_project_metadata[@]} != 1 )); then
+  echo "::error::Expected exactly one WMP Tizen Core project metadata file; found ${#wmp_project_metadata[@]}."
+  printf '%s\\n' "${wmp_project_metadata[@]}"
+  exit 1
+fi
+wmp_service_project="$(dirname "${wmp_project_metadata[0]}")"
+test -f "$wmp_service_project/tizen-manifest.xml"
 rm -f "$wmp_service_project/WmpService_App.cs"
 cp wmp/dotnet-host/Program.cs \
    wmp/dotnet-host/EngineApi.cs \
@@ -177,7 +186,12 @@ deps: []
 YAML
 
 run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService,../WmpService/WmpService
+ambilight_dependency="$(realpath --relative-to="$web_project" "$service_project")"
+wmp_dependency="$(realpath --relative-to="$web_project" "$wmp_service_project")"
+test -f "$service_project/tizen_dotnet_project.yaml"
+test -f "$wmp_service_project/tizen_dotnet_project.yaml"
+echo "Tizen Core dependencies: $ambilight_dependency,$wmp_dependency"
+run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d "$ambilight_dependency,$wmp_dependency"
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
 # Tizen Core builds both .NET service projects through the Web project's
