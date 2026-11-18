@@ -1772,6 +1772,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   showUiLayer('main-ui-layer');
   Navigation.start();
   Navigation.pop();
+  updateConfigSummaryBar();
 }
 
 // Move once from Add Host to the first loaded host using normal navigation.
@@ -4901,6 +4902,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('body').css({ background: '', backgroundColor: '' });
 
   showUiLayer('main-ui-layer', afterShown);
+  updateConfigSummaryBar();
   if (!deferPostTransitionActions) {
     isInGame = false;
     if (typeof setNavigationSoundEnabled === 'function') setNavigationSoundEnabled(navigationSoundPreferenceEnabled);
@@ -10721,26 +10723,8 @@ function initializeConfigSummaryBar() {
   if (configSummaryBarInitialized || typeof MutationObserver !== 'function' || !document.body) return;
   configSummaryBarInitialized = true;
 
-  // Track setting changes and screen navigation without coupling the strip to each handler.
-  var observer = new MutationObserver(function(mutations) {
-    var currentBar = document.getElementById('configSummaryBar');
-    // Ignore mutations produced by the summary itself. In particular, its
-    // value text, warning icon and visibility classes must not trigger another
-    // summary refresh.
-    var externalMutation = mutations.some(function(mutation) {
-      return !currentBar || !currentBar.contains(mutation.target);
-    });
-    if (externalMutation) updateConfigSummaryBar();
-  });
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ['class', 'style', 'data-value', 'checked']
-  });
-  document.addEventListener('input', updateConfigSummaryBar, true);
-  document.addEventListener('change', updateConfigSummaryBar, true);
+  // Summary refreshes are driven explicitly by setting persistence and
+  // screen-navigation handlers; no DOM observer is needed.
 }
 
 function onWindowLoad() {
