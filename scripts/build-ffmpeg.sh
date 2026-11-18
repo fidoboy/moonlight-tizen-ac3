@@ -48,7 +48,8 @@ emconfigure ./configure \
   --ranlib=emranlib \
   --nm=emnm \
   --disable-everything \
-  --enable-decoder=ac3,eac3 \
+  --enable-decoder=opus,ac3,eac3 \
+  --enable-encoder=ac3,eac3 \
   --disable-programs \
   --disable-doc \
   --disable-network \
@@ -58,7 +59,6 @@ emconfigure ./configure \
   --disable-avfilter \
   --disable-swscale \
   --disable-postproc \
-  --disable-encoders \
   --disable-muxers \
   --disable-demuxers \
   --disable-protocols \
@@ -84,4 +84,4 @@ test -s "$PREFIX/lib/libavcodec.a"
 test -s "$PREFIX/lib/libavutil.a"
 test -s "$PREFIX/lib/libswresample.a"
 test -s "$PREFIX/include/libavcodec/avcodec.h"
-echo "Built minimal FFmpeg $FFMPEG_VERSION from the vendored source: AC-3/E-AC-3 decoders only."
+echo "Built minimal FFmpeg $FFMPEG_VERSION: Opus decoder and AC-3/E-AC-3 decoders and encoders."
