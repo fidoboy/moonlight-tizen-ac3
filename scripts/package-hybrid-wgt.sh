@@ -201,7 +201,7 @@ for project in "$service_project" "$wmp_service_project"; do
   realpath "$project"
   stat -c 'directory mode=%A owner=%U:%G inode=%i' "$project"
   echo "--- FILE TREE (depth <= 5) ---"
-  find "$project" -maxdepth 5 -printf '%y %P\\n' | sort
+  find "$project" -maxdepth 5 -printf '%y %P\n' | sort
   for file in tizen_dotnet_project.yaml tizen-manifest.xml; do
     if [[ -f "$project/$file" ]]; then
       echo "--- $file ---"
@@ -210,7 +210,7 @@ for project in "$service_project" "$wmp_service_project"; do
       echo "::warning::Missing $file in $project"
     fi
   done
-  mapfile -t project_files < <(find "$project" -maxdepth 1 -type f \\( -name '*.csproj' -o -name '*.cs' \\) -printf '%f\\n' | sort)
+  mapfile -t project_files < <(find "$project" -maxdepth 1 -type f \( -name '*.csproj' -o -name '*.cs' \) -printf '%f\n' | sort)
   for file in "${project_files[@]}"; do
     echo "--- $file ---"
     cat "$project/$file"
