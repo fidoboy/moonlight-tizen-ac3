@@ -23,6 +23,8 @@ ENV TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
 	cmake \
 	ccache \
+	make \
+	xz-utils \
 	expect \
 	git \
 	ninja-build \
@@ -91,6 +93,11 @@ COPY --chown=moonlight wasm/*.cpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/*.hpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/dispatcher ./moonlight-tizen/wasm/dispatcher/
 
+COPY --chown=moonlight scripts/build-ffmpeg.sh ./moonlight-tizen/scripts/
+
+# Build only the LGPL AC-3/E-AC-3 decoders with the Samsung Emscripten toolchain.
+RUN bash moonlight-tizen/scripts/build-ffmpeg.sh
+
 # Share the debug switch with the native C/C++ build as well as the frontend.
 ARG DEBUG_MODE=false
 
@@ -99,6 +106,7 @@ RUN cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
+	-DFFMPEG_ROOT=/home/moonlight/ffmpeg-install \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
