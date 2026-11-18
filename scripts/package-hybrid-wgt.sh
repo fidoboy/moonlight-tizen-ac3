@@ -191,6 +191,45 @@ wmp_dependency="$(realpath --relative-to="$web_project" "$wmp_service_project")"
 test -f "$service_project/tizen_dotnet_project.yaml"
 test -f "$wmp_service_project/tizen_dotnet_project.yaml"
 echo "Tizen Core dependencies: $ambilight_dependency,$wmp_dependency"
+
+# Capture both generated dependency projects immediately before add-deps.
+# This is diagnostic only: it does not modify either project.
+echo "::group::Tizen Core dependency project comparison"
+for project in "$service_project" "$wmp_service_project"; do
+  echo "===== PROJECT ROOT: $project ====="
+  printf 'resolved='
+  realpath "$project"
+  stat -c 'directory mode=%A owner=%U:%G inode=%i' "$project"
+  echo "--- FILE TREE (depth <= 5) ---"
+  find "$project" -maxdepth 5 -printf '%y %P\\n' | sort
+  for file in tizen_dotnet_project.yaml tizen-manifest.xml; do
+    if [[ -f "$project/$file" ]]; then
+      echo "--- $file ---"
+      cat "$project/$file"
+    else
+      echo "::warning::Missing $file in $project"
+    fi
+  done
+  mapfile -t project_files < <(find "$project" -maxdepth 1 -type f \\( -name '*.csproj' -o -name '*.cs' \\) -printf '%f\\n' | sort)
+  for file in "${project_files[@]}"; do
+    echo "--- $file ---"
+    cat "$project/$file"
+  done
+done
+echo "===== YAML DIFF: Ambilight -> WMP ====="
+diff -u "$service_project/tizen_dotnet_project.yaml" "$wmp_service_project/tizen_dotnet_project.yaml" || true
+echo "===== MANIFEST DIFF: Ambilight -> WMP ====="
+diff -u "$service_project/tizen-manifest.xml" "$wmp_service_project/tizen-manifest.xml" || true
+echo "===== CSPROJ DIFF: Ambilight -> WMP ====="
+ambilight_csproj="$(find "$service_project" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
+wmp_csproj="$(find "$wmp_service_project" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
+if [[ -n "$ambilight_csproj" && -n "$wmp_csproj" ]]; then
+  diff -u "$ambilight_csproj" "$wmp_csproj" || true
+else
+  echo "::warning::Could not locate both service project files for comparison."
+fi
+echo "::endgroup::"
+
 run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d "$ambilight_dependency,$wmp_dependency"
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
