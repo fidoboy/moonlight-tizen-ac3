@@ -552,7 +552,11 @@ void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
   const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
   const bool emssHardwareActive = activeMode &&
     *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
-  if (m_Instance->m_OpusPassthrough.load()) {
+  if (m_Instance->m_OpusToDolbyTranscode.load()) {
+    m_Instance->m_DolbyHardwareActive.store(emssHardwareActive);
+    ClLogMessage("Opus-to-Dolby fallback: AC-3 output track opened; active decoder mode=%s\n",
+      emssHardwareActive ? "Hardware" : "Software/unknown");
+  } else if (m_Instance->m_OpusPassthrough.load()) {
     m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
     ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
       emssHardwareActive ? "Hardware" : "Software/unknown");
@@ -745,6 +749,48 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       else {
         ClLogMessage("Failed to create %s audio track; aborting negotiated Dolby session\n",
           isEac3 ? "E-AC-3" : "AC-3");
+        return -1;
+      }
+    }
+    else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
+             g_Instance->m_OpticalOutputEnabled) {
+      const int outputChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+      samsung::wasm::ChannelLayout channelLayout;
+      switch (outputChannels) {
+        case 2:
+          channelLayout = samsung::wasm::ChannelLayout::kStereo;
+          break;
+        case 6:
+          channelLayout = g_Instance->m_DolbyChannelLayout == "Normal"
+            ? samsung::wasm::ChannelLayout::k5_1
+            : samsung::wasm::ChannelLayout::k5_1Back;
+          break;
+        default:
+          ClLogMessage("Unsupported channel layout for Opus-to-Dolby fallback: %d\n", outputChannels);
+          return -1;
+      }
+
+      // Native Dolby negotiation above always wins. This track is used only when
+      // the host fell back to Opus while the user still requires a Dolby bitstream.
+      g_Instance->m_OpusToDolbyTranscode.store(true);
+      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-AC-3 transcoding (%d channels)\n",
+        outputChannels);
+      auto add_track_result = g_Instance->m_Source->AddTrack(
+        samsung::wasm::ElementaryAudioTrackConfig {
+          "audio/mp4; codecs=\"ac-3\"",
+          {},
+          samsung::wasm::DecodingMode::kHardware,
+          samsung::wasm::SampleFormat::kAc3,
+          channelLayout,
+          kSampleRate,
+        }
+      );
+      if (add_track_result) {
+        g_Instance->m_AudioTrack = std::move(*add_track_result);
+        g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+      } else {
+        g_Instance->m_OpusToDolbyTranscode.store(false);
+        ClLogMessage("The TV rejected the AC-3 fallback track; audio cannot be initialized\n");
         return -1;
       }
     }
