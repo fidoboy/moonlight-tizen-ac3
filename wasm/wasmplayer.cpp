@@ -554,13 +554,15 @@ void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
     *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
   if (m_Instance->m_OpusPassthrough.load()) {
     m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
-    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\\n",
+    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
       emssHardwareActive ? "Hardware" : "Software/unknown");
   } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
     const bool hardwareActive = !m_Instance->m_DolbySoftwareDecode.load() && emssHardwareActive;
     m_Instance->m_DolbyHardwareActive.store(hardwareActive);
-    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\\n",
-      hardwareActive ? "Hardware" : "Software/FFmpeg");
+    const char* decoderMode = m_Instance->m_DolbySoftwareDecode.load()
+      ? "Software (FFmpeg)"
+      : (hardwareActive ? "Hardware" : "Software/unknown");
+    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\n", decoderMode);
   } else {
     m_Instance->m_OpusHardwareActive.store(false);
     m_Instance->m_DolbyHardwareActive.store(false);
@@ -728,10 +730,10 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
 
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
-          mimeType, // Compressed Dolby elementary bitstream
+          mimeType, // Compressed Dolby bitstream or decoded PCM
           {}, // Extradata: Empty
           decodingMode, // Dolby decoding mode selected by the user when supported
-          sampleFormat, // AC-3/E-AC-3 compressed bitstream
+          sampleFormat, // Compressed Dolby or signed 16-bit PCM
           channelLayout,
           kSampleRate, // Sample Rate: 48 kHz (48000 Hz)
         }
@@ -820,9 +822,9 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
 
         g_Instance->m_OpusPassthrough.store(useOpusPassthrough);
         if (useOpusPassthrough) {
-          ClLogMessage("Opus passthrough probe: EMSS accepted hardware Opus track configuration\\n");
+          ClLogMessage("Opus passthrough probe: EMSS accepted hardware Opus track configuration\n");
         } else {
-          ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\\n");
+          ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\n");
         }
       }
 
@@ -843,7 +845,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           g_Instance->m_AudioTrack = std::move(*add_track_result);
           g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
         } else {
-          ClLogMessage("The TV rejected the PCM fallback track; audio cannot be initialized\\n");
+          ClLogMessage("The TV rejected the PCM fallback track; audio cannot be initialized\n");
           return -1;
         }
       }
