@@ -234,11 +234,6 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   g_Instance->m_DolbySoftwareDecode.store(s_DolbySoftwareDecode);
 
   if (s_DolbySoftwareDecode) {
-    if (s_AudioBackend != AudioBackend::Emss) {
-      ClLogMessage("FFmpeg Dolby software decoding currently requires the EMSS audio backend\n");
-      return -1;
-    }
-
     s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
     if (!LiIsEac3AudioNegotiated() && s_channelCount == 8) {
       s_channelCount = 6;
