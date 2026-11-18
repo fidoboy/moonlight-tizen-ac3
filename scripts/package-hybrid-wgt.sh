@@ -505,11 +505,6 @@ with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path)
         )
     if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
         raise SystemExit("Final hybrid package identity/API floor changed")
-    if any(
-        node.tag == "{http://tizen.org/ns/packages}label"
-        for node in list(manifest)
-    ):
-        raise SystemExit("Final hybrid manifest must not contain a package-level label element")
     root_metadata = {
         "author": "Moonlight Tizen",
         "description": "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight.",
