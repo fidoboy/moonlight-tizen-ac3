@@ -2901,7 +2901,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* Distinguish the active audio decoder mode in the performance statistics overlay. */
 #performance-stats .performance-stats-audio-mode-icon {
     display: inline-block;
-    margin-right: 4px;
+    margin-right: 2px;
     font-size: 14px;
     line-height: 1;
     vertical-align: -2px;
