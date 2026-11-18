@@ -56,12 +56,18 @@ if [[ "$OFFICIAL_RELEASE" != "true" ]]; then
   if [[ -n "$short_sha" ]]; then sed -i "s/__BUILD_COMMIT__/$short_sha/g" "$index_js"; fi
 fi
 node --check "$index_js"
+FFMPEG_ROOT="${FFMPEG_ROOT:-/opt/ffmpeg-install}"
+for library in libavcodec.a libavutil.a libswresample.a; do
+  test -s "$FFMPEG_ROOT/lib/$library" || { echo "Missing FFmpeg library: $FFMPEG_ROOT/lib/$library" >&2; exit 1; }
+done
+test -s "$FFMPEG_ROOT/include/libavcodec/avcodec.h"
 build_dir="$ROOT/build-moonlight-web"
 rm -rf "$build_dir" "$OUT/web"
 mkdir -p "$OUT"
 cmake -DCMAKE_TOOLCHAIN_FILE="$EMSDK/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  -DMOONLIGHT_DEBUG_MODE="$DEBUG_MODE" -G Ninja -S "$ROOT" -B "$build_dir"
+  -DMOONLIGHT_DEBUG_MODE="$DEBUG_MODE" \\
+  -DFFMPEG_ROOT="${FFMPEG_ROOT:-/opt/ffmpeg-install}" -G Ninja -S "$ROOT" -B "$build_dir"
 cmake --build "$build_dir" --parallel
 cmake --install "$build_dir" --prefix "$build_dir"
 widget="$build_dir/widget"
