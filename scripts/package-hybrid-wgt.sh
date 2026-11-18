@@ -147,6 +147,10 @@ rm -f "$wmp_service_project/MoonlightHost.csproj"
 # The Tizen Core project has its own generated icon; discard the upstream relative icon reference.
 sed -i '/<None Include="..\/..\/res\/icon.png"/d' "$wmp_service_project/WmpService.csproj"
 cp wmp/dotnet-host/tizen-manifest.xml "$wmp_service_project/tizen-manifest.xml"
+# Tizen Core does not generate the WMP icon in this workspace; stage the app icon explicitly.
+mkdir -p "$wmp_service_project/shared/res"
+cp res/icon.png "$wmp_service_project/shared/res/WmpService.png"
+test -s "$wmp_service_project/shared/res/WmpService.png"
 python3 - "$wmp_service_project/tizen-manifest.xml" "$web_project/config.xml" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -263,7 +267,7 @@ import sys, zipfile
 import xml.etree.ElementTree as ET
 with zipfile.ZipFile(sys.argv[1]) as package:
     names = set(package.namelist())
-    required = {"bin/MoonlightHost.dll", "res/lib/libmlengine.so", "tizen-manifest.xml"}
+    required = {"bin/MoonlightHost.dll", "res/lib/libmlengine.so", "shared/res/WmpService.png", "tizen-manifest.xml"}
     missing = sorted(required - names)
     if missing:
         raise SystemExit("WMP TPK is missing: " + ", ".join(missing))
@@ -407,6 +411,7 @@ with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path)
     required = {
         "config.xml", "tizen-manifest.xml", "author-signature.xml",
         "signature1.xml", "bin/MoonlightHost.dll", "res/lib/libmlengine.so",
+        "shared/res/WmpService.png",
         "res/wgt/config.xml", "res/wgt/index.html",
         "res/wgt/moonlight-wasm.js", "res/wgt/moonlight-wasm.wasm",
         "res/wgt/service/service.js",
