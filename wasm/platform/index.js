@@ -10526,7 +10526,7 @@ function createConfigSummaryBar() {
 
       var warningIcon = document.createElement('span');
       warningIcon.className = 'material-icons config-summary-warning-icon';
-      warningIcon.textContent = 'warning';
+      warningIcon.textContent = 'error';
       warningIcon.setAttribute('aria-hidden', 'true');
       warningIcon.style.display = 'none';
       value.appendChild(warningIcon);

@@ -273,6 +273,8 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Audio delay:/g, t('Audio delay:'))
+    .replace(/Audio transcoding latency:/g, t('Audio delay:'))
     .replace(/Decoding mode: (Automatic|Hardware|Software)/g, function(match, mode) {
       return t('Decoding mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
     })
@@ -971,7 +973,26 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       label.textContent = line.slice(0, separator + 1);
       var value = document.createElement('span');
       value.className = 'performance-stats-value';
-      value.textContent = line.slice(separator + 1).trim();
+      var valueText = line.slice(separator + 1).trim();
+      var sourceLine = sourceLines[lineIndex] || '';
+      var audioModeMatch = sourceLine.indexOf('Audio stream:') === 0
+        ? valueText.match(/\[(Hardware|Software)\]/)
+        : null;
+      if (audioModeMatch) {
+        var modeStart = audioModeMatch.index;
+        var modeEnd = modeStart + audioModeMatch[0].length;
+        value.appendChild(document.createTextNode(valueText.slice(0, modeStart) + '['));
+
+        var modeIcon = document.createElement('i');
+        modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
+          audioModeMatch[1].toLowerCase();
+        modeIcon.setAttribute('aria-hidden', 'true');
+        modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'error';
+        value.appendChild(modeIcon);
+        value.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']' + valueText.slice(modeEnd)));
+      } else {
+        value.textContent = valueText;
+      }
       row.appendChild(label);
       row.appendChild(value);
     } else {

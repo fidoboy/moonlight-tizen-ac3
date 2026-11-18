@@ -2896,3 +2896,19 @@ body[data-color-theme="black-orange"] #background-layer {
 #html-launch-splash-logo {
     z-index: 1;
 }
+
+
+/* Distinguish the active audio decoder mode in the performance statistics overlay. */
+#performance-stats .performance-stats-audio-mode-icon {
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: -2px;
+}
+#performance-stats .performance-stats-audio-mode-icon--hardware {
+    color: #35c879;
+}
+#performance-stats .performance-stats-audio-mode-icon--software {
+    color: #f2cc45;
+}
