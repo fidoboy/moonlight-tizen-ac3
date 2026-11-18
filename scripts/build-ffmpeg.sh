@@ -30,7 +30,6 @@ if [[ ! -f "${PREFIX}/lib/libavcodec.a" ]]; then
     --nm=emnm \
     --disable-everything \
     --enable-decoder=ac3,eac3 \
-    --enable-parser=ac3 \
     --disable-programs \
     --disable-doc \
     --disable-network \
