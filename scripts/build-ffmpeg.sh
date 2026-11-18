@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+EMSDK_ROOT="/home/moonlight/emscripten-release-bundle/emsdk"
+source "${EMSDK_ROOT}/emsdk_env.sh" >/dev/null
+
 FFMPEG_VERSION="4.4.8"
 FFMPEG_ARCHIVE="ffmpeg-${FFMPEG_VERSION}.tar.xz"
 FFMPEG_URL="https://ffmpeg.org/releases/${FFMPEG_ARCHIVE}"
