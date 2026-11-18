@@ -56,6 +56,7 @@ run_tz "list-signing-profile" tizen security-profiles list -n Moonlight
 workspace="$RUNNER_TEMP/tz-production-workspace"
 web_project="$workspace/MoonlightWeb"
 service_project="$workspace/AmbilightService/AmbilightService"
+wmp_service_project="$workspace/WmpService/WmpService"
 mkdir -p "$workspace"
         
 package_base_web() {
@@ -118,7 +119,7 @@ deps: []
 YAML
         
 run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-run_tz "add-service-dependency" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService
+run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService,../WmpService/WmpService
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
 mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
@@ -132,85 +133,60 @@ test -s "$service_tpk"
 echo "Ambilight service TPK: $service_tpk"
 unzip -tq "$service_tpk"
 
-wmp_project="$RUNNER_TEMP/WmpServicePackage"
-wmp_build_dir="/workspace/wmp/dotnet-host/bin/Release/tizen80"
-test -s "$wmp_build_dir/MoonlightHost.dll"
-mkdir -p "$wmp_project/bin" "$wmp_project/res/lib"
-cp -a "$wmp_build_dir/." "$wmp_project/bin/"
-find "$wmp_project/bin" -type f -name '*.tpk' -delete
-if [[ -s "$wmp_build_dir/res/lib/libmlengine.so" ]]; then
-  cp "$wmp_build_dir/res/lib/libmlengine.so" "$wmp_project/res/lib/libmlengine.so"
-elif [[ -s "/workspace/wmp/dotnet-host/lib/libmlengine.so" ]]; then
-  cp "/workspace/wmp/dotnet-host/lib/libmlengine.so" "$wmp_project/res/lib/libmlengine.so"
-else
-  echo "::error::The managed WMP build did not retain res/lib/libmlengine.so."
-  find "$wmp_build_dir" -maxdepth 4 -type f -print
+# Create WMP as a first-class Tizen Core .NET service project.
+# Its managed sources, manifest and native engine payload are built and
+# packaged by Tizen Core as a dependency of the main Web project.
+run_tz "create-wmp-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n WmpService -T dotnet -p tv-samsung-6.0 -w "$workspace"
+test -d "$wmp_service_project"
+rm -f "$wmp_service_project/WmpService_App.cs"
+cp wmp/dotnet-host/Program.cs \
+   wmp/dotnet-host/EngineApi.cs \
+   wmp/dotnet-host/HostLog.cs \
+   wmp/dotnet-host/HostProtocol.cs \
+   wmp/dotnet-host/ManualLoader.cs \
+   wmp/dotnet-host/WmpSupervisor.cs \
+   "$wmp_service_project/"
+cp wmp/dotnet-host/MoonlightHost.csproj "$wmp_service_project/MoonlightHost.csproj"
+cp wmp/dotnet-host/tizen-manifest.xml "$wmp_service_project/tizen-manifest.xml"
+test -s wmp/dotnet-host/lib/libmlengine.so
+mkdir -p "$wmp_service_project/lib"
+cp wmp/dotnet-host/lib/libmlengine.so "$wmp_service_project/lib/libmlengine.so"
+cat > "$wmp_service_project/tizen_dotnet_project.yaml" <<'YAML'
+csproj_file: MoonlightHost.csproj
+profile: tv-samsung
+api_version: "6.0"
+build_type: Release
+signing_profile: Moonlight
+files:
+  - MoonlightHost.csproj
+  - Program.cs
+  - EngineApi.cs
+  - HostLog.cs
+  - HostProtocol.cs
+  - ManualLoader.cs
+  - WmpSupervisor.cs
+  - tizen-manifest.xml
+  - lib/libmlengine.so
+  - shared/res/WmpService.png
+deps: []
+YAML
+
+# Tizen Core builds both .NET service projects through the Web project's
+# dependency graph. Collect their signed TPKs for the final hybrid pack.
+mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+if (( ${#service_pkgs[@]} != 1 )); then
+  echo "::error::Expected exactly one Ambilight Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
+  printf '%s\\n' "${service_pkgs[@]}"
   exit 1
 fi
-rm -rf "$wmp_project/bin/res" "$wmp_project/bin/tpkroot"
-cp wmp/dotnet-host/tizen-manifest.xml "$wmp_project/tizen-manifest.xml"
-python3 - "$wmp_project/tizen-manifest.xml" "$web_project/config.xml" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
+service_tpk="${service_pkgs[0]}"
+test -s "$service_tpk"
+echo "Ambilight service TPK: $service_tpk"
+unzip -tq "$service_tpk"
 
-manifest_path, config_path = sys.argv[1:]
-ET.register_namespace("", "http://tizen.org/ns/packages")
-tree = ET.parse(manifest_path)
-manifest = tree.getroot()
-config = ET.parse(config_path).getroot()
-version = config.get("version")
-if not version:
-    raise SystemExit("Moonlight config.xml has no package version")
-if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
-    raise SystemExit("WMP .NET package must target Tizen 6.0 / API 8")
-apps = [node for node in manifest.iter() if node.tag.endswith("service-application")]
-expected_ids = {"MoonLightS.WmpService", "MoonLightS.WmpSupervisor"}
-app_by_id = {app.get("appid"): app for app in apps}
-if len(apps) != 2 or set(app_by_id) != expected_ids:
-    raise SystemExit(
-        "WMP manifest must contain exactly the WMP service and its independent supervisor; "
-        f"found {sorted(app_by_id)!r}"
-    )
-expected = {"exec":"MoonlightHost.dll","api-version":"8","nodisplay":"true","on-boot":"false","auto-restart":"false","multiple":"false","type":"dotnet","taskmanage":"false"}
-for app_id, app in app_by_id.items():
-    for key, value in expected.items():
-        if app.get(key) != value:
-            raise SystemExit(f"WMP manifest {app_id} {key} must be {value!r}")
-    if not any(
-        node.tag.endswith("background-category") and node.get("value") == "background-network"
-        for node in app
-    ):
-        raise SystemExit(f"WMP manifest {app_id} is missing background-network capability")
-manifest.set("version", version)
-tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
-print(f"WMP package manifest validated; version synchronized to {version}.")
-PY
-# Build an unsigned TPK archive from the prebuilt ServiceApp payload,
-# then let Tizen Core repackage and sign it using the active profile.
-unsigned_wmp_tpk="$RUNNER_TEMP/WmpService-unsigned.tpk"
-python3 - "$wmp_project" "$unsigned_wmp_tpk" <<'PY'
-import sys
-import zipfile
-from pathlib import Path
-
-source, output = map(Path, sys.argv[1:])
-with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as package:
-    for item in sorted(source.rglob("*")):
-        if item.is_file() and item.suffix != ".tpk":
-            package.write(item, item.relative_to(source).as_posix())
-with zipfile.ZipFile(output) as package:
-    bad = package.testzip()
-    if bad:
-        raise SystemExit(f"Invalid unsigned WMP TPK member: {bad}")
-    required = {"tizen-manifest.xml", "bin/MoonlightHost.dll", "res/lib/libmlengine.so"}
-    missing = required - set(package.namelist())
-    if missing:
-        raise SystemExit("Unsigned WMP TPK is missing: " + ", ".join(sorted(missing)))
-PY
-run_tz "sign-wmp-dotnet-service-tpk" "$TIZEN_CORE_CLI" pack -t tpk -s Moonlight -b "$unsigned_wmp_tpk" -o "$wmp_project/MoonLightS.tpk"
-mapfile -t wmp_pkgs < <(find "$wmp_project" -maxdepth 1 -type f -name '*.tpk' -print | sort)
+mapfile -t wmp_pkgs < <(find "$wmp_service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
 if (( ${#wmp_pkgs[@]} != 1 )); then
-  echo "::error::Expected exactly one WMP .NET service TPK; found ${#wmp_pkgs[@]}."
+  echo "::error::Expected exactly one WMP Tizen 6.0 / API 8 service TPK; found ${#wmp_pkgs[@]}."
   printf '%s\\n' "${wmp_pkgs[@]}"
   exit 1
 fi
@@ -247,7 +223,7 @@ with zipfile.ZipFile(sys.argv[1]) as package:
             for n in app
         ):
             raise SystemExit(f"WMP TPK service {app_id} is missing background-network capability")
-print("WMP .NET service TPK payload and manifest verified.")
+print("WMP Tizen Core dependency TPK payload and manifest verified.")
 PY
 echo "WMP service TPK: $wmp_tpk"
 
