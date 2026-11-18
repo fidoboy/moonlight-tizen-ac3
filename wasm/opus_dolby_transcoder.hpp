@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <vector>
 
@@ -22,6 +23,7 @@ public:
   bool Transcode(const uint8_t* data, int size,
     std::vector<std::vector<uint8_t>>& encodedPackets);
   void Cleanup();
+  double GetAverageProcessingLatencyMs() const;
 
 private:
   bool DrainEncoder(std::vector<std::vector<uint8_t>>& encodedPackets);
@@ -37,4 +39,6 @@ private:
   uint64_t m_ChannelLayout = 0;
   int m_Channels = 0;
   int64_t m_NextEncoderPts = 0;
+  std::atomic<uint64_t> m_ProcessingTimeNs{0};
+  std::atomic<uint64_t> m_ProcessedPackets{0};
 };
