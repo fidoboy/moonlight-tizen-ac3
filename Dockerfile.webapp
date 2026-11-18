@@ -23,6 +23,8 @@ ENV TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
 	cmake \
 	ccache \
+	make \
+	xz-utils \
 	expect \
 	git \
 	ninja-build \
@@ -38,6 +40,11 @@ RUN ln -sf /usr/bin/python2 /usr/bin/python
 RUN useradd -m -s /bin/bash moonlight
 USER moonlight
 WORKDIR /home/moonlight
+
+# Build FFmpeg before copying the application sources so Docker can cache this dependency layer.
+COPY --chown=moonlight scripts/build-ffmpeg.sh ./build-ffmpeg.sh
+RUN bash build-ffmpeg.sh
+
 RUN mkdir -p /home/moonlight/moonlight-tizen
 
 # Install Tizen Studio CLI and configure the toolchain path
@@ -99,6 +106,7 @@ RUN cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
+	-DFFMPEG_ROOT=/home/moonlight/ffmpeg-install \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
@@ -197,7 +205,11 @@ RUN rm -rf \
 	.emscripten_cache \
 	.emscripten_cache.lock \
 	.emscripten_ports \
-	.emscripten_sanity
+	.emscripten_sanity \
+	ffmpeg-4.4.8 \
+	ffmpeg-install \
+	ffmpeg-download \
+	build-ffmpeg.sh
 
 # Use a multi-stage build to reclaim space from deleted files
 FROM ubuntu:22.04

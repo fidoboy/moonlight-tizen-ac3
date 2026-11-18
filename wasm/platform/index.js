@@ -690,8 +690,6 @@ const BUILD_COMMIT = '__BUILD_COMMIT__'; // Placeholder for build commit, which 
 const OFFICIAL_RELEASE = '__OFFICIAL_RELEASE__' === 'true'; // Only stable GitHub Releases set this flag
 const REPO_OWNER = '__REPO_OWNER__'; // Placeholder for repository owner, which should be replaced during the build process
 const REPO_NAME = '__REPO_NAME__'; // Placeholder for repository name, which should be replaced during the build process
-var _smartHubLocalMessagePort = null; // Local message port for receiving messages from the Smart Hub service
-var _smartHubMessagePortListener = null; // Listener ID for the Smart Hub local message port
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
 var _isSmartHubSupported = false; // Flag indicating if Smart Hub Preview is supported on this device
 var _smartHubSupportPromise = null;
@@ -10284,43 +10282,28 @@ function updatePreviewDataAfterSupportCheck() {
     var previewData = {
       sections: sections
     };
-    var serviceId = packageId + '.service';
+    var serviceId = packageId + '.preview';
 
     console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Launching Smart Hub service with preview data: ', previewData);
 
-    // Set up local message port to receive responses from the service
-    if (_smartHubLocalMessagePort && _smartHubMessagePortListener !== null) {
-      try {
-        _smartHubLocalMessagePort.removeMessagePortListener(_smartHubMessagePortListener);
-      } catch (e) {
-        // Ignore listener removal errors
-        console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Error removing previous Smart Hub message port listener: ' + e.message);
-      }
-    }
-    _smartHubLocalMessagePort = tizen.messageport.requestLocalMessagePort(packageId);
-    _smartHubMessagePortListener = _smartHubLocalMessagePort.addMessagePortListener(function(uiData) {
-      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Received from Smart Hub service: ' + uiData[0].value);
-      if (uiData[0].value === 'Service stopping...' || uiData[0].value === 'Service exiting...') {
-        try {
-          _smartHubLocalMessagePort.removeMessagePortListener(_smartHubMessagePortListener);
-          _smartHubMessagePortListener = null;
-        } catch (e) {
-          // Ignore listener removal errors
-          console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Error removing Smart Hub message port listener: ' + e.message);
-        }
-      }
-    });
-
-    // Launch the background service with the preview data via AppControl
+    // Launch the background service with preview data via AppControl.
     tizen.application.launchAppControl(
       new tizen.ApplicationControl(
         'http://tizen.org/appcontrol/operation/pick', null, 'image/jpeg', null,
-        [new tizen.ApplicationControlData('Preview', [JSON.stringify(previewData)])]
+        [new tizen.ApplicationControlData('preview', [JSON.stringify(previewData)])]
       ),
       serviceId, function() {
-        console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Preview data sent to service: ' + serviceId);
+        console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Preview request dispatched to service: ' + serviceId);
       }, function(err) {
         console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Failed to launch Smart Hub service: ' + err.message);
+      }, {
+        onsuccess: function(data) {
+          var status = data && data[0] && data[0].value && data[0].value[0];
+          console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub service reply: ' + (status || 'empty response'));
+        },
+        onfailure: function() {
+          console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub service returned an AppControl failure.');
+        }
       }
     );
   } catch (e) {
@@ -10392,8 +10375,6 @@ function probeSmartHubSupport() {
   return new Promise(function(resolve, reject) {
     var packageId;
     var serviceId;
-    var probePort = null;
-    var probeListener = null;
     var probeTimeout = null;
     var settled = false;
 
@@ -10402,14 +10383,6 @@ function probeSmartHubSupport() {
         clearTimeout(probeTimeout);
         probeTimeout = null;
       }
-      if (probePort && probeListener !== null) {
-        try {
-          probePort.removeMessagePortListener(probeListener);
-        } catch (e) {
-          console.error('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Error removing Smart Hub probe listener: ' + e.message);
-        }
-        probeListener = null;
-      }
     }
 
     function finishProbe(supported) {
@@ -10417,7 +10390,7 @@ function probeSmartHubSupport() {
       settled = true;
       cleanupProbe();
       _isSmartHubSupported = supported;
-      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (probed): ' + supported);
+      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (AppControl reply): ' + supported);
       resolve(supported);
     }
 
@@ -10432,35 +10405,43 @@ function probeSmartHubSupport() {
 
     try {
       packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-      serviceId = packageId + '.service';
-      probePort = tizen.messageport.requestLocalMessagePort(packageId);
-      probeListener = probePort.addMessagePortListener(function(data) {
-        if (settled || !data || !data[0] || data[0].key !== 'PROBE') return;
+      serviceId = packageId + '.preview';
 
-        var value = data[0].value;
-        if (value === 'SMART_HUB_SUPPORTED') {
-          finishProbe(true);
-        } else if (value === 'SMART_HUB_NOT_SUPPORTED') {
-          finishProbe(false);
-        } else {
-          failProbe(new Error('Unexpected Smart Hub probe response: ' + value));
-        }
-      });
-
-      // A missing response is a communication failure, not an unsupported result.
       probeTimeout = setTimeout(function() {
-        failProbe(new Error('Timed out waiting for the Smart Hub support response.'));
+        failProbe(new Error('Timed out waiting for the Smart Hub AppControl reply.'));
       }, 10000);
 
       tizen.application.launchAppControl(
         new tizen.ApplicationControl(
           'http://tizen.org/appcontrol/operation/pick', null, null, null,
-          [new tizen.ApplicationControlData('Probe', ['check'])]
+          [new tizen.ApplicationControlData('probe', ['check'])]
         ),
         serviceId, function() {
-          console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe request dispatched.');
+          console.log('[SmartHub Probe] Service launch request dispatched.');
         }, function(err) {
           failProbe(new Error('Probe launch failed: ' + err.message));
+        }, {
+          onsuccess: function(data) {
+            var status = null;
+            if (data && data.length) {
+              for (var i = 0; i < data.length; i++) {
+                if (data[i].key === 'status' && data[i].value && data[i].value.length) {
+                  status = data[i].value[0];
+                  break;
+                }
+              }
+            }
+            if (status === 'SMART_HUB_SUPPORTED') {
+              finishProbe(true);
+            } else if (status === 'SMART_HUB_NOT_SUPPORTED') {
+              finishProbe(false);
+            } else {
+              failProbe(new Error('Unexpected Smart Hub AppControl reply: ' + (status || 'empty response')));
+            }
+          },
+          onfailure: function() {
+            failProbe(new Error('Smart Hub service returned an AppControl failure.'));
+          }
         }
       );
     } catch (e) {

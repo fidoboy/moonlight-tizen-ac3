@@ -153,9 +153,7 @@ jobs:
               readelf -h /runner-temp/wmp-engine-build/libmlengine.so | grep -F "Machine:" | grep -F "ARM"
               mkdir -p wmp/dotnet-host/lib
               cp /runner-temp/wmp-engine-build/libmlengine.so wmp/dotnet-host/lib/libmlengine.so
-              dotnet build wmp/dotnet-host/MoonlightHost.csproj --configuration Release --verbosity minimal
-              test -s wmp/dotnet-host/bin/Release/tizen80/MoonlightHost.dll
-              echo "WMP native engine and .NET ServiceApp build completed."
+              echo "WMP native engine built. The managed host will be compiled and packaged by its Tizen Core dependency project."
             '
       - name: Restore compiler cache ownership after WMP build
         if: always()
@@ -247,4 +245,3 @@ jobs:
           path: ${{ runner.temp }}/hybrid-output/${{ matrix.output_name }}
           if-no-files-found: error
           retention-days: 14
-

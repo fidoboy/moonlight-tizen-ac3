@@ -123,6 +123,7 @@ USER root
 ENV HOME=/root
 
 # Samsung's pinned Emscripten 1.39.4.7 SDK is part of the shared image.
+# Its bundle omits emnm's launcher, so expose the SDK's matching llvm-nm binary.
 # Moonlight Web is built directly in this image; no secondary project Dockerfile.
 RUN mkdir -p /opt \
     && aria2c -x 5 -s 5 -o /tmp/emscripten-1.39.4.7-linux64.zip \
@@ -133,9 +134,11 @@ RUN mkdir -p /opt \
         /opt/emscripten-release-bundle/emsdk/fastcomp/emscripten/tools/ports/tizen/crypto.py \
     && cd /opt/emscripten-release-bundle/emsdk \
     && ./emsdk activate latest-fastcomp \
+    && test -x fastcomp/fastcomp/bin/llvm-nm \
+    && ln -sfn ../fastcomp/bin/llvm-nm fastcomp/emscripten/emnm \
+    && test -x fastcomp/emscripten/emnm \
     && rm -f /tmp/emscripten-1.39.4.7-linux64.zip \
     && test -f fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake
-
 
 # Install Samsung's official Tizen.NET workload for the .NET 8.0.400 SDK band.
 # Pin the installer source and manifest version so image rebuilds are reproducible.
@@ -202,6 +205,8 @@ RUN set -euo pipefail \
          eval "$(/opt/emscripten-release-bundle/emsdk/emsdk construct_env)"; \
        fi \
     && emcc --version \
+    && command -v emnm \
+    && emnm --version \
     && cmake --version \
     && ninja --version \
     && rsvg-convert --version \

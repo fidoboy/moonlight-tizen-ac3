@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest package="MoonLightS" version="1.0.0" api-version="10.0" xmlns="http://tizen.org/ns/packages">
+<manifest package="MoonLightS" version="1.0.0" api-version="6.0" xmlns="http://tizen.org/ns/packages">
   <label>Moonlight Ambilight service</label>
   <author>Moonlight Tizen</author>
   <description>Native ambient-lighting service for Moonlight Tizen.</description>
   <profile name="tv" />
-  <service-application appid="MoonLightS.MoonlightAmbilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="13" type="dotnet" on-boot="false" auto-restart="false">
+  <service-application appid="MoonLightS.MoonlightAmbilight" exec="MoonlightAmbilight.dll" multiple="false" nodisplay="true" taskmanage="false" api-version="8" type="dotnet" on-boot="false" auto-restart="false">
     <label>Moonlight Ambilight</label>
     <background-category value="background-network" />
     <splash-screens />
