@@ -123,6 +123,7 @@ USER root
 ENV HOME=/root
 
 # Samsung's pinned Emscripten 1.39.4.7 SDK is part of the shared image.
+# Regenerate its command entry points after activation; the bundle may omit emnm.
 # Moonlight Web is built directly in this image; no secondary project Dockerfile.
 RUN mkdir -p /opt \
     && aria2c -x 5 -s 5 -o /tmp/emscripten-1.39.4.7-linux64.zip \
@@ -133,8 +134,6 @@ RUN mkdir -p /opt \
         /opt/emscripten-release-bundle/emsdk/fastcomp/emscripten/tools/ports/tizen/crypto.py \
     && cd /opt/emscripten-release-bundle/emsdk \
     && ./emsdk activate latest-fastcomp \
-    # Generate the Emscripten command wrappers, including emnm, which FFmpeg's \
-    # configure script requires through --nm=emnm. \
     && python3 fastcomp/emscripten/tools/maint/create_entry_points.py \
     && test -x fastcomp/emscripten/emnm \
     && rm -f /tmp/emscripten-1.39.4.7-linux64.zip \
