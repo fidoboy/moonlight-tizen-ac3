@@ -322,6 +322,13 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   m_SourceAttached = false;
   m_InputThread = 0;
 
+  // Reset Opus passthrough probing once per streaming session, independent of EMSS latency mode.
+  m_OpusProbeAttempted.store(false);
+  m_OpusTrackAddCompleted.store(false);
+  m_OpusTrackAddSucceeded.store(false);
+  m_OpusPassthrough.store(false);
+  m_OpusHardwareActive.store(false);
+
   PostToJs("Setting the Host address to: " + host + ":" + std::to_string(httpPort));
   PostToJs("Setting the Video resolution to: " + width + "x" + height);
   PostToJs("Setting the Video frame rate to: " + fps + " FPS");
