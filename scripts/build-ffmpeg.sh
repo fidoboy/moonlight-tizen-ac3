@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EMSDK_ROOT="/home/moonlight/emscripten-release-bundle/emsdk"
+EMSDK_ROOT="${EMSDK:-/opt/emscripten-release-bundle/emsdk}"
 source "${EMSDK_ROOT}/emsdk_env.sh" >/dev/null
 
 FFMPEG_VERSION="4.4.8"
 FFMPEG_ARCHIVE="ffmpeg-${FFMPEG_VERSION}.tar.xz"
 FFMPEG_URL="https://ffmpeg.org/releases/${FFMPEG_ARCHIVE}"
-SOURCE_DIR="/home/moonlight/ffmpeg-${FFMPEG_VERSION}"
-PREFIX="/home/moonlight/ffmpeg-install"
+WORK_DIR="${FFMPEG_WORK_DIR:-/opt/ffmpeg-build}"
+SOURCE_DIR="${WORK_DIR}/ffmpeg-${FFMPEG_VERSION}"
+PREFIX="${FFMPEG_ROOT:-/opt/ffmpeg-install}"
 
 if [[ ! -f "${PREFIX}/lib/libavcodec.a" ]]; then
-  mkdir -p /home/moonlight/ffmpeg-download
+  mkdir -p "${WORK_DIR}/download" "${WORK_DIR}"
   aria2c --continue=true --max-connection-per-server=5 --split=5 \
-    --dir=/home/moonlight/ffmpeg-download --out="${FFMPEG_ARCHIVE}" "${FFMPEG_URL}"
+    --dir="${WORK_DIR}/download" --out="${FFMPEG_ARCHIVE}" "${FFMPEG_URL}"
 
-  tar -xJf "/home/moonlight/ffmpeg-download/${FFMPEG_ARCHIVE}" -C /home/moonlight
+  tar -xJf "${WORK_DIR}/download/${FFMPEG_ARCHIVE}" -C "${WORK_DIR}"
   cd "${SOURCE_DIR}"
 
   emconfigure ./configure \
