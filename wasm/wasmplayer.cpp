@@ -550,16 +550,17 @@ MoonlightInstance::AudioTrackListener::AudioTrackListener(
 void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackOpen\n");
   const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
-  const bool hardwareActive = activeMode &&
+  const bool emssHardwareActive = activeMode &&
     *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
   if (m_Instance->m_OpusPassthrough.load()) {
-    m_Instance->m_OpusHardwareActive.store(hardwareActive);
-    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
-      hardwareActive ? "Hardware" : "Software/unknown");
+    m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
+    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\\n",
+      emssHardwareActive ? "Hardware" : "Software/unknown");
   } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
+    const bool hardwareActive = !m_Instance->m_DolbySoftwareDecode.load() && emssHardwareActive;
     m_Instance->m_DolbyHardwareActive.store(hardwareActive);
-    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\n",
-      hardwareActive ? "Hardware" : "Software/unknown");
+    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\\n",
+      hardwareActive ? "Hardware" : "Software/FFmpeg");
   } else {
     m_Instance->m_OpusHardwareActive.store(false);
     m_Instance->m_DolbyHardwareActive.store(false);
@@ -575,6 +576,7 @@ void MoonlightInstance::AudioTrackListener::OnTrackClosed(samsung::wasm::Element
   m_Instance->m_AudioStarted = false;
   m_Instance->m_OpusHardwareActive.store(false);
   m_Instance->m_DolbyHardwareActive.store(false);
+  m_Instance->m_DolbySoftwareDecode.store(false);
 }
 
 void MoonlightInstance::AudioTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
@@ -702,22 +704,27 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           return -1;
       }
 
-      const char* mimeType = isEac3 ? "audio/mp4; codecs=\"ec-3\"" : "audio/mp4; codecs=\"ac-3\"";
-      const auto sampleFormat = isEac3
-        ? samsung::wasm::SampleFormat::kEac3
-        : samsung::wasm::SampleFormat::kAc3;
+      const bool useSoftwareDecoder = g_Instance->m_DolbyDecodingMode == "Software";
+      const char* mimeType = useSoftwareDecoder
+        ? "audio/webm; codecs=\\"pcm\\""
+        : (isEac3 ? "audio/mp4; codecs=\\"ec-3\\"" : "audio/mp4; codecs=\\"ac-3\\"");
+      const auto sampleFormat = useSoftwareDecoder
+        ? samsung::wasm::SampleFormat::kS16
+        : (isEac3
+          ? samsung::wasm::SampleFormat::kEac3
+          : samsung::wasm::SampleFormat::kAc3);
       auto decodingMode = samsung::wasm::DecodingMode::kHardware;
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      if (hasDecodingMode) {
-        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
-          decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
-        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
-          decodingMode = samsung::wasm::DecodingMode::kSoftware;
-        }
+      g_Instance->m_DolbySoftwareDecode.store(useSoftwareDecoder);
+      if (!useSoftwareDecoder && hasDecodingMode &&
+          g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
+        decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
       }
-      ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\n",
+      ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\\n",
         isEac3 ? "E-AC-3" : "AC-3", channelCount,
-        g_Instance->m_DolbyChannelLayout.c_str(), hasDecodingMode ? g_Instance->m_DolbyDecodingMode.c_str() : "Hardware");
+        g_Instance->m_DolbyChannelLayout.c_str(),
+        useSoftwareDecoder ? "Software (FFmpeg)" :
+          (hasDecodingMode ? g_Instance->m_DolbyDecodingMode.c_str() : "Hardware"));
 
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
