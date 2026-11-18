@@ -49,6 +49,7 @@ if [[ ! -f "${PREFIX}/lib/libavcodec.a" ]]; then
     --disable-x86asm \
     --disable-asm \
     --disable-inline-asm \
+    --disable-pthreads \
     --disable-debug \
     --disable-stripping \
     --enable-static \
