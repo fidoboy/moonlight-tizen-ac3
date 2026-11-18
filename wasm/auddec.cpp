@@ -229,22 +229,26 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 
   const bool isDolbyStream = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
   s_DolbySoftwareDecode = isDolbyStream &&
-    g_Instance->m_DolbyDecodingMode == "Software";
+    g_Instance->m_DolbyDecodingMode == "Software" &&
+    s_AudioBackend == AudioBackend::Emss;
   g_Instance->m_DolbySoftwareDecode.store(s_DolbySoftwareDecode);
 
   if (s_DolbySoftwareDecode) {
     if (s_AudioBackend != AudioBackend::Emss) {
-      ClLogMessage("FFmpeg Dolby software decoding currently requires the EMSS audio backend\\n");
+      ClLogMessage("FFmpeg Dolby software decoding currently requires the EMSS audio backend\n");
       return -1;
     }
 
     s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+    if (!LiIsEac3AudioNegotiated() && s_channelCount == 8) {
+      s_channelCount = 6;
+    }
     s_sampleRate = 48000;
     s_frameDuration = kDolbyFrameDuration;
     const bool useBackSurround = g_Instance->m_DolbyChannelLayout != "Normal";
     if (!s_DolbyDecoder.Initialize(
           LiIsEac3AudioNegotiated(), static_cast<int>(s_channelCount), useBackSurround)) {
-      ClLogMessage("Failed to initialize FFmpeg %s software decoder\\n",
+      ClLogMessage("Failed to initialize FFmpeg %s software decoder\n",
         LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3");
       return -1;
     }
@@ -254,7 +258,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     s_estimatedAudioEnd = 0s;
     s_hasFirstFrame = false;
     s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
-    ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\\n",
+    ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\n",
       LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3", static_cast<int>(s_channelCount));
     return 0;
   }
@@ -384,7 +388,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     auto now = std::chrono::steady_clock::now();
     TimeStamp ntp = now - s_firstAppend;
     if (s_AudioSyncEnabled && ntp + kAudioBufferMargin < s_estimatedAudioEnd) {
-      ClLogMessage("Dropping %s packet to avoid audio overflow: PTS=%.03f NTP=%.03f\\n",
+      ClLogMessage("Dropping %s packet to avoid audio overflow: PTS=%.03f NTP=%.03f\n",
         codecName, packetPts.count(), ntp.count());
       return;
     }
@@ -395,7 +399,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
             reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
             s_DolbyPcm, decodedSamples)) {
         if (++s_DolbyDecodeErrors % 100 == 1) {
-          ClLogMessage("FFmpeg rejected %s audio packet (%d consecutive decode errors)\\n",
+          ClLogMessage("FFmpeg rejected %s audio packet (%d consecutive decode errors)\n",
             codecName, s_DolbyDecodeErrors);
         }
         return;
@@ -413,7 +417,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
         g_Instance->m_AudioSessionId.load()
       };
       if (!g_Instance->m_AudioTrack.AppendPacket(pcmPacket)) {
-        ClLogMessage("Append FFmpeg-decoded %s PCM packet failed\\n", codecName);
+        ClLogMessage("Append FFmpeg-decoded %s PCM packet failed\n", codecName);
         return;
       }
 
@@ -434,7 +438,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       g_Instance->m_AudioSessionId.load()
     };
     if (!g_Instance->m_AudioTrack.AppendPacket(compressedPacket)) {
-      ClLogMessage("Append %s audio packet failed\\n", codecName);
+      ClLogMessage("Append %s audio packet failed\n", codecName);
       return;
     }
 
