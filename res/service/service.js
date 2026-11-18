@@ -282,6 +282,7 @@ module.exports.onStart = function() {
 };
 
 module.exports.onRequest = function() {
+  console.log('[SmartHub Probe Test] onRequest RECEIVED');
   logAndSend('Service request received.');
   try {
     handleDataInRequest();
