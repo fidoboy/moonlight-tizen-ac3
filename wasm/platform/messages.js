@@ -976,7 +976,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       var valueText = line.slice(separator + 1).trim();
       var sourceLine = sourceLines[lineIndex] || '';
       var audioModeMatch = sourceLine.indexOf('Audio stream:') === 0
-        ? valueText.match(/\\[(Hardware|Software)\\]/)
+        ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
