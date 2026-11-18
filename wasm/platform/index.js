@@ -10498,7 +10498,24 @@ function createConfigSummaryBar() {
     var value = document.createElement('span');
     value.id = entry.id;
     value.className = 'config-summary-value' + (entry.toggle ? ' config-summary-toggle' : '');
-    value.textContent = '—';
+
+    if (entry.id === 'summaryDolby') {
+      // Keep the warning node stable: replacing textContent would remove it and
+      // re-inserting it would feed the summary's own MutationObserver.
+      var toggleText = document.createElement('span');
+      toggleText.className = 'config-summary-toggle-text';
+      toggleText.textContent = '—';
+      value.appendChild(toggleText);
+
+      var warningIcon = document.createElement('span');
+      warningIcon.className = 'material-icons config-summary-warning-icon';
+      warningIcon.textContent = 'warning';
+      warningIcon.setAttribute('aria-hidden', 'true');
+      warningIcon.style.display = 'none';
+      value.appendChild(warningIcon);
+    } else {
+      value.textContent = '—';
+    }
 
     item.appendChild(label);
     item.appendChild(value);
@@ -10595,19 +10612,32 @@ function updateConfigSummaryBar(snapshot) {
     var enabled = value === true || value === 'true' || value === 1;
     var output = document.querySelector(summarySelector);
     if (!output) return;
-    output.textContent = enabled ? 'on' : 'off';
+    var warningActive = enabled && !!softwareDecodeWarning;
+    var toggleText = output.querySelector('.config-summary-toggle-text');
+    if (toggleText) {
+      var nextText = enabled ? 'on' : 'off';
+      if (toggleText.textContent !== nextText) toggleText.textContent = nextText;
+    } else if (output.textContent !== (enabled ? 'on' : 'off')) {
+      output.textContent = enabled ? 'on' : 'off';
+    }
     output.classList.toggle('is-on', enabled);
     output.classList.toggle('is-off', !enabled);
-    output.classList.toggle('is-software-warning', enabled && softwareDecodeWarning);
-    output.removeAttribute('title');
+    output.classList.toggle('is-software-warning', warningActive);
 
-    if (enabled && softwareDecodeWarning) {
-      var warningIcon = document.createElement('span');
-      warningIcon.className = 'material-icons config-summary-warning-icon';
-      warningIcon.textContent = 'warning';
-      warningIcon.setAttribute('aria-hidden', 'true');
-      output.appendChild(warningIcon);
-      output.title = 'Dolby Digital is received, but software decoding outputs PCM';
+    var warningIcon = output.querySelector('.config-summary-warning-icon');
+    if (warningIcon) {
+      var nextIconDisplay = warningActive ? '' : 'none';
+      if (warningIcon.style.display !== nextIconDisplay) {
+        warningIcon.style.display = nextIconDisplay;
+      }
+    }
+
+    var warningTitle = warningActive
+      ? 'Dolby Digital is received, but software decoding outputs PCM'
+      : '';
+    if (output.title !== warningTitle) {
+      if (warningTitle) output.title = warningTitle;
+      else output.removeAttribute('title');
     }
   }
 
@@ -10692,8 +10722,15 @@ function initializeConfigSummaryBar() {
   configSummaryBarInitialized = true;
 
   // Track setting changes and screen navigation without coupling the strip to each handler.
-  var observer = new MutationObserver(function() {
-    updateConfigSummaryBar();
+  var observer = new MutationObserver(function(mutations) {
+    var currentBar = document.getElementById('configSummaryBar');
+    // Ignore mutations produced by the summary itself. In particular, its
+    // value text, warning icon and visibility classes must not trigger another
+    // summary refresh.
+    var externalMutation = mutations.some(function(mutation) {
+      return !currentBar || !currentBar.contains(mutation.target);
+    });
+    if (externalMutation) updateConfigSummaryBar();
   });
   observer.observe(document.body, {
     subtree: true,
