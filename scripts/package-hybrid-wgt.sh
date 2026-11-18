@@ -118,21 +118,6 @@ files:
 deps: []
 YAML
         
-run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService,../WmpService/WmpService
-run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-        
-mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
-if (( ${#service_pkgs[@]} != 1 )); then
-  echo "::error::Expected exactly one Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
-  printf '%s\\n' "${service_pkgs[@]}"
-  exit 1
-fi
-service_tpk="${service_pkgs[0]}"
-test -s "$service_tpk"
-echo "Ambilight service TPK: $service_tpk"
-unzip -tq "$service_tpk"
-
 # Create WMP as a first-class Tizen Core .NET service project.
 # Its managed sources, manifest and native engine payload are built and
 # packaged by Tizen Core as a dependency of the main Web project.
@@ -172,6 +157,21 @@ files:
   - shared/res/WmpService.png
 deps: []
 YAML
+
+run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
+run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService,../WmpService/WmpService
+run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
+        
+mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+if (( ${#service_pkgs[@]} != 1 )); then
+  echo "::error::Expected exactly one Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
+  printf '%s\\n' "${service_pkgs[@]}"
+  exit 1
+fi
+service_tpk="${service_pkgs[0]}"
+test -s "$service_tpk"
+echo "Ambilight service TPK: $service_tpk"
+unzip -tq "$service_tpk"
 
 # Tizen Core builds both .NET service projects through the Web project's
 # dependency graph. Collect their signed TPKs for the final hybrid pack.
