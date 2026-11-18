@@ -1273,6 +1273,7 @@
   var streamMenuInputBlocked = false;
   var gamepadNeutralRequired = Object.create(null);
   var mouseEmulationEnabled = false;
+  var mouseEmulationStick = 'right';
   var selectHoldStreamMenuEnabled = false;
   var mouseEmulationActive = false;
   var mouseEmulationOwner = null;
@@ -1478,18 +1479,18 @@
   }
 
   function updateMouseEmulation(state) {
-    var leftX = state.lsX / 32767;
-    var leftY = state.lsY / 32767;
-    var leftMagnitude = Math.min(1, Math.sqrt(leftX * leftX + leftY * leftY));
-    var mouseSpeed = 10 * leftMagnitude;
-    var deltaX = Math.round(leftX * mouseSpeed);
-    var deltaY = Math.round(-leftY * mouseSpeed);
+    var pointerX = (mouseEmulationStick === 'left' ? state.lsX : state.rsX) / 32767;
+    var pointerY = (mouseEmulationStick === 'left' ? state.lsY : state.rsY) / 32767;
+    var pointerMagnitude = Math.min(1, Math.sqrt(pointerX * pointerX + pointerY * pointerY));
+    var mouseSpeed = 10 * pointerMagnitude;
+    var deltaX = Math.round(pointerX * mouseSpeed);
+    var deltaY = Math.round(-pointerY * mouseSpeed);
     if (deltaX || deltaY) sendMouseMove(deltaX, deltaY);
 
-    var rightX = state.rsX / 32767;
-    var rightY = state.rsY / 32767;
-    var scrollMagnitude = Math.min(1, Math.sqrt(rightX * rightX + rightY * rightY));
-    var scroll = Math.round(-rightY * scrollMagnitude);
+    var scrollX = (mouseEmulationStick === 'left' ? state.rsX : state.lsX) / 32767;
+    var scrollY = (mouseEmulationStick === 'left' ? state.rsY : state.lsY) / 32767;
+    var scrollMagnitude = Math.min(1, Math.sqrt(scrollX * scrollX + scrollY * scrollY));
+    var scroll = Math.round(-scrollY * scrollMagnitude);
     if (scroll) sendMouseScroll(scroll);
 
     var nextButtons = {
@@ -1944,6 +1945,7 @@
       nativeInputCapabilities = 0;
       nativeGamepadMask = 0;
       mouseEmulationEnabled = parameters && parameters.mouseEmulation === true;
+      mouseEmulationStick = parameters && parameters.mouseEmulationStick === 'left' ? 'left' : 'right';
       selectHoldStreamMenuEnabled = parameters && parameters.selectHoldStreamMenu === true;
       mouseEmulationActive = false;
       mouseEmulationOwner = null;
@@ -1951,7 +1953,7 @@
       for (var shortcutIndex = 0; shortcutIndex < 16; shortcutIndex++) clearGamepadShortcutTimers(shortcutIndex);
       if (parameters && typeof parameters === 'object') {
         Object.keys(parameters).forEach(function(key) {
-          requestParameters[key] = parameters[key];
+          if (key !== 'mouseEmulationStick') requestParameters[key] = parameters[key];
         });
       }
       requestParameters.debugMode = global.DEBUG_MODE === true;
