@@ -75,11 +75,16 @@ link-time `DT_NEEDED` dependency.
 
 ## Build and verification
 
-The hybrid workflows build the ARM engine, compile the `tizen80` .NET host
-(including the supervisor implementation), and package both service
-applications into the single hybrid WGT. The separate
-`wmp-native-build.yml` diagnostic workflow also builds the engine and
-managed host, but does not publish a standalone service package.
+The hybrid workflow builds the ARM engine, creates a Tizen Core
+`.NET` service project for WMP, copies the managed host sources, manifest
+and `libmlengine.so` payload into that project, and registers it alongside
+Ambilight as a dependency of the main Web project. Tizen Core then compiles
+and packages both service projects through the same dependency graph. The
+WMP TPK contains both `MoonLightS.WmpService` and
+`MoonLightS.WmpSupervisor` declarations and is consumed as an intermediate
+input when assembling the single hybrid WGT. The separate
+`wmp-native-build.yml` diagnostic workflow remains independent and does
+not publish a standalone service package.
 
 Run the transport and native ABI tests with the commands used by the
 workflows:
