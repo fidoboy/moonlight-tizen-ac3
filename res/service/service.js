@@ -1,21 +1,19 @@
 /**
- * Samsung Smart Hub Preview Background Service for Moonlight
- *
- * This Tizen service runs in the background and receives preview data
- * from the main application via message ports, then sets it using
- * the Samsung webapis.preview API.
- *
- * The webapis.preview API is only accessible from within a Tizen service,
- * not from the main web application context.
- *
- * It also runs a lightweight local HTTP server to serve box art images
- * to the Smart Hub Preview renderer, bypassing strict cross-process file sandboxes.
+ * Samsung Smart Hub Preview background service.
+ * Receives preview payloads through AppControl and publishes them through
+ * Samsung's Preview API. The local HTTP server serves tile artwork.
  */
-/* global tizen, webapis, module */
+/* global tizen, webapis, module, global */
 
-var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-var applicationId = packageId + '.MoonlightWasm';
-var remoteMessagePort;
+var webapis = (typeof global !== 'undefined' && global.webapis) || null;
+var loadError = '';
+if (!webapis) {
+  try {
+    webapis = require('$WEBAPIS/webapis/webapis.js');
+  } catch (e) {
+    loadError = 'webapis: ' + e.message;
+  }
+}
 
 var fs = null;
 try {
@@ -59,21 +57,21 @@ function finish(req, status, shouldExit) {
  */
 function startLocalServer() {
   if (!http) {
-    log'startLocalServer aborted: http module is not available');
+    log('startLocalServer aborted: http module is not available');
     return;
   }
   if (!fs) {
-    log'startLocalServer aborted: fs module is not available');
+    log('startLocalServer aborted: fs module is not available');
     return;
   }
   if (localServer) {
-    log'Local HTTP server is already running on http://' + tvIp + ':8888');
+    log('Local HTTP server is already running on http://' + tvIp + ':8888');
     return;
   }
   
   localServer = http.createServer(function (req, res) {
     var route = require('url').parse(req.url).pathname; // Strip query string for cache-busting
-    log'Local HTTP server received request for: ' + route);
+    log('Local HTTP server received request for: ' + route);
     if (routeMap[route]) {
       var imagePath = routeMap[route];
       try {
@@ -86,9 +84,9 @@ function startLocalServer() {
           'Content-Length': binaryData.length
         });
         res.end(binaryData);
-        log'Successfully served binary image for ' + route + ' | Size: ' + Math.round(binaryData.length / 1024) + ' KB');
+        log('Successfully served binary image for ' + route + ' | Size: ' + Math.round(binaryData.length / 1024) + ' KB');
       } catch (err) {
-        log'Error reading binary image file for ' + route + ': ' + err.message);
+        log('Error reading binary image file for ' + route + ': ' + err.message);
         res.writeHead(404);
         res.end();
       }
@@ -98,7 +96,7 @@ function startLocalServer() {
       var fallbackMatch = /^\/(preview-[A-Za-z0-9_-]+\.jpg)$/.exec(route || '');
       if (fallbackMatch) {
         var fallbackFileName = fallbackMatch[1];
-        log'Attempting fallback disk resolution for: ' + fallbackFileName);
+        log('Attempting fallback disk resolution for: ' + fallbackFileName);
         var fallbackPaths = [
           '/opt/usr/home/owner/content/Documents/' + fallbackFileName,
           '/home/owner/content/Documents/' + fallbackFileName
@@ -113,27 +111,27 @@ function startLocalServer() {
               'Content-Length': fallbackData.length
             });
             res.end(fallbackData);
-            log'Successfully served fallback binary image from ' + fallbackPaths[i]);
+            log('Successfully served fallback binary image from ' + fallbackPaths[i]);
             return; // Exit on success
           } catch (fallbackErr) {
             // Ignore error and try the next path
-            log'Fallback path not found or error reading: ' + fallbackErr.message);
+            log('Fallback path not found or error reading: ' + fallbackErr.message);
           }
         }
       }
       
-      log'Route not found in routeMap or fallbacks for: ' + route);
+      log('Route not found in routeMap or fallbacks for: ' + route);
       res.writeHead(404);
       res.end();
     }
   });
   
   localServer.on('error', function(err) {
-    log'Local HTTP server error: ' + err.message);
+    log('Local HTTP server error: ' + err.message);
   });
   
   localServer.listen(8888, '0.0.0.0', function() {
-    log'Local HTTP server listening on http://0.0.0.0:8888 (TV IP: ' + tvIp + ')');
+    log('Local HTTP server listening on http://0.0.0.0:8888 (TV IP: ' + tvIp + ')');
   });
 }
 
