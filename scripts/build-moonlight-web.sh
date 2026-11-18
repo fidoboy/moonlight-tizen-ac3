@@ -65,7 +65,7 @@ rm -rf "$build_dir" "$OUT/web"
 mkdir -p "$OUT"
 cmake -DCMAKE_TOOLCHAIN_FILE="$EMSDK/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-  -DMOONLIGHT_DEBUG_MODE="$DEBUG_MODE" \\
+  -DMOONLIGHT_DEBUG_MODE="$DEBUG_MODE" \
   -DFFMPEG_ROOT="$FFMPEG_ROOT" -G Ninja -S "$ROOT" -B "$build_dir"
 cmake --build "$build_dir" --parallel
 cmake --install "$build_dir" --prefix "$build_dir"
