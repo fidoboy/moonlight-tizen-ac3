@@ -29,9 +29,6 @@ if [[ ! -f "${PREFIX}/lib/libavcodec.a" ]]; then
     --ranlib=emranlib \
     --nm=emnm \
     --disable-everything \
-    --enable-avcodec \
-    --enable-avutil \
-    --enable-swresample \
     --enable-decoder=ac3,eac3 \
     --enable-parser=ac3 \
     --disable-programs \
