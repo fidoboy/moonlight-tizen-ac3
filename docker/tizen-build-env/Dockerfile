@@ -139,15 +139,15 @@ RUN mkdir -p /opt \
 # Build the minimal WebAssembly FFmpeg payload into the shared image. The
 # hybrid workflow consumes this image directly, so FFmpeg must be present here.
 COPY scripts/build-ffmpeg.sh /opt/moonlight-build/build-ffmpeg.sh
-RUN chmod 0755 /opt/moonlight-build/build-ffmpeg.sh \\
-    && EMSDK=/opt/emscripten-release-bundle/emsdk \\
-       FFMPEG_ROOT=/opt/ffmpeg-install \\
-       FFMPEG_WORK_DIR=/opt/ffmpeg-build \\
-       bash /opt/moonlight-build/build-ffmpeg.sh \\
-    && test -s /opt/ffmpeg-install/lib/libavcodec.a \\
-    && test -s /opt/ffmpeg-install/lib/libavutil.a \\
-    && test -s /opt/ffmpeg-install/lib/libswresample.a \\
-    && test -s /opt/ffmpeg-install/include/libavcodec/avcodec.h \\
+RUN chmod 0755 /opt/moonlight-build/build-ffmpeg.sh \
+    && EMSDK=/opt/emscripten-release-bundle/emsdk \
+       FFMPEG_ROOT=/opt/ffmpeg-install \
+       FFMPEG_WORK_DIR=/opt/ffmpeg-build \
+       bash /opt/moonlight-build/build-ffmpeg.sh \
+    && test -s /opt/ffmpeg-install/lib/libavcodec.a \
+    && test -s /opt/ffmpeg-install/lib/libavutil.a \
+    && test -s /opt/ffmpeg-install/lib/libswresample.a \
+    && test -s /opt/ffmpeg-install/include/libavcodec/avcodec.h \
     && rm -rf /opt/ffmpeg-build /opt/moonlight-build
 ENV FFMPEG_ROOT=/opt/ffmpeg-install
 
