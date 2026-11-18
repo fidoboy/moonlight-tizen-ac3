@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cerrno>
 #include <cstring>
 
 DolbySoftwareDecoder::~DolbySoftwareDecoder() {
