@@ -99,6 +99,7 @@
   "Audio configuration": "Audio configuration",
   "Audio jitter buffer": "Audio jitter buffer",
   "Audio stream:": "Audio stream:",
+  "Audio delay:": "Audio delay:",
   "Audio synchronization": "Audio synchronization",
   "Automatic": "Automatic",
   "Automatic (recommended)": "Automatic (recommended)",
