@@ -147,6 +147,8 @@ cp wmp/dotnet-host/Program.cs \
    wmp/dotnet-host/WmpSupervisor.cs \
    "$wmp_service_project/"
 cp wmp/dotnet-host/MoonlightHost.csproj "$wmp_service_project/MoonlightHost.csproj"
+# The Tizen Core project has its own generated icon; discard the upstream relative icon reference.
+sed -i '/<None Include="..\/..\/res\/icon.png"/d' "$wmp_service_project/MoonlightHost.csproj"
 cp wmp/dotnet-host/tizen-manifest.xml "$wmp_service_project/tizen-manifest.xml"
 test -s wmp/dotnet-host/lib/libmlengine.so
 mkdir -p "$wmp_service_project/lib"
