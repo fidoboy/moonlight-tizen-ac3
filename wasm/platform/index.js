@@ -694,6 +694,15 @@ var _smartHubLocalMessagePort = null; // Local message port for receiving messag
 var _smartHubMessagePortListener = null; // Listener ID for the Smart Hub local message port
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
 var _isSmartHubSupported = false; // Flag indicating if Smart Hub Preview is supported on this device
+var _smartHubSupportPromise = null;
+
+// Share one support probe across startup and every preview update request.
+function ensureSmartHubSupport() {
+  if (!_smartHubSupportPromise) {
+    _smartHubSupportPromise = probeSmartHubSupport();
+  }
+  return _smartHubSupportPromise;
+}
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
@@ -1215,7 +1224,7 @@ function startDeferredNormalStartup() {
       }
     });
 
-    probeSmartHubSupport().then(function() {
+    ensureSmartHubSupport().then(function() {
       handleDeepLink();
       window.addEventListener('appcontrol', handleDeepLink);
     });
@@ -10191,6 +10200,16 @@ function handleDeepLink() {
 // The webapis.preview API is only accessible from within a Tizen background service.
 // The preview is populated only from successfully connected hosts (stored in _previewApps).
 function updatePreviewData() {
+  return ensureSmartHubSupport().then(function() {
+    if (!_isSmartHubSupported) {
+      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub Preview is not supported on this device. Skipping!');
+      return;
+    }
+    updatePreviewDataAfterSupportCheck();
+  });
+}
+
+function updatePreviewDataAfterSupportCheck() {
   try {
     var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
     if (!_isSmartHubSupported) {
