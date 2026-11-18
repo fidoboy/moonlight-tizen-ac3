@@ -10296,9 +10296,14 @@ function updatePreviewDataAfterSupportCheck() {
         console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Preview request dispatched to service: ' + serviceId);
       }, function(err) {
         console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Failed to launch Smart Hub service: ' + err.message);
-      }, function(data) {
-        var status = data && data[0] && data[0].value && data[0].value[0];
-        console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub service reply: ' + (status || 'empty response'));
+      }, {
+        onsuccess: function(data) {
+          var status = data && data[0] && data[0].value && data[0].value[0];
+          console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub service reply: ' + (status || 'empty response'));
+        },
+        onfailure: function() {
+          console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub service returned an AppControl failure.');
+        }
       }
     );
   } catch (e) {
@@ -10415,22 +10420,27 @@ function probeSmartHubSupport() {
           console.log('[SmartHub Probe] Service launch request dispatched.');
         }, function(err) {
           failProbe(new Error('Probe launch failed: ' + err.message));
-        }, function(data) {
-          var status = null;
-          if (data && data.length) {
-            for (var i = 0; i < data.length; i++) {
-              if (data[i].key === 'status' && data[i].value && data[i].value.length) {
-                status = data[i].value[0];
-                break;
+        }, {
+          onsuccess: function(data) {
+            var status = null;
+            if (data && data.length) {
+              for (var i = 0; i < data.length; i++) {
+                if (data[i].key === 'status' && data[i].value && data[i].value.length) {
+                  status = data[i].value[0];
+                  break;
+                }
               }
             }
-          }
-          if (status === 'SMART_HUB_SUPPORTED') {
-            finishProbe(true);
-          } else if (status === 'SMART_HUB_NOT_SUPPORTED') {
-            finishProbe(false);
-          } else {
-            failProbe(new Error('Unexpected Smart Hub AppControl reply: ' + (status || 'empty response')));
+            if (status === 'SMART_HUB_SUPPORTED') {
+              finishProbe(true);
+            } else if (status === 'SMART_HUB_NOT_SUPPORTED') {
+              finishProbe(false);
+            } else {
+              failProbe(new Error('Unexpected Smart Hub AppControl reply: ' + (status || 'empty response')));
+            }
+          },
+          onfailure: function() {
+            failProbe(new Error('Smart Hub service returned an AppControl failure.'));
           }
         }
       );
