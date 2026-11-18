@@ -1560,7 +1560,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         stats.receivedAudioBitrateKbps);
       if (opusToDolbyFallback) {
         append("Audio transcoding latency: %.2f ms average processing time\n",
-          s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs());
+          g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
       }
     } else {
       append("Audio stream: -\n");
