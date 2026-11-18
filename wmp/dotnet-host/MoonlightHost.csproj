@@ -10,8 +10,5 @@
 
   <ItemGroup>
     <None Include="../../res/icon.png" Link="icon.png" />
-    <None Include="res/lib/libmlengine.so"
-          CopyToOutputDirectory="PreserveNewest"
-          Condition="Exists('res/lib/libmlengine.so')" />
   </ItemGroup>
 </Project>
