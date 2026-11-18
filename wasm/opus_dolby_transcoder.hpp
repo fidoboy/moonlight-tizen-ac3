@@ -7,6 +7,7 @@ struct AVCodecContext;
 struct AVFrame;
 struct AVPacket;
 struct AVAudioFifo;
+struct SwrContext;
 
 class OpusDolbyTranscoder {
 public:
@@ -29,8 +30,10 @@ private:
   AVCodecContext* m_EncoderContext = nullptr;
   AVFrame* m_DecodedFrame = nullptr;
   AVFrame* m_EncodeFrame = nullptr;
+  AVFrame* m_ResampledFrame = nullptr;
   AVPacket* m_EncodedPacket = nullptr;
   AVAudioFifo* m_AudioFifo = nullptr;
+  SwrContext* m_Resampler = nullptr;
   uint64_t m_ChannelLayout = 0;
   int m_Channels = 0;
   int64_t m_NextEncoderPts = 0;
