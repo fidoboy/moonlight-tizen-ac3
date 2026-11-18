@@ -8056,7 +8056,7 @@ function saveSortAppsByUsage() {
     });
     if (updated) {
       savePreviewApps();
-      updatePreviewData();
+      // Sorting preferences do not trigger Smart Hub publication.
     }
   }, 100);
 }
