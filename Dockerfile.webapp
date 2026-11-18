@@ -40,6 +40,11 @@ RUN ln -sf /usr/bin/python2 /usr/bin/python
 RUN useradd -m -s /bin/bash moonlight
 USER moonlight
 WORKDIR /home/moonlight
+
+# Build FFmpeg before copying the application sources so Docker can cache this dependency layer.
+COPY --chown=moonlight scripts/build-ffmpeg.sh ./build-ffmpeg.sh
+RUN bash build-ffmpeg.sh
+
 RUN mkdir -p /home/moonlight/moonlight-tizen
 
 # Install Tizen Studio CLI and configure the toolchain path
@@ -92,11 +97,6 @@ COPY --chown=moonlight wasm/*.c ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/*.cpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/*.hpp ./moonlight-tizen/wasm/
 COPY --chown=moonlight wasm/dispatcher ./moonlight-tizen/wasm/dispatcher/
-
-COPY --chown=moonlight scripts/build-ffmpeg.sh ./moonlight-tizen/scripts/
-
-# Build only the LGPL AC-3/E-AC-3 decoders with the Samsung Emscripten toolchain.
-RUN bash moonlight-tizen/scripts/build-ffmpeg.sh
 
 # Share the debug switch with the native C/C++ build as well as the frontend.
 ARG DEBUG_MODE=false
