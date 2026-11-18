@@ -1,6 +1,6 @@
 # FFmpeg integration
 
-This project builds FFmpeg 4.4.8 with the Samsung Emscripten SDK shipped in
+This project builds FFmpeg 4.4.8 with the Samsung Emscripten SDK installed by both `Dockerfile` and
 `Dockerfile.webapp`. The build is deliberately restricted to the native AC-3
 and E-AC-3 decoders, their AC-3 parser, and the core libraries needed by the
 decoder and PCM conversion path.
