@@ -1488,9 +1488,9 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
           audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps);
       } else {
         const char* opusDecodingMode = g_Instance->m_OpusHardwareActive.load() ? "Hardware" : "Software";
-        append("Audio stream: %s (%s, %d channels, %.0f kbps) [%s]\n",
-          audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps,
-          opusDecodingMode);
+        append("Audio stream: %s [%s] (%s, %d channels, %.0f kbps)\n",
+          audioCodecString, opusDecodingMode, audioLayoutString, audioChannels,
+          stats.receivedAudioBitrateKbps);
       }
     } else {
       append("Audio stream: -\n");
