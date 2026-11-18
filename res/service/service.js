@@ -72,6 +72,16 @@ function sendMessage(value, key) {
 }
 
 /**
+ * Emits Smart Hub probe diagnostics both to the service console and, when
+ * possible, to the main application's MessagePort listener.
+ */
+function probeDiagnostic(message) {
+  var line = '[SmartHub Probe] ' + message;
+  console.log('%c[service.js]', 'color: gray;', line);
+  sendMessage(line, 'PROBE_DIAG');
+}
+
+/**
  * Processes incoming app control data to extract and set preview data.
  */
 function startLocalServer() {
@@ -156,16 +166,22 @@ function startLocalServer() {
 
 function handleDataInRequest() {
   var isSupported = false;
+  probeDiagnostic('Checking webapis.preview availability.');
   try {
     isSupported = typeof webapis !== 'undefined'
       && typeof webapis.preview !== 'undefined'
       && typeof webapis.preview.setPreviewData === 'function';
+    probeDiagnostic('webapis.preview check completed: ' + isSupported +
+      (isSupported ? ' (setPreviewData is a function).' : ' (API or setPreviewData is unavailable).'));
   } catch (e) {
+    probeDiagnostic('webapis.preview check threw: ' + e.message);
     logAndSend('Error checking webapis.preview support: ' + e.message);
   }
 
   try {
+    probeDiagnostic('Reading requested AppControl.');
     var reqAppControl = tizen.application.getCurrentApplication().getRequestedAppControl();
+    probeDiagnostic('Requested AppControl ' + (reqAppControl ? 'is present.' : 'is null.'));
 
     if (!reqAppControl) {
       logAndSend('No requested AppControl found.');
@@ -176,6 +192,7 @@ function handleDataInRequest() {
     }
 
     var appControlData = reqAppControl.appControl.data;
+    probeDiagnostic('AppControl data entries: ' + (appControlData ? appControlData.length : 0) + '.');
     if (!appControlData || appControlData.length === 0) {
       logAndSend('AppControl data is empty.');
       if (isSupported) {
@@ -191,8 +208,11 @@ function handleDataInRequest() {
       var value = appControlData[i].value;
 
       if (key === 'Probe') {
+        probeDiagnostic('Found Probe AppControl entry; value: ' + JSON.stringify(value) + '.');
         var probeResult = isSupported ? 'SMART_HUB_SUPPORTED' : 'SMART_HUB_NOT_SUPPORTED';
+        probeDiagnostic('Probe result determined: ' + probeResult + '. Sending response on MessagePort.');
         sendMessage(probeResult, 'PROBE');
+        probeDiagnostic('sendMessage(PROBE) call returned; requesting service exit.');
         logAndSend('Probe result: ' + probeResult);
         tizen.application.getCurrentApplication().exit();
         return;
@@ -273,6 +293,7 @@ function handleDataInRequest() {
       logAndSend('No Preview key found in appControlData.');
     }
   } catch (e) {
+    probeDiagnostic('Request handling failed: ' + e.message);
     logAndSend('Error handling request: ' + e.message);
   }
 }
@@ -282,7 +303,7 @@ module.exports.onStart = function() {
 };
 
 module.exports.onRequest = function() {
-  console.log('[SmartHub Probe Test] onRequest RECEIVED');
+  probeDiagnostic('onRequest RECEIVED.');
   logAndSend('Service request received.');
   try {
     handleDataInRequest();
