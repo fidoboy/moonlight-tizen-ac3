@@ -124,6 +124,32 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   }
 }
 
+static bool s_LoggedFirstOpusPassthroughPacket = false;
+
+static void AppendOpusPassthroughPacket(samsung::wasm::ElementaryMediaTrack* track,
+  samsung::wasm::SessionId session_id, const unsigned char* sampleData, int sampleLength) {
+  samsung::wasm::ElementaryMediaPacket pkt {
+    s_pktPts,
+    s_pktPts,
+    s_frameDuration,
+    true,
+    static_cast<size_t>(sampleLength),
+    const_cast<unsigned char*>(sampleData),
+    0, 0, 0, 1,
+    session_id
+  };
+
+  if (track->AppendPacket(pkt)) {
+    s_pktPts += s_frameDuration;
+    if (!s_LoggedFirstOpusPassthroughPacket) {
+      MoonlightInstance::ClLogMessage("Opus passthrough: first compressed packet accepted by EMSS\n");
+      s_LoggedFirstOpusPassthroughPacket = true;
+    }
+  } else {
+    MoonlightInstance::ClLogMessage("Opus passthrough: EMSS rejected an audio packet\n");
+  }
+}
+
 static void DecodeAndScheduleFrame(OpusMSDecoder* decoder, const unsigned char* sampleData, int sampleLength) {
   // Check if the Opus decoder failed to be created for this streaming session
   if (!decoder) {
@@ -221,6 +247,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 
   // Flag indicating whether this is the first frame of audio to be decoded
   s_hasFirstFrame = false;
+  s_LoggedFirstOpusPassthroughPacket = false;
 
   // Set the audio synchronization flag based on instance configuration
   s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
@@ -374,11 +401,18 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     return;
   }
 
-  // Decode and append the audio packet to the audio track
-  DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
-    g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-    reinterpret_cast<unsigned char*>(sampleData), sampleLength
-  );
+  // Submit compressed Opus directly when EMSS accepted the experimental Opus track.
+  if (g_Instance->m_OpusPassthrough.load()) {
+    AppendOpusPassthroughPacket(&g_Instance->m_AudioTrack,
+      g_Instance->m_AudioSessionId.load(),
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
+  } else {
+    // Preserve the existing libopus-to-PCM path as the fallback.
+    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+      g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength
+    );
+  }
 
   // Update the estimated audio end time to prevent future overflow
   s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + s_frameDuration;
