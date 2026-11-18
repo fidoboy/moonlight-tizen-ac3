@@ -135,6 +135,24 @@ cp wmp/dotnet-host/MoonlightHost.csproj "$wmp_service_project/MoonlightHost.cspr
 # The Tizen Core project has its own generated icon; discard the upstream relative icon reference.
 sed -i '/<None Include="..\/..\/res\/icon.png"/d' "$wmp_service_project/MoonlightHost.csproj"
 cp wmp/dotnet-host/tizen-manifest.xml "$wmp_service_project/tizen-manifest.xml"
+python3 - "$wmp_service_project/tizen-manifest.xml" "$web_project/config.xml" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+manifest_path, config_path = sys.argv[1:]
+ET.register_namespace("", "http://tizen.org/ns/packages")
+manifest_tree = ET.parse(manifest_path)
+manifest = manifest_tree.getroot()
+config = ET.parse(config_path).getroot()
+version = config.get("version")
+if not version:
+    raise SystemExit("Moonlight config.xml has no package version")
+if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "6.0":
+    raise SystemExit("WMP .NET package must target Tizen 6.0 / API 8")
+manifest.set("version", version)
+manifest_tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
+print(f"WMP Tizen Core project manifest version synchronized to {version}.")
+PY
 test -s wmp/dotnet-host/lib/libmlengine.so
 mkdir -p "$wmp_service_project/lib"
 cp wmp/dotnet-host/lib/libmlengine.so "$wmp_service_project/lib/libmlengine.so"
