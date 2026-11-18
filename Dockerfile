@@ -7,6 +7,8 @@ ENV TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
 	cmake \
 	ccache \
+	make \
+	xz-utils \
 	expect \
 	git \
 	ninja-build \
@@ -46,8 +48,12 @@ RUN sed -i 's|https://www.openssl.org/source/old/1.1.1/openssl-|https://github.c
 WORKDIR emscripten-release-bundle/emsdk
 RUN ./emsdk activate latest-fastcomp
 
-# Copy only the backend files required for compiling the application
+# Build FFmpeg before copying the application sources so Docker can cache this dependency layer.
 WORKDIR /home/moonlight
+COPY --chown=moonlight scripts/build-ffmpeg.sh ./build-ffmpeg.sh
+RUN bash build-ffmpeg.sh
+
+# Copy only the backend files required for compiling the application
 COPY --chown=moonlight CMakeLists.txt ./moonlight-tizen/
 COPY --chown=moonlight h264bitstream ./moonlight-tizen/h264bitstream/
 COPY --chown=moonlight libgamestream ./moonlight-tizen/libgamestream/
@@ -67,6 +73,7 @@ RUN cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
+	-DFFMPEG_ROOT=/home/moonlight/ffmpeg-install \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
@@ -149,7 +156,11 @@ RUN find build -mindepth 1 -maxdepth 1 ! -name widget -exec rm -rf {} + && \
 	.emscripten_cache \
 	.emscripten_cache.lock \
 	.emscripten_ports \
-	.emscripten_sanity
+	.emscripten_sanity \
+	ffmpeg-4.4.8 \
+	ffmpeg-install \
+	ffmpeg-download \
+	build-ffmpeg.sh
 
 # Use a multi-stage build to reclaim space from deleted files
 FROM ubuntu:22.04
