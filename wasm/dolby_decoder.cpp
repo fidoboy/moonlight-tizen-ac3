@@ -38,6 +38,7 @@ bool DolbySoftwareDecoder::Initialize(bool eac3, int outputChannels, bool useBac
   // Keep decoding on the existing audio receive thread. This is a manual fallback path,
   // not a latency-sensitive hardware replacement.
   m_CodecContext->thread_count = 1;
+  m_CodecContext->sample_rate = 48000;
   if (avcodec_open2(m_CodecContext, codec, nullptr) < 0) {
     Cleanup();
     return false;
