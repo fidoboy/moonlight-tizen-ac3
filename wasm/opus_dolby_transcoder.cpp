@@ -8,6 +8,7 @@ extern "C" {
 #include <libavutil/error.h>
 #include <libavutil/mem.h>
 #include <libavutil/samplefmt.h>
+#include <libswresample/swresample.h>
 }
 
 #include <cstring>
@@ -94,10 +95,24 @@ bool OpusDolbyTranscoder::Initialize(
     return false;
   }
 
+  if (outputChannels == 6 && m_ChannelLayout != AV_CH_LAYOUT_5POINT1_BACK) {
+    m_Resampler = swr_alloc_set_opts(
+      nullptr,
+      static_cast<int64_t>(m_ChannelLayout), AV_SAMPLE_FMT_FLTP, 48000,
+      AV_CH_LAYOUT_5POINT1_BACK, AV_SAMPLE_FMT_FLTP, 48000,
+      0, nullptr);
+    if (m_Resampler == nullptr || swr_init(m_Resampler) < 0) {
+      Cleanup();
+      return false;
+    }
+  }
+
   m_EncoderContext = avcodec_alloc_context3(encoder);
   m_EncodeFrame = av_frame_alloc();
+  m_ResampledFrame = m_Resampler != nullptr ? av_frame_alloc() : nullptr;
   m_EncodedPacket = av_packet_alloc();
   if (m_EncoderContext == nullptr || m_EncodeFrame == nullptr ||
+      (m_Resampler != nullptr && m_ResampledFrame == nullptr) ||
       m_EncodedPacket == nullptr) {
     Cleanup();
     return false;
@@ -170,18 +185,60 @@ bool OpusDolbyTranscoder::Transcode(
       return false;
     }
 
-    // Mapping family 255 intentionally leaves the layout unspecified in FFmpeg.
-    // The OpusHead mapping above is already in this exact encoder channel order.
-    m_DecodedFrame->channel_layout = m_ChannelLayout;
+    // Mapping family 255 preserves Moonlight's Opus channel order. Its 5.1 mapping
+    // is back-surround ordered; swresample remaps it when the selected Dolby layout
+    // requests conventional side-surround channels.
+    const uint64_t inputLayout = m_Channels == 6
+      ? AV_CH_LAYOUT_5POINT1_BACK
+      : AV_CH_LAYOUT_STEREO;
+    m_DecodedFrame->channel_layout = inputLayout;
+
+    AVFrame* fifoFrame = m_DecodedFrame;
+    if (m_Resampler != nullptr) {
+      const int maximumSamples = swr_get_out_samples(m_Resampler, m_DecodedFrame->nb_samples);
+      if (maximumSamples <= 0) {
+        av_frame_unref(m_DecodedFrame);
+        return false;
+      }
+      av_frame_unref(m_ResampledFrame);
+      m_ResampledFrame->format = AV_SAMPLE_FMT_FLTP;
+      m_ResampledFrame->sample_rate = 48000;
+      m_ResampledFrame->channel_layout = m_ChannelLayout;
+      m_ResampledFrame->channels = m_Channels;
+      m_ResampledFrame->nb_samples = maximumSamples;
+      if (av_frame_get_buffer(m_ResampledFrame, 0) < 0) {
+        av_frame_unref(m_DecodedFrame);
+        return false;
+      }
+      const int convertedSamples = swr_convert(
+        m_ResampledFrame->extended_data,
+        maximumSamples,
+        const_cast<const uint8_t**>(m_DecodedFrame->extended_data),
+        m_DecodedFrame->nb_samples);
+      if (convertedSamples <= 0) {
+        av_frame_unref(m_ResampledFrame);
+        av_frame_unref(m_DecodedFrame);
+        return false;
+      }
+      m_ResampledFrame->nb_samples = convertedSamples;
+      fifoFrame = m_ResampledFrame;
+    }
+
     if (av_audio_fifo_realloc(
           m_AudioFifo,
-          av_audio_fifo_size(m_AudioFifo) + m_DecodedFrame->nb_samples) < 0 ||
+          av_audio_fifo_size(m_AudioFifo) + fifoFrame->nb_samples) < 0 ||
         av_audio_fifo_write(
           m_AudioFifo,
-          reinterpret_cast<void**>(m_DecodedFrame->extended_data),
-          m_DecodedFrame->nb_samples) != m_DecodedFrame->nb_samples) {
+          reinterpret_cast<void**>(fifoFrame->extended_data),
+          fifoFrame->nb_samples) != fifoFrame->nb_samples) {
+      if (fifoFrame == m_ResampledFrame) {
+        av_frame_unref(m_ResampledFrame);
+      }
       av_frame_unref(m_DecodedFrame);
       return false;
+    }
+    if (fifoFrame == m_ResampledFrame) {
+      av_frame_unref(m_ResampledFrame);
     }
     av_frame_unref(m_DecodedFrame);
   }
@@ -239,8 +296,10 @@ bool OpusDolbyTranscoder::DrainEncoder(
 void OpusDolbyTranscoder::Cleanup() {
   av_audio_fifo_free(m_AudioFifo);
   m_AudioFifo = nullptr;
+  swr_free(&m_Resampler);
   av_packet_free(&m_EncodedPacket);
   av_frame_free(&m_EncodeFrame);
+  av_frame_free(&m_ResampledFrame);
   av_frame_free(&m_DecodedFrame);
   avcodec_free_context(&m_EncoderContext);
   avcodec_free_context(&m_DecoderContext);
