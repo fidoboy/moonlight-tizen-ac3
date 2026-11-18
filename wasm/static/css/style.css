@@ -2173,7 +2173,7 @@ body[data-color-theme="black-orange"] #background-layer {
     border: 1px solid #FFA620;
 }
 #selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #navigationGuideBtn,
+#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
@@ -2183,7 +2183,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn, #selectHoldStreamMenuBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
-#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
+#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
     color: var(--theme-text-primary);
     background-color: var(--theme-surface);
@@ -2236,9 +2236,13 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-menu__item.hovered, .mdl-menu__item:hover, .mdl-menu__item:focus {
     background-color: var(--theme-surface-hover);
 }
+.mouseEmulationStickMenu .mdl-menu__item {
+    width: 100%;
+    box-sizing: border-box;
+}
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__container {
+.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .mouseEmulationStickMenu, .configSummaryPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
@@ -2310,7 +2314,8 @@ body[data-color-theme="black-orange"] #background-layer {
 #ambientBackgroundMenu > #selectAmbientBackground, #configSummaryPositionMenu > #selectConfigSummaryPosition, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
 #configSummaryPositionMenu > #selectConfigSummaryPosition, #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
-#h264LevelMenu > #selectH264Level, #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
+#h264LevelMenu > #selectH264Level, #performanceStatsPositionMenu > #selectPerformanceStatsPosition,
+#mouseEmulationStickMenu > #selectMouseEmulationStick {
     color: var(--theme-text-primary);
     background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat var(--theme-surface);
 }
@@ -2323,7 +2328,10 @@ body[data-color-theme="black-orange"] #background-layer {
 
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
-#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus,
+#mouseEmulationStickMenu > #selectMouseEmulationStick.hovered,
+#mouseEmulationStickMenu > #selectMouseEmulationStick:hover,
+#mouseEmulationStickMenu > #selectMouseEmulationStick:focus {
     background-color: var(--theme-surface-hover);
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
@@ -2349,7 +2357,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #ambilightBtn:hover, #ambilightBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
-#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
+#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #selectMouseEmulationStick:hover, #selectMouseEmulationStick:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
 #rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #selectHoldStreamMenuBtn:hover, #selectHoldStreamMenuBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
 #selectAudio:focus, #selectDolbyChannelLayout:hover, #selectDolbyChannelLayout:focus,
