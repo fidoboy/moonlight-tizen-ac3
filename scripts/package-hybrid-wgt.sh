@@ -166,8 +166,8 @@ manifest_tree.write(manifest_path, encoding="UTF-8", xml_declaration=True)
 print(f"WMP Tizen Core project manifest version synchronized to {version}.")
 PY
 test -s wmp/dotnet-host/lib/libmlengine.so
-mkdir -p "$wmp_service_project/lib"
-cp wmp/dotnet-host/lib/libmlengine.so "$wmp_service_project/lib/libmlengine.so"
+mkdir -p "$wmp_service_project/res/lib"
+cp wmp/dotnet-host/lib/libmlengine.so "$wmp_service_project/res/lib/libmlengine.so"
 cat > "$wmp_service_project/tizen_dotnet_project.yaml" <<'YAML'
 csproj_file: WmpService.csproj
 profile: tv-samsung
@@ -183,7 +183,7 @@ files:
   - ManualLoader.cs
   - WmpSupervisor.cs
   - tizen-manifest.xml
-  - lib/libmlengine.so
+  - res/lib/libmlengine.so
   - shared/res/WmpService.png
 deps: []
 YAML
