@@ -315,6 +315,7 @@ module.exports.onRequest = function() {
   try {
     handleDataInRequest();
   } catch (e) {
+    probeDiagnostic('Fatal error escaping handleDataInRequest: ' + e.message);
     logAndSend('Fatal error in handleDataInRequest: ' + e.message);
   }
 };
