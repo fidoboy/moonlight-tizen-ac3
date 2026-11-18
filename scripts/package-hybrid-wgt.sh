@@ -62,7 +62,7 @@ package_base_web() {
   local source="$1" name="$2" base_wgt="$3"
   local web="$workspace/$name"
   local base_project="$RUNNER_TEMP/$name-base-project"
-  run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-6.0 -w "$workspace"
+  run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
   test -d "$web"
   cp -a "$source/." "$web/"
   # Keep the Tizen Core project metadata in the workspace because
