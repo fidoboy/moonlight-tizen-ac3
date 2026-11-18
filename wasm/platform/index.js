@@ -10403,26 +10403,57 @@ function probeSmartHubSupport() {
     // Probe the service whenever support has not been positively confirmed.
     var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
     var serviceId = packageId + '.service';
-    
-    try {
-      var probePort = tizen.messageport.requestLocalMessagePort(packageId);
-      var probeListener = probePort.addMessagePortListener(function(data) {
-        var key = data[0].key;
-        if (key !== 'PROBE') {
-          return;
-        }
-        
-        var value = data[0].value;
-        _isSmartHubSupported = (value === 'SMART_HUB_SUPPORTED');
-        localStorage.setItem('smartHubSupported', String(_isSmartHubSupported));
-        console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (probed): ' + _isSmartHubSupported);
+    var probePort = null;
+    var probeListener = null;
+    var probeTimeout = null;
+    var settled = false;
+
+    function finishProbe(supported, reason) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+
+      if (probeTimeout !== null) {
+        clearTimeout(probeTimeout);
+        probeTimeout = null;
+      }
+
+      if (probePort && probeListener !== null) {
         try {
           probePort.removeMessagePortListener(probeListener);
-        } catch(e) {
+        } catch (e) {
           console.error('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Error removing Smart Hub probe listener: ' + e.message);
         }
-        resolve();
+        probeListener = null;
+      }
+
+      _isSmartHubSupported = supported;
+      localStorage.setItem('smartHubSupported', String(supported));
+      if (reason) {
+        console.warn('%c[index.js, probeSmartHubSupport]', 'color: green;', reason);
+      }
+      resolve();
+    }
+
+    try {
+      probePort = tizen.messageport.requestLocalMessagePort(packageId);
+      probeListener = probePort.addMessagePortListener(function(data) {
+        if (settled || !data || !data[0] || data[0].key !== 'PROBE') {
+          return;
+        }
+
+        var value = data[0].value;
+        var supported = (value === 'SMART_HUB_SUPPORTED');
+        console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (probed): ' + supported);
+        finishProbe(supported);
       });
+
+      // Do not leave startup and preview updates waiting forever if the service
+      // launches but never sends the PROBE response.
+      probeTimeout = setTimeout(function() {
+        finishProbe(false, 'Smart Hub probe timed out; assuming unsupported for this app session.');
+      }, 10000);
 
       // Launch service with Probe request
       tizen.application.launchAppControl(
@@ -10433,22 +10464,14 @@ function probeSmartHubSupport() {
         serviceId, function() {
           console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe sent to service.');
         }, function(err) {
-          // Service launch failed — assume not supported
-          console.warn('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Probe failed: ' + err.message);
-          _isSmartHubSupported = false;
-          localStorage.setItem('smartHubSupported', 'false');
-          resolve();
+          finishProbe(false, 'Probe failed: ' + err.message);
         }
       );
     } catch (e) {
-      console.warn('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Error probing Smart Hub support: ' + e.message);
-      _isSmartHubSupported = false;
-      localStorage.setItem('smartHubSupported', 'false');
-      resolve();
+      finishProbe(false, 'Error probing Smart Hub support: ' + e.message);
     }
   });
 }
-
 // Do not create the summary bar until the persisted preference has been loaded.
 var navigationSoundPreferenceEnabled = true;
 var screensaverPreferenceEnabled = true;
