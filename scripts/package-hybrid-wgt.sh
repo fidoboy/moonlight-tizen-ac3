@@ -62,7 +62,7 @@ package_base_web() {
   local source="$1" name="$2" base_wgt="$3"
   local web="$workspace/$name"
   local base_project="$RUNNER_TEMP/$name-base-project"
-  run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-10.0 -w "$workspace"
+  run_tz "create-web-project-$name" "$TIZEN_CORE_CLI" new -t Basic_Empty -n "$name" -T web -p tv-samsung-6.0 -w "$workspace"
   test -d "$web"
   cp -a "$source/." "$web/"
   # Keep the Tizen Core project metadata in the workspace because
@@ -95,7 +95,7 @@ package_base_web() {
         
 package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/$BASE_WGT_NAME"
         
-run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-10.0 -w "$workspace"
+run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-6.0 -w "$workspace"
 test -d "$service_project"
 rm -f "$service_project/AmbilightService_App.cs"
 cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
@@ -104,7 +104,7 @@ cp ambilight-service/TizenAmbilight.csproj "$service_project/AmbilightService.cs
 cat > "$service_project/tizen_dotnet_project.yaml" <<'YAML'
 csproj_file: AmbilightService.csproj
 profile: tv-samsung
-api_version: "10.0"
+api_version: "6.0"
 build_type: Release
 signing_profile: Moonlight
 files:
@@ -121,9 +121,9 @@ run_tz "build-web-standalone" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonl
 run_tz "add-service-dependency" "$TIZEN_CORE_CLI" add-deps "$web_project" -d ../AmbilightService/AmbilightService
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
-mapfile -t service_pkgs < <(find "$service_project/bin/Release/net8.0-tizen10.0" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
 if (( ${#service_pkgs[@]} != 1 )); then
-  echo "::error::Expected exactly one Tizen 10 service TPK; found ${#service_pkgs[@]}."
+  echo "::error::Expected exactly one Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
   printf '%s\\n' "${service_pkgs[@]}"
   exit 1
 fi
@@ -428,7 +428,7 @@ with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path)
     service_apps = {node.get("appid"): node for node in service_app_nodes}
     ambilight_app = service_apps["MoonLightS.MoonlightAmbilight"]
     expected_ambilight = {
-        "api-version": "13",
+        "api-version": "8",
         "exec": "MoonlightAmbilight.dll",
         "type": "dotnet",
         "nodisplay": "true",
