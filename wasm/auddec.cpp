@@ -85,7 +85,8 @@ static inline TimeStamp FrameDuration(double samplesPerFrame, double sampleRate)
   return TimeStamp(samplesPerFrame / sampleRate);
 }
 
-static bool InitializeDolbySoftwareDecoder() {
+static bool InitializeDolbySoftwareDecoder(int audioConfiguration,
+  const std::string& dolbyChannelLayout, bool audioSyncEnabled) {
   if (s_DolbyDecoderInitialized) {
     return true;
   }
@@ -94,14 +95,14 @@ static bool InitializeDolbySoftwareDecoder() {
     return false;
   }
 
-  s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+  s_channelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(audioConfiguration);
   if (!LiIsEac3AudioNegotiated() && s_channelCount == 8) {
     s_channelCount = 6;
   }
   s_sampleRate = 48000;
   s_frameDuration = kDolbyFrameDuration;
 
-  const bool useBackSurround = g_Instance->m_DolbyChannelLayout != "Normal";
+  const bool useBackSurround = dolbyChannelLayout != "Normal";
   if (!s_DolbyDecoder.Initialize(
         LiIsEac3AudioNegotiated(), static_cast<int>(s_channelCount), useBackSurround)) {
     s_DolbyDecoderInitializationFailed = true;
@@ -115,7 +116,7 @@ static bool InitializeDolbySoftwareDecoder() {
   s_DolbyDecodeErrors = 0;
   s_estimatedAudioEnd = 0s;
   s_hasFirstFrame = false;
-  s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
+  s_AudioSyncEnabled = audioSyncEnabled;
   MoonlightInstance::ClLogMessage("Initialized FFmpeg %s software decoder (%d output channels, 48 kHz PCM)\n",
     LiIsEac3AudioNegotiated() ? "E-AC-3" : "AC-3", static_cast<int>(s_channelCount));
   return true;
@@ -273,7 +274,8 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   s_DolbyDecoderInitializationFailed = false;
 
   if (softwareDolbySelected) {
-    if (!InitializeDolbySoftwareDecoder()) {
+    if (!InitializeDolbySoftwareDecoder(audioConfiguration,
+          g_Instance->m_DolbyChannelLayout, g_Instance->m_AudioSyncEnabled)) {
       return -1;
     }
     return 0;
@@ -411,7 +413,8 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     }
 
     if (g_Instance->m_DolbySoftwareDecode.load()) {
-      if (!InitializeDolbySoftwareDecoder()) {
+      if (!InitializeDolbySoftwareDecoder(g_Instance->m_AudioConfig,
+            g_Instance->m_DolbyChannelLayout, g_Instance->m_AudioSyncEnabled)) {
         return;
       }
 
