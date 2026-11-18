@@ -2474,6 +2474,15 @@ body[data-color-theme="black-orange"] #background-layer {
 .config-summary-value { color: #fff; font-weight: 600; }
 .config-summary-toggle.is-on { color: #39e75f; }
 .config-summary-toggle.is-off { color: #ff4b4b; }
+.config-summary-toggle.is-software-warning { color: #ffb74d; }
+.config-summary-warning-icon {
+    display: inline-block;
+    margin-left: 3px;
+    font-size: 15px;
+    line-height: 1;
+    vertical-align: -2px;
+    color: #ffb74d;
+}
 @media (max-width: 800px) {
     #configSummaryBar { padding: 6px 8px; }
     .config-summary-item { padding: 0 7px; font-size: 14px; }
