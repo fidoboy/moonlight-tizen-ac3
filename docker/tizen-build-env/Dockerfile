@@ -136,22 +136,6 @@ RUN mkdir -p /opt \
     && rm -f /tmp/emscripten-1.39.4.7-linux64.zip \
     && test -f fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake
 
-# Build the minimal WebAssembly FFmpeg payload into the shared image. The
-# hybrid workflow consumes this image directly, so FFmpeg must be present here.
-COPY scripts/build-ffmpeg.sh /opt/moonlight-build/build-ffmpeg.sh
-RUN chmod 0755 /opt/moonlight-build/build-ffmpeg.sh \
-    && EMSDK=/opt/emscripten-release-bundle/emsdk \
-       FFMPEG_ROOT=/opt/ffmpeg-install \
-       FFMPEG_WORK_DIR=/opt/ffmpeg-build \
-       bash /opt/moonlight-build/build-ffmpeg.sh \
-    && test -s /opt/ffmpeg-install/lib/libavcodec.a \
-    && test -s /opt/ffmpeg-install/lib/libavutil.a \
-    && test -s /opt/ffmpeg-install/lib/libswresample.a \
-    && test -s /opt/ffmpeg-install/include/libavcodec/avcodec.h \
-    && rm -rf /opt/ffmpeg-build /opt/moonlight-build
-ENV FFMPEG_ROOT=/opt/ffmpeg-install
-
-
 # Install Samsung's official Tizen.NET workload for the .NET 8.0.400 SDK band.
 # Pin the installer source and manifest version so image rebuilds are reproducible.
 ARG SAMSUNG_TIZEN_NET_COMMIT=5294db5380c4e5fffdaaedcf1102d944096af926
