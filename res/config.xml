@@ -32,9 +32,9 @@
     <tizen:privilege name="http://tizen.org/privilege/tv.audio"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:profile name="tv-samsung"/>
-    <tizen:service id="MoonLightS.service" on-boot="true" auto-restart="true">
+    <tizen:service id="MoonLightS.preview" on-boot="true" auto-restart="true">
         <tizen:content src="service/service.js"/>
-        <tizen:name>moonlight_service</tizen:name>
+        <tizen:name>preview</tizen:name>
         <tizen:description>Moonlight Smart Hub Preview Handler Service</tizen:description>
         <tizen:category name="http://tizen.org/category/service"/>
     </tizen:service>
