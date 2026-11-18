@@ -1,46 +1,27 @@
-FFmpeg README
-=============
+# FFmpeg source and Moonlight integration
 
-FFmpeg is a collection of libraries and tools to process multimedia content
-such as audio, video, subtitles and related metadata.
+This directory contains the unmodified upstream FFmpeg 4.4.8 source. The
+source is pinned to the signed upstream `n4.4.8` release tag at commit
+`209fceb8783e7996d04f35503d62fae0c42f2575`.
 
-## Libraries
+Moonlight's WebAssembly build uses Samsung's Emscripten SDK and enables only
+the AC-3 and E-AC-3 decoders plus the core libraries required by the decoder
+and PCM conversion path:
 
-* `libavcodec` provides implementation of a wider range of codecs.
-* `libavformat` implements streaming protocols, container formats and basic I/O access.
-* `libavutil` includes hashers, decompressors and miscellaneous utility functions.
-* `libavfilter` provides a mean to alter decoded Audio and Video through chain of filters.
-* `libavdevice` provides an abstraction to access capture and playback devices.
-* `libswresample` implements audio mixing and resampling routines.
-* `libswscale` implements color conversion and scaling routines.
+- `libavcodec`
+- `libavutil`
+- `libswresample`
 
-## Tools
+No FFmpeg command-line tools, demuxers, muxers, network protocols, filters,
+video codecs, or encoders are included.
 
-* [ffmpeg](https://ffmpeg.org/ffmpeg.html) is a command line toolbox to
-  manipulate, convert and stream multimedia content.
-* [ffplay](https://ffmpeg.org/ffplay.html) is a minimalistic multimedia player.
-* [ffprobe](https://ffmpeg.org/ffprobe.html) is a simple analysis tool to inspect
-  multimedia content.
-* Additional small tools such as `aviocat`, `ismindex` and `qt-faststart`.
+The build script compiles a clean working copy under `build/source/` so the
+vendored upstream source remains unchanged. Installed static libraries and
+headers are written to `install/`. Both generated directories are ignored
+by Git.
 
-## Documentation
-
-The offline documentation is available in the **doc/** directory.
-
-The online documentation is available in the main [website](https://ffmpeg.org)
-and in the [wiki](https://trac.ffmpeg.org).
-
-### Examples
-
-Coding examples are available in the **doc/examples** directory.
-
-## License
-
-FFmpeg codebase is mainly LGPL-licensed with optional components licensed under
-GPL. Please refer to the LICENSE file for detailed information.
-
-## Contributing
-
-Patches should be submitted to the ffmpeg-devel mailing list using
-`git format-patch` or `git send-email`. Github pull requests should be
-avoided because they are not part of our review process and will be ignored.
+See the upstream license files in this directory and
+https://ffmpeg.org/legal.html. Because Moonlight statically links LGPL
+libraries into WebAssembly, distribution must preserve the LGPL rights to
+replace/relink the library and provide the corresponding source and
+relinkable build materials.
