@@ -380,6 +380,7 @@ void MoonlightInstance::AudDecCleanup(void) {
   s_OpusDolbyTranscodeErrors = 0;
   if (g_Instance != nullptr) {
     g_Instance->m_OpusToDolbyTranscode.store(false);
+    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
   }
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
@@ -530,6 +531,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       }
       return;
     }
+    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(
+      s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs(),
+      std::memory_order_relaxed);
 
     for (const auto& encodedPacket : s_EncodedDolbyPackets) {
       if (encodedPacket.empty()) {
