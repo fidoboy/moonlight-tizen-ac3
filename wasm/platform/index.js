@@ -10677,7 +10677,7 @@ function updateConfigSummaryBar(snapshot) {
     var dolbyEnabled = snapshot.preferences.ac3AudioMode === true ||
       snapshot.preferences.ac3AudioMode === 'true' || snapshot.preferences.ac3AudioMode === 1;
     var softwareDecodeWarning = dolbyEnabled &&
-      String(snapshot.streamingEngine || 'EMSS') === 'EMSS' &&
+      String(snapshot.preferences.streamingEngine || 'EMSS') === 'EMSS' &&
       String(snapshot.preferences.dolbyDecodingMode || 'Hardware') === 'Software';
     toggleFor('ac3AudioMode', '#summaryDolby', softwareDecodeWarning);
   }
