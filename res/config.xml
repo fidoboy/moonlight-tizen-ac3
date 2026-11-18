@@ -35,6 +35,7 @@
     <tizen:service id="MoonLightS.preview" on-boot="true" auto-restart="true">
         <tizen:content src="service/service.js"/>
         <tizen:name>preview</tizen:name>
+        <tizen:icon src="icon.png"/>
         <tizen:description>Moonlight Smart Hub Preview Handler Service</tizen:description>
         <tizen:category name="http://tizen.org/category/service"/>
     </tizen:service>
