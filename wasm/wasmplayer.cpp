@@ -1519,7 +1519,11 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
     g_Instance != nullptr && g_Instance->m_AudioBackend != AudioBackend::Disabled;
   const bool ac3Negotiated = audioStreamEnabled && LiIsAc3AudioNegotiated();
   const bool eac3Negotiated = audioStreamEnabled && LiIsEac3AudioNegotiated();
-  const char* audioCodecString = eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS");
+  const bool opusToDolbyFallback = audioStreamEnabled &&
+    g_Instance->m_OpusToDolbyTranscode.load();
+  const char* audioCodecString = opusToDolbyFallback
+    ? "AC-3"
+    : (eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS"));
   int audioChannels = 0;
   const char* audioLayoutString = "-";
   if (audioStreamEnabled && g_Instance != nullptr) {
@@ -1548,10 +1552,16 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       const bool hardwareDecoderActive = (ac3Negotiated || eac3Negotiated)
         ? g_Instance->m_DolbyHardwareActive.load()
         : g_Instance->m_OpusHardwareActive.load();
-      const char* audioDecodingMode = hardwareDecoderActive ? "Hardware" : "Software";
+      const char* audioDecodingMode = opusToDolbyFallback
+        ? "Software"
+        : (hardwareDecoderActive ? "Hardware" : "Software");
       append("Audio stream: %s [%s] (%s, %d channels, %.0f kbps)\n",
         audioCodecString, audioDecodingMode, audioLayoutString, audioChannels,
         stats.receivedAudioBitrateKbps);
+      if (opusToDolbyFallback) {
+        append("Audio transcoding latency: %.2f ms average processing time\n",
+          s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs());
+      }
     } else {
       append("Audio stream: -\n");
     }
