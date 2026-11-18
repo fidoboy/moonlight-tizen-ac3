@@ -313,6 +313,7 @@ class MoonlightInstance {
   std::atomic<bool> m_DolbyHardwareActive{false};
   std::atomic<bool> m_DolbySoftwareDecode{false};
   std::atomic<bool> m_OpusToDolbyTranscode{false};
+  std::atomic<double> m_OpusDolbyTranscodeLatencyMs{0.0};
   std::condition_variable m_OpusTrackAddChanged;
   std::atomic<bool> m_VideoStarted;
   std::atomic<bool> m_ConnectionCancelled;
