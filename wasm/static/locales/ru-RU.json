@@ -99,6 +99,7 @@
   "Audio configuration": "Настройка звука",
   "Audio jitter buffer": "Буфер джиттера аудио",
   "Audio stream:": "Аудиопоток:",
+  "Audio delay:": "Задержка звука:",
   "Audio synchronization": "Синхронизация звука",
   "Automatic": "Автоматический",
   "Automatic (recommended)": "Автоматически (рекомендуется)",
