@@ -213,6 +213,7 @@ bool OpusDolbyTranscoder::Transcode(
         return false;
       }
       const int convertedSamples = swr_convert(
+        m_Resampler,
         m_ResampledFrame->extended_data,
         maximumSamples,
         const_cast<const uint8_t**>(m_DecodedFrame->extended_data),
