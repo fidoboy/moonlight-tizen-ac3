@@ -549,15 +549,20 @@ MoonlightInstance::AudioTrackListener::AudioTrackListener(
 
 void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackOpen\n");
+  const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
+  const bool hardwareActive = activeMode &&
+    *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
   if (m_Instance->m_OpusPassthrough.load()) {
-    const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
-    const bool hardwareActive = activeMode &&
-      *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
     m_Instance->m_OpusHardwareActive.store(hardwareActive);
     ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
       hardwareActive ? "Hardware" : "Software/unknown");
+  } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
+    m_Instance->m_DolbyHardwareActive.store(hardwareActive);
+    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\n",
+      hardwareActive ? "Hardware" : "Software/unknown");
   } else {
     m_Instance->m_OpusHardwareActive.store(false);
+    m_Instance->m_DolbyHardwareActive.store(false);
   }
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_AudioStarted = true;
@@ -568,6 +573,8 @@ void MoonlightInstance::AudioTrackListener::OnTrackClosed(samsung::wasm::Element
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackClosed\n");
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_AudioStarted = false;
+  m_Instance->m_OpusHardwareActive.store(false);
+  m_Instance->m_DolbyHardwareActive.store(false);
 }
 
 void MoonlightInstance::AudioTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
@@ -1483,29 +1490,15 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
 
     if (audioStreamEnabled && audioChannels > 0 &&
         std::isfinite(stats.receivedAudioBitrateKbps) && stats.receivedAudioBitrateKbps >= 0) {
-      if (ac3Negotiated || eac3Negotiated) {
-        append("Audio stream: %s (%s, %d channels, %.0f kbps)\n",
-          audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps);
-      } else {
-        const char* opusDecodingMode = g_Instance->m_OpusHardwareActive.load() ? "Hardware" : "Software";
-        append("Audio stream: %s [%s] (%s, %d channels, %.0f kbps)\n",
-          audioCodecString, opusDecodingMode, audioLayoutString, audioChannels,
-          stats.receivedAudioBitrateKbps);
-      }
+      const bool hardwareDecoderActive = (ac3Negotiated || eac3Negotiated)
+        ? g_Instance->m_DolbyHardwareActive.load()
+        : g_Instance->m_OpusHardwareActive.load();
+      const char* audioDecodingMode = hardwareDecoderActive ? "Hardware" : "Software";
+      append("Audio stream: %s [%s] (%s, %d channels, %.0f kbps)\n",
+        audioCodecString, audioDecodingMode, audioLayoutString, audioChannels,
+        stats.receivedAudioBitrateKbps);
     } else {
       append("Audio stream: -\n");
-    }
-
-    if (!audioStreamEnabled) {
-      append("Decoding mode: -\n");
-    } else if (ac3Negotiated || eac3Negotiated) {
-      const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      const char* mode = "Hardware";
-      if (hasDecodingMode && g_Instance != nullptr) {
-        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") mode = "Automatic";
-        else if (g_Instance->m_DolbyDecodingMode == "Software") mode = "Software";
-      }
-      append("Decoding mode: %s\n", mode);
     }
 
     if (audioStreamEnabled) {
