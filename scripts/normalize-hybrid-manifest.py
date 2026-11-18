@@ -36,7 +36,7 @@ def set_root_text(root, name, value):
         # Keep package identity metadata together before service declarations.
         insert_at = 0
         for child in list(root):
-            if local_name(child) in {"label", "author", "description"}:
+            if local_name(child) in {"author", "description"}:
                 insert_at += 1
         root.insert(insert_at, node)
     node.text = value
@@ -227,7 +227,14 @@ def main():
     if trailing_positions and max(service_positions) >= min(trailing_positions):
         fail("Service applications must precede shortcut-list, privileges and package dependencies")
 
-    set_root_text(root, "label", "Moonlight Tizen Services")
+    # A package-level <label> is not part of the Tizen manifest schema.
+    # Remove it even if an upstream Tizen Core template inserted one.
+    for child in list(root):
+        if local_name(child) == "label":
+            root.remove(child)
+    if any(local_name(child) == "label" for child in list(root)):
+        fail("Tizen manifest must not contain a package-level label element")
+
     set_root_text(root, "author", "Moonlight Tizen")
     set_root_text(
         root,
