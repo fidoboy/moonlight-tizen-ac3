@@ -9,6 +9,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Xbox Share button support:** Added support for the Share button on Xbox controllers. On the tested hardware running Tizen 6, Chromium M76 does not expose this button through the Gamepad API, so input from Share cannot currently be detected. Compatibility with newer browser-engine versions remains unverified. The button mapping is nevertheless implemented in Moonlight so it can be used by the app or forwarded to the host if a future Tizen version exposes the input.
 - **Streaming menu activation:** Added a setting to invoke the streaming menu by holding the Select button, allowing users to choose this gamepad shortcut.
 - **Gamepad test dialog dismissal:** Added the option to close the controller test dialog by holding the B button for more than one second. The Back button on the TV remote remains available to close the dialog.
+- **Opus hardware passthrough:** Added direct Opus audio passthrough to EMSS, attempting hardware decoding first and falling back to libopus 1.6.1 software decoding when EMSS rejects the hardware track configuration.
 
 ### Changed
 - **Moonlight Common C:** Updated the bundled library with various fixes and improvements.
