@@ -268,6 +268,7 @@ add_executable(moonlight-wasm
     wasm/libchelper.c
     wasm/auddec.cpp
     wasm/dolby_decoder.cpp
+    wasm/opus_dolby_transcoder.cpp
     wasm/connectionlistener.cpp
     wasm/gamepad.cpp
     wasm/http.cpp
