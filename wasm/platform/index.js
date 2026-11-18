@@ -10590,7 +10590,7 @@ function updateConfigSummaryBar(snapshot) {
     return value == null || value === '' ? fallback : String(value).trim();
   }
 
-  function toggleFor(key, summarySelector) {
+  function toggleFor(key, summarySelector, softwareDecodeWarning) {
     var value = snapshot.preferences[key];
     var enabled = value === true || value === 'true' || value === 1;
     var output = document.querySelector(summarySelector);
@@ -10598,6 +10598,17 @@ function updateConfigSummaryBar(snapshot) {
     output.textContent = enabled ? 'on' : 'off';
     output.classList.toggle('is-on', enabled);
     output.classList.toggle('is-off', !enabled);
+    output.classList.toggle('is-software-warning', enabled && softwareDecodeWarning);
+    output.removeAttribute('title');
+
+    if (enabled && softwareDecodeWarning) {
+      var warningIcon = document.createElement('span');
+      warningIcon.className = 'material-icons config-summary-warning-icon';
+      warningIcon.textContent = 'warning';
+      warningIcon.setAttribute('aria-hidden', 'true');
+      output.appendChild(warningIcon);
+      output.title = 'Dolby Digital is received, but software decoding outputs PCM';
+    }
   }
 
   var resolution = storedText('resolution', '1280:720')
@@ -10662,7 +10673,14 @@ function updateConfigSummaryBar(snapshot) {
   if (dolbySummaryItem) dolbySummaryItem.style.display = audioDisabled ? 'none' : '';
   toggleFor('optimizeBitrate', '#summaryOptimalBitrate');
   toggleFor('hdrMode', '#summaryHdr');
-  if (!audioDisabled) toggleFor('ac3AudioMode', '#summaryDolby');
+  if (!audioDisabled) {
+    var dolbyEnabled = snapshot.preferences.ac3AudioMode === true ||
+      snapshot.preferences.ac3AudioMode === 'true' || snapshot.preferences.ac3AudioMode === 1;
+    var softwareDecodeWarning = dolbyEnabled &&
+      String(snapshot.streamingEngine || 'EMSS') === 'EMSS' &&
+      String(snapshot.preferences.dolbyDecodingMode || 'Hardware') === 'Software';
+    toggleFor('ac3AudioMode', '#summaryDolby', softwareDecodeWarning);
+  }
   toggleFor('gameMode', '#summaryGameMode');
 }
 
