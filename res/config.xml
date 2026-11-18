@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://github.com/fidoboy/moonlight-tizen-ac3" version="1.2.3" viewmodes="fullscreen">
-    <access origin="*"></access>
+    <access origin="*" subdomains="true"/>
     <tizen:app-control>
         <tizen:src name="index.html" reload="disable"/>
         <tizen:operation name="http://samsung.com/appcontrol/operation/eden_resume"/>
