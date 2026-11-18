@@ -8131,9 +8131,10 @@ function saveMouseEmulationStick() {
 function updateMouseEmulationStickVisibility(enabled) {
   const option = document.getElementById('mouseEmulationStickOption');
   if (!option) return;
+  const selectorFocused = !enabled && typeof Views !== 'undefined' && Views.InputSettings &&
+    Views.InputSettings.view.current() === 'selectMouseEmulationStick';
   option.style.display = enabled ? '' : 'none';
-  if (!enabled && typeof Views !== 'undefined' && Views.InputSettings &&
-      Views.InputSettings.view.current() === 'selectMouseEmulationStick') {
+  if (selectorFocused) {
     Views.InputSettings.view.index = 1;
     focusElement('mouseEmulationBtn');
   }
