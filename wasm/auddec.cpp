@@ -6,6 +6,7 @@
 
 #include "samsung/wasm/elementary_media_packet.h"
 #include "dolby_decoder.hpp"
+#include "opus_dolby_transcoder.hpp"
 
 using std::chrono_literals::operator""s;
 using std::chrono_literals::operator""ms;
@@ -37,6 +38,9 @@ static constexpr TimeStamp kDolbyFrameDuration = 32ms;
 static std::vector<opus_int16> s_DecodeBuffer;
 
 static DolbySoftwareDecoder s_DolbyDecoder;
+static OpusDolbyTranscoder s_OpusDolbyTranscoder;
+static std::vector<std::vector<uint8_t>> s_EncodedDolbyPackets;
+static int s_OpusDolbyTranscodeErrors = 0;
 static std::vector<int16_t> s_DolbyPcm;
 static bool s_DolbyDecoderInitialized = false;
 static bool s_DolbyDecoderInitializationFailed = false;
@@ -266,6 +270,29 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   s_pktPts = 0s;
 
   const bool isDolbyStream = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
+  if (g_Instance->m_OpusToDolbyTranscode.load() &&
+      s_AudioBackend == AudioBackend::Emss) {
+    const int outputChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+    s_channelCount = static_cast<size_t>(outputChannels);
+    s_sampleRate = 48000;
+    s_samplesPerFrame = opusConfig->samplesPerFrame;
+    s_frameDuration = FrameDuration(opusConfig->samplesPerFrame, opusConfig->sampleRate);
+    if (!s_OpusDolbyTranscoder.Initialize(
+          opusConfig, outputChannels,
+          g_Instance->m_DolbyChannelLayout != "Normal", false)) {
+      ClLogMessage("Failed to initialize FFmpeg Opus-to-AC-3 transcoder (%d channels)\n",
+        outputChannels);
+      return -1;
+    }
+    s_OpusDolbyTranscodeErrors = 0;
+    s_estimatedAudioEnd = 0s;
+    s_hasFirstFrame = false;
+    s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
+    ClLogMessage("Initialized FFmpeg Opus decoder + AC-3 encoder (%d channels, 48 kHz)\n",
+      outputChannels);
+    return 0;
+  }
+
   const bool softwareDolbySelected = isDolbyStream &&
     g_Instance->m_DolbyDecodingMode == "Software" &&
     s_AudioBackend == AudioBackend::Emss;
@@ -348,6 +375,12 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 }
 
 void MoonlightInstance::AudDecCleanup(void) {
+  s_OpusDolbyTranscoder.Cleanup();
+  s_EncodedDolbyPackets.clear();
+  s_OpusDolbyTranscodeErrors = 0;
+  if (g_Instance != nullptr) {
+    g_Instance->m_OpusToDolbyTranscode.store(false);
+  }
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
   s_DolbyDecoderInitialized = false;
@@ -467,6 +500,60 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     }
 
     s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + kDolbyFrameDuration;
+    return;
+  }
+
+  // If native Dolby was not negotiated, keep the Dolby output requirement by
+  // decoding incoming Opus and encoding AC-3 locally with FFmpeg.
+  if (g_Instance->m_OpusToDolbyTranscode.load()) {
+    if (s_AudioBackend != AudioBackend::Emss || !g_Instance->m_AudioStarted ||
+        sampleData == nullptr || sampleLength <= 0) {
+      return;
+    }
+
+    if (!s_hasFirstFrame) {
+      s_firstAppend = std::chrono::steady_clock::now();
+      s_hasFirstFrame = true;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    const TimeStamp ntp = now - s_firstAppend;
+    if (s_AudioSyncEnabled && ntp + kAudioBufferMargin < s_estimatedAudioEnd) {
+      return;
+    }
+
+    if (!s_OpusDolbyTranscoder.Transcode(
+          reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
+          s_EncodedDolbyPackets)) {
+      if (++s_OpusDolbyTranscodeErrors % 100 == 1) {
+        ClLogMessage("FFmpeg Opus-to-AC-3 transcoder failed (%d consecutive errors)\n",
+          s_OpusDolbyTranscodeErrors);
+      }
+      return;
+    }
+
+    for (const auto& encodedPacket : s_EncodedDolbyPackets) {
+      if (encodedPacket.empty()) {
+        continue;
+      }
+      const TimeStamp packetPts = s_pktPts;
+      samsung::wasm::ElementaryMediaPacket dolbyPacket {
+        packetPts,
+        packetPts,
+        kDolbyFrameDuration,
+        true,
+        encodedPacket.size(),
+        const_cast<unsigned char*>(encodedPacket.data()),
+        0, 0, 0, 1,
+        g_Instance->m_AudioSessionId.load()
+      };
+      if (!g_Instance->m_AudioTrack.AppendPacket(dolbyPacket)) {
+        ClLogMessage("Append FFmpeg-encoded AC-3 packet failed\n");
+        continue;
+      }
+      s_pktPts += kDolbyFrameDuration;
+      s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + kDolbyFrameDuration;
+      s_OpusDolbyTranscodeErrors = 0;
+    }
     return;
   }
 
