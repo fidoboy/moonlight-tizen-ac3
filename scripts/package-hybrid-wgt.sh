@@ -312,6 +312,52 @@ package_hybrid() {
   mkdir -p "$project"
   unzip -q "$draft" -d "$project"
 
+  # Tizen Core's hybrid packer currently rewrites the Samsung-specific
+  # web.service declaration into the W3C feature namespace. Restore the
+  # required Tizen namespace in the outer WGT config.xml before signing.
+  python3 - "$project/config.xml" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+config_path = sys.argv[1]
+widget_ns = "http://www.w3.org/ns/widgets"
+tizen_ns = "http://tizen.org/ns/widgets"
+web_service = "http://tizen.org/feature/web.service"
+
+ET.register_namespace("", widget_ns)
+ET.register_namespace("tizen", tizen_ns)
+tree = ET.parse(config_path)
+root = tree.getroot()
+matches = [
+    node for node in list(root)
+    if node.tag.rsplit("}", 1)[-1] == "feature"
+    and node.get("name") == web_service
+]
+if len(matches) != 1:
+    raise SystemExit(
+        "Outer config.xml must contain exactly one web.service feature; "
+        f"found {len(matches)}"
+    )
+matches[0].tag = f"{{{tizen_ns}}}feature"
+tree.write(config_path, encoding="UTF-8", xml_declaration=True)
+
+# Reparse and verify the namespace rather than trusting serialization.
+check = ET.parse(config_path).getroot()
+valid = [
+    node for node in list(check)
+    if node.tag == f"{{{tizen_ns}}}feature"
+    and node.get("name") == web_service
+]
+invalid = [
+    node for node in list(check)
+    if node.tag == f"{{{widget_ns}}}feature"
+    and node.get("name") == web_service
+]
+if len(valid) != 1 or invalid:
+    raise SystemExit("Outer config.xml web.service feature has the wrong namespace")
+print("Outer WGT config.xml web.service feature namespace verified.")
+PY
+
   # Verify the managed WMP service and its private engine payload are present.
   test -s "$project/bin/MoonlightHost.dll"
   test -s "$project/res/lib/libmlengine.so"
@@ -459,8 +505,12 @@ with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path)
         )
     if manifest.get("package") != "MoonLightS" or manifest.get("api-version") != "5.5":
         raise SystemExit("Final hybrid package identity/API floor changed")
+    if any(
+        node.tag == "{http://tizen.org/ns/packages}label"
+        for node in list(manifest)
+    ):
+        raise SystemExit("Final hybrid manifest must not contain a package-level label element")
     root_metadata = {
-        "label": "Moonlight Tizen Services",
         "author": "Moonlight Tizen",
         "description": "Native Moonlight Tizen services: WMP playback, process supervision and Ambilight.",
     }
@@ -546,6 +596,22 @@ with zipfile.ZipFile(package_path) as package, zipfile.ZipFile(service_tpk_path)
             member = "res/wgt/" + item.relative_to(source_path).as_posix()
             if member not in names or package.read(member) != item.read_bytes():
                 raise SystemExit("Moonlight Web payload changed or missing after signing: " + member)
+
+    outer_config = ET.fromstring(package.read("config.xml"))
+    tizen_widgets_ns = "{http://tizen.org/ns/widgets}"
+    widget_ns = "{http://www.w3.org/ns/widgets}"
+    web_service_features = [
+        node for node in list(outer_config)
+        if node.tag == tizen_widgets_ns + "feature"
+        and node.get("name") == "http://tizen.org/feature/web.service"
+    ]
+    misplaced_web_service_features = [
+        node for node in list(outer_config)
+        if node.tag == widget_ns + "feature"
+        and node.get("name") == "http://tizen.org/feature/web.service"
+    ]
+    if len(web_service_features) != 1 or misplaced_web_service_features:
+        raise SystemExit("Final outer config.xml must declare web.service in the Tizen namespace")
 
     config = ET.fromstring(package.read("res/wgt/config.xml"))
     if any(node.tag.endswith("video_splash_screen") for node in config.iter()):
