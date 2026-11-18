@@ -305,6 +305,12 @@ class MoonlightInstance {
   std::condition_variable m_EmssVideoStateChanged;
   EmssReadyState m_EmssReadyState;
   std::atomic<bool> m_AudioStarted;
+  std::atomic<bool> m_OpusProbeAttempted{false};
+  std::atomic<bool> m_OpusTrackAddCompleted{false};
+  std::atomic<bool> m_OpusTrackAddSucceeded{false};
+  std::atomic<bool> m_OpusPassthrough{false};
+  std::atomic<bool> m_OpusHardwareActive{false};
+  std::condition_variable m_OpusTrackAddChanged;
   std::atomic<bool> m_VideoStarted;
   std::atomic<bool> m_ConnectionCancelled;
   pthread_t m_StopThread;
