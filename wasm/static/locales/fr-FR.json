@@ -645,5 +645,8 @@
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Activer la régularisation des images pour équilibrer latence et fluidité. Il est recommandé de laisser cette option activée.",
   "Enable frame pacing": "Activer la régularisation des images",
   "Enable high dynamic range": "Activer la plage dynamique élevée",
-  "Enable full color range": "Activer la plage de couleurs complète"
+  "Enable full color range": "Activer la plage de couleurs complète",
+  "Could not load the saved streaming settings.": "Impossible de charger les paramètres de streaming enregistrés.",
+  "Could not apply the saved streaming-setting requirements.": "Impossible d’appliquer les exigences des paramètres de streaming enregistrés.",
+  "Could not save the optimized streaming bitrate.": "Impossible d’enregistrer le débit binaire optimisé pour le streaming."
 }
