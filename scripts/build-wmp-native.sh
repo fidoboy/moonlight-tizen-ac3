@@ -8,7 +8,7 @@ command -v readelf >/dev/null
 test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
 echo "== WMP tests (shared Tizen build image)"
 node tests/wmp_transport_test.js
-cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src \
+cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src -Iopus/include \
   wmp/tests/wmp_audio_passthrough_test.c -o "$RUNNER_TEMP/wmp-audio-passthrough-test"
 "$RUNNER_TEMP/wmp-audio-passthrough-test"
 bash wmp/tests/wmp_esplus_abi_test.sh
