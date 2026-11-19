@@ -885,6 +885,35 @@
     });
   }
 
+  function validatePreflightStatus(response) {
+    var status = response && response.payload ? response.payload : {};
+    if (status.service !== 'ready')
+      throw makeError('native service is not ready');
+    if (status.libraryLoaded !== true || status.engine !== 'libmlengine')
+      throw makeError('native engine library is unavailable' +
+        (status.loadError ? ': ' + status.loadError : ''));
+    if (status.esplus !== 'symbols_detected')
+      throw makeError('ESPlus Player API is unavailable (state: ' +
+        String(status.esplus || 'unknown') + ')');
+    if (status.sessionState !== 'idle' || status.running !== false ||
+        status.workerActive !== false)
+      throw makeError('native service is not idle; a previous session or worker is still active');
+    if (!supervisorRemotePort || supervisorRemotePort.isTrusted !== true)
+      throw makeError('trusted WMP supervisor control channel is unavailable');
+    return getRunningServiceContexts(SUPERVISOR_APP_ID).then(function(contexts) {
+      if (!contexts.length)
+        throw makeError('WMP supervisor process is not running');
+      debugLog('WMP preflight completed successfully', {
+        libraryLoaded: status.libraryLoaded,
+        esplus: status.esplus,
+        sessionState: status.sessionState,
+        workerActive: status.workerActive,
+        supervisorRunning: true
+      });
+      return status;
+    });
+  }
+
   function waitForServiceReady(attempt) {
     return sendConnectedRequest('ping', '{}', {}, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS).then(function(response) {
       var state = response && response.payload ? response.payload.service : null;
@@ -1929,29 +1958,38 @@
   global.ESPlusPlayerTransport = {
     connect: connect,
     prepare: function() {
-      // Start only the supervised service and wait for library/ESPlus readiness.
-      // No session parameters or ESPlus playback signals are sent at this stage.
+      // Preflight only: launch the supervised service, then verify its actual
+      // engine/API and idle state. Never create, open, prepare or feed ESPlus here.
       return connect(true).then(function() {
         return waitForServiceReady(0);
-      });
+      }).then(function() {
+        return sendConnectedRequest('get_status', '{}', {}, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
+      }).then(validatePreflightStatus);
     },
     abortPreparedStartup: function() {
+      // Stop the watchdog first so killing WMP cannot cause it to be relaunched.
       close();
-      return stopExistingSupervisor().catch(function(error) {
-        debugLog('supervisor cleanup after host negotiation failure was unsuccessful', {
+      var firstSupervisorStop = stopExistingSupervisor().catch(function(error) {
+        debugLog('initial supervisor stop failed; will verify again after stopping WMP', {
           serviceAppId: SUPERVISOR_APP_ID,
           error: errorDetails(error)
         });
+      });
+      return firstSupervisorStop.then(function() {
+        return stopExistingService();
       }).then(function() {
-        return stopExistingService().catch(function(error) {
-          debugLog('service cleanup after host negotiation failure was unsuccessful', {
-            serviceAppId: SERVICE_APP_ID,
-            error: errorDetails(error)
-          });
-        });
+        return stopExistingSupervisor();
       }).then(function() {
         connectPromise = null;
         connectionReady = false;
+        return true;
+      }).catch(function(error) {
+        connectPromise = null;
+        connectionReady = false;
+        var cleanupError = makeError('native WMP cleanup was incomplete: ' +
+          (error && error.message ? error.message : String(error)));
+        cleanupError.cause = error;
+        throw cleanupError;
       });
     },
     request: request,
