@@ -1235,9 +1235,13 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
-    // Lock the transition text before any teardown work can yield or queued native
-    // callbacks can repaint the previous startup status over the closing message.
+    // Lock and reset the transition immediately, before teardown work or any
+    // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
+    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    var initialClosingAppName = window._activeStreamAppName || t('Apps');
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', initialClosingAppName));
+    $('#loadingSpinnerMessage').empty();
     var engineState = window.getStreamingEngineState();
     engineState.confirmed = false;
     engineState.videoReady = false;
@@ -1264,7 +1268,6 @@ function handleMessage(msg) {
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
-    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
     var streamDialogMessage = pendingStreamDialogMessage;
     var streamApiMessage = pendingStreamApiMessage;
@@ -1300,13 +1303,6 @@ function handleMessage(msg) {
       isInGame = false;
       return;
     }
-
-    // Reset both transition labels before any teardown/recovery work can yield.
-    // The closing title is assigned immediately; status text is populated below
-    // from the termination reason and updated as restoration progresses.
-    var closingAppName = window._activeStreamAppName || t('Apps');
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', closingAppName));
-    $('#loadingSpinnerMessage').empty();
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
