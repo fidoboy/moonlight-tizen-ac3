@@ -223,6 +223,12 @@ namespace MoonlightWmpHost
         private readonly EsplusCloseFn _esplusClose;
         private EsplusApi _esplusApi;
         private bool _esplusProbeCached;
+        private bool _esplusPlaybackClockAvailable;
+
+        internal bool EsplusPlaybackClockAvailable
+        {
+            get { return _esplusPlaybackClockAvailable; }
+        }
         private int _esplusProbeResult;
         private string _esplusFamily = String.Empty;
         private string _esplusReport = String.Empty;
@@ -289,6 +295,7 @@ namespace MoonlightWmpHost
                     _esplusReport = ReadUtf8(bytes);
                     _esplusFamily = PtrString(
                         _esplusFamilyName(_esplusApi.SelectedFamily));
+                    _esplusPlaybackClockAvailable = _esplusApi.GetPlayingTime != IntPtr.Zero;
                 }
                 finally
                 {
