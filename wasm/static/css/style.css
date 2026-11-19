@@ -1837,8 +1837,7 @@ body[data-color-theme="black-orange"] #background-layer {
 
 #performance-stats .performance-stats-slow-opus {
     display: none;
-    /* A table box shrink-wraps its text and works on older Tizen WebKit builds. */
-    display: table;
+    /* JavaScript switches this to a shrink-wrapped table box when active. */
     width: auto;
     max-width: 100%;
     margin: 0 auto 8px;
