@@ -44,11 +44,11 @@ static int s_hevc_hdr_status_logged;
 void VidEsplus_ResetAfterPlayerRebuild(void)
 {
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
-    __atomic_store_n(&s_video_rebuild_reset_pending, 1, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.video_format, (uint32_t)s_video_format, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_width, (uint32_t)s_video_width, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_video_rebuild_reset_pending, 1, __ATOMIC_RELEASE);
     MLT_DIAG("video overlay and stream metadata restored after ESPlus player rebuild");
 }
 
