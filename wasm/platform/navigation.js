@@ -294,11 +294,8 @@ function playNavigationSound() {
 
   try {
     var source = context.createBufferSource();
-    var gain = context.createGain();
     source.buffer = navigationSoundBuffer;
-    gain.gain.value = 0.5;
-    source.connect(gain);
-    gain.connect(context.destination);
+    source.connect(context.destination);
     navigationSoundSources.push(source);
     source.onended = function() {
       var sourceIndex = navigationSoundSources.indexOf(source);
