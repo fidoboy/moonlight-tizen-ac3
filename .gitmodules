@@ -1,3 +1,7 @@
 [submodule "moonlight-common-c/nanors"]
 	path = moonlight-common-c/nanors
 	url = https://github.com/sleepybishop/nanors.git
+
+[submodule "ffmpeg"]
+	path = ffmpeg
+	url = https://git.ffmpeg.org/ffmpeg.git
