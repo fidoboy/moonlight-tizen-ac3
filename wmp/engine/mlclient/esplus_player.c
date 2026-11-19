@@ -1227,6 +1227,8 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
         LiReportVideoRendererError();
         return -1;
     }
+    VidEsplus_ResetAfterPlayerRebuild();
+    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
     if (esplus_set_window(width, height) != 0) {
         MLT("OPUS fallback: video window recreation failed");
         goto fail_player;
@@ -1240,8 +1242,6 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
         goto fail_player;
     }
 
-    VidEsplus_ResetAfterPlayerRebuild();
-    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
     esplus_audio_registration_complete(1);
     if (esplus_prepare() != 0) {
         MLT("OPUS fallback: prepare request failed");
