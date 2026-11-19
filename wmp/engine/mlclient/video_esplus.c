@@ -19,6 +19,7 @@
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
 static int s_fps;
+static int s_video_format, s_video_width, s_video_height;
 static uint8_t *s_scratch;
 static size_t s_scratch_cap;
 static uint64_t s_base_pts_us;
@@ -35,7 +36,11 @@ static volatile int s_first_video_submit_accepted;
 void VidEsplus_ResetAfterPlayerRebuild(void)
 {
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
-    MLT_DIAG("video overlay reveal state reset after ESPlus player rebuild");
+    __atomic_store_n(&esplus_stats.video_format, (uint32_t)s_video_format, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_width, (uint32_t)s_video_width, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
+    MLT_DIAG("video overlay and stream metadata restored after ESPlus player rebuild");
 }
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
@@ -320,6 +325,9 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     VLOG("setup begin fmt=0x%x %dx%d@%d\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
+    s_video_format = videoFormat;
+    s_video_width = width;
+    s_video_height = height;
     s_hevc_mdcv_available = 0;
     s_hevc_cll_available = 0;
     s_hevc_sei_inspection_failed = 0;
