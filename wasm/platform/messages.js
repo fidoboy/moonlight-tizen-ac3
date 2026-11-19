@@ -315,6 +315,8 @@ var pendingMediaPipelineErrorMessage = null;
 var pendingMediaPipelineApiMessage = null;
 var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
+// Prevent delayed native progress/error callbacks from overwriting the closing transition.
+var streamTerminationTransitionActive = false;
 var pendingMediaPipelineStopRequested = false;
 
 function formatESPlusPlayerStartupDiagnostic(message) {
@@ -1084,6 +1086,7 @@ var _queuedPairing = null;
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
     if (method === 'startRequest') {
+      streamTerminationTransitionActive = false;
       h264TrackRejectionClosingMessage = null;
       pendingStreamDialogMessage = null;
       pendingStreamApiMessage = null;
@@ -1223,8 +1226,18 @@ function handleMessage(msg) {
       msg.indexOf('StatsSnapshotMsg: ') !== 0) {
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   }
+  // Native callbacks may already be queued when the stream stops. They must not
+  // overwrite the new closing title/status once termination has begun.
+  if (streamTerminationTransitionActive &&
+      /^(?:ProgressMsg: |TransientMsg: |DialogMsg: |MediaPipelineErrorMsg: |VideoTrackCloseErrorMsg: |H264TrackRejectedMsg: )/.test(String(msg))) {
+    return;
+  }
+
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Lock the transition text before any teardown work can yield or queued native
+    // callbacks can repaint the previous startup status over the closing message.
+    streamTerminationTransitionActive = true;
     var engineState = window.getStreamingEngineState();
     engineState.confirmed = false;
     engineState.videoReady = false;
