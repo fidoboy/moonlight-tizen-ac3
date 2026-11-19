@@ -314,6 +314,10 @@ class MoonlightInstance {
   std::atomic<bool> m_OpusTrackAddCompleted{false};
   std::atomic<bool> m_OpusTrackAddSucceeded{false};
   std::atomic<bool> m_OpusPassthrough{false};
+  // Learned per-device preference: request longer host Opus packets on future EMSS sessions.
+  std::atomic<bool> m_SlowOpusDecoderRequired{false};
+  // True only when this session actually advertises CAPABILITY_SLOW_OPUS_DECODER.
+  std::atomic<bool> m_SlowOpusDecoderActive{false};
   std::atomic<bool> m_OpusHardwareActive{false};
   std::atomic<bool> m_DolbyHardwareActive{false};
   std::atomic<bool> m_DolbySoftwareDecode{false};
