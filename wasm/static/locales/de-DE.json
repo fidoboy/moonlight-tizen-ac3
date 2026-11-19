@@ -645,5 +645,8 @@
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Frame-Pacing aktivieren, um Latenz und flüssige Wiedergabe auszubalancieren. Es wird empfohlen, diese Option aktiviert zu lassen.",
   "Enable frame pacing": "Frame-Pacing aktivieren",
   "Enable high dynamic range": "Hoher Dynamikbereich aktivieren",
-  "Enable full color range": "Vollen Farbbereich aktivieren"
+  "Enable full color range": "Vollen Farbbereich aktivieren",
+  "Could not load the saved streaming settings.": "Die gespeicherten Streaming-Einstellungen konnten nicht geladen werden.",
+  "Could not apply the saved streaming-setting requirements.": "Die Anforderungen der gespeicherten Streaming-Einstellungen konnten nicht angewendet werden.",
+  "Could not save the optimized streaming bitrate.": "Die optimierte Streaming-Bitrate konnte nicht gespeichert werden."
 }
