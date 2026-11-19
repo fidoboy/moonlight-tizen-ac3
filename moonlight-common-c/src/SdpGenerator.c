@@ -530,7 +530,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
 
         snprintf(payloadStr, sizeof(payloadStr), "%d", AudioPacketDuration);
         err |= addAttributeString(&optionHead, "x-nv-aqos.packetDuration", payloadStr);
-        Limelog("Requesting %d ms Opus audio packets from host\\n", AudioPacketDuration);
+        Limelog("Requesting %d ms Opus audio packets from host\n", AudioPacketDuration);
     }
     else {
         // Keep audio defaults deterministic when audio is disabled or the host is legacy.
