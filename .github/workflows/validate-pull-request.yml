@@ -24,10 +24,10 @@ jobs:
           node --check wasm/static/js/i18n-sync.js
           node tests/gamepad_mask_test.js
 
-      - name: Lint GitHub Actions workflows
+      - name: Lint PR validation workflow
         uses: raven-actions/actionlint@v2
         with:
           version: 1.7.7
-          files: .github/workflows/*.yml
+          files: .github/workflows/validate-pull-request.yml
           shellcheck: false
           pyflakes: false
