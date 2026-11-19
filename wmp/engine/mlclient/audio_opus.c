@@ -31,6 +31,7 @@ static opus_int16 *s_software_pcm;
 static int s_opus_fallback_available;
 static int s_opus_software_active;
 static int s_opus_fallback_failed;
+static int s_opus_fallback_deferred;
 
 #define OPUS_MAX_FRAME_SAMPLES 5760
 
@@ -85,6 +86,7 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -272,6 +274,11 @@ static void ar_decodePlay(char *data, int len)
 
     if (!s_dolby && !s_opus_software_active && esplus_opus_fallback_ready()) {
         wmp_esplus_audio_info_t pcm_info;
+        /* Let prepare_async_done(false) unwind before closing its player. */
+        if (!s_opus_fallback_deferred) {
+            s_opus_fallback_deferred = 1;
+            return;
+        }
         if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
