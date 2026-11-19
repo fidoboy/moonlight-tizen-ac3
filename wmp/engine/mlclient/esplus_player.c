@@ -24,6 +24,8 @@
 #include "mldiag.h"
 #include "mltrace.h"
 
+#define WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT 0xfe6c1008u
+
 /*
  * Ecore is provided by the TV firmware. Load it at runtime instead of linking
  * against it: Ecore_Wl2 pulls in a large firmware-specific EFL/Wayland/TBM
@@ -558,7 +560,7 @@ static void on_error(int error, void *context)
      * trackrenderer receives the first packet. 0xfe6c1008 is
      * EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT. Recovery waits for prepare_async_done(false).
      */
-    if ((uint32_t)error == 0xfe6c1008u &&
+    if ((uint32_t)error == WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT &&
         __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
         !__atomic_load_n(&s_prepared, __ATOMIC_ACQUIRE) &&
         !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
