@@ -918,6 +918,7 @@ function attachListeners() {
   registerMenu('selectAmbientBackground', Views.AmbientBackgroundMenu);
   registerMenu('selectAudioBackend', Views.SelectAudioBackendMenu);
   registerMenu('selectAudio', Views.SelectAudioMenu);
+  registerMenu('selectMouseEmulationStick', Views.SelectMouseEmulationStickMenu);
   registerMenu('selectDolbyChannelLayout', Views.SelectDolbyChannelLayoutMenu);
   registerMenu('selectDolbyDecodingMode', Views.SelectDolbyDecodingModeMenu);
   registerMenu('selectAudioJitter', Views.SelectAudioJitterMenu);
