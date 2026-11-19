@@ -155,6 +155,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -254,6 +255,7 @@ static void ar_cleanup(void)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
