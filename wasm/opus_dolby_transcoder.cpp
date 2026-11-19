@@ -298,11 +298,6 @@ bool OpusDolbyTranscoder::Transcode(
   const uint64_t processingTimeNs = static_cast<uint64_t>(
     std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count());
   m_ProcessingTimeNs.fetch_add(processingTimeNs, std::memory_order_relaxed);
-  uint64_t previousMaximum = m_MaxProcessingTimeNs.load(std::memory_order_relaxed);
-  while (processingTimeNs > previousMaximum &&
-         !m_MaxProcessingTimeNs.compare_exchange_weak(
-           previousMaximum, processingTimeNs, std::memory_order_relaxed)) {
-  }
   m_ProcessedPackets.fetch_add(1, std::memory_order_relaxed);
   return true;
 }
