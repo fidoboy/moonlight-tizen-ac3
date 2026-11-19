@@ -106,9 +106,14 @@ namespace MoonlightWmpHost
 
                 if (command == "arm_startup_watchdog")
                 {
-                    int targetPid = message.GetItem<int>("targetPid");
-                    int timeoutSeconds = message.GetItem<int>("timeoutSeconds");
-                    if (targetPid <= 0 || timeoutSeconds < 1 || timeoutSeconds > 120)
+                    int targetPid;
+                    int timeoutSeconds;
+                    if (!message.Contains("targetPid") || !message.Contains("timeoutSeconds") ||
+                        !Int32.TryParse(message.GetItem<string>("targetPid"), NumberStyles.Integer,
+                            CultureInfo.InvariantCulture, out targetPid) ||
+                        !Int32.TryParse(message.GetItem<string>("timeoutSeconds"), NumberStyles.Integer,
+                            CultureInfo.InvariantCulture, out timeoutSeconds) ||
+                        targetPid <= 0 || timeoutSeconds < 1 || timeoutSeconds > 120)
                     {
                         Log.Error("WMP_SUPERVISOR rejected invalid startup watchdog parameters");
                         return;
