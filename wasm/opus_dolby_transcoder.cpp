@@ -136,7 +136,11 @@ bool OpusDolbyTranscoder::Initialize(
     return false;
   }
   m_EncoderContext->time_base = AVRational{1, 48000};
-  m_EncoderContext->bit_rate = outputChannels == 2 ? 192000 : 448000;
+  // E-AC-3 at 1536 kbps selects 3 blocks per frame (16 ms at 48 kHz).
+  // Keep the previous AC-3 bitrates when the legacy encoder path is selected.
+  m_EncoderContext->bit_rate = eac3
+    ? 1536000
+    : (outputChannels == 2 ? 192000 : 448000);
   m_EncoderContext->thread_count = 1;
   if (avcodec_open2(m_EncoderContext, encoder, nullptr) < 0 ||
       m_EncoderContext->frame_size <= 0) {
