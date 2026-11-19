@@ -5557,9 +5557,6 @@ function scheduleStreamTransitionHideAfterVideoReady() {
       streamVideoReadyHideTimeout = null;
       if (generation !== streamVideoReadyHideGeneration) return;
       hideStreamTransitionBackground(function() {
-        if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
-          onPerformanceStatsStreamTransitionHidden();
-        }
         var nativeEngineState = typeof window.getStreamingEngineState === 'function'
           ? window.getStreamingEngineState() : null;
         if (nativeEngineState && nativeEngineState.active === 'ESPLUSPLAYER' &&
@@ -5568,6 +5565,9 @@ function scheduleStreamTransitionHideAfterVideoReady() {
           // clock has advanced and the animated transition is now display:none.
           if (typeof markStreamingEngineVideoReady === 'function') markStreamingEngineVideoReady();
           clearStreamStartupWatchdog();
+        }
+        if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
+          onPerformanceStatsStreamTransitionHidden();
         }
         // Initial focus recovery runs only after the transition has fully faded.
         restoreEmssVideoFocus();
