@@ -507,7 +507,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_hevc_hdr_status_logged = 0;
     }
     if (__atomic_load_n(&s_video_player_rebuilding, __ATOMIC_ACQUIRE))
-        return DR_NEED_IDR;
+        return DR_OK;
     ++s_video_units;
     if (s_video_units == 1)
         MLT_DIAG("VidDecSubmit FIRST decode unit ENTER type=%d bytes=%d frame=%u",
