@@ -167,6 +167,22 @@ static const char *code_name(int c) {
   }
 }
 
+/* Runtime termination callbacks do not belong to a connection-setup stage.
+   Give their diagnostics a meaningful origin instead of exposing stage="-". */
+static const char *failure_stage_name(int code, int stage, const char *stage_name) {
+  if (stage >= 0 && stage_name && stage_name[0])
+    return stage_name;
+
+  switch (code) {
+    case -100: return "video UDP reception";
+    case -101: return "video frame assembly";
+    case -102: return "stream runtime";
+    case -103: return "protected content";
+    case -104: return "video frame conversion";
+    default: return "stream runtime";
+  }
+}
+
 /* snprintf that advances and never overruns */
 #define ADD(...) do { if (o < OUT_MAX - 1) { int r_ = snprintf(s_out + o, OUT_MAX - o, __VA_ARGS__); \
                       if (r_ > 0) { o += r_; if (o > OUT_MAX - 1) o = OUT_MAX - 1; } } } while (0)
@@ -184,7 +200,7 @@ void mldiag_fail(int code, int stage, const char *stage_name, int host_feature_f
   pthread_mutex_lock(&s_mu);
   int o = 0;
   s_out[0] = 0;
-  ADD("ML-ERROR code=%d name=%s stage=%s", code, code_name(code), stage >= 0 && stage_name ? stage_name : "-");
+  ADD("ML-ERROR code=%d name=%s stage=%s", code, code_name(code), failure_stage_name(code, stage, stage_name));
   ADD(" t=%lldms | cfg %dx%d@%d br=%d pkt=%d fmts=0x%x cs=%d cr=%d audio=0x%x scm=0x%x enc=0x%x encf=0x%x/0x%x/0x%x rtsp=%s launch=%s rikey=%s rikeyid=%s app=%s gfe=%s hostflags=0x%x rtt=%d/%d",
       t - s_t0, s_cfg.width, s_cfg.height, s_cfg.fps, s_cfg.bitrate_kbps, s_cfg.packet_size,
       s_cfg.supported_video_formats, s_cfg.color_space, s_cfg.color_range, s_cfg.audio_config,
