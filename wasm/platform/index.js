@@ -5531,6 +5531,8 @@ function scheduleStreamTransitionHideAfterVideoReady() {
         if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
           onPerformanceStatsStreamTransitionHidden();
         }
+        // Initial focus recovery runs only after the transition has fully faded.
+        restoreEmssVideoFocus();
         // The transition layer is fully hidden at this point. Only now report
         // an optional Ambilight startup failure, while the remote video remains visible.
         if (isInGame && window._ambilightStartupFailed === true) {
@@ -5781,6 +5783,26 @@ function hideStreamTransitionBackground(afterHidden) {
     }, 500);
   }, UI_FADE_DURATION_MS + STREAM_TRANSITION_ELEMENT_OFFSET_MS);
 }
+
+// Restore focus only for a confirmed EMSS video stream, never for the native player.
+function restoreEmssVideoFocus() {
+  var engineState = typeof window.getStreamingEngineState === 'function'
+    ? window.getStreamingEngineState()
+    : null;
+  if (!isInGame || !engineState || engineState.active !== 'EMSS' ||
+      engineState.confirmed !== true || engineState.videoReady !== true || isDialogOpen) return false;
+
+  // The Stream Menu is created dynamically; its presence means it owns focus.
+  if (document.getElementById('streamMenuDialogOverlay')) return false;
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') return false;
+
+  var videoElement = document.getElementById('wasm_module');
+  if (!videoElement || videoElement.style.display === 'none') return false;
+  if (document.activeElement !== videoElement) videoElement.focus();
+  return true;
+}
+
 
 // Finalize the normal stream layout when the browser confirms that remote video is playing.
 function handleNormalStreamVideoReady() {
@@ -9108,6 +9130,14 @@ function initDirectSamsungKeys() {
 
 function initSpecialKeys() {
   console.log('%c[index.js, initSpecialKeys]', 'color: green;', 'Initializing special TV input keys...');
+
+  // Recover lost video focus on the first keyboard input without consuming it.
+  if (!window._emssVideoFocusRecoveryKeyListenerAttached) {
+    window._emssVideoFocusRecoveryKeyListenerAttached = true;
+    window.addEventListener('keydown', function() {
+      restoreEmssVideoFocus();
+    }, true);
+  }
 
   // Capture Back and media keys before the streaming session and suppress the TV's default action.
   ['keydown', 'keyup'].forEach(function(eventType) {
