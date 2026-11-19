@@ -41,6 +41,12 @@ static int s_hevc_cll_available;
 static int s_hevc_sei_inspection_failed;
 static int s_hevc_hdr_status_logged;
 
+void VidEsplus_CancelPlayerRebuild(void)
+{
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_RELEASE);
+}
+
 void VidEsplus_BeginPlayerRebuild(void)
 {
     __atomic_store_n(&s_video_player_rebuilding, 1, __ATOMIC_RELEASE);
