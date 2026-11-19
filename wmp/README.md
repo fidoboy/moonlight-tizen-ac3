@@ -63,7 +63,7 @@ link-time `DT_NEEDED` dependency.
 
 - AC-3/E-AC-3 is used only when the RTSP negotiation confirms the selected
   codec. The original compressed frames are submitted to ESPlus.
-- If Dolby is unavailable or not negotiated, the engine decodes received Opus multistream packets with the vendored libopus decoder and submits interleaved PCM_S16LE to ESPlus. Opus packets are never passed to ESPlus.
+- If Dolby is unavailable or not negotiated, OPUS is initially registered and submitted compressed to ESPlus. If the player reports the specific Tizen preroll error EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT (0xfe6c1008), the engine waits for prepare_async_done(false), closes and recreates the ESPlus instance, re-registers video plus PCM_S16LE audio, and switches the incoming stream to the vendored libopus decoder. Other player errors remain fatal; the fallback is not a generic retry.
 - The optional optical-output setting is passed to the shared engine before
   session start.
 - Moonlight Common C remains authoritative for session validity and
