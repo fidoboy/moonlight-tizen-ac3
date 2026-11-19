@@ -560,6 +560,7 @@ static void on_error(int error, void *context)
      */
     if ((uint32_t)error == 0xfe6c1008u &&
         __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
+        !s_prepared &&
         !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         __atomic_store_n(&s_opus_fallback_error, 1, __ATOMIC_RELEASE);
         opus_fallback_error = 1;
