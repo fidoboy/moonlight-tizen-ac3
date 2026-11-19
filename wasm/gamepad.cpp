@@ -139,6 +139,7 @@ bool rumbleFeedbackSwitch = false;
 
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
+bool mouseEmulationUseRightStick = true;
 std::atomic<bool> mouseEmulationActive{false};
 
 // Stream termination can happen outside the gamepad polling loop. Reset the
@@ -298,7 +299,7 @@ static int GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
 }
 
 // Function to handle the gamepad input state
-void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
+void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseRightStickSetting, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
   controllerTracker.reset();
   selectPressTimes.clear();
   selectMenuTriggered.clear();
@@ -306,6 +307,7 @@ void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseE
   selectClickPulseUntil.clear();
   rumbleFeedbackSwitch = rumbleFeedback;
   mouseEmulationSwitch = mouseEmulation;
+  mouseEmulationUseRightStick = mouseEmulationUseRightStickSetting;
   selectHoldStreamMenuSwitch = selectHoldStreamMenu;
   flipABfaceButtonsSwitch = flipABfaceButtons;
   flipXYfaceButtonsSwitch = flipXYfaceButtons;
@@ -534,22 +536,23 @@ void MoonlightInstance::PollGamepads() {
 
     // If mouse emulation is active, then send mouse input to the desired handler (acts as a mouse)
     if (mouseEmulationActive.load(std::memory_order_acquire)) {
-      // Left Stick values are mapped to horizontal and vertical mouse movements
+      // The selected stick controls pointer movement; the other stick controls scrolling.
+      const auto pointerStickX = mouseEmulationUseRightStick ? rightStickX : leftStickX;
+      const auto pointerStickY = mouseEmulationUseRightStick ? rightStickY : leftStickY;
+      const auto scrollStickX = mouseEmulationUseRightStick ? leftStickX : rightStickX;
+      const auto scrollStickY = mouseEmulationUseRightStick ? leftStickY : rightStickY;
       const float baseMouseSpeed = 10.0f;
-      const float leftStickMagnitude = std::sqrt(leftStickX * leftStickX + leftStickY * leftStickY) / std::numeric_limits<short>::max();
-      const float mouseSpeed = baseMouseSpeed * leftStickMagnitude;
-      const float mouseXDelta = static_cast<float>(leftStickX) / std::numeric_limits<short>::max() * mouseSpeed;
-      const float mouseYDelta = -static_cast<float>(leftStickY) / std::numeric_limits<short>::max() * mouseSpeed;
-      
-      // Send a mouse move event with the specified delta values for both horizontal (X-axis) and vertical (Y-axis) coordinates
+      const float pointerStickMagnitude = std::sqrt(pointerStickX * pointerStickX + pointerStickY * pointerStickY) / std::numeric_limits<short>::max();
+      const float mouseSpeed = baseMouseSpeed * pointerStickMagnitude;
+      const float mouseXDelta = static_cast<float>(pointerStickX) / std::numeric_limits<short>::max() * mouseSpeed;
+      const float mouseYDelta = -static_cast<float>(pointerStickY) / std::numeric_limits<short>::max() * mouseSpeed;
       LiSendMouseMoveEvent(static_cast<int>(mouseXDelta), static_cast<int>(mouseYDelta));
 
-      // Right Stick values are mapped to horizontal and vertical mouse scrolls
       const float baseScrollSpeed = 1.0f;
-      const float rightStickMagnitude = std::sqrt(rightStickX * rightStickX + rightStickY * rightStickY) / std::numeric_limits<short>::max();
-      const float scrollSpeed = baseScrollSpeed * rightStickMagnitude;
-      const float scrollXDelta = static_cast<float>(rightStickX) / std::numeric_limits<short>::max() * scrollSpeed;
-      const float scrollYDelta = static_cast<float>(rightStickY) / std::numeric_limits<short>::max() * scrollSpeed;
+      const float scrollStickMagnitude = std::sqrt(scrollStickX * scrollStickX + scrollStickY * scrollStickY) / std::numeric_limits<short>::max();
+      const float scrollSpeed = baseScrollSpeed * scrollStickMagnitude;
+      const float scrollXDelta = static_cast<float>(scrollStickX) / std::numeric_limits<short>::max() * scrollSpeed;
+      const float scrollYDelta = static_cast<float>(scrollStickY) / std::numeric_limits<short>::max() * scrollSpeed;
       
       // Send mouse scroll events with the specified delta values for both horizontal (X-axis) and vertical (Y-axis) coordinates
       LiSendHScrollEvent(static_cast<int>(scrollXDelta));

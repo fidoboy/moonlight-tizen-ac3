@@ -68,6 +68,7 @@ function startESPlusPlayerSession(args) {
     debugMode: typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true,
     audioEnabled: args[18] === 'ESPLUSPLAYER' || args[18] === 'WMP',
     mouseEmulation: args[15] === true || args[15] === 1 || args[15] === 'true',
+    mouseEmulationStick: args[35] === 'left' ? 'left' : 'right',
     selectHoldStreamMenu: args[34] === true || args[34] === 1 || args[34] === 'true',
     audioConfig: args[19],
     opticalOutputEnabled: !!args[20],
@@ -122,7 +123,7 @@ const SyncFunctions = {
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
-  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu */
+  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu, mouseEmulationStick */
   'startRequest': (...args) => {
     // Reset overlay state for every new session, including sessions started after
     // a previous stream set performanceStatsStreamTerminated.
@@ -149,10 +150,11 @@ const SyncFunctions = {
       ? 'Auto'
       : String(rawH264Level).replace(/\./g, '_');
     const selectHoldStreamMenu = !!args[34];
+    const mouseEmulationStick = args[35] === 'left' ? 'left' : 'right';
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
-    return Module.startStream(...args.slice(0, 31), h264Level, selectHoldStreamMenu);
+    return Module.startStream(...args.slice(0, 31), h264Level, selectHoldStreamMenu, mouseEmulationStick);
   },
   // no parameters
   'stopRequest': (...args) => {

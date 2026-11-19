@@ -1980,13 +1980,15 @@ const Views = {
     },
   },
   InputSettings: {
-    view: new ListView(() => [
-      'rumbleFeedbackBtn',
-      'mouseEmulationBtn',
-      'selectHoldStreamMenuBtn',
-      'flipABfaceButtonsBtn',
-      'flipXYfaceButtonsBtn'
-    ]),
+    view: new ListView(() => {
+      const items = ['rumbleFeedbackBtn', 'mouseEmulationBtn'];
+      const stickOption = document.getElementById('mouseEmulationStickOption');
+      if (stickOption && window.getComputedStyle(stickOption).display !== 'none') {
+        items.push('selectMouseEmulationStick');
+      }
+      items.push('selectHoldStreamMenuBtn', 'flipABfaceButtonsBtn', 'flipXYfaceButtonsBtn');
+      return items;
+    }),
     up: function() {
       this.view.prevOption();
       focusElement(this.view.current());
@@ -2282,6 +2284,28 @@ const Views = {
     },
     press: function() {}, switch: function() {},
     enter: function() { markSelectedMenuItem(this.view, 'selectH264Level'); },
+    leave: function() { unmark(this.view.current()); },
+  },
+  SelectMouseEmulationStickMenu: {
+    isActive: () => isPopupMenuActive('selectMouseEmulationStick'),
+    view: new ListView(() => document.querySelector('.mouseEmulationStickMenu').children),
+    up: function() { this.view.prevOption(); },
+    down: function() { this.view.nextOption(); },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectMouseEmulationStick'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectMouseEmulationStick');
+      closeActiveVisibleMenu();
+      focusElement('selectMouseEmulationStick');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() { markSelectedMenuItem(this.view, 'selectMouseEmulationStick'); },
     leave: function() { unmark(this.view.current()); },
   },
   SelectPerformanceStatsPositionMenu: {

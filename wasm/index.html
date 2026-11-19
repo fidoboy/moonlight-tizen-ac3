@@ -623,6 +623,19 @@
                     Allow gamepad to switch to mouse mode when holding the Start button
                   </span>
                 </label>
+                <div id="mouseEmulationStickOption" style="display: none;">
+                  <label data-i18n="Control for mouse emulation">Control for mouse emulation</label>
+                  <span class="mdl-list__item-text-body" data-i18n="Select which of the two gamepad sticks to use to emulate mouse movement on the screen.">
+                    Select which of the two gamepad sticks to use to emulate mouse movement on the screen.
+                  </span>
+                  <div id="mouseEmulationStickMenu">
+                    <button type="button" id="selectMouseEmulationStick" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="right" data-i18n="Right stick">Right stick</button>
+                  </div>
+                  <ul class="mouseEmulationStickMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectMouseEmulationStick">
+                    <li class="mdl-menu__item" data-value="right" data-i18n="Right stick">Right stick</li>
+                    <li class="mdl-menu__item" data-value="left" data-i18n="Left stick">Left stick</li>
+                  </ul>
+                </div>
               </div>
             </div>
             <div class="setting-option">

@@ -873,6 +873,7 @@ function attachListeners() {
   $('#removeAllHostsBtn').on('click', deleteAllHostsDialog);
   $('#rumbleFeedbackSwitch').on('click', saveRumbleFeedback);
   $('#mouseEmulationSwitch').on('click', saveMouseEmulation);
+  $('.mouseEmulationStickMenu li').on('click', saveMouseEmulationStick);
   $('#selectHoldStreamMenuSwitch').on('click', saveSelectHoldStreamMenu);
   $('#flipABfaceButtonsSwitch').on('click', saveFlipABfaceButtons);
   $('#flipXYfaceButtonsSwitch').on('click', saveFlipXYfaceButtons);
@@ -6115,6 +6116,7 @@ function startGame(host, appID) {
       var optimizeGames = streamSettings.optimizeGames;
       var rumbleFeedback = streamSettings.rumbleFeedback;
       var mouseEmulation = streamSettings.mouseEmulation;
+      var mouseEmulationStick = streamSettings.mouseEmulationStick;
       var selectHoldStreamMenu = streamSettings.selectHoldStreamMenu;
       var flipABfaceButtons = streamSettings.flipABfaceButtons;
       var flipXYfaceButtons = streamSettings.flipXYfaceButtons;
@@ -6277,7 +6279,8 @@ function startGame(host, appID) {
             dolbyChannelLayout,
             dolbyDecodingMode,
             h264Level,
-            selectHoldStreamMenu
+            selectHoldStreamMenu,
+            mouseEmulationStick
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
@@ -8104,8 +8107,37 @@ function saveMouseEmulation() {
   setTimeout(() => {
     const chosenMouseEmulation = $('#mouseEmulationSwitch').prop('checked');
     console.log('%c[index.js, saveMouseEmulation]', 'color: green;', 'Saving mouse emulation state: ' + chosenMouseEmulation);
+    updateMouseEmulationStickVisibility(chosenMouseEmulation);
     storeData('mouseEmulation', chosenMouseEmulation, null);
   }, 100);
+}
+
+function setMouseEmulationStick(stick, persist) {
+  const value = stick === 'left' ? 'left' : 'right';
+  const label = value === 'left' ? 'Left stick' : 'Right stick';
+  $('#selectMouseEmulationStick')
+    .text(t(label))
+    .attr('data-i18n', label)
+    .attr('data-value', value)
+    .data('value', value);
+  if (persist) storeData('mouseEmulationStick', value, null);
+  return value;
+}
+
+function saveMouseEmulationStick() {
+  setMouseEmulationStick($(this).data('value'), true);
+}
+
+function updateMouseEmulationStickVisibility(enabled) {
+  const option = document.getElementById('mouseEmulationStickOption');
+  if (!option) return;
+  const selectorFocused = !enabled && typeof Views !== 'undefined' && Views.InputSettings &&
+    Views.InputSettings.view.current() === 'selectMouseEmulationStick';
+  option.style.display = enabled ? '' : 'none';
+  if (selectorFocused) {
+    Views.InputSettings.view.index = 1;
+    focusElement('mouseEmulationBtn');
+  }
 }
 
 function saveSelectHoldStreamMenu() {
@@ -8914,7 +8946,10 @@ function restoreDefaultsSettingsValues() {
 
   const defaultMouseEmulation = false;
   document.querySelector('#mouseEmulationBtn').MaterialSwitch.off();
+  updateMouseEmulationStickVisibility(defaultMouseEmulation);
   storeData('mouseEmulation', defaultMouseEmulation, null);
+  setMouseEmulationStick('right', false);
+  storeData('mouseEmulationStick', 'right', null);
 
   const defaultFlipABfaceButtons = false;
   document.querySelector('#flipABfaceButtonsBtn').MaterialSwitch.off();
@@ -9200,7 +9235,7 @@ var configSummaryRevision = 0;
 
 var STREAMING_PREFERENCE_KEYS = [
   'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
-  'rumbleFeedback', 'mouseEmulation', 'selectHoldStreamMenu', 'flipABfaceButtons',
+  'rumbleFeedback', 'mouseEmulation', 'mouseEmulationStick', 'selectHoldStreamMenu', 'flipABfaceButtons',
   'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
   'audioJitter', 'playHostAudio', 'decryptHostAudio', 'videoCodec', 'h264Level',
   'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
@@ -9275,7 +9310,7 @@ function readStreamingSettingsSnapshot() {
     var defaults = {
       resolution: '1280:720', frameRate: '60', bitrate: 10,
       framePacing: true, optimizeGames: false, rumbleFeedback: true,
-      mouseEmulation: false, selectHoldStreamMenu: true, flipABfaceButtons: false,
+      mouseEmulation: false, mouseEmulationStick: 'right', selectHoldStreamMenu: true, flipABfaceButtons: false,
       flipXYfaceButtons: false, audioBackend: 'EMSS', audioConfig: 'Stereo',
       ac3AudioMode: false, audioSync: false, audioJitter: 100,
       playHostAudio: false, decryptHostAudio: false, videoCodec: 'H264',
@@ -9340,6 +9375,7 @@ function readStreamingSettingsSnapshot() {
       optimizeGames: boolValue(values.optimizeGames, false) ? 1 : 0,
       rumbleFeedback: boolValue(values.rumbleFeedback, true) ? 1 : 0,
       mouseEmulation: boolValue(values.mouseEmulation, false) ? 1 : 0,
+      mouseEmulationStick: values.mouseEmulationStick === 'left' ? 'left' : 'right',
       selectHoldStreamMenu: boolValue(values.selectHoldStreamMenu, true) ? 1 : 0,
       flipABfaceButtons: boolValue(values.flipABfaceButtons, false) ? 1 : 0,
       flipXYfaceButtons: boolValue(values.flipXYfaceButtons, false) ? 1 : 0,
@@ -9615,13 +9651,15 @@ function loadUserDataCb() {
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored mouseEmulation preferences.');
   getData('mouseEmulation', function(previousValue) {
-    if (previousValue.mouseEmulation == null) {
-      document.querySelector('#mouseEmulationBtn').MaterialSwitch.off(); // Set the default state
-    } else if (previousValue.mouseEmulation == false) {
-      document.querySelector('#mouseEmulationBtn').MaterialSwitch.off();
-    } else {
-      document.querySelector('#mouseEmulationBtn').MaterialSwitch.on();
-    }
+    const enabled = previousValue.mouseEmulation === true ||
+      previousValue.mouseEmulation === 'true' || previousValue.mouseEmulation === 1;
+    if (enabled) document.querySelector('#mouseEmulationBtn').MaterialSwitch.on();
+    else document.querySelector('#mouseEmulationBtn').MaterialSwitch.off();
+    updateMouseEmulationStickVisibility(enabled);
+  });
+
+  getData('mouseEmulationStick', function(previousValue) {
+    setMouseEmulationStick(previousValue.mouseEmulationStick, false);
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored Select hold stream menu preferences.');

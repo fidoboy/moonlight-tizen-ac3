@@ -301,6 +301,7 @@ vm.runInNewContext(source, {
     audioEnabled: false,
     disableWarnings: true,
     mouseEmulation: true,
+    mouseEmulationStick: 'right',
     selectHoldStreamMenu: true,
     audioConfig: '51Surround',
     opticalOutputEnabled: true,
@@ -324,6 +325,8 @@ vm.runInNewContext(source, {
   assert.strictEqual(startMessage.arg_opticalOutputEnabled, 'true');
   assert.strictEqual(startMessage.arg_mouseEmulation, 'true',
     'the native transport must receive the mouse emulation preference');
+  assert.strictEqual(startMessage.arg_mouseEmulationStick, undefined,
+    'the selected mouse stick must remain a WebApp-side setting, not extend the native service protocol');
   assert.strictEqual(startMessage.arg_selectHoldStreamMenu, 'true',
     'the native transport must receive the Select long-press preference');
 
@@ -398,14 +401,14 @@ vm.runInNewContext(source, {
   const mouseMoveCount = pendingMessages.filter(message => message.command === 'mouse_move').length;
   window.dispatchEvent({
     type: 'esplusgamepadstate',
-    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0.5, 0, 0, 0]}
+    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0, 0, 0.5, 0]}
   });
   assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCount,
-    'the left stick must generate native mouse movement while mouse emulation is active');
+    'the default right stick must generate native mouse movement while mouse emulation is active');
   const mouseMoveCountAfterAxisChange = pendingMessages.filter(message => message.command === 'mouse_move').length;
   await new Promise(resolve => setTimeout(resolve, 40));
   assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCountAfterAxisChange,
-    'holding the left stick must continue generating mouse movement without further Gamepad API change events');
+    'holding the right stick must continue generating mouse movement without further Gamepad API change events');
 
   // A second Start long-press disables mouse mode.
   window.dispatchEvent({
