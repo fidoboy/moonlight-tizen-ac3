@@ -299,6 +299,21 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
   }, timeoutMs);
 }
 
+function cleanupWmpAfterStartupFailure() {
+  var selectedEngine = window._activeStreamingEngine || null;
+  if (selectedEngine !== 'ESPLUSPLAYER' &&
+      typeof getSelectedStreamingEngine === 'function') {
+    selectedEngine = getSelectedStreamingEngine();
+  }
+  if (selectedEngine !== 'ESPLUSPLAYER') return Promise.resolve();
+
+  var transport = window.ESPlusPlayerTransport;
+  if (!transport || typeof transport.abortPreparedStartup !== 'function') {
+    return Promise.reject(new Error('WMP cleanup API is unavailable.'));
+  }
+  return transport.abortPreparedStartup();
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
@@ -313,6 +328,7 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     ? t('Connection ended. Frame loss detected.')
     : message;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
+
   if (!isInGame && window.moonlightAmbilight &&
       typeof window.moonlightAmbilight.shutdown === 'function') {
     window.moonlightAmbilight.shutdown().catch(function(error) {
@@ -332,30 +348,35 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     }
   }
 
-  if (_directSmartHubLaunch) {
-    directSmartHubLaunchFailure(transitionMessage);
-    return;
-  }
-  $('#loadingSpinnerTitle').text(t('Connection Error'));
-  $('#loadingSpinnerMessage').text(transitionMessage);
-  var finishFailure = function() {
-    // The full interface will show the error in a modal after it has returned
-    // and the transition layer has completely disappeared.
-    isInGame = false;
-    // Streaming may already have stopped background polling; resume it explicitly.
-    startPollingHosts();
-    showHosts(function() {
-      hideStreamTransitionBackground(function() {
-        warningDialog(t('Error'), message, null, true, 'OK', { code: null, apiMessage: null });
+  // The video watchdog is terminal for WMP: terminate both native processes
+  // and verify that the supervisor cannot relaunch the service before recovery.
+  cleanupWmpAfterStartupFailure().catch(function(cleanupError) {
+    console.error('[esplusplayer] Complete WMP cleanup after startup timeout failed:', cleanupError);
+    message += ' ' + t('WMP cleanup failed:') + ' ' +
+      (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
+  }).then(function() {
+    if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(transitionMessage);
+      return;
+    }
+    $('#loadingSpinnerTitle').text(t('Connection Error'));
+    $('#loadingSpinnerMessage').text(transitionMessage);
+    var finishFailure = function() {
+      isInGame = false;
+      startPollingHosts();
+      showHosts(function() {
+        hideStreamTransitionBackground(function() {
+          warningDialog(t('Error'), message, null, true, 'OK', { code: null, apiMessage: null });
+        });
       });
-    });
-  };
-  if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
-  else {
-    var layer = document.getElementById('stream-transition-layer');
-    if (layer) layer.style.display = 'block';
-    finishFailure();
-  }
+    };
+    if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(finishFailure);
+    else {
+      var layer = document.getElementById('stream-transition-layer');
+      if (layer) layer.style.display = 'block';
+      finishFailure();
+    }
+  });
 }
 
 // Non-timeout host launch failures follow the same transition -> UI -> error-dialog
@@ -374,47 +395,54 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
     });
   }
 
-  if (_directSmartHubLaunch) {
-    directSmartHubLaunchFailure(message);
-    return;
-  }
-
   var numericErrorCode = errorCode == null || errorCode === ''
     ? null : Number(errorCode);
   if (!Number.isFinite(numericErrorCode) || numericErrorCode === 0) {
     numericErrorCode = null;
   }
   var rawApiMessage = typeof apiMessage === 'string' ? apiMessage : '';
-  $('#loadingSpinnerTitle').text(t('Connection Error'));
-  $('#loadingSpinnerMessage').text(message);
-  isInGame = false;
 
-  var showErrorDialog = function() {
-    hideStreamTransitionBackground(function() {
-      warningDialog(t('Error'), message, null, true, 'OK', {
-        code: numericErrorCode,
-        apiMessage: rawApiMessage
-      });
-    });
-  };
-
-  showApps(host, {
-    suppressLoadingSnackbar: true,
-    suppressEmptyListSnackbar: true
+  cleanupWmpAfterStartupFailure().catch(function(cleanupError) {
+    console.error('[esplusplayer] Complete WMP cleanup after host launch failure failed:', cleanupError);
+    rawApiMessage += (rawApiMessage ? '\n' : '') +
+      'WMP cleanup failed: ' +
+      (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
   }).then(function() {
-    Navigation.switch();
-    Navigation.change(Views.Apps);
-    showErrorDialog();
-  }).catch(function(recoveryError) {
-    console.error('%c[index.js, streamStartupApiFailure]', 'color: red;', 'Could not restore the Apps view after a launch error:', recoveryError);
-    // Fall back to Hosts without showing a secondary snackbar that could obscure the error.
-    showHostsMode(true);
-    $('#host-grid').stop(true, true).show();
-    $('#game-grid').stop(true, true).hide();
-    $('#settings-list').hide();
-    Navigation.change(Views.Hosts);
-    Navigation.switch();
-    showErrorDialog();
+    if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(message);
+      return;
+    }
+
+    $('#loadingSpinnerTitle').text(t('Connection Error'));
+    $('#loadingSpinnerMessage').text(message);
+    isInGame = false;
+
+    var showErrorDialog = function() {
+      hideStreamTransitionBackground(function() {
+        warningDialog(t('Error'), message, null, true, 'OK', {
+          code: numericErrorCode,
+          apiMessage: rawApiMessage
+        });
+      });
+    };
+
+    showApps(host, {
+      suppressLoadingSnackbar: true,
+      suppressEmptyListSnackbar: true
+    }).then(function() {
+      Navigation.switch();
+      Navigation.change(Views.Apps);
+      showErrorDialog();
+    }).catch(function(recoveryError) {
+      console.error('%c[index.js, streamStartupApiFailure]', 'color: red;', 'Could not restore the Apps view after a launch error:', recoveryError);
+      showHostsMode(true);
+      $('#host-grid').stop(true, true).show();
+      $('#game-grid').stop(true, true).hide();
+      $('#settings-list').hide();
+      Navigation.change(Views.Hosts);
+      Navigation.switch();
+      showErrorDialog();
+    });
   });
 }
 
