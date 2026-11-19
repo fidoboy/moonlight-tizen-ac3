@@ -24,6 +24,7 @@ public:
     std::vector<std::vector<uint8_t>>& encodedPackets);
   void Cleanup();
   double GetAverageProcessingLatencyMs() const;
+  int GetOutputFrameSamples() const;
 
 private:
   bool DrainEncoder(std::vector<std::vector<uint8_t>>& encodedPackets);
