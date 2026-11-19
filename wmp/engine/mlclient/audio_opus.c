@@ -1,7 +1,7 @@
 /*
  * audio_opus.c - Moonlight Common C audio renderer backed by ESPlusPlayer.
- * Opus multistream packets and negotiated Dolby elementary streams are sent
- * compressed and unchanged to the native player.
+ * Opus is initially submitted compressed; a Tizen decoder rejection switches
+ * the stream to bundled libopus decoding and PCM_S16LE. Dolby remains passthrough.
  */
 #include <stdint.h>
 #include <stdio.h>
