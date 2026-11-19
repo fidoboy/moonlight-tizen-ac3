@@ -263,7 +263,7 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
     !me->m_OpticalOutputEnabled;
   me->m_SlowOpusDecoderActive.store(requestSlowOpusDecoder, std::memory_order_relaxed);
   MoonlightInstance::s_ArCallbacks.capabilities = CAPABILITY_DIRECT_SUBMIT;
-  if (requestSlowOpusDecoder) {
+  if (me->m_SlowOpusDecoderActive.load(std::memory_order_relaxed)) {
     MoonlightInstance::s_ArCallbacks.capabilities |= CAPABILITY_SLOW_OPUS_DECODER;
     PostToJs("SlowOpusDecoderStatus: 1");
     PostToJs("Requesting 10 ms Opus packets because this TV previously rejected hardware Opus passthrough");
