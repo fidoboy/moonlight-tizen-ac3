@@ -397,6 +397,7 @@ void MoonlightInstance::AudDecCleanup(void) {
   if (g_Instance != nullptr) {
     g_Instance->m_OpusToDolbyTranscode.store(false);
     g_Instance->m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
+    g_Instance->m_OpusDolbyTranscodePeakLatencyMs.store(0.0, std::memory_order_relaxed);
   }
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
@@ -549,6 +550,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     }
     g_Instance->m_OpusDolbyTranscodeLatencyMs.store(
       s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs(),
+      std::memory_order_relaxed);
+    g_Instance->m_OpusDolbyTranscodePeakLatencyMs.store(
+      s_OpusDolbyTranscoder.GetMaxProcessingLatencyMs(),
       std::memory_order_relaxed);
 
     // E-AC-3 frame duration is not the 32 ms used by native AC-3/E-AC-3
