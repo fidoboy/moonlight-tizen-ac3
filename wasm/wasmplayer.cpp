@@ -554,7 +554,8 @@ void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
     *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
   if (m_Instance->m_OpusToDolbyTranscode.load()) {
     m_Instance->m_DolbyHardwareActive.store(emssHardwareActive);
-    ClLogMessage("Opus-to-Dolby fallback: AC-3 output track opened; active decoder mode=%s\n",
+    ClLogMessage("Opus-to-Dolby fallback: %s output track opened; active decoder mode=%s\n",
+      kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3",
       emssHardwareActive ? "Hardware" : "Software/unknown");
   } else if (m_Instance->m_OpusPassthrough.load()) {
     m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
@@ -781,7 +782,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       const auto fallbackSampleFormat = useEac3Fallback
         ? samsung::wasm::SampleFormat::kEac3
         : samsung::wasm::SampleFormat::kAc3;
-      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-%s transcoding (%d channels)\\n",
+      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-%s transcoding (%d channels)\n",
         fallbackCodecName, outputChannels);
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
@@ -798,7 +799,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
       } else {
         g_Instance->m_OpusToDolbyTranscode.store(false);
-        ClLogMessage("The TV rejected the AC-3 fallback track; audio cannot be initialized\n");
+        ClLogMessage("The TV rejected the %s fallback track; audio cannot be initialized\n", fallbackCodecName);
         return -1;
       }
     }
