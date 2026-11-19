@@ -1225,6 +1225,8 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Clear the previous stream status before showing the closing transition.
+    $('#loadingSpinnerMessage').empty();
     var engineState = window.getStreamingEngineState();
     engineState.confirmed = false;
     engineState.videoReady = false;
