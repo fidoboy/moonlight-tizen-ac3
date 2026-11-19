@@ -6687,6 +6687,16 @@ function requestManualStreamStop() {
   if (isWmpStream && window._manualStreamStopRequested) return;
   if (isWmpStream) window._manualStreamStopRequested = true;
 
+  // Paint the closing state before the transition layer can become visible.
+  // The native streamTerminated callback will replace the empty status with
+  // the authoritative shutdown message once the stop has completed.
+  var closingAppName = window._activeStreamAppName || t('Apps');
+  $('#loadingSpinnerTitle').text(t('Closing %1$s...', closingAppName));
+  $('#loadingSpinnerMessage').empty();
+  if (typeof streamTerminationTransitionActive !== 'undefined') {
+    streamTerminationTransitionActive = true;
+  }
+
   showStreamTransitionBackground(function() {
     // Preserve the existing EMSS stop ordering; its flag is set only after
     // the transition has been revealed.
