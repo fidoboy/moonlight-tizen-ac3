@@ -1152,6 +1152,10 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
         result.raw_status = INT_MIN;
+    } else if (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE) ||
+               __atomic_load_n(&s_opus_fallback_ready, __ATOMIC_ACQUIRE)) {
+        result.status = WMP_ESPLUS_SUBMIT_NOT_PREPARED;
+        result.raw_status = INT_MIN;
     }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO)
         ++s_video_tries;
