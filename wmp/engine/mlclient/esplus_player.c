@@ -1257,6 +1257,9 @@ void esplus_close(void)
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
 
+    /* Stop the playback-clock sampler before its player/API pointers are closed. */
+    sampler_stop();
+
     if (s_pl) {
         wmp_esplus_call_result_t stopped = wmp_esplus_adapter_stop(&s_adapter);
         wmp_esplus_call_result_t closed = wmp_esplus_adapter_close(&s_adapter);
