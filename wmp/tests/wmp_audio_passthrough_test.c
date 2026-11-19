@@ -11,6 +11,7 @@ esplus_stats_t esplus_stats;
 volatile int esplus_performance_stats_enabled;
 
 void ml_engine_notify_audio_ready(void) {}
+void LiReportVideoRendererError(void) {}
 
 static int g_fallback_ready, g_recover_count, g_decode_samples;
 static int g_recover_result;
