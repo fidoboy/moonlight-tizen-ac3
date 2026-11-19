@@ -275,6 +275,7 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Audio input:/g, t('Audio input:'))
     .replace(/Audio delay:/g, t('Audio delay:'))
     .replace(/Audio transcoding latency:/g, t('Audio delay:'))
     .replace(/Decoding mode: (Automatic|Hardware|Software)/g, function(match, mode) {
