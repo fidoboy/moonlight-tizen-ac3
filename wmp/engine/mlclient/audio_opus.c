@@ -55,7 +55,7 @@ static void opus_software_decoder_init(const POPUS_MULTISTREAM_CONFIGURATION con
         config->sampleRate, config->channelCount, config->streams,
         config->coupledStreams, config->mapping, &error);
     if (!s_software_decoder || error != OPUS_OK) {
-        ALOG("libopus fallback decoder initialization failed: %d\\n", error);
+        ALOG("libopus fallback decoder initialization failed: %d\n", error);
         opus_software_decoder_destroy();
         return;
     }
@@ -63,7 +63,7 @@ static void opus_software_decoder_init(const POPUS_MULTISTREAM_CONFIGURATION con
     capacity = (size_t)OPUS_MAX_FRAME_SAMPLES * (size_t)config->channelCount;
     s_software_pcm = malloc(capacity * sizeof(*s_software_pcm));
     if (!s_software_pcm) {
-        ALOG("libopus fallback PCM buffer allocation failed\\n");
+        ALOG("libopus fallback PCM buffer allocation failed\n");
         opus_software_decoder_destroy();
         return;
     }
@@ -275,7 +275,7 @@ static void ar_decodePlay(char *data, int len)
         if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
-                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\\n");
+                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\n");
                 LiReportVideoRendererError();
             }
             return;
@@ -288,7 +288,7 @@ static void ar_decodePlay(char *data, int len)
         if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
-                ALOG("ESPlus player rebuild for PCM fallback failed\\n");
+                ALOG("ESPlus player rebuild for PCM fallback failed\n");
                 LiReportVideoRendererError();
             }
             return;
@@ -297,7 +297,7 @@ static void ar_decodePlay(char *data, int len)
         s_opus_software_active = 1;
         __atomic_store_n(&s_audio_codec_candidate, 4, __ATOMIC_RELEASE);
         __atomic_store_n(&esplus_stats.audio_codec, 4, __ATOMIC_RELAXED);
-        ALOG("OPUS fallback active: libopus -> PCM_S16LE (%d channels, %d Hz)\\n",
+        ALOG("OPUS fallback active: libopus -> PCM_S16LE (%d channels, %d Hz)\n",
              s_channel_count, s_sample_rate);
     }
 
@@ -306,7 +306,7 @@ static void ar_decodePlay(char *data, int len)
             s_software_decoder, (const unsigned char *)data, len,
             s_software_pcm, OPUS_MAX_FRAME_SAMPLES, 0);
         if (samples <= 0) {
-            ALOG("libopus packet decode failed: %d\\n", samples);
+            ALOG("libopus packet decode failed: %d\n", samples);
             return;
         }
 
@@ -323,7 +323,7 @@ static void ar_decodePlay(char *data, int len)
             __atomic_store_n(&s_audio_codec_active, 4, __ATOMIC_RELEASE);
         else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
                  result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
-            ALOG("submit PCM audio failed status=%d raw=%d\\n",
+            ALOG("submit PCM audio failed status=%d raw=%d\n",
                  (int)result.status, result.raw_status);
         return;
     }
@@ -347,7 +347,7 @@ static void ar_decodePlay(char *data, int len)
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
         result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
         result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
-        ALOG("submit %s audio failed status=%d raw=%d\\n",
+        ALOG("submit %s audio failed status=%d raw=%d\n",
              s_dolby ? "Dolby" : "Opus", (int)result.status, result.raw_status);
 }
 
