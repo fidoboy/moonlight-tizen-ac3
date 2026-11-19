@@ -1031,6 +1031,7 @@ namespace MoonlightWmpHost
                 ",\"sessionState\":" + JsonQuote(running ? "running" : workerActive ? "connecting" : "idle") +
                 ",\"running\":" + (running ? "true" : "false") +
                 ",\"workerActive\":" + (workerActive ? "true" : "false") +
+                ",\"playbackClockAvailable\":" + (_engine != null && _engine.EsplusPlaybackClockAvailable ? "true" : "false") +
                 ",\"libraryLoaded\":" + (_engine != null ? "true" : "false") +
                 ",\"esplus\":" + JsonQuote(_esplusState) +
                 ",\"streamApi\":" + JsonQuote(_esplusFamily) +
@@ -1312,15 +1313,10 @@ namespace MoonlightWmpHost
                     EngineApi.Stats stats = new EngineApi.Stats();
                     stats.StructSize = Marshal.SizeOf(typeof(EngineApi.Stats));
                     int statsResult = _engine.GetStats(ref stats);
-                    EngineApi.StreamInfo renderedStreamInfo = new EngineApi.StreamInfo();
-                    renderedStreamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
-                    int streamInfoResult = _engine.GetStreamInfo(ref renderedStreamInfo);
-                    if (!videoReady && streamInfoResult == 0 && renderedStreamInfo.VideoFpsRendered > 0)
+                    if (!videoReady && _engine.VideoReady() != 0)
                     {
                         videoReady = true;
-                        Log.Info("WMP ESPlus video is being rendered; renderedFps=" +
-                            renderedStreamInfo.VideoFpsRendered.ToString(CultureInfo.InvariantCulture) +
-                            ", submitted=" +
+                        Log.Info("WMP ESPlus playback clock advanced after video start; submitted=" +
                             (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
                         Event(appId, remotePort, "displayVideo", null);
                     }
