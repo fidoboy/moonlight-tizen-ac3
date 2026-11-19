@@ -5560,6 +5560,15 @@ function scheduleStreamTransitionHideAfterVideoReady() {
         if (typeof onPerformanceStatsStreamTransitionHidden === 'function') {
           onPerformanceStatsStreamTransitionHidden();
         }
+        var nativeEngineState = typeof window.getStreamingEngineState === 'function'
+          ? window.getStreamingEngineState() : null;
+        if (nativeEngineState && nativeEngineState.active === 'ESPLUSPLAYER' &&
+            nativeEngineState.confirmed === true) {
+          // This is the terminal WMP startup success boundary: the playback
+          // clock has advanced and the animated transition is now display:none.
+          if (typeof markStreamingEngineVideoReady === 'function') markStreamingEngineVideoReady();
+          clearStreamStartupWatchdog();
+        }
         // Initial focus recovery runs only after the transition has fully faded.
         restoreEmssVideoFocus();
         // The transition layer is fully hidden at this point. Only now report
@@ -5837,7 +5846,7 @@ function restoreEmssVideoFocus() {
 function handleNormalStreamVideoReady() {
   if (window._directSmartHubLaunch || !isInGame || window._normalStreamVideoReady) return;
 
-  clearStreamStartupWatchdog();
+  if (window._activeStreamingEngine !== 'ESPLUSPLAYER') clearStreamStartupWatchdog();
   window._normalStreamVideoReady = true;
   $('body, .mdl-layout__container, .mdl-layout, .mdl-layout__content, main, #main-content, #listener').css({
     background: 'transparent',
@@ -5861,7 +5870,7 @@ function handleNormalStreamVideoReady() {
 // Finalize a direct Smart Hub stream without relying on the normal UI readiness path.
 function handleDirectSmartHubVideoReady() {
   if (!window._directSmartHubLaunch || !isInGame || window._directSmartHubVideoReady) return;
-  clearStreamStartupWatchdog();
+  if (window._activeStreamingEngine !== 'ESPLUSPLAYER') clearStreamStartupWatchdog();
   window._directSmartHubVideoReady = true;
 
   var body = document.body;
