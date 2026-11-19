@@ -36,6 +36,14 @@ static volatile int s_first_video_submit_accepted;
 void VidEsplus_ResetAfterPlayerRebuild(void)
 {
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    s_skip_seq = esplus_sample_seq() - 1;
+    s_video_units = 0;
+    s_last_frame_number = 0;
+    s_have_frame_number = 0;
+    s_hevc_mdcv_available = 0;
+    s_hevc_cll_available = 0;
+    s_hevc_sei_inspection_failed = 0;
+    s_hevc_hdr_status_logged = 0;
     __atomic_store_n(&esplus_stats.video_format, (uint32_t)s_video_format, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_width, (uint32_t)s_video_width, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
