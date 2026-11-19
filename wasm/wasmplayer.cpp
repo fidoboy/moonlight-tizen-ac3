@@ -881,6 +881,14 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         } else {
           ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\n");
         }
+
+        // Learn only from an actual hardware-Opus probe result. Legacy EMSS has no
+        // result-bearing overload, so its software fallback is not evidence of rejection.
+        if (firstProbe && supportsHardwareOpusProbe) {
+          PostToJs(useOpusPassthrough
+            ? "SlowOpusDecoderLearned: 0"
+            : "SlowOpusDecoderLearned: 1");
+        }
       }
 
       if (!useOpusPassthrough) {
