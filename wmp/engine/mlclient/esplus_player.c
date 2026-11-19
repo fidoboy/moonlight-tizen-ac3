@@ -1183,7 +1183,7 @@ extern void VidEsplus_ResetAfterPlayerRebuild(void);
 
 int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
 {
-    int width, height, have_video_config;
+    int width, height, have_video_config, failure_already_reported;
     wmp_esplus_video_info_t video_info;
 
     if (!pcm_info || pcm_info->mime_type != WMP_ESPLUS_AUDIO_MIME_PCM_S16LE ||
@@ -1193,6 +1193,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     pthread_mutex_lock(&s_recovery_lock);
     if (s_opus_fallback_attempted) {
         pthread_mutex_unlock(&s_recovery_lock);
+        LiReportVideoRendererError();
         return -1;
     }
     s_opus_fallback_attempted = 1;
@@ -1209,6 +1210,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     if (!have_video_config) {
         MLT("OPUS fallback cannot rebuild ESPlus: cached video configuration unavailable");
         pthread_mutex_unlock(&s_recovery_lock);
+        LiReportVideoRendererError();
         return -1;
     }
 
@@ -1217,6 +1219,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     if (!esplus_create_open()) {
         MLT("OPUS fallback: ESPlus player create/open failed");
         pthread_mutex_unlock(&s_recovery_lock);
+        LiReportVideoRendererError();
         return -1;
     }
     if (esplus_set_window(width, height) != 0) {
@@ -1245,8 +1248,12 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     return 0;
 
 fail_player:
+    failure_already_reported =
+        __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) != 0;
     esplus_close();
     pthread_mutex_unlock(&s_recovery_lock);
+    if (!failure_already_reported)
+        LiReportVideoRendererError();
     return -1;
 }
 
