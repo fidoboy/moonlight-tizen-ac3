@@ -284,16 +284,16 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     if (!s_OpusDolbyTranscoder.Initialize(
           opusConfig, outputChannels,
           g_Instance->m_DolbyChannelLayout != "Normal", kOpusDolbyTranscodeEac3)) {
-      ClLogMessage("Failed to initialize FFmpeg Opus-to-AC-3 transcoder (%d channels)\n",
-        outputChannels);
+      ClLogMessage("Failed to initialize FFmpeg Opus-to-%s transcoder (%d channels)\n",
+        kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3", outputChannels);
       return -1;
     }
     s_OpusDolbyTranscodeErrors = 0;
     s_estimatedAudioEnd = 0s;
     s_hasFirstFrame = false;
     s_AudioSyncEnabled = g_Instance->m_AudioSyncEnabled;
-    ClLogMessage("Initialized FFmpeg Opus decoder + AC-3 encoder (%d channels, 48 kHz)\n",
-      outputChannels);
+    ClLogMessage("Initialized FFmpeg Opus decoder + %s encoder (%d channels, 48 kHz)\n",
+      kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3", outputChannels);
     return 0;
   }
 
@@ -530,8 +530,8 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
           reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
           s_EncodedDolbyPackets)) {
       if (++s_OpusDolbyTranscodeErrors % 100 == 1) {
-        ClLogMessage("FFmpeg Opus-to-AC-3 transcoder failed (%d consecutive errors)\n",
-          s_OpusDolbyTranscodeErrors);
+        ClLogMessage("FFmpeg Opus-to-%s transcoder failed (%d consecutive errors)\n",
+          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3", s_OpusDolbyTranscodeErrors);
       }
       return;
     }
@@ -555,7 +555,8 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
         g_Instance->m_AudioSessionId.load()
       };
       if (!g_Instance->m_AudioTrack.AppendPacket(dolbyPacket)) {
-        ClLogMessage("Append FFmpeg-encoded AC-3 packet failed\n");
+        ClLogMessage("Append FFmpeg-encoded %s packet failed\n",
+          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3");
         continue;
       }
       g_Instance->m_AudioBytesOutput.fetch_add(
