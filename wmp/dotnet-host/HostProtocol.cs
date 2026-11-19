@@ -101,8 +101,8 @@ namespace MoonlightWmpHost
                 var message = new Bundle();
                 message.AddItem("protocol", "moonlight-wmp-supervisor/1");
                 message.AddItem("command", "arm_startup_watchdog");
-                message.AddItem("targetPid", Process.GetCurrentProcess().Id);
-                message.AddItem("timeoutSeconds", timeoutSeconds);
+                message.AddItem("targetPid", Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
+                message.AddItem("timeoutSeconds", timeoutSeconds.ToString(CultureInfo.InvariantCulture));
                 _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
                 Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_armed timeout_seconds=" +
                     timeoutSeconds.ToString(CultureInfo.InvariantCulture));
