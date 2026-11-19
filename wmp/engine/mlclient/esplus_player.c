@@ -1192,6 +1192,7 @@ int esplus_opus_fallback_ready(void)
 }
 
 extern void VidEsplus_BeginPlayerRebuild(void);
+extern void VidEsplus_CancelPlayerRebuild(void);
 extern void VidEsplus_ResetAfterPlayerRebuild(void);
 
 int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
@@ -1232,6 +1233,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     esplus_close();
     if (!esplus_create_open()) {
         MLT("OPUS fallback: ESPlus player create/open failed");
+        VidEsplus_CancelPlayerRebuild();
         pthread_mutex_unlock(&s_recovery_lock);
         LiReportVideoRendererError();
         return -1;
