@@ -1835,6 +1835,23 @@ body[data-color-theme="black-orange"] #background-layer {
     margin-bottom: 4px;
 }
 
+#performance-stats .performance-stats-slow-opus {
+    display: none;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto 8px;
+    padding: 2px 6px;
+    box-sizing: border-box;
+    border: 1px solid #d99b32;
+    border-radius: 6px;
+    color: #d99b32;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
+}
+
 #performance-stats .performance-stats-separator {
     width: 80%;
     height: 0;
