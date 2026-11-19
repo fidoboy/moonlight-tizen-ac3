@@ -22,6 +22,7 @@ jobs:
           node --check wasm/platform/index.js
           node --check wasm/platform/messages.js
           node --check wasm/static/js/i18n-sync.js
+          node wasm/static/js/i18n-sync.js --check
           node tests/gamepad_mask_test.js
 
       - name: Lint PR validation workflow
