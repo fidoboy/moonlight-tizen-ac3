@@ -355,6 +355,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   m_OpusHardwareActive.store(false);
   m_OpusToDolbyTranscode.store(false);
   m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
+  m_OpusDolbyTranscodePeakLatencyMs.store(0.0, std::memory_order_relaxed);
 
   PostToJs("Setting the Host address to: " + host + ":" + std::to_string(httpPort));
   PostToJs("Setting the Video resolution to: " + width + "x" + height);
