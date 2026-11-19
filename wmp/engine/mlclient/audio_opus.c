@@ -295,11 +295,8 @@ static void ar_decodePlay(char *data, int len)
         pcm_info.channels = (uint32_t)s_channel_count;
         pcm_info.sample_rate = (uint32_t)s_sample_rate;
         if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
-            if (!s_opus_fallback_failed) {
-                s_opus_fallback_failed = 1;
-                ALOG("ESPlus player rebuild for PCM fallback failed\n");
-                LiReportVideoRendererError();
-            }
+            s_opus_fallback_failed = 1;
+            ALOG("ESPlus player rebuild for PCM fallback failed\\n");
             return;
         }
 
