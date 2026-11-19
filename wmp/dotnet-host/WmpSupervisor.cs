@@ -8,8 +8,8 @@ using Tizen.Applications.Messages;
 namespace MoonlightWmpHost
 {
     // Runs as a separate Tizen ServiceApplication process, using the same
-    // signed host assembly but a distinct application ID. Its lifetime is
-    // independent from MoonLightS.WmpService.
+    // signed host assembly but a distinct application ID. It supervises the
+    // WMP startup deadline and process lifetime independently.
     internal static class WmpSupervisor
     {
         private const string SupervisorAppId = "MoonLightS.WmpSupervisor";
