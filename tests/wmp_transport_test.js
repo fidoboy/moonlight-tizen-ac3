@@ -460,8 +460,8 @@ vm.runInNewContext(source, {
     window.ESPlusPlayerTransport.startStream({host: '192.168.0.10'}),
     /invalid_start_arguments: opticalOutputEnabled/
   );
-  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 4,
-    'a rejected startup must stop the previous WMP/supervisor pair and clean up the newly launched pair');
+  assert.strictEqual(killedServiceContexts.length, killedBeforeSecondStream + 2,
+    'a rejected start must terminate the active WMP service and supervisor exactly once');
   const debugOutput = JSON.stringify(debugEntries);
   assert.ok(debugOutput.includes(expectedServiceAppId), 'Debug log must identify the launched ServiceApp');
   assert.ok(debugOutput.includes('trusted local reply MessagePort acquired'), 'Debug log must record local MessagePort setup');
