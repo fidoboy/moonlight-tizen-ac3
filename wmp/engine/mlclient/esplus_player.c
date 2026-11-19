@@ -500,7 +500,7 @@ static void on_prepared(bool ok, void *context)
     MLT_DIAG("prepare_async_done callback ENTER ok=%d", ok ? 1 : 0);
     pthread_mutex_lock(&s_lock);
     s_prepare_ok = ok ? 1 : 0;
-    s_prepared = 1;
+    __atomic_store_n(&s_prepared, 1, __ATOMIC_RELEASE);
     if (!ok) {
         s_prepare_failed = 1;
         if (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE)) {
@@ -560,7 +560,7 @@ static void on_error(int error, void *context)
      */
     if ((uint32_t)error == 0xfe6c1008u &&
         __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
-        !s_prepared &&
+        !__atomic_load_n(&s_prepared, __ATOMIC_ACQUIRE) &&
         !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         __atomic_store_n(&s_opus_fallback_error, 1, __ATOMIC_RELEASE);
         opus_fallback_error = 1;
@@ -675,7 +675,8 @@ int esplus_create_open(void)
     esplus_stats.depth_ms = INT32_MIN;
     esplus_stats.audio_depth_ms = INT32_MIN;
     esplus_stats.playing_ms = UINT32_MAX;
-    s_prepared = s_prepare_ok = 0;
+    __atomic_store_n(&s_prepared, 0, __ATOMIC_RELEASE);
+    s_prepare_ok = 0;
     s_video_ready = 0;
     s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
