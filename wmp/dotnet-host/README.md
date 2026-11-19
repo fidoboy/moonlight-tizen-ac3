@@ -136,7 +136,7 @@ Before scheduling the 1,500 ms orderly process-exit delay, WMP sends
 allows final diagnostics to be retrieved; it is not a process-liveness
 watchdog.
 
-### Independent supervisor: OS termination event
+### Independent supervisor: startup watchdog and OS termination
 
 In `WmpSupervisor.cs`, the supervisor:
 
