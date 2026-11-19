@@ -32,6 +32,12 @@ static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
 static int s_rebuilt_waiting_for_idr;
+static uint32_t s_last_frame_number;
+static int s_have_frame_number;
+static int s_hevc_mdcv_available;
+static int s_hevc_cll_available;
+static int s_hevc_sei_inspection_failed;
+static int s_hevc_hdr_status_logged;
 
 /* A rebuilt ESPlus player owns a new transparent overlay window. */
 void VidEsplus_ResetAfterPlayerRebuild(void)
@@ -52,8 +58,6 @@ void VidEsplus_ResetAfterPlayerRebuild(void)
     __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
     MLT_DIAG("video overlay and stream metadata restored after ESPlus player rebuild");
 }
-static uint32_t s_last_frame_number;
-static int s_have_frame_number;
 
 static void record_host_latency(uint32_t latency)
 {
@@ -122,10 +126,6 @@ static int ensure_scratch(size_t need)
  * from the HEVC access units. Add the corresponding prefix SEI only when the
  * bitstream does not already contain it. This is shared by ESPlus SET and ADD.
  */
-static int s_hevc_mdcv_available;
-static int s_hevc_cll_available;
-static int s_hevc_sei_inspection_failed;
-static int s_hevc_hdr_status_logged;
 
 static int find_annexb_start_code(const uint8_t *data, size_t length,
                                   size_t from, size_t *offset, size_t *code_len)
