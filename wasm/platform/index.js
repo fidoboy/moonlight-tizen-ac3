@@ -305,7 +305,7 @@ function cleanupWmpAfterStartupFailure() {
   var selectedEngine = typeof getSelectedStreamingEngine === 'function'
     ? getSelectedStreamingEngine()
     : window._activeStreamingEngine;
-  if (selectedEngine !== 'ESPLUSPLAYER') return Promise.resolve();
+  if (selectedEngine !== 'ESPLUSPLAYER') return null;
 
   var transport = window.ESPlusPlayerTransport;
   if (!transport || typeof transport.abortPreparedStartup !== 'function') {
@@ -348,13 +348,7 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     }
   }
 
-  // The video watchdog is terminal for WMP: terminate both native processes
-  // and verify that the supervisor cannot relaunch the service before recovery.
-  cleanupWmpAfterStartupFailure().catch(function(cleanupError) {
-    console.error('[esplusplayer] Complete WMP cleanup after startup timeout failed:', cleanupError);
-    message += ' ' + t('WMP cleanup failed:') + ' ' +
-      (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-  }).then(function() {
+  var finishTimeoutFailure = function() {
     if (_directSmartHubLaunch) {
       directSmartHubLaunchFailure(transitionMessage);
       return;
@@ -376,7 +370,18 @@ function streamStartupTimeoutFailure(stage, customMessage) {
       if (layer) layer.style.display = 'block';
       finishFailure();
     }
-  });
+  };
+  // Preserve EMSS's synchronous failure path; only WMP waits for verified process teardown.
+  var wmpCleanup = cleanupWmpAfterStartupFailure();
+  if (wmpCleanup) {
+    wmpCleanup.catch(function(cleanupError) {
+      console.error('[esplusplayer] Complete WMP cleanup after startup timeout failed:', cleanupError);
+      message += ' ' + t('WMP cleanup failed:') + ' ' +
+        (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
+    }).then(finishTimeoutFailure);
+  } else {
+    finishTimeoutFailure();
+  }
 }
 
 // Non-timeout host launch failures follow the same transition -> UI -> error-dialog
@@ -402,12 +407,7 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   }
   var rawApiMessage = typeof apiMessage === 'string' ? apiMessage : '';
 
-  cleanupWmpAfterStartupFailure().catch(function(cleanupError) {
-    console.error('[esplusplayer] Complete WMP cleanup after host launch failure failed:', cleanupError);
-    rawApiMessage += (rawApiMessage ? '\n' : '') +
-      'WMP cleanup failed: ' +
-      (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-  }).then(function() {
+  var finishApiFailure = function() {
     if (_directSmartHubLaunch) {
       directSmartHubLaunchFailure(message);
       return;
@@ -443,7 +443,19 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
       Navigation.switch();
       showErrorDialog();
     });
-  });
+  };
+  // EMSS retains its existing path; WMP waits until both native processes are gone.
+  var wmpCleanup = cleanupWmpAfterStartupFailure();
+  if (wmpCleanup) {
+    wmpCleanup.catch(function(cleanupError) {
+      console.error('[esplusplayer] Complete WMP cleanup after host launch failure failed:', cleanupError);
+      rawApiMessage += (rawApiMessage ? '\n' : '') +
+        'WMP cleanup failed: ' +
+        (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
+    }).then(finishApiFailure);
+  } else {
+    finishApiFailure();
+  }
 }
 
 // Shared UI timing: change this single value to tune all interface fades.
