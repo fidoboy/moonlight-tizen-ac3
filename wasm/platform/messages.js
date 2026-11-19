@@ -995,9 +995,22 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       value.className = 'performance-stats-value';
       var valueText = line.slice(separator + 1).trim();
       var sourceLine = sourceLines[lineIndex] || '';
-      var audioModeMatch = sourceLine.indexOf('Audio stream:') === 0
+      var isAudioStreamLine = sourceLine.indexOf('Audio stream:') === 0;
+      var audioModeMatch = isAudioStreamLine
         ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
+      // ESPlusPlayer currently always forwards the negotiated audio codec to
+      // ESPlus Player without an intermediate software conversion. Ensure the
+      // overlay visibly identifies that native passthrough path even if the
+      // statistics payload omits its mode marker.
+      if (isAudioStreamLine && window._activeStreamingEngine === 'ESPLUSPLAYER') {
+        if (audioModeMatch) {
+          valueText = valueText.replace(/\[(Hardware|Software)\]/, '[Hardware]');
+        } else {
+          valueText = valueText.replace(/^(\S+)(?=\s|\(|$)/, '$1 [Hardware]');
+        }
+        audioModeMatch = valueText.match(/\[Hardware\]/);
+      }
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
         var modeEnd = modeStart + audioModeMatch[0].length;
