@@ -12,6 +12,26 @@ volatile int esplus_performance_stats_enabled;
 
 void ml_engine_notify_audio_ready(void) {}
 
+int esplus_opus_fallback_ready(void) { return 0; }
+int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *info)
+{ (void)info; return -1; }
+
+OpusMSDecoder *opus_multistream_decoder_create(
+    opus_int32 rate, int channels, int streams, int coupled,
+    const unsigned char *mapping, int *error)
+{
+    (void)rate; (void)channels; (void)streams; (void)coupled; (void)mapping;
+    if (error) *error = OPUS_OK;
+    return (OpusMSDecoder *)1;
+}
+void opus_multistream_decoder_destroy(OpusMSDecoder *decoder) { (void)decoder; }
+int opus_multistream_decode(OpusMSDecoder *decoder, const unsigned char *data,
+    opus_int32 length, opus_int16 *pcm, int frame_size, int decode_fec)
+{
+    (void)decoder; (void)data; (void)length; (void)pcm; (void)frame_size; (void)decode_fec;
+    return OPUS_INVALID_PACKET;
+}
+
 static int g_ac3, g_eac3, g_submit_count, g_registration_result, g_audio_registered;
 static uint64_t g_clock_pts_ns;
 static wmp_esplus_audio_info_t g_audio_info;
