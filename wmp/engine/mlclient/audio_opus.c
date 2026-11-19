@@ -28,7 +28,6 @@ static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
 static OpusMSDecoder *s_software_decoder;
 static opus_int16 *s_software_pcm;
-static size_t s_software_pcm_capacity;
 static int s_opus_fallback_available;
 static int s_opus_software_active;
 static int s_opus_fallback_failed;
@@ -41,7 +40,6 @@ static void opus_software_decoder_destroy(void)
     s_software_decoder = NULL;
     free(s_software_pcm);
     s_software_pcm = NULL;
-    s_software_pcm_capacity = 0;
     s_opus_fallback_available = 0;
 }
 
@@ -69,7 +67,6 @@ static void opus_software_decoder_init(const POPUS_MULTISTREAM_CONFIGURATION con
         opus_software_decoder_destroy();
         return;
     }
-    s_software_pcm_capacity = capacity;
     s_opus_fallback_available = 1;
 }
 
@@ -153,6 +150,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     (void)context;
     (void)flags;
     s_opus_head_size = 0;
+    opus_software_decoder_destroy();
+    s_opus_software_active = 0;
+    s_opus_fallback_failed = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
