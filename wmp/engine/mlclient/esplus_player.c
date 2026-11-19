@@ -1011,7 +1011,8 @@ int esplus_prepare(void)
          * a duplicate request must not erase ready callbacks or audio
          * registration that arrived after the first request.
          */
-        s_prepared = s_prepare_ok = 0;
+        __atomic_store_n(&s_prepared, 0, __ATOMIC_RELEASE);
+        s_prepare_ok = 0;
         s_video_ready = 0;
         s_audio_ready = !s_audio_enabled;
         s_prepare_failed = s_start_failed = 0;
@@ -1289,7 +1290,8 @@ void esplus_close(void)
 
     pthread_mutex_lock(&s_lock);
     s_pl = NULL;
-    s_prepared = s_prepare_ok = 0;
+    __atomic_store_n(&s_prepared, 0, __ATOMIC_RELEASE);
+    s_prepare_ok = 0;
     s_video_ready = 0;
     s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
