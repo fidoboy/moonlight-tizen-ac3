@@ -18,6 +18,7 @@ namespace MoonlightWmpHost
         private const string ControlPortName = "MoonlightWmpControl";
         private const string SupervisorAppId = "MoonLightS.WmpSupervisor";
         private const string SupervisorControlPortName = "MoonlightWmpSupervisorControl";
+        private const int StartupTimeoutSeconds = 30;
 
         private static readonly object Gate = new object();
         private static MessagePort _port;
@@ -1223,6 +1224,8 @@ namespace MoonlightWmpHost
             _activeSessionRemotePort = remotePort;
             int result = -1;
             bool videoReady = false;
+            bool startupTimedOut = false;
+            DateTime startupDeadline = DateTime.MaxValue;
             int lastAudioCodec = -1;
             string diagnostic = null;
             int terminationCode = 0;
@@ -1246,7 +1249,9 @@ namespace MoonlightWmpHost
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
                 _engine.SetConnectionWarningsEnabled(request.DisableWarnings == 0 ? 1 : 0);
-                Log.Info("WMP_LIFECYCLE native_start_call_begin");
+                startupDeadline = DateTime.UtcNow.AddSeconds(StartupTimeoutSeconds);
+                Log.Info("WMP_LIFECYCLE native_start_call_begin timeout_seconds=" +
+                    StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
@@ -1281,6 +1286,21 @@ namespace MoonlightWmpHost
                     return;
                 }
 
+                if (DateTime.UtcNow >= startupDeadline)
+                {
+                    startupTimedOut = true;
+                    diagnostic = "ESPlusPlayer startup timed out after " +
+                        StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture) +
+                        " seconds before video became ready";
+                    RecordDiagnostic(diagnostic);
+                    Log.Error("WMP_LIFECYCLE startup_timeout_before_session_loop");
+                    Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_begin");
+                    _engine.Stop();
+                    Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_complete");
+                    Event(appId, remotePort, "streamTerminated: -1", diagnostic);
+                    return;
+                }
+
                 int inputCapabilities = _engine.InputCapabilities();
                 RecordDiagnostic("native evdev input capabilities=0x" +
                     inputCapabilities.ToString("X", CultureInfo.InvariantCulture));
@@ -1299,6 +1319,17 @@ namespace MoonlightWmpHost
                 while (_engine.Running() != 0)
                 {
                     if (StopWasRequested()) break;
+                    if (!videoReady && DateTime.UtcNow >= startupDeadline)
+                    {
+                        startupTimedOut = true;
+                        terminationCode = -1;
+                        diagnostic = "ESPlusPlayer startup timed out after " +
+                            StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture) +
+                            " seconds waiting for video readiness";
+                        RecordDiagnostic(diagnostic);
+                        Log.Error("WMP_LIFECYCLE startup_timeout_waiting_for_video_ready");
+                        break;
+                    }
 
                     int audioCodec = _engine.GetActiveAudioCodec();
                     if (audioCodec != lastAudioCodec)
@@ -1395,7 +1426,19 @@ namespace MoonlightWmpHost
                 }
 
                 Log.Info("WMP_LIFECYCLE engine_running_loop_exited");
-                terminationCode = _engine.ReadLastError(out diagnostic);
+                if (!videoReady && !StopWasRequested())
+                {
+                    if (!startupTimedOut)
+                    {
+                        terminationCode = -1;
+                        diagnostic = "WMP stream ended before ESPlusPlayer video became ready";
+                        RecordDiagnostic(diagnostic);
+                    }
+                }
+                else
+                {
+                    terminationCode = _engine.ReadLastError(out diagnostic);
+                }
                 Log.Info("WMP_LIFECYCLE terminal_error_read code=" +
                     terminationCode.ToString(CultureInfo.InvariantCulture) +
                     " diagnostic=" + (diagnostic ?? "<none>"));
