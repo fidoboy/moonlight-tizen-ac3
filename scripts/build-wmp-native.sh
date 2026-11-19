@@ -8,7 +8,7 @@ command -v readelf >/dev/null
 test -x /home/tizen/tizen-studio/tools/ide/bin/tizen
 echo "== WMP tests (shared Tizen build image)"
 node tests/wmp_transport_test.js
-cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/upstream/mlclient -Iwmp/service/src -Iopus/include \
+cc -std=c99 -Wall -Wextra -Werror -Imoonlight-common-c/src -Iwmp/engine/mlclient -Iwmp/service/src -Iopus/include \
   wmp/tests/wmp_audio_passthrough_test.c -o "$RUNNER_TEMP/wmp-audio-passthrough-test"
 "$RUNNER_TEMP/wmp-audio-passthrough-test"
 bash wmp/tests/wmp_esplus_abi_test.sh
@@ -46,9 +46,9 @@ test -s "$BPD/arm-static/lib/libcurl.a"
 grep -q 'OPENSSL_VERSION_NUMBER.*0x101010' "$BPD/arm-static/include/openssl/opensslv.h"
 grep -q 'LIBCURL_VERSION "7.59.0"' "$BPD/arm-static/include/curl/curlver.h"
 echo "== Build Moonlight core and GameStream against prebuilt static crypto dependencies"
-bash wmp/upstream/build/build-deps-lib.sh
+bash wmp/engine/build/build-deps-lib.sh
 echo "== Build ARM libmlengine.so"
-BUILD_VARIANT=release bash wmp/upstream/mlclient/build-engine-so.sh
+BUILD_VARIANT=release bash wmp/engine/mlclient/build-engine-so.sh
 echo "== Verify ARM ELF files and runtime metadata"
 mkdir -p "$ROOT/build-report"
 readelf -h "$ENGINE_OUT/libmlengine.so" > "$ROOT/build-report/libmlengine-elf-header.txt"
