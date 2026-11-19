@@ -163,6 +163,7 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
       - name: Restore FFmpeg WebAssembly build cache
+        id: restore-ffmpeg-cache
         uses: actions/cache/restore@v4
         with:
           path: ffmpeg/install
@@ -188,7 +189,7 @@ jobs:
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
 
       - name: Save FFmpeg WebAssembly build cache
-        if: success()
+        if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ffmpeg/install
