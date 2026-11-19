@@ -6257,6 +6257,50 @@ function startGame(host, appID) {
       await startAmbilightForStream(true);
       if (!isStreamStartupCurrent(startupGeneration)) return;
 
+      // Prepare WMP before asking Sunshine to launch/resume the app. This phase
+      // starts the supervised process, loads the native library and probes ESPlus,
+      // but deliberately does not start a Moonlight session or touch ESPlus playback.
+      var nativeServicePrepared = false;
+      var abortPreparedNativeService = function() {
+        if (!nativeServicePrepared || !window.ESPlusPlayerTransport ||
+            typeof window.ESPlusPlayerTransport.abortPreparedStartup !== 'function') {
+          return Promise.resolve();
+        }
+        nativeServicePrepared = false;
+        return window.ESPlusPlayerTransport.abortPreparedStartup().catch(function(cleanupError) {
+          console.error('[esplusplayer] Could not clean up WMP after host negotiation failure:', cleanupError);
+        });
+      };
+      if (streamSettings.streamingEngine === 'ESPLUSPLAYER') {
+        $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
+        try {
+          if (!window.ESPlusPlayerTransport ||
+              typeof window.ESPlusPlayerTransport.prepare !== 'function') {
+            throw new Error('ESPlusPlayer native service preparation is unavailable.');
+          }
+          await withOperationTimeout(
+            window.ESPlusPlayerTransport.prepare(),
+            STREAM_OPERATION_TIMEOUTS.streamConnection,
+            'Native service preparation'
+          );
+          nativeServicePrepared = true;
+          if (!isStreamStartupCurrent(startupGeneration)) {
+            await abortPreparedNativeService();
+            return;
+          }
+        } catch (nativePreparationError) {
+          console.error('%c[index.js, startGame]', 'color: red;', 'Could not prepare the native playback service before host negotiation:', nativePreparationError);
+          if (_directSmartHubLaunch) {
+            directSmartHubLaunchFailure(t('The local device could not prepare the native video playback service.'));
+          } else {
+            pendingStreamApiMessage = nativePreparationError && nativePreparationError.message
+              ? nativePreparationError.message : String(nativePreparationError);
+            streamStartupTimeoutFailure('connection', t('The local device could not prepare the native video playback service.'));
+          }
+          return;
+        }
+      }
+
       // Check if user wants to resume the already-running app
       if (host.currentGame == appID) {
         // If the app is already running, we can just resume it
