@@ -306,6 +306,8 @@ function replaceKnownStatsLabels(text) {
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
+// True when this session advertised CAPABILITY_SLOW_OPUS_DECODER to the host.
+window._slowOpusDecoderActive = false;
 var h264TrackRejectionClosingMessage = null;
 var pendingStreamDialogMessage = null;
 var pendingStreamApiMessage = null;
@@ -545,6 +547,19 @@ function ensurePerformanceStatsOverlayElements() {
     engineElement.appendChild(engineLabel);
     engineElement.appendChild(engineValue);
   }
+  // This compact diagnostic belongs at the very top of the overlay, above
+  // the engine row. Its visibility follows the session capability, not decoder success.
+  var slowOpusIndicator = container.querySelector('.performance-stats-slow-opus');
+  if (!slowOpusIndicator) {
+    slowOpusIndicator = document.createElement('div');
+    slowOpusIndicator.className = 'performance-stats-slow-opus';
+    slowOpusIndicator.textContent = 'SLOW OPUS ACTIVE';
+    slowOpusIndicator.setAttribute('aria-label',
+      'The learned slow Opus decoder preference is active for this session');
+  }
+  container.insertBefore(slowOpusIndicator, engineElement);
+  slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'table' : 'none';
+
   var activeEngine = window._activeStreamingEngine;
   var engineLabelElement = engineElement.querySelector('.performance-stats-label');
   var engineValueElement = engineElement.querySelector('.performance-stats-value');
@@ -1009,6 +1024,9 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
   performanceStatsEnabled = null;
+  window._slowOpusDecoderActive = false;
+  var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
+  if (slowOpusIndicator) slowOpusIndicator.style.display = 'none';
   resetPerformanceStatsGraph();
 }
 
@@ -1873,6 +1891,21 @@ function handleMessage(msg) {
         $('#performance-stats').css('background', 'transparent');
         $('#performance-stats').text('');
       });
+    }
+  } else if (msg.indexOf('SlowOpusDecoderStatus: ') === 0) {
+    window._slowOpusDecoderActive = msg.replace('SlowOpusDecoderStatus: ', '').trim() === '1';
+    var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
+    if (slowOpusIndicator) {
+      slowOpusIndicator.style.display = window._slowOpusDecoderActive ? 'table' : 'none';
+    }
+  } else if (msg.indexOf('SlowOpusDecoderLearned: ') === 0) {
+    var slowOpusLearned = msg.replace('SlowOpusDecoderLearned: ', '').trim();
+    if (slowOpusLearned === '0' || slowOpusLearned === '1') {
+      try {
+        localStorage.setItem('moonlight.slowOpusDecoderRequired', slowOpusLearned === '1' ? 'true' : 'false');
+      } catch (error) {
+        console.warn('[audio] Could not persist the learned Opus passthrough result:', error);
+      }
     }
   } else if (msg.indexOf('EncryptionStatusMsg: ') === 0) {
     var encryptionStatusValue = Number(msg.replace('EncryptionStatusMsg: ', '').trim());

@@ -166,8 +166,8 @@ jobs:
         id: restore-ffmpeg-cache
         uses: actions/cache/restore@v4
         with:
-          path: ffmpeg/install
-          key: ffmpeg-wasm-4.4.8-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg/build/**', '!ffmpeg/install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
       - name: Build the ${{ matrix.variant }} Moonlight Web payload inside optimized v5 image
         shell: bash
         run: |
@@ -192,8 +192,8 @@ jobs:
         if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ffmpeg/install
-          key: ffmpeg-wasm-4.4.8-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg/build/**', '!ffmpeg/install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
       - name: Prepare compiler cache ownership for saving
         if: always()
         shell: bash

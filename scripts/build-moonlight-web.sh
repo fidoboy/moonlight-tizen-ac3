@@ -56,8 +56,8 @@ if [[ "$OFFICIAL_RELEASE" != "true" ]]; then
   if [[ -n "$short_sha" ]]; then sed -i "s/__BUILD_COMMIT__/$short_sha/g" "$index_js"; fi
 fi
 node --check "$index_js"
-FFMPEG_ROOT="${FFMPEG_ROOT:-$ROOT/ffmpeg/install}"
-FFMPEG_WORK_DIR="${FFMPEG_WORK_DIR:-$ROOT/ffmpeg/build}"
+FFMPEG_ROOT="${FFMPEG_ROOT:-$ROOT/ffmpeg-install}"
+FFMPEG_WORK_DIR="${FFMPEG_WORK_DIR:-$ROOT/ffmpeg-build}"
 export FFMPEG_ROOT FFMPEG_WORK_DIR
 bash "$ROOT/scripts/build-ffmpeg.sh"
 build_dir="$ROOT/build-moonlight-web"

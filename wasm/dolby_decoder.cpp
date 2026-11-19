@@ -67,44 +67,64 @@ bool DolbySoftwareDecoder::ConfigureResampler(const AVFrame* frame) {
   const int sampleRate = frame->sample_rate > 0
     ? frame->sample_rate
     : m_CodecContext->sample_rate;
-  const uint64_t channelLayout = frame->channel_layout != 0
-    ? frame->channel_layout
-    : av_get_default_channel_layout(frame->channels);
-
-  if (sampleRate <= 0 || frame->channels <= 0 || channelLayout == 0) {
+  const int inputChannels = frame->ch_layout.nb_channels;
+  if (sampleRate <= 0 || inputChannels <= 0) {
     return false;
   }
 
+  AVChannelLayout inputLayout = {};
+  AVChannelLayout outputLayout = {};
+  int layoutResult = 0;
+  if (frame->ch_layout.nb_channels > 0) {
+    layoutResult = av_channel_layout_copy(&inputLayout, &frame->ch_layout);
+  } else {
+    av_channel_layout_default(&inputLayout, inputChannels);
+  }
+  if (layoutResult >= 0) {
+    layoutResult = av_channel_layout_from_mask(&outputLayout, m_OutputChannelLayout);
+  }
+  if (layoutResult < 0) {
+    av_channel_layout_uninit(&inputLayout);
+    av_channel_layout_uninit(&outputLayout);
+    return false;
+  }
+
+  const uint64_t inputChannelMask =
+    inputLayout.order == AV_CHANNEL_ORDER_NATIVE ? inputLayout.u.mask : 0;
   const auto sampleFormat = static_cast<AVSampleFormat>(frame->format);
   if (m_Resampler != nullptr &&
-      m_InputChannels == frame->channels &&
+      m_InputChannels == inputChannels &&
       m_InputSampleRate == sampleRate &&
       m_InputSampleFormat == frame->format &&
-      m_InputChannelLayout == channelLayout) {
+      m_InputChannelLayout == inputChannelMask) {
+    av_channel_layout_uninit(&inputLayout);
+    av_channel_layout_uninit(&outputLayout);
     return true;
   }
 
   swr_free(&m_Resampler);
-  m_Resampler = swr_alloc_set_opts(
-    nullptr,
-    static_cast<int64_t>(m_OutputChannelLayout),
+  const int allocResult = swr_alloc_set_opts2(
+    &m_Resampler,
+    &outputLayout,
     AV_SAMPLE_FMT_S16,
     48000,
-    static_cast<int64_t>(channelLayout),
+    &inputLayout,
     sampleFormat,
     sampleRate,
     0,
     nullptr
   );
-  if (m_Resampler == nullptr || swr_init(m_Resampler) < 0) {
+  av_channel_layout_uninit(&inputLayout);
+  av_channel_layout_uninit(&outputLayout);
+  if (allocResult < 0 || m_Resampler == nullptr || swr_init(m_Resampler) < 0) {
     swr_free(&m_Resampler);
     return false;
   }
 
-  m_InputChannels = frame->channels;
+  m_InputChannels = inputChannels;
   m_InputSampleRate = sampleRate;
   m_InputSampleFormat = frame->format;
-  m_InputChannelLayout = channelLayout;
+  m_InputChannelLayout = inputChannelMask;
   return true;
 }
 
@@ -120,17 +140,15 @@ bool DolbySoftwareDecoder::Decode(
     return false;
   }
 
-  AVPacket packet;
-  av_init_packet(&packet);
-  packet.data = nullptr;
-  packet.size = 0;
-  if (av_new_packet(&packet, size) < 0) {
+  AVPacket* packet = av_packet_alloc();
+  if (packet == nullptr || av_new_packet(packet, size) < 0) {
+    av_packet_free(&packet);
     return false;
   }
-  std::memcpy(packet.data, data, static_cast<size_t>(size));
+  std::memcpy(packet->data, data, static_cast<size_t>(size));
 
-  const int sendResult = avcodec_send_packet(m_CodecContext, &packet);
-  av_packet_unref(&packet);
+  const int sendResult = avcodec_send_packet(m_CodecContext, packet);
+  av_packet_free(&packet);
   if (sendResult < 0) {
     return false;
   }

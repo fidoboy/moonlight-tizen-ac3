@@ -254,8 +254,22 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
     PostToJs("Selecting the fallback server code mode to: SCM_H264");
   }
 
-  // Initialize the audio renderer capabilities with the value shared by both audio backends
+  // Initialize the audio renderer capabilities with the value shared by both audio backends.
+  // The learned preference is applied only to EMSS Opus sessions where Dolby passthrough
+  // is not enabled; it must not affect Web Audio or native Dolby sessions.
+  const bool requestSlowOpusDecoder =
+    me->m_SlowOpusDecoderRequired.load(std::memory_order_relaxed) &&
+    me->m_AudioBackend == AudioBackend::Emss &&
+    !me->m_OpticalOutputEnabled;
+  me->m_SlowOpusDecoderActive.store(requestSlowOpusDecoder, std::memory_order_relaxed);
   MoonlightInstance::s_ArCallbacks.capabilities = CAPABILITY_DIRECT_SUBMIT;
+  if (me->m_SlowOpusDecoderActive.load(std::memory_order_relaxed)) {
+    MoonlightInstance::s_ArCallbacks.capabilities |= CAPABILITY_SLOW_OPUS_DECODER;
+    PostToJs("SlowOpusDecoderStatus: 1");
+    PostToJs("Requesting 10 ms Opus packets because this TV previously rejected hardware Opus passthrough");
+  } else {
+    PostToJs("SlowOpusDecoderStatus: 0");
+  }
   // Handle setting of the audio renderer capabilities based on the selected audio backend
   if (me->m_AudioBackend == AudioBackend::WebAudio) { // Web Audio
     // The Web Audio backend reads the samples per frame from the Opus configuration, so it can
@@ -319,6 +333,17 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   }
   m_ConnectionCancelled = false;
   m_SourceClosed = false;
+
+  // Read the learned TV-specific preference before starting the connection thread,
+  // so the capability is present when Moonlight builds the RTSP/SDP negotiation.
+  m_SlowOpusDecoderRequired.store(EM_ASM_INT({
+    try {
+      return localStorage.getItem('moonlight.slowOpusDecoderRequired') === 'true' ? 1 : 0;
+    } catch (error) {
+      return 0;
+    }
+  }) != 0, std::memory_order_relaxed);
+  m_SlowOpusDecoderActive.store(false, std::memory_order_relaxed);
   m_SourceAttached = false;
   m_InputThread = 0;
 

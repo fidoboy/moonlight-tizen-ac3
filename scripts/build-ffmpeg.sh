@@ -3,22 +3,27 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EMSDK_ROOT="${EMSDK:-/opt/emscripten-release-bundle/emsdk}"
-FFMPEG_VERSION="4.4.8"
+FFMPEG_VERSION="9.0.2"
 SOURCE_DIR="$ROOT/ffmpeg"
-WORK_DIR="${FFMPEG_WORK_DIR:-$ROOT/ffmpeg/build}"
+WORK_DIR="${FFMPEG_WORK_DIR:-$ROOT/ffmpeg-build}"
 BUILD_SOURCE_DIR="$WORK_DIR/source"
-PREFIX="${FFMPEG_ROOT:-$ROOT/ffmpeg/install}"
+PREFIX="${FFMPEG_ROOT:-$ROOT/ffmpeg-install}"
 
 test -x "$EMSDK_ROOT/emsdk_env.sh" || test -f "$EMSDK_ROOT/emsdk_env.sh"
 source "$EMSDK_ROOT/emsdk_env.sh" >/dev/null
 
-if [[ -s "$PREFIX/lib/libavcodec.a" &&
+if [[ -s "$PREFIX/.ffmpeg-version" &&
+      "$(cat "$PREFIX/.ffmpeg-version")" == "$FFMPEG_VERSION" &&
+      -s "$PREFIX/lib/libavcodec.a" &&
       -s "$PREFIX/lib/libavutil.a" &&
       -s "$PREFIX/lib/libswresample.a" &&
       -s "$PREFIX/include/libavcodec/avcodec.h" ]]; then
   echo "FFmpeg $FFMPEG_VERSION is already installed at $PREFIX."
   exit 0
 fi
+
+# Never mix libraries or headers from different FFmpeg major versions.
+rm -rf "$PREFIX"
 
 test -s "$SOURCE_DIR/configure" || {
   echo "Vendored FFmpeg source is missing: $SOURCE_DIR/configure" >&2
@@ -28,10 +33,9 @@ test -s "$SOURCE_DIR/configure" || {
 rm -rf "$BUILD_SOURCE_DIR"
 mkdir -p "$BUILD_SOURCE_DIR" "$PREFIX"
 
-# FFmpeg 4.4 builds in its source tree. Compile a clean working copy so the
-# vendored upstream source under ffmpeg/ remains pristine.
+# Compile a clean working copy so the pinned upstream submodule remains pristine.
 tar -C "$SOURCE_DIR" \
-  --exclude='./build' --exclude='./install' \
+  --exclude='./.git' --exclude='./build' --exclude='./install' \
   --exclude='./build/*' --exclude='./install/*' \
   -cf - . | tar -C "$BUILD_SOURCE_DIR" -xf -
 
@@ -58,7 +62,6 @@ emconfigure ./configure \
   --disable-avformat \
   --disable-avfilter \
   --disable-swscale \
-  --disable-postproc \
   --disable-muxers \
   --disable-demuxers \
   --disable-protocols \
@@ -84,4 +87,5 @@ test -s "$PREFIX/lib/libavcodec.a"
 test -s "$PREFIX/lib/libavutil.a"
 test -s "$PREFIX/lib/libswresample.a"
 test -s "$PREFIX/include/libavcodec/avcodec.h"
+printf '%s\n' "$FFMPEG_VERSION" > "$PREFIX/.ffmpeg-version"
 echo "Built minimal FFmpeg $FFMPEG_VERSION: Opus decoder and AC-3/E-AC-3 decoders and encoders."

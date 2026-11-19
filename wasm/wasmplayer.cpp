@@ -554,7 +554,8 @@ void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
     *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
   if (m_Instance->m_OpusToDolbyTranscode.load()) {
     m_Instance->m_DolbyHardwareActive.store(emssHardwareActive);
-    ClLogMessage("Opus-to-Dolby fallback: AC-3 output track opened; active decoder mode=%s\n",
+    ClLogMessage("Opus-to-Dolby fallback: %s output track opened; active decoder mode=%s\n",
+      kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3",
       emssHardwareActive ? "Hardware" : "Software/unknown");
   } else if (m_Instance->m_OpusPassthrough.load()) {
     m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
@@ -773,14 +774,22 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       // Native Dolby negotiation above always wins. This track is used only when
       // the host fell back to Opus while the user still requires a Dolby bitstream.
       g_Instance->m_OpusToDolbyTranscode.store(true);
-      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-AC-3 transcoding (%d channels)\n",
-        outputChannels);
+      const bool useEac3Fallback = kOpusDolbyTranscodeEac3;
+      const char* fallbackCodecName = useEac3Fallback ? "E-AC-3" : "AC-3";
+      const char* fallbackMimeType = useEac3Fallback
+        ? "audio/mp4; codecs=\"ec-3\""
+        : "audio/mp4; codecs=\"ac-3\"";
+      const auto fallbackSampleFormat = useEac3Fallback
+        ? samsung::wasm::SampleFormat::kEac3
+        : samsung::wasm::SampleFormat::kAc3;
+      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-%s transcoding (%d channels)\n",
+        fallbackCodecName, outputChannels);
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
-          "audio/mp4; codecs=\"ac-3\"",
+          fallbackMimeType,
           {},
           samsung::wasm::DecodingMode::kHardware,
-          samsung::wasm::SampleFormat::kAc3,
+          fallbackSampleFormat,
           channelLayout,
           kSampleRate,
         }
@@ -790,7 +799,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
         g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
       } else {
         g_Instance->m_OpusToDolbyTranscode.store(false);
-        ClLogMessage("The TV rejected the AC-3 fallback track; audio cannot be initialized\n");
+        ClLogMessage("The TV rejected the %s fallback track; audio cannot be initialized\n", fallbackCodecName);
         return -1;
       }
     }
@@ -871,6 +880,14 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           ClLogMessage("Opus passthrough probe: EMSS accepted hardware Opus track configuration\n");
         } else {
           ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\n");
+        }
+
+        // Learn only from an actual hardware-Opus probe result. Legacy EMSS has no
+        // result-bearing overload, so its software fallback is not evidence of rejection.
+        if (firstProbe && supportsHardwareOpusProbe) {
+          PostToJs(useOpusPassthrough
+            ? "SlowOpusDecoderLearned: 0"
+            : "SlowOpusDecoderLearned: 1");
         }
       }
 
@@ -1528,7 +1545,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   const bool opusToDolbyFallback = audioStreamEnabled &&
     g_Instance->m_OpusToDolbyTranscode.load();
   const char* audioCodecString = opusToDolbyFallback
-    ? "AC-3"
+    ? (kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3")
     : (eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS"));
   int audioChannels = 0;
   const char* audioLayoutString = "-";
@@ -1573,7 +1590,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
           append("Audio input: OPUS (%.0f kbps)\n",
             stats.receivedAudioBitrateKbps);
         }
-        append("Audio delay: %.2f ms\n",
+        append("Audio transcode: %.2f ms avg\n",
           g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
       }
     } else {

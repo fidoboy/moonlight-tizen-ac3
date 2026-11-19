@@ -97,12 +97,22 @@ bool OpusDolbyTranscoder::Initialize(
   }
 
   if (outputChannels == 6 && m_ChannelLayout != AV_CH_LAYOUT_5POINT1_BACK) {
-    m_Resampler = swr_alloc_set_opts(
-      nullptr,
-      static_cast<int64_t>(m_ChannelLayout), AV_SAMPLE_FMT_FLTP, 48000,
-      AV_CH_LAYOUT_5POINT1_BACK, AV_SAMPLE_FMT_FLTP, 48000,
-      0, nullptr);
-    if (m_Resampler == nullptr || swr_init(m_Resampler) < 0) {
+    AVChannelLayout outputLayout = {};
+    AVChannelLayout inputLayout = {};
+    int layoutResult = av_channel_layout_from_mask(&outputLayout, m_ChannelLayout);
+    if (layoutResult >= 0) {
+      layoutResult = av_channel_layout_from_mask(&inputLayout, AV_CH_LAYOUT_5POINT1_BACK);
+    }
+    if (layoutResult >= 0) {
+      layoutResult = swr_alloc_set_opts2(
+        &m_Resampler,
+        &outputLayout, AV_SAMPLE_FMT_FLTP, 48000,
+        &inputLayout, AV_SAMPLE_FMT_FLTP, 48000,
+        0, nullptr);
+    }
+    av_channel_layout_uninit(&outputLayout);
+    av_channel_layout_uninit(&inputLayout);
+    if (layoutResult < 0 || m_Resampler == nullptr || swr_init(m_Resampler) < 0) {
       Cleanup();
       return false;
     }
@@ -121,10 +131,16 @@ bool OpusDolbyTranscoder::Initialize(
 
   m_EncoderContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
   m_EncoderContext->sample_rate = 48000;
-  m_EncoderContext->channel_layout = m_ChannelLayout;
-  m_EncoderContext->channels = outputChannels;
+  if (av_channel_layout_from_mask(&m_EncoderContext->ch_layout, m_ChannelLayout) < 0) {
+    Cleanup();
+    return false;
+  }
   m_EncoderContext->time_base = AVRational{1, 48000};
-  m_EncoderContext->bit_rate = outputChannels == 2 ? 192000 : 448000;
+  // Use 640 kbps for both AC-3 and E-AC-3, regardless of whether the output
+  // is stereo or 5.1. For E-AC-3 this selects six blocks per frame
+  // (1536 samples / 32 ms at 48 kHz), reducing encoder and packet-delivery
+  // frequency compared with the previous 6144 kbps / one-block configuration.
+  m_EncoderContext->bit_rate = 640000;
   m_EncoderContext->thread_count = 1;
   if (avcodec_open2(m_EncoderContext, encoder, nullptr) < 0 ||
       m_EncoderContext->frame_size <= 0) {
@@ -158,17 +174,15 @@ bool OpusDolbyTranscoder::Transcode(
     return false;
   }
 
-  AVPacket inputPacket;
-  av_init_packet(&inputPacket);
-  inputPacket.data = nullptr;
-  inputPacket.size = 0;
-  if (av_new_packet(&inputPacket, size) < 0) {
+  AVPacket* inputPacket = av_packet_alloc();
+  if (inputPacket == nullptr || av_new_packet(inputPacket, size) < 0) {
+    av_packet_free(&inputPacket);
     return false;
   }
-  std::memcpy(inputPacket.data, data, static_cast<size_t>(size));
+  std::memcpy(inputPacket->data, data, static_cast<size_t>(size));
 
-  const int sendResult = avcodec_send_packet(m_DecoderContext, &inputPacket);
-  av_packet_unref(&inputPacket);
+  const int sendResult = avcodec_send_packet(m_DecoderContext, inputPacket);
+  av_packet_free(&inputPacket);
   if (sendResult < 0) {
     return false;
   }
@@ -180,7 +194,7 @@ bool OpusDolbyTranscoder::Transcode(
     }
     if (receiveResult < 0 ||
         m_DecodedFrame->format != AV_SAMPLE_FMT_FLTP ||
-        m_DecodedFrame->channels != m_Channels ||
+        m_DecodedFrame->ch_layout.nb_channels != m_Channels ||
         m_DecodedFrame->sample_rate != 48000 ||
         m_DecodedFrame->nb_samples <= 0) {
       av_frame_unref(m_DecodedFrame);
@@ -193,7 +207,11 @@ bool OpusDolbyTranscoder::Transcode(
     const uint64_t inputLayout = m_Channels == 6
       ? AV_CH_LAYOUT_5POINT1_BACK
       : AV_CH_LAYOUT_STEREO;
-    m_DecodedFrame->channel_layout = inputLayout;
+    av_channel_layout_uninit(&m_DecodedFrame->ch_layout);
+    if (av_channel_layout_from_mask(&m_DecodedFrame->ch_layout, inputLayout) < 0) {
+      av_frame_unref(m_DecodedFrame);
+      return false;
+    }
 
     AVFrame* fifoFrame = m_DecodedFrame;
     if (m_Resampler != nullptr) {
@@ -205,8 +223,10 @@ bool OpusDolbyTranscoder::Transcode(
       av_frame_unref(m_ResampledFrame);
       m_ResampledFrame->format = AV_SAMPLE_FMT_FLTP;
       m_ResampledFrame->sample_rate = 48000;
-      m_ResampledFrame->channel_layout = m_ChannelLayout;
-      m_ResampledFrame->channels = m_Channels;
+      if (av_channel_layout_from_mask(&m_ResampledFrame->ch_layout, m_ChannelLayout) < 0) {
+        av_frame_unref(m_DecodedFrame);
+        return false;
+      }
       m_ResampledFrame->nb_samples = maximumSamples;
       if (av_frame_get_buffer(m_ResampledFrame, 0) < 0) {
         av_frame_unref(m_DecodedFrame);
@@ -250,8 +270,9 @@ bool OpusDolbyTranscoder::Transcode(
     av_frame_unref(m_EncodeFrame);
     m_EncodeFrame->format = m_EncoderContext->sample_fmt;
     m_EncodeFrame->sample_rate = m_EncoderContext->sample_rate;
-    m_EncodeFrame->channel_layout = m_ChannelLayout;
-    m_EncodeFrame->channels = m_Channels;
+    if (av_channel_layout_from_mask(&m_EncodeFrame->ch_layout, m_ChannelLayout) < 0) {
+      return false;
+    }
     m_EncodeFrame->nb_samples = m_EncoderContext->frame_size;
     m_EncodeFrame->pts = m_NextEncoderPts;
     if (av_frame_get_buffer(m_EncodeFrame, 0) < 0 ||
@@ -274,11 +295,15 @@ bool OpusDolbyTranscoder::Transcode(
   }
 
   const auto processingElapsed = std::chrono::steady_clock::now() - processingStart;
-  m_ProcessingTimeNs.fetch_add(
-    static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count()),
-    std::memory_order_relaxed);
+  const uint64_t processingTimeNs = static_cast<uint64_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count());
+  m_ProcessingTimeNs.fetch_add(processingTimeNs, std::memory_order_relaxed);
   m_ProcessedPackets.fetch_add(1, std::memory_order_relaxed);
   return true;
+}
+
+int OpusDolbyTranscoder::GetOutputFrameSamples() const {
+  return m_EncoderContext != nullptr ? m_EncoderContext->frame_size : 0;
 }
 
 double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
@@ -289,6 +314,7 @@ double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
   const uint64_t totalNs = m_ProcessingTimeNs.load(std::memory_order_relaxed);
   return static_cast<double>(totalNs) / static_cast<double>(packetCount) / 1000000.0;
 }
+
 
 bool OpusDolbyTranscoder::DrainEncoder(
   std::vector<std::vector<uint8_t>>& encodedPackets
