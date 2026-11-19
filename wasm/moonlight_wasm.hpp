@@ -39,6 +39,9 @@ void ResetStreamInputState();
 // since our HTTP request library is synchronous.
 #define HTTP_HANDLER_THREADS 8
 
+// Encoder selected for the local Opus-to-Dolby fallback path.
+constexpr bool kOpusDolbyTranscodeEac3 = true;
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
