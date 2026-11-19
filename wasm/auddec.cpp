@@ -266,8 +266,10 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     return 0;
   }
 
-  // Initialize packet timestamp to zero
+  // Initialize packet timestamp and per-session audio bitrate counters.
   s_pktPts = 0s;
+  g_Instance->m_AudioBytesReceived.store(0, std::memory_order_relaxed);
+  g_Instance->m_AudioBytesOutput.store(0, std::memory_order_relaxed);
 
   const bool isDolbyStream = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
   if (g_Instance->m_OpusToDolbyTranscode.load() &&
@@ -554,6 +556,8 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
         ClLogMessage("Append FFmpeg-encoded AC-3 packet failed\n");
         continue;
       }
+      g_Instance->m_AudioBytesOutput.fetch_add(
+        static_cast<uint64_t>(encodedPacket.size()), std::memory_order_relaxed);
       s_pktPts += kDolbyFrameDuration;
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + kDolbyFrameDuration;
       s_OpusDolbyTranscodeErrors = 0;
