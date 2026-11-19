@@ -648,5 +648,6 @@
   "Enable full color range": "Ativar faixa de cores completa",
   "Could not load the saved streaming settings.": "Não foi possível carregar as configurações de transmissão salvas.",
   "Could not apply the saved streaming-setting requirements.": "Não foi possível aplicar os requisitos das configurações de transmissão salvas.",
-  "Could not save the optimized streaming bitrate.": "Não foi possível salvar a taxa de bits otimizada para a transmissão."
+  "Could not save the optimized streaming bitrate.": "Não foi possível salvar a taxa de bits otimizada para a transmissão.",
+  "Audio input:": "Áudio de entrada:"
 }
