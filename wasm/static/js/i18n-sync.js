@@ -182,14 +182,48 @@ function main() {
 
   if (process.argv.includes('--check')) {
     const existingSource = safeReadJson(sourcePath);
-    const missing = sortedKeys.filter((key) => !Object.prototype.hasOwnProperty.call(existingSource, key));
-    if (missing.length > 0) {
+    const missingSource = sortedKeys.filter((key) =>
+      !Object.prototype.hasOwnProperty.call(existingSource, key) ||
+      typeof existingSource[key] !== 'string' ||
+      existingSource[key].trim() === ''
+    );
+
+    if (missingSource.length > 0) {
       console.error('[i18n-sync] Source locale is missing application strings.');
-      console.error('Missing keys:', missing.map((key) => JSON.stringify(key)).join(', '));
+      console.error('Missing or empty keys:', missingSource.map((key) => JSON.stringify(key)).join(', '));
+      process.exitCode = 1;
+    }
+
+    const targetLocales = fs.readdirSync(LOCALES_DIR)
+      .filter((file) => file.endsWith('.json') && file !== `${SOURCE_LOCALE}.json`)
+      .sort();
+
+    let translationErrors = 0;
+    for (const file of targetLocales) {
+      const locale = file.replace(/\\.json$/, '');
+      const dictionary = safeReadJson(path.join(LOCALES_DIR, file));
+      const missingTranslations = sortedKeys.filter((key) =>
+        !Object.prototype.hasOwnProperty.call(dictionary, key) ||
+        typeof dictionary[key] !== 'string' ||
+        dictionary[key].trim() === ''
+      );
+
+      if (missingTranslations.length > 0) {
+        translationErrors += missingTranslations.length;
+        console.error(`[i18n-sync] ${locale} is missing ${missingTranslations.length} translations:`);
+        console.error(missingTranslations.map((key) => JSON.stringify(key)).join(', '));
+      }
+    }
+
+    if (translationErrors > 0) {
+      console.error(`[i18n-sync] Found ${translationErrors} missing or empty translations across ${targetLocales.length} locales.`);
       process.exitCode = 1;
       return;
     }
-    console.log(`[i18n-sync] Source locale contains all ${sortedKeys.length} extracted application keys.`);
+
+    if (missingSource.length === 0) {
+      console.log(`[i18n-sync] Source locale and all ${targetLocales.length} target locales contain all ${sortedKeys.length} application strings.`);
+    }
     return;
   }
 
