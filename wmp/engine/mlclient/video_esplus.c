@@ -32,6 +32,7 @@ static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
 static int s_rebuilt_waiting_for_idr;
+static volatile int s_video_rebuild_reset_pending;
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
 static int s_hevc_mdcv_available;
@@ -43,15 +44,7 @@ static int s_hevc_hdr_status_logged;
 void VidEsplus_ResetAfterPlayerRebuild(void)
 {
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
-    s_rebuilt_waiting_for_idr = 1;
-    s_skip_seq = esplus_sample_seq() - 1;
-    s_video_units = 0;
-    s_last_frame_number = 0;
-    s_have_frame_number = 0;
-    s_hevc_mdcv_available = 0;
-    s_hevc_cll_available = 0;
-    s_hevc_sei_inspection_failed = 0;
-    s_hevc_hdr_status_logged = 0;
+    __atomic_store_n(&s_video_rebuild_reset_pending, 1, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.video_format, (uint32_t)s_video_format, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_width, (uint32_t)s_video_width, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
@@ -443,6 +436,7 @@ static void VidDecStart(void)
     s_video_units = 0;
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
     s_rebuilt_waiting_for_idr = 0;
+    __atomic_store_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_RELEASE);
     s_last_frame_number = 0;
     s_have_frame_number = 0;
     /* Reset first, then establish the common PTS origin before either stream
@@ -493,6 +487,17 @@ static int VidDecSubmit(PDECODE_UNIT du)
     size_t offset = 0;
     int64_t pts_ms;
 
+    if (__atomic_exchange_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_ACQ_REL)) {
+        s_rebuilt_waiting_for_idr = 1;
+        s_skip_seq = esplus_sample_seq() - 1;
+        s_video_units = 0;
+        s_last_frame_number = 0;
+        s_have_frame_number = 0;
+        s_hevc_mdcv_available = 0;
+        s_hevc_cll_available = 0;
+        s_hevc_sei_inspection_failed = 0;
+        s_hevc_hdr_status_logged = 0;
+    }
     ++s_video_units;
     if (s_video_units == 1)
         MLT_DIAG("VidDecSubmit FIRST decode unit ENTER type=%d bytes=%d frame=%u",
