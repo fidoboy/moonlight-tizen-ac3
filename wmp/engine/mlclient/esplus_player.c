@@ -775,20 +775,22 @@ int esplus_set_video_info(const wmp_esplus_video_info_t *info)
         if (info->codec_data && info->codec_data_size) {
             codec_copy = malloc(info->codec_data_size);
             if (!codec_copy) {
+                pthread_mutex_lock(&s_lock);
                 s_cached_video_info_valid = 0;
+                pthread_mutex_unlock(&s_lock);
                 MLT("cannot cache video codec data for player recovery");
                 return -1;
             }
             memcpy(codec_copy, info->codec_data, info->codec_data_size);
-            free(s_cached_video_codec_data);
-            s_cached_video_codec_data = codec_copy;
-        } else {
-            free(s_cached_video_codec_data);
-            s_cached_video_codec_data = NULL;
         }
+
+        pthread_mutex_lock(&s_lock);
+        free(s_cached_video_codec_data);
+        s_cached_video_codec_data = codec_copy;
         s_cached_video_info = *info;
         s_cached_video_info.codec_data = s_cached_video_codec_data;
         s_cached_video_info_valid = 1;
+        pthread_mutex_unlock(&s_lock);
     }
     return 0;
 }
@@ -931,8 +933,10 @@ int esplus_set_window(int width, int height)
             req.rc == -2 ? "set_ecore_display" : "Wayland window setup");
         return -1;
     }
+    pthread_mutex_lock(&s_lock);
     s_cached_window_width = width;
     s_cached_window_height = height;
+    pthread_mutex_unlock(&s_lock);
     return 0;
 }
 
