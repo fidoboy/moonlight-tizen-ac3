@@ -302,6 +302,7 @@ static void ar_decodePlay(char *data, int len)
 
         s_opus_software_active = 1;
         __atomic_store_n(&s_audio_codec_candidate, 4, __ATOMIC_RELEASE);
+        __atomic_store_n(&s_audio_codec_active, 4, __ATOMIC_RELEASE);
         __atomic_store_n(&esplus_stats.audio_codec, 4, __ATOMIC_RELAXED);
         ALOG("OPUS fallback active: libopus -> PCM_S16LE (%d channels, %d Hz)\n",
              s_channel_count, s_sample_rate);
