@@ -39,8 +39,6 @@ static std::vector<opus_int16> s_DecodeBuffer;
 
 static DolbySoftwareDecoder s_DolbyDecoder;
 static OpusDolbyTranscoder s_OpusDolbyTranscoder;
-// Experimental comparison: encode E-AC-3 instead of AC-3 on the Opus fallback path.
-static constexpr bool kOpusDolbyTranscodeEac3 = true;
 static std::vector<std::vector<uint8_t>> s_EncodedDolbyPackets;
 static int s_OpusDolbyTranscodeErrors = 0;
 static std::vector<int16_t> s_DolbyPcm;
