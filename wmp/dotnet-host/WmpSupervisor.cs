@@ -27,8 +27,8 @@ namespace MoonlightWmpHost
         private static bool _started;
         private static Timer _startupWatchdog;
         private static int _startupTargetPid;
+        private static int _startupTimeoutSeconds;
         private static long _startupWatchdogGeneration;
-        private static bool _startupTimeoutTriggered;
 
         private static void LogLifecycle(string phase, string detail)
         {
@@ -139,8 +139,8 @@ namespace MoonlightWmpHost
             {
                 CancelStartupWatchdogLocked();
                 _expectedExit = false;
-                _startupTimeoutTriggered = false;
                 _startupTargetPid = targetPid;
+                _startupTimeoutSeconds = timeoutSeconds;
                 generation = ++_startupWatchdogGeneration;
                 _startupWatchdog = new Timer(
                     OnStartupWatchdogExpired, generation,
@@ -164,12 +164,14 @@ namespace MoonlightWmpHost
                 _startupWatchdog = null;
             }
             _startupTargetPid = 0;
+            _startupTimeoutSeconds = 0;
             _startupWatchdogGeneration++;
         }
 
         private static void OnStartupWatchdogExpired(object state)
         {
             int targetPid;
+            int timeoutSeconds;
             lock (Gate)
             {
                 long generation = (long)state;
@@ -180,13 +182,15 @@ namespace MoonlightWmpHost
                 _startupWatchdog.Dispose();
                 _startupWatchdog = null;
                 targetPid = _startupTargetPid;
+                timeoutSeconds = _startupTimeoutSeconds;
                 _startupTargetPid = 0;
-                _startupTimeoutTriggered = true;
+                _startupTimeoutSeconds = 0;
                 _expectedExit = true;
             }
 
             string detail = "ESPlusPlayer startup timed out after " +
-                "30 seconds before WMP reported video readiness";
+                timeoutSeconds.ToString(CultureInfo.InvariantCulture) +
+                " seconds before WMP reported video readiness";
             LogLifecycle("startup_watchdog_expired",
                 "targetPid=" + targetPid.ToString(CultureInfo.InvariantCulture));
 
