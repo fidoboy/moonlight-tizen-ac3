@@ -11,6 +11,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 NM=${WMP_ARM_NM:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-nm}
+AR=${WMP_ARM_AR:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-ar}
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 WMP_MLT_TRACE=${WMP_MLT_TRACE:-false}
@@ -56,6 +57,8 @@ if [ -z "$OPUS_OBJECTS" ]; then
   exit 1
 fi
 
+"$AR" rcs "$OUT/libopus.a" $OPUS_OBJECTS
+
 # Project-owned, typed ESPlus ABI discovery and ADD/SET adapter layer.
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_abi.c" -o "$OUT/wmp_esplus_abi.o"
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_adapter.c" -o "$OUT/wmp_esplus_adapter.o"
@@ -69,7 +72,7 @@ fi
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_avoc.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
-  $OPUS_OBJECTS \
+  "$OUT"/libopus.a \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
