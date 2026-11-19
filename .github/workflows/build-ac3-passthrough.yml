@@ -17,7 +17,6 @@ on:
       - 'scripts/build-ffmpeg.sh'
       - 'ports/**'
       - 'wasm/**'
-  pull_request:
   workflow_dispatch:
 
 permissions:
