@@ -5,7 +5,9 @@
  */
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include "opus_multistream.h"
 
 #include "Limelight.h"
 #include "esplus_player.h"
@@ -24,6 +26,53 @@ static uint32_t s_opus_head_size;
 static int s_dolby;
 static int s_dolby_passthrough_enabled;
 static wmp_esplus_audio_mime_e s_dolby_mime;
+static OpusMSDecoder *s_software_decoder;
+static opus_int16 *s_software_pcm;
+static size_t s_software_pcm_capacity;
+static int s_opus_fallback_available;
+static int s_opus_software_active;
+static int s_opus_fallback_failed;
+
+#define OPUS_MAX_FRAME_SAMPLES 5760
+
+static void opus_software_decoder_destroy(void)
+{
+    if (s_software_decoder) opus_multistream_decoder_destroy(s_software_decoder);
+    s_software_decoder = NULL;
+    free(s_software_pcm);
+    s_software_pcm = NULL;
+    s_software_pcm_capacity = 0;
+    s_opus_fallback_available = 0;
+}
+
+static void opus_software_decoder_init(const POPUS_MULTISTREAM_CONFIGURATION config)
+{
+    int error = OPUS_OK;
+    size_t capacity;
+
+    opus_software_decoder_destroy();
+    if (!config) return;
+
+    s_software_decoder = opus_multistream_decoder_create(
+        config->sampleRate, config->channelCount, config->streams,
+        config->coupledStreams, config->mapping, &error);
+    if (!s_software_decoder || error != OPUS_OK) {
+        ALOG("libopus fallback decoder initialization failed: %d\\n", error);
+        opus_software_decoder_destroy();
+        return;
+    }
+
+    capacity = (size_t)OPUS_MAX_FRAME_SAMPLES * (size_t)config->channelCount;
+    s_software_pcm = malloc(capacity * sizeof(*s_software_pcm));
+    if (!s_software_pcm) {
+        ALOG("libopus fallback PCM buffer allocation failed\\n");
+        opus_software_decoder_destroy();
+        return;
+    }
+    s_software_pcm_capacity = capacity;
+    s_opus_fallback_available = 1;
+}
+
 static volatile int s_audio_codec_candidate;
 static volatile int s_audio_codec_active;
 int AudEsplus_GetActiveAudioCodec(void)
@@ -36,6 +85,9 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     s_dolby_passthrough_enabled = enabled != 0;
     s_dolby = 0;
     s_opus_head_size = 0;
+    opus_software_decoder_destroy();
+    s_opus_software_active = 0;
+    s_opus_fallback_failed = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -128,6 +180,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         MLT("native Opus configuration rejected");
         esplus_audio_registration_complete(0);
         return -1;
+    } else {
+        /* Keep a software decoder ready in case ESPlus rejects OPUS at preroll. */
+        opus_software_decoder_init(config);
     }
 
     if (!esplus_create_open()) {
@@ -194,6 +249,9 @@ static void ar_cleanup(void)
 {
     s_dolby = 0;
     s_opus_head_size = 0;
+    opus_software_decoder_destroy();
+    s_opus_software_active = 0;
+    s_opus_fallback_failed = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -212,6 +270,64 @@ static void ar_decodePlay(char *data, int len)
     if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
         __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
 
+    if (!s_dolby && !s_opus_software_active && esplus_opus_fallback_ready()) {
+        wmp_esplus_audio_info_t pcm_info;
+        if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
+            if (!s_opus_fallback_failed) {
+                s_opus_fallback_failed = 1;
+                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\\n");
+                LiReportVideoRendererError();
+            }
+            return;
+        }
+
+        memset(&pcm_info, 0, sizeof(pcm_info));
+        pcm_info.mime_type = WMP_ESPLUS_AUDIO_MIME_PCM_S16LE;
+        pcm_info.channels = (uint32_t)s_channel_count;
+        pcm_info.sample_rate = (uint32_t)s_sample_rate;
+        if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
+            if (!s_opus_fallback_failed) {
+                s_opus_fallback_failed = 1;
+                ALOG("ESPlus player rebuild for PCM fallback failed\\n");
+                LiReportVideoRendererError();
+            }
+            return;
+        }
+
+        s_opus_software_active = 1;
+        __atomic_store_n(&s_audio_codec_candidate, 4, __ATOMIC_RELEASE);
+        __atomic_store_n(&esplus_stats.audio_codec, 4, __ATOMIC_RELAXED);
+        ALOG("OPUS fallback active: libopus -> PCM_S16LE (%d channels, %d Hz)\\n",
+             s_channel_count, s_sample_rate);
+    }
+
+    if (s_opus_software_active) {
+        int samples = opus_multistream_decode(
+            s_software_decoder, (const unsigned char *)data, len,
+            s_software_pcm, OPUS_MAX_FRAME_SAMPLES, 0);
+        if (samples <= 0) {
+            ALOG("libopus packet decode failed: %d\\n", samples);
+            return;
+        }
+
+        memset(&packet, 0, sizeof(packet));
+        packet.type = WMP_ESPLUS_STREAM_AUDIO;
+        packet.data = s_software_pcm;
+        packet.size = (uint32_t)((size_t)samples * (size_t)s_channel_count *
+                                 sizeof(*s_software_pcm));
+        packet.duration_ns = (uint64_t)samples * 1000000000ull /
+                             (uint64_t)s_sample_rate;
+        packet.pts_ns = esplus_stream_clock_pts_ns();
+        result = esplus_submit(&packet);
+        if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
+            __atomic_store_n(&s_audio_codec_active, 4, __ATOMIC_RELEASE);
+        else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+                 result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
+            ALOG("submit PCM audio failed status=%d raw=%d\\n",
+                 (int)result.status, result.raw_status);
+        return;
+    }
+
     duration_ns = s_dolby
         ? 32000000ull
         : (uint64_t)s_samples_per_frame * 1000000000ull /
@@ -228,11 +344,10 @@ static void ar_decodePlay(char *data, int len)
             __atomic_load_n(&s_audio_codec_candidate, __ATOMIC_ACQUIRE),
             __ATOMIC_RELEASE);
 
-    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS)
     if (result.status != WMP_ESPLUS_SUBMIT_SUCCESS &&
         result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
         result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED)
-        ALOG("submit %s audio failed status=%d raw=%d\n",
+        ALOG("submit %s audio failed status=%d raw=%d\\n",
              s_dolby ? "Dolby" : "Opus", (int)result.status, result.raw_status);
 }
 
