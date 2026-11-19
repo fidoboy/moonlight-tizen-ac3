@@ -315,9 +315,6 @@ double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
   return static_cast<double>(totalNs) / static_cast<double>(packetCount) / 1000000.0;
 }
 
-double OpusDolbyTranscoder::GetMaxProcessingLatencyMs() const {
-  return static_cast<double>(m_MaxProcessingTimeNs.load(std::memory_order_relaxed)) / 1000000.0;
-}
 
 bool OpusDolbyTranscoder::DrainEncoder(
   std::vector<std::vector<uint8_t>>& encodedPackets
@@ -353,6 +350,5 @@ void OpusDolbyTranscoder::Cleanup() {
   m_Channels = 0;
   m_NextEncoderPts = 0;
   m_ProcessingTimeNs.store(0, std::memory_order_relaxed);
-  m_MaxProcessingTimeNs.store(0, std::memory_order_relaxed);
   m_ProcessedPackets.store(0, std::memory_order_relaxed);
 }
