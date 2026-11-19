@@ -1590,9 +1590,8 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
           append("Audio input: OPUS (%.0f kbps)\n",
             stats.receivedAudioBitrateKbps);
         }
-        append("Audio transcode: %.2f ms avg / %.2f ms peak\n",
-          g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed),
-          g_Instance->m_OpusDolbyTranscodePeakLatencyMs.load(std::memory_order_relaxed));
+        append("Audio transcode: %.2f ms avg\n",
+          g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
       }
     } else {
       append("Audio stream: -\n");
