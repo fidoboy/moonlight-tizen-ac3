@@ -1003,7 +1003,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       // player. Preserve an explicit [Software] marker when the Tizen 5 OPUS
       // preroll fallback is active; default to [Hardware] for native passthrough.
       if (isAudioStreamLine && window._activeStreamingEngine === 'ESPLUSPLAYER') {
-        if (!audioModeMatch) {
+        if (!audioModeMatch && valueText !== '-') {
           valueText = valueText.replace(/^(\S+)(?=\s|\(|$)/, '$1 [Hardware]');
           audioModeMatch = valueText.match(/\[Hardware\]/);
         }
