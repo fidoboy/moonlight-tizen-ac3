@@ -30,6 +30,13 @@ static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
+
+/* A rebuilt ESPlus player owns a new transparent overlay window. */
+void VidEsplus_ResetAfterPlayerRebuild(void)
+{
+    __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    MLT_DIAG("video overlay reveal state reset after ESPlus player rebuild");
+}
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
 
