@@ -999,17 +999,14 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       var audioModeMatch = isAudioStreamLine
         ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
-      // ESPlusPlayer currently always forwards the negotiated audio codec to
-      // ESPlus Player without an intermediate software conversion. Ensure the
-      // overlay visibly identifies that native passthrough path even if the
-      // statistics payload omits its mode marker.
+      // ESPlusPlayer normally forwards the negotiated codec to the native
+      // player. Preserve an explicit [Software] marker when the Tizen 5 OPUS
+      // preroll fallback is active; default to [Hardware] for native passthrough.
       if (isAudioStreamLine && window._activeStreamingEngine === 'ESPLUSPLAYER') {
-        if (audioModeMatch) {
-          valueText = valueText.replace(/\[(Hardware|Software)\]/, '[Hardware]');
-        } else {
+        if (!audioModeMatch) {
           valueText = valueText.replace(/^(\S+)(?=\s|\(|$)/, '$1 [Hardware]');
+          audioModeMatch = valueText.match(/\[Hardware\]/);
         }
-        audioModeMatch = valueText.match(/\[Hardware\]/);
       }
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
