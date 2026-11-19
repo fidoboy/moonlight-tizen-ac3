@@ -1528,7 +1528,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
   const bool opusToDolbyFallback = audioStreamEnabled &&
     g_Instance->m_OpusToDolbyTranscode.load();
   const char* audioCodecString = opusToDolbyFallback
-    ? "AC-3"
+    ? (kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3")
     : (eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS"));
   int audioChannels = 0;
   const char* audioLayoutString = "-";
