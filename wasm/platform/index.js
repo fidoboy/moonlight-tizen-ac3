@@ -6289,6 +6289,13 @@ function startGame(host, appID) {
             return;
           }
         } catch (nativePreparationError) {
+          if (window.ESPlusPlayerTransport &&
+              typeof window.ESPlusPlayerTransport.abortPreparedStartup === 'function') {
+            try { await window.ESPlusPlayerTransport.abortPreparedStartup(); }
+            catch (cleanupError) {
+              console.error('[esplusplayer] Cleanup after preparation failure was unsuccessful:', cleanupError);
+            }
+          }
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not prepare the native playback service before host negotiation:', nativePreparationError);
           if (_directSmartHubLaunch) {
             directSmartHubLaunchFailure(t('The local device could not prepare the native video playback service.'));
@@ -6314,14 +6321,18 @@ function startGame(host, appID) {
           0x030002, // Surround channel mask << 16 | Surround channel count
           gamepadMask, // Connect gamepad mask
           continuousAudio // Native audio path only
-        ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app resume').then(function(launchResult) {
-          if (!isStreamStartupCurrent(startupGeneration)) return;
+        ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app resume').then(async function(launchResult) {
+          if (!isStreamStartupCurrent(startupGeneration)) {
+            await abortPreparedNativeService();
+            return;
+          }
           $xml = $($.parseXML(launchResult.toString()));
           $root = $xml.find('root');
           var status_code = $root.attr('status_code');
           var status_message = $root.attr('status_message');
           if (status_code != 200) {
             var apiStatusMessage = status_message;
+            await abortPreparedNativeService();
             if (_directSmartHubLaunch) {
               directSmartHubLaunchFailure(t('Failed to resume %1$s', appToStart.title));
               return;
@@ -6349,7 +6360,8 @@ function startGame(host, appID) {
             selectHoldStreamMenu,
             mouseEmulationStick
           ]);
-        }, function(failedResumeApp) {
+        }, async function(failedResumeApp) {
+          await abortPreparedNativeService();
           console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to resume app with id: ' + appID + '\n Returned error was: ' + failedResumeApp + '!');
           if (failedResumeApp && failedResumeApp.name === 'TimeoutError') {
             streamStartupTimeoutFailure('connection', t('The host did not respond to the resume request in time.'));
@@ -6384,8 +6396,11 @@ function startGame(host, appID) {
         0x030002, // Surround channel mask << 16 | Surround channel count
         gamepadMask, // Connect gamepad mask
         continuousAudio // Native audio path only
-      ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app launch').then(function(launchResult) {
-        if (!isStreamStartupCurrent(startupGeneration)) return;
+      ), STREAM_OPERATION_TIMEOUTS.hostLaunch, 'Host app launch').then(async function(launchResult) {
+        if (!isStreamStartupCurrent(startupGeneration)) {
+          await abortPreparedNativeService();
+          return;
+        }
         $xml = $($.parseXML(launchResult.toString()));
         $root = $xml.find('root');
         var status_code = $root.attr('status_code');
@@ -6393,6 +6408,7 @@ function startGame(host, appID) {
         if (status_code != 200) {
           var apiStatusCode = status_code;
           var apiStatusMessage = status_message;
+          await abortPreparedNativeService();
           if (_directSmartHubLaunch) {
             directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
             return;
@@ -6420,7 +6436,8 @@ function startGame(host, appID) {
           h264Level,
           selectHoldStreamMenu
         ]);
-      }, function(failedLaunchApp) {
+      }, async function(failedLaunchApp) {
+        await abortPreparedNativeService();
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
         if (failedLaunchApp && failedLaunchApp.name === 'TimeoutError') {
           streamStartupTimeoutFailure('connection', t('The host did not respond to the launch request in time.'));
