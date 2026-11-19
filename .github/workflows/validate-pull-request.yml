@@ -1,0 +1,34 @@
+name: Validate pull requests
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate code (no build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Check JavaScript syntax and gamepad regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check wasm/platform/index.js
+          node --check wasm/platform/messages.js
+          node --check wasm/static/js/i18n-sync.js
+          node wasm/static/js/i18n-sync.js --check
+          node tests/gamepad_mask_test.js
+
+      - name: Lint PR validation workflow
+        uses: raven-actions/actionlint@v2
+        with:
+          version: 1.7.7
+          files: .github/workflows/validate-pull-request.yml
+          shellcheck: false
+          pyflakes: false
