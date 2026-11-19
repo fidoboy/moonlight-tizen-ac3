@@ -269,7 +269,7 @@ static void ar_decodePlay(char *data, int len)
     wmp_esplus_submit_result_t result;
     uint64_t duration_ns;
 
-    if (!data || len <= 0) return;
+    if (!data || len <= 0 || s_opus_fallback_failed) return;
 
     if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
         __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
@@ -296,7 +296,7 @@ static void ar_decodePlay(char *data, int len)
         pcm_info.sample_rate = (uint32_t)s_sample_rate;
         if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
             s_opus_fallback_failed = 1;
-            ALOG("ESPlus player rebuild for PCM fallback failed\\n");
+            ALOG("ESPlus player rebuild for PCM fallback failed\n");
             return;
         }
 
