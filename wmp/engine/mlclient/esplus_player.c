@@ -300,8 +300,20 @@ int esplus_take_need_idr(void)
 
 int esplus_video_ready(void)
 {
-    return __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
-           __atomic_load_n(&esplus_stats.submitted, __ATOMIC_ACQUIRE) > 0;
+    uint64_t playing_ms = 0;
+    int ready = 0;
+
+    /* Accepted packets are not proof of playback. Wait until ESPlus reports
+     * that its playback clock has advanced before revealing the video surface. */
+    pthread_mutex_lock(&s_lock);
+    if (s_pl && __atomic_load_n(&s_started, __ATOMIC_ACQUIRE) &&
+        __atomic_load_n(&esplus_stats.submitted, __ATOMIC_ACQUIRE) > 0 &&
+        wmp_esplus_adapter_get_playing_time(&s_adapter, &playing_ms) &&
+        playing_ms > 0) {
+        ready = 1;
+    }
+    pthread_mutex_unlock(&s_lock);
+    return ready;
 }
 
 static uint64_t esplus_mono_ns(void)
