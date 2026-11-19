@@ -645,5 +645,8 @@
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Permitir o ajuste do ritmo dos quadros para equilibrar a latência e a fluidez do vídeo. Recomenda-se manter esta opção ativada.",
   "Enable frame pacing": "Ativar o ajuste do ritmo dos quadros",
   "Enable high dynamic range": "Ativar alto alcance dinâmico",
-  "Enable full color range": "Ativar faixa de cores completa"
+  "Enable full color range": "Ativar faixa de cores completa",
+  "Could not load the saved streaming settings.": "Não foi possível carregar as configurações de transmissão salvas.",
+  "Could not apply the saved streaming-setting requirements.": "Não foi possível aplicar os requisitos das configurações de transmissão salvas.",
+  "Could not save the optimized streaming bitrate.": "Não foi possível salvar a taxa de bits otimizada para a transmissão."
 }
