@@ -33,12 +33,18 @@ static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
 static int s_rebuilt_waiting_for_idr;
 static volatile int s_video_rebuild_reset_pending;
+static volatile int s_video_player_rebuilding;
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
 static int s_hevc_mdcv_available;
 static int s_hevc_cll_available;
 static int s_hevc_sei_inspection_failed;
 static int s_hevc_hdr_status_logged;
+
+void VidEsplus_BeginPlayerRebuild(void)
+{
+    __atomic_store_n(&s_video_player_rebuilding, 1, __ATOMIC_RELEASE);
+}
 
 /* A rebuilt ESPlus player owns a new transparent overlay window. */
 void VidEsplus_ResetAfterPlayerRebuild(void)
@@ -49,6 +55,7 @@ void VidEsplus_ResetAfterPlayerRebuild(void)
     __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
     __atomic_store_n(&s_video_rebuild_reset_pending, 1, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
     MLT_DIAG("video overlay and stream metadata restored after ESPlus player rebuild");
 }
 
@@ -437,6 +444,7 @@ static void VidDecStart(void)
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
     s_rebuilt_waiting_for_idr = 0;
     __atomic_store_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
     s_last_frame_number = 0;
     s_have_frame_number = 0;
     /* Reset first, then establish the common PTS origin before either stream
@@ -498,6 +506,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_hevc_sei_inspection_failed = 0;
         s_hevc_hdr_status_logged = 0;
     }
+    if (__atomic_load_n(&s_video_player_rebuilding, __ATOMIC_ACQUIRE))
+        return DR_NEED_IDR;
     ++s_video_units;
     if (s_video_units == 1)
         MLT_DIAG("VidDecSubmit FIRST decode unit ENTER type=%d bytes=%d frame=%u",
