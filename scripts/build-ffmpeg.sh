@@ -62,7 +62,6 @@ emconfigure ./configure \
   --disable-avformat \
   --disable-avfilter \
   --disable-swscale \
-  --disable-postproc \
   --disable-muxers \
   --disable-demuxers \
   --disable-protocols \
