@@ -2265,8 +2265,13 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .mouseEmulationStickMenu, .configSummaryPositionMenu, .mdl-menu__container {
+.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__container {
     width: 59.4% !important;
+}
+
+/* The MDL wrapper already matches the control width; the menu itself must fill it. */
+.mouseEmulationStickMenu {
+    width: 100% !important;
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .streamingEngineMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
