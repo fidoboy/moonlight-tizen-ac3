@@ -79,6 +79,7 @@ typedef struct _VIDEO_STATS {
   float renderedFps;
   float receivedBitrate;
   float receivedAudioBitrateKbps;
+  float receivedAudioOutputBitrateKbps;
   uint32_t measurementStartTimestamp;
 } VIDEO_STATS, *PVIDEO_STATS;
 
@@ -267,6 +268,7 @@ class MoonlightInstance {
   std::string m_DolbyChannelLayout {"Back"};
   std::string m_DolbyDecodingMode {"Hardware"};
   std::atomic<uint64_t> m_AudioBytesReceived {0};
+  std::atomic<uint64_t> m_AudioBytesOutput {0};
   bool m_AudioSyncEnabled;
   int m_AudioJitterMs;
   bool m_PlayHostAudioEnabled;
