@@ -895,6 +895,8 @@
     if (status.esplus !== 'symbols_detected')
       throw makeError('ESPlus Player API is unavailable (state: ' +
         String(status.esplus || 'unknown') + ')');
+    if (status.playbackClockAvailable !== true)
+      throw makeError('ESPlus Player playback-clock API is unavailable; video output cannot be confirmed safely');
     if (status.sessionState !== 'idle' || status.running !== false ||
         status.workerActive !== false)
       throw makeError('native service is not idle; a previous session or worker is still active');
