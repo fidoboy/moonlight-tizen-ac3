@@ -1500,11 +1500,9 @@ function handleMessage(msg) {
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
 
-    // Set the message first, then show the complete transition layer. The local UI
-    // audio engine is rebuilt only after this layer is fully visible.
+    // Prepare the closing copy immediately before requesting the existing transition.
+    // This replaces startup-phase text without changing when or how the transition appears.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     var resolveLocalAudioRestoration;
     var localAudioRestoration = new Promise(function(resolve) {
       resolveLocalAudioRestoration = resolve;
@@ -1537,6 +1535,10 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
       });
     };
+    // Set both text fields before the transition can become visible. The title is
+    // specific to the closing phase; the status starts with its closing-phase message.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
       showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
     } else {
