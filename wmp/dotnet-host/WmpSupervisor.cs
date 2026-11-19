@@ -124,6 +124,13 @@ namespace MoonlightWmpHost
                     return;
                 }
 
+                if (command == "startup_finished")
+                {
+                    CancelStartupWatchdog();
+                    LogLifecycle("startup_finished_received", "WMP completed startup failure or stop cleanup");
+                    return;
+                }
+
                 Log.Error("WMP_SUPERVISOR rejected unknown control command=" + (command ?? "<null>"));
             }
             catch (Exception ex)
