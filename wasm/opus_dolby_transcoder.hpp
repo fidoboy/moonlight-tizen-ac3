@@ -24,6 +24,7 @@ public:
     std::vector<std::vector<uint8_t>>& encodedPackets);
   void Cleanup();
   double GetAverageProcessingLatencyMs() const;
+  double GetMaxProcessingLatencyMs() const;
   int GetOutputFrameSamples() const;
 
 private:
@@ -41,5 +42,6 @@ private:
   int m_Channels = 0;
   int64_t m_NextEncoderPts = 0;
   std::atomic<uint64_t> m_ProcessingTimeNs{0};
+  std::atomic<uint64_t> m_MaxProcessingTimeNs{0};
   std::atomic<uint64_t> m_ProcessedPackets{0};
 };
