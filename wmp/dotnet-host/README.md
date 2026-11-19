@@ -89,9 +89,17 @@ In `HostProtocol.cs`:
 
 - `start_session` validates the request, creates the worker, responds
   `accepted:true`, and starts `RunSession`.
-- `RunSession` calls the shared native engine. Moonlight Common C remains the
-  authority for session state and normal termination. The host forwards
-  `streamTerminated: <code>` and any available diagnostic detail.
+- `RunSession` arms the independent supervisor's 30-second startup
+  watchdog immediately before entering native `StartSessionV2`. The deadline
+  covers that call and the wait for the first video-ready signal.
+- Once `VideoReady()` confirms playback readiness, WMP disarms the supervisor
+  watchdog before emitting `displayVideo`.
+- If native startup returns or the session stops before video readiness, WMP
+  first performs its normal `_engine.Stop()` cleanup and then disarms the
+  watchdog. If that cleanup itself hangs, the watchdog remains armed.
+- Moonlight Common C remains the authority for session state and normal
+  termination. The host forwards `streamTerminated: <code>` and any available
+  diagnostic detail.
 - The worker's `finally` block clears session bookkeeping, sends the final
   diagnostic-ready event, and requests service exit.
 - A worker-start failure sends `streamTerminated: -1` and requests exit.
@@ -134,19 +142,30 @@ In `WmpSupervisor.cs`, the supervisor:
 
 1. Opens `MoonlightWmpSupervisorControl` and registers
    `ApplicationManager.ApplicationTerminated`.
-2. Accepts only trusted `expect_exit` control messages from
-   `MoonLightS.WmpService`.
-3. Filters OS termination notifications by the exact WMP application ID.
-4. Records the terminated application ID, process ID, Tizen state, and
-   whether WMP had announced an orderly exit.
-5. Suppresses notifications for an expected WMP exit.
-6. For an unannounced WMP termination, sends
+2. Accepts only trusted startup-watchdog and orderly-exit control messages
+   from `MoonLightS.WmpService`.
+3. Arms a 30-second one-shot timer when WMP enters native startup and cancels
+   it only after video readiness or after WMP has completed its own startup
+   failure/stop cleanup.
+4. If the deadline expires, sends the existing
+   `streamTerminated: -1` event directly to the WebApp, then terminates the
+   WMP process by PID. This covers a WMP thread blocked inside native
+   `StartSessionV2`, where WMP cannot run its own timeout or cleanup code.
+5. Does not call `ml_engine_stop()` from the supervisor: doing so would race
+   the blocked native call. Terminating the isolated WMP process lets the OS
+   reclaim its native handles, ESPlus connection, IPC endpoints, and process
+   resources.
+6. Filters OS termination notifications by the exact WMP application ID,
+   records the terminated application ID, PID, Tizen state, and whether WMP
+   had announced an orderly exit, and suppresses notifications for an
+   expected WMP exit.
+7. For any other unannounced WMP termination, sends
    `wmpSupervisorTerminated` to the WebApp's trusted reply port, including
    the Tizen event source and process details, then exits itself.
 
-The supervisor's notification is an OS lifecycle event, not a JavaScript
-inference. It does not decide whether a live stream is healthy and does not
-monitor frame arrival, session timeouts, or playback progress.
+The startup watchdog is process supervision, not a JavaScript timer or a
+stream-health heuristic. It ends after WMP reports video readiness; it does
+not monitor ongoing frame arrival or playback progress.
 
 The supervisor does **not** receive a crash dump or a native signal/exit code
 from this event. Its detail identifies the process and the fact that Tizen
@@ -155,8 +174,13 @@ external kill, a runtime failure, or another termination cause.
 
 ### WebApp: recovery path
 
-The WebApp handles `wmpSupervisorTerminated` in
-`ESPlusPlayerTransport.handleMessage()`:
+The supervisor's startup-timeout notification uses the same
+`streamTerminated: -1` event emitted by WMP, so the existing central
+Moonlight termination path restores the UI and displays the error dialog.
+No JavaScript watchdog or new UI recovery path is introduced.
+
+The WebApp also handles `wmpSupervisorTerminated` in
+`ESPlusPlayerTransport.handleMessage()` for other unexpected process exits:
 
 - If `start_session` is pending, it records the termination and rejects the
   pending startup when the request path resumes.
