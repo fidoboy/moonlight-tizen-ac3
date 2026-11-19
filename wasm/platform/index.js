@@ -300,11 +300,11 @@ function armStreamStartupWatchdog(stage, timeoutMs) {
 }
 
 function cleanupWmpAfterStartupFailure() {
-  var selectedEngine = window._activeStreamingEngine || null;
-  if (selectedEngine !== 'ESPLUSPLAYER' &&
-      typeof getSelectedStreamingEngine === 'function') {
-    selectedEngine = getSelectedStreamingEngine();
-  }
+  // The persisted/current selection is authoritative. Never let a stale active
+  // engine marker route an EMSS failure through the WMP process terminator.
+  var selectedEngine = typeof getSelectedStreamingEngine === 'function'
+    ? getSelectedStreamingEngine()
+    : window._activeStreamingEngine;
   if (selectedEngine !== 'ESPLUSPLAYER') return Promise.resolve();
 
   var transport = window.ESPlusPlayerTransport;
