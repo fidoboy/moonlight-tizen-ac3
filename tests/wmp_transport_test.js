@@ -62,7 +62,9 @@ const remotePort = {
             ? {count: 2, hostCount: 0}
             : request.command === 'toggle_stats'
               ? {enabled: true}
-              : {service: 'ready', libraryLoaded: true, esplus: 'symbols_detected', streamApi: 'set'};
+              : {service: 'ready', engine: 'libmlengine', sessionState: 'idle', running: false,
+             workerActive: false, playbackClockAvailable: true, libraryLoaded: true,
+             esplus: 'symbols_detected', streamApi: 'set'};
     const nativeResponse = request.command === 'start_session' && nextNativeResponse
       ? nextNativeResponse
       : {status: 'ok', payload};
@@ -219,14 +221,19 @@ vm.runInNewContext(source, {
   assert.strictEqual(runningServiceContexts.length, 2,
     'the previous WMP process and supervisor must be confirmed stopped before relaunch');
 
-  const ping = await window.ESPlusPlayerTransport.ping();
-  assert.strictEqual(ping.payload.pong, true);
-
-  const status = await window.ESPlusPlayerTransport.getStatus();
-  assert.strictEqual(status.payload.service, 'ready');
-  assert.strictEqual(status.payload.libraryLoaded, true);
-  assert.strictEqual(status.payload.esplus, 'symbols_detected');
-  assert.strictEqual(status.payload.streamApi, 'set');
+  const status = await window.ESPlusPlayerTransport.prepare();
+  assert.strictEqual(status.service, 'ready');
+  assert.strictEqual(status.engine, 'libmlengine');
+  assert.strictEqual(status.sessionState, 'idle');
+  assert.strictEqual(status.running, false);
+  assert.strictEqual(status.workerActive, false);
+  assert.strictEqual(status.playbackClockAvailable, true);
+  assert.strictEqual(status.libraryLoaded, true);
+  assert.strictEqual(status.esplus, 'symbols_detected');
+  assert.strictEqual(status.streamApi, 'set');
+  assert.deepStrictEqual(pendingMessages.slice(0, 2).map(message => message.command),
+    ['ping', 'get_status'],
+    'preflight must verify readiness and status without sending playback/session commands');
 
   // Gamepad analog samples must be coalesced across the MessagePort bridge,
   // while digital button transitions must bypass the analog-rate limiter.
