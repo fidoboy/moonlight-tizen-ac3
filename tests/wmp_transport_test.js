@@ -310,8 +310,8 @@ vm.runInNewContext(source, {
     fullRange: false
   });
   assert.strictEqual(start.payload.accepted, true);
-  assert.strictEqual(killedServiceContexts.length, killedBeforeFirstStream + 2,
-    'each start_session must stop the previous WMP process and supervisor before launching fresh processes');
+  assert.strictEqual(killedServiceContexts.length, killedBeforeFirstStream,
+    'start_session must reuse the WMP service prepared before host negotiation, without restarting its process');
   const startMessage = pendingMessages[pendingMessages.length - 1];
   assert.strictEqual(startMessage.command, 'start_session');
   assert.strictEqual(startMessage.arg_host, '192.168.0.10');
