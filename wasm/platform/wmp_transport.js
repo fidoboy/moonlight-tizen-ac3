@@ -1038,7 +1038,7 @@
       parameters: summarizePayload(command, payload)
     });
 
-    return connect(command === 'start_session').then(function() {
+    return connect(false).then(function() {
       if (command === 'start_session') {
         startSessionPending = true;
         startSessionAccepted = false;
@@ -1928,6 +1928,32 @@
 
   global.ESPlusPlayerTransport = {
     connect: connect,
+    prepare: function() {
+      // Start only the supervised service and wait for library/ESPlus readiness.
+      // No session parameters or ESPlus playback signals are sent at this stage.
+      return connect(true).then(function() {
+        return waitForServiceReady(0);
+      });
+    },
+    abortPreparedStartup: function() {
+      close();
+      return stopExistingSupervisor().catch(function(error) {
+        debugLog('supervisor cleanup after host negotiation failure was unsuccessful', {
+          serviceAppId: SUPERVISOR_APP_ID,
+          error: errorDetails(error)
+        });
+      }).then(function() {
+        return stopExistingService().catch(function(error) {
+          debugLog('service cleanup after host negotiation failure was unsuccessful', {
+            serviceAppId: SERVICE_APP_ID,
+            error: errorDetails(error)
+          });
+        });
+      }).then(function() {
+        connectPromise = null;
+        connectionReady = false;
+      });
+    },
     request: request,
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
