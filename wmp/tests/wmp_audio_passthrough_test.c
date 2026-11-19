@@ -179,6 +179,8 @@ static void test_opus_software_fallback(void)
     g_clock_pts_ns = 20000000ull;
     g_fallback_ready = 1;
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
+    assert(g_recover_count == 0 && g_submit_count == 0);
+    callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
 
     assert(g_recover_count == 1);
     assert(g_recovery_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_PCM_S16LE);
