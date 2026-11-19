@@ -648,5 +648,6 @@
   "Enable full color range": "Enable full color range",
   "Could not load the saved streaming settings.": "Could not load the saved streaming settings.",
   "Could not apply the saved streaming-setting requirements.": "Could not apply the saved streaming-setting requirements.",
-  "Could not save the optimized streaming bitrate.": "Could not save the optimized streaming bitrate."
+  "Could not save the optimized streaming bitrate.": "Could not save the optimized streaming bitrate.",
+  "Audio input:": "Audio input:"
 }
