@@ -777,8 +777,8 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       const bool useEac3Fallback = kOpusDolbyTranscodeEac3;
       const char* fallbackCodecName = useEac3Fallback ? "E-AC-3" : "AC-3";
       const char* fallbackMimeType = useEac3Fallback
-        ? "audio/mp4; codecs=\\"ec-3\\""
-        : "audio/mp4; codecs=\\"ac-3\\"";
+        ? "audio/mp4; codecs=\"ec-3\""
+        : "audio/mp4; codecs=\"ac-3\"";
       const auto fallbackSampleFormat = useEac3Fallback
         ? samsung::wasm::SampleFormat::kEac3
         : samsung::wasm::SampleFormat::kAc3;
