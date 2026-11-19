@@ -39,6 +39,8 @@ static std::vector<opus_int16> s_DecodeBuffer;
 
 static DolbySoftwareDecoder s_DolbyDecoder;
 static OpusDolbyTranscoder s_OpusDolbyTranscoder;
+// Experimental comparison: encode E-AC-3 instead of AC-3 on the Opus fallback path.
+static constexpr bool kOpusDolbyTranscodeEac3 = true;
 static std::vector<std::vector<uint8_t>> s_EncodedDolbyPackets;
 static int s_OpusDolbyTranscodeErrors = 0;
 static std::vector<int16_t> s_DolbyPcm;
@@ -281,7 +283,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     s_frameDuration = FrameDuration(opusConfig->samplesPerFrame, opusConfig->sampleRate);
     if (!s_OpusDolbyTranscoder.Initialize(
           opusConfig, outputChannels,
-          g_Instance->m_DolbyChannelLayout != "Normal", false)) {
+          g_Instance->m_DolbyChannelLayout != "Normal", kOpusDolbyTranscodeEac3)) {
       ClLogMessage("Failed to initialize FFmpeg Opus-to-AC-3 transcoder (%d channels)\n",
         outputChannels);
       return -1;
@@ -507,7 +509,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
   }
 
   // If native Dolby was not negotiated, keep the Dolby output requirement by
-  // decoding incoming Opus and encoding AC-3 locally with FFmpeg.
+  // decoding incoming Opus and encoding AC-3/E-AC-3 locally with FFmpeg.
   if (g_Instance->m_OpusToDolbyTranscode.load()) {
     if (s_AudioBackend != AudioBackend::Emss || !g_Instance->m_AudioStarted ||
         sampleData == nullptr || sampleLength <= 0) {
