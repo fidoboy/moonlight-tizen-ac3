@@ -91,6 +91,49 @@ namespace MoonlightWmpHost
             internal int DebugMode;
         }
 
+        internal static bool NotifySupervisorStartupWatchdog(int timeoutSeconds)
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "arm_startup_watchdog");
+                message.AddItem("targetPid", Process.GetCurrentProcess().Id);
+                message.AddItem("timeoutSeconds", timeoutSeconds);
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_armed timeout_seconds=" +
+                    timeoutSeconds.ToString(CultureInfo.InvariantCulture));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_arm_failed " + ex);
+                return false;
+            }
+        }
+
+        internal static bool NotifySupervisorStartupReady()
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "startup_ready");
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_disarmed");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_disarm_failed " + ex);
+                return false;
+            }
+        }
+
         internal static void NotifySupervisorExpectedExit(string reason)
         {
             try
@@ -1250,6 +1293,15 @@ namespace MoonlightWmpHost
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
                 _engine.SetConnectionWarningsEnabled(request.DisableWarnings == 0 ? 1 : 0);
                 startupDeadline = DateTime.UtcNow.AddSeconds(StartupTimeoutSeconds);
+                if (!NotifySupervisorStartupWatchdog(StartupTimeoutSeconds))
+                {
+                    diagnostic = "WMP could not arm the independent startup watchdog";
+                    RecordDiagnostic(diagnostic);
+                    Log.Error("WMP_LIFECYCLE startup_aborted_watchdog_unavailable");
+                    _engine.Stop();
+                    Event(appId, remotePort, "streamTerminated: -1", diagnostic);
+                    return;
+                }
                 Log.Info("WMP_LIFECYCLE native_start_call_begin timeout_seconds=" +
                     StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
                 result = _engine.StartSessionV2(
@@ -1346,6 +1398,15 @@ namespace MoonlightWmpHost
                     int statsResult = _engine.GetStats(ref stats);
                     if (!videoReady && _engine.VideoReady() != 0)
                     {
+                        if (!NotifySupervisorStartupReady())
+                        {
+                            startupTimedOut = true;
+                            terminationCode = -1;
+                            diagnostic = "WMP could not disarm the independent startup watchdog after video readiness";
+                            RecordDiagnostic(diagnostic);
+                            Log.Error("WMP_LIFECYCLE startup_failed_watchdog_disarm");
+                            break;
+                        }
                         videoReady = true;
                         Log.Info("WMP ESPlus playback clock advanced after video start; submitted=" +
                             (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
