@@ -773,14 +773,22 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       // Native Dolby negotiation above always wins. This track is used only when
       // the host fell back to Opus while the user still requires a Dolby bitstream.
       g_Instance->m_OpusToDolbyTranscode.store(true);
-      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-AC-3 transcoding (%d channels)\n",
-        outputChannels);
+      const bool useEac3Fallback = kOpusDolbyTranscodeEac3;
+      const char* fallbackCodecName = useEac3Fallback ? "E-AC-3" : "AC-3";
+      const char* fallbackMimeType = useEac3Fallback
+        ? "audio/mp4; codecs=\\"ec-3\\""
+        : "audio/mp4; codecs=\\"ac-3\\"";
+      const auto fallbackSampleFormat = useEac3Fallback
+        ? samsung::wasm::SampleFormat::kEac3
+        : samsung::wasm::SampleFormat::kAc3;
+      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-%s transcoding (%d channels)\\n",
+        fallbackCodecName, outputChannels);
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
-          "audio/mp4; codecs=\"ac-3\"",
+          fallbackMimeType,
           {},
           samsung::wasm::DecodingMode::kHardware,
-          samsung::wasm::SampleFormat::kAc3,
+          fallbackSampleFormat,
           channelLayout,
           kSampleRate,
         }
