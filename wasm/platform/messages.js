@@ -1225,8 +1225,6 @@ function handleMessage(msg) {
   }
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
-    // Clear the previous stream status before showing the closing transition.
-    $('#loadingSpinnerMessage').empty();
     var engineState = window.getStreamingEngineState();
     engineState.confirmed = false;
     engineState.videoReady = false;
@@ -1289,6 +1287,13 @@ function handleMessage(msg) {
       isInGame = false;
       return;
     }
+
+    // Reset both transition labels before any teardown/recovery work can yield.
+    // The closing title is assigned immediately; status text is populated below
+    // from the termination reason and updated as restoration progresses.
+    var closingAppName = window._activeStreamAppName || t('Apps');
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', closingAppName));
+    $('#loadingSpinnerMessage').empty();
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
