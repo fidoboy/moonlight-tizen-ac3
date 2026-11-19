@@ -550,12 +550,12 @@ function blurElement(target) {
   }
 }
 
-// Determine if a popup menu container is active
+// Determine whether the popup menu associated with a trigger is active.
+// Resolve it through MDL's "for" relationship instead of assuming the menu
+// container is nested under the trigger's immediate parent.
 function isPopupMenuActive(id) {
-  const element = resolveElement(id);
-  const parent = element ? element.parentNode : null;
-  const container = parent && parent.querySelector ? parent.querySelector('.mdl-menu__container') : null;
-  // Check if the container exists and is visible
+  const menu = document.querySelector('.mdl-menu[for="' + id + '"]');
+  const container = menu && menu.closest('.mdl-menu__container');
   return !!(container && container.classList.contains('is-visible'));
 }
 
