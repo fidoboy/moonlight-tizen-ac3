@@ -31,7 +31,7 @@ OpusMSDecoder *opus_multistream_decoder_create(
 {
     (void)rate; (void)channels; (void)streams; (void)coupled; (void)mapping;
     if (error) *error = OPUS_OK;
-    return (OpusMSDecoder *)1;
+    return (OpusMSDecoder *)(uintptr_t)1;
 }
 void opus_multistream_decoder_destroy(OpusMSDecoder *decoder) { (void)decoder; }
 int opus_multistream_decode(OpusMSDecoder *decoder, const unsigned char *data,
