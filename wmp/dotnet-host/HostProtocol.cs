@@ -135,6 +135,24 @@ namespace MoonlightWmpHost
             }
         }
 
+        private static void NotifySupervisorStartupFinished()
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "startup_finished");
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_cancelled_after_cleanup");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_cancel_failed " + ex);
+            }
+        }
+
         internal static void NotifySupervisorExpectedExit(string reason)
         {
             try
@@ -1331,6 +1349,7 @@ namespace MoonlightWmpHost
                     Log.Info("WMP_LIFECYCLE native_start_failure_stop_begin");
                     _engine.Stop();
                     Log.Info("WMP_LIFECYCLE native_start_failure_stop_complete");
+                    NotifySupervisorStartupFinished();
                     Event(appId, remotePort, "streamTerminated: " +
                         nativeCode.ToString(CultureInfo.InvariantCulture),
                         String.IsNullOrEmpty(diagnostic)
@@ -1350,6 +1369,7 @@ namespace MoonlightWmpHost
                     Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_begin");
                     _engine.Stop();
                     Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_complete");
+                    NotifySupervisorStartupFinished();
                     Event(appId, remotePort, "streamTerminated: -1", diagnostic);
                     return;
                 }
@@ -1363,6 +1383,7 @@ namespace MoonlightWmpHost
                 if (StopWasRequested())
                 {
                     _engine.Stop();
+                    NotifySupervisorStartupFinished();
                     Event(appId, remotePort, "streamTerminated: 0", null);
                     return;
                 }
@@ -1509,6 +1530,7 @@ namespace MoonlightWmpHost
                 Log.Info("WMP_LIFECYCLE engine_stop_after_loop_begin");
                 _engine.Stop();
                 Log.Info("WMP_LIFECYCLE engine_stop_after_loop_complete");
+                if (!videoReady) NotifySupervisorStartupFinished();
                 Event(appId, remotePort, "streamTerminated: " +
                     terminationCode.ToString(CultureInfo.InvariantCulture), diagnostic);
             }
@@ -1518,6 +1540,7 @@ namespace MoonlightWmpHost
                 try { _engine.Stop(); } catch (Exception stopError) {
                     Log.Error("WMP_LIFECYCLE engine_stop_after_exception_failed " + stopError);
                 }
+                if (!videoReady) NotifySupervisorStartupFinished();
                 RecordDiagnostic("host worker exception: " + ex.GetType().Name + ": " + ex.Message);
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP host session worker failed: " + ex.Message);
