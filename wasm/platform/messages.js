@@ -1827,8 +1827,13 @@ function handleMessage(msg) {
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
     // A late first-frame notification must not revive a stream whose startup failed.
     if (window._streamStartupFailureHandled) return;
-    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
-    markStreamingEngineVideoReady();
+    var nativeWmpVideo = window.getStreamingEngineState().active === 'ESPLUSPLAYER';
+    // EMSS keeps its existing readiness boundary. WMP remains in startup until
+    // the transition layer has actually disappeared over the native video.
+    if (!nativeWmpVideo) {
+      if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
+      markStreamingEngineVideoReady();
+    }
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
     // "playing" event is also wired as a fallback for builds that omit this message.
