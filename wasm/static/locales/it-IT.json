@@ -648,5 +648,6 @@
   "Enable full color range": "Attivare la gamma cromatica completa",
   "Could not load the saved streaming settings.": "Impossibile caricare le impostazioni di streaming salvate.",
   "Could not apply the saved streaming-setting requirements.": "Impossibile applicare i requisiti delle impostazioni di streaming salvate.",
-  "Could not save the optimized streaming bitrate.": "Impossibile salvare il bitrate ottimizzato per lo streaming."
+  "Could not save the optimized streaming bitrate.": "Impossibile salvare il bitrate ottimizzato per lo streaming.",
+  "Audio input:": "Audio in ingresso:"
 }

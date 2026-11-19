@@ -1276,8 +1276,13 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       const uint32_t statsIntervalMs = nowMs - m_ActiveWndVideoStats.measurementStartTimestamp;
       const uint64_t audioBytesReceived =
         g_Instance->m_AudioBytesReceived.exchange(0, std::memory_order_relaxed);
+      const uint64_t audioBytesOutput =
+        g_Instance->m_AudioBytesOutput.exchange(0, std::memory_order_relaxed);
       const float audioBitrateKbps = statsIntervalMs > 0
         ? (static_cast<float>(audioBytesReceived) * 8.0f) / statsIntervalMs
+        : 0.0f;
+      const float audioOutputBitrateKbps = statsIntervalMs > 0
+        ? (static_cast<float>(audioBytesOutput) * 8.0f) / statsIntervalMs
         : 0.0f;
 
       // Sample audio FEC counters on the same one-second tick as text and graph statistics.
@@ -1291,6 +1296,7 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       AddVideoStats(m_LastWndVideoStats, lastTwoWndStats);
       AddVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
       lastTwoWndStats.receivedAudioBitrateKbps = audioBitrateKbps;
+      lastTwoWndStats.receivedAudioOutputBitrateKbps = audioOutputBitrateKbps;
 
       // Formatting failures only leave the diagnostics buffer empty or partial.
       // The formatter has no fatal assertions and never changes the video callback result.
@@ -1547,8 +1553,11 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       s_Width > 0 ? s_Width : 0, s_Height > 0 ? s_Height : 0,
       totalFps, codecString);
 
+    const float audioStreamBitrateKbps = opusToDolbyFallback
+      ? stats.receivedAudioOutputBitrateKbps
+      : stats.receivedAudioBitrateKbps;
     if (audioStreamEnabled && audioChannels > 0 &&
-        std::isfinite(stats.receivedAudioBitrateKbps) && stats.receivedAudioBitrateKbps >= 0) {
+        std::isfinite(audioStreamBitrateKbps) && audioStreamBitrateKbps >= 0) {
       const bool hardwareDecoderActive = (ac3Negotiated || eac3Negotiated)
         ? g_Instance->m_DolbyHardwareActive.load()
         : g_Instance->m_OpusHardwareActive.load();
@@ -1557,8 +1566,13 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         : (hardwareDecoderActive ? "Hardware" : "Software");
       append("Audio stream: %s [%s] (%s, %d channels, %.0f kbps)\n",
         audioCodecString, audioDecodingMode, audioLayoutString, audioChannels,
-        stats.receivedAudioBitrateKbps);
+        audioStreamBitrateKbps);
       if (opusToDolbyFallback) {
+        if (std::isfinite(stats.receivedAudioBitrateKbps) &&
+            stats.receivedAudioBitrateKbps >= 0) {
+          append("Audio input: OPUS (%.0f kbps)\n",
+            stats.receivedAudioBitrateKbps);
+        }
         append("Audio delay: %.2f ms\n",
           g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
       }
