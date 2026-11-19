@@ -136,11 +136,11 @@ bool OpusDolbyTranscoder::Initialize(
     return false;
   }
   m_EncoderContext->time_base = AVRational{1, 48000};
-  // E-AC-3 at 1536 kbps selects 3 blocks per frame (16 ms at 48 kHz).
-  // Keep the previous AC-3 bitrates when the legacy encoder path is selected.
-  m_EncoderContext->bit_rate = eac3
-    ? 1536000
-    : (outputChannels == 2 ? 192000 : 448000);
+  // Use each Dolby encoder's maximum bitrate: this is a local TV handoff, not a
+  // bandwidth-constrained network transport. At 6144 kbps FFmpeg selects one
+  // E-AC-3 block per frame (256 samples / 5.33 ms at 48 kHz), close to Sunshine's
+  // 5 ms Opus packets. AC-3 uses its 640 kbps maximum.
+  m_EncoderContext->bit_rate = eac3 ? 6144000 : 640000;
   m_EncoderContext->thread_count = 1;
   if (avcodec_open2(m_EncoderContext, encoder, nullptr) < 0 ||
       m_EncoderContext->frame_size <= 0) {
@@ -300,6 +300,10 @@ bool OpusDolbyTranscoder::Transcode(
     std::memory_order_relaxed);
   m_ProcessedPackets.fetch_add(1, std::memory_order_relaxed);
   return true;
+}
+
+int OpusDolbyTranscoder::GetOutputFrameSamples() const {
+  return m_EncoderContext != nullptr ? m_EncoderContext->frame_size : 0;
 }
 
 double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
