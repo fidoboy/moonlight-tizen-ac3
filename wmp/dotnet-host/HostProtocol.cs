@@ -1011,10 +1011,11 @@ namespace MoonlightWmpHost
             {
                 string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
                     stream.AudioCodec == 2 ? "AC-3" : "OPUS";
+                string audioMode = stream.AudioCodec == 4 ? "[Software]" : "[Hardware]";
                 string layout = stream.AudioChannels == 2 ? "Stereo" :
                     stream.AudioChannels == 6 ? "5.1" :
                     stream.AudioChannels == 8 ? "7.1" : "-";
-                text.Append("Audio stream: ").Append(audioCodec).Append(" [Hardware] (").Append(layout)
+                text.Append("Audio stream: ").Append(audioCodec).Append(' ').Append(audioMode).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
                     .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
