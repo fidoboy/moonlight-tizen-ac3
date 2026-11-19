@@ -295,9 +295,14 @@ bool OpusDolbyTranscoder::Transcode(
   }
 
   const auto processingElapsed = std::chrono::steady_clock::now() - processingStart;
-  m_ProcessingTimeNs.fetch_add(
-    static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count()),
-    std::memory_order_relaxed);
+  const uint64_t processingTimeNs = static_cast<uint64_t>(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count());
+  m_ProcessingTimeNs.fetch_add(processingTimeNs, std::memory_order_relaxed);
+  uint64_t previousMaximum = m_MaxProcessingTimeNs.load(std::memory_order_relaxed);
+  while (processingTimeNs > previousMaximum &&
+         !m_MaxProcessingTimeNs.compare_exchange_weak(
+           previousMaximum, processingTimeNs, std::memory_order_relaxed)) {
+  }
   m_ProcessedPackets.fetch_add(1, std::memory_order_relaxed);
   return true;
 }
@@ -313,6 +318,10 @@ double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
   }
   const uint64_t totalNs = m_ProcessingTimeNs.load(std::memory_order_relaxed);
   return static_cast<double>(totalNs) / static_cast<double>(packetCount) / 1000000.0;
+}
+
+double OpusDolbyTranscoder::GetMaxProcessingLatencyMs() const {
+  return static_cast<double>(m_MaxProcessingTimeNs.load(std::memory_order_relaxed)) / 1000000.0;
 }
 
 bool OpusDolbyTranscoder::DrainEncoder(
@@ -349,5 +358,6 @@ void OpusDolbyTranscoder::Cleanup() {
   m_Channels = 0;
   m_NextEncoderPts = 0;
   m_ProcessingTimeNs.store(0, std::memory_order_relaxed);
+  m_MaxProcessingTimeNs.store(0, std::memory_order_relaxed);
   m_ProcessedPackets.store(0, std::memory_order_relaxed);
 }
