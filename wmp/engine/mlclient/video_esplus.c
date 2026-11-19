@@ -31,11 +31,13 @@ static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
+static int s_rebuilt_waiting_for_idr;
 
 /* A rebuilt ESPlus player owns a new transparent overlay window. */
 void VidEsplus_ResetAfterPlayerRebuild(void)
 {
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    s_rebuilt_waiting_for_idr = 1;
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     s_last_frame_number = 0;
@@ -440,6 +442,7 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    s_rebuilt_waiting_for_idr = 0;
     s_last_frame_number = 0;
     s_have_frame_number = 0;
     /* Reset first, then establish the common PTS origin before either stream
@@ -463,6 +466,7 @@ static void VidDecCleanup(void)
     VLOG("video renderer cleanup\n");
     MLT("video cleanup");
     esplus_close();
+    s_rebuilt_waiting_for_idr = 0;
     __atomic_store_n(&esplus_stats.video_hdr_active, 0, __ATOMIC_RELAXED);
     free(s_scratch);
     s_scratch = NULL;
@@ -515,6 +519,12 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_last_frame_number = du->frameNumber;
     }
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
+
+    /* After rebuilding ESPlus, reject every delta frame until an IDR is
+     * actually accepted by the new decoder. A keyframe arriving during async
+     * prepare may itself be dropped, so the gate cannot be one-shot. */
+    if (s_rebuilt_waiting_for_idr && du->frameType != FRAME_TYPE_IDR)
+        return DR_NEED_IDR;
 
     /* A flushing seek invalidates queued reference frames. Reject one following
      * non-IDR so Common C requests a fresh keyframe from the host. */
@@ -624,6 +634,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
             result = esplus_submit(&packet);
         }
         if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+            if (s_rebuilt_waiting_for_idr && du->frameType == FRAME_TYPE_IDR)
+                s_rebuilt_waiting_for_idr = 0;
             /* HDR-active is a stream state, not a per-packet flag. Latch it
              * once ESPlus accepts an HDR-active Main10 access unit; clear it
              * only when the renderer stops or is reconfigured. */
