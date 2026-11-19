@@ -183,9 +183,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         MLT("native Opus configuration rejected");
         esplus_audio_registration_complete(0);
         return -1;
-    } else {
-        /* Keep a software decoder ready in case ESPlus rejects OPUS at preroll. */
-        opus_software_decoder_init(config);
     }
 
     if (!esplus_create_open()) {
@@ -218,6 +215,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         esplus_audio_registration_complete(0);
         return -1;
     }
+
+    if (!s_dolby)
+        opus_software_decoder_init(config);
 
     __atomic_store_n(&s_audio_codec_candidate,
         s_dolby
