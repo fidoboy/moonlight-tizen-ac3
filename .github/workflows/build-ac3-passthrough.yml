@@ -18,24 +18,6 @@ on:
       - 'ports/**'
       - 'wasm/**'
   pull_request:
-    branches:
-      - master
-    paths:
-      - 'CMakeLists.txt'
-      - 'Dockerfile'
-      - 'Dockerfile.webapp'
-      - '.dockerignore'
-      - 'res/**'
-      - 'h264bitstream/**'
-      - 'libgamestream/**'
-      - 'moonlight-common-c/**'
-      - 'opus/**'
-      - 'scripts/build-ffmpeg.sh'
-      - 'ports/**'
-      - 'wasm/**'
-      - '.github/release-notes.md'
-      - '.github/workflows/build-ac3-passthrough.yml'
-      - '.github/workflows/release-stable.yml'
   workflow_dispatch:
 
 permissions:
