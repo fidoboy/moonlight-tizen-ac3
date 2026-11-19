@@ -5721,23 +5721,6 @@ function showStreamTransitionBackground(onVisible) {
   // video-ready callback. In particular, termination must retain the closing layer.
   cancelStreamVideoReadyTransitionHide();
 
-  // Never expose progress text left over from the preceding phase while the
-  // transition layer is being revealed. Callers set the new title/status first;
-  // fadeInUiElement() reveals that content only after the background has appeared.
-  var loadingSpinner = document.getElementById('loadingSpinner');
-  if (loadingSpinner) {
-    var pendingSpinnerFade = uiElementFadeTimers.get(loadingSpinner);
-    if (pendingSpinnerFade !== undefined) {
-      window.clearTimeout(pendingSpinnerFade);
-      uiElementFadeTimers.delete(loadingSpinner);
-    }
-    loadingSpinner._uiFadeToken = (loadingSpinner._uiFadeToken || 0) + 1;
-    loadingSpinner._uiFadeTarget = 'hidden';
-    loadingSpinner.style.transition = 'none';
-    loadingSpinner.style.opacity = '0';
-    loadingSpinner.style.display = 'none';
-  }
-
   // The stream menu must never remain visible above a startup or shutdown transition.
   if ($('#streamMenuDialogOverlay').length > 0) closeStreamMenuDialog(false);
 
