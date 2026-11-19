@@ -645,5 +645,8 @@
   "Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.": "Consenti la sincronizzazione dei fotogrammi per bilanciare la latenza e la fluidità del video. Si consiglia di mantenerla attivata.",
   "Enable frame pacing": "Attivare la sincronizzazione dei fotogrammi",
   "Enable high dynamic range": "Attivare la gamma dinamica elevata",
-  "Enable full color range": "Attivare la gamma cromatica completa"
+  "Enable full color range": "Attivare la gamma cromatica completa",
+  "Could not load the saved streaming settings.": "Impossibile caricare le impostazioni di streaming salvate.",
+  "Could not apply the saved streaming-setting requirements.": "Impossibile applicare i requisiti delle impostazioni di streaming salvate.",
+  "Could not save the optimized streaming bitrate.": "Impossibile salvare il bitrate ottimizzato per lo streaming."
 }
