@@ -558,7 +558,7 @@ function ensurePerformanceStatsOverlayElements() {
       'The learned slow Opus decoder preference is active for this session');
   }
   container.insertBefore(slowOpusIndicator, engineElement);
-  slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'block' : 'none';
+  slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'table' : 'none';
 
   var activeEngine = window._activeStreamingEngine;
   var engineLabelElement = engineElement.querySelector('.performance-stats-label');
@@ -1896,7 +1896,7 @@ function handleMessage(msg) {
     window._slowOpusDecoderActive = msg.replace('SlowOpusDecoderStatus: ', '').trim() === '1';
     var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
     if (slowOpusIndicator) {
-      slowOpusIndicator.style.display = window._slowOpusDecoderActive ? 'block' : 'none';
+      slowOpusIndicator.style.display = window._slowOpusDecoderActive ? 'table' : 'none';
     }
   } else if (msg.indexOf('SlowOpusDecoderLearned: ') === 0) {
     var slowOpusLearned = msg.replace('SlowOpusDecoderLearned: ', '').trim();
