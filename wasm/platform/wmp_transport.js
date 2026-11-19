@@ -1971,19 +1971,34 @@
     abortPreparedStartup: function() {
       // Stop the watchdog first so killing WMP cannot cause it to be relaunched.
       close();
-      var firstSupervisorStop = stopExistingSupervisor().catch(function(error) {
-        debugLog('initial supervisor stop failed; will verify again after stopping WMP', {
-          serviceAppId: SUPERVISOR_APP_ID,
-          error: errorDetails(error)
+      function stopQuietly(stop, label) {
+        return stop().catch(function(error) {
+          debugLog(label + ' did not stop on the first attempt; cleanup will verify again', {
+            error: errorDetails(error)
+          });
         });
-      });
-      return firstSupervisorStop.then(function() {
-        return stopExistingService();
+      }
+      return stopQuietly(stopExistingSupervisor, 'WMP supervisor').then(function() {
+        return stopQuietly(stopExistingService, 'WMP service');
       }).then(function() {
-        return stopExistingSupervisor();
+        return stopQuietly(stopExistingSupervisor, 'WMP supervisor');
       }).then(function() {
+        return stopQuietly(stopExistingService, 'WMP service');
+      }).then(function() {
+        return Promise.all([
+          getRunningServiceContexts(SUPERVISOR_APP_ID),
+          getRunningServiceContexts(SERVICE_APP_ID)
+        ]);
+      }).then(function(contextGroups) {
+        var supervisorRunning = contextGroups[0].length > 0;
+        var serviceRunning = contextGroups[1].length > 0;
         connectPromise = null;
         connectionReady = false;
+        if (supervisorRunning || serviceRunning) {
+          throw makeError('native WMP cleanup incomplete: ' +
+            (supervisorRunning ? 'supervisor is still running; ' : '') +
+            (serviceRunning ? 'WMP service is still running' : ''));
+        }
         return true;
       }).catch(function(error) {
         connectPromise = null;
