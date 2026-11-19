@@ -12,9 +12,17 @@ volatile int esplus_performance_stats_enabled;
 
 void ml_engine_notify_audio_ready(void) {}
 
-int esplus_opus_fallback_ready(void) { return 0; }
+static int g_fallback_ready, g_recover_count, g_decode_samples;
+static int g_recover_result;
+static wmp_esplus_audio_info_t g_recovery_audio_info;
+
+int esplus_opus_fallback_ready(void) { return g_fallback_ready; }
 int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *info)
-{ (void)info; return -1; }
+{
+    ++g_recover_count;
+    g_recovery_audio_info = *info;
+    return g_recover_result;
+}
 
 OpusMSDecoder *opus_multistream_decoder_create(
     opus_int32 rate, int channels, int streams, int coupled,
@@ -28,8 +36,11 @@ void opus_multistream_decoder_destroy(OpusMSDecoder *decoder) { (void)decoder; }
 int opus_multistream_decode(OpusMSDecoder *decoder, const unsigned char *data,
     opus_int32 length, opus_int16 *pcm, int frame_size, int decode_fec)
 {
-    (void)decoder; (void)data; (void)length; (void)pcm; (void)frame_size; (void)decode_fec;
-    return OPUS_INVALID_PACKET;
+    size_t i, samples = (size_t)g_decode_samples;
+    (void)decoder; (void)data; (void)length; (void)decode_fec;
+    if (samples > (size_t)frame_size) return OPUS_BUFFER_TOO_SMALL;
+    for (i = 0; i < samples * 6u; ++i) pcm[i] = (opus_int16)i;
+    return g_decode_samples;
 }
 
 static int g_ac3, g_eac3, g_submit_count, g_registration_result, g_audio_registered;
@@ -63,6 +74,11 @@ static void reset_capture(void)
     g_registration_result = 0;
     g_audio_registered = 0;
     g_clock_pts_ns = 0;
+    g_fallback_ready = 0;
+    g_recover_count = 0;
+    g_decode_samples = 480;
+    g_recover_result = 0;
+    memset(&g_recovery_audio_info, 0, sizeof(g_recovery_audio_info));
 }
 
 static void make_opus_config(OPUS_MULTISTREAM_CONFIGURATION *opus)
@@ -145,6 +161,39 @@ static void test_opus_passthrough(void)
     callbacks.cleanup();
 }
 
+static void test_opus_software_fallback(void)
+{
+    AUDIO_RENDERER_CALLBACKS callbacks;
+    OPUS_MULTISTREAM_CONFIGURATION opus;
+    unsigned char frame[] = { 0x21, 0x32, 0x43, 0x54 };
+
+    reset_capture();
+    make_opus_config(&opus);
+    g_ac3 = 0;
+    g_eac3 = 0;
+    AudEsplus_SetDolbyPassthroughEnabled(0);
+    AudEsplus_FillCallbacks(&callbacks);
+    assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
+
+    g_clock_pts_ns = 20000000ull;
+    g_fallback_ready = 1;
+    callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
+
+    assert(g_recover_count == 1);
+    assert(g_recovery_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_PCM_S16LE);
+    assert(g_recovery_audio_info.channels == 6);
+    assert(g_recovery_audio_info.sample_rate == 48000);
+    assert(g_submit_count == 1);
+    assert(g_last_packet.type == WMP_ESPLUS_STREAM_AUDIO);
+    assert(g_last_packet.data != frame);
+    assert(g_last_packet.size == 480u * 6u * sizeof(opus_int16));
+    assert(g_last_packet.duration_ns == 10000000ull);
+    assert(g_last_packet.pts_ns == 20000000ull);
+    assert(AudEsplus_GetActiveAudioCodec() == 4);
+
+    callbacks.cleanup();
+}
+
 int main(void)
 {
     AUDIO_RENDERER_CALLBACKS callbacks;
@@ -166,6 +215,7 @@ int main(void)
     test_dolby_passthrough(0);
     test_dolby_passthrough(1);
     test_opus_passthrough();
+    test_opus_software_fallback();
     puts("WMP audio passthrough tests passed.");
     return 0;
 }
