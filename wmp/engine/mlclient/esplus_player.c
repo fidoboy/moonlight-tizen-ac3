@@ -125,6 +125,14 @@ static void *s_pl;
 static void *s_disp, *s_win;
 static int s_ecore;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t s_recovery_lock = PTHREAD_MUTEX_INITIALIZER;
+static volatile int s_opus_fallback_error;
+static volatile int s_opus_fallback_ready;
+static int s_opus_fallback_attempted;
+static wmp_esplus_video_info_t s_cached_video_info;
+static void *s_cached_video_codec_data;
+static int s_cached_video_info_valid;
+static int s_cached_window_width, s_cached_window_height;
 static pthread_cond_t s_state_cv = PTHREAD_COND_INITIALIZER;
 static volatile int s_prepared, s_prepare_ok, s_started;
 static int s_video_ready;
@@ -495,8 +503,12 @@ static void on_prepared(bool ok, void *context)
     s_prepared = 1;
     if (!ok) {
         s_prepare_failed = 1;
-        if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
+        if (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE)) {
+            __atomic_store_n(&s_opus_fallback_ready, 1, __ATOMIC_RELEASE);
+            MLT("OPUS hardware decoder rejected at preroll; software fallback is ready");
+        } else if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
             report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
+        }
     }
     pthread_cond_broadcast(&s_state_cv);
     pthread_mutex_unlock(&s_lock);
@@ -534,16 +546,29 @@ static void on_error(int error, void *context)
 {
     const char *description;
     int report_failure = 0;
+    int opus_fallback_error = 0;
     (void)context;
 
     description = wmp_esplus_adapter_get_error_string(&s_adapter, error);
     __atomic_fetch_add(&esplus_stats.errors, 1, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.last_error, (uint32_t)error, __ATOMIC_RELAXED);
 
+    /*
+     * Tizen 5.0 accepts OPUS registration and fails later during preroll when
+     * trackrenderer receives the first packet. 0xfe6c1008 is
+     * EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT. Recovery waits for prepare_async_done(false).
+     */
+    if ((uint32_t)error == 0xfe6c1008u &&
+        __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
+        !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
+        __atomic_store_n(&s_opus_fallback_error, 1, __ATOMIC_RELEASE);
+        opus_fallback_error = 1;
+    }
+
     /* ESPlusPlayer may invoke this on its own thread. Never tear down the
      * player from the callback: latch the error and ask Common C to terminate
      * through its normal asynchronous connectionTerminated path. */
-    if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
+    if (!opus_fallback_error && !__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
         report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
         if (pthread_mutex_trylock(&s_lock) == 0) {
             if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE))
@@ -656,6 +681,9 @@ int esplus_create_open(void)
     s_prepare_requested = 0;
     s_prepare_started = 0;
     s_audio_registration_done = 0;
+    __atomic_store_n(&s_opus_fallback_error, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_opus_fallback_ready, 0, __ATOMIC_RELEASE);
+    s_opus_fallback_attempted = 0;
     __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     __atomic_store_n(&s_player_closing, 0, __ATOMIC_RELEASE);
@@ -735,9 +763,32 @@ int esplus_set_video_info(const wmp_esplus_video_info_t *info)
             info->frame_rate, s_latency_env_unset ? "unset" : "set");
     }
     result = wmp_esplus_adapter_set_video_info(&s_adapter, info);
-    if (result.status != WMP_ESPLUS_CALL_SUCCESS)
+    if (result.status != WMP_ESPLUS_CALL_SUCCESS) {
         MLT("video stream registration failed status=%d raw=%d", (int)result.status, result.raw_status);
-    return result_to_int(result);
+        return result_to_int(result);
+    }
+
+    if (info) {
+        void *codec_copy = NULL;
+        if (info->codec_data && info->codec_data_size) {
+            codec_copy = malloc(info->codec_data_size);
+            if (!codec_copy) {
+                s_cached_video_info_valid = 0;
+                MLT("cannot cache video codec data for player recovery");
+                return -1;
+            }
+            memcpy(codec_copy, info->codec_data, info->codec_data_size);
+            free(s_cached_video_codec_data);
+            s_cached_video_codec_data = codec_copy;
+        } else {
+            free(s_cached_video_codec_data);
+            s_cached_video_codec_data = NULL;
+        }
+        s_cached_video_info = *info;
+        s_cached_video_info.codec_data = s_cached_video_codec_data;
+        s_cached_video_info_valid = 1;
+    }
+    return 0;
 }
 
 int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
@@ -878,6 +929,8 @@ int esplus_set_window(int width, int height)
             req.rc == -2 ? "set_ecore_display" : "Wayland window setup");
         return -1;
     }
+    s_cached_window_width = width;
+    s_cached_window_height = height;
     return 0;
 }
 
@@ -998,6 +1051,13 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
                  packet->size, (unsigned long long)packet->pts_ns);
     }
     pthread_mutex_lock(&s_lock);
+    if (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE) ||
+        __atomic_load_n(&s_opus_fallback_ready, __ATOMIC_ACQUIRE)) {
+        result.status = WMP_ESPLUS_SUBMIT_NOT_PREPARED;
+        result.raw_status = INT_MIN;
+        pthread_mutex_unlock(&s_lock);
+        return result;
+    }
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO) {
         /*
          * ESPlusPlayer's ready_to_prepare callback opens the video feeder
@@ -1111,6 +1171,82 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         MLT_DIAG("first ESPlus video submit RETURN status=%d raw=%d",
                  (int)result.status, result.raw_status);
     return result;
+}
+
+int esplus_opus_fallback_ready(void)
+{
+    return __atomic_load_n(&s_opus_fallback_ready, __ATOMIC_ACQUIRE);
+}
+
+extern void VidEsplus_ResetAfterPlayerRebuild(void);
+
+int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
+{
+    int width, height, have_video_config;
+    wmp_esplus_video_info_t video_info;
+
+    if (!pcm_info || pcm_info->mime_type != WMP_ESPLUS_AUDIO_MIME_PCM_S16LE ||
+        !esplus_opus_fallback_ready())
+        return -1;
+
+    pthread_mutex_lock(&s_recovery_lock);
+    if (s_opus_fallback_attempted) {
+        pthread_mutex_unlock(&s_recovery_lock);
+        return -1;
+    }
+    s_opus_fallback_attempted = 1;
+
+    pthread_mutex_lock(&s_lock);
+    width = s_cached_window_width;
+    height = s_cached_window_height;
+    video_info = s_cached_video_info;
+    if (s_cached_video_codec_data)
+        video_info.codec_data = s_cached_video_codec_data;
+    have_video_config = s_cached_video_info_valid && width > 0 && height > 0;
+    pthread_mutex_unlock(&s_lock);
+
+    if (!have_video_config) {
+        MLT("OPUS fallback cannot rebuild ESPlus: cached video configuration unavailable");
+        pthread_mutex_unlock(&s_recovery_lock);
+        return -1;
+    }
+
+    MLT("rebuilding ESPlus player after OPUS preroll rejection");
+    esplus_close();
+    if (!esplus_create_open()) {
+        MLT("OPUS fallback: ESPlus player create/open failed");
+        pthread_mutex_unlock(&s_recovery_lock);
+        return -1;
+    }
+    if (esplus_set_window(width, height) != 0) {
+        MLT("OPUS fallback: video window recreation failed");
+        goto fail_player;
+    }
+    if (esplus_set_video_info(&video_info) != 0) {
+        MLT("OPUS fallback: video stream re-registration failed");
+        goto fail_player;
+    }
+    if (esplus_set_audio_info(pcm_info) != 0) {
+        MLT("OPUS fallback: PCM stream registration failed");
+        goto fail_player;
+    }
+
+    VidEsplus_ResetAfterPlayerRebuild();
+    esplus_audio_registration_complete(1);
+    if (esplus_prepare() != 0) {
+        MLT("OPUS fallback: prepare request failed");
+        goto fail_player;
+    }
+    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
+    LiRequestIdrFrame();
+    MLT("OPUS fallback: new ESPlus instance registered for PCM_S16LE");
+    pthread_mutex_unlock(&s_recovery_lock);
+    return 0;
+
+fail_player:
+    esplus_close();
+    pthread_mutex_unlock(&s_recovery_lock);
+    return -1;
 }
 
 void esplus_close(void)
