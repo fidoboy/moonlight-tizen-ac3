@@ -1191,6 +1191,7 @@ int esplus_opus_fallback_ready(void)
     return __atomic_load_n(&s_opus_fallback_ready, __ATOMIC_ACQUIRE);
 }
 
+extern void VidEsplus_BeginPlayerRebuild(void);
 extern void VidEsplus_ResetAfterPlayerRebuild(void);
 
 int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
@@ -1227,6 +1228,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     }
 
     MLT("rebuilding ESPlus player after OPUS preroll rejection");
+    VidEsplus_BeginPlayerRebuild();
     esplus_close();
     if (!esplus_create_open()) {
         MLT("OPUS fallback: ESPlus player create/open failed");
