@@ -136,11 +136,11 @@ bool OpusDolbyTranscoder::Initialize(
     return false;
   }
   m_EncoderContext->time_base = AVRational{1, 48000};
-  // Use each Dolby encoder's maximum bitrate: this is a local TV handoff, not a
-  // bandwidth-constrained network transport. At 6144 kbps FFmpeg selects one
-  // E-AC-3 block per frame (256 samples / 5.33 ms at 48 kHz), close to Sunshine's
-  // 5 ms Opus packets. AC-3 uses its 640 kbps maximum.
-  m_EncoderContext->bit_rate = eac3 ? 6144000 : 640000;
+  // Use 640 kbps for both AC-3 and E-AC-3, regardless of whether the output
+  // is stereo or 5.1. For E-AC-3 this selects six blocks per frame
+  // (1536 samples / 32 ms at 48 kHz), reducing encoder and packet-delivery
+  // frequency compared with the previous 6144 kbps / one-block configuration.
+  m_EncoderContext->bit_rate = 640000;
   m_EncoderContext->thread_count = 1;
   if (avcodec_open2(m_EncoderContext, encoder, nullptr) < 0 ||
       m_EncoderContext->frame_size <= 0) {
