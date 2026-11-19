@@ -1236,12 +1236,12 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     }
 
     VidEsplus_ResetAfterPlayerRebuild();
+    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
     esplus_audio_registration_complete(1);
     if (esplus_prepare() != 0) {
         MLT("OPUS fallback: prepare request failed");
         goto fail_player;
     }
-    __atomic_store_n(&s_need_idr, 1, __ATOMIC_RELEASE);
     LiRequestIdrFrame();
     MLT("OPUS fallback: new ESPlus instance registered for PCM_S16LE");
     pthread_mutex_unlock(&s_recovery_lock);
