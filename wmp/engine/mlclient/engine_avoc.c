@@ -30,6 +30,9 @@ typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);
 typedef int (*avoc_set_cloud_game_mode_fn)(int mode);
 typedef int (*avoc_get_cloud_game_mode_fn)(int *mode);
 
+/* SetPictureMode: (reserved, display_index, mode) -> AVOC result. */
+typedef int (*avoc_set_picture_mode_fn)(int reserved, int display_index, int mode);
+
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
 static avoc_set_game_mode_fn s_set_game_mode;
@@ -42,6 +45,11 @@ static void *s_cloud_library;
 static avoc_set_cloud_game_mode_fn s_set_cloud_game_mode;
 static avoc_get_cloud_game_mode_fn s_get_cloud_game_mode;
 static int s_cloud_lookup_attempted;
+
+/* Independent handle and symbol for the Picture Mode API. */
+static void *s_picture_library;
+static avoc_set_picture_mode_fn s_set_picture_mode;
+static int s_picture_lookup_attempted;
 
 static int resolve_avoc(void)
 {
@@ -290,5 +298,64 @@ int ml_avoc_set_cloud_game_mode(int enabled)
 
     pthread_mutex_unlock(&s_lock);
     return setter_rc;
+}
+
+/*
+ * Resolve Picture Mode independently of both Game Mode APIs.
+ * ABI reconstructed from the target libavoc.so wrapper:
+ *   int avoc_set_picture_mode(int reserved, int display_index, int mode);
+ * The wrapper serializes display_index and mode as the two D-Bus inputs.
+ */
+static int resolve_avoc_picture_mode(void)
+{
+    const char *error;
+
+    if (s_picture_lookup_attempted)
+        return s_picture_library != NULL && s_set_picture_mode != NULL;
+
+    s_picture_lookup_attempted = 1;
+    (void)dlerror();
+    s_picture_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
+    error = dlerror();
+    if (!s_picture_library) {
+        MLT("AVOC Picture Mode: dlopen(libavoc.so) failed: %s",
+            error ? error : "no dynamic-loader diagnostic");
+        return 0;
+    }
+
+    (void)dlerror();
+    *(void **)(&s_set_picture_mode) =
+        dlsym(s_picture_library, "avoc_set_picture_mode");
+    error = dlerror();
+    if (error || !s_set_picture_mode) {
+        MLT("AVOC Picture Mode: dlsym(avoc_set_picture_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        (void)dlclose(s_picture_library);
+        s_picture_library = NULL;
+        s_set_picture_mode = NULL;
+        return 0;
+    }
+
+    MLT("AVOC Picture Mode: avoc_set_picture_mode resolved (3-argument ARM ABI)");
+    return 1;
+}
+
+/* Set the picture mode for the requested display; mode values are AVOC enums. */
+int ml_avoc_set_picture_mode(int display_index, int mode)
+{
+    int rc;
+
+    pthread_mutex_lock(&s_lock);
+    if (!resolve_avoc_picture_mode()) {
+        pthread_mutex_unlock(&s_lock);
+        return -1;
+    }
+
+    rc = s_set_picture_mode(0, display_index, mode);
+    MLT("AVOC Picture Mode: set(display=%d, mode=%d) -> rc=%d",
+        display_index, mode, rc);
+
+    pthread_mutex_unlock(&s_lock);
+    return rc;
 }
 
