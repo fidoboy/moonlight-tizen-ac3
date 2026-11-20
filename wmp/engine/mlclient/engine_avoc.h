@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int ml_avoc_set_game_mode(int enabled);
+int ml_avoc_set_cloud_game_mode(int enabled);
 
 #ifdef __cplusplus
 }
