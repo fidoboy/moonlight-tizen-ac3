@@ -5249,7 +5249,7 @@ function showApps(host, options) {
                   appEntry.txtPath = '/opt/usr/home/owner/content/Documents/' + filename;
                 }
                 appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
-                appEntry.imageRatio = '16by9';
+                appEntry.imageRatio = '2by3';
                 resolveBoxArt();
 
                 // Early return to prevent the fallback synchronous resolveBoxArt from firing
@@ -10448,7 +10448,7 @@ function updatePreviewData() {
       var tiles = apps.map(function(app, index) {
         var tile = {
           image_url: app.imageUri,
-          image_ratio: '16by9',
+          image_ratio: '2by3',
           action_data: JSON.stringify({
             serverUid: String(serverUid),
             address: entry.address,
