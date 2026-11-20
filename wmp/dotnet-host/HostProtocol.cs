@@ -972,7 +972,7 @@ namespace MoonlightWmpHost
         }
 
         private static string FormatStats(StartRequest request, EngineApi.Stats stats,
-                                          EngineApi.StreamInfo stream)
+                                          EngineApi.StreamInfo stream, uint opusSoftwareDecodeAverageUs)
         {
             var text = new System.Text.StringBuilder(768);
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
@@ -1021,6 +1021,12 @@ namespace MoonlightWmpHost
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
             }
+
+            // This metric exists only when ESPlus rejected compressed OPUS and libopus is active.
+            if (stream.AudioCodec == 4)
+                text.Append("Audio delay: ")
+                    .Append((opusSoftwareDecodeAverageUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
+                    .Append(" ms\n");
 
             if (request.AudioEnabled == 0)
                 text.Append("Audio FEC: -\n");
@@ -1476,7 +1482,10 @@ namespace MoonlightWmpHost
                                 streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
                                 if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                     streamInfo = new EngineApi.StreamInfo();
-                                SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
+                                uint opusSoftwareDecodeAverageUs = streamInfo.AudioCodec == 4
+                                    ? _engine.TakeOpusSoftwareDecodeAverageUs() : 0;
+                                SendStatsUpdateIfEnabled(appId, remotePort,
+                                    FormatStats(request, stats, streamInfo, opusSoftwareDecodeAverageUs));
                                 string graphMessage = "GraphMsg: " +
                                     streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
                                     streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +

@@ -119,6 +119,8 @@ int ml_engine_video_ready(void);
 int ml_engine_input_capabilities(void);
 /* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */
 int ml_engine_get_active_audio_codec(void);
+/* Atomically take the mean libopus decode execution time (microseconds) since the previous stats snapshot; 0 outside the ESPlus libopus fallback. */
+uint32_t ml_engine_take_opus_software_decode_average_us(void);
 /* Returns the Common C negotiated media-encryption bitmask, or -1 while unknown. */
 int ml_engine_get_encryption_status(void);
 
