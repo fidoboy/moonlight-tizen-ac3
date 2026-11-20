@@ -7207,7 +7207,7 @@ function savePreviewApps() {
   // This cache is shared by Smart Hub Preview and the main UI, so persist it
   // even when Smart Hub Preview is unavailable on the current device.
   console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
-  storeData('previewApps', _previewApps, null);
+  return storeData('previewApps', _previewApps, null);
 }
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
@@ -10528,8 +10528,12 @@ function removeDirectSmartHubPreviewTile() {
     if (hostEntry.apps.length === 0) delete previewApps[targetServerUid];
     _previewApps = previewApps;
     console.warn('%c[index.js, removeDirectSmartHubPreviewTile]', 'color: orange;', 'Removed only stale Preview tile for host ' + targetServerUid + ', app ' + targetAppId + '.');
-    savePreviewApps();
-    updatePreviewData();
+    savePreviewApps().then(function() {
+      updatePreviewData();
+    }).catch(function(error) {
+      console.error('%c[index.js, removeDirectSmartHubPreviewTile]', 'color: red;', 'Could not persist the removed Preview tile:', error);
+      updatePreviewData();
+    });
   });
 }
 
