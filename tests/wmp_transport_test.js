@@ -408,10 +408,10 @@ vm.runInNewContext(source, {
   const mouseMoveCount = pendingMessages.filter(message => message.command === 'mouse_move').length;
   window.dispatchEvent({
     type: 'esplusgamepadstate',
-    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0, 0, 0.5, 0]}
+    detail: {gamepadIndex: 0, buttons: startHeld, axes: [0.5, 0, 0, 0]}
   });
   assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCount,
-    'the default right stick must generate native mouse movement while mouse emulation is active');
+    'the default right stick must use Tizen physical right-stick axes for native mouse movement');
   const mouseMoveCountAfterAxisChange = pendingMessages.filter(message => message.command === 'mouse_move').length;
   await new Promise(resolve => setTimeout(resolve, 40));
   assert.ok(pendingMessages.filter(message => message.command === 'mouse_move').length > mouseMoveCountAfterAxisChange,
