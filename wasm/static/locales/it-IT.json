@@ -653,8 +653,8 @@
   "Preparing native video playback service...": "Preparazione del servizio nativo di riproduzione video...",
   "The local device could not prepare the native video playback service.": "Il dispositivo locale non è riuscito a preparare il servizio nativo di riproduzione video.",
   "WMP cleanup failed:": "Pulizia WMP non riuscita:",
-  "The selected app is no longer available on the host.": "L’app selezionata non è più disponibile sull’host.",
-  "Could not retrieve the requested application from the host.": "Impossibile recuperare l’applicazione richiesta dall’host.",
-  "Moonlight could not restore the selected host.": "Moonlight non è riuscito a ripristinare l’host selezionato.",
+  "The selected app is no longer available on the host.": "L'app selezionata non è più disponibile sull'host.",
+  "Could not retrieve the requested application from the host.": "Impossibile recuperare l'applicazione richiesta dall'host.",
+  "Moonlight could not restore the selected host.": "Moonlight non è riuscito a ripristinare l'host selezionato.",
   "Audio latency:": "Latenza audio:"
 }
