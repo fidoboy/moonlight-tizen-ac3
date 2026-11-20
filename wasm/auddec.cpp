@@ -126,21 +126,28 @@ static bool InitializeDolbySoftwareDecoder(int audioConfiguration,
   return true;
 }
 
-static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
+static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
   OpusMSDecoder* decoder, const unsigned char* sampleData, int sampleLength) {
   int decodeLen;
   
-  // Decode the incoming audio packet using Opus decoder
+  // Measure only the time spent inside libopus; packet construction and EMSS submission
+  // are deliberately outside this interval.
+  const auto opusDecodeStart = std::chrono::steady_clock::now();
   decodeLen = opus_multistream_decode(
     decoder, sampleData, sampleLength,
     s_DecodeBuffer.data(), s_samplesPerFrame, 0
   );
+  const auto opusDecodeElapsed = std::chrono::steady_clock::now() - opusDecodeStart;
+  if (g_Instance != nullptr) {
+    g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(opusDecodeElapsed).count()));
+  }
 
   // Check if audio decoding failed
   if (decodeLen <= 0) {
     // Reset the buffer contents to zero when decoding fails
     s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
-    return false;
+    return;
   }
 
   // Calculate desired buffer size in bytes for decoded audio data
@@ -159,8 +166,7 @@ static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   };
 
   // Attempt to append the packet to the audio track for rendering
-  const bool appended = track->AppendPacket(pkt);
-  if (appended) {
+  if (track->AppendPacket(pkt)) {
     // If successful, update the presentation timestamp for the next packet
     s_pktPts += s_frameDuration;
   } else {
@@ -171,7 +177,6 @@ static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   if (s_desiredBufferSize > s_DecodeBuffer.size()) {
     s_DecodeBuffer.resize(s_desiredBufferSize);
   }
-  return appended;
 }
 
 static bool s_LoggedFirstOpusPassthroughPacket = false;
@@ -542,7 +547,6 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
-    const auto softwareProcessingStart = std::chrono::steady_clock::now();
     if (!s_OpusDolbyTranscoder.Transcode(
           reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
           s_EncodedDolbyPackets)) {
@@ -565,7 +569,6 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     }
     const TimeStamp encodedFrameDuration = FrameDuration(outputFrameSamples, s_sampleRate);
 
-    bool appendedAnyEncodedPacket = false;
     for (const auto& encodedPacket : s_EncodedDolbyPackets) {
       if (encodedPacket.empty()) {
         continue;
@@ -586,17 +589,11 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
           kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3");
         continue;
       }
-      appendedAnyEncodedPacket = true;
       g_Instance->m_AudioBytesOutput.fetch_add(
         static_cast<uint64_t>(encodedPacket.size()), std::memory_order_relaxed);
       s_pktPts += encodedFrameDuration;
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + encodedFrameDuration;
       s_OpusDolbyTranscodeErrors = 0;
-    }
-    if (s_EncodedDolbyPackets.empty() || appendedAnyEncodedPacket) {
-      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
-      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
     }
     return;
   }
@@ -640,15 +637,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   } else {
     // Preserve the existing libopus-to-PCM path as the fallback.
-    const auto softwareProcessingStart = std::chrono::steady_clock::now();
-    if (DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-      reinterpret_cast<unsigned char*>(sampleData), sampleLength
-    )) {
-      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
-      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
-    }
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   }
 
   // Update the estimated audio end time to prevent future overflow
