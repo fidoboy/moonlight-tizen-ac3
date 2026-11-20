@@ -18,6 +18,11 @@ run_tz() {
 }
 
 TIZEN_CORE_CLI="/home/tizen/tizen-studio/tools/tizen-core/tz"
+DOTNET_BUILD_CONFIGURATION="${DOTNET_BUILD_CONFIGURATION:-Release}"
+case "$DOTNET_BUILD_CONFIGURATION" in
+  Debug|Release) ;;
+  *) echo "::error::Unsupported .NET build configuration: $DOTNET_BUILD_CONFIGURATION"; exit 1 ;;
+esac
 export TIZEN_STUDIO_DATA_PATH="/home/tizen/tizen-studio-data"
 mkdir -p "$TIZEN_STUDIO_DATA_PATH"
         
@@ -102,11 +107,11 @@ rm -f "$service_project/AmbilightService_App.cs"
 cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
 cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
 cp ambilight-service/TizenAmbilight.csproj "$service_project/AmbilightService.csproj"
-cat > "$service_project/tizen_dotnet_project.yaml" <<'YAML'
+cat > "$service_project/tizen_dotnet_project.yaml" <<YAML
 csproj_file: AmbilightService.csproj
 profile: tv-samsung
 api_version: "6.0"
-build_type: Release
+build_type: $DOTNET_BUILD_CONFIGURATION
 signing_profile: Moonlight
 files:
   - AmbilightService.csproj
@@ -172,11 +177,11 @@ PY
 test -s wmp/dotnet-host/lib/libmlengine.so
 mkdir -p "$wmp_service_project/res/lib"
 cp wmp/dotnet-host/lib/libmlengine.so "$wmp_service_project/res/lib/libmlengine.so"
-cat > "$wmp_service_project/tizen_dotnet_project.yaml" <<'YAML'
+cat > "$wmp_service_project/tizen_dotnet_project.yaml" <<YAML
 csproj_file: WmpService.csproj
 profile: tv-samsung
 api_version: "6.0"
-build_type: Release
+build_type: $DOTNET_BUILD_CONFIGURATION
 signing_profile: Moonlight
 files:
   - WmpService.csproj
@@ -240,14 +245,14 @@ echo "::endgroup::"
 # Build Ambilight first, explicitly, so the Tizen.NET workload is initialized before
 # the WMP project is evaluated. The dependency graph may otherwise schedule WMP
 # first; on a cold build that can make MSBuild fail to resolve Tizen.NET.Sdk/1.1.6.
-run_tz "build-ambilight-sdk-bootstrap" "$TIZEN_CORE_CLI" build -w "$service_project" -s Moonlight -b Release
+run_tz "build-ambilight-sdk-bootstrap" "$TIZEN_CORE_CLI" build -w "$service_project" -s Moonlight -b "$DOTNET_BUILD_CONFIGURATION"
 
 run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d "$ambilight_dependency,$wmp_dependency"
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
 # Tizen Core builds both .NET service projects through the Web project's
 # dependency graph. Collect their signed TPKs for the final hybrid pack.
-mapfile -t service_pkgs < <(find "$service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+mapfile -t service_pkgs < <(find "$service_project/bin/$DOTNET_BUILD_CONFIGURATION/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
 if (( ${#service_pkgs[@]} != 1 )); then
   echo "::error::Expected exactly one Ambilight Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
   printf '%s\\n' "${service_pkgs[@]}"
@@ -258,7 +263,7 @@ test -s "$service_tpk"
 echo "Ambilight service TPK: $service_tpk"
 unzip -tq "$service_tpk"
 
-mapfile -t wmp_pkgs < <(find "$wmp_service_project/bin/Release/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
+mapfile -t wmp_pkgs < <(find "$wmp_service_project/bin/$DOTNET_BUILD_CONFIGURATION/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
 if (( ${#wmp_pkgs[@]} != 1 )); then
   echo "::error::Expected exactly one WMP Tizen 6.0 / API 8 service TPK; found ${#wmp_pkgs[@]}."
   printf '%s\\n' "${wmp_pkgs[@]}"
