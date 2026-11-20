@@ -1057,6 +1057,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
     wmp_esplus_submit_result_t result;
     wmp_esplus_call_result_t started;
     int diag_first_video_submit = 0;
+    int synthesize_prepare_failure = 0;
 
     if (packet && packet->type == WMP_ESPLUS_STREAM_VIDEO &&
         !__atomic_exchange_n(&s_diag_submit_seen, 1, __ATOMIC_ACQ_REL)) {
@@ -1176,6 +1177,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         !__atomic_exchange_n(&s_opus_fallback_test_used, 1, __ATOMIC_ACQ_REL)) {
         MLT("TEST: synthesizing EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT after first OPUS preroll packet");
         on_error((int)WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT, NULL);
+        synthesize_prepare_failure = 1;
     }
 
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
@@ -1201,6 +1203,13 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         }
     }
     pthread_mutex_unlock(&s_lock);
+    /*
+     * The test injection must reproduce both asynchronous notifications emitted
+     * by a real preroll rejection. Invoke prepare_async_done(false) only after
+     * releasing s_lock because on_prepared() acquires that mutex itself.
+     */
+    if (synthesize_prepare_failure)
+        on_prepared(false, NULL);
     if (diag_first_video_submit)
         MLT_DIAG("first ESPlus video submit RETURN status=%d raw=%d",
                  (int)result.status, result.raw_status);
