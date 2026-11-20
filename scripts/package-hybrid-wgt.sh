@@ -249,9 +249,14 @@ run_tz "build-ambilight-sdk-bootstrap" "$TIZEN_CORE_CLI" build -w "$service_proj
 
 run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d "$ambilight_dependency,$wmp_dependency"
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
-        
-# Tizen Core builds both .NET service projects through the Web project's
-# dependency graph. Collect their signed TPKs for the final hybrid pack.
+
+# The hybrid Web build uses Release for its own configuration. Tizen Core may
+# consequently build WMP in Release despite the service project's build_type.
+# Build WMP explicitly afterwards in the requested .NET configuration so the
+# TPK collected below always matches DOTNET_BUILD_CONFIGURATION.
+run_tz "build-wmp-service" "$TIZEN_CORE_CLI" build -w "$wmp_service_project" -s Moonlight -b "$DOTNET_BUILD_CONFIGURATION"
+
+# Collect the signed TPKs for the final hybrid pack from the selected .NET configuration.
 mapfile -t service_pkgs < <(find "$service_project/bin/$DOTNET_BUILD_CONFIGURATION/tizen80" -type f -name '*.tpk' -not -path '*/obj/*' | sort)
 if (( ${#service_pkgs[@]} != 1 )); then
   echo "::error::Expected exactly one Ambilight Tizen 6.0 / API 8 service TPK; found ${#service_pkgs[@]}."
