@@ -9627,9 +9627,9 @@ function loadDirectSmartHubStreamSettings() {
       document.documentElement.style.backgroundColor = 'transparent';
       document.body.style.backgroundColor = 'transparent';
     }
-    streamTransitionBackgroundEnabled = !_directSmartHubNativeLaunch && (stored.streamTransitionBackground == null ||
+    streamTransitionBackgroundEnabled = stored.streamTransitionBackground == null ||
       stored.streamTransitionBackground === true || stored.streamTransitionBackground === 'true' ||
-      stored.streamTransitionBackground === 1);
+      stored.streamTransitionBackground === 1;
     activeColorTheme = normalizeColorTheme(stored.colorTheme);
     focusedColorTheme = activeColorTheme;
     document.body.setAttribute('data-color-theme', activeColorTheme);
