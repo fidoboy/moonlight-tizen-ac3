@@ -2296,7 +2296,10 @@ const Views = {
   },
   SelectMouseEmulationStickMenu: {
     isActive: () => isPopupMenuActive('selectMouseEmulationStick'),
-    view: new ListView(() => document.querySelector('.mouseEmulationStickMenu').children),
+    view: new ListView(() => {
+      const menu = document.querySelector('.mouseEmulationStickMenu');
+      return menu ? menu.children : [];
+    }),
     up: function() { this.view.prevOption(); },
     down: function() { this.view.nextOption(); },
     left: function() {},
