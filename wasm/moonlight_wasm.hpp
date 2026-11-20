@@ -1,6 +1,7 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <queue>
 
 #include <emscripten/bind.h>
@@ -182,6 +183,31 @@ class MoonlightInstance {
   static void FormatVideoStats(VIDEO_STATS& stats, char* output, int length);
   void TogglePerformanceStats();
   bool IsAudioBackendEnabled() const { return m_AudioBackend != AudioBackend::Disabled; }
+  void AddAudioSoftwareProcessingTime(uint64_t elapsedNs) {
+    if (!m_PerformanceStatsEnabled.load(std::memory_order_relaxed)) {
+      return;
+    }
+    std::lock_guard<std::mutex> lock(m_AudioSoftwareProcessingMutex);
+    m_AudioSoftwareProcessingTimeNs += elapsedNs;
+    ++m_AudioSoftwareProcessedPackets;
+  }
+  double TakeAudioSoftwareProcessingAverageMs() {
+    std::lock_guard<std::mutex> lock(m_AudioSoftwareProcessingMutex);
+    if (m_AudioSoftwareProcessedPackets == 0) {
+      m_AudioSoftwareProcessingTimeNs = 0;
+      return 0.0;
+    }
+    const double averageMs = static_cast<double>(m_AudioSoftwareProcessingTimeNs) /
+      static_cast<double>(m_AudioSoftwareProcessedPackets) / 1000000.0;
+    m_AudioSoftwareProcessingTimeNs = 0;
+    m_AudioSoftwareProcessedPackets = 0;
+    return averageMs;
+  }
+  void ResetAudioSoftwareProcessingStats() {
+    std::lock_guard<std::mutex> lock(m_AudioSoftwareProcessingMutex);
+    m_AudioSoftwareProcessingTimeNs = 0;
+    m_AudioSoftwareProcessedPackets = 0;
+  }
 
   static int AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* context, int arFlags);
   static void AudDecCleanup(void);
@@ -272,6 +298,9 @@ class MoonlightInstance {
   std::string m_DolbyDecodingMode {"Hardware"};
   std::atomic<uint64_t> m_AudioBytesReceived {0};
   std::atomic<uint64_t> m_AudioBytesOutput {0};
+  std::mutex m_AudioSoftwareProcessingMutex;
+  uint64_t m_AudioSoftwareProcessingTimeNs {0};
+  uint64_t m_AudioSoftwareProcessedPackets {0};
   bool m_AudioSyncEnabled;
   int m_AudioJitterMs;
   bool m_PlayHostAudioEnabled;
