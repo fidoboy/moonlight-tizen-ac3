@@ -6077,7 +6077,7 @@ function startGame(host, appID) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
     var requestedAppLookup = _directSmartHubLaunch
-      ? host.getAppListWithCacheFlush().then(function(appList) {
+      ? host.getAppListWithCacheFlush(true, true).then(function(appList) {
           return appList.find(function(app) { return String(app.id) === String(appID); }) || null;
         })
       : host.getAppById(appID);
