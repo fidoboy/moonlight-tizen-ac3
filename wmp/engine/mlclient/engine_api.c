@@ -11,7 +11,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <pthread.h>
 #include <errno.h>
 #include <dlfcn.h>
 
