@@ -129,6 +129,7 @@ static int s_ecore;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_recovery_lock = PTHREAD_MUTEX_INITIALIZER;
 static int opus_recovery_worker_start(void);
+static void esplus_close_internal(void);
 static pthread_t s_opus_recovery_thread;
 static int s_opus_recovery_thread_started;
 static unsigned s_player_generation;
@@ -1343,7 +1344,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
 
     MLT("rebuilding ESPlus player after OPUS preroll rejection");
     VidEsplus_BeginPlayerRebuild();
-    esplus_close();
+    esplus_close_internal();
     if (!esplus_create_open()) {
         MLT("OPUS fallback: ESPlus player create/open failed");
         VidEsplus_CancelPlayerRebuild();
@@ -1380,14 +1381,14 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
 fail_player:
     failure_already_reported =
         __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) != 0;
-    esplus_close();
+    esplus_close_internal();
     pthread_mutex_unlock(&s_recovery_lock);
     if (!failure_already_reported)
         LiReportVideoRendererError();
     return -1;
 }
 
-void esplus_close(void)
+static void esplus_close_internal(void)
 {
 
     pthread_mutex_lock(&s_lock);
@@ -1448,3 +1449,11 @@ void esplus_close(void)
         ecore_runtime_unload();
     }
 }
+
+void esplus_close(void)
+{
+    pthread_mutex_lock(&s_recovery_lock);
+    esplus_close_internal();
+    pthread_mutex_unlock(&s_recovery_lock);
+}
+
