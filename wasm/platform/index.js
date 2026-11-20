@@ -776,7 +776,6 @@ function getSmartHubPreviewFileName(serverUid, appId) {
 }
 
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
-// Smart Hub Preview publication is gated by the Web Service capability check above.
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
