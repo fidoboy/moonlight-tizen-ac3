@@ -10462,7 +10462,7 @@ function updatePreviewData() {
         return tile;
       });
       totalTiles += tiles.length;
-      if (tiles.length) sections.push({ title: 'Apps en ' + (entry.hostname || t('Host')), tiles: tiles });
+      if (tiles.length) sections.push({ title: t('Apps in %1$s', entry.hostname || t('Host')), tiles: tiles });
     });
 
     if (!sections.length) {
