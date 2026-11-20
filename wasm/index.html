@@ -53,6 +53,17 @@
     html.app-starting #performance-stats {
       visibility: visible !important;
     }
+    /* Native playback is rendered by Wayland behind the Web application.
+       Keep the direct-launch document and transition surface alpha-transparent. */
+    html.app-starting.native-stream-launch,
+    html.app-starting.native-stream-launch body {
+      background-color: transparent !important;
+    }
+    html.app-starting.native-stream-launch #stream-transition-layer,
+    html.app-starting.native-stream-launch #stream-transition-frame {
+      background: transparent !important;
+      background-color: transparent !important;
+    }
   </style>
   <script type="text/javascript" src="platform.js"></script>
 </head>
