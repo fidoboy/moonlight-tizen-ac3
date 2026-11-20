@@ -6530,7 +6530,8 @@ function startGame(host, appID) {
           dolbyChannelLayout,
           dolbyDecodingMode,
           h264Level,
-          selectHoldStreamMenu
+          selectHoldStreamMenu,
+          mouseEmulationStick
         ]);
       }, async function(failedLaunchApp) {
         await abortPreparedNativeService();
