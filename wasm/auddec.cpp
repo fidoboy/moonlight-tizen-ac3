@@ -126,7 +126,7 @@ static bool InitializeDolbySoftwareDecoder(int audioConfiguration,
   return true;
 }
 
-static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
+static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
   OpusMSDecoder* decoder, const unsigned char* sampleData, int sampleLength) {
   int decodeLen;
   
@@ -140,7 +140,7 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   if (decodeLen <= 0) {
     // Reset the buffer contents to zero when decoding fails
     s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
-    return;
+    return false;
   }
 
   // Calculate desired buffer size in bytes for decoded audio data
@@ -159,7 +159,8 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   };
 
   // Attempt to append the packet to the audio track for rendering
-  if (track->AppendPacket(pkt)) {
+  const bool appended = track->AppendPacket(pkt);
+  if (appended) {
     // If successful, update the presentation timestamp for the next packet
     s_pktPts += s_frameDuration;
   } else {
@@ -170,6 +171,7 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   if (s_desiredBufferSize > s_DecodeBuffer.size()) {
     s_DecodeBuffer.resize(s_desiredBufferSize);
   }
+  return appended;
 }
 
 static bool s_LoggedFirstOpusPassthroughPacket = false;
@@ -259,6 +261,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 
   // Latch the audio backend selected for this streaming session
   s_AudioBackend = g_Instance->m_AudioBackend;
+  g_Instance->ResetAudioSoftwareProcessingStats();
 
   // Skip creating the Opus decoder when the audio output is disabled, as every audio packet is discarded
   if (s_AudioBackend == AudioBackend::Disabled) {
@@ -397,6 +400,7 @@ void MoonlightInstance::AudDecCleanup(void) {
   if (g_Instance != nullptr) {
     g_Instance->m_OpusToDolbyTranscode.store(false);
     g_Instance->m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
+    g_Instance->ResetAudioSoftwareProcessingStats();
   }
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
@@ -538,6 +542,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
     if (!s_OpusDolbyTranscoder.Transcode(
           reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
           s_EncodedDolbyPackets)) {
@@ -560,6 +565,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     }
     const TimeStamp encodedFrameDuration = FrameDuration(outputFrameSamples, s_sampleRate);
 
+    bool appendedAnyEncodedPacket = false;
     for (const auto& encodedPacket : s_EncodedDolbyPackets) {
       if (encodedPacket.empty()) {
         continue;
@@ -580,11 +586,17 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
           kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3");
         continue;
       }
+      appendedAnyEncodedPacket = true;
       g_Instance->m_AudioBytesOutput.fetch_add(
         static_cast<uint64_t>(encodedPacket.size()), std::memory_order_relaxed);
       s_pktPts += encodedFrameDuration;
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + encodedFrameDuration;
       s_OpusDolbyTranscodeErrors = 0;
+    }
+    if (appendedAnyEncodedPacket) {
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
     }
     return;
   }
@@ -628,10 +640,15 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   } else {
     // Preserve the existing libopus-to-PCM path as the fallback.
-    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
+    if (DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
       reinterpret_cast<unsigned char*>(sampleData), sampleLength
-    );
+    )) {
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
+    }
   }
 
   // Update the estimated audio end time to prevent future overflow
