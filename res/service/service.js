@@ -146,24 +146,13 @@ function handleDataInRequest() {
     }
 
     var appControlData = req.appControl.data;
-    var probeRequested = false;
     var previewJson = null;
 
     appControlData.forEach(function(entry) {
-      if (entry.key === 'probe' || entry.key === 'Probe') {
-        probeRequested = true;
-      } else if (entry.key === 'preview' || entry.key === 'Preview') {
+      if (entry.key === 'preview' || entry.key === 'Preview') {
         previewJson = entry.value && entry.value[0];
       }
     });
-
-    if (probeRequested) {
-      var isSupported = !!(webapis && webapis.preview &&
-        typeof webapis.preview.setPreviewData === 'function');
-      log('Preview API available: ' + isSupported + (loadError ? ' (' + loadError + ')' : ''));
-      finish(req, isSupported ? 'SMART_HUB_SUPPORTED' : 'SMART_HUB_NOT_SUPPORTED');
-      return;
-    }
 
     if (!previewJson) {
       finish(req, 'nothing to publish');
