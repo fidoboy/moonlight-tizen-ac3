@@ -1598,7 +1598,7 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         const double opusDecoderDelayMs =
           g_Instance->m_OpusDecoderDelayMs.load(std::memory_order_relaxed);
         if (opusDecoderDelayMs > 0.0) {
-          append("Audio delay: %.2f ms\\n", opusDecoderDelayMs);
+          append("Audio delay: %.2f ms\n", opusDecoderDelayMs);
         }
       }
     } else {
