@@ -6286,6 +6286,8 @@ function startGame(host, appID) {
       // Keep the active session labels available to JavaScript termination handling.
       window._activeStreamAppName = appToStart.title || String(appID);
       window._activeStreamHostName = host.hostname || '';
+      // Every new attempt starts before the sole success boundary.
+      window._streamTransitionHiddenForSession = false;
       // A resume is already running; a new launch becomes eligible for cleanup
       // immediately before its host.launchApp request is issued.
       window._remoteStreamAppLaunchRequested = host.currentGame == appID;
