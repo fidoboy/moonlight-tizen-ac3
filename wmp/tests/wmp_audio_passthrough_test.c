@@ -192,6 +192,7 @@ static void test_opus_software_fallback(void)
     }
     assert(g_audio_registered);
     assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_PCM_S16LE);
+    assert(g_audio_info.codec_data == NULL && g_audio_info.codec_data_size == 0);
     assert(g_audio_info.channels == 6);
     assert(g_audio_info.sample_rate == 48000);
     g_fallback_blocked = 0;
