@@ -237,6 +237,11 @@ else
 fi
 echo "::endgroup::"
 
+# Build Ambilight first, explicitly, so the Tizen.NET workload is initialized before
+# the WMP project is evaluated. The dependency graph may otherwise schedule WMP
+# first; on a cold build that can make MSBuild fail to resolve Tizen.NET.Sdk/1.1.6.
+run_tz "build-ambilight-sdk-bootstrap" "$TIZEN_CORE_CLI" build -w "$service_project" -s Moonlight -b Release
+
 run_tz "add-service-dependencies" "$TIZEN_CORE_CLI" add-deps "$web_project" -d "$ambilight_dependency,$wmp_dependency"
 run_tz "build-hybrid" "$TIZEN_CORE_CLI" build -w "$web_project" -s Moonlight -b Release
         
