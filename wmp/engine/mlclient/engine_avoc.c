@@ -27,12 +27,21 @@
 typedef int (*avoc_set_game_mode_fn)(int reserved, int save_type, int mode);
 typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);
 
+typedef int (*avoc_set_cloud_game_mode_fn)(int mode);
+typedef int (*avoc_get_cloud_game_mode_fn)(int *mode);
+
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
 static avoc_set_game_mode_fn s_set_game_mode;
 static avoc_get_game_mode_fn s_get_game_mode;
 static int s_lookup_attempted;
 static int s_active = -1; /* -1 = unknown / verification required */
+
+/* Independent handle and symbols: the legacy Game Mode ABI remains untouched. */
+static void *s_cloud_library;
+static avoc_set_cloud_game_mode_fn s_set_cloud_game_mode;
+static avoc_get_cloud_game_mode_fn s_get_cloud_game_mode;
+static int s_cloud_lookup_attempted;
 
 static int resolve_avoc(void)
 {
@@ -199,3 +208,87 @@ int ml_avoc_set_game_mode(int enabled)
     pthread_mutex_unlock(&s_lock);
     return rc;
 }
+
+
+/*
+ * Resolve Cloud Game Mode independently of the legacy Game Mode API.
+ * ABI verified from the target libavoc.so:
+ *   int avoc_set_cloud_game_mode(int mode);
+ *   int avoc_get_cloud_game_mode(int *mode);
+ */
+static int resolve_avoc_cloud_game_mode(void)
+{
+    const char *error;
+
+    if (s_cloud_lookup_attempted)
+        return s_cloud_library != NULL && s_set_cloud_game_mode != NULL &&
+               s_get_cloud_game_mode != NULL;
+
+    s_cloud_lookup_attempted = 1;
+    (void)dlerror();
+    s_cloud_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
+    error = dlerror();
+    if (!s_cloud_library) {
+        MLT("AVOC Cloud Game Mode: dlopen(libavoc.so) failed: %s",
+            error ? error : "no dynamic-loader diagnostic");
+        return 0;
+    }
+
+    (void)dlerror();
+    *(void **)(&s_set_cloud_game_mode) =
+        dlsym(s_cloud_library, "avoc_set_cloud_game_mode");
+    error = dlerror();
+    if (error || !s_set_cloud_game_mode) {
+        MLT("AVOC Cloud Game Mode: dlsym(avoc_set_cloud_game_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        (void)dlclose(s_cloud_library);
+        s_cloud_library = NULL;
+        s_set_cloud_game_mode = NULL;
+        return 0;
+    }
+
+    (void)dlerror();
+    *(void **)(&s_get_cloud_game_mode) =
+        dlsym(s_cloud_library, "avoc_get_cloud_game_mode");
+    error = dlerror();
+    if (error || !s_get_cloud_game_mode) {
+        MLT("AVOC Cloud Game Mode: dlsym(avoc_get_cloud_game_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        (void)dlclose(s_cloud_library);
+        s_cloud_library = NULL;
+        s_set_cloud_game_mode = NULL;
+        s_get_cloud_game_mode = NULL;
+        return 0;
+    }
+
+    MLT("AVOC Cloud Game Mode: both public API symbols resolved (verified ARM ABI)");
+    return 1;
+}
+
+/*
+ * Request Cloud Game Mode and read it back for diagnostics. The public API
+ * returns the remote D-Bus 'ret' value (or a dispatcher error); its remote
+ * success-code semantics are deliberately not assumed here.
+ */
+int ml_avoc_set_cloud_game_mode(int enabled)
+{
+    int mode = enabled != 0;
+    int setter_rc;
+    int observed_mode = -1;
+    int getter_rc;
+
+    pthread_mutex_lock(&s_lock);
+    if (!resolve_avoc_cloud_game_mode()) {
+        pthread_mutex_unlock(&s_lock);
+        return -1;
+    }
+
+    setter_rc = s_set_cloud_game_mode(mode);
+    getter_rc = s_get_cloud_game_mode(&observed_mode);
+    MLT("AVOC Cloud Game Mode: set(mode=%d) -> ret=%d; get -> ret=%d, mode=%d",
+        mode, setter_rc, getter_rc, observed_mode);
+
+    pthread_mutex_unlock(&s_lock);
+    return setter_rc;
+}
+
