@@ -474,7 +474,6 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
         return;
       }
 
-      const auto softwareProcessingStart = std::chrono::steady_clock::now();
       int decodedSamples = 0;
       if (!s_DolbyDecoder.Decode(
             reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
@@ -504,9 +503,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
 
       s_DolbyDecodeErrors = 0;
       s_pktPts = packetPts + decodedDuration;
-      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
-      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
+
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + decodedDuration;
       return;
     }
