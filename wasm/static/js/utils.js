@@ -1016,57 +1016,122 @@ NvHTTP.prototype = {
     }.bind(this));
   },
 
-  // Generates a JPEG preview image from the original box art.
+  // Generates a 2:3 JPEG preview image from the original box art.
   // The image is progressively compressed and resized until it fits within the
   // maximum file size allowed for Smart Hub Preview, while preserving a minimum
   // image size for small source images.
-  // Creates a neutral, age-appropriate Smart Hub thumbnail.
-  // Fixed output: 444x250 px (16:9), JPEG, and below the 360 KB limit.
-  // Host-provided game artwork is intentionally not reused because its age suitability
-  // cannot be established from the app-list metadata.
   generatePreviewImage: function(dataUrl, appId) {
     return new Promise(function(resolve) {
-      try {
-        var MAX_FILE_SIZE = 350 * 1024;
-        var canvas = document.createElement('canvas');
-        canvas.width = 444;
-        canvas.height = 250;
-        var context = canvas.getContext('2d');
-        if (!context) {
-          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Canvas context unavailable for app ID ' + appId);
+      var MAX_FILE_SIZE = 350 * 1024;
+      var MIN_QUALITY = 0.25;
+      var QUALITY_STEP = 0.05;
+      var SCALE_STEP = 0.9;
+      var MIN_SCALE_WIDTH = 100;
+      var MIN_SCALE_HEIGHT = 100;
+      var TARGET_ASPECT_RATIO = 2 / 3;
+
+      // Create an image element to decode the original box art
+      var image = new Image();
+
+      // Process the decoded image once it has finished loading
+      image.onload = function() {
+        try {
+          // Get the source image dimensions
+          var sourceWidth = image.naturalWidth || image.width;
+          var sourceHeight = image.naturalHeight || image.height;
+
+          // Ensure the image has valid dimensions before processing
+          if (!sourceWidth || !sourceHeight) {
+            console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Invalid image dimensions for app ID ' + appId);
+            resolve(null);
+            return;
+          }
+
+          // Center-crop the original box art to the required 2:3 tile ratio.
+          var sourceX = 0;
+          var sourceY = 0;
+          var sourceCropWidth = sourceWidth;
+          var sourceCropHeight = sourceHeight;
+          var sourceAspectRatio = sourceWidth / sourceHeight;
+
+          if (sourceAspectRatio > TARGET_ASPECT_RATIO) {
+            sourceCropWidth = Math.round(sourceHeight * TARGET_ASPECT_RATIO);
+            sourceX = Math.floor((sourceWidth - sourceCropWidth) / 2);
+          } else if (sourceAspectRatio < TARGET_ASPECT_RATIO) {
+            sourceCropHeight = Math.round(sourceWidth / TARGET_ASPECT_RATIO);
+            sourceY = Math.floor((sourceHeight - sourceCropHeight) / 2);
+          }
+
+          var width = sourceCropWidth;
+          var height = sourceCropHeight;
+
+          // Create a canvas used to resize and convert the box art to JPEG
+          var canvas = document.createElement('canvas');
+          var context = canvas.getContext('2d');
+
+          if (!context) {
+            console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Unable to create canvas context for app ID ' + appId);
+            resolve(null);
+            return;
+          }
+
+          // Try progressively smaller images until the file size limit is met
+          while (true) {
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw the centered 2:3 source crop at the current output dimensions
+            context.drawImage(image, sourceX, sourceY, sourceCropWidth, sourceCropHeight, 0, 0, width, height);
+
+            // Try reducing JPEG quality before reducing the image dimensions
+            var quality = 0.85;
+
+            // Try progressively lower quality levels until the file size limit is met
+            while (quality >= MIN_QUALITY) {
+              var jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
+              var base64Data = jpegDataUrl.split(',')[1];
+              var fileSize = Math.floor(base64Data.length * 3 / 4); // Base64 represents 3 bytes per 4 characters
+
+              // Return the first image that meets the file size limit
+              if (fileSize <= MAX_FILE_SIZE) {
+                console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created preview image for app ID ' +
+                appId + ': ' + Math.round(fileSize / 1024) + ' KB (' + width + 'x' + height + ', 2:3, quality ' + quality.toFixed(2) + ')');
+                resolve(jpegDataUrl);
+                return;
+              }
+
+              // Lower the JPEG quality before attempting to reduce the image dimensions
+              quality -= QUALITY_STEP;
+            }
+
+            // Stop shrinking once the minimum scaling dimensions have been reached.
+            // The current dimensions have already been tested at all supported
+            // quality levels before exiting.
+            if (width <= MIN_SCALE_WIDTH || height <= MIN_SCALE_HEIGHT) {
+              break;
+            }
+
+            // Quality reduction was not enough, so reduce the dimensions and try again
+            width = Math.round(width * SCALE_STEP);
+            height = Math.round(height * SCALE_STEP);
+          }
+
+          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Unable to create preview image within the size limit for app ID ' + appId);
           resolve(null);
-          return;
-        }
-        // A simple game-controller motif; no user-generated or age-rated imagery.
-        context.fillStyle = '#202b3a';
-        context.fillRect(0, 0, 444, 250);
-        context.fillStyle = '#dce4ef';
-        context.fillRect(174, 91, 96, 68);
-        context.fillRect(157, 107, 130, 38);
-        context.fillStyle = '#202b3a';
-        context.fillRect(184, 119, 31, 8);
-        context.fillRect(195, 108, 9, 30);
-        context.beginPath();
-        context.arc(244, 116, 6, 0, Math.PI * 2);
-        context.arc(260, 132, 6, 0, Math.PI * 2);
-        context.fill();
-        var jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        var fileSize = Math.floor(jpegDataUrl.split(',')[1].length * 3 / 4);
-        if (fileSize > MAX_FILE_SIZE) {
-          jpegDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          fileSize = Math.floor(jpegDataUrl.split(',')[1].length * 3 / 4);
-        }
-        if (fileSize > MAX_FILE_SIZE) {
-          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Generated thumbnail exceeds 350 KiB for app ID ' + appId);
+        } catch (error) {
+          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Failed to generate preview image for app ID ' + appId + ': ' + error.message);
           resolve(null);
-          return;
         }
-        console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created safe Smart Hub thumbnail for app ID ' + appId + ': ' + Math.round(fileSize / 1024) + ' KB (444x250, JPEG)');
-        resolve(jpegDataUrl);
-      } catch (error) {
-        console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Failed to generate Smart Hub thumbnail for app ID ' + appId + ': ' + error.message);
+      };
+
+      // Handle failures when the original box art cannot be decoded
+      image.onerror = function() {
+        console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Failed to decode box art for app ID ' + appId);
         resolve(null);
-      }
+      };
+
+      // Start loading the original box art from the provided data URL
+      image.src = dataUrl;
     });
   },
 
