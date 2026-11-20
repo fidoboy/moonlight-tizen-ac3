@@ -619,7 +619,8 @@ static void on_error(int error, void *context)
 }
 static void on_buffer(wmp_esplus_stream_e stream, wmp_esplus_buffer_status_e status, void *context)
 {
-    (void)context;
+    if (context && (unsigned)(uintptr_t)context != __atomic_load_n(&s_player_generation, __ATOMIC_ACQUIRE))
+        return;
     /*
      * The overlay reports video queue events. Samsung defines UNDERRUN as
      * the ES packet queue becoming empty; it is not a dropped frame or proof
@@ -642,7 +643,8 @@ static void on_seek_done(void *context) { (void)context; }
 static void on_eos(void *context) { (void)context; }
 static void on_conflict(void *context)
 {
-    (void)context;
+    if (context && (unsigned)(uintptr_t)context != __atomic_load_n(&s_player_generation, __ATOMIC_ACQUIRE))
+        return;
     /* Record the native condition; Common C remains responsible for session state. */
     __atomic_store_n(&esplus_stats.recovery_state, 2, __ATOMIC_RELAXED);
     MLT("ESPlus resource conflict");
