@@ -13,7 +13,7 @@ void esplus_reveal_window(void);
 int esplus_prepare(void);
 void esplus_set_audio_enabled(int enabled);
 void esplus_audio_registration_complete(int success);
-/* OPUS hardware decode rejection is recoverable only after prepare_async_done(false). */
+/* True after an OPUS format rejection has been recovered by a fresh PCM player registration. */
 int esplus_opus_fallback_ready(void);
 int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info);
 /* Shared monotonic PTS origin: set by the first video frame, read by audio. */
