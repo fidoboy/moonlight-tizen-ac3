@@ -205,28 +205,26 @@ NvHTTP.prototype = {
       preflightUrl = baseUrl + ':' + this.httpPort + '/serverinfo';
     }
 
-    return fetch(preflightUrl, abortCtrl ? { signal: abortCtrl.signal } : {})
-      .then(function(res) {
+    // This is only a reachability probe. no-cors allows an opaque response, so
+    // cross-origin policy cannot turn a reachable host into a false negative.
+    // DNS, connection-refused and other network failures still reject fetch().
+    var fetchOptions = { mode: 'no-cors' };
+    if (abortCtrl) fetchOptions.signal = abortCtrl.signal;
+
+    return fetch(preflightUrl, fetchOptions)
+      .then(function() {
         clearTimeout(timeoutId);
-        // The IP is alive and responded! Hand it over to C++
+        // The host accepted an HTTP connection. Perform the authenticated request in C++.
         return sendMessage('openUrl', [url, ppkstr, false, 5000]).catch(error => {
           throw error;
         });
       })
       .catch(function(e) {
         clearTimeout(timeoutId);
-        // If the fetch was forcefully aborted by our timeout, it means the IP is a black hole (silent drop).
-        // We MUST skip it, otherwise handing it to C++ will irrevocably freeze the WASM thread for 120 seconds!
-        if (e && e.name === 'AbortError') {
-          console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping dead/hanging URL to prevent C++ WASM freeze: ' + url);
-          return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
-        } else {
-          // Any other error (e.g. Cert Error, Connection Refused, CORS) means the IP actively responded quickly.
-          // C++ will also fail quickly without hanging (or succeed if mTLS), so it's safe to hand it over.
-          return sendMessage('openUrl', [url, ppkstr, false, 5000]).catch(error => {
-            throw error;
-          });
-        }
+        // A timeout or network-level failure (including DNS and connection refused)
+        // means the C++ request cannot succeed. Do not block its HTTP queue.
+        console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping unreachable URL after HTTP preflight failure: ' + url, e);
+        return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
       });
   },
 
