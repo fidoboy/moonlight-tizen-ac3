@@ -327,7 +327,8 @@ function quitRemoteAppAfterStartupFailure() {
   );
   var appName = window._activeStreamAppName;
   var hostApi = window.api || (typeof api !== 'undefined' ? api : null);
-  if (!quitEnabled || !appName || appName === t('Apps') ||
+  if (!quitEnabled || window._remoteStreamAppLaunchRequested !== true ||
+      !appName || appName === t('Apps') ||
       !hostApi || typeof hostApi.quitApp !== 'function') {
     return Promise.resolve();
   }
@@ -6285,6 +6286,9 @@ function startGame(host, appID) {
       // Keep the active session labels available to JavaScript termination handling.
       window._activeStreamAppName = appToStart.title || String(appID);
       window._activeStreamHostName = host.hostname || '';
+      // A resume is already running; a new launch becomes eligible for cleanup
+      // immediately before its host.launchApp request is issued.
+      window._remoteStreamAppLaunchRequested = host.currentGame == appID;
       window._manualStreamStopRequested = false;
 
       // Show the transition first. Only after it is fully visible may the local UI
@@ -6465,6 +6469,7 @@ function startGame(host, appID) {
 
       // If the user wants to launch the app, then we start launching it
       $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
+      window._remoteStreamAppLaunchRequested = true;
       withOperationTimeout(host.launchApp(
         appID, // App ID
         streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate
