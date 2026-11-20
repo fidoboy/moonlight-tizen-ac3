@@ -320,11 +320,12 @@ function quitRemoteAppAfterStartupFailure() {
   // no remote app launch was recorded.
   if (window._streamTransitionHiddenForSession === true) return Promise.resolve();
   var preferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
-  var quitEnabled = preferences && (
+  var directSettings = window._directSmartHubStreamSettings;
+  var quitEnabled = (preferences && (
     preferences.quitAppAfterDisconnect === true ||
     preferences.quitAppAfterDisconnect === 'true' ||
     preferences.quitAppAfterDisconnect === 1
-  );
+  )) || !!(directSettings && directSettings.quitAppAfterDisconnect);
   var appName = window._activeStreamAppName;
   var hostApi = window.api || (typeof api !== 'undefined' ? api : null);
   if (!quitEnabled || window._remoteStreamAppLaunchRequested !== true ||
@@ -473,15 +474,16 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   };
   // EMSS retains its existing path; WMP waits until both native processes are gone.
   var wmpCleanup = cleanupWmpAfterStartupFailure();
+  var remoteAppCleanup = quitRemoteAppAfterStartupFailure();
   if (wmpCleanup) {
     wmpCleanup.catch(function(cleanupError) {
       console.error('[esplusplayer] Complete WMP cleanup after host launch failure failed:', cleanupError);
       rawApiMessage += (rawApiMessage ? '\n' : '') +
         'WMP cleanup failed: ' +
         (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-    }).then(finishApiFailure);
+    }).then(function() { return remoteAppCleanup; }).then(finishApiFailure);
   } else {
-    finishApiFailure();
+    remoteAppCleanup.then(finishApiFailure);
   }
 }
 
