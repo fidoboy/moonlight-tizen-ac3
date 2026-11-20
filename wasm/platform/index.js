@@ -10289,31 +10289,6 @@ function loadHTTPCertsCb() {
   });
 }
 
-// Navigates to a specific host once it has been loaded and becomes available.
-// Polls the hosts object at 1-second intervals for up to 30 seconds.
-function waitForHostAndNavigate(serverUid) {
-  var attempts = 0;
-  var interval = setInterval(function() {
-    attempts++;
-    var host = hosts[serverUid];
-    
-    if (host && (host.online || isSubnetScanFinished)) {
-      clearInterval(interval);
-      console.log('%c[index.js, waitForHostAndNavigate]', 'color: green;', 'Host found for deep link, navigating: ' + serverUid);
-      hostChosen(host);
-    } else if (!host && isHostsLoaded) {
-      clearInterval(interval);
-      console.warn('%c[index.js, waitForHostAndNavigate]', 'color: orange;', 'Host ' + serverUid + ' no longer exists in Moonlight.');
-      snackbarLogLong('The selected host is no longer available on Moonlight.');
-      // A missing deep-link host does not trigger Smart Hub publication.
-    } else if (attempts > 30) {
-      clearInterval(interval);
-      console.warn('%c[index.js, waitForHostAndNavigate]', 'color: orange;', 'Warning: Timed out waiting for host ' + serverUid + ' to load.');
-      if (host) hostChosen(host); // Fallback to trigger offline error or Auto WOL
-    }
-  }, 1000);
-}
-
 // A Smart Hub app shortcut is a single-purpose launch. It never navigates
 // through Moonlight's Hosts or Apps views and never falls back to the home UI.
 function beginDirectSmartHubLaunch(actionData) {
