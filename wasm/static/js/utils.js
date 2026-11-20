@@ -810,11 +810,15 @@ NvHTTP.prototype = {
             // Generate and save the optimized JPEG preview box art asynchronously from network.
             // The original PNG box art can be returned immediately without waiting for preview generation.
             var previewPromise = self.generatePreviewImage(dataUrl, appId).then(function(previewDataUrl) {
-              if (previewDataUrl) {
-                self.savePreviewImage(appId, previewDataUrl);
-              }
+              var saved = previewDataUrl ? self.savePreviewImage(appId, previewDataUrl) : false;
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = saved === true;
+              return saved === true;
             }, function(error) {
-              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview box art from network for app ID ' + appId + ': ' + error);
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = false;
+              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview thumbnail from network for app ID ' + appId + ': ' + error);
+              return false;
             });
 
             if (!window.previewPromises) {
@@ -861,6 +865,8 @@ NvHTTP.prototype = {
               // Open the cached preview file to check whether it already exists
               var previewFileHandle = tizen.filesystem.openFile(previewFilePath, 'r');
               previewFileHandle.close();
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[previewFileName] = true;
 
               console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Smart Hub Preview box art file already cached: ' + previewFileName);
               // The preview already exists, so no additional processing is required
@@ -874,11 +880,15 @@ NvHTTP.prototype = {
             // Generate and save the optimized JPEG preview box art asynchronously from storage.
             // The original PNG box art can be returned immediately without waiting for preview generation.
             var previewPromise = self.generatePreviewImage(dataUrl, appId).then(function(previewDataUrl) {
-              if (previewDataUrl) {
-                self.savePreviewImage(appId, previewDataUrl);
-              }
+              var saved = previewDataUrl ? self.savePreviewImage(appId, previewDataUrl) : false;
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = saved === true;
+              return saved === true;
             }, function(error) {
-              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview box art from storage for app ID ' + appId + ': ' + error);
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = false;
+              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview thumbnail from storage for app ID ' + appId + ': ' + error);
+              return false;
             });
 
             if (!window.previewPromises) {
