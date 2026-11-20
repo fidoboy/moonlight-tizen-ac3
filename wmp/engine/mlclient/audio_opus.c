@@ -241,10 +241,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         esplus_audio_registration_complete(0);
         return -1;
     }
-        ALOG("ESPlus player unavailable during audio init\n");
-        esplus_audio_registration_complete(0);
-        return -1;
-    }
 
     memset(&info, 0, sizeof(info));
     if (s_dolby) {

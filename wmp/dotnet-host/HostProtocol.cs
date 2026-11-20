@@ -432,7 +432,7 @@ namespace MoonlightWmpHost
             return "\"" + value.Replace("\\", "\\\\")
                 .Replace("\"", "\\\"")
                 .Replace("\r", "\\r")
-                .Replace("\n", "\n") + "\"";
+                .Replace("\n", "\\n") + "\"";
         }
 
         private static void Send(Bundle message, string appId, string remotePort)
@@ -1142,7 +1142,7 @@ namespace MoonlightWmpHost
             string value = Arg(bundle, name);
             if (value == null) return "<missing>";
             if (sensitive) return "<redacted>";
-            return value.Replace("\r", "\\r").Replace("\n", "\n");
+            return value.Replace("\r", "\\r").Replace("\n", "\\n");
         }
 
         private static void LogStartArguments(Bundle bundle)
