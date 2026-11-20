@@ -767,16 +767,8 @@ const OFFICIAL_RELEASE = '__OFFICIAL_RELEASE__' === 'true'; // Only stable GitHu
 const REPO_OWNER = '__REPO_OWNER__'; // Placeholder for repository owner, which should be replaced during the build process
 const REPO_NAME = '__REPO_NAME__'; // Placeholder for repository name, which should be replaced during the build process
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
-var _isSmartHubSupported = false; // Flag indicating if Smart Hub Preview is supported on this device
-var _smartHubSupportPromise = null;
-
-// Share one support probe across startup and every preview update request.
-function ensureSmartHubSupport() {
-  if (!_smartHubSupportPromise) {
-    _smartHubSupportPromise = probeSmartHubSupport();
-  }
-  return _smartHubSupportPromise;
-}
+// Smart Hub Preview support is determined by the actual publication request.
+// The background service reports whether the Preview API accepted the payload.
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
@@ -1312,12 +1304,9 @@ function startDeferredNormalStartup() {
       }
     });
 
-    ensureSmartHubSupport().then(function() {
-      handleDeepLink();
-      window.addEventListener('appcontrol', handleDeepLink);
-    }).catch(function(error) {
-      console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Smart Hub deep-link handling unavailable because the support check failed: ' + error.message);
-    });
+    // Deep links are independent of Preview publication support.
+    handleDeepLink();
+    window.addEventListener('appcontrol', handleDeepLink);
   };
 
   var startStartupWork = function() {
@@ -5223,14 +5212,14 @@ function showApps(host, options) {
           }
           // Load box art
           var boxArtPlaceholderImg = new Image();
-          var appEntry = (_isSmartHubSupported && _previewApps[host.serverUid]) ? _previewApps[host.serverUid].apps.find(function(a) {
-            return a.id === app.id; 
+          var appEntry = _previewApps[host.serverUid] ? _previewApps[host.serverUid].apps.find(function(a) {
+            return Number(a.id) === Number(app.id);
           }) : null;
           var boxArtPromise = new Promise(function(resolveBoxArt) {
-            host.getBoxArt(app.id, _isSmartHubSupported).then(function(resolvedPromise) {
+            host.getBoxArt(app.id).then(function(resolvedPromise) {
               boxArtPlaceholderImg.src = resolvedPromise;
               // The resolvedPromise is now the absolute file URI (or data URL if it failed to save).
-              if (_isSmartHubSupported && _previewApps[host.serverUid] && appEntry) {
+              if (_previewApps[host.serverUid] && appEntry) {
                 // Resolve real TV IP because Smart Hub might block 127.0.0.1
                 var tvIp = '127.0.0.1';
                 try {
@@ -10407,9 +10396,6 @@ function waitForHostAndNavigateToApp(serverUid, appId) {
 // Handles deep link navigation when the app is launched from a Smart Hub Preview tile.
 // Reads the PAYLOAD from AppControl data and navigates to the appropriate host and app.
 function handleDeepLink() {
-  if (!_isSmartHubSupported) {
-    return;
-  }
   try {
     var reqAppControl = tizen.application.getCurrentApplication().getRequestedAppControl();
     if (!reqAppControl) {
@@ -10441,112 +10427,79 @@ function handleDeepLink() {
   }
 }
 
-// Builds Smart Hub Preview tiles from the cached per-host app lists and sends the
-// preview data to the background service, which calls webapis.preview.setPreviewData().
-// The webapis.preview API is only accessible from within a Tizen background service.
-// The preview is populated only from successfully connected hosts (stored in _previewApps).
+// Builds Smart Hub Preview tiles from cached host app lists and sends them
+// directly to the background service. The service performs the Preview API call
+// and reports the operation's result through the AppControl reply.
 function updatePreviewData() {
-  return ensureSmartHubSupport().then(function(supported) {
-    if (!supported) {
-      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub Preview is not supported on this device. Skipping!');
-      return;
-    }
-    return updatePreviewDataAfterSupportCheck();
-  }).catch(function(error) {
-    // A failed or missing probe response must never be treated as unsupported
-    // or allow preview data to be published.
-    console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub Preview update blocked because the support check failed: ' + error.message);
-  });
-}
-
-function updatePreviewDataAfterSupportCheck() {
   try {
     var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-    if (!_isSmartHubSupported) {
-      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub Preview is not supported on this device. Skipping!');
-      return;
-    }
-
-    // Build one section per host that has a cached app list
-    // Smart Hub supports a maximum of 40 tiles across all sections
+    var serviceId = packageId + '.preview';
     var sections = [];
     var totalTiles = 0;
     var SMART_HUB_MAX_TILES = 40;
+
     Object.keys(_previewApps).forEach(function(serverUid) {
       var entry = _previewApps[serverUid];
-      if (!entry || !entry.apps || entry.apps.length === 0) {
-        console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Error: No apps found for host ' + serverUid);
-        return;
-      }
-
-      // Stop adding sections once the Smart Hub tile limit is reached
-      if (totalTiles >= SMART_HUB_MAX_TILES) {
-        return;
-      }
-
-      // Only include as many apps as can fit within the remaining tile limit
-      var remainingTiles = SMART_HUB_MAX_TILES - totalTiles;
-      var apps = entry.apps.slice(0, remainingTiles);
-
-      // Create a tile for each app in the host's app list, including the title, subtitle, and action data
+      if (!entry || !entry.apps || entry.apps.length === 0 || totalTiles >= SMART_HUB_MAX_TILES) return;
+      var apps = entry.apps.slice(0, SMART_HUB_MAX_TILES - totalTiles);
       var tiles = apps.map(function(app, index) {
-        // Each tile object accepts a `position` attribute. By explicitly setting
-        // the global position, we override the native behavior and enforce our
-        // custom sorting (A-Z or Z-A).
         var tile = {
           title: app.title,
           subtitle: entry.hostname,
           action_data: JSON.stringify({
-            serverUid: serverUid, address: entry.address, appId: app.id, appName: app.title
+            serverUid: serverUid,
+            address: entry.address,
+            appId: app.id,
+            appName: app.title
           }),
           is_playable: true,
           position: totalTiles + index
         };
-        if (app.imageUri) {
-          tile.image_url = app.imageUri;
-        }
-        if (app.txtPath) {
-          tile.txtPath = app.txtPath;
-        }
+        if (app.imageUri) tile.image_url = app.imageUri;
+        if (app.txtPath) tile.txtPath = app.txtPath;
         return tile;
       });
-
-      // Update the total tile count after adding this host's tiles
       totalTiles += tiles.length;
-
-      // Only add the section if it contains tiles
-      if (tiles.length > 0) {
-        sections.push({
-          title: entry.hostname, tiles: tiles
-        });
-      }
+      if (tiles.length) sections.push({ title: entry.hostname, tiles: tiles });
     });
 
-    if (sections.length === 0) {
-      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'No preview app data found, clearing Smart Hub Preview.');
+    if (!sections.length) {
+      console.log('%c[index.js, updatePreviewData]', 'color: green;', 'No preview app data found; sending an empty Preview to clear existing tiles.');
     }
+    var previewJson = JSON.stringify({ sections: sections });
+    console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Sending Preview data to service (' + previewJson.length + ' bytes).');
 
-    var previewData = {
-      sections: sections
-    };
-    var serviceId = packageId + '.preview';
-
-    console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Launching Smart Hub service with preview data: ', previewData);
-
-    // Launch the background service with preview data via AppControl.
     tizen.application.launchAppControl(
       new tizen.ApplicationControl(
-        'http://tizen.org/appcontrol/operation/pick', null, 'image/jpeg', null,
-        [new tizen.ApplicationControlData('preview', [JSON.stringify(previewData)])]
+        'http://tizen.org/appcontrol/operation/pick',
+        null,
+        'image/jpeg',
+        null,
+        [new tizen.ApplicationControlData('preview', [previewJson])]
       ),
-      serviceId, function() {
+      serviceId,
+      function() {
         console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Preview request dispatched to service: ' + serviceId);
-      }, function(err) {
-        console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Failed to launch Smart Hub service: ' + err.message);
-      }, {
+      },
+      function(err) {
+        console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Failed to launch Smart Hub service: ' + (err && err.message ? err.message : err));
+      },
+      {
         onsuccess: function(data) {
-          var status = data && data[0] && data[0].value && data[0].value[0];
-          console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub service reply: ' + (status || 'empty response'));
+          var status = null;
+          if (data && data.length) {
+            for (var i = 0; i < data.length; i++) {
+              if (data[i].key === 'status' && data[i].value && data[i].value.length) {
+                status = data[i].value[0];
+                break;
+              }
+            }
+          }
+          if (status === 'ok') {
+            console.log('%c[index.js, updatePreviewData]', 'color: green;', 'Smart Hub Preview published successfully.');
+          } else {
+            console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub Preview service returned: ' + (status || 'empty response'));
+          }
         },
         onfailure: function() {
           console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Smart Hub service returned an AppControl failure.');
@@ -10554,12 +10507,9 @@ function updatePreviewDataAfterSupportCheck() {
       }
     );
   } catch (e) {
-    console.error('%c[index.js, updatePreviewData]', 'color: green;', 'Error while updating Smart Hub preview data: ' + e.message);
+    console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Error while sending Smart Hub Preview data: ' + e.message);
   }
 }
-
-// The Smart Hub payload was parsed exactly once by the early script in index.html.
-
 
 function updateDirectSmartHubStartingStatus() {
   if (!_directSmartHubLaunch) return;
@@ -10618,84 +10568,6 @@ function maybeStartDirectSmartHubLaunch() {
   startGame(host, _directSmartHubLaunch.appId);
 }
 
-function probeSmartHubSupport() {
-  return new Promise(function(resolve, reject) {
-    var packageId;
-    var serviceId;
-    var probeTimeout = null;
-    var settled = false;
-
-    function cleanupProbe() {
-      if (probeTimeout !== null) {
-        clearTimeout(probeTimeout);
-        probeTimeout = null;
-      }
-    }
-
-    function finishProbe(supported) {
-      if (settled) return;
-      settled = true;
-      cleanupProbe();
-      _isSmartHubSupported = supported;
-      console.log('%c[index.js, probeSmartHubSupport]', 'color: green;', 'Smart Hub support (AppControl reply): ' + supported);
-      resolve(supported);
-    }
-
-    function failProbe(error) {
-      if (settled) return;
-      settled = true;
-      cleanupProbe();
-      _isSmartHubSupported = false;
-      console.error('%c[index.js, probeSmartHubSupport]', 'color: red;', 'Smart Hub support probe failed: ' + error.message);
-      reject(error);
-    }
-
-    try {
-      packageId = tizen.application.getCurrentApplication().appInfo.packageId;
-      serviceId = packageId + '.preview';
-
-      probeTimeout = setTimeout(function() {
-        failProbe(new Error('Timed out waiting for the Smart Hub AppControl reply.'));
-      }, 10000);
-
-      tizen.application.launchAppControl(
-        new tizen.ApplicationControl(
-          'http://tizen.org/appcontrol/operation/pick', null, null, null,
-          [new tizen.ApplicationControlData('probe', ['check'])]
-        ),
-        serviceId, function() {
-          console.log('[SmartHub Probe] Service launch request dispatched.');
-        }, function(err) {
-          failProbe(new Error('Probe launch failed: ' + err.message));
-        }, {
-          onsuccess: function(data) {
-            var status = null;
-            if (data && data.length) {
-              for (var i = 0; i < data.length; i++) {
-                if (data[i].key === 'status' && data[i].value && data[i].value.length) {
-                  status = data[i].value[0];
-                  break;
-                }
-              }
-            }
-            if (status === 'SMART_HUB_SUPPORTED') {
-              finishProbe(true);
-            } else if (status === 'SMART_HUB_NOT_SUPPORTED') {
-              finishProbe(false);
-            } else {
-              failProbe(new Error('Unexpected Smart Hub AppControl reply: ' + (status || 'empty response')));
-            }
-          },
-          onfailure: function() {
-            failProbe(new Error('Smart Hub service returned an AppControl failure.'));
-          }
-        }
-      );
-    } catch (e) {
-      failProbe(e);
-    }
-  });
-}
 // Do not create the summary bar until the persisted preference has been loaded.
 var navigationSoundPreferenceEnabled = true;
 var screensaverPreferenceEnabled = true;
