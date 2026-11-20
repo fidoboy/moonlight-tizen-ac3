@@ -117,7 +117,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out);
 int ml_engine_video_ready(void);
 /* Bitmask: 1=evdev keyboard, 2=evdev mouse, 4=evdev gamepad. */
 int ml_engine_input_capabilities(void);
-/* 0 until an audio packet is accepted by ESPlus; 1=Opus, 2=AC-3, 3=E-AC-3. */
+/* 0 until audio is accepted; 1=OPUS direct, 2=AC-3, 3=E-AC-3, 4=OPUS decoded by libopus. */
 int ml_engine_get_active_audio_codec(void);
 /* Atomically take the mean libopus decode execution time (microseconds) since the previous stats snapshot; 0 outside the ESPlus libopus fallback. */
 uint32_t ml_engine_take_opus_software_decode_average_us(void);
