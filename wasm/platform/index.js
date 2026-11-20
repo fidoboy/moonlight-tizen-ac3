@@ -334,7 +334,14 @@ function quitRemoteAppAfterStartupFailure() {
     return Promise.resolve();
   }
   console.warn('[stream/startup]', 'Attempting best-effort remote app shutdown after startup failure.');
-  return withOperationTimeout(hostApi.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+  var quitOperation;
+  try {
+    quitOperation = hostApi.quitApp();
+  } catch (error) {
+    console.warn('[stream/startup]', 'Best-effort remote app shutdown could not be started:', error);
+    return Promise.resolve();
+  }
+  return withOperationTimeout(quitOperation, 10000, 'Host app shutdown after startup failure').then(function() {
     console.info('[stream/startup]', 'Remote app shutdown request completed.');
   }, function(error) {
     console.warn('[stream/startup]', 'Best-effort remote app shutdown failed:', error);
