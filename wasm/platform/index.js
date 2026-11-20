@@ -10314,116 +10314,101 @@ function waitForHostAndNavigate(serverUid) {
   }, 1000);
 }
 
-// Navigates to a specific app on a host from a Smart Hub Preview deep link.
-// Waits for the host to load, then checks availability and whether the app still exists.
-// - If the host is offline: removes it from preview and returns to the Moonlight home screen.
-// - If the app no longer exists on the server: connects to the host and shows the current app list.
-// - If the app exists: connects to the host and navigates directly to the app list.
-function waitForHostAndNavigateToApp(serverUid, appId) {
+// A Smart Hub app shortcut is a single-purpose launch. It never navigates
+// through Moonlight's Hosts or Apps views and never falls back to the home UI.
+function beginDirectSmartHubLaunch(actionData) {
+  if (_directSmartHubLaunch || !actionData || !actionData.serverUid ||
+      actionData.appId === null || actionData.appId === undefined) return;
+
+  _directSmartHubLaunch = {
+    serverUid: String(actionData.serverUid),
+    appId: actionData.appId,
+    appName: actionData.appName || actionData.appTitle || actionData.title || actionData.name || null
+  };
+  window._directSmartHubLaunch = _directSmartHubLaunch;
+  _directSmartHubHost = null;
+  _directSmartHubHostReady = false;
+  _directSmartHubSettingsReady = false;
+  _directSmartHubStreamSettings = null;
+  _directSmartHubLaunchStarted = false;
+  _directSmartHubLaunchFailed = false;
+  streamStartupFailureHandled = false;
+  window._streamStartupFailureHandled = false;
+
+  // Immediately suppress the already-running home UI before doing any async work.
+  document.documentElement.classList.add('app-starting');
+  hideUiLayerImmediately('main-ui-layer');
+  updateDirectSmartHubStartingStatus();
+  armStreamStartupWatchdog('initialization', 15000);
+
+  loadDirectSmartHubStreamSettings().catch(function() {
+    // loadDirectSmartHubStreamSettings already reports the failure and exits.
+  });
+
   var attempts = 0;
-  var interval = setInterval(function() {
-    attempts++;
-    var host = hosts[serverUid];
-
-    if (host && (host.online || isSubnetScanFinished)) {
-      clearInterval(interval);
-      console.log('%c[index.js, waitForHostAndNavigateToApp]', 'color: green;', 'Host found for deep link, checking availability: ' + serverUid);
-
-      // Check whether the host is online before trying to connect
-      if (!host.online) {
-        hostChosen(host, function() {
-          // Success callback: The host is now online. Retry the deep link navigation.
-          waitForHostAndNavigateToApp(serverUid, appId);
-        });
+  function resolveRequestedHost() {
+    if (_directSmartHubLaunchFailed) return;
+    if (!isHostsLoaded) {
+      attempts++;
+      if (attempts >= 150) {
+        directSmartHubLaunchFailure(t('Moonlight could not restore the selected host.'));
         return;
       }
-
-      // Host is online: check whether the requested app still exists
-      host.getAppListWithCacheFlush().then(function(appList) {
-        // Apply the selected app ordering before caching and rendering the list.
-        const sortedAppList = sortAppsForHost(host, appList);
-
-        // Keep the host's app ID/title mapping available independently of Smart Hub support.
-        // A Deep Link validates and launches one app; it must not publish Smart Hub Preview tiles.
-        cacheHostAppList(host, sortedAppList);
-
-        var appExists = appList.some(function(app) {
-          return app.id === appId;
-        });
-        if (appExists) {
-          // App still exists: connect, show the app list, and auto-launch the app
-          console.log('%c[index.js, waitForHostAndNavigateToApp]', 'color: green;', 'App ' + appId + ' found, launching app from deep link.');
-          hostChosen(host);
-          // Wait for the app list to render, then scroll to the app and launch it automatically.
-          // This ensures the app list is in the navigation stack so Back returns correctly:
-          // streaming session → app list → Moonlight home screen.
-          var gameStartAttempts = 0;
-          var gameStartInterval = setInterval(function() {
-            gameStartAttempts++;
-            var gameContainer = document.getElementById('game-container-' + appId);
-            if (gameContainer) {
-              clearInterval(gameStartInterval);
-              gameContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              startGame(host, appId);
-            } else if (gameStartAttempts > 30) {
-              clearInterval(gameStartInterval);
-              console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'Warning: Timed out waiting for game container for app ' + appId + ' to appear.');
-            }
-          }, 200);
-        } else {
-          // App no longer exists: connect to host and show the current app list
-          console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'App ' + appId + ' not found on host, showing current app list.');
-          snackbarLogLong('The selected app is no longer available on this host. Showing the current app list.');
-          hostChosen(host);
-        }
-      }, function() {
-        // Could not fetch app list (host may have gone offline during the check)
-        hostChosen(host);
-      });
-    } else if (!host && isHostsLoaded) {
-      clearInterval(interval);
-      console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'Host ' + serverUid + ' no longer exists in Moonlight.');
-      snackbarLogLong('The selected host is no longer available on Moonlight.');
-      // A missing deep-link host does not trigger Smart Hub publication.
-    } else if (attempts > 30) { // 30s timeout
-      clearInterval(interval);
-      console.warn('%c[index.js, waitForHostAndNavigateToApp]', 'color: orange;', 'Warning: Timed out waiting for host ' + serverUid + ' to load.');
-      if (host) hostChosen(host); // Fallback to trigger offline error or Auto WOL
-    }
-  }, 1000);
-}
-
-// Handles deep link navigation when the app is launched from a Smart Hub Preview tile.
-// Reads the PAYLOAD from AppControl data and navigates to the appropriate host and app.
-function handleDeepLink() {
-  try {
-    var reqAppControl = tizen.application.getCurrentApplication().getRequestedAppControl();
-    if (!reqAppControl) {
-      console.warn('%c[index.js, handleDeepLink]', 'color: green;', 'Warning: No requested app control found, skipping deep link handling!');
+      window.setTimeout(resolveRequestedHost, 100);
       return;
     }
 
-    var appControlData = reqAppControl.appControl.data;
-    console.log('%c[index.js, handleDeepLink]', 'color: green;', 'App control data: ' + JSON.stringify(appControlData));
+    var host = hosts[_directSmartHubLaunch.serverUid];
+    if (!host) {
+      directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
+      return;
+    }
+
+    _directSmartHubHost = host;
+    _directSmartHubHostReady = true;
+    api = host;
+    localStorage.setItem('lastOpenedHost', host.serverUid);
+    maybeStartDirectSmartHubLaunch();
+  }
+
+  resolveRequestedHost();
+}
+
+// Handles Smart Hub AppControl launches. An app tile either starts its requested
+// app through the direct-stream path or terminates; it never opens a Moonlight view.
+function handleDeepLink() {
+  var hasPayload = false;
+  try {
+    var reqAppControl = tizen.application.getCurrentApplication().getRequestedAppControl();
+    if (!reqAppControl) {
+      console.warn('%c[index.js, handleDeepLink]', 'color: green;', 'No requested AppControl data; skipping deep-link handling.');
+      return;
+    }
+
+    var appControlData = reqAppControl.appControl && reqAppControl.appControl.data;
+    if (!Array.isArray(appControlData)) return;
 
     for (var i = 0; i < appControlData.length; i++) {
-      if (appControlData[i].key === 'PAYLOAD') {
-        var payload = JSON.parse(appControlData[i].value[0]);
-        var actionData = JSON.parse(payload.values);
-        console.log('%c[index.js, handleDeepLink]', 'color: green;', 'Deep link action data: ', actionData);
+      if (appControlData[i].key !== 'PAYLOAD') continue;
+      hasPayload = true;
+      var payload = JSON.parse(appControlData[i].value[0]);
+      var actionData = JSON.parse(payload.values);
+      console.log('%c[index.js, handleDeepLink]', 'color: green;', 'Smart Hub app shortcut received.');
 
-        if (actionData.serverUid && actionData.appId !== null && actionData.appId !== undefined) {
-          // App-level deep link from a preview tile: navigate to the specific host and app
-          waitForHostAndNavigateToApp(actionData.serverUid, actionData.appId);
-        } else if (actionData.serverUid) {
-          // Host-level deep link: navigate to the host's app list
-          waitForHostAndNavigate(actionData.serverUid);
-        }
-        break;
+      if (actionData && actionData.serverUid &&
+          actionData.appId !== null && actionData.appId !== undefined) {
+        if (!_directSmartHubLaunch) beginDirectSmartHubLaunch(actionData);
+        return;
       }
+
+      // A host-only or incomplete shortcut does not represent an app launch.
+      console.error('%c[index.js, handleDeepLink]', 'color: red;', 'Smart Hub shortcut does not identify an app; terminating Moonlight.');
+      exitApplication();
+      return;
     }
-  } catch (e) {
-    console.error('%c[index.js, handleDeepLink]', 'color: green;', 'Error: No deep link or error processing it: ' + e.message);
+  } catch (error) {
+    console.error('%c[index.js, handleDeepLink]', 'color: red;', 'Could not process Smart Hub shortcut:', error);
+    if (hasPayload) exitApplication();
   }
 }
 
