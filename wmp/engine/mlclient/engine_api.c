@@ -34,6 +34,7 @@ extern uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void);
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
 static int g_game_mode_requested;
+static int g_cloud_game_mode_request_sent;
 static volatile int g_running;   /* 1 while a session is up */
 static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
 
@@ -273,6 +274,7 @@ static int start_connection(void) {
   if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
       __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
     MLT("TV Cloud Game Mode: requesting activation immediately after LiStartConnectionEx");
+    __atomic_store_n(&g_cloud_game_mode_request_sent, 1, __ATOMIC_RELEASE);
     int avoc_rc = ml_avoc_set_cloud_game_mode(1);
     MLT("TV Cloud Game Mode activation request completed with raw ret=%d", avoc_rc);
   }
@@ -293,6 +295,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
   __atomic_store_n(&g_game_mode_requested, 0, __ATOMIC_RELEASE);
+  __atomic_store_n(&g_cloud_game_mode_request_sent, 0, __ATOMIC_RELEASE);
   g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host) { MLT("ml_engine_start -> 2 (no host)"); return 2; }
@@ -593,7 +596,7 @@ void ml_engine_stop(void) {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
   /* Restore Cloud Game Mode only if this session requested it, after ESPlus releases the player. */
-  if (__atomic_exchange_n(&g_game_mode_requested, 0, __ATOMIC_ACQ_REL)) {
+  if (__atomic_exchange_n(&g_cloud_game_mode_request_sent, 0, __ATOMIC_ACQ_REL)) {
     int avoc_rc = ml_avoc_set_cloud_game_mode(0);
     MLT("TV Cloud Game Mode restoration request completed with raw ret=%d", avoc_rc);
   }
