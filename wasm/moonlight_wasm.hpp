@@ -272,6 +272,8 @@ class MoonlightInstance {
   std::string m_DolbyDecodingMode {"Hardware"};
   std::atomic<uint64_t> m_AudioBytesReceived {0};
   std::atomic<uint64_t> m_AudioBytesOutput {0};
+  // Opus decoder algorithmic delay for the native ESPlus software-decoding path.
+  std::atomic<double> m_OpusDecoderDelayMs{0.0};
   bool m_AudioSyncEnabled;
   int m_AudioJitterMs;
   bool m_PlayHostAudioEnabled;
