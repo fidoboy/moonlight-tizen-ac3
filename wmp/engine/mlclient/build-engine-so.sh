@@ -11,6 +11,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc}
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 NM=${WMP_ARM_NM:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-nm}
+AR=${WMP_ARM_AR:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-ar}
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 WMP_MLT_TRACE=${WMP_MLT_TRACE:-false}
@@ -33,11 +34,30 @@ echo "engine variant: $BUILD_VARIANT"
 OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
-INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$CRYPTO_PREFIX/include"
+INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$MLT/opus/include -I$MLT/opus/src -I$MLT/opus/silk -I$MLT/opus/celt -I$MLT/opus/silk/fixed -I$CRYPTO_PREFIX/include"
 
 for src in cert_init engine_api engine_avoc engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
+
+# Build the vendored libopus sources for the native ARM engine. Reuse the
+# authoritative source list from the top-level CMake target.
+mkdir -p "$OUT/opus"
+OPUS_FLAGS="$FLAGS -DFIXED_POINT -DOPUS_BUILD -DHAVE_LRINT -DHAVE_LRINTF -DUSE_ALLOCA"
+OPUS_OBJECTS=""
+for src in $(sed -n '/add_library(opus STATIC/,/^)/p' "$MLT/CMakeLists.txt" | \
+             sed -n 's/^[[:space:]]*\(opus\/.*\.c\)$/\1/p'); do
+  obj="$OUT/opus/${src#opus/}.o"
+  mkdir -p "$(dirname "$obj")"
+  "$GCC" $OPUS_FLAGS $INC -c "$MLT/$src" -o "$obj"
+  OPUS_OBJECTS="$OPUS_OBJECTS $obj"
+done
+if [ -z "$OPUS_OBJECTS" ]; then
+  echo "ERROR: no vendored libopus sources found in CMakeLists.txt." >&2
+  exit 1
+fi
+
+"$AR" rcs "$OUT/libopus.a" $OPUS_OBJECTS
 
 # Project-owned, typed ESPlus ABI discovery and ADD/SET adapter layer.
 "$GCC" $FLAGS $INC -c "$MLT/wmp/service/src/wmp_esplus_abi.c" -o "$OUT/wmp_esplus_abi.o"
@@ -52,6 +72,7 @@ done
   "$OUT"/cert_init.o "$OUT"/engine_api.o "$OUT"/engine_avoc.o "$OUT"/engine_ui.o "$OUT"/engine_pad.o "$OUT"/video_esplus.o "$OUT"/audio_opus.o \
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
+  "$OUT"/libopus.a \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \

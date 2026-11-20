@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -18,6 +19,7 @@ namespace MoonlightWmpHost
         private const string ControlPortName = "MoonlightWmpControl";
         private const string SupervisorAppId = "MoonLightS.WmpSupervisor";
         private const string SupervisorControlPortName = "MoonlightWmpSupervisorControl";
+        private const int StartupTimeoutSeconds = 30;
 
         private static readonly object Gate = new object();
         private static MessagePort _port;
@@ -88,6 +90,67 @@ namespace MoonlightWmpHost
             internal int GameMode;
             internal int DisableWarnings;
             internal int DebugMode;
+        }
+
+        internal static bool NotifySupervisorStartupWatchdog(int timeoutSeconds)
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "arm_startup_watchdog");
+                message.AddItem("targetPid", Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture));
+                message.AddItem("timeoutSeconds", timeoutSeconds.ToString(CultureInfo.InvariantCulture));
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_armed timeout_seconds=" +
+                    timeoutSeconds.ToString(CultureInfo.InvariantCulture));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_arm_failed " + ex);
+                return false;
+            }
+        }
+
+        internal static bool NotifySupervisorStartupReady()
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "startup_ready");
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_disarmed");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_disarm_failed " + ex);
+                return false;
+            }
+        }
+
+        private static void NotifySupervisorStartupFinished()
+        {
+            try
+            {
+                if (_port == null)
+                    throw new InvalidOperationException("WMP control port is unavailable");
+                var message = new Bundle();
+                message.AddItem("protocol", "moonlight-wmp-supervisor/1");
+                message.AddItem("command", "startup_finished");
+                _port.Send(message, SupervisorAppId, SupervisorControlPortName, true);
+                Log.Info("WMP_LIFECYCLE supervisor_startup_watchdog_cancelled_after_cleanup");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_LIFECYCLE supervisor_startup_watchdog_cancel_failed " + ex);
+            }
         }
 
         internal static void NotifySupervisorExpectedExit(string reason)
@@ -909,7 +972,7 @@ namespace MoonlightWmpHost
         }
 
         private static string FormatStats(StartRequest request, EngineApi.Stats stats,
-                                          EngineApi.StreamInfo stream)
+                                          EngineApi.StreamInfo stream, uint opusSoftwareDecodeAverageUs)
         {
             var text = new System.Text.StringBuilder(768);
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
@@ -948,15 +1011,22 @@ namespace MoonlightWmpHost
             {
                 string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
                     stream.AudioCodec == 2 ? "AC-3" : "OPUS";
+                string audioMode = stream.AudioCodec == 4 ? "[Software]" : "[Hardware]";
                 string layout = stream.AudioChannels == 2 ? "Stereo" :
                     stream.AudioChannels == 6 ? "5.1" :
                     stream.AudioChannels == 8 ? "7.1" : "-";
-                text.Append("Audio stream: ").Append(audioCodec).Append(" (").Append(layout)
+                text.Append("Audio stream: ").Append(audioCodec).Append(' ').Append(audioMode).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
                     .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
                     ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
             }
+
+            // This metric exists only when ESPlus rejected compressed OPUS and libopus is active.
+            if (stream.AudioCodec == 4)
+                text.Append("Audio delay: ")
+                    .Append((opusSoftwareDecodeAverageUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
+                    .Append(" ms\n");
 
             if (request.AudioEnabled == 0)
                 text.Append("Audio FEC: -\n");
@@ -1223,6 +1293,8 @@ namespace MoonlightWmpHost
             _activeSessionRemotePort = remotePort;
             int result = -1;
             bool videoReady = false;
+            bool startupTimedOut = false;
+            DateTime startupDeadline = DateTime.MaxValue;
             int lastAudioCodec = -1;
             string diagnostic = null;
             int terminationCode = 0;
@@ -1246,7 +1318,18 @@ namespace MoonlightWmpHost
                 _engine.SetDolbyPassthrough(request.AudioEnabled != 0 && request.OpticalOutputEnabled != 0 ? 1 : 0);
                 _engine.SetPerformanceStatsEnabled(request.PerformanceStats != 0 ? 1 : 0);
                 _engine.SetConnectionWarningsEnabled(request.DisableWarnings == 0 ? 1 : 0);
-                Log.Info("WMP_LIFECYCLE native_start_call_begin");
+                startupDeadline = DateTime.UtcNow.AddSeconds(StartupTimeoutSeconds);
+                if (!NotifySupervisorStartupWatchdog(StartupTimeoutSeconds))
+                {
+                    diagnostic = "WMP could not arm the independent startup watchdog";
+                    RecordDiagnostic(diagnostic);
+                    Log.Error("WMP_LIFECYCLE startup_aborted_watchdog_unavailable");
+                    _engine.Stop();
+                    Event(appId, remotePort, "streamTerminated: -1", diagnostic);
+                    return;
+                }
+                Log.Info("WMP_LIFECYCLE native_start_call_begin timeout_seconds=" +
+                    StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture));
                 result = _engine.StartSessionV2(
                     request.Host, request.Width, request.Height, request.Fps,
                     request.Bitrate, request.Rikey, request.RikeyId,
@@ -1273,11 +1356,28 @@ namespace MoonlightWmpHost
                     Log.Info("WMP_LIFECYCLE native_start_failure_stop_begin");
                     _engine.Stop();
                     Log.Info("WMP_LIFECYCLE native_start_failure_stop_complete");
+                    NotifySupervisorStartupFinished();
                     Event(appId, remotePort, "streamTerminated: " +
                         nativeCode.ToString(CultureInfo.InvariantCulture),
                         String.IsNullOrEmpty(diagnostic)
                             ? "WMP engine start failed (code " + nativeCode.ToString(CultureInfo.InvariantCulture) + ")"
                             : diagnostic);
+                    return;
+                }
+
+                if (DateTime.UtcNow >= startupDeadline)
+                {
+                    startupTimedOut = true;
+                    diagnostic = "ESPlusPlayer startup timed out after " +
+                        StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture) +
+                        " seconds before video became ready";
+                    RecordDiagnostic(diagnostic);
+                    Log.Error("WMP_LIFECYCLE startup_timeout_before_session_loop");
+                    Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_begin");
+                    _engine.Stop();
+                    Log.Info("WMP_LIFECYCLE startup_timeout_cleanup_complete");
+                    NotifySupervisorStartupFinished();
+                    Event(appId, remotePort, "streamTerminated: -1", diagnostic);
                     return;
                 }
 
@@ -1290,6 +1390,7 @@ namespace MoonlightWmpHost
                 if (StopWasRequested())
                 {
                     _engine.Stop();
+                    NotifySupervisorStartupFinished();
                     Event(appId, remotePort, "streamTerminated: 0", null);
                     return;
                 }
@@ -1299,6 +1400,17 @@ namespace MoonlightWmpHost
                 while (_engine.Running() != 0)
                 {
                     if (StopWasRequested()) break;
+                    if (!videoReady && DateTime.UtcNow >= startupDeadline)
+                    {
+                        startupTimedOut = true;
+                        terminationCode = -1;
+                        diagnostic = "ESPlusPlayer startup timed out after " +
+                            StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture) +
+                            " seconds waiting for video readiness";
+                        RecordDiagnostic(diagnostic);
+                        Log.Error("WMP_LIFECYCLE startup_timeout_waiting_for_video_ready");
+                        break;
+                    }
 
                     int audioCodec = _engine.GetActiveAudioCodec();
                     if (audioCodec != lastAudioCodec)
@@ -1315,6 +1427,15 @@ namespace MoonlightWmpHost
                     int statsResult = _engine.GetStats(ref stats);
                     if (!videoReady && _engine.VideoReady() != 0)
                     {
+                        if (!NotifySupervisorStartupReady())
+                        {
+                            startupTimedOut = true;
+                            terminationCode = -1;
+                            diagnostic = "WMP could not disarm the independent startup watchdog after video readiness";
+                            RecordDiagnostic(diagnostic);
+                            Log.Error("WMP_LIFECYCLE startup_failed_watchdog_disarm");
+                            break;
+                        }
                         videoReady = true;
                         Log.Info("WMP ESPlus playback clock advanced after video start; submitted=" +
                             (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
@@ -1361,7 +1482,10 @@ namespace MoonlightWmpHost
                                 streamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
                                 if (_engine.GetStreamInfo(ref streamInfo) != 0)
                                     streamInfo = new EngineApi.StreamInfo();
-                                SendStatsUpdateIfEnabled(appId, remotePort, FormatStats(request, stats, streamInfo));
+                                uint opusSoftwareDecodeAverageUs = streamInfo.AudioCodec == 4
+                                    ? _engine.TakeOpusSoftwareDecodeAverageUs() : 0;
+                                SendStatsUpdateIfEnabled(appId, remotePort,
+                                    FormatStats(request, stats, streamInfo, opusSoftwareDecodeAverageUs));
                                 string graphMessage = "GraphMsg: " +
                                     streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
                                     streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
@@ -1395,7 +1519,19 @@ namespace MoonlightWmpHost
                 }
 
                 Log.Info("WMP_LIFECYCLE engine_running_loop_exited");
-                terminationCode = _engine.ReadLastError(out diagnostic);
+                if (!videoReady && !StopWasRequested())
+                {
+                    if (!startupTimedOut)
+                    {
+                        terminationCode = -1;
+                        diagnostic = "WMP stream ended before ESPlusPlayer video became ready";
+                        RecordDiagnostic(diagnostic);
+                    }
+                }
+                else
+                {
+                    terminationCode = _engine.ReadLastError(out diagnostic);
+                }
                 Log.Info("WMP_LIFECYCLE terminal_error_read code=" +
                     terminationCode.ToString(CultureInfo.InvariantCulture) +
                     " diagnostic=" + (diagnostic ?? "<none>"));
@@ -1404,6 +1540,7 @@ namespace MoonlightWmpHost
                 Log.Info("WMP_LIFECYCLE engine_stop_after_loop_begin");
                 _engine.Stop();
                 Log.Info("WMP_LIFECYCLE engine_stop_after_loop_complete");
+                if (!videoReady) NotifySupervisorStartupFinished();
                 Event(appId, remotePort, "streamTerminated: " +
                     terminationCode.ToString(CultureInfo.InvariantCulture), diagnostic);
             }
@@ -1413,6 +1550,7 @@ namespace MoonlightWmpHost
                 try { _engine.Stop(); } catch (Exception stopError) {
                     Log.Error("WMP_LIFECYCLE engine_stop_after_exception_failed " + stopError);
                 }
+                if (!videoReady) NotifySupervisorStartupFinished();
                 RecordDiagnostic("host worker exception: " + ex.GetType().Name + ": " + ex.Message);
                 Event(appId, remotePort, "streamTerminated: -1",
                     "WMP host session worker failed: " + ex.Message);

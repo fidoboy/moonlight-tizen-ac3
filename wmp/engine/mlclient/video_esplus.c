@@ -19,6 +19,7 @@
 #define VLOG(...) do { fprintf(stderr, "[video] " __VA_ARGS__); MLT("video: " __VA_ARGS__); } while (0)
 
 static int s_fps;
+static int s_video_format, s_video_width, s_video_height;
 static uint8_t *s_scratch;
 static size_t s_scratch_cap;
 static uint64_t s_base_pts_us;
@@ -30,8 +31,39 @@ static int s_have_prev;
 static uint32_t s_skip_seq;
 static unsigned s_video_units;
 static volatile int s_first_video_submit_accepted;
+static int s_rebuilt_waiting_for_idr;
+static volatile int s_video_rebuild_reset_pending;
+static volatile int s_video_player_rebuilding;
 static uint32_t s_last_frame_number;
 static int s_have_frame_number;
+static int s_hevc_mdcv_available;
+static int s_hevc_cll_available;
+static int s_hevc_sei_inspection_failed;
+static int s_hevc_hdr_status_logged;
+
+void VidEsplus_CancelPlayerRebuild(void)
+{
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_RELEASE);
+}
+
+void VidEsplus_BeginPlayerRebuild(void)
+{
+    __atomic_store_n(&s_video_player_rebuilding, 1, __ATOMIC_RELEASE);
+}
+
+/* A rebuilt ESPlus player owns a new transparent overlay window. */
+void VidEsplus_ResetAfterPlayerRebuild(void)
+{
+    __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&esplus_stats.video_format, (uint32_t)s_video_format, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_width, (uint32_t)s_video_width, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_height, (uint32_t)s_video_height, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.video_fps, (uint32_t)s_fps, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_video_rebuild_reset_pending, 1, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
+    MLT_DIAG("video overlay and stream metadata restored after ESPlus player rebuild");
+}
 
 static void record_host_latency(uint32_t latency)
 {
@@ -100,10 +132,6 @@ static int ensure_scratch(size_t need)
  * from the HEVC access units. Add the corresponding prefix SEI only when the
  * bitstream does not already contain it. This is shared by ESPlus SET and ADD.
  */
-static int s_hevc_mdcv_available;
-static int s_hevc_cll_available;
-static int s_hevc_sei_inspection_failed;
-static int s_hevc_hdr_status_logged;
 
 static int find_annexb_start_code(const uint8_t *data, size_t length,
                                   size_t from, size_t *offset, size_t *code_len)
@@ -313,6 +341,9 @@ static int VidDecSetup_(int videoFormat, int width, int height,
     VLOG("setup begin fmt=0x%x %dx%d@%d\n", videoFormat, width, height, redrawRate);
     MLT("video setup fmt=0x%x %dx%d@%d", videoFormat, width, height, redrawRate);
     s_fps = redrawRate > 0 ? redrawRate : 60;
+    s_video_format = videoFormat;
+    s_video_width = width;
+    s_video_height = height;
     s_hevc_mdcv_available = 0;
     s_hevc_cll_available = 0;
     s_hevc_sei_inspection_failed = 0;
@@ -417,6 +448,9 @@ static void VidDecStart(void)
     s_skip_seq = esplus_sample_seq() - 1;
     s_video_units = 0;
     __atomic_store_n(&s_first_video_submit_accepted, 0, __ATOMIC_RELEASE);
+    s_rebuilt_waiting_for_idr = 0;
+    __atomic_store_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_video_player_rebuilding, 0, __ATOMIC_RELEASE);
     s_last_frame_number = 0;
     s_have_frame_number = 0;
     /* Reset first, then establish the common PTS origin before either stream
@@ -440,6 +474,7 @@ static void VidDecCleanup(void)
     VLOG("video renderer cleanup\n");
     MLT("video cleanup");
     esplus_close();
+    s_rebuilt_waiting_for_idr = 0;
     __atomic_store_n(&esplus_stats.video_hdr_active, 0, __ATOMIC_RELAXED);
     free(s_scratch);
     s_scratch = NULL;
@@ -466,6 +501,19 @@ static int VidDecSubmit(PDECODE_UNIT du)
     size_t offset = 0;
     int64_t pts_ms;
 
+    if (__atomic_exchange_n(&s_video_rebuild_reset_pending, 0, __ATOMIC_ACQ_REL)) {
+        s_rebuilt_waiting_for_idr = 1;
+        s_skip_seq = esplus_sample_seq() - 1;
+        s_video_units = 0;
+        s_last_frame_number = 0;
+        s_have_frame_number = 0;
+        s_hevc_mdcv_available = 0;
+        s_hevc_cll_available = 0;
+        s_hevc_sei_inspection_failed = 0;
+        s_hevc_hdr_status_logged = 0;
+    }
+    if (__atomic_load_n(&s_video_player_rebuilding, __ATOMIC_ACQUIRE))
+        return DR_OK;
     ++s_video_units;
     if (s_video_units == 1)
         MLT_DIAG("VidDecSubmit FIRST decode unit ENTER type=%d bytes=%d frame=%u",
@@ -492,6 +540,12 @@ static int VidDecSubmit(PDECODE_UNIT du)
         s_last_frame_number = du->frameNumber;
     }
     mldiag_video_du(du->frameType == FRAME_TYPE_IDR);
+
+    /* After rebuilding ESPlus, reject every delta frame until an IDR is
+     * actually accepted by the new decoder. A keyframe arriving during async
+     * prepare may itself be dropped, so the gate cannot be one-shot. */
+    if (s_rebuilt_waiting_for_idr && du->frameType != FRAME_TYPE_IDR)
+        return DR_NEED_IDR;
 
     /* A flushing seek invalidates queued reference frames. Reject one following
      * non-IDR so Common C requests a fresh keyframe from the host. */
@@ -601,6 +655,8 @@ static int VidDecSubmit(PDECODE_UNIT du)
             result = esplus_submit(&packet);
         }
         if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+            if (s_rebuilt_waiting_for_idr && du->frameType == FRAME_TYPE_IDR)
+                s_rebuilt_waiting_for_idr = 0;
             /* HDR-active is a stream state, not a per-packet flag. Latch it
              * once ESPlus accepts an HDR-active Main10 access unit; clear it
              * only when the renderer stops or is reconfigured. */

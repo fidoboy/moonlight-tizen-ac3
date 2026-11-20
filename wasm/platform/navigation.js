@@ -277,15 +277,7 @@ function playNavigationSound() {
   var context = navigationSoundContext;
   if (context.state === 'closed') return;
 
-  // A new focus movement must always produce feedback. Stop the previous short
-  // effect before starting the next one instead of silently dropping this event.
-  navigationSoundSources.forEach(function(activeSource) {
-    activeSource.onended = null;
-    try { activeSource.stop(0); } catch (error) {}
-    try { activeSource.disconnect(); } catch (error) {}
-  });
-  navigationSoundSources = [];
-
+  // Keep previous navigation effects alive: rapid focus movements may overlap.
   if (context.state === 'suspended') {
     try {
       var resumeResult = context.resume();

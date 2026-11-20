@@ -315,6 +315,8 @@ var pendingMediaPipelineErrorMessage = null;
 var pendingMediaPipelineApiMessage = null;
 var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
+// Prevent delayed native progress/error callbacks from overwriting the closing transition.
+var streamTerminationTransitionActive = false;
 var pendingMediaPipelineStopRequested = false;
 
 function formatESPlusPlayerStartupDiagnostic(message) {
@@ -993,9 +995,19 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       value.className = 'performance-stats-value';
       var valueText = line.slice(separator + 1).trim();
       var sourceLine = sourceLines[lineIndex] || '';
-      var audioModeMatch = sourceLine.indexOf('Audio stream:') === 0
+      var isAudioStreamLine = sourceLine.indexOf('Audio stream:') === 0;
+      var audioModeMatch = isAudioStreamLine
         ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
+      // ESPlusPlayer normally forwards the negotiated codec to the native
+      // player. Preserve an explicit [Software] marker when the Tizen 5 OPUS
+      // preroll fallback is active; default to [Hardware] for native passthrough.
+      if (isAudioStreamLine && window._activeStreamingEngine === 'ESPLUSPLAYER') {
+        if (!audioModeMatch && valueText !== '-') {
+          valueText = valueText.replace(/^(\S+)(?=\s|\(|$)/, '$1 [Hardware]');
+          audioModeMatch = valueText.match(/\[Hardware\]/);
+        }
+      }
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
         var modeEnd = modeStart + audioModeMatch[0].length;
@@ -1084,6 +1096,9 @@ var _queuedPairing = null;
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
     if (method === 'startRequest') {
+      // A new session has not crossed the startup success boundary yet.
+      window._streamTransitionHiddenForSession = false;
+      streamTerminationTransitionActive = false;
       h264TrackRejectionClosingMessage = null;
       pendingStreamDialogMessage = null;
       pendingStreamApiMessage = null;
@@ -1223,8 +1238,27 @@ function handleMessage(msg) {
       msg.indexOf('StatsSnapshotMsg: ') !== 0) {
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   }
+  // Native callbacks may already be queued when the stream stops. They must not
+  // overwrite the new closing title/status once termination has begun.
+  if (streamTerminationTransitionActive &&
+      /^(?:ProgressMsg: |TransientMsg: |DialogMsg: |MediaPipelineErrorMsg: |VideoTrackCloseErrorMsg: |H264TrackRejectedMsg: )/.test(String(msg))) {
+    return;
+  }
+
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Lock and reset the transition immediately, before teardown work or any
+    // callback can expose stale startup text from the previous session.
+    streamTerminationTransitionActive = true;
+    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    // Snapshot the sole success boundary before teardown resets any session state.
+    var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
+    var streamRemoteAppLaunchRequested = window._remoteStreamAppLaunchRequested === true;
+    window._streamTransitionHiddenForSession = false;
+    window._remoteStreamAppLaunchRequested = false;
+    var initialClosingAppName = window._activeStreamAppName || t('Apps');
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', initialClosingAppName));
+    $('#loadingSpinnerMessage').empty();
     var engineState = window.getStreamingEngineState();
     engineState.confirmed = false;
     engineState.videoReady = false;
@@ -1251,7 +1285,6 @@ function handleMessage(msg) {
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
-    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
     var streamDialogMessage = pendingStreamDialogMessage;
     var streamApiMessage = pendingStreamApiMessage;
@@ -1288,16 +1321,13 @@ function handleMessage(msg) {
       return;
     }
 
-    // Reset both transition labels before any teardown/recovery work can yield.
-    // The closing title is assigned immediately; status text is populated below
-    // from the termination reason and updated as restoration progresses.
-    var closingAppName = window._activeStreamAppName || t('Apps');
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', closingAppName));
-    $('#loadingSpinnerMessage').empty();
+    // Snapshot the sole stream-success boundary before any termination path resets it.
+    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
+    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
-    // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
-    // but always exit this client regardless of whether the stream ended normally or with an error.
+    // The host app is closed for manual termination and pre-success startup failures, but
+    // retained after unexpected errors once the transition has actually been hidden.
     if (window._directSmartHubLaunch) {
       // Reuse the shared transition layer for the closing status; never restore the home UI.
       resetStreamEncryptionStatus();
@@ -1355,11 +1385,13 @@ function handleMessage(msg) {
               ? t('Unable to launch the selected app.')
               : directClosingMessage));
       }
-      var shouldQuitDirectHostApp = errorCode === 0 &&
-        !streamMediaPipelineErrorMessage && !streamDialogMessage &&
-        !streamH264TrackRejectionMessage && !streamVideoTrackCloseErrorMessage &&
-        !!(window._directSmartHubStreamSettings &&
-          window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var directQuitPreferenceEnabled = !!(window._directSmartHubStreamSettings &&
+        window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var shouldQuitDirectHostApp = directQuitPreferenceEnabled && (
+        manualStreamStopAtTermination ||
+        (!streamTransitionWasHiddenAtTermination && directStreamHasError) ||
+        (!directStreamHasError && errorCode === 0)
+      );
       var exitDirectLaunch = function() {
         try {
           // Reuse Moonlight's common exit path so the optional Ambilight service
@@ -1377,10 +1409,15 @@ function handleMessage(msg) {
 
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-          withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+          try {
+            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
+              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+              finishDirectLaunch();
+            });
+          } catch (failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
             finishDirectLaunch();
-          });
+          }
         } else {
           finishDirectLaunch();
         }
@@ -1491,11 +1528,9 @@ function handleMessage(msg) {
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
 
-    // Set the message first, then show the complete transition layer. The local UI
-    // audio engine is rebuilt only after this layer is fully visible.
+    // Prepare the closing copy immediately before requesting the existing transition.
+    // This replaces startup-phase text without changing when or how the transition appears.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     var resolveLocalAudioRestoration;
     var localAudioRestoration = new Promise(function(resolve) {
       resolveLocalAudioRestoration = resolve;
@@ -1528,6 +1563,10 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
       });
     };
+    // Set both text fields before the transition can become visible. The title is
+    // specific to the closing phase; the status starts with its closing-phase message.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
       showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
     } else {
@@ -1543,7 +1582,30 @@ function handleMessage(msg) {
       persistedPreferences.quitAppAfterDisconnect === 'true' ||
       persistedPreferences.quitAppAfterDisconnect === 1
     );
-    var shouldQuitHostApp = errorCode === 0 && !hasStreamError && !!quitAfterDisconnect;
+    // Preserve the existing graceful/manual-disconnect behavior. In addition,
+    // a startup failure before the transition was hidden must make a best-effort
+    // attempt to close the remote app. Once hidden, unexpected errors never do.
+    var shouldQuitHostApp = !!quitAfterDisconnect && (
+      manualStreamStopRequested ||
+      (hasStreamError && !streamTransitionWasHidden) ||
+      (errorCode === 0 && !hasStreamError)
+    );
+    var startupRemoteAppQuit = Promise.resolve();
+    if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
+        streamRemoteAppLaunchRequested && shouldQuitHostApp &&
+        window._activeStreamAppName && window._activeStreamAppName !== t('Apps') &&
+        api && typeof api.quitApp === 'function') {
+      console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
+      try {
+        startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+          console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
+        }, function(error) {
+          console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
+        });
+      } catch (error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
+      }
+    }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
       console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
@@ -1674,7 +1736,7 @@ function handleMessage(msg) {
         if (errorQuitButton) errorQuitButton.disabled = false;
         logStreamTerminationRecovery('opening shared stream error dialog', {errorCode: errorCode, hasApiMessage: !!streamErrorApiMessage});
         warningDialog(t('Error'), streamErrorDialogMessage, function() {
-          refreshHostAndReturnToApps();
+          startupRemoteAppQuit.then(refreshHostAndReturnToApps);
         }, true, 'OK', {
           code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
           apiMessage: streamErrorApiMessage

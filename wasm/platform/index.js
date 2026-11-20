@@ -314,6 +314,40 @@ function cleanupWmpAfterStartupFailure() {
   return transport.abortPreparedStartup();
 }
 
+function quitRemoteAppAfterStartupFailure() {
+  // Only a failure before the startup transition was hidden may close the host app.
+  // Respect the user's quit-after-disconnect preference and avoid quitting when
+  // no remote app launch was recorded.
+  if (window._streamTransitionHiddenForSession === true) return Promise.resolve();
+  var preferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
+  var directSettings = window._directSmartHubStreamSettings;
+  var quitEnabled = (preferences && (
+    preferences.quitAppAfterDisconnect === true ||
+    preferences.quitAppAfterDisconnect === 'true' ||
+    preferences.quitAppAfterDisconnect === 1
+  )) || !!(directSettings && directSettings.quitAppAfterDisconnect);
+  var appName = window._activeStreamAppName;
+  var hostApi = window.api || (typeof api !== 'undefined' ? api : null);
+  if (!quitEnabled || window._remoteStreamAppLaunchRequested !== true ||
+      !appName || appName === t('Apps') ||
+      !hostApi || typeof hostApi.quitApp !== 'function') {
+    return Promise.resolve();
+  }
+  console.warn('[stream/startup]', 'Attempting best-effort remote app shutdown after startup failure.');
+  var quitOperation;
+  try {
+    quitOperation = hostApi.quitApp();
+  } catch (error) {
+    console.warn('[stream/startup]', 'Best-effort remote app shutdown could not be started:', error);
+    return Promise.resolve();
+  }
+  return withOperationTimeout(quitOperation, 10000, 'Host app shutdown after startup failure').then(function() {
+    console.info('[stream/startup]', 'Remote app shutdown request completed.');
+  }, function(error) {
+    console.warn('[stream/startup]', 'Best-effort remote app shutdown failed:', error);
+  });
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
@@ -373,14 +407,15 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   };
   // Preserve EMSS's synchronous failure path; only WMP waits for verified process teardown.
   var wmpCleanup = cleanupWmpAfterStartupFailure();
+  var remoteAppCleanup = quitRemoteAppAfterStartupFailure();
   if (wmpCleanup) {
     wmpCleanup.catch(function(cleanupError) {
       console.error('[esplusplayer] Complete WMP cleanup after startup timeout failed:', cleanupError);
       message += ' ' + t('WMP cleanup failed:') + ' ' +
         (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-    }).then(finishTimeoutFailure);
+    }).then(function() { return remoteAppCleanup; }).then(finishTimeoutFailure);
   } else {
-    finishTimeoutFailure();
+    remoteAppCleanup.then(finishTimeoutFailure);
   }
 }
 
@@ -446,15 +481,16 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   };
   // EMSS retains its existing path; WMP waits until both native processes are gone.
   var wmpCleanup = cleanupWmpAfterStartupFailure();
+  var remoteAppCleanup = quitRemoteAppAfterStartupFailure();
   if (wmpCleanup) {
     wmpCleanup.catch(function(cleanupError) {
       console.error('[esplusplayer] Complete WMP cleanup after host launch failure failed:', cleanupError);
       rawApiMessage += (rawApiMessage ? '\n' : '') +
         'WMP cleanup failed: ' +
         (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-    }).then(finishApiFailure);
+    }).then(function() { return remoteAppCleanup; }).then(finishApiFailure);
   } else {
-    finishApiFailure();
+    remoteAppCleanup.then(finishApiFailure);
   }
 }
 
@@ -5569,6 +5605,10 @@ function scheduleStreamTransitionHideAfterVideoReady() {
       streamVideoReadyHideTimeout = null;
       if (generation !== streamVideoReadyHideGeneration) return;
       hideStreamTransitionBackground(function() {
+        // This callback runs only after the startup transition layer is display:none.
+        // It is the single success boundary used to decide whether startup failures
+        // may terminate the remote application later in this session.
+        window._streamTransitionHiddenForSession = true;
         var nativeEngineState = typeof window.getStreamingEngineState === 'function'
           ? window.getStreamingEngineState() : null;
         if (nativeEngineState && nativeEngineState.active === 'ESPLUSPLAYER' &&
@@ -6255,6 +6295,11 @@ function startGame(host, appID) {
       // Keep the active session labels available to JavaScript termination handling.
       window._activeStreamAppName = appToStart.title || String(appID);
       window._activeStreamHostName = host.hostname || '';
+      // Every new attempt starts before the sole success boundary.
+      window._streamTransitionHiddenForSession = false;
+      // A resume is already running; a new launch becomes eligible for cleanup
+      // immediately before its host.launchApp request is issued.
+      window._remoteStreamAppLaunchRequested = host.currentGame == appID;
       window._manualStreamStopRequested = false;
 
       // Show the transition first. Only after it is fully visible may the local UI
@@ -6435,6 +6480,7 @@ function startGame(host, appID) {
 
       // If the user wants to launch the app, then we start launching it
       $('#loadingSpinnerMessage').text(t('Requesting stream from host...'));
+      window._remoteStreamAppLaunchRequested = true;
       withOperationTimeout(host.launchApp(
         appID, // App ID
         streamWidth + 'x' + streamHeight + 'x' + frameRate, // Resolution and frame rate
@@ -6686,6 +6732,11 @@ function requestManualStreamStop() {
     typeof window.ESPlusPlayerTransport.stopStream === 'function';
   if (isWmpStream && window._manualStreamStopRequested) return;
   if (isWmpStream) window._manualStreamStopRequested = true;
+
+  // Set the closing texts before asking the existing transition to appear.
+  var closingAppName = window._activeStreamAppName || t('Apps');
+  $('#loadingSpinnerTitle').text(t('Closing %1$s...', closingAppName));
+  $('#loadingSpinnerMessage').empty();
 
   showStreamTransitionBackground(function() {
     // Preserve the existing EMSS stop ordering; its flag is set only after

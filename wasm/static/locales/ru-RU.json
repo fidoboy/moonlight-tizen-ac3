@@ -649,5 +649,8 @@
   "Could not load the saved streaming settings.": "Не удалось загрузить сохранённые настройки потоковой передачи.",
   "Could not apply the saved streaming-setting requirements.": "Не удалось применить требования сохранённых настроек потоковой передачи.",
   "Could not save the optimized streaming bitrate.": "Не удалось сохранить оптимизированный битрейт потоковой передачи.",
-  "Audio input:": "Входящий аудиопоток:"
+  "Audio input:": "Входящий аудиопоток:",
+  "Preparing native video playback service...": "Подготовка встроенной службы воспроизведения видео...",
+  "The local device could not prepare the native video playback service.": "Локальному устройству не удалось подготовить встроенную службу воспроизведения видео.",
+  "WMP cleanup failed:": "Не удалось очистить WMP:"
 }

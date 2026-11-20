@@ -32,6 +32,8 @@ typedef struct {
   volatile uint32_t host_latency_count, host_latency_min, host_latency_max;
   /* Per-poll host-latency window, atomically exchanged by engine_api.c. */
   volatile uint64_t host_latency_window_total;
+  /* Packed per-snapshot libopus decode window: sum_us in high 32 bits, packet count in low 32. */
+  volatile uint64_t opus_decode_window;
   volatile uint32_t host_latency_window_count, host_latency_window_min, host_latency_window_max;
 } esplus_stats_t;
 

@@ -649,5 +649,8 @@
   "Could not load the saved streaming settings.": "Die gespeicherten Streaming-Einstellungen konnten nicht geladen werden.",
   "Could not apply the saved streaming-setting requirements.": "Die Anforderungen der gespeicherten Streaming-Einstellungen konnten nicht angewendet werden.",
   "Could not save the optimized streaming bitrate.": "Die optimierte Streaming-Bitrate konnte nicht gespeichert werden.",
-  "Audio input:": "Audioeingang:"
+  "Audio input:": "Audioeingang:",
+  "Preparing native video playback service...": "Nativen Videowiedergabedienst wird vorbereitet...",
+  "The local device could not prepare the native video playback service.": "Das lokale Gerät konnte den nativen Videowiedergabedienst nicht vorbereiten.",
+  "WMP cleanup failed:": "WMP-Bereinigung fehlgeschlagen:"
 }
