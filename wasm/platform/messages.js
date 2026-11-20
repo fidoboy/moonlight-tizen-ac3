@@ -1096,6 +1096,8 @@ var _queuedPairing = null;
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
     if (method === 'startRequest') {
+      // A new session has not crossed the startup success boundary yet.
+      window._streamTransitionHiddenForSession = false;
       streamTerminationTransitionActive = false;
       h264TrackRejectionClosingMessage = null;
       pendingStreamDialogMessage = null;
@@ -1249,6 +1251,9 @@ function handleMessage(msg) {
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    // Snapshot the sole success boundary before teardown resets any session state.
+    var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
+    window._streamTransitionHiddenForSession = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
     $('#loadingSpinnerTitle').text(t('Closing %1$s...', initialClosingAppName));
     $('#loadingSpinnerMessage').empty();
@@ -1564,7 +1569,26 @@ function handleMessage(msg) {
       persistedPreferences.quitAppAfterDisconnect === 'true' ||
       persistedPreferences.quitAppAfterDisconnect === 1
     );
-    var shouldQuitHostApp = errorCode === 0 && !hasStreamError && !!quitAfterDisconnect;
+    // Preserve the existing graceful/manual-disconnect behavior. In addition,
+    // a startup failure before the transition was hidden must make a best-effort
+    // attempt to close the remote app. Once hidden, unexpected errors never do.
+    var shouldQuitHostApp = !!quitAfterDisconnect && (
+      manualStreamStopRequested ||
+      (hasStreamError && !streamTransitionWasHidden) ||
+      (errorCode === 0 && !hasStreamError)
+    );
+    var startupRemoteAppQuit = Promise.resolve();
+    if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
+        shouldQuitHostApp && window._activeStreamAppName &&
+        window._activeStreamAppName !== t('Apps') &&
+        api && typeof api.quitApp === 'function') {
+      console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
+      startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+        console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
+      }, function(error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
+      });
+    }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
       console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
@@ -1695,7 +1719,7 @@ function handleMessage(msg) {
         if (errorQuitButton) errorQuitButton.disabled = false;
         logStreamTerminationRecovery('opening shared stream error dialog', {errorCode: errorCode, hasApiMessage: !!streamErrorApiMessage});
         warningDialog(t('Error'), streamErrorDialogMessage, function() {
-          refreshHostAndReturnToApps();
+          startupRemoteAppQuit.then(refreshHostAndReturnToApps);
         }, true, 'OK', {
           code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
           apiMessage: streamErrorApiMessage
