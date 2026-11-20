@@ -42,8 +42,8 @@
   <link rel="stylesheet" href="static/css/style.css">
   <style>
     /* Used only for direct Smart Hub launches, which intentionally bypass the home UI. */
-    html.app-starting,
-    html.app-starting body {
+    html.app-starting:not(.native-stream-launch),
+    html.app-starting:not(.native-stream-launch) body {
       background-color: #000 !important;
     }
     html.app-starting .mdl-layout {
