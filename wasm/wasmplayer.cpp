@@ -1676,8 +1676,9 @@ void MoonlightInstance::TogglePerformanceStats() {
   const bool enabled = !m_PerformanceStatsEnabled.load(std::memory_order_relaxed);
   m_PerformanceStatsEnabled.store(enabled, std::memory_order_relaxed);
 
-  // Show an empty overlay immediately when enabled. Fresh measurements arrive on the next stats tick.
+  // Start a fresh interval when enabling the overlay; do not show accumulated time from when it was hidden.
   if (enabled) {
+    ResetAudioSoftwareProcessingStats();
     PostToJs(std::string("StatMsg: "));
   } else {
     PostToJs(std::string("NoStatMsg: "));
