@@ -13,17 +13,9 @@ volatile int esplus_performance_stats_enabled;
 void ml_engine_notify_audio_ready(void) {}
 void LiReportVideoRendererError(void) {}
 
-static int g_fallback_ready, g_recover_count, g_decode_samples;
-static int g_recover_result;
-static wmp_esplus_audio_info_t g_recovery_audio_info;
+static int g_fallback_ready, g_fallback_blocked, g_decode_samples;
 
 int esplus_opus_fallback_ready(void) { return g_fallback_ready; }
-int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *info)
-{
-    ++g_recover_count;
-    g_recovery_audio_info = *info;
-    return g_recover_result;
-}
 
 OpusMSDecoder *opus_multistream_decoder_create(
     opus_int32 rate, int channels, int streams, int coupled,
@@ -61,7 +53,12 @@ void esplus_audio_registration_complete(int success)
 uint64_t esplus_stream_clock_pts_ns(void) { return g_clock_pts_ns; }
 wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
 {
-    wmp_esplus_submit_result_t result = { WMP_ESPLUS_SUBMIT_SUCCESS, 4 };
+    wmp_esplus_submit_result_t result = {
+        g_fallback_blocked ? WMP_ESPLUS_SUBMIT_NOT_PREPARED : WMP_ESPLUS_SUBMIT_SUCCESS,
+        4
+    };
+    if (g_fallback_blocked)
+        return result;
     g_last_packet = *packet;
     ++g_submit_count;
     return result;
@@ -76,10 +73,8 @@ static void reset_capture(void)
     g_audio_registered = 0;
     g_clock_pts_ns = 0;
     g_fallback_ready = 0;
-    g_recover_count = 0;
+    g_fallback_blocked = 0;
     g_decode_samples = 480;
-    g_recover_result = 0;
-    memset(&g_recovery_audio_info, 0, sizeof(g_recovery_audio_info));
 }
 
 static void make_opus_config(OPUS_MULTISTREAM_CONFIGURATION *opus)
@@ -177,15 +172,33 @@ static void test_opus_software_fallback(void)
     assert(callbacks.init(AUDIO_CONFIGURATION_51_SURROUND, &opus, NULL, 0) == 0);
 
     g_clock_pts_ns = 20000000ull;
-    g_fallback_ready = 1;
+
+    /* Model the rejected native player while the independent recovery worker
+     * is rebuilding it. ESPlus must reject further compressed submissions. */
+    g_fallback_blocked = 1;
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
-    assert(g_recover_count == 0 && g_submit_count == 0);
+    assert(g_submit_count == 0);
+    assert(AudEsplus_GetActiveAudioCodec() == 1);
+
+    /* Model successful registration by the recovery worker. The readiness
+     * flag is published only after PCM_S16LE has been registered. */
+    {
+        wmp_esplus_audio_info_t pcm_info;
+        memset(&pcm_info, 0, sizeof(pcm_info));
+        pcm_info.mime_type = WMP_ESPLUS_AUDIO_MIME_PCM_S16LE;
+        pcm_info.channels = 6;
+        pcm_info.sample_rate = 48000;
+        assert(esplus_set_audio_info(&pcm_info) == 0);
+    }
+    assert(g_audio_registered);
+    assert(g_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_PCM_S16LE);
+    assert(g_audio_info.channels == 6);
+    assert(g_audio_info.sample_rate == 48000);
+    g_fallback_blocked = 0;
+    g_fallback_ready = 1;
+
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
 
-    assert(g_recover_count == 1);
-    assert(g_recovery_audio_info.mime_type == WMP_ESPLUS_AUDIO_MIME_PCM_S16LE);
-    assert(g_recovery_audio_info.channels == 6);
-    assert(g_recovery_audio_info.sample_rate == 48000);
     assert(g_submit_count == 1);
     assert(g_last_packet.type == WMP_ESPLUS_STREAM_AUDIO);
     assert(g_last_packet.data != frame);
