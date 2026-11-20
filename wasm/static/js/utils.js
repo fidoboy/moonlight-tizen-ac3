@@ -765,9 +765,9 @@ NvHTTP.prototype = {
     return this.getAppListWithCacheFlush();
   },
 
-  // Returns original PNG box art and generates an optimized JPEG for the
-  // Smart Hub Preview background service. The original remains in private storage;
-  // the JPEG is saved in Documents so the service can serve it over local HTTP.
+  // Returns original PNG box art for the main app grid and generates a neutral,
+  // age-appropriate 16:9 JPEG thumbnail for Smart Hub Preview. The thumbnail is
+  // saved in Documents so the background service can serve it over local HTTP.
   getBoxArt: function(appId) {
     return new Promise(function(resolve, reject) {
       // Store the original PNG box art in the private directory
