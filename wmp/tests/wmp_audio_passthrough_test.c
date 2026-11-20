@@ -178,7 +178,9 @@ static void test_opus_software_fallback(void)
     g_fallback_blocked = 1;
     callbacks.decodeAndPlaySample((char *)frame, sizeof(frame));
     assert(g_submit_count == 0);
-    assert(AudEsplus_GetActiveAudioCodec() == 1);
+    /* No compressed packet was accepted by the rejected player, so the
+     * active codec must remain unset until PCM is successfully submitted. */
+    assert(AudEsplus_GetActiveAudioCodec() == 0);
 
     /* Model successful registration by the recovery worker. The readiness
      * flag is published only after PCM_S16LE has been registered. */
