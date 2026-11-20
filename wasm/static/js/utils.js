@@ -1,5 +1,13 @@
 // Safely wraps IPv6 addresses in brackets for URL construction.
 // IPv4 addresses and DNS hostnames do not contain colons, so they are untouched.
+// Stable, host-scoped filenames prevent two hosts with the same app ID from
+// overwriting one another's Smart Hub Preview artwork.
+function getSmartHubPreviewFileName(serverUid, appId) {
+  var hostKey = String(serverUid == null ? 'host' : serverUid).replace(/[^A-Za-z0-9_-]/g, '_');
+  var appKey = String(appId == null ? 'app' : appId).replace(/[^A-Za-z0-9_-]/g, '_');
+  return 'preview-v2-' + hostKey + '-' + appKey + '.jpg';
+}
+
 function formatAddressForUrl(address) {
   if (address && address.indexOf(':') !== -1 && address.indexOf('[') === -1) {
     return '[' + address + ']';
@@ -845,7 +853,7 @@ NvHTTP.prototype = {
             console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art: ', appId);
 
             // Check whether an optimized Smart Hub Preview has already been cached
-            var previewFileName = 'preview-' + appId + '.jpg';
+            var previewFileName = getSmartHubPreviewFileName(self.serverUid, appId);
             var previewFilePath = 'documents/' + previewFileName;
 
             // Try to open the cached preview box art to determine whether it already exists
@@ -907,7 +915,7 @@ NvHTTP.prototype = {
                 } catch(error) {
                   console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Error: Failed to delete original box art file ' + boxArtFileName + ': ' + error.message);
                 }
-                var previewFileName = 'preview-' + appId + '.jpg';
+                var previewFileName = getSmartHubPreviewFileName(self.serverUid, appId);
                 try {
                   tizen.filesystem.deleteFile('documents/' + previewFileName);
                 } catch(error) {
@@ -996,99 +1004,53 @@ NvHTTP.prototype = {
   // The image is progressively compressed and resized until it fits within the
   // maximum file size allowed for Smart Hub Preview, while preserving a minimum
   // image size for small source images.
+  // Creates a neutral, age-appropriate Smart Hub thumbnail.
+  // Fixed output: 444x250 px (16:9), JPEG, and below the 360 KB limit.
+  // Host-provided game artwork is intentionally not reused because its age suitability
+  // cannot be established from the app-list metadata.
   generatePreviewImage: function(dataUrl, appId) {
     return new Promise(function(resolve) {
-      var MAX_FILE_SIZE = 350 * 1024;
-      var MIN_QUALITY = 0.25;
-      var QUALITY_STEP = 0.05;
-      var SCALE_STEP = 0.9;
-      var MIN_SCALE_WIDTH = 100;
-      var MIN_SCALE_HEIGHT = 100;
-
-      // Create an image element to decode the original box art
-      var image = new Image();
-
-      // Process the decoded image once it has finished loading
-      image.onload = function() {
-        try {
-          // Get the source image dimensions
-          var width = image.naturalWidth || image.width;
-          var height = image.naturalHeight || image.height;
-
-          // Ensure the image has valid dimensions before processing
-          if (!width || !height) {
-            console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Invalid image dimensions for app ID ' + appId);
-            resolve(null);
-            return;
-          }
-
-          // Create a canvas used to resize and convert the box art to JPEG
-          var canvas = document.createElement('canvas');
-          var context = canvas.getContext('2d');
-
-          if (!context) {
-            console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Unable to create canvas context for app ID ' + appId);
-            resolve(null);
-            return;
-          }
-
-          // Try progressively smaller images until the file size limit is met
-          while (true) {
-            canvas.width = width;
-            canvas.height = height;
-
-            // Draw the source box art at the current dimensions
-            context.drawImage(image, 0, 0, width, height);
-
-            // Try reducing JPEG quality before reducing the image dimensions
-            var quality = 0.85;
-
-            // Try progressively lower quality levels until the file size limit is met
-            while (quality >= MIN_QUALITY) {
-              var jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
-              var base64Data = jpegDataUrl.split(',')[1];
-              var fileSize = Math.floor(base64Data.length * 3 / 4); // Base64 represents 3 bytes per 4 characters
-
-              // Return the first image that meets the file size limit
-              if (fileSize <= MAX_FILE_SIZE) {
-                console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created preview image for app ID ' + 
-                appId + ': ' + Math.round(fileSize / 1024) + ' KB (' + width + 'x' + height + ', quality ' + quality.toFixed(2) + ')');
-                resolve(jpegDataUrl);
-                return;
-              }
-
-              // Lower the JPEG quality before attempting to reduce the image dimensions
-              quality -= QUALITY_STEP;
-            }
-
-            // Stop shrinking once the minimum scaling dimensions have been reached.
-            // The current dimensions have already been tested at all supported
-            // quality levels before exiting.
-            if (width <= MIN_SCALE_WIDTH || height <= MIN_SCALE_HEIGHT) {
-              break;
-            }
-
-            // Quality reduction was not enough, so reduce the dimensions and try again
-            width = Math.round(width * SCALE_STEP);
-            height = Math.round(height * SCALE_STEP);
-          }
-
-          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Unable to create preview image within the size limit for app ID ' + appId);
+      try {
+        var MAX_FILE_SIZE = 350 * 1024;
+        var canvas = document.createElement('canvas');
+        canvas.width = 444;
+        canvas.height = 250;
+        var context = canvas.getContext('2d');
+        if (!context) {
+          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Canvas context unavailable for app ID ' + appId);
           resolve(null);
-        } catch (error) {
-          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Failed to generate preview image for app ID ' + appId + ': ' + error.message);
-          resolve(null);
+          return;
         }
-      };
-
-      // Handle failures when the original box art cannot be decoded
-      image.onerror = function() {
-        console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Error: Failed to decode box art for app ID ' + appId);
+        // A simple game-controller motif; no user-generated or age-rated imagery.
+        context.fillStyle = '#202b3a';
+        context.fillRect(0, 0, 444, 250);
+        context.fillStyle = '#dce4ef';
+        context.fillRect(174, 91, 96, 68);
+        context.fillRect(157, 107, 130, 38);
+        context.fillStyle = '#202b3a';
+        context.fillRect(184, 119, 31, 8);
+        context.fillRect(195, 108, 9, 30);
+        context.beginPath();
+        context.arc(244, 116, 6, 0, Math.PI * 2);
+        context.arc(260, 132, 6, 0, Math.PI * 2);
+        context.fill();
+        var jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        var fileSize = Math.floor(jpegDataUrl.split(',')[1].length * 3 / 4);
+        if (fileSize > MAX_FILE_SIZE) {
+          jpegDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          fileSize = Math.floor(jpegDataUrl.split(',')[1].length * 3 / 4);
+        }
+        if (fileSize > MAX_FILE_SIZE) {
+          console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Generated thumbnail exceeds 350 KiB for app ID ' + appId);
+          resolve(null);
+          return;
+        }
+        console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created safe Smart Hub thumbnail for app ID ' + appId + ': ' + Math.round(fileSize / 1024) + ' KB (444x250, JPEG)');
+        resolve(jpegDataUrl);
+      } catch (error) {
+        console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Failed to generate Smart Hub thumbnail for app ID ' + appId + ': ' + error.message);
         resolve(null);
-      };
-
-      // Start loading the original box art from the provided data URL
-      image.src = dataUrl;
+      }
     });
   },
 
@@ -1097,7 +1059,7 @@ NvHTTP.prototype = {
   savePreviewImage: function(appId, previewDataUrl) {
     try {
       // Build the filename and path used by the local HTTP server
-      var filename = 'preview-' + appId + '.jpg';
+      var filename = getSmartHubPreviewFileName(this.serverUid, appId);
       var filePath = 'documents/' + filename;
 
       // Extract the Base64 payload from the data URL and convert it to binary data
