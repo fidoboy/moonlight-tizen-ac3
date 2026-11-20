@@ -420,7 +420,7 @@ NvHTTP.prototype = {
     var serverName = $root.find('hostname').text().trim();
     if (serverName != '') {
       // DNS names are case-insensitive; keep the hostname normalized for lookups and logs.
-      this.hostname = serverName.toLowerCase();
+      this.hostname = serverName;
     } else {
       this.hostname = 'UNKNOWN';
     }
