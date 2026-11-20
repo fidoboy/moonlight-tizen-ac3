@@ -10344,8 +10344,8 @@ function waitForHostAndNavigateToApp(serverUid, appId) {
         const sortedAppList = sortAppsForHost(host, appList);
 
         // Keep the host's app ID/title mapping available independently of Smart Hub support.
+        // A Deep Link validates and launches one app; it must not publish Smart Hub Preview tiles.
         cacheHostAppList(host, sortedAppList);
-        updatePreviewData();
 
         var appExists = appList.some(function(app) {
           return app.id === appId;
