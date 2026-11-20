@@ -269,14 +269,11 @@ static int start_connection(int game_mode) {
   MLT("LiStartConnection -> 0");
   g_started = 1;
   /* Apply the three TV modes only when the user requested Game Mode.
-   * The order is intentional: Game Mode, Picture Mode, then Cloud Game Mode. */
+   * Picture Mode and Cloud Game Mode are set first; Game Mode is last. */
   if (game_mode && __atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
     __atomic_store_n(&g_avoc_stream_modes_request_sent, 1, __ATOMIC_RELEASE);
 
     MLT("TV AVOC: applying stream modes after LiStartConnectionEx");
-    int game_mode_rc = ml_avoc_set_game_mode(1);
-    MLT("TV AVOC: Game Mode activation completed with raw ret=%d", game_mode_rc);
-
     int picture_mode_rc = ml_avoc_set_picture_mode(0, 4);
     MLT("TV AVOC: Picture Mode set(display=0, mode=4) completed with raw ret=%d",
         picture_mode_rc);
@@ -284,6 +281,9 @@ static int start_connection(int game_mode) {
     int cloud_game_mode_rc = ml_avoc_set_cloud_game_mode(1);
     MLT("TV AVOC: Cloud Game Mode activation completed with raw ret=%d",
         cloud_game_mode_rc);
+
+    int game_mode_rc = ml_avoc_set_game_mode(1);
+    MLT("TV AVOC: Game Mode activation completed with raw ret=%d", game_mode_rc);
   }
 
   int in = input_init();
@@ -601,18 +601,19 @@ void ml_engine_stop(void) {
   } else {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
-  /* Restore TV modes in the same order after ESPlus releases the player. */
+  /* Restore TV modes after ESPlus releases the player.
+   * Game Mode is switched off first, followed by Cloud Game Mode and Picture Mode. */
   if (__atomic_exchange_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_ACQ_REL)) {
     int game_mode_rc = ml_avoc_set_game_mode(0);
     MLT("TV AVOC: Game Mode restoration completed with raw ret=%d", game_mode_rc);
 
-    int picture_mode_rc = ml_avoc_set_picture_mode(0, 4);
-    MLT("TV AVOC: Picture Mode re-applied(display=0, mode=4) with raw ret=%d",
-        picture_mode_rc);
-
     int cloud_game_mode_rc = ml_avoc_set_cloud_game_mode(0);
     MLT("TV AVOC: Cloud Game Mode restoration completed with raw ret=%d",
         cloud_game_mode_rc);
+
+    int picture_mode_rc = ml_avoc_set_picture_mode(0, 4);
+    MLT("TV AVOC: Picture Mode re-applied(display=0, mode=4) with raw ret=%d",
+        picture_mode_rc);
   }
   MLT("ml_engine_stop -> done");
 }
