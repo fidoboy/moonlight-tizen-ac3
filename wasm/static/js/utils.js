@@ -333,9 +333,20 @@ NvHTTP.prototype = {
     };
 
     addCandidate(this.address);
-    // Only append '.local' if the hostname doesn't already end with it
-    var localSuffix = this.hostname.endsWith('.local') ? this.hostname : this.hostname + '.local';
-    addCandidate(localSuffix);
+
+    // DNS hostnames are case-insensitive. Try both common local DNS suffixes.
+    var normalizedHostname = (this.hostname || '').trim().toLowerCase();
+    if (normalizedHostname) {
+      var lanHostname = normalizedHostname.endsWith('.lan')
+        ? normalizedHostname
+        : normalizedHostname.replace(/\.local$/i, '') + '.lan';
+      var localHostname = normalizedHostname.endsWith('.local')
+        ? normalizedHostname
+        : normalizedHostname.replace(/\.lan$/i, '') + '.local';
+      addCandidate(lanHostname);
+      addCandidate(localHostname);
+    }
+
     addCandidate(this.localAddress);
     addCandidate(this.externalIP);
     addCandidate(this.userEnteredAddress);
@@ -408,7 +419,8 @@ NvHTTP.prototype = {
     // Retrieve the hostname and handle name validation
     var serverName = $root.find('hostname').text().trim();
     if (serverName != '') {
-      this.hostname = serverName;
+      // DNS names are case-insensitive; keep the hostname normalized for lookups and logs.
+      this.hostname = serverName.toLowerCase();
     } else {
       this.hostname = 'UNKNOWN';
     }
