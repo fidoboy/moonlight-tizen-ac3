@@ -154,10 +154,18 @@ var platformVer = tizen.systeminfo.getCapability("http://tizen.org/feature/platf
 // Check Web Service support without launching the service. Fail closed: if the
 // capability cannot be queried, Smart Hub Preview must not attempt an AppControl.
 var smartHubServiceSupported = false;
+var smartHubServiceSupportError = null;
 try {
   smartHubServiceSupported = tizen.systeminfo.getCapability("http://tizen.org/feature/web.service") === true;
 } catch (error) {
-  console.warn("[Smart Hub Preview] Could not query Web Service support; Preview publishing is disabled:", error);
+  smartHubServiceSupportError = error;
+}
+if (DEBUG_MODE) {
+  if (smartHubServiceSupportError) {
+    console.debug("[Smart Hub Preview] Web Service capability check failed; Preview publishing is disabled:", smartHubServiceSupportError);
+  } else {
+    console.debug("[Smart Hub Preview] Web Service support:", smartHubServiceSupported ? "available" : "unavailable");
+  }
 }
 var modelSeries = webapis.productinfo.getModel(); // Retrieve the device model series
 var modelName = webapis.productinfo.getRealModel(); // Retrieve the device model name
