@@ -128,6 +128,7 @@ static void *s_disp, *s_win;
 static int s_ecore;
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_recovery_lock = PTHREAD_MUTEX_INITIALIZER;
+static int opus_recovery_worker_start(void);
 static pthread_t s_opus_recovery_thread;
 static int s_opus_recovery_thread_started;
 static unsigned s_player_generation;
@@ -587,10 +588,10 @@ static void on_error(int error, void *context)
         __atomic_store_n(&s_opus_fallback_error, 1, __ATOMIC_RELEASE);
         opus_fallback_error = 1;
         MLT("OPUS format rejected during preroll; scheduling immediate PCM player rebuild");
-        if (pthread_mutex_trylock(&s_lock) == 0) {
-            pthread_cond_broadcast(&s_state_cv);
-            pthread_mutex_unlock(&s_lock);
-        }
+        /* Do not take s_lock from a native callback: it may be re-entered
+         * synchronously by submit while that mutex is held. The worker uses a
+         * timed condition wait as a lost-wakeup safeguard. */
+        pthread_cond_broadcast(&s_state_cv);
     }
 
     /* ESPlusPlayer may invoke this on its own thread. Never tear down the
@@ -1253,8 +1254,16 @@ static void *opus_recovery_worker(void *arg)
         wmp_esplus_audio_info_t pcm_info;
         int have_pcm;
         pthread_mutex_lock(&s_lock);
-        while (!__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE))
-            pthread_cond_wait(&s_state_cv, &s_lock);
+        while (!__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE)) {
+            struct timespec wake;
+            clock_gettime(CLOCK_REALTIME, &wake);
+            wake.tv_nsec += 100000000L;
+            if (wake.tv_nsec >= 1000000000L) {
+                ++wake.tv_sec;
+                wake.tv_nsec -= 1000000000L;
+            }
+            (void)pthread_cond_timedwait(&s_state_cv, &s_lock, &wake);
+        }
         pcm_info = s_cached_opus_pcm_info;
         have_pcm = s_cached_opus_pcm_info_valid;
         pthread_mutex_unlock(&s_lock);
