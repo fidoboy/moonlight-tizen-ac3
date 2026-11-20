@@ -314,6 +314,23 @@ function cleanupWmpAfterStartupFailure() {
   return transport.abortPreparedStartup();
 }
 
+function quitRemoteAppAfterStartupFailure() {
+  // Only a failure before the startup transition was hidden may close the host app.
+  // Avoid issuing quitApp when no remote app launch was recorded.
+  if (window._streamTransitionHiddenForSession === true) return Promise.resolve();
+  var appName = window._activeStreamAppName;
+  var hostApi = window.api || (typeof api !== 'undefined' ? api : null);
+  if (!appName || appName === t('Apps') || !hostApi || typeof hostApi.quitApp !== 'function') {
+    return Promise.resolve();
+  }
+  console.warn('[stream/startup]', 'Attempting best-effort remote app shutdown after startup failure.');
+  return withOperationTimeout(hostApi.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+    console.info('[stream/startup]', 'Remote app shutdown request completed.');
+  }, function(error) {
+    console.warn('[stream/startup]', 'Best-effort remote app shutdown failed:', error);
+  });
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
@@ -373,14 +390,15 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   };
   // Preserve EMSS's synchronous failure path; only WMP waits for verified process teardown.
   var wmpCleanup = cleanupWmpAfterStartupFailure();
+  var remoteAppCleanup = quitRemoteAppAfterStartupFailure();
   if (wmpCleanup) {
     wmpCleanup.catch(function(cleanupError) {
       console.error('[esplusplayer] Complete WMP cleanup after startup timeout failed:', cleanupError);
       message += ' ' + t('WMP cleanup failed:') + ' ' +
         (cleanupError && cleanupError.message ? cleanupError.message : String(cleanupError));
-    }).then(finishTimeoutFailure);
+    }).then(function() { return remoteAppCleanup; }).then(finishTimeoutFailure);
   } else {
-    finishTimeoutFailure();
+    remoteAppCleanup.then(finishTimeoutFailure);
   }
 }
 
@@ -5569,6 +5587,10 @@ function scheduleStreamTransitionHideAfterVideoReady() {
       streamVideoReadyHideTimeout = null;
       if (generation !== streamVideoReadyHideGeneration) return;
       hideStreamTransitionBackground(function() {
+        // This callback runs only after the startup transition layer is display:none.
+        // It is the single success boundary used to decide whether startup failures
+        // may terminate the remote application later in this session.
+        window._streamTransitionHiddenForSession = true;
         var nativeEngineState = typeof window.getStreamingEngineState === 'function'
           ? window.getStreamingEngineState() : null;
         if (nativeEngineState && nativeEngineState.active === 'ESPLUSPLAYER' &&
