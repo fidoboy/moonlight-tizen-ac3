@@ -652,5 +652,9 @@
   "Audio input:": "Входящий аудиопоток:",
   "Preparing native video playback service...": "Подготовка встроенной службы воспроизведения видео...",
   "The local device could not prepare the native video playback service.": "Локальному устройству не удалось подготовить встроенную службу воспроизведения видео.",
-  "WMP cleanup failed:": "Не удалось очистить WMP:"
+  "WMP cleanup failed:": "Не удалось очистить WMP:",
+  "The selected app is no longer available on the host.": "Выбранное приложение больше недоступно на хосте.",
+  "Could not retrieve the requested application from the host.": "Не удалось получить запрошенное приложение с хоста.",
+  "Moonlight could not restore the selected host.": "Moonlight не удалось восстановить выбранный хост.",
+  "Audio latency:": "Задержка звука:"
 }
