@@ -269,10 +269,10 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
-  /* Request Game Mode as soon as connection startup succeeds. */
+  /* Request Cloud Game Mode as soon as ESPlus connection startup succeeds. */
   if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
       __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
-    MLT("TV Game Mode: requesting activation immediately after LiStartConnectionEx");
+    MLT("TV Cloud Game Mode: requesting activation immediately after LiStartConnectionEx");
     int avoc_rc = ml_avoc_set_cloud_game_mode(1);
     MLT("TV Cloud Game Mode activation request completed with raw ret=%d", avoc_rc);
   }
@@ -592,8 +592,11 @@ void ml_engine_stop(void) {
   } else {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
-  /* AVOC off must happen after LiStopConnection has released the player/window. */
-  ml_avoc_set_cloud_game_mode(0);
+  /* Restore Cloud Game Mode only if this session requested it, after ESPlus releases the player. */
+  if (__atomic_exchange_n(&g_game_mode_requested, 0, __ATOMIC_ACQ_REL)) {
+    int avoc_rc = ml_avoc_set_cloud_game_mode(0);
+    MLT("TV Cloud Game Mode restoration request completed with raw ret=%d", avoc_rc);
+  }
   MLT("ml_engine_stop -> done");
 }
 
