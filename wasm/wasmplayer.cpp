@@ -1594,11 +1594,6 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
           g_Instance->TakeAudioSoftwareProcessingAverageMs());
       }
       else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
-          g_Instance->m_DolbySoftwareDecode.load()) {
-        append("Audio delay: %.2f ms avg\n",
-          g_Instance->TakeAudioSoftwareProcessingAverageMs());
-      }
-      else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
           !ac3Negotiated && !eac3Negotiated && !hardwareDecoderActive &&
           !g_Instance->m_OpusPassthrough.load()) {
         append("Audio delay: %.2f ms avg\n",
