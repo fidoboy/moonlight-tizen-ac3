@@ -259,6 +259,8 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
 
   // Latch the audio backend selected for this streaming session
   s_AudioBackend = g_Instance->m_AudioBackend;
+  // Reset the decoder delay measurement for each session, including fallback routes.
+  g_Instance->m_OpusDecoderDelayMs.store(0.0, std::memory_order_relaxed);
 
   // Skip creating the Opus decoder when the audio output is disabled, as every audio packet is discarded
   if (s_AudioBackend == AudioBackend::Disabled) {
@@ -344,6 +346,19 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     opusConfig->streams, opusConfig->coupledStreams,
     opusConfig->mapping, &rc
   );
+
+  // Query libopus's algorithmic lookahead for the native ESPlus PCM route.
+  // This represents decoder delay in samples, not variable CPU processing time.
+  if (s_AudioBackend == AudioBackend::Emss && g_Instance->m_OpusDecoder != nullptr) {
+    int decoderLookaheadSamples = 0;
+    if (opus_multistream_decoder_ctl(g_Instance->m_OpusDecoder,
+        OPUS_GET_LOOKAHEAD(&decoderLookaheadSamples)) == OPUS_OK && decoderLookaheadSamples >= 0) {
+      const double decoderDelayMs = 1000.0 * decoderLookaheadSamples / s_sampleRate;
+      g_Instance->m_OpusDecoderDelayMs.store(decoderDelayMs, std::memory_order_relaxed);
+      ClLogMessage("Native ESPlus Opus decoder lookahead: %d samples (%.2f ms)\n",
+        decoderLookaheadSamples, decoderDelayMs);
+    }
+  }
 
   // Initialize the estimated audio end time
   s_estimatedAudioEnd = 0s;
