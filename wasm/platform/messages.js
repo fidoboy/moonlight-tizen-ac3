@@ -1253,7 +1253,9 @@ function handleMessage(msg) {
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     // Snapshot the sole success boundary before teardown resets any session state.
     var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
+    var streamRemoteAppLaunchRequested = window._remoteStreamAppLaunchRequested === true;
     window._streamTransitionHiddenForSession = false;
+    window._remoteStreamAppLaunchRequested = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
     $('#loadingSpinnerTitle').text(t('Closing %1$s...', initialClosingAppName));
     $('#loadingSpinnerMessage').empty();
@@ -1579,8 +1581,8 @@ function handleMessage(msg) {
     );
     var startupRemoteAppQuit = Promise.resolve();
     if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
-        shouldQuitHostApp && window._activeStreamAppName &&
-        window._activeStreamAppName !== t('Apps') &&
+        streamRemoteAppLaunchRequested && shouldQuitHostApp &&
+        window._activeStreamAppName && window._activeStreamAppName !== t('Apps') &&
         api && typeof api.quitApp === 'function') {
       console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
       startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
