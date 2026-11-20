@@ -767,6 +767,14 @@ const BUILD_COMMIT = '__BUILD_COMMIT__'; // Placeholder for build commit, which 
 const OFFICIAL_RELEASE = '__OFFICIAL_RELEASE__' === 'true'; // Only stable GitHub Releases set this flag
 const REPO_OWNER = '__REPO_OWNER__'; // Placeholder for repository owner, which should be replaced during the build process
 const REPO_NAME = '__REPO_NAME__'; // Placeholder for repository name, which should be replaced during the build process
+// Stable, host-scoped filenames prevent two hosts with the same app ID from
+// overwriting one another's Smart Hub Preview artwork.
+function getSmartHubPreviewFileName(serverUid, appId) {
+  var hostKey = String(serverUid == null ? 'host' : serverUid).replace(/[^A-Za-z0-9_-]/g, '_');
+  var appKey = String(appId == null ? 'app' : appId).replace(/[^A-Za-z0-9_-]/g, '_');
+  return 'preview-v2-' + hostKey + '-' + appKey + '.jpg';
+}
+
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
 // Smart Hub Preview publication is gated by the Web Service capability check above.
 
@@ -5231,27 +5239,19 @@ function showApps(host, options) {
                   console.log('%c[index.js, showApps]', 'color: green;', 'Failed to get TV IP: ', e);
                 }
 
-                // Use deterministic filename so the local HTTP server route stays stable
-                var filename = 'preview-' + app.id + '.jpg';
+                // Serve the generated, host-specific JPEG from Documents. Never point
+                // the Preview URL at the original PNG box-art file.
+                var filename = getSmartHubPreviewFileName(host.serverUid, app.id);
                 var cacheBuster = '?v=' + Date.now();
-
-                // Determine local path from resolvedPromise if it's a file URI
-                if (resolvedPromise.startsWith('file://')) {
-                  var localPngPath = resolvedPromise.replace('file://', '');
-                  appEntry.txtPath = localPngPath;
-                  appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
-                  resolveBoxArt();
-                } else {
-                  try {
-                    var documentsPath = tizen.filesystem.toURI('documents').replace('file://', '');
-                    appEntry.txtPath = documentsPath + '/' + filename;
-                    appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
-                  } catch(err) {
-                    appEntry.txtPath = '/opt/usr/home/owner/content/Documents/' + filename;
-                    appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
-                  }
-                  resolveBoxArt();
+                try {
+                  var documentsPath = tizen.filesystem.toURI('documents').replace('file://', '');
+                  appEntry.txtPath = documentsPath + '/' + filename;
+                } catch(err) {
+                  appEntry.txtPath = '/opt/usr/home/owner/content/Documents/' + filename;
                 }
+                appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
+                appEntry.imageRatio = '16by9';
+                resolveBoxArt();
 
                 // Early return to prevent the fallback synchronous resolveBoxArt from firing
                 return;
@@ -10441,22 +10441,25 @@ function updatePreviewData() {
     Object.keys(_previewApps).forEach(function(serverUid) {
       var entry = _previewApps[serverUid];
       if (!entry || !entry.apps || entry.apps.length === 0 || totalTiles >= SMART_HUB_MAX_TILES) return;
-      var apps = entry.apps.slice(0, SMART_HUB_MAX_TILES - totalTiles);
+      var apps = entry.apps.filter(function(app) {
+        return app && app.imageUri && app.txtPath;
+      }).slice(0, SMART_HUB_MAX_TILES - totalTiles);
       var tiles = apps.map(function(app, index) {
         var tile = {
           title: app.title,
           subtitle: entry.hostname,
+          image_url: app.imageUri,
+          image_ratio: '16by9',
           action_data: JSON.stringify({
-            serverUid: serverUid,
+            serverUid: String(serverUid),
             address: entry.address,
-            appId: app.id,
+            appId: String(app.id),
             appName: app.title
           }),
           is_playable: true,
           position: totalTiles + index
         };
-        if (app.imageUri) tile.image_url = app.imageUri;
-        if (app.txtPath) tile.txtPath = app.txtPath;
+        tile.txtPath = app.txtPath;
         return tile;
       });
       totalTiles += tiles.length;
