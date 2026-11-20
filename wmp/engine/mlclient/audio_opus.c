@@ -274,7 +274,7 @@ static void ar_decodePlay(char *data, int len)
         if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
-                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\\n");
+                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\n");
                 LiReportVideoRendererError();
             }
             return;
