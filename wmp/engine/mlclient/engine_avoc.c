@@ -100,11 +100,8 @@ int ml_avoc_set_game_mode(int enabled)
         rc = s_set_game_mode(0, 1, 1);
         MLT("AVOC: avoc_set_game_mode(0, 1, 1) returned rc=%d", rc);
     } else {
-        int rc1 = s_set_game_mode(0, 1, 0);
-        int rc0 = s_set_game_mode(0, 0, 0);
-        rc = rc1 ? rc1 : rc0;
-        MLT("AVOC: avoc_set_game_mode(0, 1, 0) returned rc=%d; (0, 0, 0) returned rc=%d",
-            rc1, rc0);
+        rc = s_set_game_mode(0, 1, 0);
+        MLT("AVOC: avoc_set_game_mode(0, 1, 0) returned rc=%d", rc);
     }
 
     s_active = rc == 0 ? mode : -1;
