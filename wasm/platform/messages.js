@@ -1321,9 +1321,13 @@ function handleMessage(msg) {
       return;
     }
 
+    // Snapshot the sole stream-success boundary before any termination path resets it.
+    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
+    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
+
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
-    // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
-    // but always exit this client regardless of whether the stream ended normally or with an error.
+    // The host app is closed for manual termination and pre-success startup failures, but
+    // retained after unexpected errors once the transition has actually been hidden.
     if (window._directSmartHubLaunch) {
       // Reuse the shared transition layer for the closing status; never restore the home UI.
       resetStreamEncryptionStatus();
@@ -1381,11 +1385,13 @@ function handleMessage(msg) {
               ? t('Unable to launch the selected app.')
               : directClosingMessage));
       }
-      var shouldQuitDirectHostApp = errorCode === 0 &&
-        !streamMediaPipelineErrorMessage && !streamDialogMessage &&
-        !streamH264TrackRejectionMessage && !streamVideoTrackCloseErrorMessage &&
-        !!(window._directSmartHubStreamSettings &&
-          window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var directQuitPreferenceEnabled = !!(window._directSmartHubStreamSettings &&
+        window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var shouldQuitDirectHostApp = directQuitPreferenceEnabled && (
+        manualStreamStopAtTermination ||
+        (!streamTransitionWasHiddenAtTermination && directStreamHasError) ||
+        (!directStreamHasError && errorCode === 0)
+      );
       var exitDirectLaunch = function() {
         try {
           // Reuse Moonlight's common exit path so the optional Ambilight service
@@ -1403,10 +1409,15 @@ function handleMessage(msg) {
 
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-          withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+          try {
+            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
+              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+              finishDirectLaunch();
+            });
+          } catch (failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
             finishDirectLaunch();
-          });
+          }
         } else {
           finishDirectLaunch();
         }
