@@ -150,6 +150,15 @@ var LOG_SHOW_PRIVATE_DATA = false;
 // Initialize global variables and constants
 var appInfo = tizen.application.getAppInfo(); // Retrieve the application information
 var platformVer = tizen.systeminfo.getCapability("http://tizen.org/feature/platform.version"); // Retrieve the device platform version
+
+// Check Web Service support without launching the service. Fail closed: if the
+// capability cannot be queried, Smart Hub Preview must not attempt an AppControl.
+var smartHubServiceSupported = false;
+try {
+  smartHubServiceSupported = tizen.systeminfo.getCapability("http://tizen.org/feature/web.service") === true;
+} catch (error) {
+  console.warn("[Smart Hub Preview] Could not query Web Service support; Preview publishing is disabled:", error);
+}
 var modelSeries = webapis.productinfo.getModel(); // Retrieve the device model series
 var modelName = webapis.productinfo.getRealModel(); // Retrieve the device model name
 var modelGroup = webapis.productinfo.getModelCode(); // Retrieve the device model group
@@ -767,8 +776,7 @@ const OFFICIAL_RELEASE = '__OFFICIAL_RELEASE__' === 'true'; // Only stable GitHu
 const REPO_OWNER = '__REPO_OWNER__'; // Placeholder for repository owner, which should be replaced during the build process
 const REPO_NAME = '__REPO_NAME__'; // Placeholder for repository name, which should be replaced during the build process
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
-// Smart Hub Preview support is determined by the actual publication request.
-// The background service reports whether the Preview API accepted the payload.
+// Smart Hub Preview publication is gated by the Web Service capability check above.
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
@@ -5220,7 +5228,7 @@ function showApps(host, options) {
             host.getBoxArt(app.id).then(function(resolvedPromise) {
               boxArtPlaceholderImg.src = resolvedPromise;
               // The resolvedPromise is now the absolute file URI (or data URL if it failed to save).
-              if (_previewApps[host.serverUid] && appEntry) {
+              if (smartHubServiceSupported && _previewApps[host.serverUid] && appEntry) {
                 // Resolve real TV IP because Smart Hub might block 127.0.0.1
                 var tvIp = '127.0.0.1';
                 try {
@@ -10431,6 +10439,11 @@ function handleDeepLink() {
 // directly to the background service. The service performs the Preview API call
 // and reports the operation's result through the AppControl reply.
 function updatePreviewData() {
+  if (!smartHubServiceSupported) {
+    console.log("%c[index.js, updatePreviewData]", "color: gray;", "Web Service is not supported; skipping Smart Hub Preview publication.");
+    return;
+  }
+
   try {
     var packageId = tizen.application.getCurrentApplication().appInfo.packageId;
     var serviceId = packageId + '.preview';
