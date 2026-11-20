@@ -1590,16 +1590,19 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
           append("Audio input: OPUS (%.0f kbps)\n",
             stats.receivedAudioBitrateKbps);
         }
-        append("Audio transcode: %.2f ms avg\n",
-          g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
+        append("Audio delay: %.2f ms avg\n",
+          g_Instance->TakeAudioSoftwareProcessingAverageMs());
       }
       else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
-          !ac3Negotiated && !eac3Negotiated && !hardwareDecoderActive) {
-        const double opusDecoderDelayMs =
-          g_Instance->m_OpusDecoderDelayMs.load(std::memory_order_relaxed);
-        if (opusDecoderDelayMs > 0.0) {
-          append("Audio delay: %.2f ms\n", opusDecoderDelayMs);
-        }
+          g_Instance->m_DolbySoftwareDecode.load()) {
+        append("Audio delay: %.2f ms avg\n",
+          g_Instance->TakeAudioSoftwareProcessingAverageMs());
+      }
+      else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
+          !ac3Negotiated && !eac3Negotiated && !hardwareDecoderActive &&
+          !g_Instance->m_OpusPassthrough.load()) {
+        append("Audio delay: %.2f ms avg\n",
+          g_Instance->TakeAudioSoftwareProcessingAverageMs());
       }
     } else {
       append("Audio stream: -\n");
