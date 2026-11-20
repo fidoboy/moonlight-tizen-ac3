@@ -38,11 +38,11 @@ fi
 expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
 mkdir -p "$expected"
 ln -sfn "$gcc" "$expected/arm-linux-gnueabi-gcc"
-ln -sfn "$gxx" "$expected/arm-linux-gnueabi-g++"
+if [[ ! -x "$expected/arm-linux-gnueabi-g++" ]]; then ln -sfn "$gxx" "$expected/arm-linux-gnueabi-g++"; fi
 ln -sfn "$objdump" "$expected/arm-linux-gnueabi-objdump"
 ln -sfn "$ar" "$expected/arm-linux-gnueabi-ar"
-ln -sfn "$nm" "$expected/arm-linux-gnueabi-nm"
-ln -sfn "$ranlib" "$expected/arm-linux-gnueabi-ranlib"
+if [[ ! -x "$expected/arm-linux-gnueabi-nm" ]]; then ln -sfn "$nm" "$expected/arm-linux-gnueabi-nm"; fi
+if [[ ! -x "$expected/arm-linux-gnueabi-ranlib" ]]; then ln -sfn "$ranlib" "$expected/arm-linux-gnueabi-ranlib"; fi
 "$expected/arm-linux-gnueabi-gcc" --version
 "$expected/arm-linux-gnueabi-objdump" --version | head -1
 echo "== Build FFmpeg 9.0.2 for the native ARM32 ESPlus engine"

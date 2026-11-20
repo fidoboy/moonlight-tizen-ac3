@@ -139,7 +139,8 @@ jobs:
               for tool in g++ nm ranlib; do
                 found="$(find "$WMP_DEPS/toolchain" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"
                 test -n "$found"
-                ln -sfn "$found" "$ARM_GCC_DIR/arm-linux-gnueabi-$tool"
+                target="$ARM_GCC_DIR/arm-linux-gnueabi-$tool"
+                if [[ ! -x "$target" ]]; then ln -sfn "$found" "$target"; fi
               done
               CCACHE_BIN=/runner-temp/wmp-ccache-bin
               mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
