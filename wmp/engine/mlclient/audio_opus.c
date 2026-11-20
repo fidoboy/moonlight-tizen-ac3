@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "opus_multistream.h"
 
 #include "Limelight.h"
@@ -33,6 +34,13 @@ static int s_opus_software_active;
 static int s_opus_fallback_failed;
 
 #define OPUS_MAX_FRAME_SAMPLES 5760
+
+static uint64_t opus_monotonic_ns(void)
+{
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
 
 static void opus_software_decoder_destroy(void)
 {
@@ -77,6 +85,23 @@ int AudEsplus_GetActiveAudioCodec(void)
     return __atomic_load_n(&s_audio_codec_active, __ATOMIC_ACQUIRE);
 }
 
+/* Consumed once per one-second statistics snapshot by the native host. */
+uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void)
+{
+    uint64_t window;
+    uint32_t packets;
+
+    if (AudEsplus_GetActiveAudioCodec() != 4) {
+        __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
+        return 0;
+    }
+
+    window = __atomic_exchange_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_ACQ_REL);
+    packets = (uint32_t)window;
+    return packets ? (uint32_t)((window >> 32) / packets) : 0;
+}
+
+
 void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
     s_dolby_passthrough_enabled = enabled != 0;
@@ -85,6 +110,7 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -153,6 +179,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -252,6 +279,7 @@ static void ar_cleanup(void)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -284,6 +312,7 @@ static void ar_decodePlay(char *data, int len)
          * new player with PCM. Switch to software here, outside the native
          * ESPlus callback and without performing teardown on this packet path. */
         s_opus_software_active = 1;
+        __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
         __atomic_store_n(&s_audio_codec_candidate, 4, __ATOMIC_RELEASE);
         __atomic_store_n(&s_audio_codec_active, 4, __ATOMIC_RELEASE);
         __atomic_store_n(&esplus_stats.audio_codec, 4, __ATOMIC_RELAXED);
@@ -294,12 +323,22 @@ static void ar_decodePlay(char *data, int len)
     }
 
     if (s_opus_software_active) {
+        int measure_decode = __atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE);
+        uint64_t decode_start_ns = measure_decode ? opus_monotonic_ns() : 0;
         int samples = opus_multistream_decode(
             s_software_decoder, (const unsigned char *)data, len,
             s_software_pcm, OPUS_MAX_FRAME_SAMPLES, 0);
+        uint64_t decode_end_ns = measure_decode ? opus_monotonic_ns() : 0;
         if (samples <= 0) {
             ALOG("libopus packet decode failed: %d\n", samples);
             return;
+        }
+        if (decode_start_ns != 0 && decode_end_ns >= decode_start_ns) {
+            uint64_t elapsed_us = (decode_end_ns - decode_start_ns + 500ull) / 1000ull;
+            if (elapsed_us > UINT32_MAX) elapsed_us = UINT32_MAX;
+            /* One 64-bit atomic keeps the interval sum and sample count coherent. */
+            __atomic_fetch_add(&esplus_stats.opus_decode_window,
+                               (elapsed_us << 32) | 1ull, __ATOMIC_RELAXED);
         }
 
         memset(&packet, 0, sizeof(packet));

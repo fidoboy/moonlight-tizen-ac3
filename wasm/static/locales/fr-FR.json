@@ -651,5 +651,6 @@
   "Could not save the optimized streaming bitrate.": "Impossible d’enregistrer le débit binaire optimisé pour le streaming.",
   "Audio input:": "Entrée audio :",
   "Preparing native video playback service...": "Préparation du service natif de lecture vidéo...",
-  "The local device could not prepare the native video playback service.": "L’appareil local n’a pas pu préparer le service natif de lecture vidéo."
+  "The local device could not prepare the native video playback service.": "L’appareil local n’a pas pu préparer le service natif de lecture vidéo.",
+  "WMP cleanup failed:": "Échec du nettoyage WMP :"
 }

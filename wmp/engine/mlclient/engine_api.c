@@ -29,6 +29,7 @@ extern void VidEsplus_FillCallbacks(PDECODER_RENDERER_CALLBACKS cb);
 extern void AudEsplus_FillCallbacks(PAUDIO_RENDERER_CALLBACKS cb);  /* audio_opus.c */
 extern void AudEsplus_SetDolbyPassthroughEnabled(int enabled);      /* audio_opus.c */
 extern int AudEsplus_GetActiveAudioCodec(void);
+extern uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void);
 
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
@@ -410,6 +411,10 @@ void ml_engine_set_performance_stats_enabled(int enabled) {
 
 int ml_engine_get_active_audio_codec(void) {
   return AudEsplus_GetActiveAudioCodec();
+}
+
+uint32_t ml_engine_take_opus_software_decode_average_us(void) {
+  return AudEsplus_TakeOpusSoftwareDecodeAverageUs();
 }
 
 int ml_engine_video_ready(void) {

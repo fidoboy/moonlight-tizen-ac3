@@ -651,5 +651,6 @@
   "Could not save the optimized streaming bitrate.": "No se pudo guardar la tasa de bits optimizada para el streaming.",
   "Audio input:": "Audio de entrada:",
   "Preparing native video playback service...": "Preparando el servicio nativo de reproducción de vídeo...",
-  "The local device could not prepare the native video playback service.": "El dispositivo local no ha podido preparar el servicio nativo de reproducción de vídeo."
+  "The local device could not prepare the native video playback service.": "El dispositivo local no ha podido preparar el servicio nativo de reproducción de vídeo.",
+  "WMP cleanup failed:": "Error al limpiar WMP:"
 }
