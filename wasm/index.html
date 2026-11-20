@@ -49,10 +49,6 @@
     html.app-starting .mdl-layout {
       visibility: hidden !important;
     }
-    /* Keep the stream statistics accessible without revealing the hidden direct-launch UI. */
-    html.app-starting #performance-stats {
-      visibility: visible !important;
-    }
     /* Native playback is rendered by Wayland behind the Web application.
        Keep the direct-launch document and transition surface alpha-transparent. */
     html.app-starting.native-stream-launch,
