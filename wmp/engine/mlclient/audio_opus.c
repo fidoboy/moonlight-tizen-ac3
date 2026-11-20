@@ -35,6 +35,8 @@ static int s_opus_software_active;
 static int s_opus_fallback_failed;
 static int s_opus_eac3_transcoding;
 static int s_opus_eac3_failed;
+static int s_opus_eac3_pts_initialized;
+static uint64_t s_opus_eac3_next_pts_ns;
 
 #define OPUS_MAX_FRAME_SAMPLES 5760
 
@@ -114,6 +116,8 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     opus_eac3_transcoder_cleanup();
     s_opus_eac3_transcoding = 0;
     s_opus_eac3_failed = 0;
+    s_opus_eac3_pts_initialized = 0;
+    s_opus_eac3_next_pts_ns = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
@@ -188,6 +192,8 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     opus_eac3_transcoder_cleanup();
     s_opus_eac3_transcoding = 0;
     s_opus_eac3_failed = 0;
+    s_opus_eac3_pts_initialized = 0;
+    s_opus_eac3_next_pts_ns = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
@@ -333,6 +339,8 @@ static void ar_cleanup(void)
     opus_eac3_transcoder_cleanup();
     s_opus_eac3_transcoding = 0;
     s_opus_eac3_failed = 0;
+    s_opus_eac3_pts_initialized = 0;
+    s_opus_eac3_next_pts_ns = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
@@ -409,7 +417,12 @@ static void ar_decodePlay(char *data, int len)
             packet.data = encoded_data[i];
             packet.size = (uint32_t)encoded_sizes[i];
             packet.duration_ns = (uint64_t)frame_samples * 1000000000ull / DOLBY_SAMPLE_RATE;
-            packet.pts_ns = esplus_stream_clock_pts_ns();
+            if (!s_opus_eac3_pts_initialized) {
+                s_opus_eac3_next_pts_ns = esplus_stream_clock_pts_ns();
+                s_opus_eac3_pts_initialized = 1;
+            }
+            packet.pts_ns = s_opus_eac3_next_pts_ns;
+            s_opus_eac3_next_pts_ns += packet.duration_ns;
             result = esplus_submit(&packet);
             if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
                 __atomic_store_n(&s_audio_codec_active, 5, __ATOMIC_RELEASE);
