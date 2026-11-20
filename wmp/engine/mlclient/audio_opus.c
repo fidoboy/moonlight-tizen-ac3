@@ -31,7 +31,6 @@ static opus_int16 *s_software_pcm;
 static int s_opus_fallback_available;
 static int s_opus_software_active;
 static int s_opus_fallback_failed;
-static int s_opus_fallback_deferred;
 
 #define OPUS_MAX_FRAME_SAMPLES 5760
 
@@ -86,7 +85,6 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
-    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -155,7 +153,6 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
-    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -255,7 +252,6 @@ static void ar_cleanup(void)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
-    s_opus_fallback_deferred = 0;
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -275,31 +271,18 @@ static void ar_decodePlay(char *data, int len)
         __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
 
     if (!s_dolby && !s_opus_software_active && esplus_opus_fallback_ready()) {
-        wmp_esplus_audio_info_t pcm_info;
-        /* Let prepare_async_done(false) unwind before closing its player. */
-        if (!s_opus_fallback_deferred) {
-            s_opus_fallback_deferred = 1;
-            return;
-        }
         if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
-                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\n");
+                ALOG("OPUS rejected by ESPlus and libopus fallback is unavailable\\n");
                 LiReportVideoRendererError();
             }
             return;
         }
 
-        memset(&pcm_info, 0, sizeof(pcm_info));
-        pcm_info.mime_type = WMP_ESPLUS_AUDIO_MIME_PCM_S16LE;
-        pcm_info.channels = (uint32_t)s_channel_count;
-        pcm_info.sample_rate = (uint32_t)s_sample_rate;
-        if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
-            s_opus_fallback_failed = 1;
-            ALOG("ESPlus player rebuild for PCM fallback failed\n");
-            return;
-        }
-
+        /* The ESPlus recovery worker has already rebuilt and registered the
+         * new player with PCM. Switch to software here, outside the native
+         * ESPlus callback and without performing teardown on this packet path. */
         s_opus_software_active = 1;
         __atomic_store_n(&s_audio_codec_candidate, 4, __ATOMIC_RELEASE);
         __atomic_store_n(&s_audio_codec_active, 4, __ATOMIC_RELEASE);
