@@ -1269,7 +1269,14 @@ static void *opus_recovery_worker(void *arg)
             continue;
         }
         MLT("OPUS fallback worker starting full ESPlus rebuild without waiting for another callback");
-        (void)esplus_recover_opus_as_pcm(&pcm_info);
+        if (esplus_recover_opus_as_pcm(&pcm_info) != 0) {
+            /* A failed attempt is terminal for this player. Wait for its normal
+             * teardown to clear the request instead of retrying in a hot loop. */
+            pthread_mutex_lock(&s_lock);
+            while (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE))
+                pthread_cond_wait(&s_state_cv, &s_lock);
+            pthread_mutex_unlock(&s_lock);
+        }
     }
     return NULL;
 }
@@ -1403,6 +1410,8 @@ void esplus_close(void)
     s_audio_ready = !s_audio_enabled;
     s_prepare_failed = s_start_failed = 0;
     __atomic_store_n(&s_player_error, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_opus_fallback_error, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_opus_fallback_ready, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_started, 0, __ATOMIC_RELEASE);
     s_start_tried = 0;
     s_prepare_called = 0;
