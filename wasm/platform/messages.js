@@ -1585,11 +1585,15 @@ function handleMessage(msg) {
         window._activeStreamAppName && window._activeStreamAppName !== t('Apps') &&
         api && typeof api.quitApp === 'function') {
       console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
-      startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
-        console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
-      }, function(error) {
-        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
-      });
+      try {
+        startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+          console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
+        }, function(error) {
+          console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
+        });
+      } catch (error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
+      }
     }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
