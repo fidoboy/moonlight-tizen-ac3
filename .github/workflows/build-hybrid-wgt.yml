@@ -55,10 +55,10 @@ jobs:
           : "${ENABLE_NATIVE_TRACES:=false}"
           matrix='{"include":[]}'
           if [[ "$BUILD_RELEASE" == "true" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight"}]' <<< "$matrix")"
+            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","dotnet_configuration":"Release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight"}]' <<< "$matrix")"
           fi
           if [[ "$BUILD_DEBUG" == "true" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
+            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","dotnet_configuration":"Debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
           fi
           if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
             echo "::error::No build variant is enabled. Select Release and/or Debug."
@@ -227,6 +227,7 @@ jobs:
         env:
           BUILD_OUTPUT_NAME: ${{ matrix.output_name }}
           BASE_WGT_NAME: ${{ matrix.base_wgt }}
+          DOTNET_BUILD_CONFIGURATION: ${{ matrix.dotnet_configuration }}
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
@@ -238,6 +239,7 @@ jobs:
             -e GITHUB_SHA="$GITHUB_SHA" \
             -e BUILD_OUTPUT_NAME="$BUILD_OUTPUT_NAME" \
             -e BASE_WGT_NAME="$BASE_WGT_NAME" \
+            -e DOTNET_BUILD_CONFIGURATION="$DOTNET_BUILD_CONFIGURATION" \
             "$image" bash /workspace/scripts/package-hybrid-wgt.sh
       - name: Show packaging diagnostics on failure
         if: failure()
