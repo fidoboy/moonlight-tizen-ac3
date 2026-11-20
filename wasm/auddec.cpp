@@ -126,12 +126,11 @@ static bool InitializeDolbySoftwareDecoder(int audioConfiguration,
   return true;
 }
 
-static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
+static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
   OpusMSDecoder* decoder, const unsigned char* sampleData, int sampleLength) {
   int decodeLen;
-  
-  // Measure only the time spent inside libopus; packet construction and EMSS submission
-  // are deliberately outside this interval.
+
+  // Measure only libopus decoding; PCM packet construction and EMSS submission are excluded.
   const auto opusDecodeStart = std::chrono::steady_clock::now();
   decodeLen = opus_multistream_decode(
     decoder, sampleData, sampleLength,
@@ -143,40 +142,28 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
       std::chrono::duration_cast<std::chrono::nanoseconds>(opusDecodeElapsed).count()));
   }
 
-  // Check if audio decoding failed
   if (decodeLen <= 0) {
-    // Reset the buffer contents to zero when decoding fails
     s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
-    return;
+    return false;
   }
 
-  // Calculate desired buffer size in bytes for decoded audio data
   size_t s_desiredBufferSize = sizeof(opus_int16) * decodeLen * s_channelCount;
-
-  // Create an ElementaryMediaPacket and start decoding with the decoded audio data
   samsung::wasm::ElementaryMediaPacket pkt {
-    s_pktPts, // presentation timestamp
-    s_pktPts, // decoding timestamp
-    s_frameDuration, // packet duration
-    true, // bool value indicating if packet is a keyframe
-    s_desiredBufferSize, // packet size
-    s_DecodeBuffer.data(), // pointer to packet payload
-    0, 0, 0, 1, // packet of width, height, framerate numerator and framerate denominator
-    session_id // session identifier
+    s_pktPts, s_pktPts, s_frameDuration, true, s_desiredBufferSize,
+    s_DecodeBuffer.data(), 0, 0, 0, 1, session_id
   };
 
-  // Attempt to append the packet to the audio track for rendering
-  if (track->AppendPacket(pkt)) {
-    // If successful, update the presentation timestamp for the next packet
+  auto appended = track->AppendPacket(pkt);
+  if (appended) {
     s_pktPts += s_frameDuration;
   } else {
-    MoonlightInstance::ClLogMessage("Append audio packet failed\n");
+    MoonlightInstance::ClLogMessage("Append audio packet failed\\n");
   }
 
-  // Resize decode buffer if it's smaller than the desired size
   if (s_desiredBufferSize > s_DecodeBuffer.size()) {
     s_DecodeBuffer.resize(s_desiredBufferSize);
   }
+  return static_cast<bool>(appended);
 }
 
 static bool s_LoggedFirstOpusPassthroughPacket = false;
@@ -547,55 +534,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
-    if (!s_OpusDolbyTranscoder.Transcode(
-          reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
-          s_EncodedDolbyPackets)) {
-      if (++s_OpusDolbyTranscodeErrors % 100 == 1) {
-        ClLogMessage("FFmpeg Opus-to-%s transcoder failed (%d consecutive errors)\n",
-          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3", s_OpusDolbyTranscodeErrors);
-      }
-      return;
-    }
-    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(
-      s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs(),
-      std::memory_order_relaxed);
-
-    // E-AC-3 frame duration is not the 32 ms used by native AC-3/E-AC-3
-    // passthrough. Derive pacing from FFmpeg's actual encoder frame size so
-    // EMSS receives timestamps and durations matching the encoded access units.
-    const int outputFrameSamples = s_OpusDolbyTranscoder.GetOutputFrameSamples();
-    if (outputFrameSamples <= 0) {
-      return;
-    }
-    const TimeStamp encodedFrameDuration = FrameDuration(outputFrameSamples, s_sampleRate);
-
-    for (const auto& encodedPacket : s_EncodedDolbyPackets) {
-      if (encodedPacket.empty()) {
-        continue;
-      }
-      const TimeStamp packetPts = s_pktPts;
-      samsung::wasm::ElementaryMediaPacket dolbyPacket {
-        packetPts,
-        packetPts,
-        encodedFrameDuration,
-        true,
-        encodedPacket.size(),
-        const_cast<unsigned char*>(encodedPacket.data()),
-        0, 0, 0, 1,
-        g_Instance->m_AudioSessionId.load()
-      };
-      if (!g_Instance->m_AudioTrack.AppendPacket(dolbyPacket)) {
-        ClLogMessage("Append FFmpeg-encoded %s packet failed\n",
-          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3");
-        continue;
-      }
-      g_Instance->m_AudioBytesOutput.fetch_add(
-        static_cast<uint64_t>(encodedPacket.size()), std::memory_order_relaxed);
-      s_pktPts += encodedFrameDuration;
-      s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + encodedFrameDuration;
-      s_OpusDolbyTranscodeErrors = 0;
-    }
-    return;
+    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+      g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   }
 
   // Check if the Web Audio backend is rendering this streaming session
@@ -637,9 +578,15 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   } else {
     // Preserve the existing libopus-to-PCM path as the fallback.
-    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
+    if (DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength
+    )) {
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
+    }
   }
 
   // Update the estimated audio end time to prevent future overflow
