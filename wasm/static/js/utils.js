@@ -757,10 +757,10 @@ NvHTTP.prototype = {
     return this.getAppListWithCacheFlush();
   },
 
-  // Returns the original PNG box art based on the the given app Id and generates an optimized JPEG preview when Smart Hub Preview is supported.
-  // The original PNG box art is stored in private storage, while the optimized JPEG preview is generated and stored asynchronously,
-  // in the public documents directory so that the Smart Hub Preview background service process can access it directly.
-  getBoxArt: function(appId, isSmartHubSupported) {
+  // Returns original PNG box art and generates an optimized JPEG for the
+  // Smart Hub Preview background service. The original remains in private storage;
+  // the JPEG is saved in Documents so the service can serve it over local HTTP.
+  getBoxArt: function(appId) {
     return new Promise(function(resolve, reject) {
       // Store the original PNG box art in the private directory
       var boxArtDir = 'wgt-private/' + this.hostname;
@@ -797,12 +797,6 @@ NvHTTP.prototype = {
             } catch (error) {
               // Failure to cache the original PNG box art does not prevent the fetched box art from being returned
               console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Error: Failed to cache original box art in ' + boxArtDir + ' for app ID ' + appId + ': ' + error.message);
-            }
-
-            // Return the fetched box art directly when Smart Hub Preview is not supported
-            if (!isSmartHubSupported) {
-              resolve(dataUrl);
-              return;
             }
 
             // Generate and save the optimized JPEG preview box art asynchronously from network.
@@ -849,12 +843,6 @@ NvHTTP.prototype = {
           reader.onloadend = function() {
             var dataUrl = reader.result;
             console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art: ', appId);
-
-            // Return the cached original box art directly when Smart Hub Preview is not supported
-            if (!isSmartHubSupported) {
-              resolve(dataUrl);
-              return;
-            }
 
             // Check whether an optimized Smart Hub Preview has already been cached
             var previewFileName = 'preview-' + appId + '.jpg';
