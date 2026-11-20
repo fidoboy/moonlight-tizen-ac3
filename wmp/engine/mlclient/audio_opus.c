@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include "opus_multistream.h"
+#include "opus_eac3_transcoder.h"
 
 #include "Limelight.h"
 #include "esplus_player.h"
@@ -32,6 +33,8 @@ static opus_int16 *s_software_pcm;
 static int s_opus_fallback_available;
 static int s_opus_software_active;
 static int s_opus_fallback_failed;
+static int s_opus_eac3_transcoding;
+static int s_opus_eac3_failed;
 
 #define OPUS_MAX_FRAME_SAMPLES 5760
 
@@ -108,9 +111,14 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     s_dolby = 0;
     s_opus_head_size = 0;
     opus_software_decoder_destroy();
+    opus_eac3_transcoder_cleanup();
+    s_opus_eac3_transcoding = 0;
+    s_opus_eac3_failed = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_input_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_transcode_latency_us, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
 }
@@ -177,6 +185,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     (void)flags;
     s_opus_head_size = 0;
     opus_software_decoder_destroy();
+    opus_eac3_transcoder_cleanup();
+    s_opus_eac3_transcoding = 0;
+    s_opus_eac3_failed = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
@@ -186,6 +197,8 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_bytes_received, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_input_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_transcode_latency_us, 0, __ATOMIC_RELAXED);
 
     s_dolby = LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated();
     s_dolby_mime = LiIsEac3AudioNegotiated()
@@ -209,7 +222,25 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         return -1;
     }
 
+    /* Only request OPUS -> E-AC-3 when DD is enabled and RTSP selected no
+     * Dolby passthrough codec. Unsupported layouts keep the existing OPUS path. */
+    if (!s_dolby && s_dolby_passthrough_enabled &&
+        (s_channel_count == 2 || s_channel_count == 6)) {
+        if (opus_eac3_transcoder_init(config, s_channel_count) == 0) {
+            s_opus_eac3_transcoding = 1;
+            MLT("OPUS -> E-AC-3 software fallback selected: %d channels", s_channel_count);
+        } else {
+            MLT("OPUS -> E-AC-3 unavailable; retaining native OPUS path");
+        }
+    }
+
     if (!esplus_create_open()) {
+        ALOG("ESPlus player unavailable during audio init\n");
+        opus_eac3_transcoder_cleanup();
+        s_opus_eac3_transcoding = 0;
+        esplus_audio_registration_complete(0);
+        return -1;
+    }
         ALOG("ESPlus player unavailable during audio init\n");
         esplus_audio_registration_complete(0);
         return -1;
@@ -219,6 +250,11 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     if (s_dolby) {
         info.mime_type = s_dolby_mime;
         info.channels = (uint32_t)channel_count;
+        info.sample_rate = DOLBY_SAMPLE_RATE;
+    } else if (s_opus_eac3_transcoding) {
+        info.mime_type = WMP_ESPLUS_AUDIO_MIME_EAC3;
+        info.bitrate = 640000;
+        info.channels = (uint32_t)s_channel_count;
         info.sample_rate = DOLBY_SAMPLE_RATE;
     } else {
         info.codec_data = s_opus_head;
@@ -232,29 +268,47 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     MLT("audio stream registration %s -> %d",
         s_dolby
             ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "eac3" : "ac3")
-            : "opus",
+            : (s_opus_eac3_transcoding ? "opus->eac3" : "opus"),
         result);
+    if (result != 0 && s_opus_eac3_transcoding) {
+        ALOG("ESPlus rejected E-AC-3 registration; retaining the original OPUS path\n");
+        opus_eac3_transcoder_cleanup();
+        s_opus_eac3_transcoding = 0;
+        memset(&info, 0, sizeof(info));
+        info.codec_data = s_opus_head;
+        info.codec_data_size = s_opus_head_size;
+        info.mime_type = WMP_ESPLUS_AUDIO_MIME_OPUS;
+        info.channels = (uint32_t)s_channel_count;
+        info.sample_rate = (uint32_t)s_sample_rate;
+        result = esplus_set_audio_info(&info);
+    }
     if (result != 0) {
         ALOG("ESPlus audio stream registration failed: %d\n", result);
+        opus_eac3_transcoder_cleanup();
+        s_opus_eac3_transcoding = 0;
         esplus_audio_registration_complete(0);
         return -1;
     }
 
-    if (!s_dolby)
+    if (!s_dolby && !s_opus_eac3_transcoding)
         opus_software_decoder_init(config);
 
     __atomic_store_n(&s_audio_codec_candidate,
         s_dolby
             ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3 : 2)
-            : 1,
+            : (s_opus_eac3_transcoding ? 5 : 1),
         __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec,
         s_dolby
             ? (s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? 3u : 2u)
-            : 1u,
+            : (s_opus_eac3_transcoding ? 5u : 1u),
         __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_channels, (uint32_t)s_channel_count, __ATOMIC_RELAXED);
-    __atomic_store_n(&esplus_stats.audio_sample_rate, (uint32_t)s_sample_rate, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_sample_rate,
+        s_opus_eac3_transcoding ? DOLBY_SAMPLE_RATE : (uint32_t)s_sample_rate,
+        __ATOMIC_RELAXED);
+    if (s_opus_eac3_transcoding)
+        __atomic_store_n(&esplus_stats.audio_input_channels, (uint32_t)s_channel_count, __ATOMIC_RELAXED);
 
     /* This is the lifecycle barrier: prepare_async cannot run before this. */
     esplus_audio_registration_complete(1);
@@ -263,6 +317,9 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
         ALOG("registered %s passthrough: %d channels at %u Hz\n",
              s_dolby_mime == WMP_ESPLUS_AUDIO_MIME_EAC3 ? "E-AC-3" : "AC-3",
              channel_count, DOLBY_SAMPLE_RATE);
+    else if (s_opus_eac3_transcoding)
+        ALOG("registered E-AC-3 software output from OPUS: %d channels at 48 kHz\n",
+             s_channel_count);
     else
         ALOG("registered native Opus: %d Hz, %d channels, %d samples/frame\n",
              s_sample_rate, s_channel_count, s_samples_per_frame);
@@ -277,6 +334,9 @@ static void ar_cleanup(void)
     s_dolby = 0;
     s_opus_head_size = 0;
     opus_software_decoder_destroy();
+    opus_eac3_transcoder_cleanup();
+    s_opus_eac3_transcoding = 0;
+    s_opus_eac3_failed = 0;
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
@@ -285,6 +345,8 @@ static void ar_cleanup(void)
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_input_channels, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&esplus_stats.audio_transcode_latency_us, 0, __ATOMIC_RELAXED);
 }
 
 static void ar_decodePlay(char *data, int len)
@@ -298,7 +360,7 @@ static void ar_decodePlay(char *data, int len)
     if (__atomic_load_n(&esplus_performance_stats_enabled, __ATOMIC_ACQUIRE))
         __atomic_fetch_add(&esplus_stats.audio_bytes_received, (uint64_t)len, __ATOMIC_RELAXED);
 
-    if (!s_dolby && !s_opus_software_active && esplus_opus_fallback_ready()) {
+    if (!s_dolby && !s_opus_eac3_transcoding && !s_opus_software_active && esplus_opus_fallback_ready()) {
         if (!s_opus_fallback_available || !s_software_decoder || !s_software_pcm) {
             if (!s_opus_fallback_failed) {
                 s_opus_fallback_failed = 1;
@@ -320,6 +382,48 @@ static void ar_decodePlay(char *data, int len)
         __atomic_store_n(&esplus_stats.audio_sample_rate, (uint32_t)s_sample_rate, __ATOMIC_RELAXED);
         ALOG("OPUS fallback active: libopus -> PCM_S16LE (%d channels, %d Hz)\n",
              s_channel_count, s_sample_rate);
+    }
+
+    if (s_opus_eac3_transcoding) {
+        const uint8_t *encoded_data[8];
+        int encoded_sizes[8];
+        int encoded_count = 0;
+        int frame_samples;
+        int i;
+        if (s_opus_eac3_failed) return;
+        if (opus_eac3_transcoder_process((const uint8_t *)data, len,
+                encoded_data, encoded_sizes, 8, &encoded_count) != 0) {
+            s_opus_eac3_failed = 1;
+            ALOG("FFmpeg OPUS -> E-AC-3 transcode failed; terminating the audio renderer\n");
+            LiReportVideoRendererError();
+            return;
+        }
+        frame_samples = opus_eac3_transcoder_frame_samples();
+        if (frame_samples <= 0) {
+            s_opus_eac3_failed = 1;
+            ALOG("FFmpeg E-AC-3 encoder returned an invalid frame size\n");
+            LiReportVideoRendererError();
+            return;
+        }
+        __atomic_store_n(&esplus_stats.audio_transcode_latency_us,
+            opus_eac3_transcoder_average_latency_us(), __ATOMIC_RELAXED);
+        for (i = 0; i < encoded_count; ++i) {
+            memset(&packet, 0, sizeof(packet));
+            packet.type = WMP_ESPLUS_STREAM_AUDIO;
+            packet.data = encoded_data[i];
+            packet.size = (uint32_t)encoded_sizes[i];
+            packet.duration_ns = (uint64_t)frame_samples * 1000000000ull / DOLBY_SAMPLE_RATE;
+            packet.pts_ns = esplus_stream_clock_pts_ns();
+            result = esplus_submit(&packet);
+            if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS) {
+                __atomic_store_n(&s_audio_codec_active, 5, __ATOMIC_RELEASE);
+            } else if (result.status != WMP_ESPLUS_SUBMIT_BACKPRESSURE &&
+                       result.status != WMP_ESPLUS_SUBMIT_NOT_PREPARED) {
+                ALOG("submit E-AC-3 audio failed status=%d raw=%d\n",
+                     (int)result.status, result.raw_status);
+            }
+        }
+        return;
     }
 
     if (s_opus_software_active) {

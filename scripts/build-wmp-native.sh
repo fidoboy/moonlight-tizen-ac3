@@ -25,9 +25,12 @@ test -x "$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnue
 echo "== Normalize the GCC 6.2 toolchain paths expected by the WMP build scripts"
 tool_root="$DEPS/toolchain"
 gcc="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-gcc' -perm -u+x -print -quit)"
+gxx="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-g++' -perm -u+x -print -quit)"
 objdump="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-objdump' -perm -u+x -print -quit)"
 ar="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ar' -perm -u+x -print -quit)"
-if [[ -z "$gcc" || -z "$objdump" || -z "$ar" ]]; then
+nm="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-nm' -perm -u+x -print -quit)"
+ranlib="$(find "$tool_root" -type f -name 'arm-linux-gnueabi-ranlib' -perm -u+x -print -quit)"
+if [[ -z "$gcc" || -z "$gxx" || -z "$objdump" || -z "$ar" || -z "$nm" || -z "$ranlib" ]]; then
   echo "The downloaded Tizen toolchain is missing GCC/binutils executables." >&2
   find "$tool_root" -maxdepth 7 -type f | head -200
   exit 1
@@ -35,10 +38,16 @@ fi
 expected="$tool_root/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
 mkdir -p "$expected"
 ln -sfn "$gcc" "$expected/arm-linux-gnueabi-gcc"
+ln -sfn "$gxx" "$expected/arm-linux-gnueabi-g++"
 ln -sfn "$objdump" "$expected/arm-linux-gnueabi-objdump"
 ln -sfn "$ar" "$expected/arm-linux-gnueabi-ar"
+ln -sfn "$nm" "$expected/arm-linux-gnueabi-nm"
+ln -sfn "$ranlib" "$expected/arm-linux-gnueabi-ranlib"
 "$expected/arm-linux-gnueabi-gcc" --version
 "$expected/arm-linux-gnueabi-objdump" --version | head -1
+echo "== Build FFmpeg 9.0.2 for the native ARM32 ESPlus engine"
+export FFMPEG_ARM_PREFIX="$ROOT/ffmpeg-arm-install"
+bash scripts/build-ffmpeg-arm.sh
 echo "== Verify prebuilt static ARM crypto dependencies from the image"
 test -s "$BPD/arm-static/lib/libcrypto.a"
 test -s "$BPD/arm-static/lib/libssl.a"

@@ -136,6 +136,11 @@ jobs:
               echo "::endgroup::"
               ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
               ARM_GCC_DIR="$(dirname "$ARM_GCC")"
+              for tool in g++ nm ranlib; do
+                found="$(find "$WMP_DEPS/toolchain" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"
+                test -n "$found"
+                ln -sfn "$found" "$ARM_GCC_DIR/arm-linux-gnueabi-$tool"
+              done
               CCACHE_BIN=/runner-temp/wmp-ccache-bin
               mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
               ln -sf "$(command -v ccache)" "$CCACHE_BIN/arm-linux-gnueabi-gcc"
@@ -145,7 +150,10 @@ jobs:
               export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
               ccache --version
               WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/engine/build/build-deps-lib.sh
-              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=${{ matrix.build_variant }} WMP_MLT_TRACE=${{ matrix.enable_native_traces }} bash wmp/engine/mlclient/build-engine-so.sh
+              export FFMPEG_ARM_PREFIX=/runner-temp/ffmpeg-arm-install
+              export FFMPEG_ARM_WORK_DIR=/runner-temp/ffmpeg-arm-build
+              bash scripts/build-ffmpeg-arm.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" FFMPEG_ARM_PREFIX="$FFMPEG_ARM_PREFIX" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=${{ matrix.build_variant }} WMP_MLT_TRACE=${{ matrix.enable_native_traces }} bash wmp/engine/mlclient/build-engine-so.sh
               echo "::group::WMP ARM ccache statistics"
               ccache --show-stats
               echo "::endgroup::"

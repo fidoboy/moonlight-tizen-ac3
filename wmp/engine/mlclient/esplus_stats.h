@@ -24,6 +24,7 @@ typedef struct {
   volatile uint32_t video_format, video_width, video_height, video_fps, h264_level_idc;
   volatile uint32_t video_hdr_active;
   volatile uint32_t audio_codec, audio_channels, audio_sample_rate;
+  volatile uint32_t audio_input_channels, audio_transcode_latency_us;
   volatile uint64_t video_bytes_received, audio_bytes_received;
   volatile uint64_t video_frames_received, video_frames_decoded, video_frames_rendered;
   volatile uint64_t video_total_frames, video_network_dropped_frames;
