@@ -1592,6 +1592,13 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
         }
         append("Audio transcode: %.2f ms avg\n",
           g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
+        append("Audio delay: %.2f ms avg\n",
+          g_Instance->TakeAudioSoftwareProcessingAverageMs());
+      } else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
+          !ac3Negotiated && !eac3Negotiated && !hardwareDecoderActive &&
+          !g_Instance->m_OpusPassthrough.load()) {
+        append("Audio delay: %.2f ms avg\n",
+          g_Instance->TakeAudioSoftwareProcessingAverageMs());
       }
     } else {
       append("Audio stream: -\n");
@@ -1672,6 +1679,7 @@ void MoonlightInstance::TogglePerformanceStats() {
 
   // Show an empty overlay immediately when enabled. Fresh measurements arrive on the next stats tick.
   if (enabled) {
+    ResetAudioSoftwareProcessingStats();
     PostToJs(std::string("StatMsg: "));
   } else {
     PostToJs(std::string("NoStatMsg: "));
