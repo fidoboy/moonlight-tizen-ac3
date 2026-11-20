@@ -522,10 +522,7 @@ static void on_prepared(bool ok, void *context)
     __atomic_store_n(&s_prepared, 1, __ATOMIC_RELEASE);
     if (!ok) {
         s_prepare_failed = 1;
-        if (__atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE)) {
-            __atomic_store_n(&s_opus_fallback_ready, 1, __ATOMIC_RELEASE);
-            MLT("OPUS hardware decoder rejected at preroll; software fallback is ready");
-        } else if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
+        if (!__atomic_load_n(&s_player_closing, __ATOMIC_ACQUIRE)) {
             report_failure = !__atomic_exchange_n(&s_player_error, 1, __ATOMIC_ACQ_REL);
         }
     }
