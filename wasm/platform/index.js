@@ -6076,7 +6076,12 @@ function startGame(host, appID) {
   withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
-    withOperationTimeout(host.getAppById(appID), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
+    var requestedAppLookup = _directSmartHubLaunch
+      ? host.getAppListWithCacheFlush().then(function(appList) {
+          return appList.find(function(app) { return String(app.id) === String(appID); }) || null;
+        })
+      : host.getAppById(appID);
+    withOperationTimeout(requestedAppLookup, STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
       if (!isStreamStartupCurrent(startupGeneration)) return;
       if (!appToStart) {
         if (_directSmartHubLaunch) {
