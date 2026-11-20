@@ -5,7 +5,7 @@
         <tizen:src name="index.html" reload="disable"/>
         <tizen:operation name="http://samsung.com/appcontrol/operation/eden_resume"/>
     </tizen:app-control>
-    <tizen:application id="MoonLightS.moonlight-tizen-ac3" package="MoonLightS" required_version="5.5"/>
+    <tizen:application id="MoonLightS.MoonlightWasm" package="MoonLightS" required_version="5.5"/>
     <content src="index.html"/>
     <description>Moonlight Game Streaming</description>
     <feature name="http://tizen.org/feature/screen.size.all"/>
