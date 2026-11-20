@@ -712,7 +712,7 @@ NvHTTP.prototype = {
       });
   },
 
-  getAppListWithCacheFlush: function(skipMemoryCache, rejectOnError) {
+  getAppListWithCacheFlush: function(skipMemoryCache) {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/applist?' + this._buildUidStr(), this.ppkstr, false, 10000
     ]).catch(error => {
@@ -722,11 +722,8 @@ NvHTTP.prototype = {
       var $root = $xml.find('root');
 
       if ($root.attr('status_code') != 200) {
-        var statusCode = $root.attr('status_code');
-        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', statusCode);
-        if (rejectOnError === true) {
-          throw new Error('Host app-list request failed with status ' + statusCode + '.');
-        }
+        // TODO: Bubble up an error here
+        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', $root.attr('status_code'));
         return [];
       }
 
