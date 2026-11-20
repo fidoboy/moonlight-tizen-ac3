@@ -184,6 +184,9 @@ class MoonlightInstance {
   void TogglePerformanceStats();
   bool IsAudioBackendEnabled() const { return m_AudioBackend != AudioBackend::Disabled; }
   void AddAudioSoftwareProcessingTime(uint64_t elapsedNs) {
+    if (!m_PerformanceStatsEnabled.load(std::memory_order_relaxed)) {
+      return;
+    }
     std::lock_guard<std::mutex> lock(m_AudioSoftwareProcessingMutex);
     m_AudioSoftwareProcessingTimeNs += elapsedNs;
     ++m_AudioSoftwareProcessedPackets;
