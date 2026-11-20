@@ -534,9 +534,63 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
-    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
-      g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
+    if (!s_OpusDolbyTranscoder.Transcode(
+          reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
+          s_EncodedDolbyPackets)) {
+      if (++s_OpusDolbyTranscodeErrors % 100 == 1) {
+        ClLogMessage("FFmpeg Opus-to-%s transcoder failed (%d consecutive errors)\n",
+          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3", s_OpusDolbyTranscodeErrors);
+      }
+      return;
+    }
+    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(
+      s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs(),
+      std::memory_order_relaxed);
+
+    // E-AC-3 frame duration is not the 32 ms used by native AC-3/E-AC-3
+    // passthrough. Derive pacing from FFmpeg's actual encoder frame size so
+    // EMSS receives timestamps and durations matching the encoded access units.
+    const int outputFrameSamples = s_OpusDolbyTranscoder.GetOutputFrameSamples();
+    if (outputFrameSamples <= 0) {
+      return;
+    }
+    const TimeStamp encodedFrameDuration = FrameDuration(outputFrameSamples, s_sampleRate);
+
+    bool appendedAnyEncodedPacket = false;
+    for (const auto& encodedPacket : s_EncodedDolbyPackets) {
+      if (encodedPacket.empty()) {
+        continue;
+      }
+      const TimeStamp packetPts = s_pktPts;
+      samsung::wasm::ElementaryMediaPacket dolbyPacket {
+        packetPts,
+        packetPts,
+        encodedFrameDuration,
+        true,
+        encodedPacket.size(),
+        const_cast<unsigned char*>(encodedPacket.data()),
+        0, 0, 0, 1,
+        g_Instance->m_AudioSessionId.load()
+      };
+      if (!g_Instance->m_AudioTrack.AppendPacket(dolbyPacket)) {
+        ClLogMessage("Append FFmpeg-encoded %s packet failed\n",
+          kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3");
+        continue;
+      }
+      appendedAnyEncodedPacket = true;
+      g_Instance->m_AudioBytesOutput.fetch_add(
+        static_cast<uint64_t>(encodedPacket.size()), std::memory_order_relaxed);
+      s_pktPts += encodedFrameDuration;
+      s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + encodedFrameDuration;
+      s_OpusDolbyTranscodeErrors = 0;
+    }
+    if (s_EncodedDolbyPackets.empty() || appendedAnyEncodedPacket) {
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
+    }
+    return;
   }
 
   // Check if the Web Audio backend is rendering this streaming session
@@ -578,16 +632,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   } else {
     // Preserve the existing libopus-to-PCM path as the fallback.
-    const auto softwareProcessingStart = std::chrono::steady_clock::now();
-    if (DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-      reinterpret_cast<unsigned char*>(sampleData), sampleLength
-    )) {
-      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
-      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
-    }
-  }
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength);  }
 
   // Update the estimated audio end time to prevent future overflow
   s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + s_frameDuration;
