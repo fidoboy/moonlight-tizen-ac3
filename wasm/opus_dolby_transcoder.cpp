@@ -167,7 +167,7 @@ bool OpusDolbyTranscoder::Transcode(
   std::vector<std::vector<uint8_t>>& encodedPackets
 ) {
   encodedPackets.clear();
-  const auto processingStart = std::chrono::steady_clock::now();
+
   if (m_DecoderContext == nullptr || m_EncoderContext == nullptr ||
       m_DecodedFrame == nullptr || m_AudioFifo == nullptr ||
       data == nullptr || size <= 0) {
@@ -294,27 +294,12 @@ bool OpusDolbyTranscoder::Transcode(
     }
   }
 
-  const auto processingElapsed = std::chrono::steady_clock::now() - processingStart;
-  const uint64_t processingTimeNs = static_cast<uint64_t>(
-    std::chrono::duration_cast<std::chrono::nanoseconds>(processingElapsed).count());
-  m_ProcessingTimeNs.fetch_add(processingTimeNs, std::memory_order_relaxed);
-  m_ProcessedPackets.fetch_add(1, std::memory_order_relaxed);
   return true;
 }
 
 int OpusDolbyTranscoder::GetOutputFrameSamples() const {
   return m_EncoderContext != nullptr ? m_EncoderContext->frame_size : 0;
 }
-
-double OpusDolbyTranscoder::GetAverageProcessingLatencyMs() const {
-  const uint64_t packetCount = m_ProcessedPackets.load(std::memory_order_relaxed);
-  if (packetCount == 0) {
-    return 0.0;
-  }
-  const uint64_t totalNs = m_ProcessingTimeNs.load(std::memory_order_relaxed);
-  return static_cast<double>(totalNs) / static_cast<double>(packetCount) / 1000000.0;
-}
-
 
 bool OpusDolbyTranscoder::DrainEncoder(
   std::vector<std::vector<uint8_t>>& encodedPackets
@@ -349,6 +334,4 @@ void OpusDolbyTranscoder::Cleanup() {
   m_ChannelLayout = 0;
   m_Channels = 0;
   m_NextEncoderPts = 0;
-  m_ProcessingTimeNs.store(0, std::memory_order_relaxed);
-  m_ProcessedPackets.store(0, std::memory_order_relaxed);
 }
