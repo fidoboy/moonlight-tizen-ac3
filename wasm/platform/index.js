@@ -6076,10 +6076,10 @@ function startGame(host, appID) {
   withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
+    // Smart Hub shortcuts are trusted launch requests: do not enumerate the host's
+    // app list or perform an app lookup. Supply the title from the tile payload.
     var requestedAppLookup = _directSmartHubLaunch
-      ? host.getAppListWithCacheFlush(true, true).then(function(appList) {
-          return appList.find(function(app) { return String(app.id) === String(appID); }) || null;
-        })
+      ? Promise.resolve({ id: appID, title: _directSmartHubLaunch.appName || String(appID) })
       : host.getAppById(appID);
     withOperationTimeout(requestedAppLookup, STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
       if (!isStreamStartupCurrent(startupGeneration)) return;
@@ -6506,6 +6506,7 @@ function startGame(host, appID) {
           var apiStatusMessage = status_message;
           await abortPreparedNativeService();
           if (_directSmartHubLaunch) {
+            removeDirectSmartHubPreviewTile();
             directSmartHubLaunchFailure(t('Failed to launch %1$s', appToStart.title));
             return;
           }
@@ -6537,6 +6538,11 @@ function startGame(host, appID) {
         console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to launch app with id: ' + appID + '\n Returned error was: ' + failedLaunchApp + '!');
         if (failedLaunchApp && failedLaunchApp.name === 'TimeoutError') {
           streamStartupTimeoutFailure('connection', t('The host did not respond to the launch request in time.'));
+          return;
+        }
+        if (_directSmartHubLaunch) {
+          removeDirectSmartHubPreviewTile();
+          directSmartHubLaunchFailure(t('Failed to launch %1$s', _directSmartHubLaunch.appName || String(appID)));
           return;
         }
         var launchApiMessage = typeof failedLaunchApp === 'string'
@@ -10362,6 +10368,7 @@ function beginDirectSmartHubLaunch(actionData) {
 
     var host = hosts[_directSmartHubLaunch.serverUid];
     if (!host) {
+      removeDirectSmartHubPreviewTile();
       directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
       return;
     }
