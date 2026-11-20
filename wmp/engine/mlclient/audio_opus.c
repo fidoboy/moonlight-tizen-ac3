@@ -42,22 +42,6 @@ static uint64_t opus_monotonic_ns(void)
     return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
 }
 
-/* Consumed once per one-second statistics snapshot by the native host. */
-uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void)
-{
-    uint64_t window;
-    uint32_t packets;
-
-    if (AudEsplus_GetActiveAudioCodec() != 4) {
-        __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
-        return 0;
-    }
-
-    window = __atomic_exchange_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_ACQ_REL);
-    packets = (uint32_t)window;
-    return packets ? (uint32_t)((window >> 32) / packets) : 0;
-}
-
 static void opus_software_decoder_destroy(void)
 {
     if (s_software_decoder) opus_multistream_decoder_destroy(s_software_decoder);
@@ -101,6 +85,23 @@ int AudEsplus_GetActiveAudioCodec(void)
     return __atomic_load_n(&s_audio_codec_active, __ATOMIC_ACQUIRE);
 }
 
+/* Consumed once per one-second statistics snapshot by the native host. */
+uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void)
+{
+    uint64_t window;
+    uint32_t packets;
+
+    if (AudEsplus_GetActiveAudioCodec() != 4) {
+        __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
+        return 0;
+    }
+
+    window = __atomic_exchange_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_ACQ_REL);
+    packets = (uint32_t)window;
+    return packets ? (uint32_t)((window >> 32) / packets) : 0;
+}
+
+
 void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
 {
     s_dolby_passthrough_enabled = enabled != 0;
@@ -109,8 +110,6 @@ void AudEsplus_SetDolbyPassthroughEnabled(int enabled)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
-    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
-    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
@@ -180,6 +179,7 @@ static int ar_init(int audioConfig, const POPUS_MULTISTREAM_CONFIGURATION config
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
@@ -279,6 +279,7 @@ static void ar_cleanup(void)
     opus_software_decoder_destroy();
     s_opus_software_active = 0;
     s_opus_fallback_failed = 0;
+    __atomic_store_n(&esplus_stats.opus_decode_window, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&s_audio_codec_candidate, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&s_audio_codec_active, 0, __ATOMIC_RELEASE);
     __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
