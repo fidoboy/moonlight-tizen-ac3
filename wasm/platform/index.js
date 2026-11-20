@@ -10376,6 +10376,12 @@ function beginDirectSmartHubLaunch(actionData) {
 
 // Handles Smart Hub AppControl launches. An app tile either starts its requested
 // app through the direct-stream path or terminates; it never opens a Moonlight view.
+function terminateInvalidSmartHubLaunch() {
+  document.documentElement.classList.add('app-starting');
+  hideUiLayerImmediately('main-ui-layer');
+  exitApplication();
+}
+
 function handleDeepLink() {
   var hasPayload = false;
   try {
@@ -10403,12 +10409,12 @@ function handleDeepLink() {
 
       // A host-only or incomplete shortcut does not represent an app launch.
       console.error('%c[index.js, handleDeepLink]', 'color: red;', 'Smart Hub shortcut does not identify an app; terminating Moonlight.');
-      exitApplication();
+      terminateInvalidSmartHubLaunch();
       return;
     }
   } catch (error) {
     console.error('%c[index.js, handleDeepLink]', 'color: red;', 'Could not process Smart Hub shortcut:', error);
-    if (hasPayload) exitApplication();
+    if (hasPayload) terminateInvalidSmartHubLaunch();
   }
 }
 
