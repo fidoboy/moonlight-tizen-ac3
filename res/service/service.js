@@ -118,6 +118,13 @@ function startLocalServer() {
         localServer.removeListener('error', onListenError);
         localServer.on('error', function(err) {
           log('Local HTTP server error: ' + err.message);
+          localServer = null;
+          localServerStartPromise = null;
+        });
+        localServer.on('close', function() {
+          localServer = null;
+          localServerStartPromise = null;
+          log('Local HTTP server closed.');
         });
         log('Local HTTP server listening on port 8888 (TV IP: ' + tvIp + ')');
         resolve();
