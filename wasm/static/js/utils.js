@@ -211,21 +211,17 @@ NvHTTP.prototype = {
     var fetchOptions = { mode: 'no-cors' };
     if (abortCtrl) fetchOptions.signal = abortCtrl.signal;
 
-    return fetch(preflightUrl, fetchOptions)
-      .then(function() {
-        clearTimeout(timeoutId);
-        // The host accepted an HTTP connection. Perform the authenticated request in C++.
-        return sendMessage('openUrl', [url, ppkstr, false, 5000]).catch(error => {
-          throw error;
-        });
-      })
-      .catch(function(e) {
-        clearTimeout(timeoutId);
-        // A timeout or network-level failure (including DNS and connection refused)
-        // means the C++ request cannot succeed. Do not block its HTTP queue.
-        console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping unreachable URL after HTTP preflight failure: ' + url, e);
-        return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
-      });
+    return fetch(preflightUrl, fetchOptions).then(function() {
+      clearTimeout(timeoutId);
+      // The host accepted an HTTP connection. Perform the authenticated request in C++.
+      return sendMessage('openUrl', [url, ppkstr, false, 5000]);
+    }, function(e) {
+      clearTimeout(timeoutId);
+      // A timeout or network-level failure (including DNS and connection refused)
+      // means the C++ request cannot succeed. Do not block its HTTP queue.
+      console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping unreachable URL after HTTP preflight failure: ' + url, e);
+      return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
+    });
   },
 
   // Refreshes the server info using the base URL. This is useful for testing whether we can successfully ping a host at the base URL
