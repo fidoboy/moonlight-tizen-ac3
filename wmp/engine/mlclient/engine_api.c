@@ -41,10 +41,31 @@ static pthread_t g_game_mode_retry_thread;
 static int g_game_mode_retry_thread_started;
 static volatile int g_game_mode_retry_stop;
 
+
+/* Cloud Game Mode uses its own setter/getter; legacy SetGameMode remains intact. */
+static int set_cloud_game_mode(int mode) {
+  int before_mode = -1, before_ret = -1;
+  int setter_ret = -1;
+  int after_mode = -1, after_ret = -1;
+  int before_rc = ml_avoc_get_cloud_game_mode(&before_mode, &before_ret);
+  MLT("TV Cloud Game Mode: pre-set query rc=%d mode=%d ret=%d",
+      before_rc, before_mode, before_ret);
+
+  int rc = ml_avoc_set_cloud_game_mode(mode, &setter_ret);
+  MLT("TV Cloud Game Mode: setter mode=%d rc=%d ret=%d",
+      mode, rc, setter_ret);
+
+  int after_rc = ml_avoc_get_cloud_game_mode(&after_mode, &after_ret);
+  MLT("TV Cloud Game Mode: post-set query rc=%d mode=%d ret=%d",
+      after_rc, after_mode, after_ret);
+
+  return rc != 0 ? rc : setter_ret;
+}
+
 /* The .NET host does not drive ml_engine_wait() as a blocking session loop. */
 static void *game_mode_retry_worker(void *unused) {
   (void)unused;
-  MLT("TV Game Mode: retry worker started (interval=2000ms)");
+  MLT("TV Cloud Game Mode: retry worker started (interval=2000ms)");
   while (!__atomic_load_n(&g_game_mode_retry_stop, __ATOMIC_ACQUIRE) &&
          __atomic_load_n(&g_game_mode_retry_pending, __ATOMIC_ACQUIRE) &&
          __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) &&
@@ -58,16 +79,16 @@ static void *game_mode_retry_worker(void *unused) {
         !__atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE) ||
         !__atomic_load_n(&g_running, __ATOMIC_ACQUIRE))
       break;
-    MLT("TV Game Mode: retrying activation after transient rc=-2");
-    int rc = ml_avoc_set_game_mode(1);
+    MLT("TV Cloud Game Mode: retrying activation after transient rc=-2");
+    int rc = set_cloud_game_mode(1);
     if (rc != -2) {
       __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
-      MLT("TV Game Mode: retry sequence finished with rc=%d; periodic retry disabled", rc);
+      MLT("TV Cloud Game Mode: retry sequence finished with rc=%d; periodic retry disabled", rc);
       break;
     }
-    MLT("TV Game Mode: TV still returned rc=-2; next retry in 2 seconds");
+    MLT("TV Cloud Game Mode: API still returned rc=-2; next retry in 2 seconds");
   }
-  MLT("TV Game Mode: retry worker stopped");
+  MLT("TV Cloud Game Mode: retry worker stopped");
   return NULL;
 }
 
@@ -79,7 +100,7 @@ static void game_mode_retry_start(void) {
     g_game_mode_retry_thread_started = 1;
   } else {
     __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
-    MLT("TV Game Mode: could not start retry worker (pthread_create=%d)", err);
+    MLT("TV Cloud Game Mode: could not start retry worker (pthread_create=%d)", err);
   }
 }
 
@@ -326,11 +347,11 @@ static int start_connection(void) {
   /* Request Game Mode as soon as connection startup succeeds. */
   if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
       __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
-    MLT("TV Game Mode: requesting activation immediately after LiStartConnectionEx");
-    int avoc_rc = ml_avoc_set_game_mode(1);
+    MLT("TV Cloud Game Mode: requesting activation immediately after LiStartConnectionEx");
+    int avoc_rc = set_cloud_game_mode(1);
     __atomic_store_n(&g_game_mode_retry_pending, avoc_rc == -2, __ATOMIC_RELEASE);
     if (avoc_rc == -2) {
-      MLT("TV Game Mode: transient rc=-2; starting independent 2-second retry worker");
+      MLT("TV Cloud Game Mode: transient rc=-2; starting independent 2-second retry worker");
       game_mode_retry_start();
     }
   }
@@ -652,8 +673,10 @@ void ml_engine_stop(void) {
   } else {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
-  /* AVOC off must happen after LiStopConnection has released the player/window. */
-  ml_avoc_set_game_mode(0);
+  /* Cloud Game Mode off must happen after LiStopConnection has released the player/window. */
+  int cloud_ret = -1;
+  int cloud_rc = ml_avoc_set_cloud_game_mode(0, &cloud_ret);
+  MLT("TV Cloud Game Mode: deactivation after player teardown rc=%d ret=%d", cloud_rc, cloud_ret);
   MLT("ml_engine_stop -> done");
 }
 
