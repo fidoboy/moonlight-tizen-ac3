@@ -634,7 +634,8 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
     // Preserve the existing libopus-to-PCM path as the fallback.
     DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
-      reinterpret_cast<unsigned char*>(sampleData), sampleLength);  }
+      reinterpret_cast<unsigned char*>(sampleData), sampleLength);
+  }
 
   // Update the estimated audio end time to prevent future overflow
   s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + s_frameDuration;
