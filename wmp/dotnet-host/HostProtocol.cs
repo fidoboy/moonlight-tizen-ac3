@@ -1024,18 +1024,16 @@ namespace MoonlightWmpHost
                     .Append(" kbps)\n");
             }
 
-            // Extra input and processing details are exclusive to OPUS -> E-AC-3.
+            // Keep the ESPlusPlayer OPUS -> E-AC-3 overlay identical to EMSS.
             if (stream.AudioCodec == 5)
             {
                 text.Append("Audio input: OPUS (")
-                    .Append(stream.AudioInputChannels.ToString(CultureInfo.InvariantCulture))
-                    .Append(" channels, ")
                     .Append(stream.AudioBitrateKbps != 0
                         ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
-                text.Append("Audio latency: ")
+                text.Append("Audio transcode: ")
                     .Append((stream.AudioTranscodeLatencyUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
-                    .Append(" ms\n");
+                    .Append(" ms avg\n");
             }
             else if (stream.AudioCodec == 4)
                 text.Append("Audio delay: ")
