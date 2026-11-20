@@ -168,7 +168,7 @@ static void cl_stageComplete(int stage) {
 
 /* Shared tail of both start paths: callbacks, LiStartConnection, input.
    Uses g_sc/g_si. Returns 0 or 1 (LiStartConnection failed). */
-static int start_connection(void) {
+static int start_connection(int game_mode) {
   g_stream_info_last_time_ms = 0;  /* First poll establishes the post-handshake baseline. */
   g_stream_info_last_video_bytes = 0;
   g_stream_info_last_audio_bytes = 0;
@@ -268,9 +268,9 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
-  /* Apply TV modes for every successfully started stream.
+  /* Apply the three TV modes only when the user requested Game Mode.
    * The order is intentional: Game Mode, Picture Mode, then Cloud Game Mode. */
-  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
+  if (game_mode && __atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
     __atomic_store_n(&g_avoc_stream_modes_request_sent, 1, __ATOMIC_RELEASE);
 
     MLT("TV AVOC: applying stream modes after LiStartConnectionEx");
@@ -335,7 +335,7 @@ int ml_engine_start(const char *host, int appId, const char *pin,
   }
   g_si.serverCodecModeSupport = SCM_H264;
 
-  if (start_connection() != 0) return 1;
+  if (start_connection(0) != 0) return 1;
   MLT("ml_engine_start -> 0");
   return 0;
 }
@@ -656,9 +656,6 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
   __atomic_store_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_RELEASE);
-  /* game_mode remains in the public ABI for compatibility; TV Game Mode is
-   * now applied unconditionally for every successfully started stream. */
-  (void)game_mode;
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
@@ -717,7 +714,7 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   g_si.rtspSessionUrl = g_sess_rtsp[0] ? g_sess_rtsp : NULL;
   g_si.serverCodecModeSupport = server_codec_mode_support ? server_codec_mode_support : SCM_H264;
 
-  int rc = start_connection();
+  int rc = start_connection(game_mode != 0);
   MLT("ml_engine_start_session -> %d", rc);
   return rc;
 }
