@@ -126,7 +126,7 @@ static bool InitializeDolbySoftwareDecoder(int audioConfiguration,
   return true;
 }
 
-static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
+static bool DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, samsung::wasm::SessionId session_id,
   OpusMSDecoder* decoder, const unsigned char* sampleData, int sampleLength) {
   int decodeLen;
   
@@ -140,7 +140,7 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   if (decodeLen <= 0) {
     // Reset the buffer contents to zero when decoding fails
     s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
-    return;
+    return false;
   }
 
   // Calculate desired buffer size in bytes for decoded audio data
@@ -159,7 +159,8 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   };
 
   // Attempt to append the packet to the audio track for rendering
-  if (track->AppendPacket(pkt)) {
+  const bool appended = track->AppendPacket(pkt);
+  if (appended) {
     // If successful, update the presentation timestamp for the next packet
     s_pktPts += s_frameDuration;
   } else {
@@ -170,6 +171,7 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track, sa
   if (s_desiredBufferSize > s_DecodeBuffer.size()) {
     s_DecodeBuffer.resize(s_desiredBufferSize);
   }
+  return appended;
 }
 
 static bool s_LoggedFirstOpusPassthroughPacket = false;
@@ -347,18 +349,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
     opusConfig->mapping, &rc
   );
 
-  // Query libopus's algorithmic lookahead for the native ESPlus PCM route.
-  // This represents decoder delay in samples, not variable CPU processing time.
-  if (s_AudioBackend == AudioBackend::Emss && g_Instance->m_OpusDecoder != nullptr) {
-    int decoderLookaheadSamples = 0;
-    if (opus_multistream_decoder_ctl(g_Instance->m_OpusDecoder,
-        OPUS_GET_LOOKAHEAD(&decoderLookaheadSamples)) == OPUS_OK && decoderLookaheadSamples >= 0) {
-      const double decoderDelayMs = 1000.0 * decoderLookaheadSamples / s_sampleRate;
-      g_Instance->m_OpusDecoderDelayMs.store(decoderDelayMs, std::memory_order_relaxed);
-      ClLogMessage("Native ESPlus Opus decoder lookahead: %d samples (%.2f ms)\n",
-        decoderLookaheadSamples, decoderDelayMs);
-    }
-  }
+  g_Instance->ResetAudioSoftwareProcessingStats();
 
   // Initialize the estimated audio end time
   s_estimatedAudioEnd = 0s;
@@ -411,7 +402,7 @@ void MoonlightInstance::AudDecCleanup(void) {
   s_OpusDolbyTranscodeErrors = 0;
   if (g_Instance != nullptr) {
     g_Instance->m_OpusToDolbyTranscode.store(false);
-    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
+    g_Instance->ResetAudioSoftwareProcessingStats();
   }
   s_DolbyDecoder.Cleanup();
   s_DolbyPcm.clear();
@@ -483,6 +474,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
         return;
       }
 
+      const auto softwareProcessingStart = std::chrono::steady_clock::now();
       int decodedSamples = 0;
       if (!s_DolbyDecoder.Decode(
             reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
@@ -512,6 +504,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
 
       s_DolbyDecodeErrors = 0;
       s_pktPts = packetPts + decodedDuration;
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + decodedDuration;
       return;
     }
@@ -553,6 +548,7 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       return;
     }
 
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
     if (!s_OpusDolbyTranscoder.Transcode(
           reinterpret_cast<const uint8_t*>(sampleData), sampleLength,
           s_EncodedDolbyPackets)) {
@@ -562,10 +558,6 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       }
       return;
     }
-    g_Instance->m_OpusDolbyTranscodeLatencyMs.store(
-      s_OpusDolbyTranscoder.GetAverageProcessingLatencyMs(),
-      std::memory_order_relaxed);
-
     // E-AC-3 frame duration is not the 32 ms used by native AC-3/E-AC-3
     // passthrough. Derive pacing from FFmpeg's actual encoder frame size so
     // EMSS receives timestamps and durations matching the encoded access units.
@@ -601,6 +593,9 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       s_estimatedAudioEnd = std::max(s_estimatedAudioEnd, ntp) + encodedFrameDuration;
       s_OpusDolbyTranscodeErrors = 0;
     }
+    const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+    g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
     return;
   }
 
@@ -643,10 +638,15 @@ void MoonlightInstance::AudDecDecodeAndPlaySample(char* sampleData, int sampleLe
       reinterpret_cast<unsigned char*>(sampleData), sampleLength);
   } else {
     // Preserve the existing libopus-to-PCM path as the fallback.
-    DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
+    const auto softwareProcessingStart = std::chrono::steady_clock::now();
+    if (DecodeAndAppendPacket(&g_Instance->m_AudioTrack,
       g_Instance->m_AudioSessionId.load(), g_Instance->m_OpusDecoder,
       reinterpret_cast<unsigned char*>(sampleData), sampleLength
-    );
+    )) {
+      const auto softwareProcessingElapsed = std::chrono::steady_clock::now() - softwareProcessingStart;
+      g_Instance->AddAudioSoftwareProcessingTime(static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(softwareProcessingElapsed).count()));
+    }
   }
 
   // Update the estimated audio end time to prevent future overflow
