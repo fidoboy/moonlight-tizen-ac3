@@ -316,11 +316,19 @@ function cleanupWmpAfterStartupFailure() {
 
 function quitRemoteAppAfterStartupFailure() {
   // Only a failure before the startup transition was hidden may close the host app.
-  // Avoid issuing quitApp when no remote app launch was recorded.
+  // Respect the user's quit-after-disconnect preference and avoid quitting when
+  // no remote app launch was recorded.
   if (window._streamTransitionHiddenForSession === true) return Promise.resolve();
+  var preferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
+  var quitEnabled = preferences && (
+    preferences.quitAppAfterDisconnect === true ||
+    preferences.quitAppAfterDisconnect === 'true' ||
+    preferences.quitAppAfterDisconnect === 1
+  );
   var appName = window._activeStreamAppName;
   var hostApi = window.api || (typeof api !== 'undefined' ? api : null);
-  if (!appName || appName === t('Apps') || !hostApi || typeof hostApi.quitApp !== 'function') {
+  if (!quitEnabled || !appName || appName === t('Apps') ||
+      !hostApi || typeof hostApi.quitApp !== 'function') {
     return Promise.resolve();
   }
   console.warn('[stream/startup]', 'Attempting best-effort remote app shutdown after startup failure.');
