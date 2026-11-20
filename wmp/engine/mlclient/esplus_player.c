@@ -968,13 +968,6 @@ static int esplus_start_prepare_if_ready(void)
     s_prepare_started = 1; /* exactly once, before dropping the lock */
     pthread_mutex_unlock(&s_lock);
 
-    /* TEMPORARY TEST: synthesize one OPUS format rejection per process. */
-    if (__atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
-        !__atomic_exchange_n(&s_opus_fallback_test_used, 1, __ATOMIC_ACQ_REL)) {
-        MLT("TEST: synthesizing EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT for OPUS");
-        on_error((int)WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT, NULL);
-    }
-
     MLT_DIAG("prepare_async CALL about_to_enter");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
     MLT_DIAG("prepare_async RETURN status=%d raw=%d", (int)result.status, result.raw_status);
@@ -1169,6 +1162,22 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         return result;
     }
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
+
+    /*
+     * TEMPORARY TEST: emulate the Tizen preroll rejection at the point where
+     * ESPlus has accepted the first compressed OPUS packet. The real firmware
+     * reports this asynchronously from trackrenderer while prepare is pending.
+     * Keep the normal error callback and prepare_async_done coordination path.
+     */
+    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS && packet &&
+        packet->type == WMP_ESPLUS_STREAM_AUDIO &&
+        __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
+        !__atomic_load_n(&s_prepared, __ATOMIC_ACQUIRE) &&
+        !__atomic_exchange_n(&s_opus_fallback_test_used, 1, __ATOMIC_ACQ_REL)) {
+        MLT("TEST: synthesizing EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT after first OPUS preroll packet");
+        on_error((int)WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT, NULL);
+    }
+
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
         result.raw_status = INT_MIN;
