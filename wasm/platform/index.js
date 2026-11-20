@@ -778,6 +778,7 @@ var _directSmartHubSettingsReady = false;
 var _directSmartHubStreamSettings = null;
 var _directSmartHubLaunchStarted = false;
 var _directSmartHubLaunchFailed = false;
+var _directSmartHubNativeLaunch = false;
 
 const REPEAT_DELAY = 350; // Repeat delay set to 350ms (milliseconds)
 const REPEAT_INTERVAL = 100; // Repeat interval set to 100ms (milliseconds)
@@ -6075,11 +6076,17 @@ function startGame(host, appID) {
   withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
-    withOperationTimeout((_directSmartHubLaunch ? Promise.resolve({
-      id: appID,
-      title: _directSmartHubLaunch.appName || String(appID)
-    }) : host.getAppById(appID)), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
+    withOperationTimeout(host.getAppById(appID), STREAM_OPERATION_TIMEOUTS.appLookup, 'Application lookup').then(async function(appToStart) {
       if (!isStreamStartupCurrent(startupGeneration)) return;
+      if (!appToStart) {
+        if (_directSmartHubLaunch) {
+          removeDirectSmartHubPreviewTile();
+          directSmartHubLaunchFailure(t('The selected app is no longer available on the host.'));
+          return;
+        }
+        streamStartupTimeoutFailure('connection', t('The host did not return the requested application.'));
+        return;
+      }
       if (!_directSmartHubLaunch && host.currentGame != 0 && host.currentGame != appID) {
         withOperationTimeout(host.getAppById(host.currentGame), STREAM_OPERATION_TIMEOUTS.appLookup, 'Currently running application lookup').then(function(currentApp) {
           if (!isStreamStartupCurrent(startupGeneration)) return;
@@ -6541,12 +6548,20 @@ function startGame(host, appID) {
     }).catch(function(failedAppLookup) {
       if (!isStreamStartupCurrent(startupGeneration)) return;
       console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to retrieve app ' + appID + ': ' + failedAppLookup);
-      streamStartupTimeoutFailure('connection', t('The host did not return the requested application.'));
+      if (_directSmartHubLaunch) {
+        directSmartHubLaunchFailure(t('Could not retrieve the requested application from the host.'));
+      } else {
+        streamStartupTimeoutFailure('connection', t('The host did not return the requested application.'));
+      }
     });
   }, function(failedRefreshInfo) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     console.error('%c[index.js, startGame]', 'color: green;', 'Error: Failed to refresh server info before launching app:', failedRefreshInfo);
-    streamStartupTimeoutFailure('connection', t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
+    if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
+    } else {
+      streamStartupTimeoutFailure('connection', t('Could not connect to %1$s. Make sure the GameStream server is running on the remote host.', host.hostname || t('the host')));
+    }
   });
 }
 
@@ -9594,9 +9609,16 @@ function loadDirectSmartHubStreamSettings() {
         stored.quitAppAfterDisconnect === 'true' || stored.quitAppAfterDisconnect === 1,
       performanceStatsPosition: stored.performanceStatsPosition || 'top-left'
     });
-    streamTransitionBackgroundEnabled = stored.streamTransitionBackground == null ||
+    var directEngine = String(snapshot.streamingEngine || stored.streamingEngine || 'EMSS');
+    _directSmartHubNativeLaunch = directEngine === 'ESPLUSPLAYER' || directEngine === 'WMP';
+    if (_directSmartHubNativeLaunch) {
+      document.documentElement.classList.add('native-stream-launch');
+      document.documentElement.style.backgroundColor = 'transparent';
+      document.body.style.backgroundColor = 'transparent';
+    }
+    streamTransitionBackgroundEnabled = !_directSmartHubNativeLaunch && (stored.streamTransitionBackground == null ||
       stored.streamTransitionBackground === true || stored.streamTransitionBackground === 'true' ||
-      stored.streamTransitionBackground === 1;
+      stored.streamTransitionBackground === 1);
     activeColorTheme = normalizeColorTheme(stored.colorTheme);
     focusedColorTheme = activeColorTheme;
     document.body.setAttribute('data-color-theme', activeColorTheme);
@@ -10475,6 +10497,35 @@ function updatePreviewData() {
   } catch (e) {
     console.error('%c[index.js, updatePreviewData]', 'color: red;', 'Error while sending Smart Hub Preview data: ' + e.message);
   }
+}
+
+// Remove only the stale app represented by this Smart Hub shortcut. Other
+// apps on this host and every other host remain in the Preview cache and payload.
+function removeDirectSmartHubPreviewTile() {
+  if (!_directSmartHubLaunch) return;
+  var targetServerUid = String(_directSmartHubLaunch.serverUid);
+  var targetAppId = String(_directSmartHubLaunch.appId);
+  getData('previewApps', function(storedPreview) {
+    var previewApps = storedPreview && storedPreview.previewApps
+      ? storedPreview.previewApps : {};
+    var hostEntry = previewApps[targetServerUid];
+    if (!hostEntry || !Array.isArray(hostEntry.apps)) return;
+
+    var previousCount = hostEntry.apps.length;
+    hostEntry.apps = hostEntry.apps.filter(function(app) {
+      return !app || String(app.id) !== targetAppId;
+    });
+    if (hostEntry.apps.length === previousCount) {
+      console.log('%c[index.js, removeDirectSmartHubPreviewTile]', 'color: gray;', 'The requested app was not present in the cached Preview list.');
+      return;
+    }
+
+    if (hostEntry.apps.length === 0) delete previewApps[targetServerUid];
+    _previewApps = previewApps;
+    console.warn('%c[index.js, removeDirectSmartHubPreviewTile]', 'color: orange;', 'Removed only stale Preview tile for host ' + targetServerUid + ', app ' + targetAppId + '.');
+    savePreviewApps();
+    updatePreviewData();
+  });
 }
 
 function updateDirectSmartHubStartingStatus() {
