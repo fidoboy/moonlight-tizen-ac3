@@ -131,6 +131,8 @@ static pthread_mutex_t s_recovery_lock = PTHREAD_MUTEX_INITIALIZER;
 static volatile int s_opus_fallback_error;
 static volatile int s_opus_fallback_ready;
 static int s_opus_fallback_attempted;
+/* Temporary one-shot simulation: remove after validating the software fallback on-device. */
+static int s_opus_fallback_test_used;
 static wmp_esplus_video_info_t s_cached_video_info;
 static void *s_cached_video_codec_data;
 static int s_cached_video_info_valid;
@@ -499,6 +501,9 @@ static void on_prepared(bool ok, void *context)
 {
     int report_failure = 0;
     (void)context;
+    /* The synthetic format rejection must take the same deferred recovery path. */
+    if (ok && __atomic_load_n(&s_opus_fallback_error, __ATOMIC_ACQUIRE))
+        ok = false;
     MLT_DIAG("prepare_async_done callback ENTER ok=%d", ok ? 1 : 0);
     pthread_mutex_lock(&s_lock);
     s_prepare_ok = ok ? 1 : 0;
@@ -962,6 +967,13 @@ static int esplus_start_prepare_if_ready(void)
     }
     s_prepare_started = 1; /* exactly once, before dropping the lock */
     pthread_mutex_unlock(&s_lock);
+
+    /* TEMPORARY TEST: synthesize one OPUS format rejection per process. */
+    if (__atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
+        !__atomic_exchange_n(&s_opus_fallback_test_used, 1, __ATOMIC_ACQ_REL)) {
+        MLT("TEST: synthesizing EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT for OPUS");
+        on_error((int)WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT, NULL);
+    }
 
     MLT_DIAG("prepare_async CALL about_to_enter");
     result = wmp_esplus_adapter_prepare_async(&s_adapter);
