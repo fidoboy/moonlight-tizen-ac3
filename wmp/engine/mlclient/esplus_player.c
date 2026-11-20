@@ -138,8 +138,6 @@ static int s_cached_opus_pcm_info_valid;
 static volatile int s_opus_fallback_error;
 static volatile int s_opus_fallback_ready;
 static int s_opus_fallback_attempted;
-/* Temporary one-shot simulation: remove after validating the software fallback on-device. */
-static int s_opus_fallback_test_used;
 static wmp_esplus_video_info_t s_cached_video_info;
 static void *s_cached_video_codec_data;
 static int s_cached_video_info_valid;
@@ -1198,17 +1196,6 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
         return result;
     }
     result = wmp_esplus_adapter_submit(&s_adapter, packet);
-
-    /* One-shot synthetic test: inject only the native format-error signal.
-     * Recovery must not depend on a fabricated prepare_async_done callback. */
-    if (result.status == WMP_ESPLUS_SUBMIT_SUCCESS && packet &&
-        packet->type == WMP_ESPLUS_STREAM_AUDIO &&
-        __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED) == 1u &&
-        !__atomic_load_n(&s_prepared, __ATOMIC_ACQUIRE) &&
-        !__atomic_exchange_n(&s_opus_fallback_test_used, 1, __ATOMIC_ACQ_REL)) {
-        MLT("TEST: synthesizing EPPLAYER_ERROR_NOT_SUPPORTED_FORMAT after first OPUS preroll packet");
-        on_error((int)WMP_ESPLUS_ERROR_NOT_SUPPORTED_FORMAT, NULL);
-    }
 
     if (__atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE)) {
         result.status = WMP_ESPLUS_SUBMIT_REJECTED;
