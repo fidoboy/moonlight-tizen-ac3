@@ -32,7 +32,6 @@ extern uint32_t AudEsplus_TakeOpusSoftwareDecodeAverageUs(void);
 
 static int g_dolby_passthrough_enabled;
 static int g_audio_enabled = 1;
-static int g_game_mode_requested;
 static int g_avoc_stream_modes_request_sent;
 static volatile int g_running;   /* 1 while a session is up */
 static volatile int g_started;   /* 1 once LiStartConnection succeeded (needs LiStop) */
@@ -269,10 +268,9 @@ static int start_connection(void) {
   }
   MLT("LiStartConnection -> 0");
   g_started = 1;
-  /* Apply TV modes only for sessions that explicitly requested Game Mode.
+  /* Apply TV modes for every successfully started stream.
    * The order is intentional: Game Mode, Picture Mode, then Cloud Game Mode. */
-  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE) &&
-      __atomic_load_n(&g_game_mode_requested, __ATOMIC_ACQUIRE)) {
+  if (__atomic_load_n(&g_running, __ATOMIC_ACQUIRE)) {
     __atomic_store_n(&g_avoc_stream_modes_request_sent, 1, __ATOMIC_RELEASE);
 
     MLT("TV AVOC: applying stream modes after LiStartConnectionEx");
@@ -303,7 +301,6 @@ int ml_engine_start(const char *host, int appId, const char *pin,
       bitrate_kbps, datadir ? datadir : "(null)");
   if (g_running) { MLT("ml_engine_start -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();  /* previous session ended by host drop but was never stopped */
-  __atomic_store_n(&g_game_mode_requested, 0, __ATOMIC_RELEASE);
   __atomic_store_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_RELEASE);
   g_audio_enabled = 1;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
@@ -658,9 +655,10 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
       hdr, audio_config ? audio_config : "(null)", full_range, audio_enabled != 0);
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
-  __atomic_store_n(&g_game_mode_requested, game_mode != 0, __ATOMIC_RELEASE);
   __atomic_store_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_RELEASE);
-  MLT("TV AVOC stream modes requested=%d", game_mode != 0);
+  /* game_mode remains in the public ABI for compatibility; TV Game Mode is
+   * now applied unconditionally for every successfully started stream. */
+  (void)game_mode;
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
