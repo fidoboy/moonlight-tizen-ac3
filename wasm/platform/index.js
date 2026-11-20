@@ -10442,12 +10442,12 @@ function updatePreviewData() {
       var entry = _previewApps[serverUid];
       if (!entry || !entry.apps || entry.apps.length === 0 || totalTiles >= SMART_HUB_MAX_TILES) return;
       var apps = entry.apps.filter(function(app) {
-        return app && app.imageUri && app.txtPath;
+        if (!app || !app.imageUri || !app.txtPath) return false;
+        var filename = getSmartHubPreviewFileName(serverUid, app.id);
+        return window.previewImageStatus && window.previewImageStatus[filename] === true;
       }).slice(0, SMART_HUB_MAX_TILES - totalTiles);
       var tiles = apps.map(function(app, index) {
         var tile = {
-          title: app.title,
-          subtitle: entry.hostname,
           image_url: app.imageUri,
           image_ratio: '16by9',
           action_data: JSON.stringify({
@@ -10463,7 +10463,7 @@ function updatePreviewData() {
         return tile;
       });
       totalTiles += tiles.length;
-      if (tiles.length) sections.push({ title: entry.hostname, tiles: tiles });
+      if (tiles.length) sections.push({ tiles: tiles });
     });
 
     if (!sections.length) {
