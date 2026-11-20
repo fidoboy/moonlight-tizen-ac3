@@ -7,6 +7,10 @@ extern "C" {
 
 int ml_avoc_set_game_mode(int enabled);
 
+/* Separate Cloud Game Mode API; native rc and AVOC ret output are distinct. */
+int ml_avoc_set_cloud_game_mode(int mode, int *ret);
+int ml_avoc_get_cloud_game_mode(int *mode, int *ret);
+
 #ifdef __cplusplus
 }
 #endif
