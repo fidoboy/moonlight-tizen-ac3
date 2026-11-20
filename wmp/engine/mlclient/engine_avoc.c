@@ -34,6 +34,117 @@ static avoc_get_game_mode_fn s_get_game_mode;
 static int s_lookup_attempted;
 static int s_active = -1; /* -1 = unknown / verification required */
 
+/*
+ * Cloud Game Mode is a separate AVOC API. Keep its handle and symbol lookup
+ * independent so missing cloud symbols never disable the legacy Game Mode API.
+ *
+ * ABI follows the SetCloudGameMode/GetCloudGameMode method arguments:
+ * setter(mode, &ret), getter(&mode, &ret). The native return value (rc) and
+ * explicit output argument (ret) are logged and kept distinct.
+ */
+typedef int (*avoc_set_cloud_game_mode_fn)(int mode, int *ret);
+typedef int (*avoc_get_cloud_game_mode_fn)(int *mode, int *ret);
+
+static void *s_cloud_library;
+static avoc_set_cloud_game_mode_fn s_set_cloud_game_mode;
+static avoc_get_cloud_game_mode_fn s_get_cloud_game_mode;
+static int s_cloud_lookup_attempted;
+
+static int resolve_cloud_avoc(void)
+{
+    const char *error;
+
+    if (s_cloud_lookup_attempted)
+        return s_cloud_library != NULL && s_set_cloud_game_mode != NULL &&
+               s_get_cloud_game_mode != NULL;
+
+    s_cloud_lookup_attempted = 1;
+    (void)dlerror();
+    s_cloud_library = dlopen("libavoc.so", RTLD_NOW | RTLD_LOCAL);
+    error = dlerror();
+    if (!s_cloud_library) {
+        MLT("AVOC Cloud: dlopen(libavoc.so) failed: %s",
+            error ? error : "no dynamic-loader diagnostic");
+        return 0;
+    }
+
+    (void)dlerror();
+    *(void **)(&s_set_cloud_game_mode) =
+        dlsym(s_cloud_library, "avoc_set_cloud_game_mode");
+    error = dlerror();
+    if (error || !s_set_cloud_game_mode) {
+        MLT("AVOC Cloud: dlsym(avoc_set_cloud_game_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        (void)dlclose(s_cloud_library);
+        s_cloud_library = NULL;
+        s_set_cloud_game_mode = NULL;
+        return 0;
+    }
+
+    (void)dlerror();
+    *(void **)(&s_get_cloud_game_mode) =
+        dlsym(s_cloud_library, "avoc_get_cloud_game_mode");
+    error = dlerror();
+    if (error || !s_get_cloud_game_mode) {
+        MLT("AVOC Cloud: dlsym(avoc_get_cloud_game_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        (void)dlclose(s_cloud_library);
+        s_cloud_library = NULL;
+        s_set_cloud_game_mode = NULL;
+        s_get_cloud_game_mode = NULL;
+        return 0;
+    }
+
+    MLT("AVOC Cloud: set_cloud_game_mode and get_cloud_game_mode resolved");
+    return 1;
+}
+
+int ml_avoc_set_cloud_game_mode(int mode, int *ret)
+{
+    int rc;
+
+    if (!ret)
+        return -1;
+    *ret = -1;
+
+    pthread_mutex_lock(&s_lock);
+    if (!resolve_cloud_avoc()) {
+        MLT("AVOC Cloud: setter unavailable");
+        pthread_mutex_unlock(&s_lock);
+        return -1;
+    }
+
+    rc = s_set_cloud_game_mode(mode, ret);
+    MLT("AVOC Cloud: avoc_set_cloud_game_mode(mode=%d) -> rc=%d, ret=%d",
+        mode, rc, *ret);
+    pthread_mutex_unlock(&s_lock);
+    return rc;
+}
+
+int ml_avoc_get_cloud_game_mode(int *mode, int *ret)
+{
+    int rc;
+
+    if (!mode || !ret)
+        return -1;
+    *mode = -1;
+    *ret = -1;
+
+    pthread_mutex_lock(&s_lock);
+    if (!resolve_cloud_avoc()) {
+        MLT("AVOC Cloud: getter unavailable");
+        pthread_mutex_unlock(&s_lock);
+        return -1;
+    }
+
+    rc = s_get_cloud_game_mode(mode, ret);
+    MLT("AVOC Cloud: avoc_get_cloud_game_mode() -> rc=%d, mode=%d, ret=%d",
+        rc, *mode, *ret);
+    pthread_mutex_unlock(&s_lock);
+    return rc;
+}
+
+
 static int resolve_avoc(void)
 {
     const char *error;
