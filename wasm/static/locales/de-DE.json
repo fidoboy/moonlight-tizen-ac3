@@ -652,5 +652,9 @@
   "Audio input:": "Audioeingang:",
   "Preparing native video playback service...": "Nativen Videowiedergabedienst wird vorbereitet...",
   "The local device could not prepare the native video playback service.": "Das lokale Gerät konnte den nativen Videowiedergabedienst nicht vorbereiten.",
-  "WMP cleanup failed:": "WMP-Bereinigung fehlgeschlagen:"
+  "WMP cleanup failed:": "WMP-Bereinigung fehlgeschlagen:",
+  "The selected app is no longer available on the host.": "Die ausgewählte App ist auf dem Host nicht mehr verfügbar.",
+  "Could not retrieve the requested application from the host.": "Die angeforderte App konnte nicht vom Host abgerufen werden.",
+  "Moonlight could not restore the selected host.": "Moonlight konnte den ausgewählten Host nicht wiederherstellen.",
+  "Audio latency:": "Audio-Latenz:"
 }

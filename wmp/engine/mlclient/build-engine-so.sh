@@ -12,6 +12,8 @@ GCC=${WMP_ARM_CC:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-l
 OBJD=$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-objdump
 NM=${WMP_ARM_NM:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-nm}
 AR=${WMP_ARM_AR:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-ar}
+GXX=${WMP_ARM_CXX:-$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-g++}
+FFMPEG_PREFIX=${FFMPEG_ARM_PREFIX:-$MLT/ffmpeg-arm-install}
 C=$MLT/moonlight-common-c; CRYPTO_PREFIX=$BPD/arm-static
 BUILD_VARIANT=${BUILD_VARIANT:-release}
 WMP_MLT_TRACE=${WMP_MLT_TRACE:-false}
@@ -35,10 +37,18 @@ OUT=${OUT:-./engine-build}; mkdir -p "$OUT"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 FLAGS="--sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu11 -Wall -Wextra -fPIC"
 INC="-I$C/src -I$OUT -I$HERE -I$MLT/wmp/service/src -I$MLT/libgamestream -I$MLT/opus/include -I$MLT/opus/src -I$MLT/opus/silk -I$MLT/opus/celt -I$MLT/opus/silk/fixed -I$CRYPTO_PREFIX/include"
+FFMPEG_INC="-I$FFMPEG_PREFIX/include"
+test -s "$FFMPEG_PREFIX/lib/libavcodec.a"
+test -s "$FFMPEG_PREFIX/lib/libavutil.a"
+test -s "$FFMPEG_PREFIX/lib/libswresample.a"
 
 for src in cert_init engine_api engine_avoc engine_ui engine_pad video_esplus audio_opus esplus_player gs_client input_evdev mldiag ctlcrypto; do
   "$GCC" $FLAGS $INC -c "$HERE/$src.c" -o "$OUT/$src.o"
 done
+
+# Compile the native FFmpeg OPUS -> E-AC-3 transcoder.
+"$GXX" --sysroot=$DEPS/sysroot $ARCH $OPT -std=gnu++14 -Wall -Wextra -fPIC -fno-exceptions -fno-rtti -fno-unwind-tables -fno-asynchronous-unwind-tables $INC $FFMPEG_INC \
+  -c "$HERE/opus_eac3_transcoder.cpp" -o "$OUT/opus_eac3_transcoder.o"
 
 # Build the vendored libopus sources for the native ARM engine. Reuse the
 # authoritative source list from the top-level CMake target.
@@ -73,10 +83,12 @@ fi
   "$OUT"/esplus_player.o "$OUT"/gs_client.o "$OUT"/input_evdev.o "$OUT"/mldiag.o "$OUT"/ctlcrypto.o \
   "$OUT"/wmp_esplus_abi.o "$OUT"/wmp_esplus_adapter.o \
   "$OUT"/libopus.a \
+  "$OUT"/opus_eac3_transcoder.o \
   "$DEPSBUILD"/obj/*.o "$DEPSBUILD"/gs/*.o \
   -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs \
   -Wl,--exclude-libs,ALL -L"$CRYPTO_PREFIX/lib" \
-  -lcurl -lssl -lcrypto -ldl -lpthread -lm $DBGLIB
+  -L"$FFMPEG_PREFIX/lib" -lavcodec -lswresample -lavutil \
+  -lcurl -lssl -lcrypto -ldl -lpthread -lm -lstdc++ $DBGLIB
 
 # The managed WMP ServiceApplication loads this shared engine image through
 # ManualLoader. No native C ServiceApp executable is built or packaged.

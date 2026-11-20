@@ -39,8 +39,11 @@ namespace MoonlightWmpHost
             public uint AudioCodec;
             public uint AudioChannels;
             public uint AudioSampleRate;
+            public uint AudioInputChannels;
+            public uint AudioTranscodeLatencyUs;
             public uint VideoBitrateKbps;
             public uint AudioBitrateKbps;
+            public uint AudioOutputBitrateKbps;
             public uint NetworkRttMs;
             public uint NetworkVarianceMs;
             public uint VideoFpsReceived;

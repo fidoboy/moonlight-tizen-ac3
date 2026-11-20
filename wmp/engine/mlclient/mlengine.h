@@ -100,7 +100,8 @@ typedef struct ml_engine_stream_info {
   int32_t struct_size;
   uint32_t video_format, video_width, video_height, video_fps, h264_level_idc;
   uint32_t audio_codec, audio_channels, audio_sample_rate;
-  uint32_t video_bitrate_kbps, audio_bitrate_kbps;
+  uint32_t audio_input_channels, audio_transcode_latency_us;
+  uint32_t video_bitrate_kbps, audio_bitrate_kbps, audio_output_bitrate_kbps;
   uint32_t network_rtt_ms, network_variance_ms;
   uint32_t video_fps_received, video_fps_decoded, video_fps_rendered;
   uint32_t network_dropped_percent_x100;
@@ -117,7 +118,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out);
 int ml_engine_video_ready(void);
 /* Bitmask: 1=evdev keyboard, 2=evdev mouse, 4=evdev gamepad. */
 int ml_engine_input_capabilities(void);
-/* 0 until audio is accepted; 1=OPUS direct, 2=AC-3, 3=E-AC-3, 4=OPUS decoded by libopus. */
+/* 0 until accepted; 1=OPUS, 2=AC-3, 3=E-AC-3 passthrough, 4=OPUS/libopus PCM, 5=OPUS/FFmpeg E-AC-3. */
 int ml_engine_get_active_audio_codec(void);
 /* Atomically take the mean libopus decode execution time (microseconds) since the previous stats snapshot; 0 outside the ESPlus libopus fallback. */
 uint32_t ml_engine_take_opus_software_decode_average_us(void);

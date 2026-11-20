@@ -1009,21 +1009,33 @@ namespace MoonlightWmpHost
             }
             else
             {
-                string audioCodec = stream.AudioCodec == 3 ? "E-AC-3" :
+                string audioCodec = stream.AudioCodec == 3 || stream.AudioCodec == 5 ? "E-AC-3" :
                     stream.AudioCodec == 2 ? "AC-3" : "OPUS";
-                string audioMode = stream.AudioCodec == 4 ? "[Software]" : "[Hardware]";
+                string audioMode = stream.AudioCodec == 4 || stream.AudioCodec == 5 ? "[Software]" : "[Hardware]";
+                uint displayedAudioBitrate = stream.AudioCodec == 5
+                    ? stream.AudioOutputBitrateKbps : stream.AudioBitrateKbps;
                 string layout = stream.AudioChannels == 2 ? "Stereo" :
                     stream.AudioChannels == 6 ? "5.1" :
                     stream.AudioChannels == 8 ? "7.1" : "-";
                 text.Append("Audio stream: ").Append(audioCodec).Append(' ').Append(audioMode).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
-                    .Append(" channels, ").Append(stream.AudioBitrateKbps != 0
-                    ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
+                    .Append(" channels, ").Append(displayedAudioBitrate != 0
+                    ? displayedAudioBitrate.ToString(CultureInfo.InvariantCulture) : "-")
                     .Append(" kbps)\n");
             }
 
-            // This metric exists only when ESPlus rejected compressed OPUS and libopus is active.
-            if (stream.AudioCodec == 4)
+            // Keep the ESPlusPlayer OPUS -> E-AC-3 overlay identical to EMSS.
+            if (stream.AudioCodec == 5)
+            {
+                text.Append("Audio input: OPUS (")
+                    .Append(stream.AudioBitrateKbps != 0
+                        ? stream.AudioBitrateKbps.ToString(CultureInfo.InvariantCulture) : "-")
+                    .Append(" kbps)\n");
+                text.Append("Audio transcode: ")
+                    .Append((stream.AudioTranscodeLatencyUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
+                    .Append(" ms avg\n");
+            }
+            else if (stream.AudioCodec == 4)
                 text.Append("Audio delay: ")
                     .Append((opusSoftwareDecodeAverageUs / 1000.0).ToString("0.00", CultureInfo.InvariantCulture))
                     .Append(" ms\n");
@@ -1415,7 +1427,7 @@ namespace MoonlightWmpHost
                     int audioCodec = _engine.GetActiveAudioCodec();
                     if (audioCodec != lastAudioCodec)
                     {
-                        string codec = audioCodec == 3 ? "E-AC-3" :
+                        string codec = audioCodec == 3 || audioCodec == 5 ? "E-AC-3" :
                             audioCodec == 2 ? "AC-3" :
                             audioCodec == 1 ? "OPUS" : "PENDING";
                         Event(appId, remotePort, "wmpAudioCodec: " + codec, null);

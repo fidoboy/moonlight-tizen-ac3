@@ -200,6 +200,8 @@ static int start_connection(int game_mode) {
   __atomic_store_n(&esplus_stats.audio_codec, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.audio_channels, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.audio_sample_rate, 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.audio_input_channels, 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&esplus_stats.audio_transcode_latency_us, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.video_bytes_received, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.audio_bytes_received, 0, __ATOMIC_RELAXED);
   __atomic_store_n(&esplus_stats.video_frames_received, 0, __ATOMIC_RELAXED);
@@ -432,8 +434,11 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   out->audio_codec = __atomic_load_n(&esplus_stats.audio_codec, __ATOMIC_RELAXED);
   out->audio_channels = __atomic_load_n(&esplus_stats.audio_channels, __ATOMIC_RELAXED);
   out->audio_sample_rate = __atomic_load_n(&esplus_stats.audio_sample_rate, __ATOMIC_RELAXED);
+  out->audio_input_channels = __atomic_load_n(&esplus_stats.audio_input_channels, __ATOMIC_RELAXED);
+  out->audio_transcode_latency_us = __atomic_load_n(&esplus_stats.audio_transcode_latency_us, __ATOMIC_RELAXED);
   out->video_bitrate_kbps = 0;
   out->audio_bitrate_kbps = 0;
+  out->audio_output_bitrate_kbps = 0;
   out->network_rtt_ms = 0;
   out->network_variance_ms = 0;
   out->video_fps_received = 0;
@@ -559,6 +564,7 @@ int ml_engine_get_stream_info(ml_engine_stream_info *out) {
   g_stream_info_prev_decode_us = interval_decode_us;
   g_stream_info_prev_render_us = interval_render_us;
 
+  out->audio_output_bitrate_kbps = out->audio_codec == 5 ? 640u : out->audio_bitrate_kbps;
   g_stream_info_last_time_ms = now_ms;
   g_stream_info_last_video_bytes = video_bytes;
   g_stream_info_last_audio_bytes = audio_bytes;

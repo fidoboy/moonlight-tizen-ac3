@@ -1,5 +1,8 @@
 const hoveredClassName = 'hovered';
 
+// Prevent re-entrant menu-close paths from popping the navigation stack twice.
+let navigationMenuClosePending = false;
+
 // Shared Web Audio engine for the launch presentation and short interface effects.
 // Navigation effects are decoded once and played from AudioBuffers without per-click
 // network, media-element or decoder initialization.
@@ -472,14 +475,17 @@ function scrollSettingsPaneTo(settingsPane, top) {
 
 function focusElement(target) {
   const element = resolveElement(target);
-  const listener = document.getElementById('listener');
-  const previousActiveElement = document.activeElement;
-  // Remove focus from the currently focused element first
-  blurElement(previousActiveElement);
-  // Check if the element exists before adding focus
+  // Do not discard the current focus if the requested target cannot be resolved.
   if (!element) {
     console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
     return;
+  }
+
+  const listener = document.getElementById('listener');
+  const previousActiveElement = document.activeElement;
+  // Avoid blurring and refocusing the same element.
+  if (previousActiveElement !== element) {
+    blurElement(previousActiveElement);
   }
 
 
@@ -551,42 +557,52 @@ function isPopupMenuActive(id) {
   return !!(container && container.classList.contains('is-visible'));
 }
 
-// Close any active visible menu containers
-function closeActiveVisibleMenu() {
-  const visibleMenuContainer = document.querySelectorAll('.mdl-menu__container.is-visible');
-  // If no visible menus are found, return false
-  if (!visibleMenuContainer || visibleMenuContainer.length === 0) {
-    return false;
+// Close active menu containers and remove their navigation view exactly once.
+function closeActiveVisibleMenu(menuId) {
+  // Back handlers may call both closePopupMenu() and closeActiveVisibleMenu().
+  // Keep the operation idempotent for the duration of the current event dispatch.
+  if (navigationMenuClosePending) return false;
+
+  let visibleMenuContainers = Array.from(
+    document.querySelectorAll('.mdl-menu__container.is-visible')
+  );
+
+  if (menuId) {
+    const menu = document.querySelector('.mdl-menu[for="' + menuId + '"]');
+    const container = menu && menu.closest('.mdl-menu__container');
+    if (!container || !container.classList.contains('is-visible')) return false;
+    visibleMenuContainers = [container];
   }
-  // Hide each visible menu using its MaterialMenu instance
-  visibleMenuContainer.forEach((menu) => {
-    const visibleMenu = menu.querySelector('.mdl-menu');
-    // Ensure the menu and its MaterialMenu instance exist before hiding
-    if (visibleMenu && visibleMenu.MaterialMenu && typeof visibleMenu.MaterialMenu.hide === 'function') {
+
+  if (visibleMenuContainers.length === 0) return false;
+
+  navigationMenuClosePending = true;
+  Promise.resolve().then(function() {
+    navigationMenuClosePending = false;
+  });
+
+  visibleMenuContainers.forEach((container) => {
+    const visibleMenu = container.querySelector('.mdl-menu');
+    if (visibleMenu && visibleMenu.MaterialMenu &&
+        typeof visibleMenu.MaterialMenu.hide === 'function') {
       visibleMenu.MaterialMenu.hide();
     }
   });
-  // Simulate an Escape key press to close menus that rely on it
+
+  // Preserve the existing MDL dismissal notifications, but do not click the
+  // trigger: its registered click handler would pop the same view independently.
   document.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'Escape', keyCode: 27, which: 27, bubbles: true
   }));
-  // Trigger a click on the body to ensure menus are closed
-  if (document.body) {
-    document.body.click();
-  }
+  if (document.body) document.body.click();
+
   Navigation.pop();
   return true;
 }
 
-// Close a specific popup menu container by its ID
+// Close a specific popup menu without activating its trigger's click handler.
 function closePopupMenu(id) {
-  // If the specified menu is active, click its opener to close it
-  if (isPopupMenuActive(id)) {
-    // Close the popup menu by clicking its opener element
-    clickElement(id);
-    return true;
-  }
-  return closeActiveVisibleMenu();
+  return closeActiveVisibleMenu(id);
 }
 
 // Handle the state of the IP address text input field
@@ -2280,7 +2296,10 @@ const Views = {
   },
   SelectMouseEmulationStickMenu: {
     isActive: () => isPopupMenuActive('selectMouseEmulationStick'),
-    view: new ListView(() => document.querySelector('.mouseEmulationStickMenu').children),
+    view: new ListView(() => {
+      const menu = document.querySelector('.mouseEmulationStickMenu');
+      return menu ? menu.children : [];
+    }),
     up: function() { this.view.prevOption(); },
     down: function() { this.view.nextOption(); },
     left: function() {},

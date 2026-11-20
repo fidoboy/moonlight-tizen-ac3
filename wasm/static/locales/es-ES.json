@@ -322,9 +322,9 @@
   "Moonlight could not load its saved streaming settings.": "Moonlight no ha podido cargar sus ajustes de streaming guardados.",
   "Moonlight could not prepare the saved host and streaming settings in time.": "Moonlight no ha podido preparar a tiempo el anfitrión guardado y los ajustes de streaming.",
   "Control for mouse emulation": "Control para emulación del ratón",
-  "Select which of the two gamepad sticks to use to emulate mouse movement on the screen.": "Permite seleccionar cuál de las dos palancas del gamepad se utilizará para emular el movimiento del ratón en pantalla.",
-  "Right stick": "Stick derecho",
-  "Left stick": "Stick izquierdo",
+  "Select which of the two gamepad sticks to use to emulate mouse movement on the screen.": "Permite seleccionar cuál de las dos palancas del mando se utilizará para mover el puntero del ratón en pantalla.",
+  "Right stick": "Palanca derecha",
+  "Left stick": "Palanca izquierda",
   "Mouse emulation": "Emulación del ratón",
   "Mouse emulation is activated": "La emulación del ratón está activada",
   "Mouse emulation is deactivated": "La emulación del ratón está desactivada",
@@ -652,5 +652,9 @@
   "Audio input:": "Audio de entrada:",
   "Preparing native video playback service...": "Preparando el servicio nativo de reproducción de vídeo...",
   "The local device could not prepare the native video playback service.": "El dispositivo local no ha podido preparar el servicio nativo de reproducción de vídeo.",
-  "WMP cleanup failed:": "Error al limpiar WMP:"
+  "WMP cleanup failed:": "Error al limpiar WMP:",
+  "The selected app is no longer available on the host.": "La aplicación seleccionada ya no está disponible en el host.",
+  "Could not retrieve the requested application from the host.": "No se pudo obtener la aplicación solicitada del host.",
+  "Moonlight could not restore the selected host.": "Moonlight no pudo restaurar el host seleccionado.",
+  "Audio latency:": "Latencia de audio:"
 }
