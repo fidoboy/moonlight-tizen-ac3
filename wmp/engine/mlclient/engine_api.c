@@ -642,8 +642,8 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   if (g_running) { MLT("ml_engine_start_session -> 0 (already streaming)"); return 0; }
   if (g_started) ml_engine_stop();
   __atomic_store_n(&g_game_mode_requested, game_mode != 0, __ATOMIC_RELEASE);
-  __atomic_store_n(&g_game_mode_retry_pending, 0, __ATOMIC_RELEASE);
-  MLT("TV Game Mode requested=%d", game_mode != 0);
+  __atomic_store_n(&g_cloud_game_mode_request_sent, 0, __ATOMIC_RELEASE);
+  MLT("TV Cloud Game Mode requested=%d", game_mode != 0);
   g_audio_enabled = audio_enabled != 0;
   mldiag_reset(NULL);   /* an early failure must not report the previous session */
   if (!host || !rikey_hex || strlen(rikey_hex) != 32)
