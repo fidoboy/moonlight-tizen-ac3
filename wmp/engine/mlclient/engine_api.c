@@ -59,7 +59,15 @@ static int set_cloud_game_mode(int mode) {
   MLT("TV Cloud Game Mode: post-set query rc=%d mode=%d ret=%d",
       after_rc, after_mode, after_ret);
 
-  return rc != 0 ? rc : setter_ret;
+  if (rc != 0) return rc;
+  if (setter_ret != 0) return setter_ret;
+  if (after_rc == 0 && after_ret == 0) {
+    if (after_mode == mode) return 0;
+    MLT("TV Cloud Game Mode: setter accepted but getter still reports mode=%d (requested=%d)",
+        after_mode, mode);
+    return -2;
+  }
+  return after_rc != 0 ? after_rc : after_ret;
 }
 
 /* The .NET host does not drive ml_engine_wait() as a blocking session loop. */
@@ -674,9 +682,8 @@ void ml_engine_stop(void) {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
   /* Cloud Game Mode off must happen after LiStopConnection has released the player/window. */
-  int cloud_ret = -1;
-  int cloud_rc = ml_avoc_set_cloud_game_mode(0, &cloud_ret);
-  MLT("TV Cloud Game Mode: deactivation after player teardown rc=%d ret=%d", cloud_rc, cloud_ret);
+  int cloud_rc = set_cloud_game_mode(0);
+  MLT("TV Cloud Game Mode: deactivation after player teardown result=%d", cloud_rc);
   MLT("ml_engine_stop -> done");
 }
 
