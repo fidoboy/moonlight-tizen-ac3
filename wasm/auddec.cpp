@@ -262,7 +262,7 @@ int MoonlightInstance::AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONF
   // Latch the audio backend selected for this streaming session
   s_AudioBackend = g_Instance->m_AudioBackend;
   // Reset the decoder delay measurement for each session, including fallback routes.
-  g_Instance->m_OpusDecoderDelayMs.store(0.0, std::memory_order_relaxed);
+
 
   // Skip creating the Opus decoder when the audio output is disabled, as every audio packet is discarded
   if (s_AudioBackend == AudioBackend::Disabled) {
