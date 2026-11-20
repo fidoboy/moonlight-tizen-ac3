@@ -1379,6 +1379,7 @@ int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info)
     return 0;
 
 fail_player:
+    VidEsplus_CancelPlayerRebuild();
     failure_already_reported =
         __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) != 0;
     esplus_close_internal();
