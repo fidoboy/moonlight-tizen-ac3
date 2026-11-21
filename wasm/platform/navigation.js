@@ -2374,8 +2374,7 @@ const Views = {
   SelectPerformanceStatsPositionMenu: {
     isActive: () => isPopupMenuActive('performanceStatsPositionMenu'),
     view: new ListView(() =>
-      document.getElementById('performanceStatsPositionMenu')
-      .parentNode.children[3].children[1].children),
+      document.querySelector('.performanceStatsPositionMenu').children),
     up: function() {
       this.view.prevOption();
     },
