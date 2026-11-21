@@ -263,7 +263,6 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     int adjustedBitrate;
     bool highQualityAudioRequested;
     bool dolbyAudioSupported;
-    bool qualityAttributeRequired;
 
     // This must have been resolved to either local or remote by now
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
@@ -504,19 +503,14 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     if (AppVersionQuad[0] >= 7) {
         dolbyAudioSupported = AudioTransportEnabled && DolbyAudioOffered &&
             (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0;
-        qualityAttributeRequired = audioChannelCount > 2 || dolbyAudioSupported;
+        // OPUS stereo continues to use the legacy Host-based quality selection,
+        // but also sends AudioQuality so hosts that require the explicit attribute
+        // can parse the ANNOUNCE request. Its value follows the same HQ policy.
         highQualityAudioRequested = shouldRequestHighQualityAudio(audioChannelCount) &&
-            (audioChannelCount > 2
-                ? (HighQualitySurroundSupported || dolbyAudioSupported)
-                : dolbyAudioSupported);
+            (audioChannelCount <= 2 || HighQualitySurroundSupported || dolbyAudioSupported);
 
-        // Multichannel always carries an explicit quality selection. For stereo,
-        // send it only when Dolby passthrough is actually supported, leaving the
-        // existing OPUS target-address mechanism untouched.
-        if (qualityAttributeRequired) {
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality",
-                highQualityAudioRequested ? "1" : "0");
-        }
+        err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality",
+            highQualityAudioRequested ? "1" : "0");
 
         // The OPUS decoder may use its high-quality configuration only when the
         // host advertised that configuration. Dolby passthrough has its own decoder.
