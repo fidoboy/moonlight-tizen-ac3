@@ -79,7 +79,6 @@
   "An error occurred while processing video from %1$s.": "При обработке видео от %1$s произошла ошибка.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "При запуске трансляции на хост-ПК возникла проблема. Убедитесь, что на хост-ПК не открыто содержимое, защищённое DRM.",
   "App Already Running": "Приложение уже запущено",
-  "App Version: %1$s v%2$s": "Версия приложения: %1$s v%2$s",
   "Approximate average download speed: %1$s Mbps": "Примерная средняя скорость загрузки: %1$s Мбит/с",
   "Apps": "Приложения",
   "Apps in %1$s": "Приложения на %1$s",
