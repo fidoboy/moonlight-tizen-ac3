@@ -45,9 +45,19 @@ No. Il supporto E-AC-3 dipende dal modello di televisore Samsung, dal firmware, 
 
 L'implementazione attuale è limitata a stereo e 5.1 canali. E-AC-3 supporta teoricamente il 7.1, ma il percorso di codifica FFmpeg usato da questa build al momento non offre questa opzione. Se FFmpeg aggiungerà il supporto in futuro, potrebbe diventare possibile selezionare il 7.1 per E-AC-3. AC-3 resta limitato a 5.1. Lo streaming OPUS standard può offrire altre disposizioni dei canali se supportate da host e client.
 
-## Come visualizzo il codec audio attivo?
+## Come visualizzo i codec video e audio attivi?
 
-Se è collegata una tastiera al televisore, premi **Ctrl+Alt+Shift+S** per mostrare o nascondere l'overlay delle statistiche. In alternativa, premi **Play/Pause** o **Indietro** sul telecomando per aprire il menu dello streaming, quindi scegli l'opzione per mostrare le statistiche. La riga audio indica il codec negoziato, la disposizione, il numero di canali e il bitrate approssimativo.
+Se è collegata una tastiera al televisore, premi **Ctrl+Alt+Shift+S** per mostrare o nascondere l'overlay delle statistiche. In alternativa, premi **Play/Pause** o **Indietro** sul telecomando per aprire il menu dello streaming, quindi seleziona l'opzione per mostrare le statistiche.
+
+Le righe relative ai flussi nell'overlay forniscono più informazioni dei soli nomi dei codec negoziati:
+
+- **Video stream:** mostra la risoluzione e la frequenza dei fotogrammi del flusso, seguite dal codec video negoziato. Quando viene utilizzato H.264, può essere indicato anche il relativo livello (ad esempio **H.264 L4.1**). Si tratta del livello H.264 selezionato in base alla risoluzione e alla frequenza dei fotogrammi del flusso, non del profilo H.264 Baseline. Quando l'HDR è stato attivato e negoziato correttamente con l'host, il codec viene indicato come **HEVC 10-bit HDR** oppure **AV1 10-bit HDR**. Se il codec a 10 bit corrispondente è indicato come **SDR**, l'HDR non è stato negoziato per quel flusso.
+- **Audio stream:** mostra il codec audio negoziato (OPUS, AC-3 o E-AC-3), la disposizione e il numero dei canali e il bitrate attualmente ricevuto. Il bitrate viene misurato durante lo streaming e può variare; non deve necessariamente rimanere uguale a quello negoziato inizialmente con l'host. L'indicazione **[Hardware]** o **[Software]** specifica il percorso di elaborazione audio attivo. **[Hardware]** significa che il televisore esegue la decodifica tramite il proprio supporto hardware nativo. Questa modalità è generalmente preferibile perché evita la decodifica software in Moonlight e contribuisce a mantenere la latenza più bassa possibile. **[Software]** significa che Moonlight esegue una decodifica software o una conversione/transcodifica prima di inviare l'audio al televisore; questo può aggiungere latenza di elaborazione.
+- **Indicatore HQ:** quando è stata richiesta la qualità audio elevata, accanto al codec può comparire un apice **HQ**. Il verde indica che l'host ha confermato l'attivazione della modalità ad alta qualità. Il bianco indica che la richiesta è stata inviata, ma Moonlight non ha potuto confermare, dalla risposta dell'host, che la modalità sia effettivamente in uso.
+- **Audio input / Audio transcode:** se Moonlight converte via software il flusso OPUS in ingresso in AC-3 o E-AC-3, vengono visualizzate righe aggiuntive con il bitrate OPUS in ingresso e il tempo medio impiegato per la transcodifica. Questi valori indicano il ritardo di elaborazione introdotto dalla conversione intermedia.
+- **Audio FEC:** mostra quanti pacchetti audio sono stati recuperati, quanti blocchi FEC non sono riusciti e quanti pacchetti sono arrivati fuori sequenza nell'ultimo intervallo di misurazione.
+
+La riga **Frame rates** indica separatamente i fotogrammi al secondo ricevuti, decodificati e accettati dal renderer. **Incoming bitrate from network** mostra il bitrate complessivo effettivamente ricevuto dalla rete. Può variare durante lo streaming e non deve necessariamente rimanere uguale al valore negoziato inizialmente. Le altre statistiche riportano la latenza di rete, i fotogrammi mancanti, il tempo medio di decodifica, il ritardo nella coda dei fotogrammi e il tempo di invio al renderer.
 
 ## Dove trovo le informazioni sul televisore e sull'app?
 
