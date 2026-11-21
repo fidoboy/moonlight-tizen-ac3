@@ -254,6 +254,28 @@ static int addGen5Options(PSDP_OPTION* head) {
     return err;
 }
 
+// Return the audio bandwidth that should be reserved for a remote stream,
+// based on the audio configuration selected by the user. HQ audio is not
+// requested for WAN streams, so use the normal-quality rates here.
+static int getRemoteAudioBitrateKbps(void) {
+    int channels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
+
+    if (DolbyAudioOffered) {
+        // AC3 rates used by Vibeshine for normal-quality Dolby audio.
+        if (channels == 2) {
+            return 128;
+        }
+        if (channels == 6) {
+            return 384;
+        }
+        return 0;
+    }
+
+    // Vibeshine's RTSP audio-budget calculation uses 96 Kbps per channel
+    // for normal-quality Opus.
+    return channels > 0 ? 96 * channels : 0;
+}
+
 static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     PSDP_OPTION optionHead;
     char payloadStr[92];
@@ -347,10 +369,13 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     // really all they have, so we need to be careful not to exceed the cap, even counting
     // things like audio and control data.
     if (StreamConfig.streamingRemotely == STREAM_CFG_REMOTE) {
-        // Subtract 500 Kbps to leave room for audio and control. On remote streams,
-        // GFE will use 96Kbps stereo audio. For local streams, it will choose 512Kbps.
-        if (adjustedBitrate > 500) {
-            adjustedBitrate -= 500;
+        // Reserve bandwidth for the audio format selected in Moonlight's
+        // settings instead of assuming fixed 500 Kbps stereo Opus.
+        int audioBitrateKbps = getRemoteAudioBitrateKbps();
+        if (adjustedBitrate > audioBitrateKbps) {
+            adjustedBitrate -= audioBitrateKbps;
+        } else {
+            adjustedBitrate = 0;
         }
     }
 
