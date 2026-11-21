@@ -576,8 +576,11 @@
         // the final error dialog for both ESPlusPlayer and EMSS.
         return;
       }
-      if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
-        var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
+      var audioCodecEvent = message.event && String(message.event).match(
+        /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)(?:\\|([01]))?$/
+      );
+      if (audioCodecEvent) {
+        var activeCodec = audioCodecEvent[1];
         global._esplusActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
         if (global._esplusActiveAudioCodec &&
             typeof global.updateOptimizedBitrateAfterNegotiation === 'function') {
@@ -587,7 +590,12 @@
             (audioConfig === '51Surround' ? 6 : 2);
           var normalizedCodec = global._esplusActiveAudioCodec === 'AC-3' ? 'AC3' :
             (global._esplusActiveAudioCodec === 'E-AC-3' ? 'EAC3' : 'OPUS');
-          global.updateOptimizedBitrateAfterNegotiation(normalizedCodec, negotiatedChannels);
+          // Accept an explicit quality value if a future native transport version
+          // publishes it. Missing quality uses the estimator's conservative high-quality fallback.
+          var negotiatedQuality = message.audioQuality != null
+            ? message.audioQuality
+            : (message.quality != null ? message.quality : audioCodecEvent[2]);
+          global.updateOptimizedBitrateAfterNegotiation(normalizedCodec, negotiatedChannels, negotiatedQuality);
         }
         if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
           global.refreshPerformanceStatsEngineStatus();
