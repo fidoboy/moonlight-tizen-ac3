@@ -45,9 +45,19 @@ Não. O suporte a E-AC-3 depende do modelo específico da TV Samsung, do firmwar
 
 A implementação atual é limitada a estéreo e 5.1 canais. Teoricamente, o E-AC-3 oferece suporte a 7.1, mas o caminho do encoder FFmpeg usado nesta versão ainda não disponibiliza essa opção. Se o FFmpeg adicionar esse suporte no futuro, talvez seja possível selecionar 7.1 para E-AC-3. O próprio AC-3 continua limitado a 5.1. O streaming OPUS padrão pode oferecer outros layouts de canais quando host e cliente os suportarem.
 
-## Como ver o codec de áudio ativo?
+## Como visualizar os codecs de vídeo e áudio ativos?
 
-Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar ou ocultar o overlay de estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas. A linha de áudio informa o codec negociado, o layout, o número de canais e o bitrate aproximado.
+Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar ou ocultar o overlay de estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas.
+
+As linhas dos fluxos no overlay fornecem mais informações do que apenas os nomes dos codecs negociados:
+
+- **Video stream:** mostra a resolução e a taxa de quadros da transmissão, seguidas pelo codec de vídeo negociado. Quando H.264 é usado, o nível correspondente também pode ser exibido (por exemplo, **H.264 L4.1**). Esse é o nível H.264 selecionado de acordo com a resolução e a taxa de quadros da transmissão, não o perfil H.264 Baseline. Quando o HDR está ativado e foi negociado corretamente com o host, o codec é identificado como **HEVC 10-bit HDR** ou **AV1 10-bit HDR**. Se o codec de 10 bits correspondente aparecer como **SDR**, o HDR não foi negociado para aquela transmissão.
+- **Audio stream:** mostra o codec de áudio negociado (OPUS, AC-3 ou E-AC-3), o layout e a quantidade de canais e o bitrate recebido naquele momento. Esse bitrate é medido durante a transmissão e pode variar; não precisa permanecer igual ao valor negociado inicialmente com o host. A indicação **[Hardware]** ou **[Software]** identifica o caminho de processamento de áudio ativo. **[Hardware]** significa que a própria TV está realizando a decodificação com seu suporte nativo de hardware. Essa opção geralmente é preferível, pois evita a decodificação por software no Moonlight e ajuda a manter a latência no menor nível possível. **[Software]** significa que o Moonlight realiza decodificação por software ou conversão/transcodificação antes de entregar o áudio à TV, o que pode acrescentar latência de processamento.
+- **Indicador HQ:** quando o áudio de alta qualidade foi solicitado, pode aparecer um sobrescrito **HQ** ao lado do codec. A cor verde indica que o host confirmou que o modo de alta qualidade está ativo. A cor branca indica que a solicitação foi feita, mas o Moonlight não conseguiu confirmar pela resposta do host que esse modo está realmente sendo utilizado.
+- **Audio input / Audio transcode:** se o Moonlight converter por software o fluxo OPUS recebido para AC-3 ou E-AC-3, linhas adicionais mostram o bitrate OPUS de entrada e o tempo médio gasto na transcodificação. Esses dados indicam o atraso de processamento acrescentado por essa conversão intermediária.
+- **Audio FEC:** mostra quantos pacotes de áudio foram recuperados, quantos blocos FEC falharam e quantos pacotes chegaram fora de ordem durante o intervalo de medição mais recente.
+
+A linha **Frame rates** informa separadamente os quadros por segundo recebidos, decodificados e aceitos pelo renderizador. **Incoming bitrate from network** mostra o bitrate total efetivamente recebido pela rede. Esse valor pode variar durante a transmissão e não precisa permanecer igual ao valor negociado inicialmente. As demais estatísticas informam a latência da rede, os quadros ausentes, o tempo médio de decodificação, o atraso na fila de quadros e o tempo de envio ao renderizador.
 
 ## Onde encontrar informações sobre a TV e o aplicativo?
 
