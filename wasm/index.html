@@ -630,18 +630,20 @@
                     Allow gamepad to switch to mouse mode when holding the Start button
                   </span>
                 </label>
-                <div id="mouseEmulationStickOption" class="setting-option" style="display: none;">
-                  <label data-i18n="Control for mouse emulation">Control for mouse emulation</label>
-                  <span class="mdl-list__item-text-body" data-i18n="Select which of the two gamepad sticks to use to emulate mouse movement on the screen.">
-                    Select which of the two gamepad sticks to use to emulate mouse movement on the screen.
-                  </span>
-                  <div id="mouseEmulationStickMenu">
-                    <button type="button" id="selectMouseEmulationStick" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="right" data-i18n="Right stick">Right stick</button>
+                <div class="setting-sub-options">
+                  <div id="mouseEmulationStickOption" class="setting-option" style="display: none;">
+                    <label data-i18n="Control for mouse emulation">Control for mouse emulation</label>
+                    <span class="mdl-list__item-text-body" data-i18n="Select which of the two gamepad sticks to use to emulate mouse movement on the screen.">
+                      Select which of the two gamepad sticks to use to emulate mouse movement on the screen.
+                    </span>
+                    <div id="mouseEmulationStickMenu">
+                      <button type="button" id="selectMouseEmulationStick" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="right" data-i18n="Right stick">Right stick</button>
+                    </div>
+                    <ul class="mouseEmulationStickMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectMouseEmulationStick">
+                      <li class="mdl-menu__item" data-value="left" data-i18n="Left stick">Left stick</li>
+                      <li class="mdl-menu__item" data-value="right" data-i18n="Right stick">Right stick</li>
+                    </ul>
                   </div>
-                  <ul class="mouseEmulationStickMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectMouseEmulationStick">
-                    <li class="mdl-menu__item" data-value="left" data-i18n="Left stick">Left stick</li>
-                    <li class="mdl-menu__item" data-value="right" data-i18n="Right stick">Right stick</li>
-                  </ul>
                 </div>
               </div>
             </div>
@@ -717,7 +719,7 @@
                   </span>
                 </label>
               </div>
-              <div class="dolby-audio-sub-options">
+              <div class="setting-sub-options">
                 <div id="dolbyChannelLayoutOption" class="setting-option">
                   <label><span data-i18n="Dolby Digital speaker layout">Dolby Digital speaker layout</span>
                     <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
