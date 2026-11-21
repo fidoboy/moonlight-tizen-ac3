@@ -500,7 +500,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
 
     if (AppVersionQuad[0] >= 7) {
         if (AudioTransportEnabled && StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
-                HighQualitySurroundSupported && (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
+                (HighQualitySurroundSupported || DolbyAudioOffered) &&
+                (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
             // Enable high quality mode for surround sound
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
 
