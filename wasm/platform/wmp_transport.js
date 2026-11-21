@@ -579,6 +579,16 @@
       if (message.event && /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)$/.test(String(message.event))) {
         var activeCodec = String(message.event).slice('wmpAudioCodec: '.length);
         global._esplusActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
+        if (global._esplusActiveAudioCodec &&
+            typeof global.updateOptimizedBitrateAfterNegotiation === 'function') {
+          var audioPreferences = global.configSummarySnapshot && global.configSummarySnapshot.preferences;
+          var audioConfig = audioPreferences && audioPreferences.audioConfig;
+          var negotiatedChannels = audioConfig === '71Surround' ? 8 :
+            (audioConfig === '51Surround' ? 6 : 2);
+          var normalizedCodec = global._esplusActiveAudioCodec === 'AC-3' ? 'AC3' :
+            (global._esplusActiveAudioCodec === 'E-AC-3' ? 'EAC3' : 'OPUS');
+          global.updateOptimizedBitrateAfterNegotiation(normalizedCodec, negotiatedChannels);
+        }
         if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
           global.refreshPerformanceStatsEngineStatus();
         }
