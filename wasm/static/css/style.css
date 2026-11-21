@@ -2356,10 +2356,7 @@ body[data-color-theme="black-orange"] #background-layer {
 
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
-#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus,
-#mouseEmulationStickMenu > #selectMouseEmulationStick.hovered,
-#mouseEmulationStickMenu > #selectMouseEmulationStick:hover,
-#mouseEmulationStickMenu > #selectMouseEmulationStick:focus {
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
     background-color: var(--theme-surface-hover);
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
