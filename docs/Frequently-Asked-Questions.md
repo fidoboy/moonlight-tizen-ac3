@@ -44,9 +44,19 @@ No. E-AC-3 support depends on the particular Samsung TV, firmware, sound-output 
 
 The current implementation is limited to Stereo and 5.1 channels. E-AC-3 theoretically supports 7.1, but the current FFmpeg encoder path used by this build does not expose that option. If FFmpeg adds support in the future, it may become possible to select 7.1 for E-AC-3. AC-3 itself remains limited to 5.1. Standard OPUS streaming may offer other channel layouts when supported by the host and client.
 
-## How do I view the active audio codec?
+## How do I view the active video and audio codecs?
 
-If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics. The audio line reports the negotiated codec, layout, channel count and approximate bitrate.
+If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics.
+
+The stream lines in the overlay provide more information than just the negotiated codec names:
+
+- **Video stream:** Shows the stream resolution and frame rate, followed by the negotiated video codec. When H.264 is used, its level may also be shown (for example, **H.264 L4.1**). This is the H.264 level selected for the stream's resolution and frame rate; it is not the H.264 Baseline profile. When HDR has been enabled and successfully negotiated with the host, the codec is identified as **HEVC 10-bit HDR** or **AV1 10-bit HDR**. If the corresponding 10-bit codec is shown as **SDR**, HDR was not negotiated for that stream.
+- **Audio stream:** Shows the negotiated audio codec (OPUS, AC-3 or E-AC-3), the channel layout and channel count, and the bitrate currently being received. The bitrate is measured during the stream and can vary; it does not have to remain at the bitrate initially negotiated with the host. The **[Hardware]** or **[Software]** label indicates the active audio processing path. **[Hardware]** means the TV is handling the decoding through its native hardware support. This is generally preferable because it avoids software decoding in Moonlight and helps keep latency as low as possible. **[Software]** means Moonlight is performing software decoding or conversion/transcoding before delivering the audio to the TV, which can add processing latency.
+- **HQ indicator:** When high-quality audio has been requested, an **HQ** superscript may appear beside the codec. Green means the host has confirmed that high-quality audio is active. White means the request was made, but Moonlight could not confirm from the host's response that the high-quality mode is actually being used.
+- **Audio input / Audio transcode:** If Moonlight is converting the incoming OPUS stream to AC-3 or E-AC-3 in software, additional lines show the OPUS input bitrate and the average time spent transcoding each audio segment. This indicates the processing delay introduced by that intermediate conversion.
+- **Audio FEC:** Shows how many audio packets were recovered, how many FEC blocks failed, and how many packets arrived out of order during the latest measurement interval.
+
+The **Frame rates** line separately reports received, decoded and accepted frames per second. **Incoming bitrate from network** shows the actual overall incoming network bitrate, which can fluctuate during a stream rather than staying fixed at the initially negotiated value. Other statistics report network latency, missing frames, average decoding time, frame queue delay and renderer submission time.
 
 ## Where can I find TV and application information?
 
