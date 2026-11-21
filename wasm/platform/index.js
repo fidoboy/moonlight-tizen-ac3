@@ -9381,27 +9381,131 @@ function initSpecialKeys() {
   });
 }
 
+function checkSystemInfoInternetAccess() {
+  if (typeof window.fetch !== 'function') return Promise.resolve(null);
+
+  return new Promise(function(resolve) {
+    var completed = false;
+    var timeoutId = window.setTimeout(function() {
+      finish(null);
+    }, 5000);
+
+    function finish(result) {
+      if (completed) return;
+      completed = true;
+      window.clearTimeout(timeoutId);
+      resolve(result);
+    }
+
+    // A no-cors request can test reachability without requiring response access.
+    // Redirects are rejected so a captive portal is not mistaken for Internet access.
+    window.fetch('https://connectivitycheck.gstatic.com/generate_204', {
+      method: 'GET',
+      mode: 'no-cors',
+      redirect: 'error',
+      cache: 'no-store'
+    }).then(function() {
+      finish(true);
+    }).catch(function() {
+      finish(false);
+    });
+  });
+}
+
+function getSystemInfoNetworkDetails() {
+  var networkApi = typeof webapis !== 'undefined' && webapis.network
+    ? webapis.network
+    : null;
+  if (!networkApi || typeof networkApi.getActiveConnectionType !== 'function') {
+    return Promise.resolve({
+      connection: t('Unknown'),
+      internet: t('Unknown')
+    });
+  }
+
+  var connectionType;
+  var gatewayConnected = null;
+  try {
+    connectionType = networkApi.getActiveConnectionType();
+    if (typeof networkApi.isConnectedToGateway === 'function') {
+      gatewayConnected = networkApi.isConnectedToGateway();
+    }
+  } catch (error) {
+    console.warn('%c[index.js, getSystemInfoNetworkDetails]', 'color: gray;',
+      'Could not read TV network status:', error);
+    return Promise.resolve({
+      connection: t('Unknown'),
+      internet: t('Unknown')
+    });
+  }
+
+  var connectionTypes = networkApi.NetworkActiveConnectionType || {};
+  var connection = t('Unknown');
+  if (connectionType === connectionTypes.WIFI || Number(connectionType) === 1) {
+    connection = t('Wi-Fi');
+  } else if (connectionType === connectionTypes.ETHERNET || Number(connectionType) === 3) {
+    connection = t('Ethernet');
+  } else if (connectionType === connectionTypes.DISCONNECTED || Number(connectionType) === 0) {
+    connection = t('Disconnected');
+  }
+
+  if (connection === t('Disconnected') || gatewayConnected === false) {
+    return Promise.resolve({
+      connection: connection,
+      internet: t('No')
+    });
+  }
+
+  return checkSystemInfoInternetAccess().then(function(hasInternet) {
+    return {
+      connection: connection,
+      internet: hasInternet === null ? t('Unknown') : t(hasInternet ? 'Yes' : 'No')
+    };
+  });
+}
+
 function loadSystemInfo() {
   console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'Loading system information...');
   const systemInfoPlaceholder = document.getElementById('systemInfoBtn');
-  const buildVer = getBuildVersion(appInfo.version);
+  if (!systemInfoPlaceholder) return;
 
-  // Get the system information from the TV
-  if (systemInfoPlaceholder) {
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'Platform Version: Tizen ' + (platformVer ? platformVer : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Series: ' + (modelSeries ? modelSeries : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Name: ' + (modelName ? modelName : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'TV Model Group: ' + (modelGroup ? modelGroup : 'Unknown'));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', '4K Panel: ' + (!panelCapabilitiesChecked ? 'Not checked' : (is4kPanel === null ? 'Unknown' : (is4kPanel ? 'Yes' : 'No'))));
-    console.log('%c[index.js, loadSystemInfo]', 'color: green;', 'HDR Capable: ' + (isHdrCapable === null ? 'Not checked' : (isHdrCapable ? 'Yes' : 'No')));
-    // Insert the system information as text, then render the experimental marker
-    // with the same shared badge class used by other experimental settings.
+  const buildVer = getBuildVersion(appInfo.version);
+  var firmwareVersion = t('Unknown');
+  try {
+    if (typeof webapis !== 'undefined' && webapis.productinfo &&
+        typeof webapis.productinfo.getFirmware === 'function') {
+      firmwareVersion = webapis.productinfo.getFirmware() || t('Unknown');
+    }
+  } catch (error) {
+    console.warn('%c[index.js, loadSystemInfo]', 'color: gray;',
+      'Could not read TV firmware version:', error);
+  }
+
+  var requestId = (loadSystemInfo.requestId || 0) + 1;
+  loadSystemInfo.requestId = requestId;
+
+  function renderSystemInfo(networkDetails) {
+    if (loadSystemInfo.requestId !== requestId) return;
+
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;',
+      'Platform Version: Tizen ' + (platformVer ? platformVer : 'Unknown'));
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;',
+      'TV firmware: ' + firmwareVersion);
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;',
+      'Network connection: ' + networkDetails.connection);
+    console.log('%c[index.js, loadSystemInfo]', 'color: green;',
+      'Internet access: ' + networkDetails.internet);
+
     systemInfoPlaceholder.textContent =
-      t('App Version: %1$s v%2$s', appInfo.name, buildVer) + '\n' +
-      t('Platform Version: Tizen %1$s', platformVer ? platformVer : t('Unknown')) + '\n' +
-      t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\n' +
-      t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
-      t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown'));
+      t('App Version: %1$s v%2$s', appInfo.name, buildVer) + '\\n' +
+      t('Platform Version: Tizen %1$s', platformVer ? platformVer : t('Unknown')) + '\\n' +
+      t('Firmware Version: %1$s', firmwareVersion) + '\\n' +
+      t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\\n' +
+      t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\\n' +
+      t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\\n' +
+      t('Developer mode: %1$s', t('Not exposed by TV API')) + '\\n' +
+      t('Network connection: %1$s', networkDetails.connection) + '\\n' +
+      t('Internet access: %1$s', networkDetails.internet);
 
     if (!OFFICIAL_RELEASE && systemInfoPlaceholder.firstChild) {
       const versionTextNode = systemInfoPlaceholder.firstChild;
@@ -9419,10 +9523,20 @@ function loadSystemInfo() {
         systemInfoPlaceholder.replaceChild(badgeFragment, versionTextNode);
       }
     }
-  } else {
-    console.error('%c[index.js, loadSystemInfo]', 'color: green;', 'Error: Failed to load system information!');
-    systemInfoPlaceholder.innerText = t('Failed to load system information!');
   }
+
+  renderSystemInfo({
+    connection: t('Unknown'),
+    internet: t('Unknown')
+  });
+  getSystemInfoNetworkDetails().then(renderSystemInfo).catch(function(error) {
+    console.warn('%c[index.js, loadSystemInfo]', 'color: gray;',
+      'Could not complete TV network diagnostics:', error);
+    renderSystemInfo({
+      connection: t('Unknown'),
+      internet: t('Unknown')
+    });
+  });
 }
 
 function readStoredPreferences(keys) {
