@@ -11,7 +11,7 @@
  * Game Mode state, not whether the setter's side effects (including the TV's
  * audio-mode transition) have occurred.
  *
- * Restoration clears the source override with (0,1,0).
+ * Restoration clears both the source override (0,1,0) and global state (0,0,0).
  */
 #define _GNU_SOURCE
 #include "engine_avoc.h"
