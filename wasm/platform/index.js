@@ -6789,7 +6789,34 @@ function requestManualStreamStop() {
   });
 }
 
+var streamMenuOpening = false;
+
+function waitForStreamMenuFonts() {
+  if (!document.fonts || typeof document.fonts.load !== 'function') return Promise.resolve();
+
+  // The Stream Menu uses Material Symbols for its icons and Roboto for its labels.
+  // Resolve both faces before revealing the dialog to prevent the first-open reflow.
+  return Promise.all([
+    document.fonts.load('25px "Material Symbols Outlined"', 'sports_esports'),
+    document.fonts.load('16px Roboto', 'Stream retransmisión')
+  ]).catch(function(error) {
+    console.warn('%c[index.js, waitForStreamMenuFonts]', 'color: gray;', 'Could not preload Stream Menu fonts:', error);
+  });
+}
+
 function streamMenuDialog() {
+  if (streamMenuOpening || isDialogOpen) return;
+  streamMenuOpening = true;
+
+  waitForStreamMenuFonts().then(function() {
+    streamMenuOpening = false;
+    // The stream may have ended, or its transition may have started, while fonts loaded.
+    if (!window.isGamepadMouseEmulationReady()) return;
+    createStreamMenuDialog();
+  });
+}
+
+function createStreamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
     class: 'dialog-overlay'
