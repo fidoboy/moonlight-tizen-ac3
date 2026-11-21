@@ -49,10 +49,6 @@ Die aktuelle Implementierung ist auf Stereo und 5.1-Kanäle begrenzt. E-AC-3 unt
 
 Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken. Die Audiozeile zeigt den ausgehandelten Codec, die Kanalbelegung, Kanalanzahl und ungefähre Bitrate.
 
-## Was ist der Unterschied zwischen Moonlight.wgt und Moonlight-ForceGM.wgt?
-
-`Moonlight.wgt` ist das Standardpaket. `Moonlight-ForceGM.wgt` enthält zusätzliche Game-Mode-Metadaten für Fälle, in denen diese Variante nützlich ist. Sie kann fehlende Game-Mode-Unterstützung der Plattform nicht umgehen.
-
 ## Wo finde ich Informationen zum Fernseher und zur App?
 
 Öffne in der App Settings und dann About/System Information. Notiere bei der Fehlersuche TV-Modell, Tizen-Version, Client- und Host-Version sowie die ausgewählten Video-/Audioeinstellungen.
