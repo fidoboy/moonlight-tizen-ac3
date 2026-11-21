@@ -1512,16 +1512,16 @@
   function updateMouseEmulation(state) {
     // Tizen reports the physical left and right stick axis pairs in reverse order.
     // Match the WASM gamepad path so the setting retains its physical-stick meaning.
-    var pointerX = (mouseEmulationStick === 'left' ? state.lsX : state.rsX) / 32767;
-    var pointerY = (mouseEmulationStick === 'left' ? state.lsY : state.rsY) / 32767;
+    var pointerX = (mouseEmulationStick === 'left' ? state.rsX : state.lsX) / 32767;
+    var pointerY = (mouseEmulationStick === 'left' ? state.rsY : state.lsY) / 32767;
     var pointerMagnitude = Math.min(1, Math.sqrt(pointerX * pointerX + pointerY * pointerY));
     var mouseSpeed = 10 * pointerMagnitude;
     var deltaX = Math.round(pointerX * mouseSpeed);
     var deltaY = Math.round(-pointerY * mouseSpeed);
     if (deltaX || deltaY) sendMouseMove(deltaX, deltaY);
 
-    var scrollX = (mouseEmulationStick === 'left' ? state.rsX : state.lsX) / 32767;
-    var scrollY = (mouseEmulationStick === 'left' ? state.rsY : state.lsY) / 32767;
+    var scrollX = (mouseEmulationStick === 'left' ? state.lsX : state.rsX) / 32767;
+    var scrollY = (mouseEmulationStick === 'left' ? state.lsY : state.rsY) / 32767;
     var scrollMagnitude = Math.min(1, Math.sqrt(scrollX * scrollX + scrollY * scrollY));
     var scroll = Math.round(-scrollY * scrollMagnitude);
     if (scroll) sendMouseScroll(scroll);
