@@ -120,6 +120,9 @@ int ml_engine_video_ready(void);
 int ml_engine_input_capabilities(void);
 /* 0 until accepted; 1=OPUS, 2=AC-3, 3=E-AC-3 passthrough, 4=OPUS/libopus PCM, 5=OPUS/FFmpeg E-AC-3. */
 int ml_engine_get_active_audio_codec(void);
+/* Requested quality: 0=normal, 1=HQ. Host-reported quality: 0=normal, 1=HQ, -1=unknown. */
+int ml_engine_get_requested_audio_quality(void);
+int ml_engine_get_host_reported_audio_quality(void);
 /* Atomically take the mean libopus decode execution time (microseconds) since the previous stats snapshot; 0 outside the ESPlus libopus fallback. */
 uint32_t ml_engine_take_opus_software_decode_average_us(void);
 /* Returns the Common C negotiated media-encryption bitmask, or -1 while unknown. */
