@@ -34,7 +34,7 @@ extern bool DolbyAudioOffered;
 extern bool HighQualityAudioEnabled;
 
 // Shared HQ eligibility policy used by RTSP setup and SDP negotiation.
-bool shouldRequestHighQualityAudio(int audioChannelCount);
+bool shouldRequestHighQualityAudio(void);
 extern OPUS_MULTISTREAM_CONFIGURATION NormalQualityOpusConfig;
 extern OPUS_MULTISTREAM_CONFIGURATION HighQualityOpusConfig;
 extern int AudioPacketDuration;
