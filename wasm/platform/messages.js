@@ -1051,6 +1051,18 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
         value.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']' + valueText.slice(modeEnd)));
       } else if (isAudioStreamLine) {
         appendAudioCodecPrefix(valueText, '');
+      } else if (sourceLine.indexOf('Video stream:') === 0 && valueText.indexOf('HDR') !== -1) {
+        var codecParts = valueText.split(/(HDR)/g);
+        codecParts.forEach(function(part) {
+          if (part === 'HDR') {
+            var hdrMarker = document.createElement('span');
+            hdrMarker.className = 'performance-stats-hdr-rainbow';
+            hdrMarker.textContent = part;
+            value.appendChild(hdrMarker);
+          } else if (part) {
+            value.appendChild(document.createTextNode(part));
+          }
+        });
       } else {
         value.textContent = valueText;
       }
