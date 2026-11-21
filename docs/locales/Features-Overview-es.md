@@ -28,7 +28,7 @@ El panel de rendimiento puede mostrarse con **Ctrl+Alt+Shift+S** si hay un tecla
 ## Otras mejoras específicas de este proyecto
 
 - **Localización de la interfaz:** la interfaz está disponible en inglés, español, alemán, francés, italiano, ruso y portugués brasileño.
-- **Menú de retransmisión accesible desde el mando:** abre el menú de retransmisión con **Play/Pause** o **Volver** en el mando del televisor para acceder a los controles y las estadísticas sin necesitar un teclado.
+- **Menú de retransmisión accesible desde el mando:** abre el menú de retransmisión con **Play/Pause** o **Volver** en el mando del televisor. También puedes mantener pulsado **Select** en un controlador de juegos durante un segundo y soltarlo para acceder a los controles y las estadísticas sin necesitar un teclado.
 - **Panel de estadísticas en tiempo real mejorado:** incluye gráficos en directo de la latencia del host y de la calidad de conexión/caudal, que ayudan a identificar picos de latencia, recepción degradada, ancho de banda insuficiente y otros problemas de comunicación.
 - **Accesos directos de inicio desde Smart Hub:** inicia directamente desde Smart Hub las aplicaciones configuradas en el host remoto, omitiendo la interfaz habitual de Moonlight, la comprobación de actualizaciones y la búsqueda de hosts.
 - **Cerrar la aplicación del host al desconectar:** solicitud opcional de mejor esfuerzo para cerrar la aplicación del host en ejecución tras una desconexión normal. Los fallos inesperados de conexión no la activan.
@@ -37,10 +37,10 @@ El panel de rendimiento puede mostrarse con **Ctrl+Alt+Shift+S** si hay un tecla
 - **Inicio de la aplicación:** mejora la transición desde la pantalla nativa de inicio a la lista de hosts y evita una superposición de carga a pantalla completa innecesaria.
 - **Mejoras de entrada e interfaz:** incluye mejoras en el manejo del teclado, el enfoque y la navegación por ajustes.
 
-- **Temas y decoraciones de la interfaz (versión 1.2.4):** permite elegir entre distintos esquemas de color y decoraciones para la interfaz.
-- **Protector de pantalla (versión 1.2.4):** se muestra mientras no se está recibiendo ninguna retransmisión.
-- **Fondos de pantalla animados (versión 1.2.4):** incorpora opciones de fondos animados para la interfaz.
-- **Mejoras en el manejo del audio (versión 1.2.4):** mejora el procesamiento y la conversión de los distintos formatos de audio admitidos.
+- **Temas y decoraciones de la interfaz:** permite elegir entre distintos esquemas de color y decoraciones para la interfaz.
+- **Protector de pantalla:** se muestra mientras no se está recibiendo ninguna retransmisión.
+- **Fondos de pantalla animados:** incorpora opciones de fondos animados para la interfaz.
+- **Mejoras en el manejo del audio:** mejora el procesamiento y la conversión de los distintos formatos de audio admitidos.
 
 ## Funciones principales heredadas del proyecto comunitario Moonlight Tizen
 
