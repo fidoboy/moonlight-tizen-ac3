@@ -49,10 +49,6 @@ La implementación actual está limitada a estéreo y 5.1 canales. E-AC-3 admite
 
 Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puede pulsar el botón **Play/Pause** o **Volver** del mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas. La línea de audio indica el códec negociado, la distribución, el número de canales y la tasa de bits aproximada.
 
-## ¿Qué diferencia hay entre Moonlight.wgt y Moonlight-ForceGM.wgt?
-
-`Moonlight.wgt` es el paquete estándar. `Moonlight-ForceGM.wgt` incluye metadatos adicionales de Game Mode para los casos en los que resulta útil esa variante. No puede superar la falta de compatibilidad con Game Mode de la plataforma.
-
 ## ¿Dónde encuentro información del televisor y de la aplicación?
 
 En la aplicación, abra Settings y después About/System Information. Al diagnosticar un problema, anote el modelo del televisor, la versión de Tizen, la versión del cliente y del host, y los ajustes de vídeo/audio seleccionados.
