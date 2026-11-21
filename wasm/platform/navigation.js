@@ -640,36 +640,36 @@ function changeIpNumericFieldValue(adjust) {
   }
 }
 
-// A navigation target is eligible only while it is rendered and enabled.
-// Check the full ancestor chain because controls can inherit hidden or disabled
-// presentation from their containing row or switch.
+// Navigation eligibility is determined by the target control itself.
+// Ancestors affect effective visibility, but their enabled/disabled state must
+// never make an otherwise visible and enabled child control non-navigable.
 function isDisabledNavigationTarget(target) {
   const element = resolveElement(target);
   if (!element || !element.getClientRects().length) return true;
 
-  const disabledSelector = [
+  // A target is hidden when it or any ancestor suppresses its rendering.
+  for (let current = element; current && current.nodeType === 1; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (
+      current.hidden ||
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      style.visibility === 'collapse' ||
+      style.contentVisibility === 'hidden'
+    ) {
+      return true;
+    }
+  }
+
+  // Disabled state belongs to the target only; never inherit it from a container.
+  return element.matches([
     ':disabled',
     '[aria-disabled="true"]',
     '.is-disabled',
     '.ui-disabled',
     '.mdl-button--disabled',
     '.mdl-menu__item--disabled'
-  ].join(',');
-
-  for (let current = element; current && current.nodeType === 1; current = current.parentElement) {
-    const style = window.getComputedStyle(current);
-    if (
-      style.display === 'none' ||
-      style.visibility === 'hidden' ||
-      style.visibility === 'collapse' ||
-      style.contentVisibility === 'hidden' ||
-      current.matches(disabledSelector)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+  ].join(','));
 }
 
 class ListView {
@@ -2041,15 +2041,14 @@ const Views = {
     },
   },
   InputSettings: {
-    view: new ListView(() => {
-      const items = ['rumbleFeedbackBtn', 'mouseEmulationBtn'];
-      const stickOption = document.getElementById('mouseEmulationStickOption');
-      if (stickOption && window.getComputedStyle(stickOption).display !== 'none') {
-        items.push('selectMouseEmulationStick');
-      }
-      items.push('selectHoldStreamMenuBtn', 'flipABfaceButtonsBtn', 'flipXYfaceButtonsBtn');
-      return items;
-    }),
+    view: new ListView(() => [
+      'rumbleFeedbackBtn',
+      'mouseEmulationBtn',
+      'selectMouseEmulationStick',
+      'selectHoldStreamMenuBtn',
+      'flipABfaceButtonsBtn',
+      'flipXYfaceButtonsBtn'
+    ]),
     up: function() {
       this.view.prevOption();
       focusElement(this.view.current());
@@ -2089,18 +2088,14 @@ const Views = {
     view: new ListView(() => [
       'selectAudioBackend',
       'ac3AudioModeBtn',
-      isAudioOutputDisabled() ? null : 'selectAudio',
-      // Keep both Dolby controls in the navigation sequence. ListView skips
-      // controls that are hidden or disabled, using the same visibility checks
-      // as every other settings target.
+      'selectAudio',
       'selectDolbyChannelLayout',
       'selectDolbyDecodingMode',
-      // At most one of these settings is shown at a time, as each one belongs to a single backend,
-      // and neither is shown when the audio output is disabled
-      isAudioOutputDisabled() ? null : isWebAudioBackendSelected() ? 'selectAudioJitter' : 'audioSyncBtn',
+      'selectAudioJitter',
+      'audioSyncBtn',
       'playHostAudioBtn',
-      isAudioOutputDisabled() ? null : 'decryptHostAudioBtn'
-    ].filter(Boolean)),
+      'decryptHostAudioBtn'
+    ]),
     up: function() {
       this.view.prevOption();
       focusElement(this.view.current());
