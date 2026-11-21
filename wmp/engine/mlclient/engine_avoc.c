@@ -11,8 +11,7 @@
  * Game Mode state, not whether the setter's side effects (including the TV's
  * audio-mode transition) have occurred.
  *
- * Restoration clears the source override with (0,1,0), then restores the
- * stored setting with (0,0,0).
+ * Restoration clears the source override with (0,1,0).
  */
 #define _GNU_SOURCE
 #include "engine_avoc.h"
@@ -154,16 +153,21 @@ int ml_avoc_set_cloud_game_mode(int enabled)
     int getter_rc;
 
     pthread_mutex_lock(&s_lock);
-    if (!resolve_avoc() || !s_set_cloud_game_mode || !s_get_cloud_game_mode) {
-        MLT("AVOC Cloud Game Mode: API unavailable");
+    if (!resolve_avoc() || !s_set_cloud_game_mode) {
+        MLT("AVOC Cloud Game Mode: setter API unavailable");
         pthread_mutex_unlock(&s_lock);
         return -1;
     }
 
     setter_rc = s_set_cloud_game_mode(mode);
-    getter_rc = s_get_cloud_game_mode(&observed_mode);
-    MLT("AVOC Cloud Game Mode: set(mode=%d) -> ret=%d; get -> ret=%d, mode=%d",
-        mode, setter_rc, getter_rc, observed_mode);
+    if (s_get_cloud_game_mode) {
+        getter_rc = s_get_cloud_game_mode(&observed_mode);
+        MLT("AVOC Cloud Game Mode: set(mode=%d) -> ret=%d; get -> ret=%d, mode=%d",
+            mode, setter_rc, getter_rc, observed_mode);
+    } else {
+        MLT("AVOC Cloud Game Mode: set(mode=%d) -> ret=%d; getter unavailable",
+            mode, setter_rc);
+    }
 
     pthread_mutex_unlock(&s_lock);
     return setter_rc;
