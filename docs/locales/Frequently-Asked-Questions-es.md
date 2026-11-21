@@ -10,11 +10,11 @@ description: "Respuestas sobre compatibilidad, audio Dolby y configuración de M
 
 ## ¿Cómo actualizo la aplicación cuando hay una nueva versión disponible?
 
-La propia aplicación del televisor te avisará cuando haya una nueva versión disponible. Si utilizaste el método de instalación recomendado, mediante Apps2Samsung, solo tienes que volver a abrir Apps2Samsung y seleccionar **Moonlight** con la variante **fidoboy · Enhanced · Dolby** para descargar la última versión. Si prefieres instalarla manualmente, descarga el nuevo paquete WGT desde la [página de la última versión](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instálalo en el televisor.
+La propia aplicación del televisor le avisará cuando haya una nueva versión disponible. Si ha utilizado el método de instalación recomendado, mediante Apps2Samsung, solo tiene que volver a abrir Apps2Samsung y seleccionar **Moonlight** con la variante **fidoboy · Enhanced · Dolby** para descargar la última versión. Si prefiere instalarla manualmente, descargue el nuevo paquete WGT desde la [página de la última versión](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instálelo en el televisor.
 
 ## ¿Cómo puedo conseguir una mejor calidad de imagen o configurar Moonlight para obtener una retransmisión más estable?
 
-Lo recomendable es mantener activada la optimización automática del bitrate durante las primeras conexiones. Después de cada nueva conexión, Moonlight vuelve a calcular el bitrate recomendado teniendo en cuenta los ajustes y las características negociadas que afectan al consumo de ancho de banda, para determinar un valor equilibrado para tu configuración. Cuando ese valor deje de variar porque la configuración del host y de Moonlight se mantiene igual, puedes utilizarlo como punto de partida para realizar ajustes manuales: desactiva la optimización automática y aumenta progresivamente el bitrate para intentar mejorar la calidad de imagen, a costa de utilizar más ancho de banda de la red, o redúcelo ligeramente si las condiciones de la red son menos favorables, a costa de sacrificar algo de calidad de imagen. Hasta dónde puedes ajustarlo dependerá de las capacidades del hardware en todos los extremos de la retransmisión, así como del ancho de banda disponible. A partir de cierto punto, aumentar el bitrate puede dejar de producir una mejora perceptible en la calidad de imagen, incluso aunque la red pueda transportarlo.
+Lo recomendable es mantener activada la optimización automática del bitrate durante las primeras conexiones. Después de cada nueva conexión, Moonlight vuelve a calcular el bitrate recomendado teniendo en cuenta los ajustes y las características negociadas que afectan al consumo de ancho de banda, para determinar un valor equilibrado para su configuración. Cuando ese valor deje de variar porque la configuración del host y de Moonlight se mantiene igual, puede utilizarlo como punto de partida para realizar ajustes manuales: desactive la optimización automática y aumente progresivamente el bitrate para intentar mejorar la calidad de imagen, a costa de utilizar más ancho de banda de la red, o redúzcalo ligeramente si las condiciones de la red son menos favorables, a costa de sacrificar algo de calidad de imagen. Hasta dónde puede ajustarlo dependerá de las capacidades del hardware en todos los extremos de la retransmisión, así como del ancho de banda disponible. A partir de cierto punto, aumentar el bitrate puede dejar de producir una mejora perceptible en la calidad de imagen, incluso aunque la red pueda transportarlo.
 
 ## ¿Funciona este proyecto con Sunshine u otros hosts compatibles con GameStream?
 
@@ -22,7 +22,7 @@ Sí. Este cliente Moonlight debería funcionar correctamente con el antiguo [NVI
 
 ## ¿Cómo consigo Dolby Digital 5.1 por las salidas óptica o HDMI del televisor?
 
-Necesitas todo lo siguiente:
+Necesita todo lo siguiente:
 
 - Este proyecto con **Enable Dolby Digital** activado.
 - Una compilación compatible de Sunshine con la implementación `ac3-audio` y un codificador Dolby disponible, con el formato de audio (AC-3 o E-AC-3) seleccionado en la página de ajustes de audio.
@@ -30,7 +30,7 @@ Necesitas todo lo siguiente:
 - Los ajustes de sonido del televisor configurados en un modo de passthrough/flujo de bits compatible.
 - Un receptor o sistema de sonido que admita AC-3 y la distribución de canales enviada.
 
-Para la configuración inicial, selecciona 5.1 y comprueba la línea **Audio stream** de la superposición de estadísticas. Si hay un teclado conectado al televisor, pulsa **Ctrl+Alt+Shift+S** para mostrar las estadísticas. También puedes pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas.
+Para la configuración inicial, seleccione 5.1 y compruebe la línea **Audio stream** de la superposición de estadísticas. Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar las estadísticas. También puede pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas.
 
 ## ¿Activar Dolby Digital fuerza Dolby en todos los hosts?
 
@@ -38,7 +38,7 @@ No. La opción solicita el códec opcional durante la negociación. Si Dolby no 
 
 ## ¿Dolby Digital Plus funciona siempre por TOSLINK?
 
-No. La compatibilidad con E-AC-3 depende del televisor Samsung concreto, su firmware, el modo de salida de sonido y el equipo receptor. Algunas salidas ópticas solo admiten un subconjunto de formatos de flujo de bits. Usa AC-3 si el equipo no acepta E-AC-3.
+No. La compatibilidad con E-AC-3 depende del televisor Samsung concreto, su firmware, el modo de salida de sonido y el equipo receptor. Algunas salidas ópticas solo admiten un subconjunto de formatos de flujo de bits. Utilice AC-3 si el equipo no acepta E-AC-3.
 
 ## ¿El passthrough Dolby puede transportar audio 7.1?
 
@@ -46,7 +46,7 @@ La implementación actual está limitada a estéreo y 5.1 canales. E-AC-3 admite
 
 ## ¿Cómo veo el códec de audio activo?
 
-Si hay un teclado conectado al televisor, pulsa **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puedes pulsar el botón **Play/Pause** o **Volver** del mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas. La línea de audio indica el códec negociado, la distribución, el número de canales y la tasa de bits aproximada.
+Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puede pulsar el botón **Play/Pause** o **Volver** del mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas. La línea de audio indica el códec negociado, la distribución, el número de canales y la tasa de bits aproximada.
 
 ## ¿Qué diferencia hay entre Moonlight.wgt y Moonlight-ForceGM.wgt?
 
@@ -54,8 +54,8 @@ Si hay un teclado conectado al televisor, pulsa **Ctrl+Alt+Shift+S** para mostra
 
 ## ¿Dónde encuentro información del televisor y de la aplicación?
 
-En la aplicación, abre Settings y después About/System Information. Al diagnosticar un problema, anota el modelo del televisor, la versión de Tizen, la versión del cliente y del host, y los ajustes de vídeo/audio seleccionados.
+En la aplicación, abra Settings y después About/System Information. Al diagnosticar un problema, anote el modelo del televisor, la versión de Tizen, la versión del cliente y del host, y los ajustes de vídeo/audio seleccionados.
 
 ## ¿Qué mandos puedo usar?
 
-La compatibilidad del mando depende del modelo del televisor, de la versión de Tizen y de cómo esté conectado. Lo recomendable es empezar con un mando Bluetooth o USB que el propio televisor reconozca. Si un mando no funciona en Moonlight, comprueba primero que el televisor lo detecte y consulta la [Guía de solución de problemas](../Troubleshooting-Guide.html).
+La compatibilidad del mando depende del modelo del televisor, de la versión de Tizen y de cómo esté conectado. Lo recomendable es empezar con un mando Bluetooth o USB que el propio televisor reconozca. Si un mando no funciona en Moonlight, compruebe primero que el televisor lo detecte y consulte la [Guía de solución de problemas](../Troubleshooting-Guide.html).
