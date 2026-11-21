@@ -531,7 +531,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         // OPUS stereo continues to use the legacy Host-based quality selection,
         // but also sends AudioQuality so hosts that require the explicit attribute
         // can parse the ANNOUNCE request. Its value follows the same HQ policy.
-        highQualityAudioRequested = shouldRequestHighQualityAudio(audioChannelCount) &&
+        highQualityAudioRequested = shouldRequestHighQualityAudio() &&
             (audioChannelCount <= 2 || HighQualitySurroundSupported || dolbyAudioSupported);
 
         err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality",
