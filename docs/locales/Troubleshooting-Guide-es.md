@@ -47,7 +47,7 @@ Para obtener ayuda sobre Apps2Samsung, consulta su [guía de inicio rápido](htt
 ## Las estadísticas muestran OPUS en lugar de AC-3 o E-AC-3
 
 1. Confirma que **Enable Dolby Digital** esté activado en Moonlight.
-2. Es preferible utilizar un servidor de GameStream que pueda proporcionar audio en formato Dolby Digital. Esta función está confirmada en Vibeshine 2.0.3 y versiones posteriores, y probablemente se incorporará pronto a Sunshine. Siempre que el servidor ofrezca esta opción, comprueba que esté activada en los ajustes del host y que el formato de audio de la transmisión esté configurado como **AC-3 (Dolby Digital)** o **E-AC-3 (Dolby Digital Plus)**.
+2. Es preferible utilizar un servidor de GameStream que pueda proporcionar audio en formato Dolby Digital. Esta función está confirmada en [Vibeshine](https://github.com/Nonary/vibeshine/releases/latest) 2.0.3 y versiones posteriores, y probablemente se incorporará pronto a [Sunshine](https://sunshine.lizardbyte.dev/). Siempre que el servidor ofrezca esta opción, comprueba que esté activada en los ajustes del host y que el formato de audio de la transmisión esté configurado como **AC-3 (Dolby Digital)** o **E-AC-3 (Dolby Digital Plus)**.
 3. Inicia una nueva transmisión después de cambiar los ajustes de audio del host.
 4. Verifica que el registro del host indique el códec y la tasa de bits AC-3 o E-AC-3 esperados.
 5. Si Sunshine no ofrece Dolby o no lo selecciona, OPUS es la alternativa de compatibilidad esperada.
