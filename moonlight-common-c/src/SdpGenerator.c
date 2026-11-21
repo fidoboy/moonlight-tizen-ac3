@@ -361,7 +361,12 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     err |= addAttributeString(&optionHead, "x-nv-video[0].timeoutLengthMs", "7000");
     err |= addAttributeString(&optionHead, "x-nv-video[0].framesWithInvalidRefThreshold", "0");
 
-    // 20% of the video bitrate will added to the user-specified bitrate for FEC
+    // The configured bitrate is currently a fixed stream budget: reserve 20% for
+    // FEC, then (for WAN streams) reserve the estimated audio bandwidth. The
+    // remaining budget is available to video and control traffic. Automatic
+    // bitrate mode calculates the configured bitrate separately after each
+    // connection, using the negotiated stream characteristics (see
+    // calculateOptimizedBitrate() in wasm/platform/index.js).
     adjustedBitrate = (int)(StreamConfig.bitrate * 0.80);
 
     // Use more strict bitrate logic when streaming remotely. The theory here is that remote
