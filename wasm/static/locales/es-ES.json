@@ -655,5 +655,14 @@
   "The selected app is no longer available on the host.": "La aplicación seleccionada ya no está disponible en el host.",
   "Could not retrieve the requested application from the host.": "No se pudo obtener la aplicación solicitada del host.",
   "Moonlight could not restore the selected host.": "Moonlight no pudo restaurar el host seleccionado.",
-  "Audio latency:": "Latencia de audio:"
+  "Audio latency:": "Latencia de audio:",
+  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcula el bitrate de referencia recomendado al comienzo de cada retransmisión, una vez negociada la conexión con el anfitrión. El valor calculado se guarda y se utiliza en las sesiones posteriores. Se recomienda mantener esta opción activada durante varias sesiones, o hasta que el bitrate se estabilice. Después puedes desactivarla y ajustar ligeramente el valor obtenido de forma manual en los ajustes básicos.",
+  "Firmware Version: %1$s": "Versión del firmware: %1$s",
+  "Developer mode: %1$s": "Modo de desarrollador: %1$s",
+  "Network connection: %1$s": "Conexión de red: %1$s",
+  "Internet access: %1$s": "Acceso a Internet: %1$s",
+  "Not exposed by TV API": "No disponible mediante la API del televisor",
+  "Wi-Fi": "Wi-Fi",
+  "Ethernet": "Ethernet",
+  "Disconnected": "Desconectada"
 }
