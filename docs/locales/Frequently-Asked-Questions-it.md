@@ -22,15 +22,16 @@ Sì. Questo client Moonlight dovrebbe funzionare correttamente sia con il preced
 
 ## Come ottenere Dolby Digital 5.1 tramite l'uscita ottica o HDMI del televisore?
 
-Sono necessari tutti questi elementi:
+Per utilizzare Dolby Digital tramite le uscite audio del televisore, sono necessari:
 
 - Questo progetto con **Enable Dolby Digital** abilitato.
-- Una build Sunshine corrispondente con l'implementazione `ac3-audio`, un encoder Dolby disponibile e il formato audio (AC-3 o E-AC-3) selezionato nella pagina delle impostazioni audio.
-- Un televisore in grado di inoltrare il bitstream Dolby selezionato tramite l'uscita ottica o HDMI.
-- Impostazioni audio del televisore configurate in una modalità passthrough/bitstream compatibile.
-- Un ricevitore o sistema audio che supporti AC-3 e la disposizione dei canali inviata.
+- Un dispositivo audio esterno collegato al televisore, se si desidera utilizzarlo, soprattutto per ottenere l'audio surround 5.1.
+- Un televisore in grado di inoltrare l'audio tramite l'uscita ottica o una connessione HDMI ARC/eARC. Il risultato può variare in base al modello del televisore e alla versione di Tizen utilizzata.
+- Un ricevitore o sistema audio esterno in grado di decodificare Dolby Digital (AC-3) o Dolby Digital Plus (E-AC-3), se il televisore invia l'audio in uno di questi formati.
 
-Per la configurazione iniziale, scegli 5.1 e controlla la riga **Audio stream** nell'overlay delle statistiche. Se è collegata una tastiera al televisore, premi **Ctrl+Alt+Shift+S** per mostrare le statistiche. In alternativa, premi **Play/Pause** o **Indietro** sul telecomando per aprire il menu dello streaming, quindi scegli l'opzione per mostrare le statistiche.
+Non è necessario che l'host fornisca nativamente uno stream audio Dolby Digital. Moonlight può fornire Dolby Digital tramite la propria gestione audio; il risultato dipende quindi principalmente dalle capacità e dalle impostazioni audio del televisore. Sono supportate sia le connessioni ottiche sia quelle HDMI ARC/eARC.
+
+Per la configurazione iniziale, seleziona 5.1 e controlla la riga **Audio stream** nell'overlay delle statistiche. Puoi lasciare le statistiche attive nella sezione **Impostazioni avanzate** di Moonlight oppure mostrarle manualmente durante lo streaming: apri il menu dello streaming con **Play/Pause** sul telecomando del televisore o tenendo premuto il pulsante **Select** del gamepad, quindi seleziona l'opzione delle statistiche. Se è collegata una tastiera al televisore, puoi mostrare o nascondere direttamente le statistiche con **Ctrl+Alt+Shift+S**.
 
 ## L'attivazione di Dolby Digital forza Dolby su tutti gli host?
 
