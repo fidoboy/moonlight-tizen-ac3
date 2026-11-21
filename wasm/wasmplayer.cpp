@@ -1581,9 +1581,14 @@ void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int l
       const char* audioDecodingMode = opusToDolbyFallback
         ? "Software"
         : (hardwareDecoderActive ? "Hardware" : "Software");
-      const bool highQualityAudioRequested = LiGetNegotiatedAudioQuality() == 1;
+      const bool highQualityAudioRequested = LiGetRequestedAudioQuality() == 1;
+      const int hostReportedAudioQuality = LiGetHostReportedAudioQuality();
+      const char* highQualityAudioMarker = highQualityAudioRequested
+        ? (hostReportedAudioQuality == 1 ? "|HQG" :
+           (hostReportedAudioQuality < 0 ? "|HQ" : ""))
+        : "";
       append("Audio stream: %s%s [%s] (%s, %d channels, %.0f kbps)\n",
-        audioCodecString, highQualityAudioRequested ? "|HQ" : "",
+        audioCodecString, highQualityAudioMarker,
         audioDecodingMode, audioLayoutString, audioChannels, audioStreamBitrateKbps);
       if (opusToDolbyFallback) {
         if (std::isfinite(stats.receivedAudioBitrateKbps) &&
