@@ -2050,6 +2050,16 @@ body[data-color-theme="black-orange"] #background-layer {
     margin: 25px 25px 37.5px;
 }
 
+.dolby-audio-sub-options {
+    margin-left: 24px;
+    padding-left: 16px;
+    border-left: 2px solid var(--theme-accent);
+}
+
+.dolby-audio-sub-options > .setting-option {
+    margin: 25px 0 0;
+}
+
 #dolbyAudioHeading .dolby-audio-heading-icon {
     display: inline-block;
     position: relative;
