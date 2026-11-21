@@ -572,7 +572,13 @@ bool LiIsAc3AudioNegotiated(void);
 // Returns true only when the current RTSP session explicitly negotiated E-AC-3 with the host.
 bool LiIsEac3AudioNegotiated(void);
 
-// Returns 0 for normal quality, 1 for high quality, or -1 when the host did not report it.
+// Returns the quality mode Moonlight requested for the current audio stream (0=normal, 1=HQ).
+int LiGetRequestedAudioQuality(void);
+
+// Returns the quality mode explicitly reported by the host (0=normal, 1=HQ, -1=unknown).
+int LiGetHostReportedAudioQuality(void);
+
+// Returns the host-reported quality when available, otherwise Moonlight's requested quality.
 int LiGetNegotiatedAudioQuality(void);
 
 // Encryption status flags returned by LiGetEncryptionStatus().
