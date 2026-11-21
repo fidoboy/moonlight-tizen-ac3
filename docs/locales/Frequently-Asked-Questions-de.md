@@ -10,11 +10,11 @@ description: "Antworten zu Host-Kompatibilität, Dolby-Audio und Moonlight-Tizen
 
 ## Wie aktualisiere ich die App, wenn eine neue Version verfügbar ist?
 
-Die App auf deinem Fernseher benachrichtigt dich, sobald eine neue Version verfügbar ist. Wenn du die empfohlene Installationsmethode über Apps2Samsung verwendet hast, öffne Apps2Samsung einfach erneut und wähle **Moonlight** mit der Variante **fidoboy · Enhanced · Dolby**, um die neueste Version herunterzuladen. Wenn du die App lieber manuell installierst, lade das neue WGT-Paket von der [Seite mit der neuesten Veröffentlichung](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) herunter und installiere es auf deinem Fernseher.
+Die App auf Ihrem Fernseher benachrichtigt Sie, sobald eine neue Version verfügbar ist. Wenn Sie die empfohlene Installationsmethode über Apps2Samsung verwendet haben, öffnen Sie Apps2Samsung einfach erneut und wählen Sie **Moonlight** mit der Variante **fidoboy · Enhanced · Dolby**, um die neueste Version herunterzuladen. Wenn Sie die App lieber manuell installieren, laden Sie das neue WGT-Paket von der [Seite mit der neuesten Veröffentlichung](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) herunter und installieren Sie es auf Ihrem Fernseher.
 
 ## Wie kann ich eine bessere Bildqualität erzielen oder Moonlight für einen stabileren Stream konfigurieren?
 
-Am besten lässt du die automatische Bitratenoptimierung während der ersten Verbindungen aktiviert. Nach jeder neuen Verbindung berechnet Moonlight die empfohlene Bitrate anhand der Einstellungen und ausgehandelten Eigenschaften neu, die den Bandbreitenbedarf beeinflussen. So kann ein ausgewogener Wert für deine Konfiguration ermittelt werden. Sobald sich dieser Wert nicht mehr ändert, weil die Konfigurationen von Host und Moonlight gleich bleiben, kannst du ihn als Ausgangspunkt für manuelle Anpassungen verwenden: Deaktiviere die automatische Optimierung und erhöhe die Bitrate schrittweise, um die Bildqualität zu verbessern und dafür mehr Netzwerkbandbreite zu nutzen, oder verringere sie etwas, wenn die Netzwerkbedingungen ungünstiger sind, wobei du eine gewisse Einbuße bei der Bildqualität in Kauf nehmen musst. Wie weit du die Bitrate anpassen kannst, hängt von den Fähigkeiten der Hardware an allen beteiligten Endpunkten sowie von der verfügbaren Netzwerkbandbreite ab. Ab einem bestimmten Punkt führt eine weitere Erhöhung möglicherweise zu keiner wahrnehmbaren Verbesserung der Bildqualität mehr, selbst wenn das Netzwerk die höhere Bitrate übertragen kann.
+Am besten lassen Sie die automatische Bitratenoptimierung während der ersten Verbindungen aktiviert. Nach jeder neuen Verbindung berechnet Moonlight die empfohlene Bitrate anhand der Einstellungen und ausgehandelten Eigenschaften neu, die den Bandbreitenbedarf beeinflussen. So kann ein ausgewogener Wert für Ihre Konfiguration ermittelt werden. Sobald sich dieser Wert nicht mehr ändert, weil die Konfigurationen von Host und Moonlight gleich bleiben, können Sie ihn als Ausgangspunkt für manuelle Anpassungen verwenden: Deaktivieren Sie die automatische Optimierung und erhöhen Sie die Bitrate schrittweise, um die Bildqualität zu verbessern und dafür mehr Netzwerkbandbreite zu nutzen, oder verringern Sie sie etwas, wenn die Netzwerkbedingungen ungünstiger sind, wobei Sie eine gewisse Einbuße bei der Bildqualität in Kauf nehmen müssen. Wie weit Sie die Bitrate anpassen können, hängt von den Fähigkeiten der Hardware an allen beteiligten Endpunkten sowie von der verfügbaren Netzwerkbandbreite ab. Ab einem bestimmten Punkt führt eine weitere Erhöhung möglicherweise zu keiner wahrnehmbaren Verbesserung der Bildqualität mehr, selbst wenn das Netzwerk die höhere Bitrate übertragen kann.
 
 ## Funktioniert dieses Projekt mit Sunshine oder anderen GameStream-kompatiblen Hosts?
 
@@ -22,7 +22,7 @@ Ja. Dieser Moonlight-Client sollte mit dem älteren [NVIDIA GameStream](https://
 
 ## Wie bekomme ich Dolby Digital 5.1 über den optischen oder HDMI-Ausgang des Fernsehers?
 
-Du benötigst alle folgenden Voraussetzungen:
+Sie benötigen alle folgenden Voraussetzungen:
 
 - Dieses Projekt mit aktiviertem **Enable Dolby Digital**.
 - Einen passenden Sunshine-Build mit der `ac3-audio`-Implementierung, einem verfügbaren Dolby-Encoder und dem auf der Audioeinstellungsseite ausgewählten Audioformat (AC-3 oder E-AC-3).
@@ -30,7 +30,7 @@ Du benötigst alle folgenden Voraussetzungen:
 - TV-Audioeinstellungen in einem kompatiblen Passthrough-/Bitstream-Modus.
 - Einen Receiver oder ein Soundsystem, das AC-3 und die gesendete Kanalbelegung unterstützt.
 
-Wähle für die Ersteinrichtung 5.1 und prüfe in der Statistik-Einblendung die Zeile **Audio stream**. Wenn eine Tastatur mit dem Fernseher verbunden ist, drücke **Ctrl+Alt+Shift+S**, um die Statistik anzuzeigen. Alternativ öffnest du mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählst dort die Option zum Anzeigen der Statistiken.
+Wählen Sie für die Ersteinrichtung 5.1 und prüfen Sie in der Statistik-Einblendung die Zeile **Audio stream**. Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik anzuzeigen. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken.
 
 ## Erzwingt die Aktivierung von Dolby Digital Dolby auf jedem Host?
 
