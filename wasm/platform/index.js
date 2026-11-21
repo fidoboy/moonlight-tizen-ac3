@@ -7375,8 +7375,7 @@ function saveResolution() {
 
   updateH264FramerateConstraint();
 
-  // Optimized bitrate is calculated once from persisted settings at stream startup.
-  if (!isBitrateOptimizationEnabled()) standardBitratePresets();
+  // Preserve the manually selected bitrate when video settings change.
   // Trigger warning check after changing video resolution
   warnResolutionFramerate();
 }
@@ -7387,8 +7386,7 @@ function saveFramerate() {
   console.log('%c[index.js, saveFramerate]', 'color: green;', 'Saving framerate value: ' + chosenFramerate);
   storeData('frameRate', chosenFramerate, null);
 
-  // Optimized bitrate is calculated once from persisted settings at stream startup.
-  if (!isBitrateOptimizationEnabled()) standardBitratePresets();
+  // Preserve the manually selected bitrate when video settings change.
   // Trigger warning check after changing video frame rate
   warnResolutionFramerate();
 }
@@ -7411,9 +7409,7 @@ function updateH264FramerateConstraint() {
     framerateButton.text(thirtyFpsOption.length ? thirtyFpsOption.text() : '30 FPS')
       .attr('data-value', '30').data('value', '30');
     // Persist the enforced value; the committed snapshot is updated by storeData.
-    storeData('frameRate', '30', null).then(function() {
-      if (!isBitrateOptimizationEnabled()) return standardBitratePresets();
-    }).catch(function(error) {
+    storeData('frameRate', '30', null).catch(function(error) {
       console.error('%c[index.js, updateH264FramerateConstraint]', 'color: red;', 'Could not persist the H.264 frame-rate limit:', error);
     });
   } else if (mustForce30Fps) {
@@ -7469,86 +7465,6 @@ function warnBitrate() {
     // Reset the flag for video bitrate warning if the condition goes back to normal (100 Mbps)
     bitrateWarning = false;
   }
-}
-
-function standardBitratePresets() {
-  console.log('%c[index.js, standardBitratePresets]', 'color: green;', 'Applying standard bitrate presets...');
-  // Standard presets also use the committed resolution and frame rate.
-  return readStreamingSettingsSnapshot().then(function(snapshot) {
-  var res = String(snapshot.preferences.resolution || '1280:720');
-  var frameRate = String(snapshot.preferences.frameRate || '60');
-
-  // Set the bitrate based on the selected resolution and frame rate
-  if (res === '854:480') { // 480p
-    if (frameRate === '30') { // 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('2');
-    } else if (frameRate === '60') { // 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('4');
-    } else if (frameRate === '90') { // 90 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('5');
-    } else if (frameRate === '120') { // 120 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('6');
-    } else if (frameRate === '144') { // 144 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('8');
-    }
-  } else if (res === '1280:720') { // 720p
-    if (frameRate === '30') { // 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('5');
-    } else if (frameRate === '60') { // 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else if (frameRate === '90') { // 90 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('12');
-    } else if (frameRate === '120') { // 120 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('15');
-    } else if (frameRate === '144') { // 144 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('18');
-    }
-  } else if (res === '1920:1080') { // 1080p
-    if (frameRate === '30') { // 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else if (frameRate === '60') { // 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else if (frameRate === '90') { // 90 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('25');
-    } else if (frameRate === '120') { // 120 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('30');
-    } else if (frameRate === '144') { // 144 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('35');
-    }
-  } else if (res === '2560:1440') { // 1440p
-    if (frameRate === '30') { // 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else if (frameRate === '60') { // 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
-    } else if (frameRate === '90') { // 90 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('50');
-    } else if (frameRate === '120') { // 120 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('60');
-    } else if (frameRate === '144') { // 144 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('70');
-    }
-  } else if (res === '3840:2160') { // 2160p
-    if (frameRate === '30') { // 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
-    } else if (frameRate === '60') { // 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('80');
-    } else if (frameRate === '90') { // 90 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('100');
-    } else if (frameRate === '120') { // 120 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('120');
-    } else if (frameRate === '144') { // 144 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('140');
-    }
-  } else {
-    // Unrecognized option! In case someone screws with the JS to add custom resolutions.
-    $('#bitrateSlider')[0].MaterialSlider.change('10');
-  }
-
-  // Update and persist the bitrate value after calculating from committed settings.
-  saveBitrate();
-  }).catch(function(error) {
-    console.error('%c[index.js, standardBitratePresets]', 'color: red;', 'Could not calculate standard bitrate from persisted settings:', error);
-  });
 }
 
 function isBitrateOptimizationEnabled() {
