@@ -14,7 +14,7 @@ description: "Solución de problemas habituales de conexión, audio y transmisi�
 3. En **Host PC IP**, introduce la dirección IPv4 local del ordenador donde se ejecuta Apps2Samsung. Debe coincidir exactamente con la dirección actual de ese ordenador. Utiliza la IPv4 del adaptador Wi-Fi o Ethernet activo; no la IP del televisor, la puerta de enlace del router, `127.0.0.1` ni la dirección pública de Internet. Guarda el ajuste y reinicia el televisor.
 4. Comprueba que el televisor y el ordenador estén en la misma red local y vuelve a buscar el televisor en Apps2Samsung. Una red Wi-Fi de invitados o el aislamiento de clientes del router pueden impedir la comunicación.
 
-Consulta la [Guía de instalación](Installation-Guide-es.html) y la [guía oficial de Samsung para dispositivos TV](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html) para obtener más detalles.
+Para obtener ayuda sobre Apps2Samsung, consulta su [guía de inicio rápido](https://github.com/Apps2Samsung/Apps2Samsung/wiki#quick-start). Para obtener instrucciones generales sobre cómo instalar y actualizar aplicaciones en el televisor, consulta la [guía oficial de Samsung sobre el uso de aplicaciones en un Smart TV](https://www.samsung.com/us/support/answer/ANS10005205/). También puedes utilizar [TV-Store](https://github.com/Apps2Samsung/TV-Store), que permite explorar e instalar aplicaciones directamente desde el televisor y gestionar allí sus actualizaciones.
 
 ## Moonlight no encuentra el host
 
