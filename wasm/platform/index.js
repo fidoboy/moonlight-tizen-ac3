@@ -6015,7 +6015,17 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
     }
     showStreamTransitionBackground(function() {
       startStreamEncryptionStatusPolling();
-      enterFullscreenStreamLayout();
+
+      // Smart Hub launches have no earlier opportunity to load the Stream Menu
+      // fonts. Load them while the transition is visible, before stream startup
+      // continues; ordinary launches retain their existing preparation path.
+      if (isDirectLaunch) {
+        waitForStreamMenuFonts().then(function() {
+          enterFullscreenStreamLayout();
+        });
+      } else {
+        enterFullscreenStreamLayout();
+      }
     });
   });
 }
@@ -6790,18 +6800,21 @@ function requestManualStreamStop() {
 }
 
 var streamMenuOpening = false;
+var streamMenuFontsPromise = null;
 
 function waitForStreamMenuFonts() {
+  if (streamMenuFontsPromise) return streamMenuFontsPromise;
   if (!document.fonts || typeof document.fonts.load !== 'function') return Promise.resolve();
 
-  // The Stream Menu uses Material Symbols for its icons and Roboto for its labels.
-  // Resolve both faces before revealing the dialog to prevent the first-open reflow.
-  return Promise.all([
+  // Share one load operation between Smart Hub transition preparation and the
+  // first menu opening. Normal launches still load these fonts only on demand.
+  streamMenuFontsPromise = Promise.all([
     document.fonts.load('25px "Material Symbols Outlined"', 'sports_esports'),
     document.fonts.load('16px Roboto', 'Stream retransmisión')
   ]).catch(function(error) {
     console.warn('%c[index.js, waitForStreamMenuFonts]', 'color: gray;', 'Could not preload Stream Menu fonts:', error);
   });
+  return streamMenuFontsPromise;
 }
 
 function streamMenuDialog() {
