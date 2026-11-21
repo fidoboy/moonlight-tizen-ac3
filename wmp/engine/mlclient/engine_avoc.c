@@ -122,8 +122,23 @@ int ml_avoc_set_game_mode(int enabled)
         rc = s_set_game_mode(0, 1, 1);
         MLT("AVOC: avoc_set_game_mode(0, 1, 1) returned rc=%d", rc);
     } else {
-        rc = s_set_game_mode(0, 1, 0);
-        MLT("AVOC: avoc_set_game_mode(0, 1, 0) returned rc=%d", rc);
+        int source_rc;
+        int global_rc;
+
+        /* Clear both the per-source override and the global Game Mode state.
+         * The source reset alone does not restore TVs whose global save_type
+         * state was enabled by the (0, 0, 0) activation/restoration path. */
+        source_rc = s_set_game_mode(0, 1, 0);
+        MLT("AVOC: avoc_set_game_mode(0, 1, 0) source restoration returned rc=%d",
+            source_rc);
+
+        global_rc = s_set_game_mode(0, 0, 0);
+        MLT("AVOC: avoc_set_game_mode(0, 0, 0) global restoration returned rc=%d",
+            global_rc);
+
+        /* Always attempt both restorations. Report failure if either failed. */
+        rc = (source_rc == 0 && global_rc == 0) ? 0 :
+             (source_rc != 0 ? source_rc : global_rc);
     }
 
     s_active = rc == 0 ? mode : -1;
