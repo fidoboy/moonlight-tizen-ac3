@@ -37,7 +37,6 @@ Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** öffnen, wenn eine Tas
 - **Startverhalten:** Verbessert den Übergang vom nativen Startbildschirm zur Hostliste und vermeidet eine unnötige Vollbild-Ladeanzeige.
 - **Eingabe- und UI-Verbesserungen:** Optimierungen für Tastatur, Fokus und Navigation in den Einstellungen.
 
-
 - **Oberflächendesigns und Dekorationen (Version 1.2.4):** Auswahl verschiedener Farbschemata und Oberflächendekorationen.
 - **Bildschirmschoner (Version 1.2.4):** zeigt einen Bildschirmschoner an, solange kein Stream empfangen wird.
 - **Animierte Hintergrundbilder (Version 1.2.4):** ergänzt animierte Hintergrundoptionen für die Oberfläche.
