@@ -37,7 +37,6 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 - **Démarrage :** améliore la transition entre l'écran de lancement natif et la liste des hôtes et évite un overlay de chargement plein écran inutile.
 - **Améliorations de saisie et d'interface :** améliore la gestion du clavier, le focus et la navigation des paramètres.
 
-
 - **Thèmes et décorations de l'interface (version 1.2.4) :** permet de choisir différents jeux de couleurs et décorations pour l'interface.
 - **Écran de veille (version 1.2.4) :** s'affiche lorsqu'aucun flux n'est reçu.
 - **Fonds d'écran animés (version 1.2.4) :** ajoute des arrière-plans animés à l'interface.
