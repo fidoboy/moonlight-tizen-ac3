@@ -366,6 +366,14 @@ int ml_engine_get_active_audio_codec(void) {
   return AudEsplus_GetActiveAudioCodec();
 }
 
+int ml_engine_get_requested_audio_quality(void) {
+  return LiGetRequestedAudioQuality();
+}
+
+int ml_engine_get_host_reported_audio_quality(void) {
+  return LiGetHostReportedAudioQuality();
+}
+
 uint32_t ml_engine_take_opus_software_decode_average_us(void) {
   return AudEsplus_TakeOpusSoftwareDecodeAverageUs();
 }
