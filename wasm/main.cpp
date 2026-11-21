@@ -487,7 +487,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   memcpy(m_StreamConfig.remoteInputAesIv, &rikeyiv, sizeof(rikeyiv));
 
   // Manage gamepad input states based on selected settings
-  HandleGamepadInputState(rumbleFeedback, mouseEmulation, mouseEmulationStick != "left", selectHoldStreamMenu, flipABfaceButtons, flipXYfaceButtons);
+  HandleGamepadInputState(rumbleFeedback, mouseEmulation, mouseEmulationStick == "left", selectHoldStreamMenu, flipABfaceButtons, flipXYfaceButtons);
 
   // Apply the desired latency mode ​based on the toggle switch state
   EmssLatencyMode selectedLatencyMode = gameMode ? EmssLatencyMode::kUltraLow : EmssLatencyMode::kLow;
