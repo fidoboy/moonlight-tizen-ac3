@@ -2088,9 +2088,9 @@ const Views = {
     view: new ListView(() => [
       'selectAudioBackend',
       'ac3AudioModeBtn',
-      'selectAudio',
       'selectDolbyChannelLayout',
       'selectDolbyDecodingMode',
+      'selectAudio',
       'selectAudioJitter',
       'audioSyncBtn',
       'playHostAudioBtn',
