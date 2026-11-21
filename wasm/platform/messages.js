@@ -1832,11 +1832,13 @@ function handleMessage(msg) {
 
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
-    if (typeof updateOptimizedBitrateAfterNegotiation === 'function') {
+    if (typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
+        typeof updateOptimizedBitrateAfterNegotiation === 'function') {
       updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1], negotiatedAudio[2]);
     }
   } else if (msg === 'Connection Established') {
     if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+        typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
       var nativeAudioPreferences = configSummarySnapshot && configSummarySnapshot.preferences;
       if (nativeAudioPreferences && nativeAudioPreferences.audioBackend === 'Disabled') {
