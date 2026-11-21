@@ -699,10 +699,12 @@ static bool sendVideoAnnounce(PRTSP_MESSAGE response, int* error) {
         }
         request.flags |= FLAG_ALLOCATED_PAYLOAD;
 
-        // Read back the exact AudioQuality value emitted in the OPUS surround SDP.
-        // Stereo uses a separate RTSP target-address mechanism and keeps its local
-        // quality decision instead of the surround attribute's fixed value of 0.
-        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2) {
+        // Read back the exact AudioQuality value emitted in the SDP. Stereo OPUS
+        // retains its target-address quality decision; stereo Dolby also carries
+        // an explicit AudioQuality selection when passthrough is supported.
+        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2 ||
+                (DolbyAudioOffered && AudioTransportEnabled &&
+                 (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0)) {
             int requestedAudioQuality;
             if (parseSdpAttributeToInt(request.payload, "x-nv-audio.surround.AudioQuality", &requestedAudioQuality) &&
                     (requestedAudioQuality == 0 || requestedAudioQuality == 1)) {
