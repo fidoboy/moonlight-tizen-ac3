@@ -22,6 +22,7 @@ int NegotiatedVideoFormat;
 atomic_bool ConnectionInterrupted;
 bool HighQualitySurroundSupported;
 bool HighQualitySurroundEnabled;
+bool HighQualityAudioEnabled;
 OPUS_MULTISTREAM_CONFIGURATION NormalQualityOpusConfig;
 OPUS_MULTISTREAM_CONFIGURATION HighQualityOpusConfig;
 int AudioPacketDuration;
@@ -228,6 +229,7 @@ int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION st
 
     AudioTransportEnabled = true;
     AudioOutputEnabled = audioOutputEnabled != 0;
+    HighQualityAudioEnabled = false;
 
     // Do not expose a previous stream's encryption status while this connection negotiates.
     EncryptionStatus = -1;
