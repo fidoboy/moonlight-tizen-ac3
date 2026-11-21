@@ -46,7 +46,7 @@ The current implementation is limited to Stereo and 5.1 channels. E-AC-3 theoret
 
 ## How do I view the active video and audio codecs?
 
-If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics.
+If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** on the TV remote or press and hold the gamepad's **Select** button for one second, then release it, to open the streaming menu. Select the option to show statistics.
 
 The stream lines in the overlay provide more information than just the negotiated codec names:
 
