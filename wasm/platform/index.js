@@ -870,6 +870,84 @@ function stopDisabledSwitchAppearanceObserver() {
   disabledSwitchAppearanceObserver = null;
 }
 
+// The direct Smart Hub route skips the full home-screen listener setup, but the
+// streaming menu still needs the shared gamepad polling and navigation input path.
+var gamepadNavigationInputInitialized = false;
+function initializeGamepadNavigationInput() {
+  if (gamepadNavigationInputInitialized) return;
+  gamepadNavigationInputInitialized = true;
+
+  Controller.startWatching();
+  window.addEventListener('gamepadinputchanged', (e) => {
+    if (isGamepadTestDialogOpen) return;
+    isGamepadActive = true;
+    const gamepadIndex = e.detail.gamepadIndex;
+    const changes = e.detail.changes;
+    // Iterate through each change in the gamepad input
+    changes.forEach((change) => {
+      const { type, index, pressed, value } = change;
+      if (type === 'button') {
+        // Handle button mapping
+        const buttonMapping = {
+          0: () => delayedNavigation(() => Navigation.accept(), gamepadIndex),
+          1: () => delayedNavigation(() => Navigation.back(), gamepadIndex),
+          8: () => delayedNavigation(() => Navigation.switch(), gamepadIndex),
+        };
+        // Handle D-Pad mapping
+        const dPadMapping = {
+          12: () => Navigation.up(),
+          13: () => Navigation.down(),
+          14: () => Navigation.left(),
+          15: () => Navigation.right(),
+        };
+        // Handle button press
+        if (pressed) {
+          if (buttonMapping[index]) {
+            buttonMapping[index]();
+            // Clear repeat action and timeout for non-navigation buttons
+            stopGamepadRepeat(gamepadIndex);
+          } else if (dPadMapping[index]) {
+            dPadMapping[index]();
+            startGamepadRepeat(dPadMapping[index], gamepadIndex);
+          }
+        } else {
+          // Clear repeat action and timeout if button is released
+          stopGamepadRepeat(gamepadIndex);
+        }
+      } else if (type === 'axis') {
+        // Handle axis mapping
+        const axisMapping = {
+          0: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.left(), gamepadIndex), () => Navigation.left()) :
+            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.right(), gamepadIndex), () => Navigation.right()) : null,
+          1: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.up(), gamepadIndex), () => Navigation.up()) :
+            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.down(), gamepadIndex), () => Navigation.down()) : null,
+        };
+        // Handle axis value
+        if (axisMapping[index]) {
+          const axisValue = axisMapping[index](value);
+          if (axisValue && Math.abs(value) > ACTION_THRESHOLD) {
+            startGamepadRepeat(axisValue, gamepadIndex);
+          } else {
+            // Clear this controller's repeat when its axis returns to neutral.
+            stopGamepadRepeat(gamepadIndex);
+          }
+        }
+      }
+    });
+  });
+
+  // A disconnected controller must not leave a repeating navigation action queued.
+  window.addEventListener('gamepadinputcleared', (e) => {
+    const gamepadIndex = e.detail.gamepadIndex;
+    stopGamepadRepeat(gamepadIndex);
+    if (navigationGamepadIndex === gamepadIndex) {
+      clearTimeout(navigationTimeout);
+      navigationTimeout = null;
+      navigationGamepadIndex = null;
+    }
+  });
+}
+
 // Called by the common.js module
 function attachListeners() {
   if (!window._streamTransitionResizeListenerAttached) {
@@ -1005,7 +1083,7 @@ function attachListeners() {
 
   $(window).resize(fullscreenWasmModule);
 
-  Controller.startWatching();
+  initializeGamepadNavigationInput();
   updateGamepadTestButtonVisibility();
   window.addEventListener('gamepadconnected', updateGamepadTestButtonVisibility);
   window.addEventListener('gamepaddisconnected', updateGamepadTestButtonVisibility);
@@ -1026,63 +1104,7 @@ function attachListeners() {
     }
   });
 
-  window.addEventListener('gamepadinputchanged', (e) => {
-    if (isGamepadTestDialogOpen) return;
-    isGamepadActive = true;
-    const gamepadIndex = e.detail.gamepadIndex;
-    const changes = e.detail.changes;
-    // Iterate through each change in the gamepad input
-    changes.forEach((change) => {
-      const { type, index, pressed, value } = change;
-      if (type === 'button') {
-        // Handle button mapping
-        const buttonMapping = {
-          0: () => delayedNavigation(() => Navigation.accept(), gamepadIndex),
-          1: () => delayedNavigation(() => Navigation.back(), gamepadIndex),
-          8: () => delayedNavigation(() => Navigation.switch(), gamepadIndex),
-        };
-        // Handle D-Pad mapping
-        const dPadMapping = {
-          12: () => Navigation.up(),
-          13: () => Navigation.down(),
-          14: () => Navigation.left(),
-          15: () => Navigation.right(),
-        };
-        // Handle button press
-        if (pressed) {
-          if (buttonMapping[index]) {
-            buttonMapping[index]();
-            // Clear repeat action and timeout for non-navigation buttons
-            stopGamepadRepeat(gamepadIndex);
-          } else if (dPadMapping[index]) {
-            dPadMapping[index]();
-            startGamepadRepeat(dPadMapping[index], gamepadIndex);
-          }
-        } else {
-          // Clear repeat action and timeout if button is released
-          stopGamepadRepeat(gamepadIndex);
-        }
-      } else if (type === 'axis') {
-        // Handle axis mapping
-        const axisMapping = {
-          0: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.left(), gamepadIndex), () => Navigation.left()) :
-            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.right(), gamepadIndex), () => Navigation.right()) : null,
-          1: (value) => value < -ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.up(), gamepadIndex), () => Navigation.up()) :
-            value > ACTION_THRESHOLD ? (delayedNavigation(() => Navigation.down(), gamepadIndex), () => Navigation.down()) : null,
-        };
-        // Handle axis value
-        if (axisMapping[index]) {
-          const axisValue = axisMapping[index](value);
-          if (axisValue && Math.abs(value) > ACTION_THRESHOLD) {
-            startGamepadRepeat(axisValue, gamepadIndex);
-          } else {
-            // Clear this controller's repeat when its axis returns to neutral.
-            stopGamepadRepeat(gamepadIndex);
-          }
-        }
-      }
-    });
-  });
+
 }
 
 function changeUiModeForWasmLoad() {
@@ -5993,7 +6015,17 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
     }
     showStreamTransitionBackground(function() {
       startStreamEncryptionStatusPolling();
-      enterFullscreenStreamLayout();
+
+      // Smart Hub launches have no earlier opportunity to load the Stream Menu
+      // fonts. Load them while the transition is visible, before stream startup
+      // continues; ordinary launches retain their existing preparation path.
+      if (isDirectLaunch) {
+        preloadStreamMenuFonts().then(function() {
+          enterFullscreenStreamLayout();
+        });
+      } else {
+        enterFullscreenStreamLayout();
+      }
     });
   });
 }
@@ -6767,7 +6799,25 @@ function requestManualStreamStop() {
   });
 }
 
+function preloadStreamMenuFonts() {
+  if (!document.fonts || typeof document.fonts.load !== 'function') return Promise.resolve();
+
+  // Smart Hub launches load these fonts during the visible transition, before
+  // the stream starts. The normal UI loads them through its regular startup path.
+  return Promise.all([
+    document.fonts.load('25px "Material Symbols Outlined"', 'sports_esports'),
+    document.fonts.load('16px Roboto', 'Stream retransmisión')
+  ]).catch(function(error) {
+    console.warn('%c[index.js, preloadStreamMenuFonts]', 'color: gray;', 'Could not preload Stream Menu fonts:', error);
+  });
+}
+
 function streamMenuDialog() {
+  if (isDialogOpen) return;
+  createStreamMenuDialog();
+}
+
+function createStreamMenuDialog() {
   var streamMenuDialogOverlay = $('<div>', {
     id: 'streamMenuDialogOverlay',
     class: 'dialog-overlay'
@@ -10901,8 +10951,9 @@ function onWindowLoad() {
   if (_directSmartHubLaunch) {
     // Bound the entire direct-launch preparation, including certificate and saved-host restore.
     armStreamStartupWatchdog('initialization', 15000);
-    // Register only stream-specific remote controls. Do not initialize home-screen navigation.
+    // Register stream-specific remote controls and the gamepad input required by the streaming menu.
     initDirectSamsungKeys();
+    initializeGamepadNavigationInput();
     initSpecialKeys();
     console.log('%c[index.js, onWindowLoad]', 'color: green;', 'Direct Smart Hub app launch detected: ' + JSON.stringify(_directSmartHubLaunch));
     hideUiLayerImmediately('main-ui-layer');
