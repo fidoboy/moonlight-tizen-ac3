@@ -47,7 +47,7 @@ L'implementazione attuale è limitata a stereo e 5.1 canali. E-AC-3 supporta teo
 
 ## Come visualizzo i codec video e audio attivi?
 
-Se è collegata una tastiera al televisore, premi **Ctrl+Alt+Shift+S** per mostrare o nascondere l'overlay delle statistiche. In alternativa, premi **Play/Pause** o **Indietro** sul telecomando per aprire il menu dello streaming, quindi seleziona l'opzione per mostrare le statistiche.
+Se è collegata una tastiera al televisore, premi **Ctrl+Alt+Shift+S** per mostrare o nascondere l'overlay delle statistiche. In alternativa, premi **Play/Pause** sul telecomando del televisore oppure tieni premuto per un secondo il pulsante **Select** del gamepad e poi rilascialo per aprire il menu dello streaming. Seleziona quindi l'opzione per mostrare le statistiche.
 
 Le righe relative ai flussi nell'overlay forniscono più informazioni dei soli nomi dei codec negoziati:
 
