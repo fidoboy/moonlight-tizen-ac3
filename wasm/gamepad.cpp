@@ -536,12 +536,12 @@ void MoonlightInstance::PollGamepads() {
 
     // If mouse emulation is active, then send mouse input to the desired handler (acts as a mouse)
     if (mouseEmulationActive.load(std::memory_order_acquire)) {
-      // Tizen reports the physical left and right stick axis pairs in reverse order.
-      // Keep the user-facing selection semantic: "left" must use the physical left stick.
-      const auto pointerStickX = mouseEmulationUseLeftStick ? rightStickX : leftStickX;
-      const auto pointerStickY = mouseEmulationUseLeftStick ? rightStickY : leftStickY;
-      const auto scrollStickX = mouseEmulationUseLeftStick ? leftStickX : rightStickX;
-      const auto scrollStickY = mouseEmulationUseLeftStick ? leftStickY : rightStickY;
+      // GamepadAxis::LeftX/LeftY are the physical left stick; RightX/RightY are the physical right stick.
+      // The selected physical stick controls the pointer; the other stick controls scrolling.
+      const auto pointerStickX = mouseEmulationUseLeftStick ? leftStickX : rightStickX;
+      const auto pointerStickY = mouseEmulationUseLeftStick ? leftStickY : rightStickY;
+      const auto scrollStickX = mouseEmulationUseLeftStick ? rightStickX : leftStickX;
+      const auto scrollStickY = mouseEmulationUseLeftStick ? rightStickY : leftStickY;
       const float baseMouseSpeed = 10.0f;
       const float pointerStickMagnitude = std::sqrt(pointerStickX * pointerStickX + pointerStickY * pointerStickY) / std::numeric_limits<short>::max();
       const float mouseSpeed = baseMouseSpeed * pointerStickMagnitude;
