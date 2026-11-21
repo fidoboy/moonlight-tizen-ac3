@@ -13,7 +13,7 @@ description: "Troubleshooting common Moonlight Tizen connection, audio and strea
 3. In **Host PC IP**, enter the local IPv4 address of the computer running Apps2Samsung. It must match that computer's current address exactly. Use the IPv4 address of its active Wi-Fi or Ethernet adapter—not the TV's IP address, router gateway, `127.0.0.1` or public Internet address. Save the setting and restart the TV.
 4. Confirm that the TV and computer are on the same local network, then scan for the TV again in Apps2Samsung. Guest Wi-Fi or router client isolation can block communication.
 
-See the [Installation Guide](Installation-Guide.html) and [Samsung's official TV Device guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html) for more details.
+See the [Apps2Samsung quick-start guide](https://github.com/Apps2Samsung/Apps2Samsung/wiki#quick-start) for help with Apps2Samsung, and Samsung's [official guide to using apps on a Smart TV](https://www.samsung.com/us/support/answer/ANS10005205/) for general instructions on installing and updating apps on the TV. You can also use [TV-Store](https://github.com/Apps2Samsung/TV-Store), which lets you browse and install apps directly on the TV and manage their updates there.
 
 ## Moonlight does not find the host
 
