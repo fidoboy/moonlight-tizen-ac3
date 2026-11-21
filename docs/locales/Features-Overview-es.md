@@ -37,7 +37,6 @@ El panel de rendimiento puede mostrarse con **Ctrl+Alt+Shift+S** si hay un tecla
 - **Inicio de la aplicación:** mejora la transición desde la pantalla nativa de inicio a la lista de hosts y evita una superposición de carga a pantalla completa innecesaria.
 - **Mejoras de entrada e interfaz:** incluye mejoras en el manejo del teclado, el enfoque y la navegación por ajustes.
 
-
 - **Temas y decoraciones de la interfaz (versión 1.2.4):** permite elegir entre distintos esquemas de color y decoraciones para la interfaz.
 - **Protector de pantalla (versión 1.2.4):** se muestra mientras no se está recibiendo ninguna retransmisión.
 - **Fondos de pantalla animados (versión 1.2.4):** incorpora opciones de fondos animados para la interfaz.
