@@ -276,8 +276,9 @@ static int start_connection(int game_mode) {
     __atomic_store_n(&g_avoc_stream_modes_request_sent, 1, __ATOMIC_RELEASE);
 
     MLT("TV AVOC: applying stream modes after LiStartConnectionEx");
-    int picture_mode_rc = ml_avoc_set_picture_mode(0, 4);
-    MLT("TV AVOC: Picture Mode set(display=0, mode=4) completed with raw ret=%d",
+    /* Known ExLink values: 4 = Standard, 3 = Dynamic. Test mode 1 as a candidate. */
+    int picture_mode_rc = ml_avoc_set_picture_mode(0, 1);
+    MLT("TV AVOC: Picture Mode set(display=0, mode=1) completed with raw ret=%d",
         picture_mode_rc);
 
     int cloud_game_mode_rc = ml_avoc_set_cloud_game_mode(1);
