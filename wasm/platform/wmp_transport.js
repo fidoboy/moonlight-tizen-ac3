@@ -594,7 +594,7 @@
           // publishes it. Missing quality uses the estimator's conservative high-quality fallback.
           var negotiatedQuality = message.audioQuality != null
             ? message.audioQuality
-            : (message.quality != null ? message.quality : audioCodecEvent[2]);
+            : audioCodecEvent[2];
           global.updateOptimizedBitrateAfterNegotiation(normalizedCodec, negotiatedChannels, negotiatedQuality);
         }
         if (typeof global.refreshPerformanceStatsEngineStatus === 'function') {
