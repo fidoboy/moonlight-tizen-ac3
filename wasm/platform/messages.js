@@ -1800,6 +1800,11 @@ function handleMessage(msg) {
       }
     });
 
+  } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
+    var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
+    if (typeof updateOptimizedBitrateAfterNegotiation === 'function') {
+      updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1]);
+    }
   } else if (msg === 'Connection Established') {
     confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
