@@ -153,6 +153,9 @@ namespace MoonlightWmpHost
         internal delegate int ActiveAudioCodecFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int AudioQualityFn();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal delegate uint TakeOpusSoftwareDecodeAverageUsFn();
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -215,6 +218,8 @@ namespace MoonlightWmpHost
         internal readonly GamepadStateFn GamepadState;
         internal readonly SetDolbyPassthroughFn SetDolbyPassthrough;
         internal readonly ActiveAudioCodecFn GetActiveAudioCodec;
+        internal readonly AudioQualityFn GetRequestedAudioQuality;
+        internal readonly AudioQualityFn GetHostReportedAudioQuality;
         internal readonly TakeOpusSoftwareDecodeAverageUsFn TakeOpusSoftwareDecodeAverageUs;
         internal readonly GetStatsFn GetStats;
         internal readonly GetStreamInfoFn GetStreamInfo;
@@ -265,6 +270,10 @@ namespace MoonlightWmpHost
                 resolve, "ml_engine_set_dolby_passthrough_enabled");
             GetActiveAudioCodec = Bind<ActiveAudioCodecFn>(
                 resolve, "ml_engine_get_active_audio_codec");
+            GetRequestedAudioQuality = Bind<AudioQualityFn>(
+                resolve, "ml_engine_get_requested_audio_quality");
+            GetHostReportedAudioQuality = Bind<AudioQualityFn>(
+                resolve, "ml_engine_get_host_reported_audio_quality");
             TakeOpusSoftwareDecodeAverageUs = Bind<TakeOpusSoftwareDecodeAverageUsFn>(
                 resolve, "ml_engine_take_opus_software_decode_average_us");
             GetStats = Bind<GetStatsFn>(resolve, "ml_engine_get_stats");
