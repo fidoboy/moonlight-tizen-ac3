@@ -22,15 +22,16 @@ Sim. Este cliente Moonlight deve funcionar corretamente tanto com o antigo [NVID
 
 ## Como obter Dolby Digital 5.1 pelas saídas óptica ou HDMI da TV?
 
-Você precisa de todos os itens a seguir:
+Para usar Dolby Digital pelas saídas de áudio da TV, você precisa de:
 
 - Este projeto com **Enable Dolby Digital** ativado.
-- Uma build correspondente do Sunshine com a implementação `ac3-audio`, um encoder Dolby disponível e o formato de áudio (AC-3 ou E-AC-3) selecionado na página de configurações de áudio.
-- Uma TV capaz de transmitir o bitstream Dolby selecionado pela saída óptica ou HDMI.
-- Configurações de áudio da TV ajustadas para um modo de passthrough/bitstream compatível.
-- Um receiver ou sistema de som compatível com AC-3 e com o layout de canais enviado.
+- Um dispositivo de áudio externo conectado à TV, caso queira utilizá-lo, especialmente para aproveitar o som surround 5.1.
+- Uma TV capaz de transmitir o áudio pela saída óptica ou por uma conexão HDMI ARC/eARC. O resultado pode variar de acordo com o modelo da TV e a versão do Tizen utilizada.
+- Um receiver ou sistema de som externo capaz de decodificar Dolby Digital (AC-3) ou Dolby Digital Plus (E-AC-3), caso a TV envie o áudio em um desses formatos.
 
-Na configuração inicial, selecione 5.1 e confira a linha **Audio stream** no overlay de estatísticas. Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar as estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas.
+Não é necessário que o host forneça nativamente um stream de áudio Dolby Digital. O Moonlight pode fornecer Dolby Digital por meio do próprio processamento de áudio; portanto, o resultado depende principalmente dos recursos e das configurações de áudio da TV. São compatíveis tanto as conexões ópticas quanto HDMI ARC/eARC.
+
+Na configuração inicial, selecione 5.1 e confira a linha **Audio stream** no overlay de estatísticas. Você pode deixar as estatísticas ativadas na seção **Configurações avançadas** do Moonlight ou exibi-las manualmente durante a transmissão: abra o menu da transmissão com **Play/Pause** no controle remoto da TV ou mantendo pressionado o botão **Select** do gamepad e, em seguida, selecione a opção de estatísticas. Se houver um teclado conectado à TV, você poderá mostrar ou ocultar as estatísticas diretamente com **Ctrl+Alt+Shift+S**.
 
 ## Ativar Dolby Digital força Dolby em qualquer host?
 
