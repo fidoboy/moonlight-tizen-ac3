@@ -35,7 +35,7 @@ Wählen Sie für die Ersteinrichtung 5.1 und prüfen Sie in der Statistik-Einble
 
 ## Erzwingt die Aktivierung von Dolby Digital Dolby auf jedem Host?
 
-Nein. Die Option fordert den optionalen Codec bei der Aushandlung an. Wird Dolby nicht angeboten oder vom Host nicht ausgewählt, verwendet Moonlight OPUS. Die aktive Codec-Anzeige in der Statistik-Einblendung ist die zuverlässige Prüfung für die tatsächlich empfangene Sitzung.
+Nein. Die Option fordert Dolby Digital bei der Aushandlung des Streams an, zwingt jedoch nicht jeden Host dazu, dieses Format bereitzustellen. Wenn Dolby Digital nicht angeboten wird oder der Host es nicht auswählen bzw. bereitstellen kann, verwendet Moonlight OPUS oder den bestmöglichen kompatiblen Audioausgabepfad. Die Statistik-Einblendung liefert die ausführlichsten Informationen zum für den Stream ausgehandelten Audioformat und kann optional aktiviert werden. Noch zuverlässiger lässt sich die tatsächliche Ausgabe am externen Receiver oder Soundsystem überprüfen, sofern dieses über ein Display oder eine Anzeige-LED verfügt, die bei Empfang eines Dolby-Digital-Signals aufleuchtet. So können Sie feststellen, ob die tatsächlich ausgegebene Audioübertragung den in Moonlight gewählten Einstellungen entspricht. Letztlich hängt der Erfolg vom Zusammenspiel der Fähigkeiten des Hosts, des TV-Modells und seiner Audioverarbeitung sowie der Eigenschaften des externen Audiogeräts ab.
 
 ## Funktioniert Dolby Digital Plus immer über TOSLINK?
 
