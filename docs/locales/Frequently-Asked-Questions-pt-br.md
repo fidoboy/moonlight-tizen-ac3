@@ -47,7 +47,7 @@ A implementação atual é limitada a estéreo e 5.1 canais. Teoricamente, o E-A
 
 ## Como visualizar os codecs de vídeo e áudio ativos?
 
-Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar ou ocultar o overlay de estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas.
+Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar ou ocultar o overlay de estatísticas. Como alternativa, pressione **Play/Pause** no controle remoto da TV ou mantenha pressionado por um segundo o botão **Select** do gamepad e, em seguida, solte-o para abrir o menu da transmissão. Depois, selecione a opção para exibir as estatísticas.
 
 As linhas dos fluxos no overlay fornecem mais informações do que apenas os nomes dos codecs negociados:
 
