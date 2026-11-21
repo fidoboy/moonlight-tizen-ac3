@@ -528,6 +528,12 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             }
         }
 
+        if (audioChannelCount > 2) {
+            // Surround quality is selected by this SDP attribute. Keep the selected
+            // mode available to the negotiated-audio bitrate estimator as well.
+            HighQualityAudioEnabled = HighQualitySurroundEnabled;
+        }
+
         snprintf(payloadStr, sizeof(payloadStr), "%d", AudioPacketDuration);
         err |= addAttributeString(&optionHead, "x-nv-aqos.packetDuration", payloadStr);
         Limelog("Requesting %d ms Opus audio packets from host\n", AudioPacketDuration);
@@ -536,6 +542,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         // Keep audio defaults deterministic when audio is disabled or the host is legacy.
         AudioPacketDuration = 5;
         HighQualitySurroundEnabled = false;
+        HighQualityAudioEnabled = false;
     }
 
     if (AppVersionQuad[0] >= 7) {
