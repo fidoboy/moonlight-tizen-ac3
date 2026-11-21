@@ -37,7 +37,6 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 - **Inicialização:** melhora a transição da tela nativa de abertura para a lista de hosts e evita um overlay desnecessário de carregamento em tela cheia.
 - **Aprimoramentos de entrada e interface:** inclui melhorias no teclado, foco e navegação pelas configurações.
 
-
 - **Temas e decorações da interface (versão 1.2.4):** permite escolher entre diferentes esquemas de cores e decorações da interface.
 - **Protetor de tela (versão 1.2.4):** é exibido enquanto nenhuma transmissão está sendo recebida.
 - **Planos de fundo animados (versão 1.2.4):** adiciona opções de fundos animados à interface.
