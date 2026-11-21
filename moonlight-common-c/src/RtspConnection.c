@@ -34,24 +34,18 @@ bool LiIsEac3AudioNegotiated(void) {
     return Eac3AudioNegotiated;
 }
 
-int LiGetNegotiatedAudioQuality(void) {
-    if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
-        // Use the host-reported quality when available. Otherwise report the
-        // quality requested by Moonlight, just as we do for OPUS.
-        return NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1
-            ? NegotiatedAudioQuality : (HighQualityAudioEnabled ? 1 : 0);
-    }
+int LiGetRequestedAudioQuality(void) {
+    return HighQualityAudioEnabled ? 1 : 0;
+}
 
-    // Stereo OPUS quality is selected by Moonlight's RTSP target-address
-    // mechanism, not by the surround AudioQuality attribute (which is 0 for stereo).
-    if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2) {
-        return HighQualityAudioEnabled ? 1 : 0;
-    }
-
-    // For surround OPUS, use the host-reported attribute when available; otherwise
-    // use the exact mode Moonlight selected in the outgoing SDP.
+int LiGetHostReportedAudioQuality(void) {
     return NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1
-        ? NegotiatedAudioQuality : (HighQualityAudioEnabled ? 1 : 0);
+        ? NegotiatedAudioQuality : -1;
+}
+
+int LiGetNegotiatedAudioQuality(void) {
+    int hostReportedQuality = LiGetHostReportedAudioQuality();
+    return hostReportedQuality >= 0 ? hostReportedQuality : LiGetRequestedAudioQuality();
 }
 
 static PPLT_CRYPTO_CONTEXT encryptionCtx;
@@ -1484,16 +1478,20 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         // Try both SDP attributes and RTSP response headers. The current Dolby
         // host does not return this quality value, so -1 is intentionally retained
         // and the client reserves the high-quality audio budget.
-        int responseAudioQuality;
-        if (response.payload != NULL &&
-                parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
-                (responseAudioQuality == 0 || responseAudioQuality == 1)) {
-            NegotiatedAudioQuality = responseAudioQuality;
-        }
-        char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
-        if (selectedAudioQuality != NULL) {
-            if (strcmp(selectedAudioQuality, "0") == 0) NegotiatedAudioQuality = 0;
-            else if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
+        // AudioQuality is a surround-audio attribute. For stereo OPUS the host's
+        // fixed value of 0 does not confirm the target-address-selected quality.
+        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2) {
+            int responseAudioQuality;
+            if (response.payload != NULL &&
+                    parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
+                    (responseAudioQuality == 0 || responseAudioQuality == 1)) {
+                NegotiatedAudioQuality = responseAudioQuality;
+            }
+            char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
+            if (selectedAudioQuality != NULL) {
+                if (strcmp(selectedAudioQuality, "0") == 0) NegotiatedAudioQuality = 0;
+                else if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
+            }
         }
 
         char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
