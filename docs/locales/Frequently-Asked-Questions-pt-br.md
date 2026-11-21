@@ -67,4 +67,4 @@ Para relatar um problema ou enviar uma sugestão, use o [rastreador de problemas
 
 ## Quais controles posso usar?
 
-A compatibilidade depende do modelo da TV, da versão do Tizen e do tipo de conexão. Um controle Bluetooth ou USB reconhecido pela própria TV é o melhor ponto de partida. Se ele não funcionar no Moonlight, confirme primeiro que a TV o reconhece e consulte o [Guia de solução de problemas](../Troubleshooting-Guide.html).
+A compatibilidade depende do modelo da TV, da versão do Tizen e do tipo de conexão. Um controle Bluetooth ou USB reconhecido pela própria TV é o melhor ponto de partida. Gamepads compatíveis dos tipos Xbox, PlayStation ou Nintendo Wii Pro geralmente devem funcionar corretamente, desde que sejam reconhecidos pela TV. Quando o Moonlight detecta um controle de jogos conectado, um botão aparece na parte superior da interface. Selecione-o para abrir o teste do controle, que exibe indicadores visuais ao pressionar os botões ou movimentar os analógicos. Se um controle não funcionar no Moonlight, primeiro confirme que a TV o reconhece e consulte o [Guia de solução de problemas](../Troubleshooting-Guide.html).
