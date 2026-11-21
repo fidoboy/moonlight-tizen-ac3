@@ -66,4 +66,4 @@ If you need to report a problem or submit a suggestion, use the [GitHub issue tr
 
 ## Which controllers can I use?
 
-Controller compatibility depends on the TV model, Tizen version and how the controller is connected. A Bluetooth or USB gamepad recognized by the TV is the recommended starting point. If a controller does not work in Moonlight, first verify that the TV itself recognizes it and consult the [Troubleshooting Guide](Troubleshooting-Guide.md).
+Controller compatibility depends on the TV model, Tizen version and how the controller is connected. A Bluetooth or USB gamepad recognized by the TV is the recommended starting point. Compatible Xbox, PlayStation and Nintendo Wii Pro-style gamepads should generally work correctly, provided the TV recognizes them. When Moonlight detects a connected game controller, a button appears at the top of its interface. Select it to open the controller test, which displays visual indicators as you press buttons or move the sticks. If a controller does not work in Moonlight, first verify that the TV itself recognizes it and consult the [Troubleshooting Guide](Troubleshooting-Guide.md).
