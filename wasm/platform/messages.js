@@ -134,6 +134,7 @@ const SyncFunctions = {
     const activeStreamingEngine = getSelectedStreamingEngine();
     resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
+    window._esplusAudioQuality = null;
     if (!activeStreamingEngine) {
       pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or ESPlusPlayer and try again.';
       handleMessage('streamTerminated: -1');
@@ -997,6 +998,15 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       var valueText = line.slice(separator + 1).trim();
       var sourceLine = sourceLines[lineIndex] || '';
       var isAudioStreamLine = sourceLine.indexOf('Audio stream:') === 0;
+      var audioCodecMatch = isAudioStreamLine ? valueText.match(/^(\S+)([\s\S]*)$/) : null;
+      var hasHqMarker = !!(audioCodecMatch && /\|HQ$/.test(audioCodecMatch[1]));
+      if (hasHqMarker) {
+        valueText = audioCodecMatch[1].replace(/\|HQ$/, '') + audioCodecMatch[2];
+      }
+      var audioHighQuality = isAudioStreamLine && (
+        hasHqMarker ||
+        (window._activeStreamingEngine === 'ESPLUSPLAYER' && Number(window._esplusAudioQuality) === 1)
+      );
       var audioModeMatch = isAudioStreamLine
         ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
@@ -1009,10 +1019,28 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
           audioModeMatch = valueText.match(/\[Hardware\]/);
         }
       }
+      function appendAudioCodecPrefix(prefix, suffix) {
+        if (!audioHighQuality) {
+          value.appendChild(document.createTextNode(prefix + suffix));
+          return;
+        }
+        var codecMatch = prefix.match(/^(\S+)([\s\S]*)$/);
+        if (!codecMatch) {
+          value.appendChild(document.createTextNode(prefix + suffix));
+          return;
+        }
+        value.appendChild(document.createTextNode(codecMatch[1]));
+        var hq = document.createElement('sup');
+        hq.className = 'performance-stats-audio-hq';
+        hq.textContent = 'HQ';
+        hq.setAttribute('aria-label', 'High quality audio');
+        value.appendChild(hq);
+        value.appendChild(document.createTextNode(codecMatch[2] + suffix));
+      }
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
         var modeEnd = modeStart + audioModeMatch[0].length;
-        value.appendChild(document.createTextNode(valueText.slice(0, modeStart) + '['));
+        appendAudioCodecPrefix(valueText.slice(0, modeStart), '[');
 
         var modeIcon = document.createElement('i');
         modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
@@ -1021,6 +1049,8 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
         modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'error';
         value.appendChild(modeIcon);
         value.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']' + valueText.slice(modeEnd)));
+      } else if (isAudioStreamLine) {
+        appendAudioCodecPrefix(valueText, '');
       } else {
         value.textContent = valueText;
       }
