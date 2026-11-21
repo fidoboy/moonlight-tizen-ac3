@@ -655,5 +655,14 @@
   "The selected app is no longer available on the host.": "Выбранное приложение больше недоступно на хосте.",
   "Could not retrieve the requested application from the host.": "Не удалось получить запрошенное приложение с хоста.",
   "Moonlight could not restore the selected host.": "Moonlight не удалось восстановить выбранный хост.",
-  "Audio latency:": "Задержка звука:"
+  "Audio latency:": "Задержка звука:",
+  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Рассчитывает рекомендуемый базовый битрейт в начале каждого сеанса трансляции, после согласования параметров с хостом. Рассчитанное значение сохраняется и используется в последующих сеансах. Рекомендуется оставить эту функцию включённой на несколько сеансов, пока битрейт не стабилизируется. После этого её можно отключить и вручную немного скорректировать полученное значение в основных настройках.",
+  "Firmware Version: %1$s": "Версия прошивки: %1$s",
+  "Developer mode: %1$s": "Режим разработчика: %1$s",
+  "Network connection: %1$s": "Сетевое подключение: %1$s",
+  "Internet access: %1$s": "Доступ в Интернет: %1$s",
+  "Not exposed by TV API": "Недоступно через API телевизора",
+  "Wi-Fi": "Wi-Fi",
+  "Ethernet": "Ethernet",
+  "Disconnected": "Нет подключения"
 }
