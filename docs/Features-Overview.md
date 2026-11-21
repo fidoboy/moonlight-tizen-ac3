@@ -37,9 +37,9 @@ The performance overlay can be opened with **Ctrl+Alt+Shift+S** when a keyboard 
 - **Input and UI refinements:** includes keyboard-handling, focus and settings-navigation improvements.
 
 - **Interface themes and decorations:** choose from different color schemes and interface decorations.
-- **Screensaver:** displays a screensaver while no stream is being received.
-- **Animated wallpapers:** adds animated background options to the interface.
-- **Audio handling improvements:** improves handling and conversion of the different supported audio formats.
+- **Screensaver:** while the TV remains powered on but no stream is being received, displays a simple moving logo to help save energy and protect the screen. Its movement prevents the same static shape from remaining illuminated in one position for too long.
+- **Animated wallpapers:** optional animated backgrounds provide a look and feel similar to video-game consoles. They give the interface a console-like appearance while remaining useful for other purposes, such as business demonstrations or using the TV as a wireless secondary display for a computer. Animated wallpapers can be disabled.
+- **Audio handling improvements:** this project improves handling of different audio codecs, supporting both native playback and software-based processing or conversion according to each TV's capabilities. This broadens compatibility across more TV models and audio configurations, although results and the overall experience may vary from one setup to another.
 
 ## Core Moonlight Tizen features inherited from the community project
 
