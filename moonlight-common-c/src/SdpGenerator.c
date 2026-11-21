@@ -542,7 +542,9 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         // Keep audio defaults deterministic when audio is disabled or the host is legacy.
         AudioPacketDuration = 5;
         HighQualitySurroundEnabled = false;
-        HighQualityAudioEnabled = false;
+        if (audioChannelCount > 2) {
+            HighQualityAudioEnabled = false;
+        }
     }
 
     if (AppVersionQuad[0] >= 7) {
