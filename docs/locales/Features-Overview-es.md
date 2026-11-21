@@ -38,9 +38,9 @@ El panel de rendimiento puede mostrarse con **Ctrl+Alt+Shift+S** si hay un tecla
 - **Mejoras de entrada e interfaz:** incluye mejoras en el manejo del teclado, el enfoque y la navegación por ajustes.
 
 - **Temas y decoraciones de la interfaz:** permite elegir entre distintos esquemas de color y decoraciones para la interfaz.
-- **Protector de pantalla:** se muestra mientras no se está recibiendo ninguna retransmisión.
-- **Fondos de pantalla animados:** incorpora opciones de fondos animados para la interfaz.
-- **Mejoras en el manejo del audio:** mejora el procesamiento y la conversión de los distintos formatos de audio admitidos.
+- **Protector de pantalla:** cuando el televisor permanece encendido, pero no se está recibiendo ninguna retransmisión, muestra un sencillo logotipo en movimiento para ahorrar energía y proteger la pantalla. El movimiento evita que una misma forma estática permanezca iluminada durante demasiado tiempo en la misma posición.
+- **Fondos de pantalla animados:** estos fondos opcionales proporcionan una apariencia y una experiencia similares a las de las consolas de videojuegos. Aportan ese aspecto de consola, aunque Moonlight también puede utilizarse para otros fines, como demostraciones de negocios o como pantalla secundaria inalámbrica conectada a un ordenador. Los fondos animados se pueden desactivar.
+- **Mejoras en el manejo del audio:** este proyecto mejora el manejo de distintos códecs de sonido y permite tanto su reproducción nativa como su procesamiento o conversión mediante software, según las capacidades de cada televisor. Esto amplía la compatibilidad con un mayor número de modelos y distintas configuraciones de audio, aunque los resultados y la experiencia final pueden variar en cada caso.
 
 ## Funciones principales heredadas del proyecto comunitario Moonlight Tizen
 
