@@ -38,9 +38,9 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 - **Aprimoramentos de entrada e interface:** inclui melhorias no teclado, foco e navegação pelas configurações.
 
 - **Temas e decorações da interface:** permite escolher entre diferentes esquemas de cores e decorações da interface.
-- **Protetor de tela:** é exibido enquanto nenhuma transmissão está sendo recebida.
-- **Planos de fundo animados:** adiciona opções de fundos animados à interface.
-- **Melhorias no processamento de áudio:** aprimora o processamento e a conversão dos diferentes formatos de áudio compatíveis.
+- **Protetor de tela:** quando a TV permanece ligada, mas não está recebendo nenhuma transmissão, exibe um logotipo simples em movimento para economizar energia e proteger a tela. O movimento evita que a mesma forma estática permaneça iluminada por muito tempo na mesma posição.
+- **Planos de fundo animados:** esses fundos opcionais proporcionam aparência e experiência semelhantes às de consoles de videogame. Eles dão à interface um visual de console, embora o Moonlight também possa ser usado para outras finalidades, como demonstrações comerciais ou como tela secundária sem fio conectada a um computador. Os fundos animados podem ser desativados.
+- **Melhorias no processamento de áudio:** este projeto aprimora o tratamento de diferentes codecs de áudio e permite tanto a reprodução nativa quanto o processamento ou a conversão por software, de acordo com os recursos de cada TV. Isso amplia a compatibilidade com um número maior de modelos e diferentes configurações de áudio, embora os resultados e a experiência final possam variar em cada caso.
 
 ## Recursos principais herdados do projeto comunitário Moonlight Tizen
 
