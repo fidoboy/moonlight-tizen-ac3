@@ -7525,6 +7525,13 @@ function estimateAudioBitrateKbps(audioProfile) {
   }
 }
 
+// Automatic mode estimates a new fixed bitrate after each connection,
+// using the negotiated audio codec, channel count and quality together with
+// the configured resolution, frame rate, video codec and HDR state. This is
+// a per-connection estimate, not dynamic adaptation during an active stream.
+// TODO: Implement runtime bitrate adaptation to changing network conditions,
+// especially for WAN connections, whose bandwidth is generally less stable
+// than LAN bandwidth.
 function calculateOptimizedBitrate(preferences, audioProfile) {
   var resolution = String(preferences.resolution || '1280:720').split(':');
   var width = parseInt(resolution[0], 10);
