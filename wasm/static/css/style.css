@@ -2050,10 +2050,6 @@ body[data-color-theme="black-orange"] #background-layer {
     margin: 25px 25px 37.5px;
 }
 
-/* Match the standard setting-option spacing for the nested mouse-stick selector. */
-#mouseEmulationStickOption {
-    margin-top: 25px;
-}
 #dolbyAudioHeading .dolby-audio-heading-icon {
     display: inline-block;
     position: relative;
