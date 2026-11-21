@@ -6236,21 +6236,13 @@ function startGame(host, appID) {
 
       var optimizeBitrate = streamSettings.optimizeBitrate === true ||
         streamSettings.optimizeBitrate === 'true' || streamSettings.optimizeBitrate === 1;
+      // Automatic mode deliberately starts with the last persisted estimate.
+      // The current session's negotiated audio format/layout refines the value
+      // for the next session; it must not change this session's host request.
       if (optimizeBitrate) {
-        var optimizedBitrateKbps = calculateOptimizedBitrate(
-          persistedPreferences, getEstimatedAudioProfile(persistedPreferences));
-        var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
-        try {
-          await storeData('bitrate', optimizedBitrateMbps, null);
-          streamSettings.bitrate = optimizedBitrateKbps;
-          if (streamSettings.preferences) streamSettings.preferences.bitrate = optimizedBitrateMbps;
-          setBitrateControlValue(optimizedBitrateKbps);
-          console.log('%c[index.js, startGame]', 'color: green;', 'Persisted startup-optimized bitrate: ' + optimizedBitrateMbps + ' Mbps');
-        } catch (bitrateError) {
-          console.error('%c[index.js, startGame]', 'color: red;', 'Could not persist the optimized bitrate; aborting stream startup:', bitrateError);
-          if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not save the optimized streaming bitrate.');
-          else streamStartupTimeoutFailure('connection', t('Could not save the optimized streaming bitrate.'));
-          return;
+        var persistedBitrateKbps = Number(streamSettings.bitrate);
+        if (!Number.isFinite(persistedBitrateKbps) || persistedBitrateKbps <= 0) {
+          streamSettings.bitrate = Number(persistedPreferences.bitrate || 10) * 1000;
         }
       }
 
@@ -7595,17 +7587,6 @@ function setBitrateOptimizationAvailability(enabled) {
     }
   }
   if (enabled && typeof closePopupMenu === 'function') closePopupMenu('selectBitrate');
-}
-
-function getEstimatedAudioProfile(preferences) {
-  var backend = String(preferences.audioBackend || 'EMSS');
-  var engine = String(preferences.streamingEngine || 'EMSS');
-  if (backend === 'Disabled') return { codec: 'OFF', channels: 0 };
-  var channels = preferences.audioConfig === '71Surround' ? 8 :
-    (preferences.audioConfig === '51Surround' ? 6 : 2);
-  var dolbyEnabled = preferences.ac3AudioMode === true ||
-    preferences.ac3AudioMode === 'true' || preferences.ac3AudioMode === 1;
-  return { codec: dolbyEnabled && engine !== 'ESPLUSPLAYER' ? 'EAC3' : 'OPUS', channels: channels };
 }
 
 function estimateAudioBitrateKbps(audioProfile) {
@@ -10210,7 +10191,8 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#optimizeBitrateBtn').MaterialSwitch.on();
     }
-    setBitrateOptimizationAvailability(isBitrateOptimizationEnabled());
+    var optimizeValue = previousValue.optimizeBitrate;
+    setBitrateOptimizationAvailability(optimizeValue === true || optimizeValue === 'true' || optimizeValue === 1);
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored disableWarnings preferences.');
