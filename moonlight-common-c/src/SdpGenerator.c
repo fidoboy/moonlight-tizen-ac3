@@ -261,6 +261,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     int audioChannelMask;
     int err;
     int adjustedBitrate;
+    bool highQualityAudioRequested;
 
     // This must have been resolved to either local or remote by now
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
@@ -499,15 +500,17 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (AppVersionQuad[0] >= 7) {
-        if (AudioTransportEnabled && StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
-                (HighQualitySurroundSupported || DolbyAudioOffered) &&
-                (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
-            // Enable high quality mode for surround sound
+        highQualityAudioRequested = AudioTransportEnabled &&
+            StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
+            (HighQualitySurroundSupported || DolbyAudioOffered) &&
+            (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0;
+        if (highQualityAudioRequested) {
+            // Request high quality audio for surround OPUS or Dolby passthrough.
             err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
 
-            // Let the audio stream code know that it needs to disable coupled streams when
-            // decoding this audio stream.
-            HighQualitySurroundEnabled = true;
+            // The OPUS decoder may use its high-quality configuration only when the
+            // host advertised that configuration. Dolby passthrough has its own decoder.
+            HighQualitySurroundEnabled = HighQualitySurroundSupported;
 
             // Use 5 ms frames since we don't have a slow decoder
             AudioPacketDuration = 5;
@@ -532,7 +535,7 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         if (audioChannelCount > 2) {
             // Surround quality is selected by this SDP attribute. Keep the selected
             // mode available to the negotiated-audio bitrate estimator as well.
-            HighQualityAudioEnabled = HighQualitySurroundEnabled;
+            HighQualityAudioEnabled = highQualityAudioRequested;
         }
 
         snprintf(payloadStr, sizeof(payloadStr), "%d", AudioPacketDuration);
