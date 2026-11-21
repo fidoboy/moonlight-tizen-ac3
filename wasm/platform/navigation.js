@@ -2037,9 +2037,11 @@ const Views = {
       'selectAudioBackend',
       'ac3AudioModeBtn',
       isAudioOutputDisabled() ? null : 'selectAudio',
-      // Follow the same visibility policy as the persisted-settings UI.
-      $('#dolbyChannelLayoutOption').is(':visible') ? 'selectDolbyChannelLayout' : null,
-      $('#dolbyDecodingModeOption').is(':visible') ? 'selectDolbyDecodingMode' : null,
+      // Keep both Dolby controls in the navigation sequence. ListView skips
+      // controls that are hidden or disabled, using the same visibility checks
+      // as every other settings target.
+      'selectDolbyChannelLayout',
+      'selectDolbyDecodingMode',
       // At most one of these settings is shown at a time, as each one belongs to a single backend,
       // and neither is shown when the audio output is disabled
       isAudioOutputDisabled() ? null : isWebAudioBackendSelected() ? 'selectAudioJitter' : 'audioSyncBtn',
