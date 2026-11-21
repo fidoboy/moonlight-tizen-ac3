@@ -33,10 +33,10 @@ bool LiIsEac3AudioNegotiated(void) {
 
 int LiGetNegotiatedAudioQuality(void) {
     if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
-        // Dolby quality is host-controlled. If the host does not report the
-        // AudioQuality SDP attribute, return unknown for a conservative high-quality fallback.
+        // Use the host-reported quality when available. Otherwise report the
+        // quality requested by Moonlight, just as we do for OPUS.
         return NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1
-            ? NegotiatedAudioQuality : -1;
+            ? NegotiatedAudioQuality : (HighQualityAudioEnabled ? 1 : 0);
     }
 
     // Stereo OPUS quality is selected by Moonlight's RTSP target-address
@@ -1031,6 +1031,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     Eac3AudioAcceptSent = false;
     Ac3AudioNegotiated = false;
     Eac3AudioNegotiated = false;
+    DolbyAudioOffered = false;
     NegotiatedAudioQuality = -1;
     controlStreamId = APP_VERSION_AT_LEAST(7, 1, 431) ? "streamid=control/13/0" : "streamid=control/1/0";
     AudioEncryptionEnabled = false;
@@ -1178,8 +1179,9 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             strstr(response.payload, "a=x-ss-audio-codec-offer:AC3") != NULL;
         Eac3AudioOffered = AudioTransportEnabled && response.payload != NULL &&
             strstr(response.payload, "a=x-ss-audio-codec-offer:EAC3") != NULL;
-        if (AudioTransportEnabled && (Ac3AudioOffered || Eac3AudioOffered) &&
-                (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0) {
+        DolbyAudioOffered = AudioTransportEnabled && (Ac3AudioOffered || Eac3AudioOffered) &&
+            (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0;
+        if (DolbyAudioOffered) {
             Limelog("Sunshine offered optional %s passthrough\n",
                 Eac3AudioOffered ? "E-AC-3" : "AC-3");
         }
