@@ -48,11 +48,11 @@ int LiGetNegotiatedAudioQuality(void) {
     return hostReportedQuality >= 0 ? hostReportedQuality : LiGetRequestedAudioQuality();
 }
 
-bool shouldRequestHighQualityAudio(int audioChannelCount) {
+bool shouldRequestHighQualityAudio(void) {
     return AudioTransportEnabled &&
         StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD &&
         (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0 &&
-        (StreamConfig.streamingRemotely != STREAM_CFG_REMOTE || audioChannelCount <= 2);
+        StreamConfig.streamingRemotely != STREAM_CFG_REMOTE;
 }
 
 static PPLT_CRYPTO_CONTEXT encryptionCtx;
