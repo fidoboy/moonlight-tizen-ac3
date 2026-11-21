@@ -10,7 +10,7 @@ description: "Risposte sulla compatibilità degli host, l'audio Dolby e le impos
 
 ## Come aggiorno l’app quando è disponibile una nuova versione?
 
-L’app sul televisore ti avviserà quando sarà disponibile una nuova versione. Se hai utilizzato il metodo di installazione consigliato tramite Apps2Samsung, ti basta aprire di nuovo Apps2Samsung e selezionare **Moonlight** con la variante **fidoboy · Enhanced · Dolby** per scaricare la versione più recente. Se preferisci installarla manualmente, scarica il nuovo pacchetto WGT dalla [pagina dell’ultima versione](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e installalo sul televisore.
+L’app sul televisore La avviserà quando sarà disponibile una nuova versione. Se ha utilizzato il metodo di installazione consigliato tramite Apps2Samsung, Le basta aprire di nuovo Apps2Samsung e selezionare **Moonlight** con la variante **fidoboy · Enhanced · Dolby** per scaricare la versione più recente. Se preferisce installarla manualmente, scarichi il nuovo pacchetto WGT dalla [pagina dell’ultima versione](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e lo installi sul televisore.
 
 ## Come posso ottenere una qualità dell’immagine migliore o configurare Moonlight per uno streaming più stabile?
 
@@ -38,7 +38,7 @@ No. L'opzione richiede il codec opzionale durante la negoziazione. Se Dolby non 
 
 ## Dolby Digital Plus funziona sempre su TOSLINK?
 
-No. Il supporto E-AC-3 dipende dal modello di televisore Samsung, dal firmware, dalla modalità di uscita audio e dall'apparecchiatura ricevente. Alcune uscite ottiche dei televisori supportano solo una parte dei formati bitstream. Usa AC-3 se l'apparecchiatura non accetta E-AC-3.
+No. Il supporto E-AC-3 dipende dal modello di televisore Samsung, dal firmware, dalla modalità di uscita audio e dall'apparecchiatura ricevente. Alcune uscite ottiche dei televisori supportano solo una parte dei formati bitstream. Utilizzi AC-3 se l'apparecchiatura non accetta E-AC-3.
 
 ## Il passthrough Dolby può trasportare audio 7.1?
 
@@ -58,4 +58,4 @@ Nell'app apri Settings e poi About/System Information. Per diagnosticare un prob
 
 ## Quali controller posso usare?
 
-La compatibilità dipende dal modello del televisore, dalla versione di Tizen e dal tipo di connessione. Un controller Bluetooth o USB riconosciuto dal televisore è il punto di partenza consigliato. Se non funziona in Moonlight, verifica prima che il televisore lo riconosca e consulta la [Guida alla risoluzione dei problemi](../Troubleshooting-Guide.html).
+La compatibilità dipende dal modello del televisore, dalla versione di Tizen e dal tipo di connessione. Un controller Bluetooth o USB riconosciuto dal televisore è il punto di partenza consigliato. Se non funziona in Moonlight, verifichi prima che il televisore lo riconosca e consulti la [Guida alla risoluzione dei problemi](../Troubleshooting-Guide.html).
