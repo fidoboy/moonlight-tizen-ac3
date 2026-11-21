@@ -6239,11 +6239,9 @@ function startGame(host, appID) {
       // Automatic mode deliberately starts with the last persisted estimate.
       // The current session's negotiated audio format/layout refines the value
       // for the next session; it must not change this session's host request.
-      if (optimizeBitrate) {
-        var persistedBitrateKbps = Number(streamSettings.bitrate);
-        if (!Number.isFinite(persistedBitrateKbps) || persistedBitrateKbps <= 0) {
-          streamSettings.bitrate = Number(persistedPreferences.bitrate || 10) * 1000;
-        }
+      if (optimizeBitrate &&
+          (!Number.isFinite(Number(streamSettings.bitrate)) || Number(streamSettings.bitrate) <= 0)) {
+        streamSettings.bitrate = Number(persistedPreferences.bitrate || 10) * 1000;
       }
 
       var streamWidth = streamSettings.streamWidth;
