@@ -9441,11 +9441,11 @@ function getSystemInfoNetworkDetails() {
 
   var connectionTypes = networkApi.NetworkActiveConnectionType || {};
   var connection = t('Unknown');
-  if (connectionType === connectionTypes.WIFI || Number(connectionType) === 1) {
+  if ((connectionTypes.WIFI != null && connectionType === connectionTypes.WIFI) || Number(connectionType) === 1) {
     connection = t('Wi-Fi');
-  } else if (connectionType === connectionTypes.ETHERNET || Number(connectionType) === 3) {
+  } else if ((connectionTypes.ETHERNET != null && connectionType === connectionTypes.ETHERNET) || Number(connectionType) === 3) {
     connection = t('Ethernet');
-  } else if (connectionType === connectionTypes.DISCONNECTED || Number(connectionType) === 0) {
+  } else if ((connectionTypes.DISCONNECTED != null && connectionType === connectionTypes.DISCONNECTED) || Number(connectionType) === 0) {
     connection = t('Disconnected');
   }
 
@@ -9497,14 +9497,14 @@ function loadSystemInfo() {
       'Internet access: ' + networkDetails.internet);
 
     systemInfoPlaceholder.textContent =
-      t('App Version: %1$s v%2$s', appInfo.name, buildVer) + '\\n' +
-      t('Platform Version: Tizen %1$s', platformVer ? platformVer : t('Unknown')) + '\\n' +
-      t('Firmware Version: %1$s', firmwareVersion) + '\\n' +
-      t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\\n' +
-      t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\\n' +
-      t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\\n' +
-      t('Developer mode: %1$s', t('Not exposed by TV API')) + '\\n' +
-      t('Network connection: %1$s', networkDetails.connection) + '\\n' +
+      t('App Version: %1$s v%2$s', appInfo.name, buildVer) + '\n' +
+      t('Platform Version: Tizen %1$s', platformVer ? platformVer : t('Unknown')) + '\n' +
+      t('Firmware Version: %1$s', firmwareVersion) + '\n' +
+      t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\n' +
+      t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
+      t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\n' +
+      t('Developer mode: %1$s', t('Not exposed by TV API')) + '\n' +
+      t('Network connection: %1$s', networkDetails.connection) + '\n' +
       t('Internet access: %1$s', networkDetails.internet);
 
     if (!OFFICIAL_RELEASE && systemInfoPlaceholder.firstChild) {
