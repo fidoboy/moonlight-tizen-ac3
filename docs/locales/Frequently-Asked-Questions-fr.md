@@ -45,9 +45,19 @@ Non. La prise en charge E-AC-3 dépend du téléviseur Samsung, de son micrologi
 
 L’implémentation actuelle est limitée à la stéréo et au 5.1. E-AC-3 prend théoriquement en charge le 7.1, mais le chemin d’encodage FFmpeg utilisé par cette version ne propose pas encore cette option. Si FFmpeg ajoute cette prise en charge à l’avenir, il pourrait devenir possible de sélectionner le 7.1 pour E-AC-3. AC-3 reste limité au 5.1. Le streaming OPUS standard peut proposer d’autres dispositions de canaux si l’hôte et le client les prennent en charge.
 
-## Comment voir le codec audio actif ?
+## Comment voir les codecs vidéo et audio actifs ?
 
-Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher ou masquer l’overlay de statistiques. Sinon, appuyez sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming, puis choisissez l’option d’affichage des statistiques. La ligne audio indique le codec négocié, la disposition, le nombre de canaux et le débit approximatif.
+Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher ou masquer l’overlay de statistiques. Vous pouvez également appuyer sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming, puis choisir l’option d’affichage des statistiques.
+
+Les lignes relatives aux flux dans l’overlay fournissent davantage d’informations que les seuls noms des codecs négociés :
+
+- **Video stream :** indique la résolution et la fréquence d’images du flux, puis le codec vidéo négocié. Avec H.264, son niveau peut également être indiqué (par exemple **H.264 L4.1**). Il s’agit du niveau H.264 sélectionné en fonction de la résolution et de la fréquence d’images du flux, et non du profil H.264 Baseline. Lorsque le HDR a été activé et correctement négocié avec l’hôte, le codec est indiqué comme **HEVC 10-bit HDR** ou **AV1 10-bit HDR**. Si le codec 10 bits correspondant est indiqué comme **SDR**, le HDR n’a pas été négocié pour ce flux.
+- **Audio stream :** indique le codec audio négocié (OPUS, AC-3 ou E-AC-3), la disposition et le nombre de canaux, ainsi que le débit actuellement reçu. Ce débit est mesuré pendant le streaming et peut varier ; il n’est pas nécessairement égal en permanence à celui négocié initialement avec l’hôte. L’indication **[Hardware]** ou **[Software]** précise le chemin de traitement audio actif. **[Hardware]** signifie que le téléviseur effectue le décodage avec sa prise en charge matérielle native. Cette solution est généralement préférable, car elle évite le décodage logiciel dans Moonlight et contribue à réduire la latence. **[Software]** signifie que Moonlight effectue un décodage logiciel ou une conversion/transcodification avant d’envoyer le son au téléviseur, ce qui peut ajouter de la latence de traitement.
+- **Indicateur HQ :** lorsqu’un son de haute qualité a été demandé, un exposant **HQ** peut apparaître à côté du codec. En vert, il indique que l’hôte a confirmé l’activation du mode haute qualité. En blanc, la demande a été envoyée, mais Moonlight n’a pas pu confirmer à partir de la réponse de l’hôte que ce mode est effectivement utilisé.
+- **Audio input / Audio transcode :** si Moonlight convertit par logiciel le flux OPUS reçu en AC-3 ou E-AC-3, des lignes supplémentaires indiquent le débit OPUS en entrée et la durée moyenne de transcodification. Elles permettent d’évaluer le délai de traitement ajouté par cette conversion intermédiaire.
+- **Audio FEC :** indique le nombre de paquets audio récupérés, le nombre de blocs FEC en échec et le nombre de paquets arrivés dans le désordre pendant le dernier intervalle de mesure.
+
+La ligne **Frame rates** indique séparément le nombre d’images reçues, décodées et acceptées par seconde. **Incoming bitrate from network** indique le débit total réellement reçu depuis le réseau. Il peut varier pendant le streaming et ne reste pas nécessairement égal à la valeur négociée au départ. Les autres statistiques indiquent notamment la latence réseau, les images manquantes, le temps moyen de décodage, le délai dans la file d’attente des images et le temps de soumission au moteur de rendu.
 
 ## Où trouver les informations sur le téléviseur et l'application ?
 
