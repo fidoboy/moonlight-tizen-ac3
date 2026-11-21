@@ -48,6 +48,13 @@ int LiGetNegotiatedAudioQuality(void) {
     return hostReportedQuality >= 0 ? hostReportedQuality : LiGetRequestedAudioQuality();
 }
 
+bool shouldRequestHighQualityAudio(int audioChannelCount) {
+    return AudioTransportEnabled &&
+        StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD &&
+        (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0 &&
+        (StreamConfig.streamingRemotely != STREAM_CFG_REMOTE || audioChannelCount <= 2);
+}
+
 static PPLT_CRYPTO_CONTEXT encryptionCtx;
 static PPLT_CRYPTO_CONTEXT decryptionCtx;
 static uint32_t encryptionSequenceNumber;
@@ -1046,11 +1053,8 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     // 2. The audio decoder has not declared that it is slow
     // 3. The stream is either local or not surround sound (to prevent MTU issues over the Internet)
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
-    HighQualityAudioEnabled = AudioTransportEnabled &&
-        StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD &&
-        (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0 &&
-        (StreamConfig.streamingRemotely != STREAM_CFG_REMOTE ||
-         CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2);
+    HighQualityAudioEnabled = shouldRequestHighQualityAudio(
+        CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration));
     if (HighQualityAudioEnabled) {
         // If we have an RTSP URL string and it was successfully parsed and copied, use that string
         if (serverInfo->rtspSessionUrl == NULL ||
@@ -1482,22 +1486,23 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         bool selectedDolbyCodec = selectedAudioCodec != NULL &&
             (strcmp(selectedAudioCodec, "AC3") == 0 || strcmp(selectedAudioCodec, "EAC3") == 0);
 
-        // AudioQuality is a surround-audio attribute. For stereo OPUS the host's
-        // fixed value of 0 does not confirm the target-address-selected quality.
-        // A selected Dolby codec may still report its quality in a stereo layout.
-        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2 ||
-                selectedDolbyCodec) {
-            int responseAudioQuality;
-            if (response.payload != NULL &&
-                    parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
-                    (responseAudioQuality == 0 || responseAudioQuality == 1)) {
-                NegotiatedAudioQuality = responseAudioQuality;
-            }
-            char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
-            if (selectedAudioQuality != NULL) {
-                if (strcmp(selectedAudioQuality, "0") == 0) NegotiatedAudioQuality = 0;
-                else if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
-            }
+        // A host may report AudioQuality for any layout and codec. The current
+        // OPUS stereo host also emits a fixed 0, which is not a negotiated result.
+        // Accept HQ (1) for OPUS stereo, but accept both values for multichannel
+        // and selected Dolby streams, including Dolby stereo.
+        bool stereoOpus = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2 &&
+            !selectedDolbyCodec;
+        int responseAudioQuality;
+        if (response.payload != NULL &&
+                parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
+                (responseAudioQuality == 0 || responseAudioQuality == 1) &&
+                (responseAudioQuality == 1 || !stereoOpus)) {
+            NegotiatedAudioQuality = responseAudioQuality;
+        }
+        char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
+        if (selectedAudioQuality != NULL) {
+            if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
+            else if (strcmp(selectedAudioQuality, "0") == 0 && !stereoOpus) NegotiatedAudioQuality = 0;
         }
         Ac3AudioNegotiated = AudioTransportEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "AC3") == 0;
