@@ -45,9 +45,19 @@ Nein. E-AC-3 hängt vom Samsung-TV-Modell, der Firmware, dem Audio-Ausgabemodus 
 
 Die aktuelle Implementierung ist auf Stereo und 5.1-Kanäle begrenzt. E-AC-3 unterstützt theoretisch 7.1, aber der in diesem Build verwendete FFmpeg-Encoderpfad bietet diese Option derzeit nicht an. Falls FFmpeg die Unterstützung künftig ergänzt, könnte 7.1 für E-AC-3 auswählbar werden. AC-3 bleibt auf 5.1 begrenzt. Standardmäßiges OPUS-Streaming kann andere Kanalbelegungen anbieten, wenn Host und Client sie unterstützen.
 
-## Wie sehe ich den aktiven Audiocodec?
+## Wie sehe ich die aktiven Video- und Audiocodecs?
 
-Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken. Die Audiozeile zeigt den ausgehandelten Codec, die Kanalbelegung, Kanalanzahl und ungefähre Bitrate.
+Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken.
+
+Die Stream-Zeilen in der Einblendung zeigen mehr als nur die ausgehandelten Codec-Namen:
+
+- **Video stream:** Zeigt die Stream-Auflösung und Bildrate sowie den ausgehandelten Videocodec. Bei H.264 kann zusätzlich das Level angegeben sein (zum Beispiel **H.264 L4.1**). Dabei handelt es sich um das für Auflösung und Bildrate des Streams ausgewählte H.264-Level, nicht um das H.264-Baseline-Profil. Wenn HDR aktiviert und erfolgreich mit dem Host ausgehandelt wurde, erscheint **HEVC 10-bit HDR** oder **AV1 10-bit HDR**. Wird der entsprechende 10-Bit-Codec als **SDR** angezeigt, wurde HDR für diesen Stream nicht ausgehandelt.
+- **Audio stream:** Zeigt den ausgehandelten Audiocodec (OPUS, AC-3 oder E-AC-3), das Kanal-Layout und die Kanalanzahl sowie die aktuell empfangene Bitrate. Diese wird während des Streams gemessen und kann schwanken; sie muss nicht dauerhaft dem anfangs mit dem Host ausgehandelten Wert entsprechen. Die Kennzeichnung **[Hardware]** oder **[Software]** gibt den aktiven Audioverarbeitungspfad an. **[Hardware]** bedeutet, dass der Fernseher die Dekodierung mit seiner nativen Hardware-Unterstützung übernimmt. Dies ist in der Regel vorzuziehen, da Moonlight dadurch keine Softwaredekodierung ausführen muss und die Latenz möglichst gering bleibt. **[Software]** bedeutet, dass Moonlight vor der Ausgabe an den Fernseher eine softwarebasierte Dekodierung oder Formatkonvertierung/Transkodierung durchführt, wodurch zusätzliche Verarbeitungslatenz entstehen kann.
+- **HQ-Anzeige:** Wenn Audio in hoher Qualität angefordert wurde, kann neben dem Codec ein hochgestelltes **HQ** erscheinen. Grün bedeutet, dass der Host den aktiven Hochqualitätsmodus bestätigt hat. Weiß bedeutet, dass die Anforderung gesendet wurde, Moonlight anhand der Host-Antwort jedoch nicht bestätigen konnte, dass dieser Modus tatsächlich verwendet wird.
+- **Audio input / Audio transcode:** Wenn Moonlight den eingehenden OPUS-Stream per Software in AC-3 oder E-AC-3 umwandelt, zeigen zusätzliche Zeilen die OPUS-Eingangsbitrate und die durchschnittliche Dauer der Transkodierung. Daran lässt sich die durch diese Zwischenkonvertierung verursachte Verarbeitungsverzögerung erkennen.
+- **Audio FEC:** Zeigt, wie viele Audiopakete im letzten Messintervall wiederhergestellt wurden, wie viele FEC-Blöcke fehlgeschlagen sind und wie viele Pakete in falscher Reihenfolge eingetroffen sind.
+
+Die Zeile **Frame rates** gibt zusätzlich die pro Sekunde empfangenen, dekodierten und vom Renderer akzeptierten Frames an. **Incoming bitrate from network** zeigt die tatsächlich über das Netzwerk eingehende Gesamtbitrate. Dieser Wert kann während des Streams schwanken und muss nicht dem anfangs ausgehandelten Wert entsprechen. Weitere Statistiken zeigen die Netzwerklatenz, fehlende Frames, die durchschnittliche Dekodierungszeit, die Verzögerung in der Frame-Warteschlange und die Zeit für die Übergabe an den Renderer.
 
 ## Wo finde ich Informationen zum Fernseher und zur App?
 
