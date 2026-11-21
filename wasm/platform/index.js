@@ -1168,6 +1168,7 @@ function loadConfigSummarySettings(callback) {
           input.checked = enabled;
         }
       }
+      if (key === 'optimizeBitrate') setBitrateOptimizationAvailability(enabled);
       completeOne();
     });
   }
@@ -6236,12 +6237,14 @@ function startGame(host, appID) {
       var optimizeBitrate = streamSettings.optimizeBitrate === true ||
         streamSettings.optimizeBitrate === 'true' || streamSettings.optimizeBitrate === 1;
       if (optimizeBitrate) {
-        var optimizedBitrateKbps = calculateOptimizedBitrate(persistedPreferences);
+        var optimizedBitrateKbps = calculateOptimizedBitrate(
+          persistedPreferences, getEstimatedAudioProfile(persistedPreferences));
         var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
         try {
           await storeData('bitrate', optimizedBitrateMbps, null);
           streamSettings.bitrate = optimizedBitrateKbps;
           if (streamSettings.preferences) streamSettings.preferences.bitrate = optimizedBitrateMbps;
+          setBitrateControlValue(optimizedBitrateKbps);
           console.log('%c[index.js, startGame]', 'color: green;', 'Persisted startup-optimized bitrate: ' + optimizedBitrateMbps + ' Mbps');
         } catch (bitrateError) {
           console.error('%c[index.js, startGame]', 'color: red;', 'Could not persist the optimized bitrate; aborting stream startup:', bitrateError);
@@ -7562,7 +7565,60 @@ function isBitrateOptimizationEnabled() {
   return value === true || value === 'true' || value === 1;
 }
 
-function calculateOptimizedBitrate(preferences) {
+function setBitrateControlValue(bitrateKbps) {
+  var bitrateMbps = Math.max(0.5, Math.min(150, Number(bitrateKbps) / 1000));
+  var slider = document.getElementById('bitrateSlider');
+  if (slider) {
+    if (slider.MaterialSlider && typeof slider.MaterialSlider.change === 'function') {
+      slider.MaterialSlider.change(String(bitrateMbps));
+    } else {
+      slider.value = String(bitrateMbps);
+    }
+  }
+  var label = document.getElementById('selectBitrate');
+  if (label) label.textContent = bitrateMbps + ' Mbps';
+}
+
+function setBitrateOptimizationAvailability(enabled) {
+  var button = document.getElementById('selectBitrate');
+  var slider = document.getElementById('bitrateSlider');
+  if (button) {
+    button.disabled = enabled;
+    button.setAttribute('aria-disabled', enabled ? 'true' : 'false');
+    button.classList.toggle('is-disabled', enabled);
+  }
+  if (slider) {
+    slider.disabled = enabled;
+    if (slider.MaterialSlider) {
+      if (enabled && typeof slider.MaterialSlider.disable === 'function') slider.MaterialSlider.disable();
+      else if (!enabled && typeof slider.MaterialSlider.enable === 'function') slider.MaterialSlider.enable();
+    }
+  }
+  if (enabled && typeof closePopupMenu === 'function') closePopupMenu('selectBitrate');
+}
+
+function getEstimatedAudioProfile(preferences) {
+  var backend = String(preferences.audioBackend || 'EMSS');
+  var engine = String(preferences.streamingEngine || 'EMSS');
+  if (backend === 'Disabled') return { codec: 'OFF', channels: 0 };
+  var channels = preferences.audioConfig === '71Surround' ? 8 :
+    (preferences.audioConfig === '51Surround' ? 6 : 2);
+  var dolbyEnabled = preferences.ac3AudioMode === true ||
+    preferences.ac3AudioMode === 'true' || preferences.ac3AudioMode === 1;
+  return { codec: dolbyEnabled && engine !== 'ESPLUSPLAYER' ? 'EAC3' : 'OPUS', channels: channels };
+}
+
+function estimateAudioBitrateKbps(audioProfile) {
+  if (!audioProfile || audioProfile.codec === 'OFF' || !audioProfile.channels) return 0;
+  var channels = Number(audioProfile.channels);
+  switch (audioProfile.codec) {
+    case 'AC3': return channels <= 2 ? 192 : 448;
+    case 'EAC3': return channels <= 2 ? 256 : (channels >= 8 ? 768 : 640);
+    default: return channels <= 2 ? 128 : (channels >= 8 ? 320 : 256);
+  }
+}
+
+function calculateOptimizedBitrate(preferences, audioProfile) {
   var resolution = String(preferences.resolution || '1280:720').split(':');
   var width = parseInt(resolution[0], 10);
   var height = parseInt(resolution[1], 10);
@@ -7572,9 +7628,29 @@ function calculateOptimizedBitrate(preferences) {
   var codecMultipliers = { H264: 1.0, HEVC: 0.6, AV1: 0.4 };
   var codecMultiplier = codecMultipliers[videoCodec];
   var bitrateFactor = hdrMode ? 6630.5 : 8309;
-  var finalBitrate = Math.round(width * height * frameRate / bitrateFactor * codecMultiplier);
-  if (!isFinite(finalBitrate) || finalBitrate <= 0) finalBitrate = 10;
-  return finalBitrate;
+  var targetBitrate = width * height * frameRate / bitrateFactor * codecMultiplier;
+  // Reserve estimated audio payload from the total stream budget.
+  var finalBitrate = Math.round((targetBitrate - estimateAudioBitrateKbps(audioProfile)) / 500) * 500;
+  if (!isFinite(finalBitrate) || finalBitrate <= 0) finalBitrate = 500;
+  return Math.max(500, Math.min(150000, finalBitrate));
+}
+
+function updateOptimizedBitrateAfterNegotiation(codec, channels) {
+  if (!isBitrateOptimizationEnabled()) return;
+  var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
+  if (!preferences) return;
+  var optimizedBitrateKbps = calculateOptimizedBitrate(preferences, {
+    codec: String(codec || 'OPUS').toUpperCase(), channels: Number(channels) || 0
+  });
+  var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
+  storeData('bitrate', optimizedBitrateMbps, null).then(function() {
+    setBitrateControlValue(optimizedBitrateKbps);
+    console.log('%c[index.js, updateOptimizedBitrateAfterNegotiation]', 'color: green;',
+      'Persisted negotiated-audio bitrate for the next session: ' + optimizedBitrateMbps + ' Mbps');
+  }).catch(function(error) {
+    console.error('%c[index.js, updateOptimizedBitrateAfterNegotiation]', 'color: red;',
+      'Could not persist the negotiated-audio bitrate for the next session:', error);
+  });
 }
 
 function saveFramePacing() {
@@ -9025,11 +9101,9 @@ function saveOptimizeBitrate() {
   setTimeout(() => {
     const chosenOptimizeBitrate = $('#optimizeBitrateSwitch').prop('checked');
     console.log('%c[index.js, saveOptimizeBitrate]', 'color: green;', 'Saving optimize bitrate state: ' + chosenOptimizeBitrate);
+    setBitrateOptimizationAvailability(chosenOptimizeBitrate);
     storeData('optimizeBitrate', chosenOptimizeBitrate, null);
-
-    // Enabling optimization takes effect at the next stream startup.
-    // Disabling it restores the standard preset immediately.
-    if (!chosenOptimizeBitrate) standardBitratePresets();
+    // Preserve the last calculated/manual bitrate when switching modes.
   }, 100);
 }
 
@@ -10136,6 +10210,7 @@ function loadUserDataCb() {
     } else {
       document.querySelector('#optimizeBitrateBtn').MaterialSwitch.on();
     }
+    setBitrateOptimizationAvailability(isBitrateOptimizationEnabled());
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored disableWarnings preferences.');
