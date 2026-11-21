@@ -47,7 +47,7 @@ Die aktuelle Implementierung ist auf Stereo und 5.1-Kanäle begrenzt. E-AC-3 unt
 
 ## Wie sehe ich die aktiven Video- und Audiocodecs?
 
-Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ öffnen Sie mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü und wählen dort die Option zum Anzeigen der Statistiken.
+Wenn eine Tastatur mit dem Fernseher verbunden ist, drücken Sie **Ctrl+Alt+Shift+S**, um die Statistik-Einblendung ein- oder auszublenden. Alternativ können Sie **Play/Pause** auf der TV-Fernbedienung drücken oder die **Select**-Taste des Gamepads eine Sekunde lang gedrückt halten und anschließend loslassen, um das Streaming-Menü zu öffnen. Wählen Sie dort die Option zum Anzeigen der Statistiken.
 
 Die Stream-Zeilen in der Einblendung zeigen mehr als nur die ausgehandelten Codec-Namen:
 
