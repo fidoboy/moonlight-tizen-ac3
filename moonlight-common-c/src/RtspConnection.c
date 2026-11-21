@@ -21,6 +21,7 @@ static bool Ac3AudioAcceptSent;
 static bool Eac3AudioAcceptSent;
 static bool Ac3AudioNegotiated;
 static bool Eac3AudioNegotiated;
+static int NegotiatedAudioQuality = -1;
 
 bool LiIsAc3AudioNegotiated(void) {
     return Ac3AudioNegotiated;
@@ -28,6 +29,22 @@ bool LiIsAc3AudioNegotiated(void) {
 
 bool LiIsEac3AudioNegotiated(void) {
     return Eac3AudioNegotiated;
+}
+
+int LiGetNegotiatedAudioQuality(void) {
+    if (NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1) {
+        return NegotiatedAudioQuality;
+    }
+
+    // Dolby quality is host-controlled. If the host does not report the attribute,
+    // return unknown so the application can reserve the high-quality bitrate.
+    if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
+        return -1;
+    }
+
+    // OPUS quality is selected locally: surround uses AudioQuality in SDP, while
+    // stereo uses Moonlight's RTSP target-address mechanism.
+    return HighQualityAudioEnabled ? 1 : 0;
 }
 
 static PPLT_CRYPTO_CONTEXT encryptionCtx;
@@ -999,6 +1016,7 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     Eac3AudioAcceptSent = false;
     Ac3AudioNegotiated = false;
     Eac3AudioNegotiated = false;
+    NegotiatedAudioQuality = -1;
     controlStreamId = APP_VERSION_AT_LEAST(7, 1, 431) ? "streamid=control/13/0" : "streamid=control/1/0";
     AudioEncryptionEnabled = false;
     encryptedRtspEnabled = serverInfo->rtspSessionUrl && strstr(serverInfo->rtspSessionUrl, "rtspenc://");
@@ -1015,7 +1033,12 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     // 2. The audio decoder has not declared that it is slow
     // 3. The stream is either local or not surround sound (to prevent MTU issues over the Internet)
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
-    if (StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD &&
+    HighQualityAudioEnabled = AudioTransportEnabled &&
+        StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD &&
+        (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0 &&
+        (StreamConfig.streamingRemotely != STREAM_CFG_REMOTE ||
+         CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2);
+    if (HighQualityAudioEnabled &&
             (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0 &&
             (StreamConfig.streamingRemotely != STREAM_CFG_REMOTE || CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2)) {
         // If we have an RTSP URL string and it was successfully parsed and copied, use that string
@@ -1440,6 +1463,12 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
 
         // The codec is active only when the server explicitly confirms the exact selection.
         // A missing or mismatched header leaves the existing Opus path unchanged.
+        char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
+        if (selectedAudioQuality != NULL) {
+            if (strcmp(selectedAudioQuality, "0") == 0) NegotiatedAudioQuality = 0;
+            else if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
+        }
+
         char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
         Ac3AudioNegotiated = AudioTransportEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "AC3") == 0;
