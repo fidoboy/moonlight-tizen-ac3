@@ -49,10 +49,6 @@ A implementação atual é limitada a estéreo e 5.1 canais. Teoricamente, o E-A
 
 Se houver um teclado conectado à TV, pressione **Ctrl+Alt+Shift+S** para mostrar ou ocultar o overlay de estatísticas. Como alternativa, pressione **Play/Pause** ou **Voltar** no controle remoto da TV para abrir o menu da transmissão e selecione a opção para exibir as estatísticas. A linha de áudio informa o codec negociado, o layout, o número de canais e o bitrate aproximado.
 
-## Qual é a diferença entre Moonlight.wgt e Moonlight-ForceGM.wgt?
-
-`Moonlight.wgt` é o pacote padrão. `Moonlight-ForceGM.wgt` inclui metadados adicionais de Game Mode para situações em que essa variante é útil. Ela não consegue habilitar Game Mode se a plataforma não oferecer suporte.
-
 ## Onde encontrar informações sobre a TV e o aplicativo?
 
 No aplicativo, abra Settings e depois About/System Information. Ao investigar um problema, anote o modelo da TV, a versão do Tizen, as versões do cliente e do host e as configurações selecionadas de vídeo e áudio.
