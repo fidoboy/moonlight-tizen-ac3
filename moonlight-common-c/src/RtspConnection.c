@@ -1478,9 +1478,15 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
         // Try both SDP attributes and RTSP response headers. The current Dolby
         // host does not return this quality value, so -1 is intentionally retained
         // and the client reserves the high-quality audio budget.
+        char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
+        bool selectedDolbyCodec = selectedAudioCodec != NULL &&
+            (strcmp(selectedAudioCodec, "AC3") == 0 || strcmp(selectedAudioCodec, "EAC3") == 0);
+
         // AudioQuality is a surround-audio attribute. For stereo OPUS the host's
         // fixed value of 0 does not confirm the target-address-selected quality.
-        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2) {
+        // A selected Dolby codec may still report its quality in a stereo layout.
+        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2 ||
+                selectedDolbyCodec) {
             int responseAudioQuality;
             if (response.payload != NULL &&
                     parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
@@ -1493,8 +1499,6 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
                 else if (strcmp(selectedAudioQuality, "1") == 0) NegotiatedAudioQuality = 1;
             }
         }
-
-        char* selectedAudioCodec = getOptionContent(response.options, "X-SS-Audio-Codec");
         Ac3AudioNegotiated = AudioTransportEnabled && Ac3AudioAcceptSent && selectedAudioCodec != NULL &&
             strcmp(selectedAudioCodec, "AC3") == 0;
         Eac3AudioNegotiated = AudioTransportEnabled && Eac3AudioAcceptSent && selectedAudioCodec != NULL &&
