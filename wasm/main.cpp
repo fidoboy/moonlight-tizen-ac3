@@ -87,8 +87,18 @@ void MoonlightInstance::SetDolbyAudioOptions(const std::string& channelLayout, c
 }
 
 void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
-  // Tell the front end
+  // RTSP negotiation has completed. Refine the saved estimate for the next
+  // session without changing the bitrate already requested for this stream.
+  PostToJs(std::string("NegotiatedAudio: ") + GetNegotiatedAudioInfo());
   PostToJs(std::string("Connection Established"));
+}
+
+std::string MoonlightInstance::GetNegotiatedAudioInfo() const {
+  if (m_AudioBackend == AudioBackend::Disabled) return "OFF|0";
+  const char* codec = LiIsEac3AudioNegotiated() ? "EAC3" :
+    (LiIsAc3AudioNegotiated() ? "AC3" : "OPUS");
+  return std::string(codec) + "|" +
+    std::to_string(CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(m_AudioConfig));
 }
 
 void MoonlightInstance::OnConnectionStopped(uint32_t error) {
