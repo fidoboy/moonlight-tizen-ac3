@@ -635,17 +635,12 @@
                   <span class="mdl-list__item-text-body" data-i18n="Select which of the two gamepad sticks to use to emulate mouse movement on the screen.">
                     Select which of the two gamepad sticks to use to emulate mouse movement on the screen.
                   </span>
-                  <!--
-                    The visible stick labels are intentionally inverted relative to their data-value:
-                    Tizen internally swaps the gamepad sticks, so this mapping makes the selected
-                    physical stick match the label shown to the user. Do not "correct" this mapping.
-                  -->
                   <div id="mouseEmulationStickMenu">
                     <button type="button" id="selectMouseEmulationStick" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="right" data-i18n="Right stick">Right stick</button>
                   </div>
                   <ul class="mouseEmulationStickMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectMouseEmulationStick">
-                    <li class="mdl-menu__item" data-value="right" data-i18n="Left stick">Left stick</li>
-                    <li class="mdl-menu__item" data-value="left" data-i18n="Right stick">Right stick</li>
+                    <li class="mdl-menu__item" data-value="left" data-i18n="Left stick">Left stick</li>
+                    <li class="mdl-menu__item" data-value="right" data-i18n="Right stick">Right stick</li>
                   </ul>
                 </div>
               </div>
