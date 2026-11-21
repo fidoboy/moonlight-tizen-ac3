@@ -572,6 +572,9 @@ bool LiIsAc3AudioNegotiated(void);
 // Returns true only when the current RTSP session explicitly negotiated E-AC-3 with the host.
 bool LiIsEac3AudioNegotiated(void);
 
+// Returns 0 for normal quality, 1 for high quality, or -1 when the host did not report it.
+int LiGetNegotiatedAudioQuality(void);
+
 // Encryption status flags returned by LiGetEncryptionStatus().
 #define LI_ENCRYPTION_VIDEO             0x01
 #define LI_ENCRYPTION_AUDIO             0x02
