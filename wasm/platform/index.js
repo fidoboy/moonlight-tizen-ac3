@@ -7505,11 +7505,23 @@ function setBitrateOptimizationAvailability(enabled) {
 
 function estimateAudioBitrateKbps(audioProfile) {
   if (!audioProfile || audioProfile.codec === 'OFF' || !audioProfile.channels) return 0;
+
   var channels = Number(audioProfile.channels);
-  switch (audioProfile.codec) {
-    case 'AC3': return channels <= 2 ? 192 : 448;
-    case 'EAC3': return channels <= 2 ? 256 : (channels >= 8 ? 768 : 640);
-    default: return channels <= 2 ? 128 : (channels >= 8 ? 320 : 256);
+  // 0 means normal quality. A missing/unknown value is deliberately treated as
+  // high quality so Dolby streams reserve enough bandwidth until the host starts
+  // reporting x-nv-audio.surround.AudioQuality in its RTSP response.
+  var highQuality = Number(audioProfile.quality) !== 0;
+
+  switch (String(audioProfile.codec).toUpperCase()) {
+    case 'AC3':
+      return channels <= 2 ? (highQuality ? 192 : 128) : (highQuality ? 640 : 384);
+    case 'EAC3':
+      return channels <= 2 ? (highQuality ? 192 : 128) : (highQuality ? 384 : 192);
+    case 'OPUS':
+    default:
+      if (channels <= 2) return highQuality ? 512 : 96;
+      if (channels >= 8) return highQuality ? 2048 : 450;
+      return highQuality ? 1536 : 256;
   }
 }
 
@@ -7525,17 +7537,21 @@ function calculateOptimizedBitrate(preferences, audioProfile) {
   var bitrateFactor = hdrMode ? 6630.5 : 8309;
   var targetBitrate = width * height * frameRate / bitrateFactor * codecMultiplier;
   // Reserve estimated audio payload from the total stream budget.
-  var finalBitrate = Math.round((targetBitrate - estimateAudioBitrateKbps(audioProfile)) / 500) * 500;
+  // Round down so the resulting video bitrate plus the reserved audio budget
+  // never exceeds the target stream budget.
+  var finalBitrate = Math.floor((targetBitrate - estimateAudioBitrateKbps(audioProfile)) / 500) * 500;
   if (!isFinite(finalBitrate) || finalBitrate <= 0) finalBitrate = 500;
   return Math.max(500, Math.min(150000, finalBitrate));
 }
 
-function updateOptimizedBitrateAfterNegotiation(codec, channels) {
+function updateOptimizedBitrateAfterNegotiation(codec, channels, quality) {
   if (!isBitrateOptimizationEnabled()) return;
   var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
   if (!preferences) return;
   var optimizedBitrateKbps = calculateOptimizedBitrate(preferences, {
-    codec: String(codec || 'OPUS').toUpperCase(), channels: Number(channels) || 0
+    codec: String(codec || 'OPUS').toUpperCase(),
+    channels: Number(channels) || 0,
+    quality: quality == null || quality === '' ? -1 : Number(quality)
   });
   var optimizedBitrateMbps = optimizedBitrateKbps / 1000;
   storeData('bitrate', optimizedBitrateMbps, null).then(function() {
