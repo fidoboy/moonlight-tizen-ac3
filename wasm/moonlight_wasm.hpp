@@ -136,7 +136,7 @@ class MoonlightInstance {
 
   void ReportMouseMovement();
 
-  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseRightStick, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons);
+  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseLeftStick, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons);
   void PollGamepads();
 
   void MouseLockLost();
