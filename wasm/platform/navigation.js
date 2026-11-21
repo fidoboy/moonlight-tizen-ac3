@@ -427,11 +427,9 @@ function clickElement(target) {
 function mark(target) {
   unmark();
   const element = resolveElement(target);
-  if (element) {
+  if (element && !isDisabledNavigationTarget(element)) {
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
-  } else {
-    console.error('%c[navigation.js, mark]', 'color: gray;', 'Cannot mark the unresolved target:', target);
   }
 }
 
@@ -475,9 +473,8 @@ function scrollSettingsPaneTo(settingsPane, top) {
 
 function focusElement(target) {
   const element = resolveElement(target);
-  // Do not discard the current focus if the requested target cannot be resolved.
-  if (!element) {
-    console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
+  // Never transfer focus to a hidden or disabled navigation target.
+  if (!element || isDisabledNavigationTarget(element)) {
     return;
   }
 
@@ -643,17 +640,36 @@ function changeIpNumericFieldValue(adjust) {
   }
 }
 
+// A navigation target is eligible only while it is rendered and enabled.
+// Check the full ancestor chain because controls can inherit hidden or disabled
+// presentation from their containing row or switch.
 function isDisabledNavigationTarget(target) {
   const element = resolveElement(target);
   if (!element || !element.getClientRects().length) return true;
-  return !!(
-    element.disabled ||
-    element.getAttribute('aria-disabled') === 'true' ||
-    element.classList.contains('is-disabled') ||
-    element.classList.contains('ui-disabled') ||
-    element.classList.contains('mdl-button--disabled') ||
-    element.classList.contains('mdl-menu__item--disabled')
-  );
+
+  const disabledSelector = [
+    ':disabled',
+    '[aria-disabled="true"]',
+    '.is-disabled',
+    '.ui-disabled',
+    '.mdl-button--disabled',
+    '.mdl-menu__item--disabled'
+  ].join(',');
+
+  for (let current = element; current && current.nodeType === 1; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      style.visibility === 'collapse' ||
+      style.contentVisibility === 'hidden' ||
+      current.matches(disabledSelector)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 class ListView {
@@ -663,7 +679,26 @@ class ListView {
   }
 
   current() {
-    const array = this.func();
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      return undefined;
+    }
+
+    // Dynamic settings can hide or disable controls while a view is active.
+    // Reconcile the saved index before exposing the current navigation target.
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    if (isDisabledNavigationTarget(array[this.index])) {
+      for (let step = 1; step <= array.length; step++) {
+        const candidateIndex = (this.index + step) % array.length;
+        if (!isDisabledNavigationTarget(array[candidateIndex])) {
+          this.index = candidateIndex;
+          return array[this.index];
+        }
+      }
+      return undefined;
+    }
+
     return array[this.index];
   }
 
@@ -714,9 +749,15 @@ class ListView {
   }
 
   prevOption() {
-    const array = this.func();
-    if (!array.length) return undefined;
-    unmark(array[this.index]);
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      unmark();
+      return undefined;
+    }
+
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    unmark();
     for (let step = 1; step <= array.length; step++) {
       const candidateIndex = (this.index - step + array.length) % array.length;
       if (isDisabledNavigationTarget(array[candidateIndex])) continue;
@@ -724,13 +765,22 @@ class ListView {
       mark(array[this.index]);
       return array[this.index];
     }
-    return array[this.index];
+
+    this.index = 0;
+    unmark();
+    return undefined;
   }
 
   nextOption() {
-    const array = this.func();
-    if (!array.length) return undefined;
-    unmark(array[this.index]);
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      unmark();
+      return undefined;
+    }
+
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    unmark();
     for (let step = 1; step <= array.length; step++) {
       const candidateIndex = (this.index + step) % array.length;
       if (isDisabledNavigationTarget(array[candidateIndex])) continue;
@@ -738,7 +788,10 @@ class ListView {
       mark(array[this.index]);
       return array[this.index];
     }
-    return array[this.index];
+
+    this.index = 0;
+    unmark();
+    return undefined;
   }
 
   prevCard(cardsPerRow) {
