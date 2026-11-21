@@ -1050,13 +1050,11 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
     // that the only way to get it to give you "low quality" stereo audio nowadays is if it
     // thinks you are remote (target address != any local address).
     //
-    // We will enable high quality audio if the following are all true:
-    // 1. Video bitrate is higher than 15 Mbps (to ensure most bandwidth is reserved for video)
-    // 2. The audio decoder has not declared that it is slow
-    // 3. The stream is either local or not surround sound (to prevent MTU issues over the Internet)
+    // High-quality audio is requested only for local streams with sufficient
+    // video bitrate and a decoder that is not marked as slow. WAN streams
+    // always request normal quality to avoid excessive audio bandwidth.
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
-    HighQualityAudioEnabled = shouldRequestHighQualityAudio(
-        CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration));
+    HighQualityAudioEnabled = shouldRequestHighQualityAudio();
     if (HighQualityAudioEnabled) {
         // If we have an RTSP URL string and it was successfully parsed and copied, use that string
         if (serverInfo->rtspSessionUrl == NULL ||
