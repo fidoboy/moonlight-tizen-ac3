@@ -47,7 +47,7 @@ La implementación actual está limitada a estéreo y 5.1 canales. E-AC-3 admite
 
 ## ¿Cómo puedo ver los códecs de vídeo y audio activos?
 
-Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puede pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas.
+Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar u ocultar la superposición de estadísticas. También puede pulsar **Play/Pause** en el mando del televisor o mantener pulsado durante un segundo el botón **Select** del gamepad y soltarlo para abrir el menú de la retransmisión. A continuación, seleccione la opción para mostrar las estadísticas.
 
 Las líneas de los flujos en la superposición proporcionan más información que los nombres de los códecs negociados:
 
