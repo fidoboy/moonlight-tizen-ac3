@@ -10,11 +10,11 @@ description: "Respostas sobre compatibilidade de hosts, áudio Dolby e configura
 
 ## Como atualizo o aplicativo quando há uma nova versão disponível?
 
-O próprio aplicativo na TV avisará quando houver uma nova versão disponível. Se você usou o método de instalação recomendado, pelo Apps2Samsung, basta abrir o Apps2Samsung novamente e selecionar **Moonlight** com a variante **fidoboy · Enhanced · Dolby** para baixar a versão mais recente. Se preferir instalar manualmente, baixe o novo pacote WGT na [página da versão mais recente](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instale-o na TV.
+O próprio aplicativo na TV avisará quando houver uma nova versão disponível. Caso tenha utilizado o método de instalação recomendado pelo Apps2Samsung, basta abrir o Apps2Samsung novamente e selecionar **Moonlight** com a variante **fidoboy · Enhanced · Dolby** para baixar a versão mais recente. Para uma instalação manual, o novo pacote WGT pode ser baixado na [página da versão mais recente](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instalado na TV.
 
 ## Como posso obter melhor qualidade de imagem ou configurar o Moonlight para uma transmissão mais estável?
 
-O ideal é manter a otimização automática da taxa de bits ativada durante as primeiras conexões. A cada nova conexão, o Moonlight recalcula a taxa de bits recomendada com base nas configurações e nas características negociadas que afetam o uso da largura de banda, buscando um valor equilibrado para a sua configuração. Quando esse valor parar de mudar porque as configurações do host e do Moonlight permanecerem iguais, você poderá usá-lo como ponto de partida para ajustes manuais: desative a otimização automática e aumente a taxa de bits gradualmente para tentar melhorar a qualidade da imagem, utilizando mais largura de banda da rede, ou reduza-a um pouco se as condições da rede forem menos favoráveis, aceitando alguma perda de qualidade de imagem. Até onde será possível ajustar a taxa de bits dependerá da capacidade do hardware em todas as pontas da transmissão e da largura de banda disponível. A partir de certo ponto, aumentar a taxa de bits pode deixar de trazer uma melhora perceptível na qualidade da imagem, mesmo que a rede consiga transportá-la.
+O ideal é manter a otimização automática da taxa de bits ativada durante as primeiras conexões. A cada nova conexão, o Moonlight recalcula a taxa de bits recomendada com base nas configurações e nas características negociadas que afetam o uso da largura de banda, buscando um valor equilibrado para a configuração utilizada. Quando esse valor parar de mudar porque as configurações do host e do Moonlight permanecerem iguais, ele poderá ser usado como ponto de partida para ajustes manuais: desative a otimização automática e aumente a taxa de bits gradualmente para tentar melhorar a qualidade da imagem, utilizando mais largura de banda da rede, ou reduza-a um pouco se as condições da rede forem menos favoráveis, aceitando alguma perda de qualidade de imagem. Até onde será possível ajustar a taxa de bits dependerá da capacidade do hardware em todas as pontas da transmissão e da largura de banda disponível. A partir de certo ponto, aumentar a taxa de bits pode deixar de trazer uma melhora perceptível na qualidade da imagem, mesmo que a rede consiga transportá-la.
 
 ## Este projeto funciona com Sunshine ou outros hosts compatíveis com GameStream?
 
@@ -38,7 +38,7 @@ Não. A opção solicita o codec opcional durante a negociação. Se Dolby não 
 
 ## Dolby Digital Plus sempre funciona via TOSLINK?
 
-Não. O suporte a E-AC-3 depende do modelo específico da TV Samsung, do firmware, do modo de saída de áudio e do equipamento receptor. Algumas saídas ópticas de TV suportam apenas parte dos formatos de bitstream. Use AC-3 se o equipamento não aceitar E-AC-3.
+Não. O suporte a E-AC-3 depende do modelo específico da TV Samsung, do firmware, do modo de saída de áudio e do equipamento receptor. Algumas saídas ópticas de TV suportam apenas parte dos formatos de bitstream. Recomenda-se usar AC-3 caso o equipamento não aceite E-AC-3.
 
 ## O passthrough Dolby pode transportar áudio 7.1?
 
