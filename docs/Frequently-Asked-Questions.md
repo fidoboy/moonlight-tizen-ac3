@@ -60,7 +60,9 @@ The **Frame rates** line separately reports received, decoded and accepted frame
 
 ## Where can I find TV and application information?
 
-In the application, open Settings and then About/System Information. Record the TV model, Tizen version, client version, host version and the selected video/audio settings when diagnosing a problem.
+In the application, open Settings and then About > System information. Record the TV model, Tizen version, client version, host version and the selected video/audio settings when diagnosing a problem.
+
+If you need to report a problem or submit a suggestion, use the [GitHub issue tracker](https://github.com/fidoboy/moonlight-tizen-ac3/issues).
 
 ## Which controllers can I use?
 
