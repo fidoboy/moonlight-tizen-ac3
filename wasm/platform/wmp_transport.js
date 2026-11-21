@@ -582,6 +582,11 @@
       if (audioCodecEvent) {
         var activeCodec = audioCodecEvent[1];
         global._esplusActiveAudioCodec = activeCodec === 'PENDING' ? null : activeCodec;
+        var nativeAudioQuality = message.audioQuality != null
+          ? Number(message.audioQuality)
+          : (audioCodecEvent[2] != null ? Number(audioCodecEvent[2]) : null);
+        global._esplusAudioQuality = nativeAudioQuality === 0 || nativeAudioQuality === 1
+          ? nativeAudioQuality : null;
         if (global._esplusActiveAudioCodec &&
             typeof global.updateOptimizedBitrateAfterNegotiation === 'function') {
           var audioPreferences = global.configSummarySnapshot && global.configSummarySnapshot.preferences;
