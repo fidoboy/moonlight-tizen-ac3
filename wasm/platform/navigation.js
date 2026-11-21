@@ -2316,7 +2316,23 @@ const Views = {
     },
     press: function() {},
     switch: function() {},
-    enter: function() { markSelectedMenuItem(this.view, 'selectMouseEmulationStick'); },
+    enter: function() {
+      // The displayed stick labels are intentionally opposite to their internal values on Tizen.
+      // Match the highlighted option by its translated visible label, not by data-value.
+      const trigger = document.getElementById('selectMouseEmulationStick');
+      const label = trigger && trigger.textContent.trim();
+      const options = Array.from(this.view.func() || []);
+      const selectedIndex = options.findIndex(option =>
+        option && option.textContent && option.textContent.trim() === label
+      );
+
+      if (selectedIndex >= 0) {
+        this.view.index = selectedIndex;
+        mark(this.view.current());
+      } else {
+        markSelectedMenuItem(this.view, 'selectMouseEmulationStick');
+      }
+    },
     leave: function() { unmark(this.view.current()); },
   },
   SelectPerformanceStatsPositionMenu: {
