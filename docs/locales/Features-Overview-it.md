@@ -38,9 +38,9 @@ L'overlay delle prestazioni può essere mostrato con **Ctrl+Alt+Shift+S** se è 
 - **Miglioramenti a input e interfaccia:** include miglioramenti per tastiera, focus e navigazione delle impostazioni.
 
 - **Temi e decorazioni dell'interfaccia:** consente di scegliere tra diversi schemi di colori e decorazioni dell'interfaccia.
-- **Salvaschermo:** viene visualizzato quando non è in ricezione alcuno streaming.
-- **Sfondi animati:** aggiunge opzioni di sfondo animato all'interfaccia.
-- **Miglioramenti nella gestione dell'audio:** migliora l'elaborazione e la conversione dei diversi formati audio supportati.
+- **Salvaschermo:** quando il televisore rimane acceso ma non riceve alcuno streaming, mostra un semplice logo in movimento per risparmiare energia e proteggere lo schermo. Il movimento evita che la stessa forma statica rimanga illuminata troppo a lungo nella medesima posizione.
+- **Sfondi animati:** questi sfondi opzionali offrono un aspetto e un'esperienza simili a quelli delle console per videogiochi. Conferiscono all'interfaccia un'estetica da console, anche se Moonlight può essere utilizzato per altri scopi, come dimostrazioni aziendali o come schermo secondario wireless collegato a un computer. Gli sfondi animati possono essere disattivati.
+- **Miglioramenti nella gestione dell'audio:** questo progetto migliora la gestione dei diversi codec audio e consente sia la riproduzione nativa sia l'elaborazione o conversione tramite software, in base alle capacità di ciascun televisore. Ciò amplia la compatibilità con un maggior numero di modelli e configurazioni audio, anche se i risultati e l'esperienza finale possono variare da un sistema all'altro.
 
 ## Funzionalità principali ereditate dal progetto comunitario Moonlight Tizen
 
