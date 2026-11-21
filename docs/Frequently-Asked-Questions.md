@@ -21,15 +21,16 @@ Yes. This Moonlight client should work correctly with legacy [NVIDIA GameStream]
 
 ## How do I get Dolby Digital 5.1 over optical or HDMI TV outputs?
 
-You need all of the following:
+To use Dolby Digital through your TV's audio outputs, you need:
 
 - This project with **Enable Dolby Digital** enabled.
-- A matching Sunshine build with the `ac3-audio` implementation and an available Dolby encoder, and the audio format (AC-3 or E-AC-3) selected on the audio settings page.
-- A TV that can pass the selected Dolby bitstream over its optical or HDMI output.
-- TV sound settings configured for a compatible passthrough/bitstream mode.
-- A receiver or sound system that supports AC-3 and the channel layout being sent.
+- An external audio device connected to the TV if you want to use one, especially for 5.1 surround sound.
+- A TV that can pass audio through its optical output or HDMI ARC/eARC connection. The results may vary depending on the TV model and the version of Tizen it runs.
+- An external receiver or sound system capable of decoding Dolby Digital (AC-3) or Dolby Digital Plus (E-AC-3), if the TV sends audio to it in either of those formats.
 
-For the initial setup, choose 5.1 and check the **Audio stream** line in the statistics overlay. If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show the statistics. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics.
+The host does not need to provide a native Dolby Digital audio stream. Moonlight can provide Dolby Digital through its own audio handling, so the outcome depends primarily on the TV's capabilities and audio settings. Both optical and HDMI ARC/eARC connections are supported.
+
+For the initial setup, choose 5.1 and check the **Audio stream** line in the statistics overlay. You can leave statistics enabled in Moonlight's **Advanced Settings**, or show them manually during a stream: open the streaming menu with **Play/Pause** on the TV remote or by holding the gamepad's **Select** button, then choose the statistics option. If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics directly.
 
 ## Does enabling Dolby Digital force Dolby on every host?
 
