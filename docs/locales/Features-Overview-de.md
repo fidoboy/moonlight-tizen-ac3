@@ -28,7 +28,7 @@ Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** öffnen, wenn eine Tas
 ## Weitere projektspezifische Verbesserungen
 
 - **Lokalisierte Benutzeroberfläche:** Die Oberfläche ist auf Englisch, Spanisch, Deutsch, Französisch, Italienisch, Russisch und brasilianischem Portugiesisch verfügbar.
-- **Per Fernbedienung erreichbares Streaming-Menü:** Öffne mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü, um Streaming-Steuerungen und Statistiken ohne Tastatur aufzurufen.
+- **Per Fernbedienung erreichbares Streaming-Menü:** Öffne mit **Play/Pause** oder **Zurück** auf der TV-Fernbedienung das Streaming-Menü. Alternativ kannst du **Select** auf einem Gamecontroller eine Sekunde lang gedrückt halten und dann loslassen, um Streaming-Steuerungen und Statistiken ohne Tastatur aufzurufen.
 - **Verbessertes Echtzeit-Statistik-Overlay:** Enthält Live-Diagramme für Host-Latenz und Verbindungsqualität/Durchsatz, die helfen, Latenzspitzen, beeinträchtigten Empfang, unzureichende Bandbreite und andere Kommunikationsprobleme zu erkennen.
 - **Direktstart-Verknüpfungen im Smart Hub:** Starte konfigurierte Anwendungen auf dem Remote-Host direkt über Smart Hub und überspringe dabei die übliche Moonlight-Oberfläche, die Updateprüfung und die Host-Erkennung.
 - **Host-App bei Verbindungsende schließen:** Optionale bestmögliche Anforderung, die laufende Host-Anwendung nach einer normalen Trennung zu schließen. Unerwartete Verbindungsfehler lösen sie nicht aus.
@@ -37,10 +37,10 @@ Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** öffnen, wenn eine Tas
 - **Startverhalten:** Verbessert den Übergang vom nativen Startbildschirm zur Hostliste und vermeidet eine unnötige Vollbild-Ladeanzeige.
 - **Eingabe- und UI-Verbesserungen:** Optimierungen für Tastatur, Fokus und Navigation in den Einstellungen.
 
-- **Oberflächendesigns und Dekorationen (Version 1.2.4):** Auswahl verschiedener Farbschemata und Oberflächendekorationen.
-- **Bildschirmschoner (Version 1.2.4):** zeigt einen Bildschirmschoner an, solange kein Stream empfangen wird.
-- **Animierte Hintergrundbilder (Version 1.2.4):** ergänzt animierte Hintergrundoptionen für die Oberfläche.
-- **Verbesserte Audioverarbeitung (Version 1.2.4):** verbessert die Verarbeitung und Konvertierung der verschiedenen unterstützten Audioformate.
+- **Oberflächendesigns und Dekorationen:** Auswahl verschiedener Farbschemata und Oberflächendekorationen.
+- **Bildschirmschoner:** zeigt einen Bildschirmschoner an, solange kein Stream empfangen wird.
+- **Animierte Hintergrundbilder:** ergänzt animierte Hintergrundoptionen für die Oberfläche.
+- **Verbesserte Audioverarbeitung:** verbessert die Verarbeitung und Konvertierung der verschiedenen unterstützten Audioformate.
 
 ## Geerbte Kernfunktionen des Community-Projekts Moonlight Tizen
 
