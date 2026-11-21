@@ -1806,6 +1806,13 @@ function handleMessage(msg) {
       updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1]);
     }
   } else if (msg === 'Connection Established') {
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+        typeof updateOptimizedBitrateAfterNegotiation === 'function') {
+      var nativeAudioPreferences = configSummarySnapshot && configSummarySnapshot.preferences;
+      if (nativeAudioPreferences && nativeAudioPreferences.audioBackend === 'Disabled') {
+        updateOptimizedBitrateAfterNegotiation('OFF', 0);
+      }
+    }
     confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
