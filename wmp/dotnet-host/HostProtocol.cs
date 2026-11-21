@@ -972,7 +972,8 @@ namespace MoonlightWmpHost
         }
 
         private static string FormatStats(StartRequest request, EngineApi.Stats stats,
-                                          EngineApi.StreamInfo stream, uint opusSoftwareDecodeAverageUs)
+                                          EngineApi.StreamInfo stream, uint opusSoftwareDecodeAverageUs,
+                                          int requestedAudioQuality, int hostReportedAudioQuality)
         {
             var text = new System.Text.StringBuilder(768);
             uint width = stream.VideoWidth != 0 ? stream.VideoWidth : (uint)request.Width;
@@ -1017,7 +1018,12 @@ namespace MoonlightWmpHost
                 string layout = stream.AudioChannels == 2 ? "Stereo" :
                     stream.AudioChannels == 6 ? "5.1" :
                     stream.AudioChannels == 8 ? "7.1" : "-";
-                text.Append("Audio stream: ").Append(audioCodec).Append(' ').Append(audioMode).Append(" (").Append(layout)
+                string audioQualityMarker = requestedAudioQuality == 1
+                    ? (hostReportedAudioQuality == 1 ? "|HQG" :
+                       (hostReportedAudioQuality < 0 ? "|HQ" : String.Empty))
+                    : String.Empty;
+                text.Append("Audio stream: ").Append(audioCodec).Append(audioQualityMarker)
+                    .Append(' ').Append(audioMode).Append(" (").Append(layout)
                     .Append(", ").Append(stream.AudioChannels.ToString(CultureInfo.InvariantCulture))
                     .Append(" channels, ").Append(displayedAudioBitrate != 0
                     ? displayedAudioBitrate.ToString(CultureInfo.InvariantCulture) : "-")
@@ -1497,7 +1503,8 @@ namespace MoonlightWmpHost
                                 uint opusSoftwareDecodeAverageUs = streamInfo.AudioCodec == 4
                                     ? _engine.TakeOpusSoftwareDecodeAverageUs() : 0;
                                 SendStatsUpdateIfEnabled(appId, remotePort,
-                                    FormatStats(request, stats, streamInfo, opusSoftwareDecodeAverageUs));
+                                    FormatStats(request, stats, streamInfo, opusSoftwareDecodeAverageUs,
+                                        _engine.GetRequestedAudioQuality(), _engine.GetHostReportedAudioQuality()));
                                 string graphMessage = "GraphMsg: " +
                                     streamInfo.NetworkRttMs.ToString(CultureInfo.InvariantCulture) + "," +
                                     streamInfo.NetworkVarianceMs.ToString(CultureInfo.InvariantCulture) + "," +
