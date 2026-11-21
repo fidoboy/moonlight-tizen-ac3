@@ -11,16 +11,15 @@ Cette page décrit le projet client Moonlight pour Tizen. La disponibilité dép
 
 ## Fonction principale par rapport aux autres clients : audio Dolby par sortie numérique
 
-La caractéristique principale de ce projet est le passthrough facultatif du Dolby Digital et du Dolby Digital Plus sur les téléviseurs Samsung compatibles reliés à un récepteur ou à un système audio par une sortie optique (TOSLINK) ou HDMI.
+La caractéristique principale de ce projet est la sortie audio facultative Dolby Digital et Dolby Digital Plus sur les téléviseurs Samsung compatibles reliés à un récepteur ou à un système audio par une sortie optique (TOSLINK) ou HDMI. Contrairement aux versions précédentes, l'hôte n'a pas besoin de fournir un flux audio Dolby natif.
 
-- **AC-3 (Dolby Digital) :** l'audio compressé stéréo ou 5.1 peut être envoyé au moteur audio EMSS natif de Tizen lorsque l'hôte négocie correctement AC-3.
-- **E-AC-3 (Dolby Digital Plus) :** pris en charge lorsque l'hôte, le micrologiciel du téléviseur, la configuration de sortie et l'équipement récepteur acceptent le format. La transmission E-AC-3 par sortie optique n'est pas garantie sur tous les téléviseurs.
-- **Stéréo et 5.1 :** l'encodeur expérimental Sunshine correspondant prend en charge la stéréo et le 5.1. AC-3 est limité au 5.1. La sélection 7.1 reste disponible via le chemin audio normal lorsqu'il est pris en charge, mais ne fait pas partie du chemin actuel de l'encodeur Dolby.
-- **Négociation facultative :** activez l'option **Enable Dolby Digital** pour demander le chemin Dolby. L'audio Dolby n'est utilisé que si l'hôte annonce et sélectionne un format compatible.
-- **Compatibilité OPUS :** si l'hôte n'envoie que de l'OPUS, n'annonce pas l'extension Dolby facultative ou ne sélectionne pas de format Dolby, le client conserve son chemin OPUS habituel. Les hôtes OPUS uniquement n'ont pas besoin de modification.
-- **Hôte compatible :** le passthrough Dolby nécessite actuellement la branche expérimentale correspondante [fidoboy/Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio). Le chemin audio normal reste disponible en l'absence de cette fonctionnalité côté hôte.
+- **AC-3 (Dolby Digital) :** l'audio compressé stéréo ou 5.1 peut être envoyé au moteur audio EMSS natif de Tizen lorsque le format est disponible et pris en charge par le téléviseur et les appareils connectés.
+- **E-AC-3 (Dolby Digital Plus) :** pris en charge lorsque le micrologiciel du téléviseur, la configuration de sortie audio et l'équipement récepteur acceptent ce format. La transmission E-AC-3 par sortie optique n'est pas garantie sur tous les téléviseurs.
+- **Prise en charge Dolby côté hôte (recommandée) :** si l'hôte peut fournir nativement de l'AC-3 ou de l'E-AC-3, Moonlight peut utiliser directement ce flux. Cette configuration est vivement recommandée, car elle évite la conversion audio en temps réel sur le client TV et réduit ainsi la latence supplémentaire de traitement audio, ce qui améliore la réactivité des commandes et du son.
+- **Conversion OPUS vers Dolby :** si l'hôte ne fournit pas d'audio Dolby, il peut continuer à envoyer de l'OPUS. Moonlight pour Tizen tentera de convertir en temps réel l'audio OPUS reçu en Dolby Digital, selon le modèle du téléviseur, les capacités audio de Tizen, les paramètres sélectionnés et les appareils audio connectés. Cela élargit la compatibilité avec les hôtes GameStream et les différentes configurations de téléviseurs et d'équipements audio, même si la conversion logicielle peut ajouter de la latence.
+- **Stéréo et son surround :** la disposition des canaux et le format Dolby disponibles dépendent du flux reçu, du chemin de conversion et des capacités du téléviseur et du récepteur. La sortie AC-3 est limitée à 5.1 canaux.
 
-Le chemin audio optique a été testé de bout en bout avec une version expérimentale de Sunshine, un téléviseur Samsung et un système audio compatible relié en optique. Les résultats peuvent varier selon le modèle, le micrologiciel et le récepteur. Consultez [Problèmes connus et limitations](Known-Issues-and-Limitations-fr.html#dolby-optical-audio).
+Le chemin audio Dolby a été testé avec des téléviseurs Samsung compatibles et des équipements audio externes. Les résultats peuvent varier selon le modèle du téléviseur, la version du micrologiciel et le récepteur. Consultez [Problèmes connus et limitations](Known-Issues-and-Limitations-fr.html#dolby-optical-audio).
 
 ## Statistiques du flux audio
 
@@ -39,6 +38,11 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 - **Améliorations de saisie et d'interface :** améliore la gestion du clavier, le focus et la navigation des paramètres.
 
 
+- **Thèmes et décorations de l'interface (version 1.2.4) :** permet de choisir différents jeux de couleurs et décorations pour l'interface.
+- **Écran de veille (version 1.2.4) :** s'affiche lorsqu'aucun flux n'est reçu.
+- **Fonds d'écran animés (version 1.2.4) :** ajoute des arrière-plans animés à l'interface.
+- **Améliorations du traitement audio (version 1.2.4) :** améliore le traitement et la conversion des différents formats audio pris en charge.
+
 ## Fonctionnalités de base héritées du projet communautaire Moonlight Tizen
 
 - Diffusion de jeux, d'applications et du bureau complet depuis des installations compatibles NVIDIA GameStream ou Sunshine.
@@ -54,4 +58,4 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 
 ## Remarque sur la compatibilité
 
-Dolby est une extension facultative et ne remplace pas le protocole de streaming OPUS général. L'hôte Sunshine correspondant doit également être compilé avec l'encodeur Dolby disponible et configuré pour sélectionner AC-3 ou E-AC-3. Pour l'installation, commencez par le [Guide de démarrage rapide](Quick-Start-Guide-fr.html).
+Moonlight pour Tizen est compatible avec les logiciels hôtes qui utilisent le protocole GameStream ; l'hôte n'a pas besoin de fournir de l'audio Dolby Digital. Toutefois, si vous souhaitez utiliser Dolby Digital, il est préférable que l'hôte puisse fournir nativement de l'AC-3 ou de l'E-AC-3. Une sortie Dolby native évite la conversion OPUS vers Dolby en temps réel sur le client TV, réduit la latence supplémentaire de traitement audio et offre généralement une expérience plus réactive. Si l'hôte ne fournit que de l'OPUS, Moonlight tentera une conversion en temps réel lorsque le téléviseur et les appareils audio connectés le permettent. Pour l'installation, commencez par le [Guide de démarrage rapide](Quick-Start-Guide-fr.html).
