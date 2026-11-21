@@ -22,6 +22,7 @@ int NegotiatedVideoFormat;
 atomic_bool ConnectionInterrupted;
 bool HighQualitySurroundSupported;
 bool HighQualitySurroundEnabled;
+bool DolbyAudioOffered;
 bool HighQualityAudioEnabled;
 OPUS_MULTISTREAM_CONFIGURATION NormalQualityOpusConfig;
 OPUS_MULTISTREAM_CONFIGURATION HighQualityOpusConfig;
