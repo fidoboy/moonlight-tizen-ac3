@@ -32,19 +32,23 @@ bool LiIsEac3AudioNegotiated(void) {
 }
 
 int LiGetNegotiatedAudioQuality(void) {
-    if (NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1) {
-        return NegotiatedAudioQuality;
-    }
-
-    // Dolby quality is host-controlled. If the host does not report the attribute,
-    // return unknown so the application can reserve the high-quality bitrate.
     if (Ac3AudioNegotiated || Eac3AudioNegotiated) {
-        return -1;
+        // Dolby quality is host-controlled. If the host does not report the
+        // AudioQuality SDP attribute, return unknown for a conservative high-quality fallback.
+        return NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1
+            ? NegotiatedAudioQuality : -1;
     }
 
-    // OPUS quality is selected locally: surround uses AudioQuality in SDP, while
-    // stereo uses Moonlight's RTSP target-address mechanism.
-    return HighQualityAudioEnabled ? 1 : 0;
+    // Stereo OPUS quality is selected by Moonlight's RTSP target-address
+    // mechanism, not by the surround AudioQuality attribute (which is 0 for stereo).
+    if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) <= 2) {
+        return HighQualityAudioEnabled ? 1 : 0;
+    }
+
+    // For surround OPUS, use the host-reported attribute when available; otherwise
+    // use the exact mode Moonlight selected in the outgoing SDP.
+    return NegotiatedAudioQuality == 0 || NegotiatedAudioQuality == 1
+        ? NegotiatedAudioQuality : (HighQualityAudioEnabled ? 1 : 0);
 }
 
 static PPLT_CRYPTO_CONTEXT encryptionCtx;
@@ -1157,6 +1161,15 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             Limelog("RTSP DESCRIBE no content in response\n");
             ret = -1;
             goto Exit;
+        }
+
+        // Read the host's AudioQuality SDP attribute when it is available. Current
+        // Dolby hosts do not advertise it, so the application will conservatively
+        // reserve the high-quality audio budget in that case.
+        int hostAudioQuality;
+        if (parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &hostAudioQuality) &&
+                (hostAudioQuality == 0 || hostAudioQuality == 1)) {
+            NegotiatedAudioQuality = hostAudioQuality;
         }
 
         // AC-3 and E-AC-3 are optional Sunshine extensions. Accept them only when the
