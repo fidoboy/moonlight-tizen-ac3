@@ -22,15 +22,16 @@ Sí. Este cliente de Moonlight debería funcionar correctamente tanto con el ant
 
 ## ¿Cómo consigo Dolby Digital 5.1 por las salidas óptica o HDMI del televisor?
 
-Necesita todo lo siguiente:
+Para utilizar Dolby Digital a través de las salidas de audio del televisor, necesita lo siguiente:
 
 - Este proyecto con **Enable Dolby Digital** activado.
-- Una compilación compatible de Sunshine con la implementación `ac3-audio` y un codificador Dolby disponible, con el formato de audio (AC-3 o E-AC-3) seleccionado en la página de ajustes de audio.
-- Un televisor capaz de transmitir el flujo Dolby seleccionado por su salida óptica o HDMI.
-- Los ajustes de sonido del televisor configurados en un modo de passthrough/flujo de bits compatible.
-- Un receptor o sistema de sonido que admita AC-3 y la distribución de canales enviada.
+- Un dispositivo de audio externo conectado al televisor si desea utilizarlo, especialmente para disfrutar de sonido envolvente 5.1.
+- Un televisor capaz de transmitir el audio a través de su salida óptica o de una conexión HDMI ARC/eARC. El resultado puede variar según el modelo del televisor y la versión de Tizen que utilice.
+- Un receptor o sistema de sonido externo capaz de decodificar Dolby Digital (AC-3) o Dolby Digital Plus (E-AC-3), si el televisor envía el audio en alguno de esos formatos.
 
-Para la configuración inicial, seleccione 5.1 y compruebe la línea **Audio stream** de la superposición de estadísticas. Si hay un teclado conectado al televisor, pulse **Ctrl+Alt+Shift+S** para mostrar las estadísticas. También puede pulsar **Play/Pause** o **Volver** en el mando del televisor para abrir el menú de la retransmisión y elegir la opción para mostrar las estadísticas.
+No es necesario que el host proporcione un flujo de audio Dolby Digital de forma nativa. Moonlight puede proporcionar Dolby Digital mediante su propio procesamiento de audio, por lo que el resultado dependerá principalmente de las capacidades y los ajustes de audio del televisor. Se admiten tanto las conexiones ópticas como HDMI ARC/eARC.
+
+Para la configuración inicial, seleccione 5.1 y compruebe la línea **Audio stream** de la superposición de estadísticas. Puede dejar las estadísticas activadas desde el apartado **Ajustes avanzados** de Moonlight o mostrarlas manualmente durante la retransmisión: abra el menú de la retransmisión con **Play/Pause** en el mando del televisor o manteniendo pulsado el botón **Select** del gamepad y, a continuación, seleccione la opción de estadísticas. Si hay un teclado conectado al televisor, puede mostrar u ocultar las estadísticas directamente con **Ctrl+Alt+Shift+S**.
 
 ## ¿Activar Dolby Digital fuerza Dolby en todos los hosts?
 
