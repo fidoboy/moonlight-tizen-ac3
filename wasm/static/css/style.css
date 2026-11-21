@@ -2931,6 +2931,31 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 
 
+/* Animate the negotiated HDR marker as one oblique rainbow sweep. */
+#performance-stats .performance-stats-hdr-rainbow {
+    display: inline-block;
+    color: #fff;
+    font-weight: 700;
+    background-image: linear-gradient(120deg,
+        #ff3030 0%, #ff9f25 16%, #f3e63b 32%, #39d36b 48%,
+        #24c8e8 64%, #4777ff 80%, #bd4cff 92%, #ff3030 100%);
+    background-size: 260% 260%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: performance-stats-hdr-rainbow 2.8s linear infinite;
+}
+@keyframes performance-stats-hdr-rainbow {
+    from { background-position: 100% 100%; }
+    to { background-position: 0% 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #performance-stats .performance-stats-hdr-rainbow {
+        animation: none;
+        background-position: 50% 50%;
+    }
+}
+
 /* Distinguish the active audio decoder mode in the performance statistics overlay. */
 #performance-stats .performance-stats-audio-mode-icon {
     display: inline-block;
