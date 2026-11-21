@@ -695,6 +695,17 @@ static bool sendVideoAnnounce(PRTSP_MESSAGE response, int* error) {
         }
         request.flags |= FLAG_ALLOCATED_PAYLOAD;
 
+        // Read back the exact AudioQuality value emitted in the OPUS surround SDP.
+        // Stereo uses a separate RTSP target-address mechanism and keeps its local
+        // quality decision instead of the surround attribute's fixed value of 0.
+        if (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2) {
+            int requestedAudioQuality;
+            if (parseSdpAttributeToInt(request.payload, "x-nv-audio.surround.AudioQuality", &requestedAudioQuality) &&
+                    (requestedAudioQuality == 0 || requestedAudioQuality == 1)) {
+                HighQualityAudioEnabled = requestedAudioQuality == 1;
+            }
+        }
+
         // Accept the exact optional Dolby format offered by Sunshine. Prefer E-AC-3
         // when present; legacy hosts do not advertise either extension and continue with Opus.
         if (AudioTransportEnabled && (Eac3AudioOffered || Ac3AudioOffered) &&
@@ -1159,15 +1170,6 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             Limelog("RTSP DESCRIBE no content in response\n");
             ret = -1;
             goto Exit;
-        }
-
-        // Read the host's AudioQuality SDP attribute when it is available. Current
-        // Dolby hosts do not advertise it, so the application will conservatively
-        // reserve the high-quality audio budget in that case.
-        int hostAudioQuality;
-        if (parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &hostAudioQuality) &&
-                (hostAudioQuality == 0 || hostAudioQuality == 1)) {
-            NegotiatedAudioQuality = hostAudioQuality;
         }
 
         // AC-3 and E-AC-3 are optional Sunshine extensions. Accept them only when the
