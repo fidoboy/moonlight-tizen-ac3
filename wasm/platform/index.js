@@ -7545,7 +7545,6 @@ function calculateOptimizedBitrate(preferences, audioProfile) {
 }
 
 function updateOptimizedBitrateAfterNegotiation(codec, channels, quality) {
-  if (!isBitrateOptimizationEnabled()) return;
   var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
   if (!preferences) return;
   var optimizedBitrateKbps = calculateOptimizedBitrate(preferences, {
