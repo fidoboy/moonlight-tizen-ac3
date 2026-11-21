@@ -79,7 +79,6 @@
   "An error occurred while processing video from %1$s.": "Se ha producido un error al procesar el vídeo de %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "Se ha producido un problema al iniciar la retransmisión en el PC anfitrión. Compruebe que no haya contenido protegido por DRM abierto.",
   "App Already Running": "Aplicación en ejecución",
-  "App Version: %1$s v%2$s": "Versión de la aplicación: %1$s v%2$s",
   "Approximate average download speed: %1$s Mbps": "Velocidad media aproximada de descarga: %1$s Mbps",
   "Apps": "Aplicaciones",
   "Apps in %1$s": "Aplicaciones en %1$s",
