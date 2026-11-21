@@ -1476,6 +1476,15 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
 
         // The codec is active only when the server explicitly confirms the exact selection.
         // A missing or mismatched header leaves the existing Opus path unchanged.
+        // Try both SDP attributes and RTSP response headers. The current Dolby
+        // host does not return this quality value, so -1 is intentionally retained
+        // and the client reserves the high-quality audio budget.
+        int responseAudioQuality;
+        if (response.payload != NULL &&
+                parseSdpAttributeToInt(response.payload, "x-nv-audio.surround.AudioQuality", &responseAudioQuality) &&
+                (responseAudioQuality == 0 || responseAudioQuality == 1)) {
+            NegotiatedAudioQuality = responseAudioQuality;
+        }
         char* selectedAudioQuality = getOptionContent(response.options, "x-nv-audio.surround.AudioQuality");
         if (selectedAudioQuality != NULL) {
             if (strcmp(selectedAudioQuality, "0") == 0) NegotiatedAudioQuality = 0;
