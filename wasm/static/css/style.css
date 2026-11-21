@@ -2949,9 +2949,12 @@ body[data-color-theme="black-orange"] #background-layer {
 #performance-stats .performance-stats-audio-hq {
     display: inline-block;
     margin-left: 2px;
-    color: #35c879;
+    color: inherit;
     font-size: 0.68em;
     font-weight: 700;
     line-height: 1;
     vertical-align: super;
+}
+#performance-stats .performance-stats-audio-hq--confirmed {
+    color: #35c879;
 }
