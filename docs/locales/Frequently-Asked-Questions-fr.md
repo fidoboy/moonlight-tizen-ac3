@@ -47,7 +47,7 @@ L’implémentation actuelle est limitée à la stéréo et au 5.1. E-AC-3 prend
 
 ## Comment voir les codecs vidéo et audio actifs ?
 
-Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher ou masquer l’overlay de statistiques. Vous pouvez également appuyer sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming, puis choisir l’option d’affichage des statistiques.
+Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher ou masquer l’overlay de statistiques. Vous pouvez également appuyer sur **Play/Pause** sur la télécommande du téléviseur, ou maintenir le bouton **Select** de la manette enfoncé pendant une seconde puis le relâcher, pour ouvrir le menu de streaming. Choisissez ensuite l’option d’affichage des statistiques.
 
 Les lignes relatives aux flux dans l’overlay fournissent davantage d’informations que les seuls noms des codecs négociés :
 
