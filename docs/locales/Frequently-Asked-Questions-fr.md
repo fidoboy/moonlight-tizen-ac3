@@ -61,7 +61,9 @@ La ligne **Frame rates** indique séparément le nombre d’images reçues, déc
 
 ## Où trouver les informations sur le téléviseur et l'application ?
 
-Dans l'application, ouvrez Settings, puis About/System Information. Pour diagnostiquer un problème, notez le modèle du téléviseur, la version de Tizen, celles du client et de l'hôte, ainsi que les réglages vidéo/audio.
+Dans l'application, ouvrez Paramètres, puis À propos > Informations système. Pour diagnostiquer un problème, notez le modèle du téléviseur, la version de Tizen, celles du client et de l'hôte, ainsi que les réglages vidéo/audio.
+
+Pour signaler un problème ou envoyer une suggestion, utilisez le [suivi des problèmes GitHub](https://github.com/fidoboy/moonlight-tizen-ac3/issues).
 
 ## Quelles manettes puis-je utiliser ?
 
