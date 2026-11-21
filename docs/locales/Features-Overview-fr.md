@@ -38,9 +38,9 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 - **Améliorations de saisie et d'interface :** améliore la gestion du clavier, le focus et la navigation des paramètres.
 
 - **Thèmes et décorations de l'interface :** permet de choisir différents jeux de couleurs et décorations pour l'interface.
-- **Écran de veille :** s'affiche lorsqu'aucun flux n'est reçu.
-- **Fonds d'écran animés :** ajoute des arrière-plans animés à l'interface.
-- **Améliorations du traitement audio :** améliore le traitement et la conversion des différents formats audio pris en charge.
+- **Écran de veille :** lorsque le téléviseur reste allumé sans recevoir de flux, un simple logo animé s'affiche afin d'économiser de l'énergie et de protéger l'écran. Le mouvement évite qu'une même forme statique reste illuminée trop longtemps au même endroit.
+- **Fonds d'écran animés :** ces arrière-plans facultatifs offrent une apparence et une expérience similaires à celles des consoles de jeux vidéo. Ils donnent à l'interface un aspect de console, même si Moonlight peut aussi servir à d'autres usages, comme des démonstrations commerciales ou un écran secondaire sans fil connecté à un ordinateur. Les fonds animés peuvent être désactivés.
+- **Améliorations du traitement audio :** ce projet améliore la gestion des différents codecs audio et permet aussi bien la lecture native que le traitement ou la conversion logicielle, selon les capacités de chaque téléviseur. Cela élargit la compatibilité à davantage de modèles et de configurations audio, même si les résultats et l'expérience finale peuvent varier selon chaque installation.
 
 ## Fonctionnalités de base héritées du projet communautaire Moonlight Tizen
 
