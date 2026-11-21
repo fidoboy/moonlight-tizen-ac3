@@ -139,7 +139,7 @@ bool rumbleFeedbackSwitch = false;
 
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
-bool mouseEmulationUseRightStick = true;
+bool mouseEmulationUseLeftStick = true;
 std::atomic<bool> mouseEmulationActive{false};
 
 // Stream termination can happen outside the gamepad polling loop. Reset the
@@ -299,7 +299,7 @@ static int GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
 }
 
 // Function to handle the gamepad input state
-void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseRightStickSetting, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
+void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseLeftStickSetting, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
   controllerTracker.reset();
   selectPressTimes.clear();
   selectMenuTriggered.clear();
@@ -307,7 +307,7 @@ void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseE
   selectClickPulseUntil.clear();
   rumbleFeedbackSwitch = rumbleFeedback;
   mouseEmulationSwitch = mouseEmulation;
-  mouseEmulationUseRightStick = mouseEmulationUseRightStickSetting;
+  mouseEmulationUseLeftStick = mouseEmulationUseLeftStickSetting;
   selectHoldStreamMenuSwitch = selectHoldStreamMenu;
   flipABfaceButtonsSwitch = flipABfaceButtons;
   flipXYfaceButtonsSwitch = flipXYfaceButtons;
@@ -538,10 +538,10 @@ void MoonlightInstance::PollGamepads() {
     if (mouseEmulationActive.load(std::memory_order_acquire)) {
       // Tizen reports the physical left and right stick axis pairs in reverse order.
       // Keep the user-facing selection semantic: "left" must use the physical left stick.
-      const auto pointerStickX = mouseEmulationUseRightStick ? leftStickX : rightStickX;
-      const auto pointerStickY = mouseEmulationUseRightStick ? leftStickY : rightStickY;
-      const auto scrollStickX = mouseEmulationUseRightStick ? rightStickX : leftStickX;
-      const auto scrollStickY = mouseEmulationUseRightStick ? rightStickY : leftStickY;
+      const auto pointerStickX = mouseEmulationUseLeftStick ? rightStickX : leftStickX;
+      const auto pointerStickY = mouseEmulationUseLeftStick ? rightStickY : leftStickY;
+      const auto scrollStickX = mouseEmulationUseLeftStick ? leftStickX : rightStickX;
+      const auto scrollStickY = mouseEmulationUseLeftStick ? leftStickY : rightStickY;
       const float baseMouseSpeed = 10.0f;
       const float pointerStickMagnitude = std::sqrt(pointerStickX * pointerStickX + pointerStickY * pointerStickY) / std::numeric_limits<short>::max();
       const float mouseSpeed = baseMouseSpeed * pointerStickMagnitude;
