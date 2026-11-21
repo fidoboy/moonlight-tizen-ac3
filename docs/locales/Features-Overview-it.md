@@ -28,7 +28,7 @@ L'overlay delle prestazioni può essere mostrato con **Ctrl+Alt+Shift+S** se è 
 ## Altri miglioramenti specifici del progetto
 
 - **Localizzazione dell’interfaccia:** l’interfaccia è disponibile in inglese, spagnolo, tedesco, francese, italiano, russo e portoghese brasiliano.
-- **Menu di streaming accessibile dal telecomando:** apri il menu di streaming con **Play/Pause** o **Indietro** sul telecomando del televisore per accedere ai controlli e alle statistiche senza bisogno di una tastiera.
+- **Menu di streaming accessibile dal telecomando:** apri il menu di streaming con **Play/Pause** o **Indietro** sul telecomando del televisore. In alternativa, tieni premuto **Select** su un controller di gioco per un secondo e rilascialo per accedere ai controlli e alle statistiche senza bisogno di una tastiera.
 - **Overlay delle statistiche in tempo reale migliorato:** include grafici in tempo reale della latenza dell’host e della qualità/velocità della connessione, utili per individuare picchi di latenza, ricezione degradata, banda insufficiente e altri problemi di comunicazione.
 - **Scorciatoie di avvio diretto da Smart Hub:** avvia direttamente da Smart Hub le applicazioni configurate sull’host remoto, saltando la normale interfaccia Moonlight, il controllo degli aggiornamenti e il rilevamento degli host.
 - **Chiudi l'app host alla disconnessione:** richiesta facoltativa, best-effort, per chiudere l'applicazione host in esecuzione dopo una disconnessione normale. I guasti di connessione imprevisti non la attivano.
@@ -37,10 +37,10 @@ L'overlay delle prestazioni può essere mostrato con **Ctrl+Alt+Shift+S** se è 
 - **Avvio:** migliora il passaggio dalla schermata iniziale nativa all'elenco host ed evita una schermata di caricamento a tutto schermo non necessaria.
 - **Miglioramenti a input e interfaccia:** include miglioramenti per tastiera, focus e navigazione delle impostazioni.
 
-- **Temi e decorazioni dell'interfaccia (versione 1.2.4):** consente di scegliere tra diversi schemi di colori e decorazioni dell'interfaccia.
-- **Salvaschermo (versione 1.2.4):** viene visualizzato quando non è in ricezione alcuno streaming.
-- **Sfondi animati (versione 1.2.4):** aggiunge opzioni di sfondo animato all'interfaccia.
-- **Miglioramenti nella gestione dell'audio (versione 1.2.4):** migliora l'elaborazione e la conversione dei diversi formati audio supportati.
+- **Temi e decorazioni dell'interfaccia:** consente di scegliere tra diversi schemi di colori e decorazioni dell'interfaccia.
+- **Salvaschermo:** viene visualizzato quando non è in ricezione alcuno streaming.
+- **Sfondi animati:** aggiunge opzioni di sfondo animato all'interfaccia.
+- **Miglioramenti nella gestione dell'audio:** migliora l'elaborazione e la conversione dei diversi formati audio supportati.
 
 ## Funzionalità principali ereditate dal progetto comunitario Moonlight Tizen
 
