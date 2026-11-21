@@ -115,6 +115,7 @@ class MoonlightInstance {
     std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
     std::string h264Level, bool selectHoldStreamMenu, std::string mouseEmulationStick);
   void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
+  std::string GetNegotiatedAudioInfo() const;
   MessageResult StopStream();
 
   MessageResult CancelRequest();
