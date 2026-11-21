@@ -999,14 +999,13 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       var sourceLine = sourceLines[lineIndex] || '';
       var isAudioStreamLine = sourceLine.indexOf('Audio stream:') === 0;
       var audioCodecMatch = isAudioStreamLine ? valueText.match(/^(\S+)([\s\S]*)$/) : null;
-      var hasHqMarker = !!(audioCodecMatch && /\|HQ$/.test(audioCodecMatch[1]));
+      var hqMarkerMatch = audioCodecMatch && audioCodecMatch[1].match(/\|HQ(G)?$/);
+      var hasHqMarker = !!hqMarkerMatch;
+      var audioHighQualityConfirmed = !!(hqMarkerMatch && hqMarkerMatch[1] === 'G');
       if (hasHqMarker) {
-        valueText = audioCodecMatch[1].replace(/\|HQ$/, '') + audioCodecMatch[2];
+        valueText = audioCodecMatch[1].replace(/\|HQG?$/, '') + audioCodecMatch[2];
       }
-      var audioHighQuality = isAudioStreamLine && (
-        hasHqMarker ||
-        (window._activeStreamingEngine === 'ESPLUSPLAYER' && Number(window._esplusAudioQuality) === 1)
-      );
+      var audioHighQuality = isAudioStreamLine && hasHqMarker;
       var audioModeMatch = isAudioStreamLine
         ? valueText.match(/\[(Hardware|Software)\]/)
         : null;
@@ -1031,7 +1030,8 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
         }
         value.appendChild(document.createTextNode(codecMatch[1]));
         var hq = document.createElement('sup');
-        hq.className = 'performance-stats-audio-hq';
+        hq.className = 'performance-stats-audio-hq' +
+          (audioHighQualityConfirmed ? ' performance-stats-audio-hq--confirmed' : '');
         hq.textContent = 'HQ';
         hq.setAttribute('aria-label', 'High quality audio');
         value.appendChild(hq);
