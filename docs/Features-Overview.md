@@ -27,7 +27,7 @@ The performance overlay can be opened with **Ctrl+Alt+Shift+S** when a keyboard 
 ## Other improvements specific to this project
 
 - **Interface localization:** the interface is available in English, Spanish, German, French, Italian, Russian, and Brazilian Portuguese.
-- **Remote-accessible streaming menu:** open the streaming menu with **Play/Pause** or **Back** on the TV remote to reach streaming controls and statistics without needing a keyboard.
+- **Remote-accessible streaming menu:** open the streaming menu with **Play/Pause** or **Back** on the TV remote, or hold **Select** on a game controller for one second and release it, to reach streaming controls and statistics without needing a keyboard.
 - **Enhanced real-time statistics overlay:** includes live graphs for host latency and connection quality/throughput, helping identify latency spikes, degraded reception, insufficient bandwidth, and other communication problems.
 - **Smart Hub direct-launch shortcuts:** launch configured applications on the remote host directly from Smart Hub, bypassing the usual Moonlight interface, update check, and host-discovery steps.
 - **Quit host app on disconnect:** optional best-effort request to close the running host application after a normal disconnection. Unexpected connection failures do not trigger it.
@@ -36,10 +36,10 @@ The performance overlay can be opened with **Ctrl+Alt+Shift+S** when a keyboard 
 - **Startup behavior:** improves the transition from the native launch screen to the host list and avoids an unnecessary full-screen loading overlay.
 - **Input and UI refinements:** includes keyboard-handling, focus and settings-navigation improvements.
 
-- **Interface themes and decorations (version 1.2.4):** choose from different color schemes and interface decorations.
-- **Screensaver (version 1.2.4):** displays a screensaver while no stream is being received.
-- **Animated wallpapers (version 1.2.4):** adds animated background options to the interface.
-- **Audio handling improvements (version 1.2.4):** improves handling and conversion of the different supported audio formats.
+- **Interface themes and decorations:** choose from different color schemes and interface decorations.
+- **Screensaver:** displays a screensaver while no stream is being received.
+- **Animated wallpapers:** adds animated background options to the interface.
+- **Audio handling improvements:** improves handling and conversion of the different supported audio formats.
 
 ## Core Moonlight Tizen features inherited from the community project
 
