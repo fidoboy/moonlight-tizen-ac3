@@ -23,6 +23,9 @@ static bool Ac3AudioNegotiated;
 static bool Eac3AudioNegotiated;
 static int NegotiatedAudioQuality = -1;
 
+// Forward declaration: sendVideoAnnounce() uses this SDP parser before its definition.
+bool parseSdpAttributeToInt(const char* payload, const char* name, int* val);
+
 bool LiIsAc3AudioNegotiated(void) {
     return Ac3AudioNegotiated;
 }
