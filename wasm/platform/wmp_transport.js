@@ -577,7 +577,7 @@
         return;
       }
       var audioCodecEvent = message.event && String(message.event).match(
-        /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)(?:\\|([01]))?$/
+        /^wmpAudioCodec: (PENDING|OPUS|AC-3|E-AC-3)(?:\|([01]))?$/
       );
       if (audioCodecEvent) {
         var activeCodec = audioCodecEvent[1];
