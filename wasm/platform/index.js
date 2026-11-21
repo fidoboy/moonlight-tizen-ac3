@@ -6020,7 +6020,7 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       // fonts. Load them while the transition is visible, before stream startup
       // continues; ordinary launches retain their existing preparation path.
       if (isDirectLaunch) {
-        waitForStreamMenuFonts().then(function() {
+        preloadStreamMenuFonts().then(function() {
           enterFullscreenStreamLayout();
         });
       } else {
@@ -6799,34 +6799,22 @@ function requestManualStreamStop() {
   });
 }
 
-var streamMenuOpening = false;
-var streamMenuFontsPromise = null;
-
-function waitForStreamMenuFonts() {
-  if (streamMenuFontsPromise) return streamMenuFontsPromise;
+function preloadStreamMenuFonts() {
   if (!document.fonts || typeof document.fonts.load !== 'function') return Promise.resolve();
 
-  // Share one load operation between Smart Hub transition preparation and the
-  // first menu opening. Normal launches still load these fonts only on demand.
-  streamMenuFontsPromise = Promise.all([
+  // Smart Hub launches load these fonts during the visible transition, before
+  // the stream starts. The normal UI loads them through its regular startup path.
+  return Promise.all([
     document.fonts.load('25px "Material Symbols Outlined"', 'sports_esports'),
     document.fonts.load('16px Roboto', 'Stream retransmisión')
   ]).catch(function(error) {
-    console.warn('%c[index.js, waitForStreamMenuFonts]', 'color: gray;', 'Could not preload Stream Menu fonts:', error);
+    console.warn('%c[index.js, preloadStreamMenuFonts]', 'color: gray;', 'Could not preload Stream Menu fonts:', error);
   });
-  return streamMenuFontsPromise;
 }
 
 function streamMenuDialog() {
-  if (streamMenuOpening || isDialogOpen) return;
-  streamMenuOpening = true;
-
-  waitForStreamMenuFonts().then(function() {
-    streamMenuOpening = false;
-    // The stream may have ended, or its transition may have started, while fonts loaded.
-    if (!window.isGamepadMouseEmulationReady()) return;
-    createStreamMenuDialog();
-  });
+  if (isDialogOpen) return;
+  createStreamMenuDialog();
 }
 
 function createStreamMenuDialog() {
