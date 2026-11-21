@@ -35,16 +35,10 @@ static avoc_set_game_mode_fn s_set_game_mode;
 static int s_lookup_attempted;
 static int s_active = -1; /* -1 = unknown / verification required */
 
-/* Independent handle and symbols: the legacy Game Mode ABI remains untouched. */
-static void *s_cloud_library;
+/* Optional APIs resolved from the same shared library handle. */
 static avoc_set_cloud_game_mode_fn s_set_cloud_game_mode;
 static avoc_get_cloud_game_mode_fn s_get_cloud_game_mode;
-static int s_cloud_lookup_attempted;
-
-/* Independent handle and symbol for the Picture Mode API. */
-static void *s_picture_library;
 static avoc_set_picture_mode_fn s_set_picture_mode;
-static int s_picture_lookup_attempted;
 
 static int resolve_avoc(void)
 {
@@ -114,8 +108,8 @@ int ml_avoc_set_game_mode(int enabled)
 
     pthread_mutex_lock(&s_lock);
 
-    if (!resolve_avoc()) {
-        MLT("AVOC: %s request unavailable",
+    if (!resolve_avoc() || !s_set_game_mode) {
+        MLT("AVOC: Game Mode API unavailable for %s request",
             mode ? "activation" : "restoration");
         pthread_mutex_unlock(&s_lock);
         return -1;
