@@ -262,6 +262,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     int err;
     int adjustedBitrate;
     bool highQualityAudioRequested;
+    bool dolbyAudioSupported;
+    bool qualityAttributeRequired;
 
     // This must have been resolved to either local or remote by now
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
@@ -500,55 +502,57 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (AppVersionQuad[0] >= 7) {
-        highQualityAudioRequested = AudioTransportEnabled &&
-            StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
-            (HighQualitySurroundSupported || DolbyAudioOffered) &&
-            (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0;
+        dolbyAudioSupported = AudioTransportEnabled && DolbyAudioOffered &&
+            (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0;
+        qualityAttributeRequired = audioChannelCount > 2 || dolbyAudioSupported;
+        highQualityAudioRequested = shouldRequestHighQualityAudio(audioChannelCount) &&
+            (audioChannelCount > 2
+                ? (HighQualitySurroundSupported || dolbyAudioSupported)
+                : dolbyAudioSupported);
+
+        // Multichannel always carries an explicit quality selection. For stereo,
+        // send it only when Dolby passthrough is actually supported, leaving the
+        // existing OPUS target-address mechanism untouched.
+        if (qualityAttributeRequired) {
+            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality",
+                highQualityAudioRequested ? "1" : "0");
+        }
+
+        // The OPUS decoder may use its high-quality configuration only when the
+        // host advertised that configuration. Dolby passthrough has its own decoder.
+        HighQualitySurroundEnabled = HighQualitySurroundSupported && highQualityAudioRequested;
+
         if (highQualityAudioRequested) {
-            // Request high quality audio for surround OPUS or Dolby passthrough.
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
-
-            // The OPUS decoder may use its high-quality configuration only when the
-            // host advertised that configuration. Dolby passthrough has its own decoder.
-            HighQualitySurroundEnabled = HighQualitySurroundSupported;
-
             // Use 5 ms frames since we don't have a slow decoder
             AudioPacketDuration = 5;
         }
+        else if (AudioTransportEnabled &&
+                ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
+                 ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
+                  StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD))) {
+            // Use 10 ms packets for slow devices and networks to balance latency and bandwidth usage
+            AudioPacketDuration = 10;
+        }
         else {
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "0");
-            HighQualitySurroundEnabled = false;
-
-            if (AudioTransportEnabled &&
-                    ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
-                     ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
-                       StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD))) {
-                // Use 10 ms packets for slow devices and networks to balance latency and bandwidth usage
-                AudioPacketDuration = 10;
-            }
-            else {
-                // Use 5 ms packets by default for lowest latency
-                AudioPacketDuration = 5;
-            }
+            // Use 5 ms packets by default for lowest latency
+            AudioPacketDuration = 5;
         }
 
-        if (audioChannelCount > 2) {
-            // Surround quality is selected by this SDP attribute. Keep the selected
-            // mode available to the negotiated-audio bitrate estimator as well.
+        if (audioChannelCount > 2 || dolbyAudioSupported) {
+            // Keep the exact quality selection sent in SDP available to the
+            // negotiated-audio bitrate estimator and the native/EMSS overlays.
             HighQualityAudioEnabled = highQualityAudioRequested;
         }
 
         snprintf(payloadStr, sizeof(payloadStr), "%d", AudioPacketDuration);
         err |= addAttributeString(&optionHead, "x-nv-aqos.packetDuration", payloadStr);
-        Limelog("Requesting %d ms Opus audio packets from host\n", AudioPacketDuration);
+        Limelog("Requesting %d ms audio packets from host\n", AudioPacketDuration);
     }
     else {
         // Keep audio defaults deterministic when audio is disabled or the host is legacy.
         AudioPacketDuration = 5;
         HighQualitySurroundEnabled = false;
-        if (audioChannelCount > 2) {
-            HighQualityAudioEnabled = false;
-        }
+        HighQualityAudioEnabled = false;
     }
 
     if (AppVersionQuad[0] >= 7) {
