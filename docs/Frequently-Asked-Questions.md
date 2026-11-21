@@ -48,10 +48,6 @@ The current implementation is limited to Stereo and 5.1 channels. E-AC-3 theoret
 
 If a keyboard is connected to the TV, press **Ctrl+Alt+Shift+S** to show or hide the statistics overlay. Alternatively, press **Play/Pause** or **Back** on the TV remote to open the streaming menu, then select the option to show statistics. The audio line reports the negotiated codec, layout, channel count and approximate bitrate.
 
-## What is the difference between Moonlight.wgt and Moonlight-ForceGM.wgt?
-
-`Moonlight.wgt` is the standard package. `Moonlight-ForceGM.wgt` includes additional Game Mode metadata for cases where that variant is useful. It cannot overcome a platform-level lack of Game Mode support.
-
 ## Where can I find TV and application information?
 
 In the application, open Settings and then About/System Information. Record the TV model, Tizen version, client version, host version and the selected video/audio settings when diagnosing a problem.
