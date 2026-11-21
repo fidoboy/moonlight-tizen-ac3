@@ -37,7 +37,6 @@ L'overlay delle prestazioni può essere mostrato con **Ctrl+Alt+Shift+S** se è 
 - **Avvio:** migliora il passaggio dalla schermata iniziale nativa all'elenco host ed evita una schermata di caricamento a tutto schermo non necessaria.
 - **Miglioramenti a input e interfaccia:** include miglioramenti per tastiera, focus e navigazione delle impostazioni.
 
-
 - **Temi e decorazioni dell'interfaccia (versione 1.2.4):** consente di scegliere tra diversi schemi di colori e decorazioni dell'interfaccia.
 - **Salvaschermo (versione 1.2.4):** viene visualizzato quando non è in ricezione alcuno streaming.
 - **Sfondi animati (versione 1.2.4):** aggiunge opzioni di sfondo animato all'interfaccia.
