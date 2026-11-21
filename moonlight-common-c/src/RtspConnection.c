@@ -1508,6 +1508,14 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
             Limelog("Host did not select the requested Dolby codec; continuing with Opus\n");
         }
 
+        // If the host selected OPUS, retain only the OPUS quality mode it actually
+        // supports. A Dolby-only high-quality request must not select an unavailable
+        // high-quality OPUS decoder configuration.
+        if (!Ac3AudioNegotiated && !Eac3AudioNegotiated &&
+                CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration) > 2) {
+            HighQualityAudioEnabled = HighQualitySurroundEnabled;
+        }
+
         freeMessage(&response);
     }
 
