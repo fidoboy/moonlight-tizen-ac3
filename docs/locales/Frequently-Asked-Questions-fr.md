@@ -35,7 +35,7 @@ Pour la configuration initiale, choisissez 5.1 et vérifiez la ligne **Audio str
 
 ## Activer Dolby Digital force-t-il Dolby sur tous les hôtes ?
 
-Non. L'option demande le codec facultatif pendant la négociation. Si Dolby n'est pas proposé ou sélectionné par l'hôte, Moonlight utilise OPUS. Le codec actif affiché dans l'overlay est le moyen fiable de vérifier ce que reçoit la session.
+Non. L’option demande le Dolby Digital lors de la négociation du flux, mais elle ne contraint pas tous les hôtes à le fournir. Si le Dolby Digital n’est pas proposé ou si l’hôte ne peut pas le sélectionner ou le fournir, Moonlight utilise OPUS ou la voie audio compatible disponible. L’overlay des statistiques fournit les informations les plus détaillées sur le format audio négocié pour la session et peut être activé en option. Vous pouvez également vérifier plus sûrement la sortie réelle sur le récepteur ou le système audio externe, s’il dispose d’un écran ou d’un voyant LED qui s’allume lorsqu’il reçoit un signal Dolby Digital. Cela permet de confirmer que le son effectivement obtenu correspond aux paramètres sélectionnés dans Moonlight. En définitive, le résultat dépend de la combinaison des capacités de l’hôte, du modèle du téléviseur et de son traitement audio, ainsi que des caractéristiques de l’équipement audio externe.
 
 ## Le Dolby Digital Plus fonctionne-t-il toujours sur TOSLINK ?
 
