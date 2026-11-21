@@ -8313,8 +8313,7 @@ function saveMouseEmulation() {
 
 function setMouseEmulationStick(stick, persist) {
   const value = stick === 'left' ? 'left' : 'right';
-  // The visible labels are intentionally opposite to the internal value because Tizen swaps the sticks.
-  const label = value === 'left' ? 'Right stick' : 'Left stick';
+  const label = value === 'left' ? 'Left stick' : 'Right stick';
   $('#selectMouseEmulationStick')
     .text(t(label))
     .attr('data-i18n', label)
