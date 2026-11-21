@@ -38,9 +38,9 @@ Die Leistungsanzeige lässt sich mit **Ctrl+Alt+Shift+S** öffnen, wenn eine Tas
 - **Eingabe- und UI-Verbesserungen:** Optimierungen für Tastatur, Fokus und Navigation in den Einstellungen.
 
 - **Oberflächendesigns und Dekorationen:** Auswahl verschiedener Farbschemata und Oberflächendekorationen.
-- **Bildschirmschoner:** zeigt einen Bildschirmschoner an, solange kein Stream empfangen wird.
-- **Animierte Hintergrundbilder:** ergänzt animierte Hintergrundoptionen für die Oberfläche.
-- **Verbesserte Audioverarbeitung:** verbessert die Verarbeitung und Konvertierung der verschiedenen unterstützten Audioformate.
+- **Bildschirmschoner:** Wenn der Fernseher eingeschaltet bleibt, aber kein Stream empfangen wird, zeigt er ein einfaches bewegtes Logo an, um Energie zu sparen und den Bildschirm zu schützen. Durch die Bewegung bleibt dieselbe statische Form nicht zu lange an derselben Position beleuchtet.
+- **Animierte Hintergrundbilder:** Die optionalen animierten Hintergründe sorgen für eine Optik und ein Nutzungserlebnis ähnlich wie bei Spielekonsolen. Sie verleihen der Oberfläche ein konsolenähnliches Erscheinungsbild, während Moonlight auch für andere Zwecke genutzt werden kann, etwa für Geschäftspräsentationen oder als kabelloses Zweitdisplay eines Computers. Die animierten Hintergründe lassen sich deaktivieren.
+- **Verbesserte Audioverarbeitung:** Dieses Projekt verbessert den Umgang mit verschiedenen Audio-Codecs und ermöglicht je nach Fähigkeiten des jeweiligen Fernsehers sowohl die native Wiedergabe als auch die softwarebasierte Verarbeitung oder Konvertierung. Dadurch wird die Kompatibilität mit mehr TV-Modellen und unterschiedlichen Audiokonfigurationen erweitert. Ergebnisse und Nutzungserlebnis können jedoch je nach System variieren.
 
 ## Geerbte Kernfunktionen des Community-Projekts Moonlight Tizen
 
