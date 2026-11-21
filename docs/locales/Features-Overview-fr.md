@@ -28,7 +28,7 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 ## Autres améliorations propres à ce projet
 
 - **Localisation de l’interface :** l’interface est disponible en anglais, espagnol, allemand, français, italien, russe et portugais brésilien.
-- **Menu de streaming accessible depuis la télécommande :** ouvrez le menu de streaming avec **Play/Pause** ou **Retour** sur la télécommande du téléviseur pour accéder aux commandes et aux statistiques sans clavier.
+- **Menu de streaming accessible depuis la télécommande :** ouvrez le menu de streaming avec **Play/Pause** ou **Retour** sur la télécommande du téléviseur. Vous pouvez également maintenir **Select** enfoncé pendant une seconde sur une manette de jeu, puis le relâcher, pour accéder aux commandes et aux statistiques sans clavier.
 - **Superposition de statistiques en temps réel améliorée :** comprend des graphiques en direct de la latence de l’hôte et de la qualité/débit de la connexion, afin d’aider à repérer les pics de latence, une réception dégradée, une bande passante insuffisante et d’autres problèmes de communication.
 - **Raccourcis de lancement direct depuis Smart Hub :** lancez directement depuis Smart Hub les applications configurées sur l’hôte distant, sans passer par l’interface habituelle de Moonlight, la vérification des mises à jour ni la découverte des hôtes.
 - **Fermer l'application hôte à la déconnexion :** demande facultative, au mieux des possibilités, de fermer l'application hôte après une déconnexion normale. Les échecs de connexion inattendus ne déclenchent pas cette action.
@@ -37,10 +37,10 @@ L'overlay de performances peut être affiché avec **Ctrl+Alt+Shift+S** si un cl
 - **Démarrage :** améliore la transition entre l'écran de lancement natif et la liste des hôtes et évite un overlay de chargement plein écran inutile.
 - **Améliorations de saisie et d'interface :** améliore la gestion du clavier, le focus et la navigation des paramètres.
 
-- **Thèmes et décorations de l'interface (version 1.2.4) :** permet de choisir différents jeux de couleurs et décorations pour l'interface.
-- **Écran de veille (version 1.2.4) :** s'affiche lorsqu'aucun flux n'est reçu.
-- **Fonds d'écran animés (version 1.2.4) :** ajoute des arrière-plans animés à l'interface.
-- **Améliorations du traitement audio (version 1.2.4) :** améliore le traitement et la conversion des différents formats audio pris en charge.
+- **Thèmes et décorations de l'interface :** permet de choisir différents jeux de couleurs et décorations pour l'interface.
+- **Écran de veille :** s'affiche lorsqu'aucun flux n'est reçu.
+- **Fonds d'écran animés :** ajoute des arrière-plans animés à l'interface.
+- **Améliorations du traitement audio :** améliore le traitement et la conversion des différents formats audio pris en charge.
 
 ## Fonctionnalités de base héritées du projet communautaire Moonlight Tizen
 
