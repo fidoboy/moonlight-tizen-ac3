@@ -49,10 +49,6 @@ L’implémentation actuelle est limitée à la stéréo et au 5.1. E-AC-3 prend
 
 Si un clavier est connecté au téléviseur, appuyez sur **Ctrl+Alt+Shift+S** pour afficher ou masquer l’overlay de statistiques. Sinon, appuyez sur **Play/Pause** ou **Retour** sur la télécommande pour ouvrir le menu de streaming, puis choisissez l’option d’affichage des statistiques. La ligne audio indique le codec négocié, la disposition, le nombre de canaux et le débit approximatif.
 
-## Quelle différence entre Moonlight.wgt et Moonlight-ForceGM.wgt ?
-
-`Moonlight.wgt` est le paquet standard. `Moonlight-ForceGM.wgt` inclut des métadonnées Game Mode supplémentaires lorsqu'elles sont utiles. Il ne peut pas ajouter une prise en charge de Game Mode absente de la plateforme.
-
 ## Où trouver les informations sur le téléviseur et l'application ?
 
 Dans l'application, ouvrez Settings, puis About/System Information. Pour diagnostiquer un problème, notez le modèle du téléviseur, la version de Tizen, celles du client et de l'hôte, ainsi que les réglages vidéo/audio.
