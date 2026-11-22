@@ -5430,20 +5430,27 @@ function showApps(host, options) {
         });
       }).catch(function(failedAppList) {
         if (settled || isOperationCancelled()) return;
-        console.error('%c[index.js, showApps]', 'color: red;', 'Error while retrieving or processing the app list for ' + host.hostname + ':', failedAppList);
-        clearViewLoadingSnackbarTimer();
-        var errorAppListImg = new Image();
-        errorAppListImg.src = 'static/res/applist_error.svg';
-        $('#game-grid').html(errorAppListImg);
+        console.error('%c[index.js, showApps]', 'color: red;', 'Error while retrieving or processing the app list for ' + (host.hostname || 'the host') + ':', failedAppList);
 
-        // During stream recovery, do not expose an error Apps screen or unlock the stale grid.
-        if (!appListInteractionLocked) {
-          showAppsMode(!!(options && options.keepInteractionLocked));
-        }
+        // Start cleanup before touching the error UI: even a secondary rendering
+        // exception must not prevent the loading snackbar from being dismissed.
         if (!suppressLoadingSnackbar) {
           snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
         }
         finishError(failedAppList, !suppressLoadingSnackbar);
+
+        try {
+          var errorAppListImg = new Image();
+          errorAppListImg.src = 'static/res/applist_error.svg';
+          $('#game-grid').html(errorAppListImg);
+
+          // During stream recovery, do not expose an error Apps screen or unlock the stale grid.
+          if (!appListInteractionLocked) {
+            showAppsMode(!!(options && options.keepInteractionLocked));
+          }
+        } catch (renderError) {
+          console.error('%c[index.js, showApps]', 'color: red;', 'Could not render the app-list error state:', renderError);
+        }
       });
       } catch (error) {
         console.error('%c[index.js, showApps]', 'color: red;', 'Synchronous error while starting the app-list operation:', error);
