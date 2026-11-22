@@ -1910,7 +1910,6 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   $('#settingsBtn').show();
   $('#refreshHostsBtn').show();
   $('#supportBtn').show();
-  updateGamepadTestButtonVisibility();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#hosts-carousel-viewport').show();
   $('#host-grid').show();
@@ -1919,6 +1918,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
   $('#regenerateAppImagesBtn').hide();
+  updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -2036,6 +2036,11 @@ function cancelAppImageRegeneration() {
   appImageRegenerationSequence++;
   if (!operation) return;
   operation.cancelled = true;
+  if (operation.showAppsToken && typeof operation.showAppsToken.cancel === 'function') {
+    operation.showAppsToken.cancel();
+  } else if (operation.showAppsToken) {
+    operation.showAppsToken.cancelled = true;
+  }
   activeAppImageRegeneration = null;
   if (operation.button) {
     operation.button.disabled = false;
@@ -2048,7 +2053,7 @@ function regenerateAppImageThumbnails() {
   var host = api;
   var button = document.getElementById('regenerateAppImagesBtn');
   var grid = document.getElementById('game-grid');
-  if (!host || !host.paired || !button || button.disabled || !grid ||
+  if (!host || !host.paired || !button || button.disabled || appListInteractionLocked || !grid ||
       window.getComputedStyle(grid).display === 'none') return;
 
   cancelAppImageRegeneration();
@@ -2057,7 +2062,8 @@ function regenerateAppImageThumbnails() {
     host: host,
     button: button,
     cancelled: false,
-    ownsLock: !appListInteractionLocked
+    ownsLock: !appListInteractionLocked,
+    showAppsToken: { cancelled: false }
   };
   activeAppImageRegeneration = operation;
 
@@ -2101,6 +2107,7 @@ function regenerateAppImageThumbnails() {
       suppressLoadingSnackbar: true,
       suppressEmptyListSnackbar: true,
       keepInteractionLocked: true,
+      operationToken: operation.showAppsToken,
       waitForArtworkCompletion: true
     }).then(function() {
       if (!isCurrent()) return;
@@ -4107,8 +4114,9 @@ function showSettingsMode() {
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
-  updateGamepadTestButtonVisibility();
+  $('#regenerateAppImagesBtn').hide();
   $('#main-content').removeClass('fullscreen');
+  updateGamepadTestButtonVisibility();
   $('#listener').removeClass('fullscreen');
 
   showUiLayer('main-ui-layer');
