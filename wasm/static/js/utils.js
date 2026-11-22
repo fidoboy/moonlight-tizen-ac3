@@ -304,7 +304,7 @@ NvHTTP.prototype = {
           this.getAppListWithCacheFlush(true).then(function(appList) {
             if (window.api === this && $('#game-grid').is(':visible') &&
                 typeof window.reconcileVisibleAppGrid === 'function') {
-              window.reconcileVisibleAppGrid(this, appList);
+              return window.reconcileVisibleAppGrid(this, appList);
             }
           }.bind(this)).catch(function(error) {
             console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
