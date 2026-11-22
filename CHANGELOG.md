@@ -17,6 +17,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Changed
 - **Dolby Digital audio fallback:** The host no longer needs to provide a Dolby Digital audio stream. When available, the host-provided stream remains the preferred option. If Dolby Digital is enabled in Moonlight but cannot be negotiated with the host, Moonlight attempts to transcode the received OPUS audio to E-AC-3 in real time.
+- **Expanded System Info diagnostics:** Extended the System Info panel with additional TV and network details, including firmware version, TV model series, model name and model group, Developer Mode status and configured IP address, the TV's local IP address, active network connection type (Wi-Fi or Ethernet), and Internet connectivity status. The existing application and Tizen platform version information is retained.
 - **Moonlight Common C:** Updated the bundled library with various fixes and improvements.
 - **Performance statistics overlay:** Adjusted the overlay presentation to make it more compact, consolidating the frame-rate metrics into a single line and separating the additional metrics with a subtle divider.
 - **Settings section navigation:** Kept the right-hand pane and its controls visible while navigating between settings sections, dimming the pane during the transition instead of hiding it.
