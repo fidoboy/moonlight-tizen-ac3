@@ -5556,9 +5556,13 @@ function cancelActiveCachedAppListConfirmation() {
   // Cancel a presentation that may already have started. The persistent snackbar
   // implementation also cancels requests that have not reached the screen yet.
   if (operation.snackbarRequested) {
-    dismissPersistentSnackbar().catch(function(error) {
-      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
-    });
+    try {
+      Promise.resolve(dismissPersistentSnackbar()).catch(function(error) {
+        console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
+      });
+    } catch (error) {
+      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not start dismissal of a cancelled app-list confirmation snackbar:', error);
+    }
   }
 
   // Release only the visual lock here. The destination view or the next
@@ -5611,9 +5615,14 @@ function showAppsWithCachedList(host) {
     if (!isCurrentOperation()) return Promise.resolve();
     activeCachedAppListConfirmation = null;
 
-    var dismissal = operation.snackbarRequested
-      ? dismissPersistentSnackbar()
-      : Promise.resolve();
+    var dismissal = Promise.resolve();
+    if (operation.snackbarRequested) {
+      try {
+        dismissal = dismissPersistentSnackbar();
+      } catch (error) {
+        console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not start app-list confirmation snackbar dismissal:', error);
+      }
+    }
 
     return Promise.resolve(dismissal).catch(function(error) {
       console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss the app-list confirmation snackbar:', error);
