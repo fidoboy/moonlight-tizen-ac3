@@ -2955,7 +2955,7 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: 1;
     vertical-align: -2px;
 }
-#performance-stats .performance-stats-audio-mode-bracket {
+#performance-stats .performance-stats-audio-mode-group {
     display: inline-block;
     margin-left: 3px;
 }
