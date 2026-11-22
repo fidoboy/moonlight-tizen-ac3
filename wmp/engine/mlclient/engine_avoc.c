@@ -18,10 +18,12 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <tizen_error.h>
 
 #include "mltrace.h"
 
-typedef int (*avoc_set_game_mode_fn)(int reserved, int save_type, int mode);
+typedef int (*avoc_set_game_mode_fn)(int save_type, int on);
 typedef int (*avoc_set_cloud_game_mode_fn)(int mode);
 typedef int (*avoc_get_cloud_game_mode_fn)(int *mode);
 
@@ -100,60 +102,51 @@ static int resolve_avoc(void)
     return 1;
 }
 
-int ml_avoc_set_game_mode(int enabled)
+int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
 {
-    int mode = enabled != 0;
-    int rc;
+    int rc = -1;
+    int attempt;
+
+    if (max_retries < 0)
+        max_retries = 0;
 
     pthread_mutex_lock(&s_lock);
 
     if (!resolve_avoc() || !s_set_game_mode) {
-        MLT("AVOC: Game Mode API unavailable for %s request",
-            mode ? "activation" : "restoration");
+        MLT("AVOC: Game Mode API unavailable for save_type=%d, on=%d request",
+            save_type, on);
         pthread_mutex_unlock(&s_lock);
         return -1;
     }
 
-    if (mode) {
-        /*
-         * Always send the activation request. A getter reporting Game Mode
-         * enabled is not evidence that the setter's side effects have run.
-         */
-        rc = s_set_game_mode(0, 1, 1);
-        MLT("AVOC: avoc_set_game_mode(0, 1, 1) returned rc=%d", rc);
-    } else {
-        int source_rc;
-        int global_rc;
+    for (attempt = 0; attempt <= max_retries; ++attempt) {
+        rc = s_set_game_mode(save_type, on);
+        MLT("AVOC: avoc_set_game_mode(%d, %d) attempt %d/%d returned rc=%d",
+            save_type, on, attempt + 1, max_retries + 1, rc);
 
-        /* Clear both the per-source override and the global Game Mode state.
-         * The source reset alone does not restore TVs whose global save_type
-         * state was enabled by the (0, 0, 0) activation/restoration path. */
-        source_rc = s_set_game_mode(0, 1, 0);
-        MLT("AVOC: avoc_set_game_mode(0, 1, 0) source restoration returned rc=%d",
-            source_rc);
+        if (rc == 0)
+            break;
 
-        global_rc = s_set_game_mode(0, 0, 0);
-        MLT("AVOC: avoc_set_game_mode(0, 0, 0) global restoration returned rc=%d",
-            global_rc);
+        if (rc != -2 || attempt == max_retries)
+            break;
 
-        /* Always attempt both restorations. Report failure if either failed. */
-        rc = (source_rc == 0 && global_rc == 0) ? 0 :
-             (source_rc != 0 ? source_rc : global_rc);
+        MLT("AVOC: transient error -2; retrying in 200 ms");
+        usleep(200 * 1000);
     }
 
-    s_active = rc == 0 ? mode : -1;
-    if (rc == 0) {
-        MLT("AVOC: API accepted Game Mode %s request",
-            mode ? "activation" : "restoration");
+    if (rc != 0) {
+        const char *message = get_error_message(rc);
+        MLT("AVOC: avoc_set_game_mode(%d, %d) failed after %d attempt(s): ret=%d (%s)",
+            save_type, on, attempt + 1, rc,
+            message ? message : "unknown");
     } else {
-        MLT("AVOC: API rejected Game Mode %s request rc=%d",
-            mode ? "activation" : "restoration", rc);
+        MLT("AVOC: Game Mode %s request accepted (save_type=%d)",
+            on ? "activation" : "restoration", save_type);
     }
 
     pthread_mutex_unlock(&s_lock);
     return rc;
 }
-
 
 /*
  * Request Cloud Game Mode and read it back for diagnostics. The public API
