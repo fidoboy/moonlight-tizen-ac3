@@ -2683,10 +2683,15 @@ const Views = {
     },
   },
   AppsNav: {
-    view: new ListView(() => [
-      'goBackBtn',
-      'quitRunningAppBtn'
-    ]),
+    view: new ListView(() => {
+      const items = ['goBackBtn'];
+      const regenerateButton = document.getElementById('regenerateAppImagesBtn');
+      if (regenerateButton && !regenerateButton.hidden) items.push('regenerateAppImagesBtn');
+      const gamepadTestButton = document.getElementById('gamepadTestBtn');
+      if (gamepadTestButton && !gamepadTestButton.hidden) items.push('gamepadTestBtn');
+      items.push('quitRunningAppBtn');
+      return items;
+    }),
     up: function() {},
     down: function() {
       // Navigate to the Apps view
@@ -2710,10 +2715,13 @@ const Views = {
     },
     press: function() {},
     switch: function() {
+      const items = this.view.func();
+      this.view.index = Math.max(0, Math.min(this.view.index, items.length - 1));
       focusElement(this.view.current());
     },
     enter: function() {
-      mark(this.view.current());
+      const items = this.view.func();
+      if (items.length) mark(items[this.view.index]);
     },
     leave: function() {
       unmark(this.view.current());
