@@ -5258,6 +5258,7 @@ function showApps(host, options) {
             if (title && title.textContent !== app.title) {
               title.textContent = app.title;
               title.classList.toggle('disable-animation', app.title.length <= 20);
+              card.setAttribute('aria-label', app.title);
             }
           });
         }
