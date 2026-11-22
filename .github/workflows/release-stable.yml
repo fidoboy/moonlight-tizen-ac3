@@ -489,11 +489,11 @@ jobs:
           body_path: ${{ runner.temp }}/release-notes.md
 
       - name: Delete GitHub Release if the workflow fails
-        if: \${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
+        if: ${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
         shell: bash
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: \${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
           API_ROOT="https://api.github.com/repos/$GITHUB_REPOSITORY"
@@ -547,11 +547,11 @@ jobs:
           fi
 
       - name: Delete release tag if the workflow fails
-        if: \${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
+        if: ${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
         shell: bash
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: \${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
           REF_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG"
