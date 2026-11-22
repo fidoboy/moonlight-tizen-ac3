@@ -656,7 +656,6 @@
   "Could not retrieve the requested application from the host.": "Impossible de récupérer l’application demandée depuis l’hôte.",
   "Moonlight could not restore the selected host.": "Moonlight n’a pas pu restaurer l’hôte sélectionné.",
   "Audio latency:": "Latence audio :",
-  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcule le débit binaire de référence recommandé au début de chaque session de streaming, une fois la négociation avec l’hôte terminée. La valeur calculée est enregistrée et utilisée lors des sessions suivantes. Il est recommandé de laisser cette option activée pendant plusieurs sessions, jusqu’à ce que le débit se stabilise. Vous pouvez ensuite la désactiver et ajuster manuellement la valeur obtenue dans les paramètres de base.",
   "Firmware Version: %1$s": "Version du micrologiciel : %1$s",
   "Developer mode: %1$s": "Mode développeur : %1$s",
   "Network connection: %1$s": "Connexion réseau : %1$s",
@@ -664,5 +663,6 @@
   "Not exposed by TV API": "Non exposé par l’API du téléviseur",
   "Wi-Fi": "Wi-Fi",
   "Ethernet": "Ethernet",
-  "Disconnected": "Déconnecté"
+  "Disconnected": "Déconnecté",
+  "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcule le débit binaire de référence recommandé au début de chaque session de streaming, une fois la négociation avec l’hôte terminée. La valeur calculée est enregistrée et utilisée lors des sessions suivantes. Il est recommandé de laisser cette option activée pendant plusieurs sessions, jusqu’à ce que le débit se stabilise. Vous pouvez ensuite la désactiver et ajuster manuellement la valeur obtenue dans les paramètres de base."
 }
