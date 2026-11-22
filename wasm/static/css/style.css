@@ -2950,6 +2950,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: inline-block;
     margin-left: 2px;
     margin-right: 0;
+    margin-top: -1px;
     font-size: 14px;
     line-height: 1;
     vertical-align: -2px;
