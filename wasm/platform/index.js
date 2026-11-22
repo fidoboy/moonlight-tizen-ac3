@@ -2087,7 +2087,7 @@ function regenerateAppImageThumbnails() {
   var existingIds = {};
   Array.prototype.forEach.call(grid.querySelectorAll('.game-container'), function(card) {
     var match = card.id.match(/^game-container-(.+)$/);
-    if (match) existingIds[String(match[1])] = true;
+    if (match) existingIds[String(match[1])] = card;
   });
 
   button.disabled = true;
@@ -2107,12 +2107,13 @@ function regenerateAppImageThumbnails() {
       suppressLoadingSnackbar: true,
       suppressEmptyListSnackbar: true,
       keepInteractionLocked: true,
+      forceRefreshBoxArt: true,
       operationToken: operation.showAppsToken,
       waitForArtworkCompletion: true
     }).then(function() {
       if (!isCurrent()) return;
       var appsToRegenerate = sortAppsForHost(host, freshAppList).filter(function(app) {
-        return existingIds[String(app.id)] === true;
+        return existingIds[String(app.id)] === document.getElementById('game-container-' + app.id);
       });
 
       var refreshes = appsToRegenerate.map(function(app) {
@@ -5540,7 +5541,7 @@ function showApps(host, options) {
             return Number(a.id) === Number(app.id);
           }) : null;
           var boxArtPromise = new Promise(function(resolveBoxArt, rejectBoxArt) {
-            host.getBoxArt(app.id).then(function(resolvedPromise) {
+            host.getBoxArt(app.id, options && options.forceRefreshBoxArt === true).then(function(resolvedPromise) {
               // A card is ready only after its actual image has loaded.
               boxArtPlaceholderImg.onload = function() {
                 delete boxArtPlaceholderImg.dataset.artworkError;
