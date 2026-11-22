@@ -416,6 +416,8 @@
   "Remove all currently saved hosts from the list": "Remove all currently saved hosts from the list",
   "Remove all hosts": "Remove all hosts",
   "Requesting stream from host...": "Requesting stream from host...",
+  "Regenerate app image thumbnails": "Regenerate app image thumbnails",
+  "Regenerating app image thumbnails...": "Regenerating app image thumbnails...",
   "Rescan Network": "Rescan Network",
   "Resolution": "Resolution",
   "Restart": "Restart",
