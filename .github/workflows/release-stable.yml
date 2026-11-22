@@ -51,7 +51,7 @@ jobs:
           set -euo pipefail
           VERSION="$REQUESTED_VERSION"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Expected a stable semantic version such as 1.0.0, got: $VERSION" >&2
+            echo "::error::Expected a stable semantic version such as 1.0.0, got: $VERSION." >&2
             exit 1
           fi
           if [[ ! -f "res/config.xml" ]]; then
@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
           if [[ "$VERSION" != "$CONFIG_VERSION" ]]; then
-            echo "Release version $VERSION does not match res/config.xml ($CONFIG_VERSION)." >&2
+            echo "::error::Release version $VERSION does not match res/config.xml ($CONFIG_VERSION)." >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
