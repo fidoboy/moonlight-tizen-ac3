@@ -1917,7 +1917,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   $('#game-grid').hide();
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#regenerateAppImagesBtn').hide();
+  $('#regenerateAppImagesBtn').hide().prop('hidden', true);
   updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
@@ -5233,7 +5233,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
-  $('#regenerateAppImagesBtn').show();
+  $('#regenerateAppImagesBtn').prop('hidden', false).show();
   updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
