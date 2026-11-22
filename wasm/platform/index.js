@@ -5498,13 +5498,21 @@ function showApps(host, options) {
 
         // Silent refreshes (notably stopGame) retain their original completion boundary:
         // callers may impose a short timeout and do not own a loading snackbar.
-        if (suppressLoadingSnackbar) {
+        if (suppressLoadingSnackbar && !(options && options.waitForArtworkCompletion)) {
           finishSuccess(true);
           artworkCompletion.catch(function(error) {
             artworkAbandoned = true;
             console.error('%c[index.js, showApps]', 'color: red;', 'Error while finishing background artwork processing:', error);
           });
           return;
+        }
+
+        if (suppressLoadingSnackbar) {
+          // Differential reconciliation must finish creating/updating affected cards
+          // before its caller dismisses the confirmation snackbar and unlocks navigation.
+          return artworkCompletion.then(function() {
+            finishSuccess(true);
+          });
         }
 
         return artworkCompletion.then(function() {
@@ -5637,6 +5645,7 @@ function reconcileVisibleAppGrid(host, freshAppList) {
   lockAppListInteraction();
   return showApps(host, {
     suppressLoadingSnackbar: true,
+    waitForArtworkCompletion: true,
     keepInteractionLocked: true,
     differentialAppIds: changedIds
   }).then(function() {
