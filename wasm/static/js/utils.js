@@ -736,9 +736,9 @@ NvHTTP.prototype = {
       var $root = $xml.find('root');
 
       if ($root.attr('status_code') != 200) {
-        // TODO: Bubble up an error here
-        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', $root.attr('status_code'));
-        return [];
+        var statusCode = $root.attr('status_code');
+        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', statusCode);
+        throw new Error('The host rejected the app-list request (status ' + statusCode + ').');
       }
 
       var rootElement = $xml.find('root')[0];
