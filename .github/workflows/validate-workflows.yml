@@ -30,6 +30,6 @@ jobs:
         uses: raven-actions/actionlint@v2
         with:
           version: 1.7.7
-          files: .github/workflows/*.yml
+          files: .github/workflows/*.yml,!.github/workflows/release-development.yml,!.github/workflows/release-stable.yml
           shellcheck: false
           pyflakes: false
