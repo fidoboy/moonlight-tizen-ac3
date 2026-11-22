@@ -9430,8 +9430,8 @@ function getSystemInfoDeveloperDetails() {
     }
   } catch (error) {}
 
-  // Query the TV's own Samsung REST API. This is a simple GET without custom
-  // headers, so packaged apps do not trigger a CORS preflight request.
+  // Query the TV's own Samsung REST API using a simple GET without custom
+  // headers, avoiding a CORS preflight request from the packaged app.
   var endpoint = 'http://' + (tvIpAddress || '127.0.0.1') + ':8001/api/v2/';
   var timeoutId;
   var timeout = new Promise(function(resolve) {
@@ -9444,16 +9444,15 @@ function getSystemInfoDeveloperDetails() {
     if (!response.ok) throw new Error('TV system API returned HTTP ' + response.status);
     return response.json();
   }).then(function(data) {
-    // Firmware/API versions may expose these properties either at the root or
-    // inside "device"; accept both shapes.
     var device = data && data.device && typeof data.device === 'object'
-      ? data.device : (data && typeof data === 'object' ? data : {});
+      ? data.device : {};
     var mode = device.developerMode;
-    if (mode === '0' || mode === 0 || mode === false) {
+    if (mode === '0') {
       return { developerInfo: t('Disabled') };
     }
-    if (mode === '1' || mode === 1 || mode === true) {
-      var hostIP = typeof device.developerIP === 'string' && device.developerIP.trim()
+    if (mode === '1') {
+      var hostIP = typeof device.developerIP === 'string' && device.developerIP.trim() &&
+        device.developerIP !== '0.0.0.0'
         ? device.developerIP.trim()
         : '';
       return { developerInfo: t('Enabled') + (hostIP ? ' - IP: ' + hostIP : '') };
