@@ -5277,8 +5277,12 @@ function showApps(host, options) {
         window.previewPromises = [];
 
         sortedAppList.forEach(function(app) {
-          // Existing cards keep their DOM and artwork during an in-place refresh.
-          if (preserveExistingAppGrid && document.getElementById('game-container-' + app.id)) return;
+          // Keep healthy cards untouched. A card showing the error artwork is retried
+          // on the next differential refresh after its cached source was invalidated.
+          var existingCard = document.getElementById('game-container-' + app.id);
+          var existingImage = existingCard && existingCard.querySelector('img[data-artwork-error="true"]');
+          if (preserveExistingAppGrid && existingCard && !existingImage) return;
+          if (existingImage) existingImage.remove();
 
           // Double clicking the button will cause multiple box arts to appear.
           // To mitigate this, we ensure that we don't add a duplicate box art.
@@ -5360,10 +5364,12 @@ function showApps(host, options) {
             host.getBoxArt(app.id).then(function(resolvedPromise) {
               // A card is ready only after its actual image has loaded.
               boxArtPlaceholderImg.onload = function() {
+                delete boxArtPlaceholderImg.dataset.artworkError;
                 boxArtPlaceholderImg.classList.add('fade-in');
                 resolveBoxArt();
               };
               boxArtPlaceholderImg.onerror = function() {
+                boxArtPlaceholderImg.dataset.artworkError = 'true';
                 console.warn('%c[index.js, showApps]', 'color: gray;', 'Invalid box art for app ID ' + app.id + '. Showing the error artwork and invalidating the cached files.');
                 if (typeof host.invalidateBoxArt === 'function') {
                   host.invalidateBoxArt(app.id);
@@ -5404,6 +5410,7 @@ function showApps(host, options) {
                 appEntry.imageRatio = '2by3';
               }
             }, function(failedPromise) {
+              boxArtPlaceholderImg.dataset.artworkError = 'true';
               console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not retrieve box art for app ID ' + app.id + ':', failedPromise);
               if (typeof host.invalidateBoxArt === 'function') {
                 host.invalidateBoxArt(app.id);
@@ -5522,6 +5529,14 @@ function reconcileVisibleAppGrid(host, freshAppList) {
 
   var changedIds = [];
   var hasListChanges = false;
+  // Failed cards are deliberately retried even when the host's app list is unchanged.
+  document.querySelectorAll('#game-grid .game-container').forEach(function(card) {
+    var failedImage = card.querySelector('img[data-artwork-error="true"]');
+    if (!failedImage) return;
+    var appId = Number(card.id.replace('game-container-', ''));
+    if (Number.isFinite(appId) && changedIds.indexOf(appId) === -1) changedIds.push(appId);
+    hasListChanges = true;
+  });
   previousList.forEach(function(app) {
     var next = nextById[String(app.id)];
     if (!next) {
