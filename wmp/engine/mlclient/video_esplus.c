@@ -526,7 +526,7 @@ static int VidDecSubmit(PDECODE_UNIT du)
     if (!s_have_frame_number) {
         s_last_frame_number = du->frameNumber;
         s_have_frame_number = 1;
-    } else if (du->frameNumber > s_last_frame_number) {
+    } else if ((uint32_t)du->frameNumber > s_last_frame_number) {
         uint32_t missing = du->frameNumber - s_last_frame_number - 1;
         if (missing) {
             if (collect_stats) {
