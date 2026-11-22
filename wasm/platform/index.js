@@ -9397,17 +9397,26 @@ function checkSystemInfoInternetAccess() {
       resolve(result);
     }
 
-    // A no-cors request can test reachability without requiring response access.
-    // Redirects are rejected so a captive portal is not mistaken for Internet access.
-    window.fetch('https://connectivitycheck.gstatic.com/generate_204', {
-      method: 'GET',
-      mode: 'no-cors',
-      redirect: 'error',
-      cache: 'no-store'
-    }).then(function() {
-      finish(true);
-    }).catch(function() {
-      finish(false);
+    // Tizen TVs may follow the connectivity-check endpoint's redirects.
+    // With no-cors, a successful network response is opaque but still resolves.
+    // A failed probe is inconclusive, not proof that Internet access is unavailable.
+    var endpoints = [
+      'https://connectivitycheck.gstatic.com/generate_204',
+      'https://www.google.com/generate_204'
+    ];
+    var remaining = endpoints.length;
+
+    endpoints.forEach(function(endpoint) {
+      window.fetch(endpoint, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store'
+      }).then(function() {
+        finish(true);
+      }).catch(function() {
+        remaining--;
+        if (remaining === 0) finish(null);
+      });
     });
   });
 }
@@ -9424,12 +9433,8 @@ function getSystemInfoNetworkDetails() {
   }
 
   var connectionType;
-  var gatewayConnected = null;
   try {
     connectionType = networkApi.getActiveConnectionType();
-    if (typeof networkApi.isConnectedToGateway === 'function') {
-      gatewayConnected = networkApi.isConnectedToGateway();
-    }
   } catch (error) {
     console.warn('%c[index.js, getSystemInfoNetworkDetails]', 'color: gray;',
       'Could not read TV network status:', error);
@@ -9449,7 +9454,7 @@ function getSystemInfoNetworkDetails() {
     connection = t('Disconnected');
   }
 
-  if (connection === t('Disconnected') || gatewayConnected === false) {
+  if (connection === t('Disconnected')) {
     return Promise.resolve({
       connection: connection,
       internet: t('No')
@@ -9459,7 +9464,7 @@ function getSystemInfoNetworkDetails() {
   return checkSystemInfoInternetAccess().then(function(hasInternet) {
     return {
       connection: connection,
-      internet: hasInternet === null ? t('Unknown') : t(hasInternet ? 'Yes' : 'No')
+      internet: hasInternet === null ? t('N/A') : t(hasInternet ? 'Yes' : 'No')
     };
   });
 }
@@ -9503,7 +9508,7 @@ function loadSystemInfo() {
       t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\n' +
       t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
       t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\n' +
-      t('Developer mode: %1$s', t('Not exposed by TV API')) + '\n' +
+      t('Developer mode: %1$s', 'N/A') + '\n' +
       t('Network connection: %1$s', networkDetails.connection) + '\n' +
       t('Internet access: %1$s', networkDetails.internet);
 
