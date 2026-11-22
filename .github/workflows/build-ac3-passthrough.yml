@@ -116,7 +116,7 @@ jobs:
 
           workflow = Path(".github/workflows/build-ac3-passthrough.yml").read_text(encoding="utf-8")
           build_workflow_path = Path(".github/workflows/build-wgt.yml")
-          if "\\n  build:\\n" in workflow:
+          if "\n  build:\n" in workflow:
               raise SystemExit("The WGT build job must be kept out of the pull-request validation workflow.")
           if not build_workflow_path.is_file():
               raise SystemExit("The separate WGT build workflow is missing.")
@@ -124,7 +124,7 @@ jobs:
           build_workflow = build_workflow_path.read_text(encoding="utf-8")
           if "name: Build WGT (CI)" not in build_workflow or "  pull_request:" in build_workflow:
               raise SystemExit("The separate WGT build workflow must not run for pull requests.")
-          if "\\n  build:\\n" not in build_workflow:
+          if "\n  build:\n" not in build_workflow:
               raise SystemExit("The separate WGT build workflow must contain the build job.")
 
           print("Workflow structure checks passed.")
@@ -134,7 +134,7 @@ jobs:
         uses: raven-actions/actionlint@v2
         with:
           version: 1.7.7
-          files: .github/workflows/build-ac3-passthrough.yml,.github/workflows/build-wgt.yml
+          files: .github/workflows/*.yml
           shellcheck: false
           pyflakes: false
 
