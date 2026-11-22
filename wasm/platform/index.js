@@ -5561,8 +5561,9 @@ function showAppsWithCachedList(host) {
       // A failed confirmation must not discard the already visible cached list.
       console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not confirm the cached app list with Sunshine; keeping the cached grid visible:', error);
     }).then(function() {
-      if (snackbarOwned && persistentSnackbarVisible) {
-        return dismissPersistentSnackbar().catch(function(error) {
+      if (snackbarOwned) {
+        // Also cancel a snackbar that is still waiting for its presentation delay.
+        return Promise.resolve(dismissPersistentSnackbar()).catch(function(error) {
           console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss the app-list confirmation snackbar:', error);
         });
       }
