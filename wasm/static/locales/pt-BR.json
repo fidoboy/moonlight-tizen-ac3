@@ -658,7 +658,7 @@
   "Moonlight could not restore the selected host.": "O Moonlight não conseguiu restaurar o host selecionado.",
   "Audio latency:": "Latência de áudio:",
   "Firmware Version: %1$s": "Versão do firmware: %1$s",
-  "Developer mode: %1$s": "Modo de desenvolvedor: %1$s",
+  "Developer mode: %1$s": "Modo desenvolvedor: %1$s",
   "Network connection: %1$s": "Conexão de rede: %1$s",
   "Internet access: %1$s": "Acesso à Internet: %1$s",
   "Not exposed by TV API": "Não disponibilizado pela API da TV",
