@@ -33,6 +33,7 @@
     <privileges>
         <privilege>http://tizen.org/privilege/internet</privilege>
         <privilege>http://tizen.org/privilege/network.get</privilege>
+        <privilege>http://tizen.org/privilege/display</privilege>
         <privilege>http://tizen.org/privilege/appmanager.launch</privilege>
         <privilege>http://developer.samsung.com/privilege/esplay</privilege>
     </privileges>
