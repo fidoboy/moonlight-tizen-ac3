@@ -107,6 +107,7 @@ static int ecore_runtime_load(void)
 
 fail:
     error = dlerror();
+    (void)error;
     MLT("ecore runtime load failed: %s", error ? error : "missing required symbol");
     if (s_ecore_wl2_lib) dlclose(s_ecore_wl2_lib);
     if (s_ecore_lib) dlclose(s_ecore_lib);
@@ -406,6 +407,7 @@ void esplus_sample_tick(uint64_t now_ms)
                     int seek_rc;
                     s_catchup_done = 1; /* never loop if the native seek fails */
                     seek_rc = wmp_esplus_adapter_seek(&s_adapter, s_last_video_pts_ms);
+                    (void)seek_rc;
                     MLT("catchup: depth=%dms seek=%llu ms raw=%d",
                         esplus_stats.depth_ms,
                         (unsigned long long)s_last_video_pts_ms, seek_rc);
@@ -568,6 +570,7 @@ static void on_error(int error, void *context)
     }
 
     description = wmp_esplus_adapter_get_error_string(&s_adapter, error);
+    (void)description;
     __atomic_fetch_add(&esplus_stats.errors, 1, __ATOMIC_RELAXED);
     __atomic_store_n(&esplus_stats.last_error, (uint32_t)error, __ATOMIC_RELAXED);
 
@@ -848,7 +851,7 @@ int esplus_set_audio_info(const wmp_esplus_audio_info_t *info)
 
 static int s_window_reveal_requested;
 
-static void window_reveal_main(void *arg)
+static void *window_reveal_main(void *arg)
 {
     (void)arg;
     if (s_win && p_ecore_wl2_window_alpha_set) {
@@ -856,6 +859,7 @@ static void window_reveal_main(void *arg)
         if (s_disp) ecore_wl2_display_flush(s_disp);
         MLT("Wayland video window revealed (alpha=1)");
     }
+    return NULL;
 }
 
 void esplus_reveal_window(void)
@@ -1128,6 +1132,7 @@ wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet)
             const char *reason = __atomic_load_n(&s_player_error, __ATOMIC_ACQUIRE) ? "native ESPlusPlayer error" :
                                  s_prepare_failed ? "prepare_async_done(false)" :
                                  s_start_failed ? "start() failed" : "player closing";
+            (void)reason;
             if (!__atomic_exchange_n(&s_diag_feeder_rejection_logged, 1, __ATOMIC_ACQ_REL)) {
                 MLT("video feeder released without startup readiness: %s", reason);
             }
