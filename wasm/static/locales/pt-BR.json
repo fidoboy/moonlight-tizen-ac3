@@ -670,5 +670,6 @@
   "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "Calcula a taxa de bits de referência recomendada no início de cada sessão de streaming, após a negociação com o host. O valor calculado é salvo e usado nas sessões seguintes. Recomenda-se manter esta opção ativada por algumas sessões, até que a taxa de bits se estabilize. Depois disso, você pode desativá-la e ajustar manualmente o valor obtido nas configurações básicas.",
   "Developer host PC IP: %1$s": "IP do PC host do modo desenvolvedor: %1$s",
   "Enabled": "Ativado",
-  "TV IP address: %1$s": "Endereço IP da TV: %1$s"
+  "TV IP address: %1$s": "Endereço IP da TV: %1$s",
+  "Could not regenerate app image thumbnails.": "Não foi possível regenerar as miniaturas dos aplicativos."
 }
