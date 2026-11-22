@@ -2158,7 +2158,7 @@ function hostChosen(host, onSuccessCallback) {
       // After pairing the host, save the host object, show the apps, and navigate to the Apps view
       saveHosts();
       Navigation.push(Views.Apps);
-      showAppsWithCachedList(host).then(() => {
+      showApps(host, { forceRefreshAppList: true }).then(() => {
         // Scroll to the current game row
         Navigation.switch();
         // Switch to Apps view
@@ -2174,9 +2174,9 @@ function hostChosen(host, onSuccessCallback) {
       startPollingHosts();
     });
   } else {
-    // But if the host is already paired and online, then we show the apps and navigate to the Apps view as usual.
+    // Paired hosts can present their in-memory app list while Sunshine confirms it.
     Navigation.push(Views.Apps);
-    showApps(host, { forceRefreshAppList: true }).then(() => {
+    showAppsWithCachedList(host).then(() => {
       // Scroll to the current game row
       Navigation.switch();
       // Switch to Apps view
@@ -5548,10 +5548,8 @@ function showAppsWithCachedList(host) {
       return;
     }
 
-    if (!persistentSnackbarVisible) {
-      snackbarLogPersistent('Loading Apps...');
-      snackbarOwned = true;
-    }
+    snackbarLogPersistent('Loading Apps...');
+    snackbarOwned = true;
 
     return host.getAppListWithCacheFlush(true).then(function(freshAppList) {
       if (window.api !== host || !$('#game-grid').is(':visible')) return;
