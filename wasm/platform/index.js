@@ -463,6 +463,7 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
     };
 
     showApps(host, {
+      forceRefreshAppList: true,
       suppressLoadingSnackbar: true,
       suppressEmptyListSnackbar: true
     }).then(function() {
@@ -2157,7 +2158,7 @@ function hostChosen(host, onSuccessCallback) {
       // After pairing the host, save the host object, show the apps, and navigate to the Apps view
       saveHosts();
       Navigation.push(Views.Apps);
-      showApps(host).then(() => {
+      showApps(host, { forceRefreshAppList: true }).then(() => {
         // Scroll to the current game row
         Navigation.switch();
         // Switch to Apps view
@@ -2175,7 +2176,7 @@ function hostChosen(host, onSuccessCallback) {
   } else {
     // But if the host is already paired and online, then we show the apps and navigate to the Apps view as usual.
     Navigation.push(Views.Apps);
-    showApps(host).then(() => {
+    showApps(host, { forceRefreshAppList: true }).then(() => {
       // Scroll to the current game row
       Navigation.switch();
       // Switch to Apps view
@@ -6773,6 +6774,7 @@ function stopGame(host, callbackFunction) {
     }).then(function() {
       var appListOperation = { cancelled: false };
       return withOperationTimeout(showApps(host, {
+        forceRefreshAppList: true,
         suppressLoadingSnackbar: true,
         suppressEmptyListSnackbar: true,
         keepInteractionLocked: true,
