@@ -5417,19 +5417,23 @@ function showApps(host, options) {
         // Keep the delayed loading snackbar active until the artwork and Preview work
         // has settled. Fast app-list operations still cancel it before the one-second
         // courtesy delay expires.
-        var artworkCompletion = Promise.all(settledPromises).then(function() {
-          if (isOperationCancelled()) return;
-          // Resume background polling now that all box art downloads are complete.
-          beginBackgroundPollingOfHost(host);
+        var artworkCompletion = withOperationTimeout(
+          Promise.all(settledPromises).then(function() {
+            if (settled || isOperationCancelled()) return;
+            // Resume background polling now that all box art downloads are complete.
+            beginBackgroundPollingOfHost(host);
 
-          // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk.
-          var previewsDone = window.previewPromises || [];
-          return Promise.all(previewsDone).then(function() {
-            if (isOperationCancelled()) return;
-            savePreviewApps();
-            updatePreviewData();
-          });
-        });
+            // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk.
+            var previewsDone = window.previewPromises || [];
+            return Promise.all(previewsDone).then(function() {
+              if (settled || isOperationCancelled()) return;
+              savePreviewApps();
+              updatePreviewData();
+            });
+          }),
+          120000,
+          'App artwork processing'
+        );
 
         // Silent refreshes (notably stopGame) retain their original completion boundary:
         // callers may impose a short timeout and do not own a loading snackbar.
