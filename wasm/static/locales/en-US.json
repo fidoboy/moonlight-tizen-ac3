@@ -78,7 +78,6 @@
   "An error occurred while processing video from %1$s.": "An error occurred while processing video from %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.",
   "App Already Running": "App Already Running",
-  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.",
   "Firmware Version: %1$s": "Firmware Version: %1$s",
   "Developer mode: %1$s": "Developer mode: %1$s",
   "Network connection: %1$s": "Network connection: %1$s",
@@ -664,5 +663,6 @@
   "The selected app is no longer available on the host.": "The selected app is no longer available on the host.",
   "Could not retrieve the requested application from the host.": "Could not retrieve the requested application from the host.",
   "Moonlight could not restore the selected host.": "Moonlight could not restore the selected host.",
-  "Audio latency:": "Audio latency:"
+  "Audio latency:": "Audio latency:",
+  "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings."
 }
