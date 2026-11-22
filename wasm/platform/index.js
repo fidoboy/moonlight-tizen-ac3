@@ -5558,6 +5558,13 @@ function cancelActiveCachedAppListConfirmation() {
       console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
     });
   }
+
+  // Release only the visual lock here. The destination view or the next
+  // showApps operation is responsible for starting navigation again.
+  if (appListInteractionLocked) {
+    appListInteractionLocked = false;
+    $('#game-grid').removeClass('app-list-locked');
+  }
 }
 
 // Open Apps immediately from the selected host's in-memory list, then confirm it with Sunshine.
