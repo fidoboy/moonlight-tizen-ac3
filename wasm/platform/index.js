@@ -4129,7 +4129,7 @@ function showSettingsMode() {
   $('#settingsBtn').hide();
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
-  $('#regenerateAppImagesBtn').hide();
+  $('#regenerateAppImagesBtn').hide().prop('hidden', true);
   $('#main-content').removeClass('fullscreen');
   updateGamepadTestButtonVisibility();
   $('#listener').removeClass('fullscreen');
