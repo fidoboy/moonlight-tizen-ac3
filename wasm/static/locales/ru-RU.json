@@ -404,6 +404,8 @@
   "Remove all currently saved hosts from the list": "Удалить из списка все сохранённые хосты",
   "Remove all hosts": "Удалить все хосты",
   "Requesting stream from host...": "Запрос сеанса потоковой передачи у хоста…",
+  "Regenerate app image thumbnails": "Пересоздать миниатюры изображений приложений",
+  "Regenerating app image thumbnails...": "Пересоздание миниатюр изображений приложений...",
   "Rescan Network": "Повторное сканирование сети",
   "Resolution": "Разрешение",
   "Restart": "Перезапустить",
