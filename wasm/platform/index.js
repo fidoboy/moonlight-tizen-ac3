@@ -2028,6 +2028,7 @@ function clearViewLoadingSnackbarTimer() {
 
 // Return to the Hosts grid with a short fade transition.
 function showHosts(onShown, suppressLoadingSnackbar) {
+  cancelActiveCachedAppListConfirmation();
   Navigation.stop();
   if (!suppressLoadingSnackbar) scheduleViewLoadingSnackbar('Loading Hosts...');
 
@@ -5535,9 +5536,143 @@ function showApps(host, options) {
       });
 }
 
+// A cached-list confirmation owns its delayed snackbar until the operation finishes.
+// Keeping the operation object lets navigation or a newer host selection invalidate its timer.
+var activeCachedAppListConfirmation = null;
+
+function cancelActiveCachedAppListConfirmation() {
+  var operation = activeCachedAppListConfirmation;
+  if (!operation) return;
+
+  activeCachedAppListConfirmation = null;
+  operation.cancelled = true;
+  if (operation.timer !== null) {
+    clearTimeout(operation.timer);
+    operation.timer = null;
+  }
+
+  // Cancel a presentation that may already have started. The persistent snackbar
+  // implementation also cancels requests that have not reached the screen yet.
+  if (operation.snackbarRequested) {
+    dismissPersistentSnackbar().catch(function(error) {
+      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
+    });
+  }
+}
+
 // Open Apps immediately from the selected host's in-memory list, then confirm it with Sunshine.
-// The cached presentation is silent; only the subsequent server request owns the loading snackbar.
+// The cached presentation is silent; the confirmation snackbar is shown only after one second.
 function showAppsWithCachedList(host) {
+  cancelActiveCachedAppListConfirmation();
+
+  if (!host || !Array.isArray(host._memCachedApplist)) {
+    // A host without its own cached list must never inherit the previous host's cards.
+    // Force a clean grid and let the server response populate it from scratch.
+    return showApps(host, {
+      forceRefreshAppList: true,
+      forceRebuildAppGrid: true
+    });
+  }
+
+  var cachedAppList = host._memCachedApplist.slice();
+  var operation = {
+    cancelled: false,
+    timer: null,
+    snackbarRequested: false
+  };
+  activeCachedAppListConfirmation = operation;
+  lockAppListInteraction();
+
+  function isCurrentOperation() {
+    return activeCachedAppListConfirmation === operation &&
+      !operation.cancelled &&
+      window.api === host &&
+      $('#game-grid').is(':visible');
+  }
+
+  function finishOperation() {
+    if (operation.timer !== null) {
+      clearTimeout(operation.timer);
+      operation.timer = null;
+    }
+
+    // A stale operation must not dismiss another view's snackbar or unlock a
+    // newer host's grid. The view transition/new operation owns that cleanup.
+    if (!isCurrentOperation()) return Promise.resolve();
+    activeCachedAppListConfirmation = null;
+
+    var dismissal = operation.snackbarRequested
+      ? dismissPersistentSnackbar()
+      : Promise.resolve();
+
+    return Promise.resolve(dismissal).catch(function(error) {
+      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss the app-list confirmation snackbar:', error);
+    }).then(function() {
+      // Do not unlock if another operation took ownership while dismissal ran.
+      if (activeCachedAppListConfirmation === null &&
+          window.api === host &&
+          $('#game-grid').is(':visible') &&
+          appListInteractionLocked) {
+        unlockAppListInteraction();
+      }
+    });
+  }
+
+  return showApps(host, {
+    appListOverride: cachedAppList,
+    forceRebuildAppGrid: true,
+    suppressLoadingSnackbar: true,
+    suppressEmptyListSnackbar: true,
+    keepInteractionLocked: true
+  }).then(function() {
+    if (!isCurrentOperation()) return;
+
+    // Wait until the cached grid has passed through a browser paint before
+    // starting the network confirmation.
+    return new Promise(function(resolve) {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(resolve);
+      });
+    }).then(function() {
+      if (!isCurrentOperation()) return;
+
+      // Start /applist immediately; only the snackbar presentation is delayed.
+      var request;
+      try {
+        request = Promise.resolve(host.getAppListWithCacheFlush(true));
+      } catch (error) {
+        request = Promise.reject(error);
+      }
+
+      operation.timer = setTimeout(function() {
+        operation.timer = null;
+        if (!isCurrentOperation()) return;
+
+        operation.snackbarRequested = true;
+        snackbarLogPersistent('Loading Apps...').catch(function(error) {
+          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not show the app-list confirmation snackbar:', error);
+        });
+      }, 1000);
+
+      return request.then(function(freshAppList) {
+        if (!isCurrentOperation()) return;
+        return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
+          if (isCurrentOperation()) host._memCachedApplist = freshAppList;
+        });
+      }).catch(function(error) {
+        // A failed confirmation must not discard the already visible cached list.
+        console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not confirm the cached app list with Sunshine; keeping the cached grid visible:', error);
+      });
+    });
+  }).then(function() {
+    return finishOperation();
+  }).catch(function(error) {
+    return finishOperation().then(function() {
+      throw error;
+    });
+  });
+}
+
   if (!host || !Array.isArray(host._memCachedApplist)) {
     // A host without its own cached list must never inherit the previous host's cards.
     // Force a clean grid and let the server response populate it from scratch.
