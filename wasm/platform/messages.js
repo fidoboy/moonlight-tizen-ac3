@@ -1040,7 +1040,12 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       if (audioModeMatch) {
         var modeStart = audioModeMatch.index;
         var modeEnd = modeStart + audioModeMatch[0].length;
-        appendAudioCodecPrefix(valueText.slice(0, modeStart), '[');
+        appendAudioCodecPrefix(valueText.slice(0, modeStart), '');
+
+        var modeBracket = document.createElement('span');
+        modeBracket.className = 'performance-stats-audio-mode-bracket';
+        modeBracket.textContent = '[';
+        value.appendChild(modeBracket);
 
         var modeIcon = document.createElement('i');
         modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
