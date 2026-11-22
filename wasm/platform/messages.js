@@ -1042,18 +1042,20 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
         var modeEnd = modeStart + audioModeMatch[0].length;
         appendAudioCodecPrefix(valueText.slice(0, modeStart), '');
 
-        var modeBracket = document.createElement('span');
-        modeBracket.className = 'performance-stats-audio-mode-bracket';
-        modeBracket.textContent = '[';
-        value.appendChild(modeBracket);
+        var modeGroup = document.createElement('span');
+        modeGroup.className = 'performance-stats-audio-mode-group';
 
         var modeIcon = document.createElement('i');
         modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
           audioModeMatch[1].toLowerCase();
         modeIcon.setAttribute('aria-hidden', 'true');
         modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'error';
-        value.appendChild(modeIcon);
-        value.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']' + valueText.slice(modeEnd)));
+
+        modeGroup.appendChild(document.createTextNode('['));
+        modeGroup.appendChild(modeIcon);
+        modeGroup.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']'));
+        value.appendChild(modeGroup);
+        value.appendChild(document.createTextNode(valueText.slice(modeEnd)));
       } else if (isAudioStreamLine) {
         appendAudioCodecPrefix(valueText, '');
       } else if (sourceLine.indexOf('Video stream:') === 0 && valueText.indexOf('HDR') !== -1) {
