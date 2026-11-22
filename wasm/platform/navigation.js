@@ -2700,10 +2700,12 @@ const Views = {
       focusElement(Views.Apps.view.current());
     },
     left: function() {
+      this.view.current();
       this.view.prev();
       focusElement(this.view.current());
     },
     right: function() {
+      this.view.current();
       this.view.next();
       focusElement(this.view.current());
     },
@@ -2720,8 +2722,8 @@ const Views = {
       focusElement(this.view.current());
     },
     enter: function() {
-      const items = this.view.func();
-      if (items.length) mark(items[this.view.index]);
+      const current = this.view.current();
+      if (current) mark(current);
     },
     leave: function() {
       unmark(this.view.current());
