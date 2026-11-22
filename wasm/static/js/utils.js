@@ -298,9 +298,15 @@ NvHTTP.prototype = {
         // Refresh the selected host's app list periodically only while the Apps
         // grid is actually visible. Host polling must not enumerate apps in Hosts mode.
         if (this._pollCount++ % 10 === 1 &&
-            window.api === this && $('#game-grid').is(':visible')) {
+            window.api === this && $('#game-grid').is(':visible') &&
+            !this._backgroundAppListRefreshInProgress) {
           this._backgroundAppListRefreshInProgress = true;
-          this.getAppListWithCacheFlush().catch(function(error) {
+          this.getAppListWithCacheFlush(true).then(function(appList) {
+            if (window.api === this && $('#game-grid').is(':visible') &&
+                typeof window.reconcileVisibleAppGrid === 'function') {
+              window.reconcileVisibleAppGrid(this, appList);
+            }
+          }.bind(this)).catch(function(error) {
             console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
           }).finally(function() {
             this._backgroundAppListRefreshInProgress = false;
