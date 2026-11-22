@@ -9426,7 +9426,7 @@ function getSystemInfoDeveloperDetails() {
   var timeoutId;
   var timeout = new Promise(function(resolve) {
     timeoutId = window.setTimeout(function() {
-      resolve({ developerMode: t('N/A'), developerHostIP: t('N/A') });
+      resolve({ developerInfo: t('N/A') });
     }, 4000);
   });
 
@@ -9436,19 +9436,20 @@ function getSystemInfoDeveloperDetails() {
   }).then(function(data) {
     var device = data && data.device ? data.device : {};
     var mode = device.developerMode;
-    var developerMode = mode === '1' || mode === 1 || mode === true
-      ? t('Yes')
-      : mode === '0' || mode === 0 || mode === false
-        ? t('No')
-        : t('N/A');
-    var developerHostIP = typeof device.developerIP === 'string' && device.developerIP.trim()
-      ? device.developerIP.trim()
-      : t('N/A');
-    return { developerMode: developerMode, developerHostIP: developerHostIP };
+    if (mode === '0' || mode === 0 || mode === false) {
+      return { developerInfo: t('No') };
+    }
+    if (mode === '1' || mode === 1 || mode === true) {
+      var hostIP = typeof device.developerIP === 'string' && device.developerIP.trim()
+        ? device.developerIP.trim()
+        : '';
+      return { developerInfo: t('Yes') + (hostIP ? ' - IP: ' + hostIP : '') };
+    }
+    return { developerInfo: t('N/A') };
   }).catch(function(error) {
     console.warn('%c[index.js, getSystemInfoDeveloperDetails]', 'color: gray;',
       'Could not read TV Developer Mode information:', error);
-    return { developerMode: t('N/A'), developerHostIP: t('N/A') };
+    return { developerInfo: t('N/A') };
   });
 
   return Promise.race([request, timeout]).then(function(result) {
@@ -9544,8 +9545,7 @@ function loadSystemInfo() {
       t('TV Model Series: %1$s', modelSeries ? modelSeries : t('Unknown')) + '\n' +
       t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
       t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\n' +
-      t('Developer mode: %1$s', developerDetails.developerMode) + '\n' +
-      t('Developer host PC IP: %1$s', developerDetails.developerHostIP) + '\n' +
+      t('Developer mode: %1$s', developerDetails.developerInfo) + '\n' +
       t('Network connection: %1$s', networkDetails.connection) + '\n' +
       t('Internet access: %1$s', networkDetails.internet);
 
@@ -9572,8 +9572,7 @@ function loadSystemInfo() {
     internet: t('Unknown')
   };
   var initialDeveloperDetails = {
-    developerMode: t('N/A'),
-    developerHostIP: t('N/A')
+    developerInfo: t('N/A')
   };
   renderSystemInfo(initialNetworkDetails, initialDeveloperDetails);
   Promise.all([getSystemInfoNetworkDetails(), getSystemInfoDeveloperDetails()]).then(function(details) {
