@@ -5437,8 +5437,11 @@ function showApps(host, options) {
 
             // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk.
             var previewsDone = window.previewPromises || [];
-            return Promise.all(previewsDone).then(function() {
+            return Promise.all(previewsDone).then(function(previewResults) {
               if (artworkAbandoned || isOperationCancelled()) return;
+              if (previewResults.some(function(saved) { return saved !== true; })) {
+                throw new Error('One or more Smart Hub Preview images could not be generated and cached.');
+              }
               savePreviewApps();
               updatePreviewData();
             });
