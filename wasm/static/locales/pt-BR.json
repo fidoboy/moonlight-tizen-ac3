@@ -657,7 +657,6 @@
   "Could not retrieve the requested application from the host.": "Não foi possível obter o aplicativo solicitado do host.",
   "Moonlight could not restore the selected host.": "O Moonlight não conseguiu restaurar o host selecionado.",
   "Audio latency:": "Latência de áudio:",
-  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcula a taxa de bits de referência recomendada no início de cada sessão de streaming, após a negociação com o host. O valor calculado é salvo e usado nas sessões seguintes. Recomenda-se manter esta opção ativada por algumas sessões, até que a taxa de bits se estabilize. Depois disso, você pode desativá-la e ajustar manualmente o valor obtido nas configurações básicas.",
   "Firmware Version: %1$s": "Versão do firmware: %1$s",
   "Developer mode: %1$s": "Modo de desenvolvedor: %1$s",
   "Network connection: %1$s": "Conexão de rede: %1$s",
@@ -665,5 +664,6 @@
   "Not exposed by TV API": "Não disponibilizado pela API da TV",
   "Wi-Fi": "Wi-Fi",
   "Ethernet": "Ethernet",
-  "Disconnected": "Desconectado"
+  "Disconnected": "Desconectado",
+  "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcula a taxa de bits de referência recomendada no início de cada sessão de streaming, após a negociação com o host. O valor calculado é salvo e usado nas sessões seguintes. Recomenda-se manter esta opção ativada por algumas sessões, até que a taxa de bits se estabilize. Depois disso, você pode desativá-la e ajustar manualmente o valor obtido nas configurações básicas."
 }
