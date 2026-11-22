@@ -2077,12 +2077,15 @@ function regenerateAppImageThumbnails() {
   }
   function finish() {
     if (!isCurrent()) return Promise.resolve();
-    activeAppImageRegeneration = null;
-    button.disabled = false;
-    button.removeAttribute('aria-busy');
     return dismissPersistentSnackbar().catch(function(error) {
       console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Could not dismiss the regeneration snackbar:', error);
     }).then(function() {
+      // Keep the operation current until dismissal completes. If the user leaves
+      // Apps during the snackbar transition, cancellation owns the unlock instead.
+      if (!isCurrent()) return;
+      activeAppImageRegeneration = null;
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
       if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
     });
   }
