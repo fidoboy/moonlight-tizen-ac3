@@ -5543,10 +5543,12 @@ var cachedAppListConfirmationSequence = 0;
 
 function cancelActiveCachedAppListConfirmation() {
   var operation = activeCachedAppListConfirmation;
+  // Invalidate even an operation that has already started finalizing its
+  // snackbar; its eventual completion must not unlock a newer view.
+  cachedAppListConfirmationSequence++;
   if (!operation) return;
 
   activeCachedAppListConfirmation = null;
-  cachedAppListConfirmationSequence++;
   operation.cancelled = true;
   if (operation.timer !== null) {
     clearTimeout(operation.timer);
