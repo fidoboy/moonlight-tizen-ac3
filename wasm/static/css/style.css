@@ -2513,7 +2513,6 @@ body[data-color-theme="black-orange"] #background-layer {
     margin-left: 3px;
     font-size: 15px;
     line-height: 1;
-    vertical-align: -2px;
     color: #ffb74d;
 }
 @media (max-width: 800px) {
