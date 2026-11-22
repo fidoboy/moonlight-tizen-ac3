@@ -5361,7 +5361,20 @@ function showApps(host, options) {
                 resolveBoxArt();
               };
               boxArtPlaceholderImg.onerror = function() {
-                rejectBoxArt(new Error('Failed to load box art image for app ID ' + app.id));
+                console.warn('%c[index.js, showApps]', 'color: gray;', 'Invalid box art for app ID ' + app.id + '. Showing the error artwork and invalidating the cached files.');
+                if (typeof host.invalidateBoxArt === 'function') {
+                  host.invalidateBoxArt(app.id);
+                }
+                // A single broken image must not prevent the rest of the app list from loading.
+                boxArtPlaceholderImg.onload = function() {
+                  boxArtPlaceholderImg.classList.add('fade-in');
+                  resolveBoxArt();
+                };
+                boxArtPlaceholderImg.onerror = function() {
+                  // Do not leave the entire app-list operation pending if the fallback is unavailable.
+                  resolveBoxArt();
+                };
+                boxArtPlaceholderImg.src = 'static/res/placeholder_error.svg';
               };
               boxArtPlaceholderImg.src = resolvedPromise;
 
@@ -5388,9 +5401,16 @@ function showApps(host, options) {
                 appEntry.imageRatio = '2by3';
               }
             }, function(failedPromise) {
-              rejectBoxArt(failedPromise instanceof Error
-                ? failedPromise
-                : new Error('Failed to retrieve box art for app ID ' + app.id + ': ' + failedPromise));
+              console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not retrieve box art for app ID ' + app.id + ':', failedPromise);
+              // A failed artwork request is local to this card; show the fallback and continue.
+              boxArtPlaceholderImg.onload = function() {
+                boxArtPlaceholderImg.classList.add('fade-in');
+                resolveBoxArt();
+              };
+              boxArtPlaceholderImg.onerror = function() {
+                resolveBoxArt();
+              };
+              boxArtPlaceholderImg.src = 'static/res/placeholder_error.svg';
             });
           });
 
@@ -5440,9 +5460,8 @@ function showApps(host, options) {
             var previewsDone = window.previewPromises || [];
             return Promise.all(previewsDone).then(function(previewResults) {
               if (artworkAbandoned || isOperationCancelled()) return;
-              if (previewResults.some(function(saved) { return saved !== true; })) {
-                throw new Error('One or more Smart Hub Preview images could not be generated and cached.');
-              }
+              // A failed Preview thumbnail is isolated to its app; it must not
+              // abort the main app grid or prevent other thumbnails from being saved.
               savePreviewApps();
               updatePreviewData();
             });
