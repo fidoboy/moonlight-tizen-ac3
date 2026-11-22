@@ -665,5 +665,6 @@
   "Ethernet": "Ethernet",
   "Disconnected": "Getrennt",
   "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "Berechnet die empfohlene Ausgangsbitrate zu Beginn jeder Streaming-Sitzung, nachdem die Verbindung mit dem Host ausgehandelt wurde. Der berechnete Wert wird gespeichert und in den folgenden Sitzungen verwendet. Diese Option sollte mehrere Sitzungen lang aktiviert bleiben, bis sich die Bitrate stabilisiert hat. Danach kannst du sie deaktivieren und den ermittelten Wert in den Grundeinstellungen manuell feinjustieren.",
-  "IP des Entwicklers-PC: %1$s": "IP des Entwicklers-PC: %1$s"
+  "IP des Entwicklers-PC: %1$s": "IP des Entwicklers-PC: %1$s",
+  "Developer host PC IP: %1$s": "IP des Entwickler-PCs: %1$s"
 }
