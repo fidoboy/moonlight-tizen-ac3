@@ -823,17 +823,18 @@ body[data-color-theme="black-orange"] #background-layer {
     font-size: 32px !important;
 }
 #refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
+    line-height: 50px;
 }
 #refreshHostsBtn .navigation-button-icons,
 #regenerateAppImagesBtn .navigation-button-icons,
 #gamepadTestBtn .navigation-button-icons {
-    display: block;
+    display: inline-block;
     width: 32px;
     margin: 0;
+    line-height: 1;
     text-align: center;
+    vertical-align: middle;
 }
 .nav-menu-parent {
     position: relative;
