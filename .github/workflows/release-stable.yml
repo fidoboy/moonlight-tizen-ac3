@@ -20,11 +20,12 @@ on:
 permissions:
   contents: write
   actions: write
+  packages: read
 
 jobs:
   publish:
     if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || (github.event_name == 'push' && github.ref == 'refs/heads/master' && (contains(github.event.head_commit.message, '[release]') || contains(github.event.head_commit.message, '[release-notes-fix]')))
-    name: Build and publish versioned WGTs
+    name: Build and publish release WGT
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -241,67 +242,194 @@ jobs:
           fi
           echo "Created or moved $RELEASE_TAG to $GITHUB_SHA."
 
-      - name: Set up Docker Buildx
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/setup-buildx-action@v3
+      - name: Prepare persistent ccache directory
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
-      - name: Build standard WGT
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/build-push-action@v7
+      - name: Restore Moonlight Web compiler cache
+        uses: actions/cache/restore@v4
         with:
-          context: .
-          push: false
-          load: true
-          tags: moonlight-tizen-release:standard
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_TYPE=release
-            OFFICIAL_RELEASE=true
-            REPO_OWNER=${{ github.repository_owner }}
-            REPO_NAME=${{ github.event.repository.name }}
-            FORCE_GAME_MODE=false
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
+            moonlight-web-ccache-${{ runner.os }}-
 
-      - name: Extract standard WGT
-        if: steps.version.outputs.mode == 'publish'
+
+      - name: Log in to GitHub Container Registry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Pull Tizen build image from GHCR
+        shell: bash
+        run: docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+
+      - name: Build WMP engine and .NET ServiceApp inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
-          container_id="$(docker create moonlight-tizen-release:standard)"
-          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm --user root \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e WMP_DEPS=/opt/wmp-tizen-deps \
+            -e WMP_BACKPORT_DEPS=/opt/wmp-backport-deps \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
+            "$image" bash -lc '
+              set -euo pipefail
+              for tool in autoconf automake autoreconf libtoolize pkg-config; do command -v "$tool" >/dev/null; done
+              test -x "$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+              test -s /opt/wmp-backport-deps/arm-static/lib/libcrypto.a
+              test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a
+              test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a
+              echo "::group::WMP transport and native unit tests"
+              node tests/wmp_transport_test.js
+              cc -std=c99 -Wall -Wextra -Werror -pthread -Imoonlight-common-c/src -Iwmp/engine/mlclient -Iwmp/service/src -Iopus/include wmp/tests/wmp_audio_passthrough_test.c -o /runner-temp/wmp-audio-passthrough-test
+              /runner-temp/wmp-audio-passthrough-test
+              bash wmp/tests/wmp_esplus_abi_test.sh
+              echo "::endgroup::"
+              ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+              ARM_GCC_DIR="$(dirname "$ARM_GCC")"
+              for tool in g++ nm ranlib; do
+                found="$(find "$WMP_DEPS/toolchain" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"
+                test -n "$found"
+                target="$ARM_GCC_DIR/arm-linux-gnueabi-$tool"
+                if [[ ! -x "$target" ]]; then ln -sfn "$found" "$target"; fi
+              done
+              CCACHE_BIN=/runner-temp/wmp-ccache-bin
+              mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/arm-linux-gnueabi-gcc"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/gcc"
+              export CCACHE_COMPILERCHECK=content
+              export CCACHE_BASEDIR=/workspace
+              export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
+              ccache --version
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/engine/build/build-deps-lib.sh
+              export FFMPEG_ARM_PREFIX=/runner-temp/ffmpeg-arm-install
+              export FFMPEG_ARM_WORK_DIR=/runner-temp/ffmpeg-arm-build
+              bash scripts/build-ffmpeg-arm.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" FFMPEG_ARM_PREFIX="$FFMPEG_ARM_PREFIX" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=release WMP_MLT_TRACE=false bash wmp/engine/mlclient/build-engine-so.sh
+              echo "::group::WMP ARM ccache statistics"
+              ccache --show-stats
+              echo "::endgroup::"
+              test -s /runner-temp/wmp-engine-build/libmlengine.so
+              readelf -h /runner-temp/wmp-engine-build/libmlengine.so | grep -F "Machine:" | grep -F "ARM"
+              mkdir -p wmp/dotnet-host/lib
+              cp /runner-temp/wmp-engine-build/libmlengine.so wmp/dotnet-host/lib/libmlengine.so
+              echo "WMP native engine built. The managed host will be compiled and packaged by its Tizen Core dependency project."
+            '
+      - name: Restore compiler cache ownership after WMP build
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+
+      - name: Restore FFmpeg WebAssembly build cache
+        id: restore-ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+      - name: Build the release Moonlight Web payload inside optimized v5 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/moonlight-home"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e HOME=/runner-temp/moonlight-home \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
+            -e EMSDK=/opt/emscripten-release-bundle/emsdk \
+            -e BUILD_TYPE=release \
+            -e DEBUG_MODE=false \
+            -e LOG_SHOW_PRIVATE_DATA=false \
+            -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
+            -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
+            "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
+
+      - name: Save FFmpeg WebAssembly build cache
+        if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+      - name: Prepare compiler cache ownership for saving
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/moonlight-home/.cache/ccache" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+          fi
+
+      - name: Save Moonlight Web compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Extract unsigned Moonlight Web files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a "$RUNNER_TEMP/moonlight-web/web" "$RUNNER_TEMP/web"
+          for project in "$RUNNER_TEMP/web"; do
+            test -s "$project/config.xml"
+            test -s "$project/index.html"
+            test -s "$project/moonlight-wasm.js"
+            test -s "$project/moonlight-wasm.wasm"
+            test -s "$project/service/service.js"
+          done
+
+      - name: Package the Tizen Core hybrid workspaces
+        shell: bash
+        env:
+          BUILD_OUTPUT_NAME: Moonlight.wgt
+          BASE_WGT_NAME: MoonlightWeb-base.wgt
+          DOTNET_BUILD_CONFIGURATION: Release
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm -i --user root \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e RUNNER_TEMP=/runner-temp \
+            -e GITHUB_SHA="$GITHUB_SHA" \
+            -e BUILD_OUTPUT_NAME="$BUILD_OUTPUT_NAME" \
+            -e BASE_WGT_NAME="$BASE_WGT_NAME" \
+            -e DOTNET_BUILD_CONFIGURATION="$DOTNET_BUILD_CONFIGURATION" \
+            "$image" bash /workspace/scripts/package-hybrid-wgt.sh
+      - name: Show packaging diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          find "$RUNNER_TEMP" "$HOME" -type f \
+            \( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \) \
+            -print 2>/dev/null | while IFS= read -r log; do
+              echo "--- $log (last 300 lines) ---"
+              tail -n 300 "$log"
+            done
+
+      - name: Collect the single release WGT
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p dist
-          docker cp "$container_id:/home/moonlight/Moonlight.wgt" dist/Moonlight.wgt
+          cp "$RUNNER_TEMP/hybrid-output/Moonlight.wgt" dist/Moonlight.wgt
           test -s dist/Moonlight.wgt
           sha256sum dist/Moonlight.wgt
-
-      - name: Build ForceGM WGT
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: false
-          load: true
-          tags: moonlight-tizen-release:forcegm
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_TYPE=release
-            OFFICIAL_RELEASE=true
-            REPO_OWNER=${{ github.repository_owner }}
-            REPO_NAME=${{ github.event.repository.name }}
-            FORCE_GAME_MODE=true
-
-      - name: Extract ForceGM WGT
-        if: steps.version.outputs.mode == 'publish'
-        shell: bash
-        run: |
-          set -euo pipefail
-          container_id="$(docker create moonlight-tizen-release:forcegm)"
-          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
-          mkdir -p dist
-          docker cp "$container_id:/home/moonlight/Moonlight-ForceGM.wgt" dist/Moonlight-ForceGM.wgt
-          test -s dist/Moonlight-ForceGM.wgt
-          sha256sum dist/Moonlight-ForceGM.wgt
 
       - name: Publish public GitHub Release
         if: steps.version.outputs.mode == 'publish'
@@ -318,5 +446,4 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             dist/Moonlight.wgt
-            dist/Moonlight-ForceGM.wgt
           body_path: .github/release-notes.md
