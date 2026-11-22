@@ -9513,6 +9513,16 @@ function loadSystemInfo() {
 
   const buildVer = getBuildVersion(appInfo.version);
   var firmwareVersion = t('Unknown');
+  var tvIpAddress = t('Unknown');
+  try {
+    if (typeof webapis !== 'undefined' && webapis.network &&
+        typeof webapis.network.getIp === 'function') {
+      tvIpAddress = webapis.network.getIp() || t('Unknown');
+    }
+  } catch (error) {
+    console.warn('%c[index.js, loadSystemInfo]', 'color: gray;',
+      'Could not read TV IP address:', error);
+  }
   try {
     if (typeof webapis !== 'undefined' && webapis.productinfo &&
         typeof webapis.productinfo.getFirmware === 'function') {
@@ -9546,6 +9556,7 @@ function loadSystemInfo() {
       t('TV Model Name: %1$s', modelName ? modelName : t('Unknown')) + '\n' +
       t('TV Model Group: %1$s', modelGroup ? modelGroup : t('Unknown')) + '\n' +
       t('Developer mode: %1$s', developerDetails.developerInfo) + '\n' +
+      t('TV IP address: %1$s', tvIpAddress) + '\n' +
       t('Network connection: %1$s', networkDetails.connection) + '\n' +
       t('Internet access: %1$s', networkDetails.internet);
 
