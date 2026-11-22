@@ -5093,6 +5093,7 @@ function showApps(host, options) {
   return new Promise((resolve, reject) => {
     var settled = false;
     var artworkAbandoned = false;
+    var ownsAppListLock = false;
     var suppressLoadingSnackbar = !!(options && options.suppressLoadingSnackbar);
 
     // All exits share the same cleanup path so neither a rejected request nor an
@@ -5112,6 +5113,7 @@ function showApps(host, options) {
       Promise.resolve(dismissal).catch(function(error) {
         console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after a successful app-list operation:', error);
       }).then(function() {
+        if (ownsAppListLock) unlockAppListInteraction();
         resolve();
       });
     };
@@ -5131,6 +5133,8 @@ function showApps(host, options) {
       Promise.resolve(dismissal).catch(function(dismissError) {
         console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after an app-list error:', dismissError);
       }).then(function() {
+        if (ownsAppListLock) unlockAppListInteraction();
+        if (!suppressLoadingSnackbar) showHosts();
         reject(error);
       });
     };
@@ -5158,6 +5162,12 @@ function showApps(host, options) {
     }
 
     try {
+      // Keep the Apps grid dimmed and non-interactive until every card image is ready.
+      if (!suppressLoadingSnackbar && !appListInteractionLocked) {
+        lockAppListInteraction();
+        ownsAppListLock = true;
+      }
+
       // Stop navigation while transitioning from Hosts to Apps.
       Navigation.stop();
       if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
@@ -5336,12 +5346,20 @@ function showApps(host, options) {
           var appEntry = _previewApps[host.serverUid] ? _previewApps[host.serverUid].apps.find(function(a) {
             return Number(a.id) === Number(app.id);
           }) : null;
-          var boxArtPromise = new Promise(function(resolveBoxArt) {
+          var boxArtPromise = new Promise(function(resolveBoxArt, rejectBoxArt) {
             host.getBoxArt(app.id).then(function(resolvedPromise) {
+              // A card is ready only after its actual image has loaded.
+              boxArtPlaceholderImg.onload = function() {
+                boxArtPlaceholderImg.classList.add('fade-in');
+                resolveBoxArt();
+              };
+              boxArtPlaceholderImg.onerror = function() {
+                rejectBoxArt(new Error('Failed to load box art image for app ID ' + app.id));
+              };
               boxArtPlaceholderImg.src = resolvedPromise;
-              // The resolvedPromise is now the absolute file URI (or data URL if it failed to save).
+
+              // The resolved value is the cached file URI or fetched data URL.
               if (_previewApps[host.serverUid] && appEntry) {
-                // Resolve real TV IP because Smart Hub might block 127.0.0.1
                 var tvIp = '127.0.0.1';
                 try {
                   if (typeof webapis !== 'undefined' && webapis.network) {
@@ -5351,8 +5369,6 @@ function showApps(host, options) {
                   console.log('%c[index.js, showApps]', 'color: green;', 'Failed to get TV IP: ', e);
                 }
 
-                // Serve the generated, host-specific JPEG from Documents. Never point
-                // the Preview URL at the original PNG box-art file.
                 var filename = getSmartHubPreviewFileName(host.serverUid, app.id);
                 var cacheBuster = '?v=' + Date.now();
                 try {
@@ -5363,20 +5379,14 @@ function showApps(host, options) {
                 }
                 appEntry.imageUri = 'http://' + tvIp + ':8888/' + filename + cacheBuster;
                 appEntry.imageRatio = '2by3';
-                resolveBoxArt();
-
-                // Early return to prevent the fallback synchronous resolveBoxArt from firing
-                return;
               }
-              resolveBoxArt();
             }, function(failedPromise) {
-              console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to retrieve box art for app ID: ' + app.id + '. Returned value was: ' + failedPromise + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
-              boxArtPlaceholderImg.src = 'static/res/placeholder_error.svg';
-              resolveBoxArt();
+              rejectBoxArt(failedPromise instanceof Error
+                ? failedPromise
+                : new Error('Failed to retrieve box art for app ID ' + app.id + ': ' + failedPromise));
             });
           });
 
-          boxArtPlaceholderImg.onload = e => boxArtPlaceholderImg.classList.add('fade-in');
           $(gameContainer).append(boxArtPlaceholderImg);
           boxArtPromises.push(boxArtPromise);
         });
@@ -5394,12 +5404,7 @@ function showApps(host, options) {
         // Check all game containers for the current running app and apply CSS styling accordingly
         stylizeBoxArts(host, sortedAppList);
 
-        var settledPromises = boxArtPromises.map(function(p) {
-          return p.catch(function(e) {
-            console.error('%c[index.js, showApps]', 'color: green;', 'Error: Box art promise rejected with error: ', e);
-            return e;
-          });
-        });
+        var settledPromises = boxArtPromises;
 
         var appToSelect = (host.currentGame != 0) ? host.currentGame : localStorage.getItem('lastOpenedApp_' + host.serverUid);
         if (appToSelect && window.Views && Views.Apps && Views.Apps.view) {
@@ -5413,7 +5418,7 @@ function showApps(host, options) {
         }
 
         // Navigate to the Apps view without starting diagnostic audio playback.
-        showAppsMode(!!(options && options.keepInteractionLocked), undefined, false, true);
+        showAppsMode(ownsAppListLock || !!(options && options.keepInteractionLocked), undefined, false, true);
 
         // Keep the delayed loading snackbar active until the artwork and Preview work
         // has settled. Fast app-list operations still cancel it before the one-second
@@ -5455,25 +5460,10 @@ function showApps(host, options) {
         artworkAbandoned = true;
         console.error('%c[index.js, showApps]', 'color: red;', 'Error while retrieving or processing the app list for ' + (host.hostname || 'the host') + ':', failedAppList);
 
-        // Start cleanup before touching the error UI: even a secondary rendering
-        // exception must not prevent the loading snackbar from being dismissed.
-        if (!suppressLoadingSnackbar) {
-          snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
-        }
-        finishError(failedAppList, !suppressLoadingSnackbar);
-
-        try {
-          var errorAppListImg = new Image();
-          errorAppListImg.src = 'static/res/applist_error.svg';
-          $('#game-grid').html(errorAppListImg);
-
-          // During stream recovery, do not expose an error Apps screen or unlock the stale grid.
-          if (!appListInteractionLocked) {
-            showAppsMode(!!(options && options.keepInteractionLocked));
-          }
-        } catch (renderError) {
-          console.error('%c[index.js, showApps]', 'color: red;', 'Could not render the app-list error state:', renderError);
-        }
+        // A failed app-list or card-image load is not a completed Apps view.
+        // finishError clears the loading snackbar, releases our lock, and returns
+        // to Hosts so the user can retry the operation.
+        finishError(failedAppList);
       });
       } catch (error) {
         console.error('%c[index.js, showApps]', 'color: red;', 'Synchronous error while starting the app-list operation:', error);
