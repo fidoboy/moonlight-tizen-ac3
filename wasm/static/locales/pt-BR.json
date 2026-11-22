@@ -405,6 +405,8 @@
   "Remove all currently saved hosts from the list": "Remover todos os hosts atualmente salvos da lista",
   "Remove all hosts": "Remover todos os hosts",
   "Requesting stream from host...": "Solicitando sessão de transmissão ao host...",
+  "Regenerate app image thumbnails": "Regenerar miniaturas das imagens dos aplicativos",
+  "Regenerating app image thumbnails...": "Regenerando miniaturas das imagens dos aplicativos...",
   "Rescan Network": "Verificar a rede novamente",
   "Resolution": "Resolução",
   "Restart": "Reiniciar",
