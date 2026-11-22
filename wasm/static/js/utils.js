@@ -292,16 +292,7 @@ NvHTTP.prototype = {
       this._baseUrlHttps = 'https://' + urlAddr + ':' + this.httpsPort;
       this._baseUrlHttp = 'http://' + urlAddr + ':' + this.httpPort;
 
-      if (this.paired && this._pollCount === 0) updateMacAddress(this);
-
-      if (this.paired && this._pollCount++ % 10 === 1) {
-        this._backgroundAppListRefreshInProgress = true;
-        this.getAppListWithCacheFlush().catch(function(error) {
-          console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
-        }).finally(function() {
-          this._backgroundAppListRefreshInProgress = false;
-        }.bind(this));
-      }
+      if (this.paired && this._pollCount++ === 0) updateMacAddress(this);
 
       this._consecutivePollFailures = 0;
       this.online = true;
