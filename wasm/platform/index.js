@@ -5204,7 +5204,7 @@ function showApps(host, options) {
       return;
     }
 
-          if (isOperationCancelled() || settled) return;
+      if (isOperationCancelled() || settled) return;
       try {
         var appListRequest = (options && options.forceRefreshAppList)
           ? host.getAppListWithCacheFlush()
