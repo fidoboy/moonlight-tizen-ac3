@@ -5402,6 +5402,9 @@ function showApps(host, options) {
               }
             }, function(failedPromise) {
               console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not retrieve box art for app ID ' + app.id + ':', failedPromise);
+              if (typeof host.invalidateBoxArt === 'function') {
+                host.invalidateBoxArt(app.id);
+              }
               // A failed artwork request is local to this card; show the fallback and continue.
               boxArtPlaceholderImg.onload = function() {
                 boxArtPlaceholderImg.classList.add('fade-in');
