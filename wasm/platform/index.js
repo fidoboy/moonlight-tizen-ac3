@@ -5541,6 +5541,7 @@ function showAppsWithCachedList(host) {
   return showApps(host, {
     appListOverride: cachedAppList,
     suppressLoadingSnackbar: true,
+    suppressEmptyListSnackbar: true,
     keepInteractionLocked: true
   }).then(function() {
     if (window.api !== host || !$('#game-grid').is(':visible')) {
