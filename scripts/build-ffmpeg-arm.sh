@@ -3,17 +3,17 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEPS="${WMP_DEPS:-/opt/wmp-tizen-deps}"
-TOOL_BIN="$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
+TOOL_BIN="$DEPS/toolchain/data/tools/arm-linux-gnabi-gcc-6.2/bin"
 SOURCE_DIR="$ROOT/ffmpeg"
 WORK_DIR="${FFMPEG_ARM_WORK_DIR:-$ROOT/ffmpeg-arm-build}"
 BUILD_SOURCE_DIR="$WORK_DIR/source"
 PREFIX="${FFMPEG_ARM_PREFIX:-$ROOT/ffmpeg-arm-install}"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
-CC="${WMP_ARM_CC:-$TOOL_BIN/arm-linux-gnueabi-gcc}"
-CXX="${WMP_ARM_CXX:-$TOOL_BIN/arm-linux-gnueabi-g++}"
-AR="${WMP_ARM_AR:-$TOOL_BIN/arm-linux-gnueabi-ar}"
-NM="${WMP_ARM_NM:-$TOOL_BIN/arm-linux-gnueabi-nm}"
-RANLIB="$TOOL_BIN/arm-linux-gnueabi-ranlib"
+CC="${WMP_ARM_CC:-$TOOL_BIN/arm-linux-gnabi-gcc}"
+CXX="${WMP_ARM_CXX:-$TOOL_BIN/arm-linux-gnabi-g++}"
+AR="${WMP_ARM_AR:-$TOOL_BIN/arm-linux-gnabi-ar}"
+NM="${WMP_ARM_NM:-$TOOL_BIN/arm-linux-gnabi-nm}"
+RANLIB="$TOOL_BIN/arm-linux-gnabi-ranlib"
 
 for tool in "$CC" "$CXX" "$AR" "$NM" "$RANLIB"; do
   test -x "$tool" || { echo "Missing ARM toolchain executable: $tool" >&2; exit 1; }
@@ -46,7 +46,7 @@ cd "$BUILD_SOURCE_DIR"
   --target-os=linux \
   --arch=arm \
   --cpu=cortex-a53 \
-  --cross-prefix="$TOOL_BIN/arm-linux-gnueabi-" \
+  --cross-prefix="$TOOL_BIN/arm-linux-gnabi-" \
   --cc="$CC" \
   --cxx="$CXX" \
   --ar="$AR" \
