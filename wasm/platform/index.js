@@ -5539,7 +5539,12 @@ function showApps(host, options) {
 // The cached presentation is silent; only the subsequent server request owns the loading snackbar.
 function showAppsWithCachedList(host) {
   if (!host || !Array.isArray(host._memCachedApplist)) {
-    return showApps(host, { forceRefreshAppList: true });
+    // A host without its own cached list must never inherit the previous host's cards.
+    // Force a clean grid and let the server response populate it from scratch.
+    return showApps(host, {
+      forceRefreshAppList: true,
+      forceRebuildAppGrid: true
+    });
   }
 
   var cachedAppList = host._memCachedApplist.slice();
