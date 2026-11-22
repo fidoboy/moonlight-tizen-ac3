@@ -5551,15 +5551,15 @@ function reconcileVisibleAppGrid(host, freshAppList) {
       stylizeBoxArts(host, previousList, runningIds);
       host._lastRenderedCurrentGame = host.currentGame;
     }
-    return;
+    return Promise.resolve();
   }
 
   // Commit the fresh list only after establishing that the selected view still
   // belongs to this host. showApps() then reuses every unchanged card and image.
-  if (window.api !== host || !$('#game-grid').is(':visible')) return;
+  if (window.api !== host || !$('#game-grid').is(':visible')) return Promise.resolve();
   host._memCachedApplist = freshAppList;
   lockAppListInteraction();
-  showApps(host, {
+  return showApps(host, {
     suppressLoadingSnackbar: true,
     keepInteractionLocked: true,
     differentialAppIds: changedIds
