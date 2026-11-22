@@ -656,7 +656,6 @@
   "Could not retrieve the requested application from the host.": "Impossibile recuperare l'applicazione richiesta dall'host.",
   "Moonlight could not restore the selected host.": "Moonlight non è riuscito a ripristinare l'host selezionato.",
   "Audio latency:": "Latenza audio:",
-  "- Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcola il bitrate di riferimento consigliato all’inizio di ogni sessione di streaming, dopo la negoziazione con l’host. Il valore calcolato viene salvato e utilizzato nelle sessioni successive. Si consiglia di mantenere attiva questa opzione per alcune sessioni, finché il bitrate non si stabilizza. In seguito è possibile disattivarla e regolare manualmente il valore ottenuto nelle impostazioni di base.",
   "Firmware Version: %1$s": "Versione firmware: %1$s",
   "Developer mode: %1$s": "Modalità sviluppatore: %1$s",
   "Network connection: %1$s": "Connessione di rete: %1$s",
@@ -664,5 +663,6 @@
   "Not exposed by TV API": "Non disponibile tramite l’API TV",
   "Wi-Fi": "Wi-Fi",
   "Ethernet": "Ethernet",
-  "Disconnected": "Disconnesso"
+  "Disconnected": "Disconnesso",
+  "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "- Calcola il bitrate di riferimento consigliato all’inizio di ogni sessione di streaming, dopo la negoziazione con l’host. Il valore calcolato viene salvato e utilizzato nelle sessioni successive. Si consiglia di mantenere attiva questa opzione per alcune sessioni, finché il bitrate non si stabilizza. In seguito è possibile disattivarla e regolare manualmente il valore ottenuto nelle impostazioni di base."
 }
