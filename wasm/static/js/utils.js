@@ -959,6 +959,32 @@ NvHTTP.prototype = {
     }.bind(this));
   },
 
+  // Remove one app's original and Smart Hub Preview artwork when validation fails.
+  // The next app-list load will fetch the original image again from the host.
+  invalidateBoxArt: function(appId) {
+    var boxArtPath = 'wgt-private/' + this.hostname + '/boxart-' + appId + '.png';
+    var previewFileName = getSmartHubPreviewFileName(this.serverUid, appId);
+    var previewPath = 'documents/' + previewFileName;
+
+    try {
+      tizen.filesystem.deleteFile(boxArtPath);
+      console.log('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Removed invalid cached box art: ' + boxArtPath);
+    } catch (error) {
+      console.warn('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Could not remove cached box art ' + boxArtPath + ': ' + error.message);
+    }
+
+    try {
+      tizen.filesystem.deleteFile(previewPath);
+      console.log('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Removed associated Preview image: ' + previewPath);
+    } catch (error) {
+      // The Preview file may not exist or may already have been removed.
+    }
+
+    if (window.previewImageStatus) {
+      window.previewImageStatus[previewFileName] = false;
+    }
+  },
+
   // Clears cached box art and preview images from local storage.
   // Removes the private box art directory and preview files from the public documents directory.
   clearBoxArt: function() {
