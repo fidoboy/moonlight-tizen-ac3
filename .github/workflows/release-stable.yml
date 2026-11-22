@@ -476,7 +476,6 @@ jobs:
           prerelease: false
           draft: false
           make_latest: true
-          overwrite_files: true
           fail_on_unmatched_files: true
           files: |
             dist/Moonlight.wgt
