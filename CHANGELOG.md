@@ -16,6 +16,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Dolby Digital software decoding:** Added real-time AC-3/E-AC-3 decoding to PCM for EMSS streams when Dolby Digital (DD) is enabled and the Dolby decoding mode is set to **Software**. This provides software-decoded PCM output instead of Dolby bitstream passthrough; Hardware mode retains the existing passthrough path.
 
 ### Changed
+- **Dolby Digital audio fallback:** The host no longer needs to provide a Dolby Digital audio stream. When available, the host-provided stream remains the preferred option. If Dolby Digital is enabled in Moonlight but cannot be negotiated with the host, Moonlight attempts to transcode the received OPUS audio to E-AC-3 in real time.
 - **Moonlight Common C:** Updated the bundled library with various fixes and improvements.
 - **Performance statistics overlay:** Adjusted the overlay presentation to make it more compact, consolidating the frame-rate metrics into a single line and separating the additional metrics with a subtle divider.
 - **Settings section navigation:** Kept the right-hand pane and its controls visible while navigating between settings sections, dimming the pane during the transition instead of hiding it.
