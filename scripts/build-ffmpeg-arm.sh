@@ -10,10 +10,10 @@ BUILD_SOURCE_DIR="$WORK_DIR/source"
 PREFIX="${FFMPEG_ARM_PREFIX:-$ROOT/ffmpeg-arm-install}"
 ARCH="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=softfp"
 CC="${WMP_ARM_CC:-$TOOL_BIN/arm-linux-gnueabi-gcc}"
-CXX="${WMP_ARM_CXX:-$TOOL_BIN/arm-linux-gnueabi-g++}"
-AR="${WMP_ARM_AR:-$TOOL_BIN/arm-linux-gnueabi-ar}"
-NM="${WMP_ARM_NM:-$TOOL_BIN/arm-linux-gnueabi-nm}"
-RANLIB="$TOOL_BIN/arm-linux-gnueabi-ranlib"
+CXX="${WMP_ARM_CXX:-$TOOL_BIN/arm-linux-gnabi-g++}"
+AR="${WMP_ARM_AR:-$TOOL_BIN/arm-linux-gnabi-ar}"
+NM="${WMP_ARM_NM:-$TOOL_BIN/arm-linux-gnabi-nm}"
+RANLIB="$TOOL_BIN/arm-linux-gnabi-ranlib"
 
 for tool in "$CC" "$CXX" "$AR" "$NM" "$RANLIB"; do
   test -x "$tool" || { echo "Missing ARM toolchain executable: $tool" >&2; exit 1; }
@@ -21,7 +21,7 @@ done
 test -s "$DEPS/sysroot/usr/include/stdio.h"
 test -s "$SOURCE_DIR/configure" || {
   echo "Vendored FFmpeg source is missing: $SOURCE_DIR/configure" >&2
-  exit 1
+  exit 1;
 }
 
 if [[ -s "$PREFIX/.ffmpeg-version" &&
@@ -73,7 +73,6 @@ cd "$BUILD_SOURCE_DIR"
   --disable-filters \
   --disable-devices \
   --disable-x86asm \
-  --disable-pthreads \
   --disable-debug \
   --disable-stripping \
   --enable-static \
