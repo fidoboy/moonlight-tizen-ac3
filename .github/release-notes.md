@@ -1,6 +1,8 @@
 ## Highlights
 
-- **Improved host connectivity management:** Refined background host polling across the Hosts, Apps and Settings views. Polling now pauses during streaming and resumes appropriately; manual discovery and Auto WOL operate independently without interrupting checks for known hosts.
-- **Streaming menu input isolation:** Fixed gamepad, keyboard and mouse events reaching the remote session while the streaming menu is open. The menu now takes ownership of input until it closes.
-- **More reliable host status after startup:** Reset persisted runtime connectivity state when restoring saved hosts, so their availability is verified against the network before selection.
-- **Interface localization:** Improved translations across several supported languages.
+- **Experimental native WMP streaming engine:** Added an alternative playback engine based on Samsung's native WMP/ESPlusPlayer implementation. It can be selected in the streaming settings; EMSS remains the recommended engine, as native WMP is experimental and results may vary by TV model.
+- **Experimental Ambilight support:** Added optional ambient lighting for compatible Samsung TVs running Tizen 6.5 or later. During streaming, the TV's decoded video is analysed and colours are sent to a WLED controller over the WLED realtime DRGB protocol.
+- **Expanded audio support and handling:** Added Opus hardware passthrough with software-decoding fallback, and software decoding of AC-3/E-AC-3 to PCM for EMSS. Dolby Digital can also fall back to real-time OPUS-to-E-AC-3 transcoding when a Dolby stream cannot be negotiated with the host. The optimal streaming bitrate calculation now accounts for the negotiated audio codec, quality mode and channel count.
+- **More detailed streaming statistics:** Expanded the performance overlay with received audio quality, audio decoder mode and software-decoding latency, alongside a more compact layout.
+- **Expanded TV and network diagnostics:** Added firmware and model details, Developer Mode information, local and configured IP addresses, network connection type, and Internet connectivity status to System Info.
+- **Improved integration and controller usability:** Fixed host names in Samsung Smart Hub Preview app cards and added Xbox Share button mapping, a configurable Select-button shortcut for the streaming menu, mouse-emulation stick selection, and a way to dismiss the gamepad test dialog using the B button.
