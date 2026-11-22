@@ -5093,6 +5093,7 @@ function showApps(host, options) {
   return new Promise((resolve, reject) => {
     var settled = false;
     var artworkAbandoned = false;
+    var preserveExistingAppGrid = appListInteractionLocked;
     var ownsAppListLock = false;
     var suppressLoadingSnackbar = !!(options && options.suppressLoadingSnackbar);
 
@@ -5193,7 +5194,7 @@ function showApps(host, options) {
 
       // Keep the current cards in place during a locked refresh (stream recovery / app close).
       // Normal host navigation still starts with a clean grid.
-      if (!appListInteractionLocked) {
+      if (!preserveExistingAppGrid) {
         $('#game-grid').empty();
         $('div.game-container').remove();
       }
@@ -5238,7 +5239,7 @@ function showApps(host, options) {
         // Apply the selected app ordering before caching and rendering the list.
         const sortedAppList = sortAppsForHost(host, appList);
 
-        if (appListInteractionLocked) {
+        if (preserveExistingAppGrid) {
           // Reconcile by app ID instead of tearing down the entire visible list.
           const grid = document.getElementById('game-grid');
           const desiredIds = new Set(sortedAppList.map(function(app) {
@@ -5274,7 +5275,7 @@ function showApps(host, options) {
 
         sortedAppList.forEach(function(app) {
           // Existing cards keep their DOM and artwork during an in-place refresh.
-          if (appListInteractionLocked && document.getElementById('game-container-' + app.id)) return;
+          if (preserveExistingAppGrid && document.getElementById('game-container-' + app.id)) return;
 
           // Double clicking the button will cause multiple box arts to appear.
           // To mitigate this, we ensure that we don't add a duplicate box art.
