@@ -579,7 +579,7 @@
             <article class="feature">
               <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><path d="M5 5l14 14M19 5 5 19"/></svg></div>
               <h3>Optional Dolby passthrough</h3>
-              <p>AC-3 and E-AC-3 audio for compatible hosts, Tizen TVs, and receivers—useful for optical or HDMI sound systems.</p>
+              <p>AC-3 and E-AC-3 audio for compatible hosts, Tizen TVs, and receivers—especially useful with optical or HDMI sound systems that support 5.1 surround sound.</p>
             </article>
             <article class="feature">
               <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M12 4v5M16 4v5"/></svg></div>
@@ -651,10 +651,10 @@
             </div>
           </aside>
         </div>
-            <blockquote class="notice admonition admonition-important">
+            <blockquote class="notice admonition admonition-info">
               <div class="admonition-heading">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
-                <span>Important</span>
+                <span>Information</span>
               </div>
               <p data-i18n-rich="Dolby host compatibility note">To benefit from Dolby passthrough in Moonlight for Tizen, you need a host that supports the feature and has it enabled. This has been confirmed with Vibeshine 2.0.3 or later
                 <a data-i18n-link="installer" data-i18n-link-text="Vibeshine installer" class="download-pill download-pill-first" href="https://github.com/Nonary/vibeshine/releases/download/2.0.3/VibeshineSetup-v2.0.3.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Vibeshine 2.0.3 Windows installer">
@@ -709,21 +709,14 @@
           </a>
         </div>
         <div class="download-divider" aria-hidden="true"><span>OR</span></div>
-        <div class="download-grid">
+        <div class="download-grid" style="grid-template-columns:minmax(0, 520px);justify-content:center">
           <article class="download-card">
-            <div class="mini-label">Recommended build</div>
             <h3>Moonlight.wgt</h3>
-            <p>Standard release. Install with Apps2Samsung's catalog or use Custom WGT / TPK if catalog installation fails.</p>
-            <a class="button button-primary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight.wgt">Download standard WGT <span class="arrow" aria-hidden="true">↓</span></a>
-          </article>
-          <article class="download-card">
-            <div class="mini-label">Alternative build</div>
-            <h3>Moonlight-ForceGM.wgt</h3>
-            <p>Includes additional Game Mode metadata. It cannot enable Game Mode on TVs or firmware that do not support the feature.</p>
-            <a class="button button-secondary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight-ForceGM.wgt">Download ForceGM WGT <span class="arrow" aria-hidden="true">↓</span></a>
+            <p>Unsigned WGT package. Install manually with Tizen Studio or another available method.</p>
+            <a class="button button-primary" href="https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest/download/Moonlight.wgt">Download unsigned WGT <span class="arrow" aria-hidden="true">↓</span></a>
           </article>
         </div>
-        <p class="fine-print">Packages are hosted by <a href="https://github.com/fidoboy/moonlight-tizen-ac3/releases">GitHub Releases</a>. No installer, paid hosting, or separate account is required to download them.</p>
+        <p class="fine-print">The WGT is hosted by <a href="https://github.com/fidoboy/moonlight-tizen-ac3/releases">GitHub Releases</a>. No installer, paid hosting, or separate account is required to download it.</p>
       </div>
     </section>
 

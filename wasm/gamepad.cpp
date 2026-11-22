@@ -13,6 +13,7 @@
 #include <thread>
 #include <cmath>
 #include <map>
+#include <mutex>
 
 #include <Limelight.h>
 #include <emscripten/emscripten.h>
@@ -46,10 +47,10 @@ inline uint32_t supportedButtons(int count, bool flipAB = false, bool flipXY = f
   static constexpr uint32_t buttons[] = {
     A_FLAG, B_FLAG, X_FLAG, Y_FLAG, LB_FLAG, RB_FLAG, 0, 0,
     BACK_FLAG, PLAY_FLAG, LS_CLK_FLAG, RS_CLK_FLAG,
-    UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG, SPECIAL_FLAG
+    UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG, SPECIAL_FLAG, MISC_FLAG
   };
   uint32_t flags = 0;
-  for (int i = 0; i < count && i < 17; ++i) {
+  for (int i = 0; i < count && i < 18; ++i) {
     auto flag = buttons[i];
     if (flipAB && i < 2) {
       flag = buttons[1 - i];
@@ -127,22 +128,33 @@ class Tracker {
 // The streaming menu owns all remote input while it is visible.
 std::atomic<bool> streamMenuInputBlocked{false};
 
-extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
-  streamMenuInputBlocked.store(blocked != 0, std::memory_order_release);
-}
 
 // Bitmask for gamepad combo buttons to stop the streaming session
 const short STOP_STREAM_BUTTONS = BACK_FLAG | PLAY_FLAG | LB_FLAG | RB_FLAG;
 
 // Bitmask for gamepad combo buttons to toggle the performance stats overlay
-const short PERF_STATS_BUTTONS = BACK_FLAG | LB_FLAG | RB_FLAG | X_FLAG;
 
 // Flag for gamepad to track controller rumble state
 bool rumbleFeedbackSwitch = false;
 
 // Flags for gamepad to track mouse emulation state
 bool mouseEmulationSwitch = false;
-bool mouseEmulationActive = false;
+bool mouseEmulationUseLeftStick = true;
+std::atomic<bool> mouseEmulationActive{false};
+
+// Stream termination can happen outside the gamepad polling loop. Reset the
+// local mode explicitly so it cannot carry over into a later session.
+extern "C" EMSCRIPTEN_KEEPALIVE int resetGamepadMouseEmulation() {
+  const bool wasActive = mouseEmulationActive.exchange(false, std::memory_order_acq_rel);
+  return wasActive ? 1 : 0;
+}
+bool selectHoldStreamMenuSwitch = false;
+std::map<int, std::chrono::steady_clock::time_point> selectPressTimes;
+std::map<int, bool> selectMenuTriggered;
+std::map<int, bool> selectButtonConsumed;
+std::map<int, std::chrono::steady_clock::time_point> selectClickPulseUntil;
+std::map<int, std::chrono::steady_clock::time_point> activatePressTimes;
+std::map<int, bool> activatePressTriggered;
 
 // Flags for gamepad to track face buttons state
 bool flipABfaceButtonsSwitch = false;
@@ -157,7 +169,7 @@ enum GamepadButton {
   Back, Play,
   LeftStick, RightStick,
   Up, Down, Left, Right,
-  Special,
+  Special, Share,
   Count,
 };
 
@@ -171,9 +183,44 @@ enum GamepadAxis {
 };
 
 static gamepad_identity::Tracker controllerTracker;
+static std::mutex streamMenuInputMutex;
+static std::atomic<bool> gamepadResetPending{false};
+static uint16_t lastActiveGamepadMask = 0;
+static std::array<bool, gamepad_identity::kMaxControllers> gamepadNeutralRequired{};
+
+extern "C" EMSCRIPTEN_KEEPALIVE void setStreamMenuInputBlocked(int blocked) {
+  // Serialize the complete ownership transition, including the reset, against
+  // the final native gamepad dispatch. Publish the reset before releasing input.
+  std::lock_guard<std::mutex> lock(streamMenuInputMutex);
+  const bool newState = blocked != 0;
+  if (streamMenuInputBlocked.load(std::memory_order_acquire) == newState) {
+    return;
+  }
+
+  // The polling thread owns gamepad state; it consumes this flag and discards
+  // any sample captured before the new input epoch.
+  gamepadResetPending.store(true, std::memory_order_release);
+  ResetStreamInputState();
+  streamMenuInputBlocked.store(newState, std::memory_order_release);
+}
+
+static bool IsGamepadNeutral(const EmscriptenGamepadEvent& gamepad) {
+  for (int i = 0; i < gamepad.numButtons; ++i) {
+    if (gamepad.digitalButton[i] == EM_TRUE ||
+        std::abs(gamepad.analogButton[i]) > 0.05f) {
+      return false;
+    }
+  }
+  for (int i = 0; i < gamepad.numAxes; ++i) {
+    if (std::abs(gamepad.axis[i]) > 0.15f) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // Function to map gamepad buttons to flags
-static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
+static int GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
   // Triggers are considered analog buttons in the "Emscripten API", however they need
   // to be passed in separate arguments for "Limelight" (it even lacks flags for them).
 
@@ -188,7 +235,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define button mapping with A/B swapped
   static const int buttonMasksAB[] = {
@@ -198,7 +245,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define button mapping with X/Y swapped
   static const int buttonMasksXY[] = {
@@ -208,7 +255,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
   // Define default button mapping
   static const int buttonMasksDefault[] = {
@@ -218,7 +265,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     BACK_FLAG, PLAY_FLAG,
     LS_CLK_FLAG, RS_CLK_FLAG,
     UP_FLAG, DOWN_FLAG, LEFT_FLAG, RIGHT_FLAG,
-    SPECIAL_FLAG,
+    SPECIAL_FLAG, MISC_FLAG,
   };
 
   // Check if the A/B or X/Y face buttons switches are checked
@@ -240,7 +287,7 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
     buttonMasksSize = sizeof(buttonMasksDefault) / sizeof(buttonMasksDefault[0]);
   }
 
-  short result = 0;
+  int result = 0;
   
   for (int i = 0; i < gamepad.numButtons && i < buttonMasksSize; ++i) {
     if (gamepad.digitalButton[i] == EM_TRUE) {
@@ -252,10 +299,16 @@ static short GetButtonFlags(const EmscriptenGamepadEvent& gamepad) {
 }
 
 // Function to handle the gamepad input state
-void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons) {
+void MoonlightInstance::HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseLeftStickSetting, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons) {
   controllerTracker.reset();
+  selectPressTimes.clear();
+  selectMenuTriggered.clear();
+  selectButtonConsumed.clear();
+  selectClickPulseUntil.clear();
   rumbleFeedbackSwitch = rumbleFeedback;
   mouseEmulationSwitch = mouseEmulation;
+  mouseEmulationUseLeftStick = mouseEmulationUseLeftStickSetting;
+  selectHoldStreamMenuSwitch = selectHoldStreamMenu;
   flipABfaceButtonsSwitch = flipABfaceButtons;
   flipXYfaceButtonsSwitch = flipXYfaceButtons;
 }
@@ -281,15 +334,39 @@ void MoonlightInstance::PollGamepads() {
       samples[i] = {events[i].connected != 0, events[i].timestamp, events[i].id};
     }
   }
+  // Apply controller releases on the polling thread. This runs on both menu
+  // transitions, so a button held before opening or closing cannot be replayed.
+  if (gamepadResetPending.exchange(false, std::memory_order_acq_rel)) {
+    for (unsigned i = 0; i < gamepad_identity::kMaxControllers; ++i) {
+      if (controllerTracker.isAnnounced(i)) {
+        LiSendMultiControllerEvent(i, lastActiveGamepadMask, 0, 0, 0, 0, 0, 0, 0);
+      }
+    }
+    gamepadNeutralRequired.fill(true);
+    selectPressTimes.clear();
+    selectMenuTriggered.clear();
+    selectButtonConsumed.clear();
+    selectClickPulseUntil.clear();
+    activatePressTimes.clear();
+    activatePressTriggered.clear();
+  }
+
   // Keep sampling paused at the native input boundary while the UI owns the controller.
-  // This also defers tracker changes so arrivals/removals are synchronized after the menu closes.
+  // Tracker changes are deferred until the menu has released ownership.
   if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
     return;
   }
 
   const auto changes = controllerTracker.update(samples);
   const auto activeGamepadMask = changes.mask;
+  lastActiveGamepadMask = activeGamepadMask;
   for (const auto i : changes.removed) {
+    selectPressTimes.erase(i);
+    selectMenuTriggered.erase(i);
+    selectButtonConsumed.erase(i);
+    selectClickPulseUntil.erase(i);
+    activatePressTimes.erase(i);
+    activatePressTriggered.erase(i);
     LiSendMultiControllerEvent(i, activeGamepadMask & ~(1u << i), 0, 0, 0, 0, 0, 0, 0);
   }
   for (const auto i : changes.arrived) {
@@ -313,15 +390,23 @@ void MoonlightInstance::PollGamepads() {
       ClLogMessage("Controller %u announced with type %u\n", i, type);
     }
   }
-  static std::map<int, bool> comboTriggered;
   for (int gamepadID = 0; gamepadID < limit; ++gamepadID) {
     if (!(activeGamepadMask & (1u << gamepadID)) || !controllerTracker.isAnnounced(gamepadID)) {
       continue;
     }
     const auto& gamepad = events[gamepadID];
 
+    // Require every controller to return to neutral after the menu closes.
+    // This prevents held buttons/triggers/sticks from becoming fresh host input.
+    if (gamepadNeutralRequired[gamepadID]) {
+      if (!IsGamepadNeutral(gamepad)) {
+        continue;
+      }
+      gamepadNeutralRequired[gamepadID] = false;
+    }
+
     // Process input for active gamepad
-    const auto buttonFlags = GetButtonFlags(gamepad);
+    auto buttonFlags = GetButtonFlags(gamepad);
     const auto leftTrigger = gamepad.analogButton[GamepadButton::LeftTrigger]
       * std::numeric_limits<unsigned char>::max();
     const auto rightTrigger = gamepad.analogButton[GamepadButton::RightTrigger]
@@ -337,74 +422,138 @@ void MoonlightInstance::PollGamepads() {
 
     // Check if the current button flags match the defined button combination on the gamepad
     if (buttonFlags == STOP_STREAM_BUTTONS) {
-      // Terminate the connection
+      // Terminate the connection. This is the only reserved gamepad button combination.
       stopStream();
       return;
-    } else if (buttonFlags == PERF_STATS_BUTTONS) {
-      if (!comboTriggered[gamepadID]) {
-        // Toggle performance stats overlay
-        toggleStats();
-        // Mark combo as triggered until buttons are released
-        comboTriggered[gamepadID] = true;
-      }
-    } else {
-      // Reset when buttons are released
-      comboTriggered[gamepadID] = false;
     }
 
-    // Check if the mouse emulation switch is checked
+    // Hold Select locally until the gesture is known: a short press is replayed as a
+    // brief button pulse, while a long press opens the stream menu without reaching the host.
+    if (selectHoldStreamMenuSwitch) {
+      const bool selectPressed = (buttonFlags & BACK_FLAG) != 0;
+      if (selectPressed) selectClickPulseUntil.erase(gamepadID);
+      const bool reservedCombo = buttonFlags == STOP_STREAM_BUTTONS;
+      if (selectPressed && reservedCombo) {
+        // Preserve the stream-stop combination; it takes precedence over this shortcut.
+        selectPressTimes.erase(gamepadID);
+        if (!selectButtonConsumed[gamepadID]) {
+          selectMenuTriggered[gamepadID] = false;
+        }
+      } else if (selectPressed) {
+        const auto now = std::chrono::steady_clock::now();
+        auto press = selectPressTimes.find(gamepadID);
+        if (press == selectPressTimes.end()) {
+          selectPressTimes[gamepadID] = now;
+        } else if (!selectMenuTriggered[gamepadID] &&
+                   std::chrono::duration_cast<std::chrono::milliseconds>(now - press->second).count() >= 1000) {
+          selectMenuTriggered[gamepadID] = true;
+          selectButtonConsumed[gamepadID] = true;
+          PostToJs(std::string("openStreamMenu"));
+        }
+        // Do not expose a pending or consumed Select hold to the streamed game.
+        buttonFlags &= ~BACK_FLAG;
+      } else {
+        const bool replayShortPress = selectPressTimes.find(gamepadID) != selectPressTimes.end() &&
+                                      !selectMenuTriggered[gamepadID] &&
+                                      !selectButtonConsumed[gamepadID];
+        selectPressTimes.erase(gamepadID);
+        selectMenuTriggered[gamepadID] = false;
+        selectButtonConsumed[gamepadID] = false;
+        if (replayShortPress) {
+          // Deliver a normal Select click after the user releases it before the long-press threshold.
+          selectClickPulseUntil[gamepadID] = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+        }
+        const auto pulse = selectClickPulseUntil.find(gamepadID);
+        if (pulse != selectClickPulseUntil.end()) {
+          if (std::chrono::steady_clock::now() < pulse->second) {
+            buttonFlags |= BACK_FLAG;
+          } else {
+            selectClickPulseUntil.erase(pulse);
+          }
+        }
+      }
+    } else {
+      selectClickPulseUntil.erase(gamepadID);
+      selectPressTimes.erase(gamepadID);
+      selectMenuTriggered[gamepadID] = false;
+      selectButtonConsumed[gamepadID] = false;
+    }
+
+    // If the stream stops being ready (including when its closing transition
+    // appears), stop local mouse mode before dispatching any further mouse input.
+    if (mouseEmulationActive.load(std::memory_order_acquire) && !MAIN_THREAD_EM_ASM_INT({
+      return !!(window.isGamepadMouseEmulationReady &&
+                window.isGamepadMouseEmulationReady());
+    })) {
+      mouseEmulationActive.store(false, std::memory_order_release);
+      PostToJs(std::string("mouseEmulationOff"));
+    }
+
+    // Start/PLAY toggles mouse emulation once per hold. Activation is only
+    // allowed while the selected streaming engine has a ready video and the
+    // transition screen is no longer visible; deactivation is always allowed.
     if (mouseEmulationSwitch) {
-      static std::map<int, std::chrono::time_point<std::chrono::steady_clock>> activatePressTimes;
-      // Toggle mouse emulation on and off based on how long the PLAY/START button is pressed
       if (buttonFlags & PLAY_FLAG) {
         if (activatePressTimes.find(gamepadID) == activatePressTimes.end()) {
           activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+          activatePressTriggered[gamepadID] = false;
         }
-        auto currentTime = std::chrono::steady_clock::now();
-        // Calculate the duration in milliseconds since the PLAY/START button was pressed
-        auto durationTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - activatePressTimes[gamepadID]).count();
-        // If the button has been pressed for at least 1000 milliseconds (1 second)
-        if (durationTime >= 1000) {
-          // Toggle mouse emulation state
-          if (!mouseEmulationActive) {
-            // Activate mouse emulation and notify the user
-            mouseEmulationActive = true;
-            PostToJs(std::string("mouseEmulationOn"));
-          } else {
-            // Deactivate mouse emulation and notify the user
-            mouseEmulationActive = false;
+        const auto currentTime = std::chrono::steady_clock::now();
+        const auto durationTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            currentTime - activatePressTimes[gamepadID]).count();
+        if (durationTime >= 1000 && !activatePressTriggered[gamepadID]) {
+          activatePressTriggered[gamepadID] = true;
+          if (mouseEmulationActive.load(std::memory_order_acquire)) {
+            mouseEmulationActive.store(false, std::memory_order_release);
             PostToJs(std::string("mouseEmulationOff"));
+          } else if (MAIN_THREAD_EM_ASM_INT({
+            return !!(window.isGamepadMouseEmulationReady &&
+                      window.isGamepadMouseEmulationReady());
+          })) {
+            mouseEmulationActive.store(true, std::memory_order_release);
+            PostToJs(std::string("mouseEmulationOn"));
           }
-          // Reset the PLAY/START press time to the current time after toggling
-          activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+          // If the stream is not ready, discard this hold. A fresh press is required.
         }
       } else {
-        // If the PLAY/START button is not pressed, reset PLAY/START press time to the current time
-        activatePressTimes[gamepadID] = std::chrono::steady_clock::now();
+        activatePressTimes.erase(gamepadID);
+        activatePressTriggered.erase(gamepadID);
       }
     } else {
-      // Deactivate mouse emulation if the mouse emulation switch is unchecked
-      mouseEmulationActive = false;
+      // Deactivate mouse emulation if the mouse emulation switch is unchecked.
+      mouseEmulationActive.store(false, std::memory_order_release);
+      activatePressTimes.erase(gamepadID);
+      activatePressTriggered.erase(gamepadID);
+    }
+
+    // Serialize the final dispatch with menu ownership changes. The opening
+    // sample is discarded, and no gamepad packet can cross the block boundary.
+    std::lock_guard<std::mutex> inputLock(streamMenuInputMutex);
+    if (streamMenuInputBlocked.load(std::memory_order_acquire) ||
+        gamepadResetPending.load(std::memory_order_acquire)) {
+      return;
     }
 
     // If mouse emulation is active, then send mouse input to the desired handler (acts as a mouse)
-    if (mouseEmulationActive) {
-      // Left Stick values are mapped to horizontal and vertical mouse movements
+    if (mouseEmulationActive.load(std::memory_order_acquire)) {
+      // GamepadAxis::LeftX/LeftY are the physical left stick; RightX/RightY are the physical right stick.
+      // The selected physical stick controls the pointer; the other stick controls scrolling.
+      const auto pointerStickX = mouseEmulationUseLeftStick ? leftStickX : rightStickX;
+      const auto pointerStickY = mouseEmulationUseLeftStick ? leftStickY : rightStickY;
+      const auto scrollStickX = mouseEmulationUseLeftStick ? rightStickX : leftStickX;
+      const auto scrollStickY = mouseEmulationUseLeftStick ? rightStickY : leftStickY;
       const float baseMouseSpeed = 10.0f;
-      const float leftStickMagnitude = std::sqrt(leftStickX * leftStickX + leftStickY * leftStickY) / std::numeric_limits<short>::max();
-      const float mouseSpeed = baseMouseSpeed * leftStickMagnitude;
-      const float mouseXDelta = static_cast<float>(leftStickX) / std::numeric_limits<short>::max() * mouseSpeed;
-      const float mouseYDelta = -static_cast<float>(leftStickY) / std::numeric_limits<short>::max() * mouseSpeed;
-      
-      // Send a mouse move event with the specified delta values for both horizontal (X-axis) and vertical (Y-axis) coordinates
+      const float pointerStickMagnitude = std::sqrt(pointerStickX * pointerStickX + pointerStickY * pointerStickY) / std::numeric_limits<short>::max();
+      const float mouseSpeed = baseMouseSpeed * pointerStickMagnitude;
+      const float mouseXDelta = static_cast<float>(pointerStickX) / std::numeric_limits<short>::max() * mouseSpeed;
+      const float mouseYDelta = -static_cast<float>(pointerStickY) / std::numeric_limits<short>::max() * mouseSpeed;
       LiSendMouseMoveEvent(static_cast<int>(mouseXDelta), static_cast<int>(mouseYDelta));
 
-      // Right Stick values are mapped to horizontal and vertical mouse scrolls
       const float baseScrollSpeed = 1.0f;
-      const float rightStickMagnitude = std::sqrt(rightStickX * rightStickX + rightStickY * rightStickY) / std::numeric_limits<short>::max();
-      const float scrollSpeed = baseScrollSpeed * rightStickMagnitude;
-      const float scrollXDelta = static_cast<float>(rightStickX) / std::numeric_limits<short>::max() * scrollSpeed;
-      const float scrollYDelta = static_cast<float>(rightStickY) / std::numeric_limits<short>::max() * scrollSpeed;
+      const float scrollStickMagnitude = std::sqrt(scrollStickX * scrollStickX + scrollStickY * scrollStickY) / std::numeric_limits<short>::max();
+      const float scrollSpeed = baseScrollSpeed * scrollStickMagnitude;
+      const float scrollXDelta = static_cast<float>(scrollStickX) / std::numeric_limits<short>::max() * scrollSpeed;
+      const float scrollYDelta = static_cast<float>(scrollStickY) / std::numeric_limits<short>::max() * scrollSpeed;
       
       // Send mouse scroll events with the specified delta values for both horizontal (X-axis) and vertical (Y-axis) coordinates
       LiSendHScrollEvent(static_cast<int>(scrollXDelta));

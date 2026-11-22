@@ -14,7 +14,7 @@ description: "Soluções para problemas comuns de conexão, áudio e streaming n
 3. Em **Host PC IP**, informe o endereço IPv4 local do computador em que o Apps2Samsung está sendo executado. Ele deve corresponder exatamente ao endereço atual desse computador. Use o IPv4 do adaptador Wi-Fi ou Ethernet ativo, não o IP da TV, o gateway do roteador, `127.0.0.1` nem o endereço público da Internet. Salve a configuração e reinicie a TV.
 4. Confirme que a TV e o computador estão na mesma rede local e faça uma nova busca pela TV no Apps2Samsung. Wi-Fi para visitantes ou isolamento de clientes no roteador podem bloquear a comunicação.
 
-Consulte o [Guia de instalação](Installation-Guide-pt-br.html) e o [guia oficial Samsung TV Device](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html) para mais detalhes.
+Para obter ajuda com o Apps2Samsung, consulte o [guia de início rápido do Apps2Samsung](https://github.com/Apps2Samsung/Apps2Samsung/wiki#quick-start). Para instruções gerais sobre como instalar e atualizar aplicativos na TV, consulte o [guia oficial da Samsung sobre o uso de aplicativos em uma Smart TV](https://www.samsung.com/us/support/answer/ANS10005205/). Você também pode usar o [TV-Store](https://github.com/Apps2Samsung/TV-Store), que permite navegar e instalar aplicativos diretamente pela TV e gerenciar as atualizações por lá.
 
 ## O Moonlight não encontra o host
 
@@ -47,7 +47,7 @@ Consulte o [Guia de instalação](Installation-Guide-pt-br.html) e o [guia ofici
 ## As estatísticas mostram OPUS em vez de AC-3 ou E-AC-3
 
 1. Confirme que **Enable Dolby Digital** está ativado no Moonlight.
-2. Confirme que o host está usando a [build experimental do Sunshine](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826) correspondente ou [Vibeshine 2.0.3 ou versões posteriores](https://github.com/Nonary/vibeshine/releases/tag/2.0.3). No host, abra **Settings → Audio/Video** e selecione **AC-3 (Dolby Digital)** ou **E-AC-3 (Dolby Digital Plus)** no menu suspenso do formato de áudio da transmissão.
+2. É preferível usar um servidor GameStream que possa fornecer áudio no formato Dolby Digital. Esse recurso está confirmado no [Vibeshine](https://github.com/Nonary/vibeshine/releases/latest) 2.0.3 e em versões posteriores e provavelmente será incorporado ao [Sunshine](https://sunshine.lizardbyte.dev/) em breve. Sempre que o servidor oferecer essa opção, verifique se ela está ativada nas configurações do host e se o formato de áudio da transmissão está definido como **AC-3 (Dolby Digital)** ou **E-AC-3 (Dolby Digital Plus)**.
 3. Inicie uma nova transmissão depois de alterar as configurações de áudio do host.
 4. Verifique se o log do host informa o codec e a taxa de bits AC-3 ou E-AC-3 esperados.
 5. Se o Sunshine não oferecer ou selecionar Dolby, OPUS será a alternativa de compatibilidade esperada.

@@ -1,0 +1,27 @@
+#ifndef ESPLUS_PLAYER_H
+#define ESPLUS_PLAYER_H
+
+#include "wmp_esplus_adapter.h"
+
+int esplus_detect_abi_family(void);
+int esplus_create_open(void);
+int esplus_set_video_info(const wmp_esplus_video_info_t *info);
+int esplus_set_audio_info(const wmp_esplus_audio_info_t *info);
+int esplus_set_window(int width, int height);
+/* Reveal the initially transparent video window after the first video submit. */
+void esplus_reveal_window(void);
+int esplus_prepare(void);
+void esplus_set_audio_enabled(int enabled);
+void esplus_audio_registration_complete(int success);
+/* True after an OPUS format rejection has been recovered by a fresh PCM player registration. */
+int esplus_opus_fallback_ready(void);
+int esplus_recover_opus_as_pcm(const wmp_esplus_audio_info_t *pcm_info);
+/* Shared monotonic PTS origin: set by the first video frame, read by audio. */
+void esplus_stream_clock_reset(void);
+void esplus_stream_clock_start(void);
+uint64_t esplus_stream_clock_pts_ns(void);
+wmp_esplus_submit_result_t esplus_submit(const wmp_esplus_packet_t *packet);
+int esplus_video_ready(void);
+void esplus_close(void);
+
+#endif

@@ -1,0 +1,529 @@
+/* Recreates the launch presentation in the WebApp with a shorter final hold.
+ * The Python generator in res/generate-launch-screen.py is the source of truth
+ * for geometry, timing, starfield physics and the deterministic random seed.
+ */
+(function() {
+  'use strict';
+
+  var FPS = 30;
+  var TOTAL_FRAMES = 198; // 6.6 seconds: shorten the original presentation by 2 seconds.
+  var ANIMATED_FRAME_COUNT = 168;
+  // Keep a barely perceptible star drift after the logo settles, rather than
+  // freezing the background during the final hold and UI hand-off.
+  var STAR_HOLD_SPEED = 0.45;
+  var SECTOR_INTERVAL_FRAMES = 9;
+  var SECTOR_FADE_FRAMES = 9;
+  var SECTOR_PHASE_FRAMES = 72;
+  var SETTLE_FRAMES = 36;
+  var DOLBY_LOGO_FADE_START_FRAME = 123;
+  var DOLBY_LOGO_FADE_IN_FRAMES = 15;
+
+  var FRAME_WIDTH = 1280;
+  var FRAME_HEIGHT = 720;
+  var STAR_COUNT = 2000;
+  var STAR_SPEED = 25.0;
+  var STAR_SPEED_PEAK = 30.0;
+  var STAR_ACCELERATION_FRAMES = 8;
+  var STAR_DECEL_LOG_STRENGTH = 2.5;
+  var STAR_TRAIL_MAX_LENGTH = 30.0;
+  var STAR_TRAIL_RADIAL_FRACTION = 0.075;
+  var STAR_TRAIL_MAX_OPACITY = 0.22;
+  var STAR_TRAIL_MIN_SPEED = 0.35;
+  var MAX_STAR_DEPTH = 1500.0;
+  var STAR_MIN_OPACITY = 0.15;
+  var STAR_DEPTH_OPACITY_POWER = 1.3;
+  var STARFIELD_SEED = 0x4D4F4F4E;
+  var LOGO_CENTER_X = 639.84;
+  var LOGO_CENTER_Y = 274.84;
+
+  function createPythonRandom(seed) {
+    // CPython random.Random integer seeding + MT19937 random() conversion.
+    var mt = new Array(624);
+    mt[0] = 19650218;
+    for (var i = 1; i < 624; i++) {
+      var previous = mt[i - 1];
+      mt[i] = (Math.imul(1812433253, previous ^ (previous >>> 30)) + i) >>> 0;
+    }
+
+    var key = [seed >>> 0];
+    var index = 1;
+    var keyIndex = 0;
+    for (var k = Math.max(624, key.length); k > 0; k--) {
+      var prior = mt[index - 1];
+      var mixed = mt[index] ^ Math.imul(prior ^ (prior >>> 30), 1664525);
+      mt[index] = (mixed + key[keyIndex] + keyIndex) >>> 0;
+      index++;
+      keyIndex++;
+      if (index >= 624) {
+        mt[0] = mt[623];
+        index = 1;
+      }
+      if (keyIndex >= key.length) keyIndex = 0;
+    }
+
+    for (var j = 623; j > 0; j--) {
+      var priorValue = mt[index - 1];
+      var mixedValue = mt[index] ^ Math.imul(priorValue ^ (priorValue >>> 30), 1566083941);
+      mt[index] = (mixedValue - index) >>> 0;
+      index++;
+      if (index >= 624) {
+        mt[0] = mt[623];
+        index = 1;
+      }
+    }
+    mt[0] = 0x80000000;
+    var mtIndex = 624;
+
+    function nextUint32() {
+      if (mtIndex >= 624) {
+        for (var n = 0; n < 624; n++) {
+          var y = (mt[n] & 0x80000000) | (mt[(n + 1) % 624] & 0x7fffffff);
+          mt[n] = (mt[(n + 397) % 624] ^ (y >>> 1) ^
+            ((y & 1) ? 0x9908b0df : 0)) >>> 0;
+        }
+        mtIndex = 0;
+      }
+
+      var value = mt[mtIndex++];
+      value ^= value >>> 11;
+      value ^= (value << 7) & 0x9d2c5680;
+      value ^= (value << 15) & 0xefc60000;
+      value ^= value >>> 18;
+      return value >>> 0;
+    }
+
+    return function() {
+      var high = nextUint32() >>> 5;
+      var low = nextUint32() >>> 6;
+      return (high * 67108864.0 + low) / 9007199254740992.0;
+    };
+  }
+
+  function createStarField() {
+    var random = createPythonRandom(STARFIELD_SEED);
+    var stars = [];
+
+    function randomizePosition(star) {
+      var angle = random() * Math.PI * 2.0;
+      var distanceRatio = Math.sqrt(random());
+      var distance = distanceRatio * (FRAME_WIDTH / 2.0);
+      star.x = Math.cos(angle) * distance;
+      star.y = Math.sin(angle) * distance;
+      star.size = (1.0 - distanceRatio) * 0.1 + 0.5;
+    }
+
+    for (var i = 0; i < STAR_COUNT; i++) {
+      var star = {
+        z: random() * MAX_STAR_DEPTH,
+        x: 0,
+        y: 0,
+        size: 0.5
+      };
+      randomizePosition(star);
+      stars.push(star);
+    }
+
+    return {
+      stars: stars,
+      update: function(speed) {
+        for (var i = 0; i < stars.length; i++) {
+          var star = stars[i];
+          star.z -= speed * (2.0 - star.z / MAX_STAR_DEPTH);
+          if (star.z <= 0.0) {
+            star.z = MAX_STAR_DEPTH;
+            randomizePosition(star);
+          }
+        }
+      }
+    };
+  }
+
+  function smoothstep(value) {
+    value = Math.max(0.0, Math.min(1.0, value));
+    return value * value * (3.0 - 2.0 * value);
+  }
+
+  function interpolate(start, end, progress) {
+    return start + (end - start) * smoothstep(progress);
+  }
+
+  function starSpeedForFrame(frameNumber) {
+    if (frameNumber <= STAR_ACCELERATION_FRAMES) {
+      var accelerationProgress = frameNumber / STAR_ACCELERATION_FRAMES;
+      return STAR_SPEED + (STAR_SPEED_PEAK - STAR_SPEED) * smoothstep(accelerationProgress);
+    }
+
+    var progress = (frameNumber - STAR_ACCELERATION_FRAMES) /
+      (ANIMATED_FRAME_COUNT - 1 - STAR_ACCELERATION_FRAMES);
+    progress = Math.max(0.0, Math.min(1.0, progress));
+    if (progress >= 1.0) return STAR_HOLD_SPEED;
+
+    var normalizedDecay = Math.log1p(STAR_DECEL_LOG_STRENGTH * progress) /
+      Math.log1p(STAR_DECEL_LOG_STRENGTH);
+    return STAR_SPEED_PEAK * (1.0 - normalizedDecay);
+  }
+
+  function settlingScale(progress) {
+    var finalScale = 0.78;
+    var oversizedScale = finalScale * 1.15;
+    var bounceLowScale = finalScale * 0.93;
+    var bounceHighScale = finalScale * 1.06;
+
+    if (progress <= 0.42) {
+      return interpolate(oversizedScale, bounceLowScale, progress / 0.42);
+    }
+    if (progress <= 0.72) {
+      return interpolate(bounceLowScale, bounceHighScale, (progress - 0.42) / 0.30);
+    }
+    return interpolate(bounceHighScale, finalScale, (progress - 0.72) / 0.28);
+  }
+
+  function setOpacity(element, value) {
+    if (element) element.setAttribute('opacity', value.toFixed(4));
+  }
+
+  function startHtmlLaunchSplash(onComplete) {
+    if (window._directSmartHubLaunch) return false;
+
+    var overlay = document.getElementById('html-launch-splash');
+    var stage = document.getElementById('html-launch-splash-stage');
+    var canvas = document.getElementById('html-launch-splash-stars');
+    var svg = document.getElementById('html-launch-splash-logo');
+    var context = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+
+    if (!overlay || !stage || !canvas || !context || !svg) {
+      if (typeof onComplete === 'function') onComplete();
+      return false;
+    }
+
+    var logoGroup = document.getElementById('html-splash-logo-group');
+    var backgroundCircle = document.getElementById('html-splash-background-circle');
+    var appName = document.getElementById('html-splash-app-name');
+    var dolbyLogo = document.getElementById('html-splash-dolby-logo');
+    var sectors = [];
+    for (var sectorIndex = 0; sectorIndex < 8; sectorIndex++) {
+      sectors.push(document.getElementById('html-splash-sector-' + sectorIndex));
+    }
+
+    window._normalLaunchSplashActive = true;
+    window._normalLaunchSplashFinished = false;
+
+    function resizeStage() {
+      var viewportWidth = window.innerWidth || FRAME_WIDTH;
+      var viewportHeight = window.innerHeight || FRAME_HEIGHT;
+      var scale = Math.min(viewportWidth / FRAME_WIDTH, viewportHeight / FRAME_HEIGHT);
+      stage.style.width = (FRAME_WIDTH * scale) + 'px';
+      stage.style.height = (FRAME_HEIGHT * scale) + 'px';
+    }
+
+    resizeStage();
+    window.addEventListener('resize', resizeStage);
+
+    var starField = createStarField();
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+
+    var opacityBuckets = [];
+    for (var bucketIndex = 0; bucketIndex < 16; bucketIndex++) {
+      opacityBuckets.push({ alpha: bucketIndex / 15, stars: [] });
+    }
+
+    function drawStarField(speed) {
+      context.clearRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+      var speedRatio = Math.min(1.0, Math.max(0.0, speed / STAR_SPEED_PEAK));
+      var drawTrails = speed >= STAR_TRAIL_MIN_SPEED;
+      var trailOpacity = drawTrails ? STAR_TRAIL_MAX_OPACITY * Math.pow(speedRatio, 1.25) : 0;
+      var strokeWidth = 0.60 + 0.35 * speedRatio;
+      for (var resetBucketIndex = 0; resetBucketIndex < opacityBuckets.length; resetBucketIndex++) {
+        opacityBuckets[resetBucketIndex].stars.length = 0;
+      }
+
+      for (var i = 0; i < starField.stars.length; i++) {
+        var star = starField.stars[i];
+        if (star.z <= 0.0) continue;
+
+        var x = ((star.x / star.z) * FRAME_WIDTH) / 2.0 + LOGO_CENTER_X;
+        var y = ((star.y / star.z) * FRAME_HEIGHT) / 2.0 + LOGO_CENTER_Y;
+        var radius = (1.0 - star.z / MAX_STAR_DEPTH) * star.size * 3.0;
+
+        if (radius <= 0.02 || x + radius < 0 || x - radius > FRAME_WIDTH ||
+            y + radius < 0 || y - radius > FRAME_HEIGHT) {
+          continue;
+        }
+
+        var depthRatio = 1.0 - star.z / MAX_STAR_DEPTH;
+        var starOpacity = STAR_MIN_OPACITY + (1.0 - STAR_MIN_OPACITY) *
+          Math.pow(depthRatio, STAR_DEPTH_OPACITY_POWER);
+        var opacityBucket = Math.max(0, Math.min(15, Math.round(starOpacity * 15)));
+        var bucketStars = opacityBuckets[opacityBucket].stars;
+        bucketStars.push(x, y, radius);
+      }
+
+      // Preserve depth-based opacity while batching thousands of individual
+      // draw calls into at most 16 strokes and 16 fills on the TV's Canvas 2D.
+      if (drawTrails) {
+        for (var trailBucketIndex = 0; trailBucketIndex < opacityBuckets.length; trailBucketIndex++) {
+          var trailBucket = opacityBuckets[trailBucketIndex];
+          if (!trailBucket.stars.length) continue;
+
+          context.beginPath();
+          for (var trailIndex = 0; trailIndex < trailBucket.stars.length; trailIndex += 3) {
+            var trailX = trailBucket.stars[trailIndex];
+            var trailY = trailBucket.stars[trailIndex + 1];
+            var dx = trailX - LOGO_CENTER_X;
+            var dy = trailY - LOGO_CENTER_Y;
+            var radialDistance = Math.sqrt(dx * dx + dy * dy);
+            var trailLength = Math.min(
+              STAR_TRAIL_MAX_LENGTH,
+              radialDistance * STAR_TRAIL_RADIAL_FRACTION
+            ) * speedRatio;
+
+            if (radialDistance > 1.0 && trailLength >= 0.65) {
+              var tailX = trailX - (dx / radialDistance) * trailLength;
+              var tailY = trailY - (dy / radialDistance) * trailLength;
+              context.moveTo(tailX, tailY);
+              context.lineTo(trailX, trailY);
+            }
+          }
+          context.globalAlpha = trailOpacity * trailBucket.alpha;
+          context.strokeStyle = '#ffffff';
+          context.lineWidth = strokeWidth;
+          context.stroke();
+        }
+      }
+
+      for (var pointBucketIndex = 0; pointBucketIndex < opacityBuckets.length; pointBucketIndex++) {
+        var pointBucket = opacityBuckets[pointBucketIndex];
+        if (!pointBucket.stars.length) continue;
+
+        context.beginPath();
+        for (var pointIndex = 0; pointIndex < pointBucket.stars.length; pointIndex += 3) {
+          var pointX = pointBucket.stars[pointIndex];
+          var pointY = pointBucket.stars[pointIndex + 1];
+          var pointRadius = pointBucket.stars[pointIndex + 2];
+          context.moveTo(pointX + pointRadius, pointY);
+          context.arc(pointX, pointY, pointRadius, 0, Math.PI * 2, false);
+        }
+        context.globalAlpha = pointBucket.alpha;
+        context.fillStyle = '#ffffff';
+        context.fill();
+      }
+      context.globalAlpha = 1.0;
+    }
+
+    function drawLogoFrame(frameNumber) {
+      var scale;
+      var fade;
+
+      if (frameNumber < SECTOR_PHASE_FRAMES) {
+        scale = 0.78 * 1.15;
+        fade = 0.0;
+      } else {
+        var settleFrame = frameNumber - SECTOR_PHASE_FRAMES;
+        var progress = Math.min(1.0, (settleFrame + 1) / SETTLE_FRAMES);
+        scale = settlingScale(progress);
+        fade = progress;
+      }
+
+      logoGroup.setAttribute(
+        'transform',
+        'translate(' + LOGO_CENTER_X + ' ' + LOGO_CENTER_Y + ') scale(' +
+          scale.toFixed(5) + ') translate(-128 -128)'
+      );
+      backgroundCircle.setAttribute('fill-opacity', fade.toFixed(4));
+      setOpacity(appName, fade);
+
+      var dolbyOpacity = 0.0;
+      if (frameNumber >= DOLBY_LOGO_FADE_START_FRAME) {
+        var dolbyProgress = Math.min(
+          1.0,
+          (frameNumber - DOLBY_LOGO_FADE_START_FRAME + 1) / DOLBY_LOGO_FADE_IN_FRAMES
+        );
+        dolbyOpacity = smoothstep(dolbyProgress);
+      }
+      setOpacity(dolbyLogo, dolbyOpacity);
+
+      for (var i = 0; i < sectors.length; i++) {
+        var startFrame = i * SECTOR_INTERVAL_FRAMES;
+        var opacity = frameNumber < startFrame ? 0.0 :
+          Math.min(1.0, (frameNumber - startFrame + 1) / SECTOR_FADE_FRAMES);
+        setOpacity(sectors[i], opacity);
+      }
+    }
+
+    var lastRenderedFrame = -1;
+    function renderThroughFrame(targetFrame) {
+      targetFrame = Math.min(TOTAL_FRAMES - 1, targetFrame);
+      // Advance the simulation once per displayed frame. Catch-up loops after a
+      // delayed frame create bursts of thousands of updates and visible stutter.
+      if (targetFrame > lastRenderedFrame) {
+        starField.update(starSpeedForFrame(targetFrame));
+      }
+      lastRenderedFrame = targetFrame;
+      var currentSpeed = targetFrame < ANIMATED_FRAME_COUNT
+        ? starSpeedForFrame(targetFrame) : 0.0;
+      drawStarField(currentSpeed);
+      drawLogoFrame(targetFrame);
+    }
+
+    var audioPlayback = null;
+    var durationMs = TOTAL_FRAMES * 1000 / FPS;
+    var requestFrame = typeof window.requestAnimationFrame === 'function'
+      ? function(callback) { window.requestAnimationFrame(callback); }
+      : function(callback) {
+        window.setTimeout(function() {
+          callback(window.performance && typeof window.performance.now === 'function'
+            ? window.performance.now() : Date.now());
+        }, 1000 / FPS);
+      };
+    var animationStarted = false;
+    var animationStartAudioTime = 0;
+    var audioContext = null;
+    var silentFallbackStartTime = 0;
+    var usingAudioClock = false;
+
+    function nowMilliseconds() {
+      return window.performance && typeof window.performance.now === 'function'
+        ? window.performance.now() : Date.now();
+    }
+
+    var startupHandoffStarted = false;
+    var splashFadeStarted = false;
+    var splashFadeCompleted = false;
+
+    function finishSplash() {
+      if (startupHandoffStarted) return;
+      startupHandoffStarted = true;
+      if (audioPlayback && audioPlayback.source) {
+        try { audioPlayback.source.stop(); } catch (error) {}
+      }
+
+      // Start normal initialization while the final starfield remains visible.
+      // Keep the splash opaque until the real UI layer has begun appearing below it.
+      window._normalLaunchSplashFinished = true;
+      if (typeof onComplete === 'function') onComplete();
+      waitForUiReveal();
+    }
+
+    function beginSplashFade() {
+      if (splashFadeStarted) return;
+      splashFadeStarted = true;
+
+      // Let the UI's own opacity transition begin before fading the splash away.
+      requestFrame(function() {
+        requestFrame(function() {
+          overlay.style.transition = 'opacity 500ms ease-in-out';
+          overlay.style.opacity = '0';
+          window.setTimeout(function() {
+            splashFadeCompleted = true;
+            overlay.classList.remove('is-active');
+            overlay.style.opacity = '';
+            overlay.style.transition = '';
+            window.removeEventListener('resize', resizeStage);
+            window._normalLaunchSplashActive = false;
+          }, 520);
+        });
+      });
+    }
+
+    function waitForUiReveal() {
+      var mainUi = document.getElementById('main-ui-layer');
+
+      function waitFrame() {
+        if (splashFadeCompleted) return;
+
+        // Continue the low-speed starfield while startup runs and throughout
+        // the crossfade, so the presentation never freezes before it disappears.
+        starField.update(STAR_HOLD_SPEED);
+        drawStarField(STAR_HOLD_SPEED);
+
+        if (mainUi && !mainUi.classList.contains('ui-inactive') &&
+            getComputedStyle(mainUi).display !== 'none') {
+          beginSplashFade();
+        }
+        requestFrame(waitFrame);
+      }
+
+      requestFrame(waitFrame);
+    }
+
+    function animationFrame() {
+      if (!animationStarted) return;
+
+      var elapsed = usingAudioClock && audioContext
+        ? Math.max(0, (audioContext.currentTime - animationStartAudioTime) * 1000)
+        : Math.max(0, nowMilliseconds() - silentFallbackStartTime);
+
+      if (elapsed >= durationMs) {
+        renderThroughFrame(TOTAL_FRAMES - 1);
+        finishSplash();
+        return;
+      }
+
+      var targetFrame = Math.floor(elapsed * FPS / 1000);
+      if (targetFrame > lastRenderedFrame) renderThroughFrame(targetFrame);
+      requestFrame(animationFrame);
+    }
+
+    function beginAnimation(playback) {
+      if (animationStarted) return;
+      animationStarted = true;
+      audioPlayback = playback || null;
+      usingAudioClock = !!(playback && playback.context);
+      audioContext = usingAudioClock ? playback.context : null;
+      if (usingAudioClock) {
+        animationStartAudioTime = playback.startTime;
+        // The shortened visual presentation owns the hand-off time; the shared
+        // splash sound is stopped when this duration completes.
+      } else {
+        silentFallbackStartTime = nowMilliseconds();
+      }
+      renderThroughFrame(0);
+      requestFrame(animationFrame);
+    }
+
+    function showPreparedStarfield() {
+      // The audio context and decoded sound are prepared before exposing this frame.
+      drawStarField(0);
+      drawLogoFrame(-1);
+      overlay.classList.add('is-active');
+    }
+
+    function startPreparedPresentation() {
+      var playback = null;
+      try {
+        if (typeof window.playLaunchSplashSound === 'function') {
+          playback = window.playLaunchSplashSound();
+        }
+      } catch (error) {
+        console.warn('[launch_splash.js] Could not start the launch sound in the shared audio context:', error);
+      }
+
+      showPreparedStarfield();
+      beginAnimation(playback);
+    }
+
+    function startSilentFallback(error) {
+      console.warn('[launch_splash.js] Shared launch audio could not be prepared:', error);
+      startPreparedPresentation();
+    }
+
+    // Reuse the navigation UI's AudioContext. Fetching and decoding happen while
+    // the screen remains black; neither the splash nor normal UI startup is exposed
+    // until the shared audio engine reports that it is ready.
+    if (typeof window.prepareLaunchSplashAudio === 'function') {
+      Promise.resolve().then(function() {
+        return window.prepareLaunchSplashAudio();
+      }).then(function() {
+        startPreparedPresentation();
+      }).catch(startSilentFallback);
+    } else {
+      startSilentFallback(new Error('Shared navigation audio engine is unavailable.'));
+    }
+    return true;
+  }
+
+  window.startHtmlLaunchSplash = startHtmlLaunchSplash;
+  window._normalLaunchSplashActive = false;
+  window._normalLaunchSplashFinished = false;
+})();

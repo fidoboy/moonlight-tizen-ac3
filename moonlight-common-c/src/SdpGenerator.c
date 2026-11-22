@@ -192,7 +192,8 @@ static int addGen5Options(PSDP_OPTION* head) {
         featureFlags = NVFF_BASE | NVFF_RI_ENCRYPTION;
 
         // Enable audio encryption if the client opted in or the host required it
-        if ((StreamConfig.encryptionFlags & ENCFLG_AUDIO) || (EncryptionFeaturesEnabled & SS_ENC_AUDIO)) {
+        if (AudioTransportEnabled &&
+                ((StreamConfig.encryptionFlags & ENCFLG_AUDIO) || (EncryptionFeaturesEnabled & SS_ENC_AUDIO))) {
             featureFlags |= NVFF_AUDIO_ENCRYPTION;
             AudioEncryptionEnabled = true;
         }
@@ -253,6 +254,28 @@ static int addGen5Options(PSDP_OPTION* head) {
     return err;
 }
 
+// Return the audio bandwidth that should be reserved for a remote stream,
+// based on the audio configuration selected by the user. HQ audio is not
+// requested for WAN streams, so use the normal-quality rates here.
+static int getRemoteAudioBitrateKbps(void) {
+    int channels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
+
+    if (DolbyAudioOffered) {
+        // AC3 rates used by Vibeshine for normal-quality Dolby audio.
+        if (channels == 2) {
+            return 128;
+        }
+        if (channels == 6) {
+            return 384;
+        }
+        return 0;
+    }
+
+    // Vibeshine's RTSP audio-budget calculation uses 96 Kbps per channel
+    // for normal-quality Opus.
+    return channels > 0 ? 96 * channels : 0;
+}
+
 static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     PSDP_OPTION optionHead;
     char payloadStr[92];
@@ -260,6 +283,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     int audioChannelMask;
     int err;
     int adjustedBitrate;
+    bool highQualityAudioRequested;
+    bool dolbyAudioSupported;
 
     // This must have been resolved to either local or remote by now
     LC_ASSERT(StreamConfig.streamingRemotely != STREAM_CFG_AUTO);
@@ -290,10 +315,12 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         }
 
         // If audio encryption is supported by the host and desired by the client, use it
-        if ((EncryptionFeaturesSupported & SS_ENC_AUDIO) && (StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
+        if (AudioTransportEnabled && (EncryptionFeaturesSupported & SS_ENC_AUDIO) &&
+                (StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             EncryptionFeaturesEnabled |= SS_ENC_AUDIO;
         }
-        else if ((EncryptionFeaturesRequested & SS_ENC_AUDIO) && !(StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
+        else if (AudioTransportEnabled && (EncryptionFeaturesRequested & SS_ENC_AUDIO) &&
+                 !(StreamConfig.encryptionFlags & ENCFLG_AUDIO)) {
             // If audio encryption is explicitly requested by the host but *not* by the client,
             // we'll encrypt anyway (since we are capable of doing so) and print a warning.
             Limelog("Enabling audio encryption by host request despite client opt-out. Audio quality may suffer!");
@@ -334,7 +361,12 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     err |= addAttributeString(&optionHead, "x-nv-video[0].timeoutLengthMs", "7000");
     err |= addAttributeString(&optionHead, "x-nv-video[0].framesWithInvalidRefThreshold", "0");
 
-    // 20% of the video bitrate will added to the user-specified bitrate for FEC
+    // The configured bitrate is currently a fixed stream budget: reserve 20% for
+    // FEC, then (for WAN streams) reserve the estimated audio bandwidth. The
+    // remaining budget is available to video and control traffic. Automatic
+    // bitrate mode calculates the configured bitrate separately after each
+    // connection, using the negotiated stream characteristics (see
+    // calculateOptimizedBitrate() in wasm/platform/index.js).
     adjustedBitrate = (int)(StreamConfig.bitrate * 0.80);
 
     // Use more strict bitrate logic when streaming remotely. The theory here is that remote
@@ -342,10 +374,13 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     // really all they have, so we need to be careful not to exceed the cap, even counting
     // things like audio and control data.
     if (StreamConfig.streamingRemotely == STREAM_CFG_REMOTE) {
-        // Subtract 500 Kbps to leave room for audio and control. On remote streams,
-        // GFE will use 96Kbps stereo audio. For local streams, it will choose 512Kbps.
-        if (adjustedBitrate > 500) {
-            adjustedBitrate -= 500;
+        // Reserve bandwidth for the audio format selected in Moonlight's
+        // settings instead of assuming fixed 500 Kbps stereo Opus.
+        int audioBitrateKbps = getRemoteAudioBitrateKbps();
+        if (adjustedBitrate > audioBitrateKbps) {
+            adjustedBitrate -= audioBitrateKbps;
+        } else {
+            adjustedBitrate = 0;
         }
     }
 
@@ -416,6 +451,9 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
         err |= addGen5Options(&optionHead);
     }
 
+    // Audio layout metadata is required by Sunshine's RTSP ANNOUNCE parser.
+    // AudioTransportEnabled controls whether the GameStream audio transport is negotiated;
+    // playback enablement is handled separately by the audio receive path.
     audioChannelCount = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
     audioChannelMask = CHANNEL_MASK_FROM_AUDIO_CONFIGURATION(StreamConfig.audioConfiguration);
 
@@ -478,6 +516,8 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
             err |= addAttributeString(&optionHead, "x-nv-video[0].clientRefreshRateX100", payloadStr);
         }
 
+        // Sunshine requires these audio-layout fields in ANNOUNCE. Preserve the
+        // selected layout independently of whether local audio playback is enabled.
         snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelCount);
         err |= addAttributeString(&optionHead, "x-nv-audio.surround.numChannels", payloadStr);
         snprintf(payloadStr, sizeof(payloadStr), "%d", audioChannelMask);
@@ -491,43 +531,54 @@ static PSDP_OPTION getAttributesList(char*urlSafeAddr) {
     }
 
     if (AppVersionQuad[0] >= 7) {
-        if (StreamConfig.bitrate >= HIGH_AUDIO_BITRATE_THRESHOLD && audioChannelCount > 2 &&
-                HighQualitySurroundSupported && (AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) == 0) {
-            // Enable high quality mode for surround sound
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "1");
+        dolbyAudioSupported = AudioTransportEnabled && DolbyAudioOffered &&
+            (AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_AC3_PASSTHROUGH) != 0;
+        // OPUS stereo continues to use the legacy Host-based quality selection,
+        // but also sends AudioQuality so hosts that require the explicit attribute
+        // can parse the ANNOUNCE request. Its value follows the same HQ policy.
+        highQualityAudioRequested = shouldRequestHighQualityAudio() &&
+            (audioChannelCount <= 2 || HighQualitySurroundSupported || dolbyAudioSupported);
 
-            // Let the audio stream code know that it needs to disable coupled streams when
-            // decoding this audio stream.
-            HighQualitySurroundEnabled = true;
+        err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality",
+            highQualityAudioRequested ? "1" : "0");
 
+        // The OPUS decoder may use its high-quality configuration only when the
+        // host advertised that configuration. Dolby passthrough has its own decoder.
+        HighQualitySurroundEnabled = HighQualitySurroundSupported && highQualityAudioRequested;
+
+        if (highQualityAudioRequested) {
             // Use 5 ms frames since we don't have a slow decoder
             AudioPacketDuration = 5;
         }
+        else if (AudioTransportEnabled &&
+                ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
+                 ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
+                  StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD))) {
+            // Use 10 ms packets for slow devices and networks to balance latency and bandwidth usage
+            AudioPacketDuration = 10;
+        }
         else {
-            err |= addAttributeString(&optionHead, "x-nv-audio.surround.AudioQuality", "0");
-            HighQualitySurroundEnabled = false;
+            // Use 5 ms packets by default for lowest latency
+            AudioPacketDuration = 5;
+        }
 
-            if ((AudioCallbacks.capabilities & CAPABILITY_SLOW_OPUS_DECODER) ||
-                     ((AudioCallbacks.capabilities & CAPABILITY_SUPPORTS_ARBITRARY_AUDIO_DURATION) != 0 &&
-                       StreamConfig.bitrate < LOW_AUDIO_BITRATE_TRESHOLD)) {
-                // Use 10 ms packets for slow devices and networks to balance latency and bandwidth usage
-                AudioPacketDuration = 10;
-            }
-            else {
-                // Use 5 ms packets by default for lowest latency
-                AudioPacketDuration = 5;
-            }
+        if (audioChannelCount > 2 || dolbyAudioSupported) {
+            // Keep the exact quality selection sent in SDP available to the
+            // negotiated-audio bitrate estimator and the native/EMSS overlays.
+            HighQualityAudioEnabled = highQualityAudioRequested;
         }
 
         snprintf(payloadStr, sizeof(payloadStr), "%d", AudioPacketDuration);
         err |= addAttributeString(&optionHead, "x-nv-aqos.packetDuration", payloadStr);
+        Limelog("Requesting %d ms audio packets from host\n", AudioPacketDuration);
     }
     else {
-        // 5 ms duration for legacy servers
+        // Keep audio defaults deterministic when audio is disabled or the host is legacy.
         AudioPacketDuration = 5;
-
-        // High quality audio mode not supported on legacy servers
         HighQualitySurroundEnabled = false;
+        if (audioChannelCount > 2) {
+            HighQualityAudioEnabled = false;
+        }
     }
 
     if (AppVersionQuad[0] >= 7) {

@@ -42,21 +42,56 @@
   <link rel="stylesheet" href="static/css/style.css">
   <style>
     /* Used only for direct Smart Hub launches, which intentionally bypass the home UI. */
-    html.app-starting,
-    html.app-starting body {
+    html.app-starting:not(.native-stream-launch),
+    html.app-starting:not(.native-stream-launch) body {
       background-color: #000 !important;
     }
     html.app-starting .mdl-layout {
       visibility: hidden !important;
     }
-    /* Keep the stream statistics accessible without revealing the hidden direct-launch UI. */
-    html.app-starting #performance-stats {
-      visibility: visible !important;
+    /* Native playback is rendered by Wayland behind the Web application.
+       Keep the direct-launch document and transition surface alpha-transparent. */
+    html.app-starting.native-stream-launch,
+    html.app-starting.native-stream-launch body {
+      background-color: transparent !important;
+    }
+    html.app-starting.native-stream-launch #stream-transition-layer,
+    html.app-starting.native-stream-launch #stream-transition-frame {
+      background: transparent !important;
+      background-color: transparent !important;
     }
   </style>
   <script type="text/javascript" src="platform.js"></script>
 </head>
 <body data-name="moonlight-tizen" data-tools="emscripten" data-configs="Debug Release" data-path="{tc}/{config}">
+
+  <div id="html-launch-splash" aria-hidden="true">
+    <div id="html-launch-splash-stage">
+      <canvas id="html-launch-splash-stars" width="1280" height="720"></canvas>
+      <svg id="html-launch-splash-logo" xmlns="http://www.w3.org/2000/svg"
+           width="1280" height="720" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet">
+        <g id="html-splash-logo-group" transform="translate(639.84 274.84) scale(0.897) translate(-128 -128)">
+          <circle id="html-splash-background-circle" cx="128" cy="128" r="128"
+                  fill="#565c64" fill-opacity="0"/>
+          <path id="html-splash-sector-0" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-1" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(45 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-2" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(90 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-3" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(135 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-4" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(180 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-5" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(225 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-6" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(270 128 128)" fill="#ffffff" opacity="0"/>
+          <path id="html-splash-sector-7" d="M 124 32 A 96 96 0 0 0 62.95 57.29 L 124 118.34 Z" transform="rotate(315 128 128)" fill="#ffffff" opacity="0"/>
+        </g>
+        <text id="html-splash-app-name" x="640" y="485" font-family="DejaVu Sans, sans-serif"
+              font-size="54" fill="#f5f5f5" text-anchor="middle" opacity="0">Moonlight</text>
+        <g id="html-splash-dolby-logo" opacity="0"
+           transform="translate(640 540) scale(2.2) translate(-12 -12)">
+          <path fill="#fff" fill-rule="evenodd" transform="translate(0 3.7)"
+                d="M1 3.5H23V20.3H1Z M4.2 6.5166v10.9668h1.6172c3.0212 0 5.4847-2.4622 5.4847-5.4834s-2.4635-5.4834-5.4847-5.4834H4.2z M18.1828 6.5166c-3.0212 0-5.4847 2.4622-5.4847 5.4834s2.4635 5.4834 5.4847 5.4834H19.8V6.5166h-1.6172z"/>
+        </g>
+      </svg>
+    </div>
+  </div>
   <div id="stream-transition-layer" aria-hidden="true">
     <canvas id="stream-transition-frame" width="0" height="0" aria-hidden="true"></canvas>
     <div id="loadingSpinner" class="loading-spinner">
@@ -92,7 +127,11 @@
           </button>
 
           <button type="button" id="refreshHostsBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Rescan Network">
-            <i class="navigation-button-icons material-icons">refresh</i>
+            <i class="navigation-button-icons material-symbols-outlined">lan</i>
+          </button>
+
+          <button type="button" id="regenerateAppImagesBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Regenerate app image thumbnails" data-i18n-aria-label="Regenerate app image thumbnails" title="Regenerate app image thumbnails" data-i18n-title="Regenerate app image thumbnails" hidden>
+            <i class="navigation-button-icons material-symbols-outlined">reset_image</i>
           </button>
 
           <button type="button" id="gamepadTestBtn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect" aria-label="Gamepad Test" hidden>
@@ -264,20 +303,20 @@
                 - Increase to improve image clarity or decrease for better performance on lower-end devices and slower networks.
               </span>
               <div id="videoResolutionMenu">
-                <button type="button" id="selectResolution" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="1280:720" data-i18n="1280 x 720 (720p)">1280 x 720 (720p)</button>
+                <button type="button" id="selectResolution" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="1280:720" data-i18n="1280 x 720 (HD)">1280 x 720 (HD)</button>
               </div>
               <ul class="videoResolutionMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectResolution">
-                <li class="mdl-menu__item" data-value="854:480" data-i18n="854 x 480 (480p)">854 x 480 (480p)</li>
-                <li class="mdl-menu__item" data-value="1280:720" data-i18n="1280 x 720 (720p)">1280 x 720 (720p)</li>
-                <li class="mdl-menu__item" data-value="1920:1080" data-i18n="1920 x 1080 (1080p)">1920 x 1080 (1080p)</li>
-                <li class="mdl-menu__item" data-value="2560:1440" data-i18n="2560 x 1440 (1440p)">2560 x 1440 (1440p)</li>
-                <li class="mdl-menu__item" data-value="3840:2160" data-i18n="3840 x 2160 (4K)">3840 x 2160 (4K)</li>
+                <li class="mdl-menu__item" data-value="854:480" data-i18n="854 x 480 (SD)">854 x 480 (SD)</li>
+                <li class="mdl-menu__item" data-value="1280:720" data-i18n="1280 x 720 (HD)">1280 x 720 (HD)</li>
+                <li class="mdl-menu__item" data-value="1920:1080" data-i18n="1920 x 1080 (FHD)">1920 x 1080 (FHD)</li>
+                <li class="mdl-menu__item" data-value="2560:1440" data-i18n="2560 x 1440 (QHD)">2560 x 1440 (QHD)</li>
+                <li class="mdl-menu__item" data-value="3840:2160" data-i18n="3840 x 2160 (4K UHD)">3840 x 2160 (4K UHD)</li>
               </ul>
             </div>
             <div class="setting-option">
               <label data-i18n="Video frame rate">Video frame rate</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Increase for smoother video stream or decrease for better performance on lower-end devices.">
-                - Increase for smoother video stream or decrease for better performance on lower-end devices.
+              <span class="mdl-list__item-text-body" data-i18n="To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.">
+                To use more than 30 FPS at resolutions above 1080p, you must select a compatible video codec other than H.264.
               </span>
               <div id="videoFramerateMenu">
                 <button type="button" id="selectFramerate" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="60" data-i18n="60 FPS">60 FPS</button>
@@ -303,16 +342,56 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Video frame pacing">Video frame pacing</label>
-              <span class="mdl-list__item-text-body" data-i18n="- This can help reduce micro-stutter by delaying frames that arrive too early while streaming.">
-                - This can help reduce micro-stutter by delaying frames that arrive too early while streaming.
+              <span class="mdl-list__item-text-body" data-i18n="Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.">
+                Allow frame pacing to balance video latency and smoothness. It is recommended to keep this enabled.
               </span>
               <div id="videoFramePacingMenu">
                 <label id="framePacingBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="framePacingSwitch">
                   <input type="checkbox" id="framePacingSwitch" class="mdl-switch__input">
-                  <span class="mdl-switch__label" data-i18n="Allow frame pacing to balance video latency and smoothness">
-                    Allow frame pacing to balance video latency and smoothness
+                  <span class="mdl-switch__label" data-i18n="Enable frame pacing">
+                    Enable frame pacing
                   </span>
                 </label>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label><span data-i18n="Streaming engine">Streaming engine</span>
+                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+              </label>
+              <span class="mdl-list__item-text-body" data-i18n="The EMSS streaming engine is recommended and should work on all TVs running Tizen 5.5 or later. Use the Native streaming engine if you want to try it on your TV and evaluate its performance. Its implementation is still experimental, and optimal results are not guaranteed on all models.">
+                The EMSS streaming engine is recommended and should work on all TVs running Tizen 5.5 or later. Use the Native streaming engine if you want to try it on your TV and evaluate its performance. Its implementation is still experimental, and optimal results are not guaranteed on all models.
+              </span>
+              <div id="streamingEngineMenu">
+                <button type="button" id="selectStreamingEngine" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="EMSS">EMSS</button>
+              </div>
+              <ul class="streamingEngineMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectStreamingEngine">
+                <li class="mdl-menu__item" data-value="EMSS">EMSS</li>
+                <li class="mdl-menu__item" data-value="ESPLUSPLAYER" data-i18n="Native engine">Native engine</li>
+              </ul>
+            </div>
+            <div class="setting-option">
+              <label><span data-i18n="Ambilight">Ambilight</span>
+                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+              </label>
+              <span id="ambilightDescription" class="mdl-list__item-text-body">Checking Ambilight support...</span>
+              <div id="ambilightMenu">
+                <label id="ambilightBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ambilightSwitch">
+                  <input type="checkbox" id="ambilightSwitch" class="mdl-switch__input" disabled>
+                  <span class="mdl-switch__label" data-i18n="Enable Ambilight">Enable Ambilight</span>
+                </label>
+              </div>
+              <div id="ambilightWledIpContainer" style="display: none;">
+                <div id="ambilightWledIpInputField" class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                  <label class="mdl-textfield__label" for="ambilightWledIpTextInput" data-i18n="WLED IP address">WLED IP address</label>
+                  <input type="text" id="ambilightWledIpTextInput" class="mdl-textfield__input" maxlength="15" inputmode="decimal" placeholder="192.168.0.100" autocomplete="off" readonly>
+                </div>
+                <div id="ambilightWledIpSelectFields" class="select-option-field select-option-field-floating-label" style="display: none;">
+                  <label class="mdl-textfield__label" data-i18n="WLED IP address">WLED IP address</label>
+                  <select id="ambilightWledIpField1" class="ip-address-select-field" name="ambilightWledIpField1" tabindex="-1"></select>
+                  <select id="ambilightWledIpField2" class="ip-address-select-field" name="ambilightWledIpField2" tabindex="-1"></select>
+                  <select id="ambilightWledIpField3" class="ip-address-select-field" name="ambilightWledIpField3" tabindex="-1"></select>
+                  <select id="ambilightWledIpField4" class="ip-address-select-field" name="ambilightWledIpField4" tabindex="-1"></select>
+                </div>
               </div>
             </div>
           </div>
@@ -555,6 +634,35 @@
                     Allow gamepad to switch to mouse mode when holding the Start button
                   </span>
                 </label>
+                <div class="setting-sub-options">
+                  <div id="mouseEmulationStickOption" class="setting-option" style="display: none;">
+                    <label data-i18n="Control for mouse emulation">Control for mouse emulation</label>
+                    <span class="mdl-list__item-text-body" data-i18n="Select which of the two gamepad sticks to use to emulate mouse movement on the screen.">
+                      Select which of the two gamepad sticks to use to emulate mouse movement on the screen.
+                    </span>
+                    <div id="mouseEmulationStickMenu">
+                      <button type="button" id="selectMouseEmulationStick" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="right" data-i18n="Right stick">Right stick</button>
+                    </div>
+                    <ul class="mouseEmulationStickMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectMouseEmulationStick">
+                      <li class="mdl-menu__item" data-value="left" data-i18n="Left stick">Left stick</li>
+                      <li class="mdl-menu__item" data-value="right" data-i18n="Right stick">Right stick</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="setting-option">
+              <label data-i18n="Stream menu shortcut">Stream menu shortcut</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Hold Select for 1 second to open the stream menu. A short press is sent to the host normally.">
+                - Hold Select for 1 second to open the stream menu. A short press is sent to the host normally.
+              </span>
+              <div id="selectHoldStreamMenuMenu">
+                <label id="selectHoldStreamMenuBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="selectHoldStreamMenuSwitch">
+                  <input type="checkbox" id="selectHoldStreamMenuSwitch" class="mdl-switch__input">
+                  <span class="mdl-switch__label" data-i18n="Open the stream menu by holding Select">
+                    Open the stream menu by holding Select
+                  </span>
+                </label>
               </div>
             </div>
             <div class="setting-option">
@@ -587,6 +695,21 @@
             </div>
           </div>
           <div id="audioSettings" class="settings-options">
+            <div class="setting-option">
+              <label data-i18n="Audio backend">Audio backend</label>
+              <span class="mdl-list__item-text-body" data-i18n="- Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.">
+                - Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.
+              </span>
+              <div id="audioBackendMenu">
+                <button type="button" id="selectAudioBackend" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="EMSS" data-i18n="EMSS">EMSS</button>
+              </div>
+              <ul class="audioBackendMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectAudioBackend">
+                <li class="mdl-menu__item" data-value="EMSS" data-i18n="EMSS">EMSS</li>
+                <li class="mdl-menu__item" data-value="ESPLUSPLAYER" data-i18n="Native engine">Native engine</li>
+                <li class="mdl-menu__item" data-value="WebAudio" data-i18n="Web Audio">Web Audio</li>
+                <li class="mdl-menu__item" data-value="Disabled" data-i18n="Disabled">Disabled</li>
+              </ul>
+            </div>
             <div id="ac3AudioModeOption" class="setting-option">
               <label id="dolbyAudioHeading" data-i18n="Dolby audio output">Dolby audio output</label>
               <span class="mdl-list__item-text-body" data-i18n="Enable this to negotiate Dolby Digital (DD) or Dolby Digital Plus (DD+) audio with the host instead of the default format. This feature allows you to send surround sound (5.1) through the TV's optical output, although it may also work over HDMI or other connections if your equipment is compatible. Dolby Digital audio uses less bandwidth than Opus, which GameStream-compatible hosts traditionally send by default. If the host does not provide the format, Moonlight will always fall back to Opus.">
@@ -600,20 +723,39 @@
                   </span>
                 </label>
               </div>
-            </div>
-            <div class="setting-option">
-              <label data-i18n="Audio backend">Audio backend</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.">
-                - Choose EMSS for the original implementation or Web Audio if you hear crackling or stuttering while streaming.
-              </span>
-              <div id="audioBackendMenu">
-                <button type="button" id="selectAudioBackend" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="EMSS" data-i18n="EMSS">EMSS</button>
+              <div class="setting-sub-options">
+                <div id="dolbyChannelLayoutOption" class="setting-option">
+                  <label><span data-i18n="Dolby Digital speaker layout">Dolby Digital speaker layout</span>
+                    <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+                  </label>
+                  <span class="mdl-list__item-text-body" data-i18n="Select how the speakers are arranged in your setup. If you use &quot;Rear speakers&quot; (the most common setup), the speakers will be assumed to be positioned behind the listener.">
+                    Select how the speakers are arranged in your setup. If you use "Rear speakers" (the most common setup), the speakers will be assumed to be positioned behind the listener.
+                  </span>
+                  <div id="dolbyChannelLayoutMenu">
+                    <button type="button" id="selectDolbyChannelLayout" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Back" data-i18n="Rear speakers">Rear speakers</button>
+                  </div>
+                  <ul class="dolbyChannelLayoutMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyChannelLayout">
+                    <li class="mdl-menu__item" data-value="Normal" data-i18n="Side speakers">Side speakers</li>
+                    <li class="mdl-menu__item" data-value="Back" data-i18n="Rear speakers">Rear speakers</li>
+                  </ul>
+                </div>
+                <div id="dolbyDecodingModeOption" class="setting-option" style="display:none">
+                  <label><span data-i18n="Dolby Digital decoding mode">Dolby Digital decoding mode</span>
+                    <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
+                  </label>
+                  <span class="mdl-list__item-text-body" data-i18n="Select the mode for the Dolby Digital decoder. The default is &quot;Hardware&quot;, but you can change it to &quot;Automatic&quot; or &quot;Software&quot; if needed for the best output on your devices.">
+                    Select the mode for the Dolby Digital decoder. The default is "Hardware", but you can change it to "Automatic" or "Software" if needed for the best output on your devices.
+                  </span>
+                  <div id="dolbyDecodingModeMenu">
+                    <button type="button" id="selectDolbyDecodingMode" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Hardware" data-i18n="Hardware">Hardware</button>
+                  </div>
+                  <ul class="dolbyDecodingModeMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyDecodingMode">
+                    <li class="mdl-menu__item" data-value="Hardware" data-i18n="Hardware">Hardware</li>
+                    <li class="mdl-menu__item" data-value="HardwareWithFallback" data-i18n="Automatic">Automatic</li>
+                    <li class="mdl-menu__item" data-value="Software" data-i18n="Software">Software</li>
+                  </ul>
+                </div>
               </div>
-              <ul class="audioBackendMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectAudioBackend">
-                <li class="mdl-menu__item" data-value="EMSS" data-i18n="EMSS">EMSS</li>
-                <li class="mdl-menu__item" data-value="WebAudio" data-i18n="Web Audio">Web Audio</li>
-                <li class="mdl-menu__item" data-value="Disabled" data-i18n="Disabled">Disabled</li>
-              </ul>
             </div>
             <div id="audioConfigOption" class="setting-option">
               <label><span data-i18n="Audio configuration">Audio configuration</span>
@@ -628,37 +770,6 @@
                 <li class="mdl-menu__item" data-value="Stereo" data-i18n="Stereo">Stereo</li>
                 <li class="mdl-menu__item" data-value="51Surround" data-i18n="5.1 Surround Sound">5.1 Surround Sound</li>
                 <li class="mdl-menu__item" data-value="71Surround" data-optical-incompatible="true" data-i18n="7.1 Surround Sound">7.1 Surround Sound</li>
-              </ul>
-            </div>
-            <div id="dolbyChannelLayoutOption" class="setting-option">
-              <label><span data-i18n="Dolby Digital speaker layout">Dolby Digital speaker layout</span>
-                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
-              </label>
-              <span class="mdl-list__item-text-body" data-i18n="Select how the speakers are arranged in your setup. If you use &quot;Rear speakers&quot; (the most common setup), the speakers will be assumed to be positioned behind the listener.">
-                Select how the speakers are arranged in your setup. If you use "Rear speakers" (the most common setup), the speakers will be assumed to be positioned behind the listener.
-              </span>
-              <div id="dolbyChannelLayoutMenu">
-                <button type="button" id="selectDolbyChannelLayout" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Back" data-i18n="Rear speakers">Rear speakers</button>
-              </div>
-              <ul class="dolbyChannelLayoutMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyChannelLayout">
-                <li class="mdl-menu__item" data-value="Normal" data-i18n="Side speakers">Side speakers</li>
-                <li class="mdl-menu__item" data-value="Back" data-i18n="Rear speakers">Rear speakers</li>
-              </ul>
-            </div>
-            <div id="dolbyDecodingModeOption" class="setting-option" style="display:none">
-              <label><span data-i18n="Dolby Digital decoding mode">Dolby Digital decoding mode</span>
-                <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
-              </label>
-              <span class="mdl-list__item-text-body" data-i18n="Select the mode for the Dolby Digital decoder. The default is &quot;Hardware&quot;, but you can change it to &quot;Automatic&quot; or &quot;Software&quot; if needed for the best output on your devices.">
-                Select the mode for the Dolby Digital decoder. The default is "Hardware", but you can change it to "Automatic" or "Software" if needed for the best output on your devices.
-              </span>
-              <div id="dolbyDecodingModeMenu">
-                <button type="button" id="selectDolbyDecodingMode" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="Hardware" data-i18n="Hardware">Hardware</button>
-              </div>
-              <ul class="dolbyDecodingModeMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectDolbyDecodingMode">
-                <li class="mdl-menu__item" data-value="Hardware" data-i18n="Hardware">Hardware</li>
-                <li class="mdl-menu__item" data-value="HardwareWithFallback" data-i18n="Automatic">Automatic</li>
-                <li class="mdl-menu__item" data-value="Software" data-i18n="Software">Software</li>
               </ul>
             </div>
             <div id="audioSyncOption" class="setting-option">
@@ -691,7 +802,7 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Play audio on host">Play audio on host</label>
-              <span class="mdl-list__item-text-body"></span>
+              <span class="mdl-list__item-text-body" data-i18n="- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.">- When enabled, audio during streaming plays on both the host computer and locally, provided local audio output is also enabled.</span>
               <div id="playHostAudioMenu">
                 <label id="playHostAudioBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="playHostAudioSwitch">
                   <input type="checkbox" id="playHostAudioSwitch" class="mdl-switch__input">
@@ -722,8 +833,8 @@
           <div id="videoSettings" class="settings-options">
             <div class="setting-option">
               <label data-i18n="Video codec">Video codec</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Increase for better video compression and quality or decrease to improve performance on lower-end devices.">
-                - Increase for better video compression and quality or decrease to improve performance on lower-end devices.
+              <span class="mdl-list__item-text-body" data-i18n="H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.">
+                H.264 is the most compatible codec across devices. However, to get the best performance at resolutions above 1080p or use High Dynamic Range (HDR), you must select HEVC or AV1, provided your host hardware supports it.
               </span>
               <div id="videoCodecMenu">
                 <button type="button" id="selectCodec" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="H264" data-i18n="H.264">H.264</button>
@@ -760,30 +871,30 @@
               <div id="videoHdrMenu">
                 <label id="hdrModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="hdrModeSwitch">
                   <input type="checkbox" id="hdrModeSwitch" class="mdl-switch__input">
-                  <span class="mdl-switch__label" data-i18n="Allow high dynamic range for vibrant colors and enhanced contrast">
-                    Allow high dynamic range for vibrant colors and enhanced contrast
+                  <span class="mdl-switch__label" data-i18n="Enable high dynamic range">
+                    Enable high dynamic range
                   </span>
                 </label>
               </div>
             </div>
             <div class="setting-option">
               <label data-i18n="Color range">Color range</label>
-              <span class="mdl-list__item-text-body" data-i18n="- This will cause loss of detail in light and dark areas if your device doesn't properly display full range video content.">
-                - This will cause loss of detail in light and dark areas if your device doesn't properly display full range video content.
+              <span class="mdl-list__item-text-body" data-i18n="When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.">
+                When enabled, this setting can reveal more detail in the darkest and brightest areas of the image. Choose the setting that looks better on your TV.
               </span>
               <div id="colorRangeMenu">
                 <label id="fullRangeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="fullRangeSwitch">
                   <input type="checkbox" id="fullRangeSwitch" class="mdl-switch__input">
-                  <span class="mdl-switch__label" data-i18n="Allow full color range for more detail in dark and bright areas of content">
-                    Allow full color range for more detail in dark and bright areas of content
+                  <span class="mdl-switch__label" data-i18n="Enable full color range">
+                    Enable full color range
                   </span>
                 </label>
               </div>
             </div>
             <div class="setting-option">
               <label data-i18n="Game mode">Game mode</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.">
-                - Enable it to achieve ultra-low latency with Game Mode, or disable it to allow the TV's various picture enhancements, with slightly higher latency.
+              <span class="mdl-list__item-text-body" data-i18n="- Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.">
+                - Enable it to get the fastest response to gameplay controls by minimizing input latency. Disable it if you prefer to let the TV apply its various picture enhancements, although this may slightly increase latency.
               </span>
               <div id="gameModeMenu">
                 <label id="gameModeBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="gameModeSwitch">
@@ -814,8 +925,8 @@
             </div>
             <div class="setting-option">
               <label data-i18n="Optimize bitrate presets">Optimize bitrate presets</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Calculates bitrate based on selected resolution, frame rate, codec, and HDR settings to determine the optimal value.">
-                - Calculates bitrate based on selected resolution, frame rate, codec, and HDR settings to determine the optimal value.
+              <span class="mdl-list__item-text-body" data-i18n="Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.">
+                Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.
               </span>
               <div id="optimizeBitrateMenu">
                 <label id="optimizeBitrateBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="optimizeBitrateSwitch">
@@ -849,21 +960,23 @@
                   </span>
                 </label>
               </div>
-            </div>
-            <div class="setting-option">
-              <label data-i18n="Performance overlay position">Performance overlay position</label>
-              <span class="mdl-list__item-text-body" data-i18n="- Choose the screen corner where the performance overlay is displayed.">
-                - Choose the screen corner where the performance overlay is displayed.
-              </span>
-              <div id="performanceStatsPositionMenu">
-                <button type="button" id="selectPerformanceStatsPosition" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="top-left" data-i18n="Top left">Top left</button>
+              <div class="setting-sub-options">
+                <div class="setting-option">
+                  <label data-i18n="Performance overlay position">Performance overlay position</label>
+                  <span class="mdl-list__item-text-body" data-i18n="- Choose the screen corner where the performance overlay is displayed.">
+                    - Choose the screen corner where the performance overlay is displayed.
+                  </span>
+                  <div id="performanceStatsPositionMenu">
+                    <button type="button" id="selectPerformanceStatsPosition" class="mdl-button mdl-js-button mdl-js-ripple-effect" data-value="top-left" data-i18n="Top left">Top left</button>
+                  </div>
+                  <ul class="performanceStatsPositionMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectPerformanceStatsPosition">
+                    <li class="mdl-menu__item" data-value="top-left" data-i18n="Top left">Top left</li>
+                    <li class="mdl-menu__item" data-value="top-right" data-i18n="Top right">Top right</li>
+                    <li class="mdl-menu__item" data-value="bottom-left" data-i18n="Bottom left">Bottom left</li>
+                    <li class="mdl-menu__item" data-value="bottom-right" data-i18n="Bottom right">Bottom right</li>
+                  </ul>
+                </div>
               </div>
-              <ul class="performanceStatsPositionMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectPerformanceStatsPosition">
-                <li class="mdl-menu__item" data-value="top-left" data-i18n="Top left">Top left</li>
-                <li class="mdl-menu__item" data-value="top-right" data-i18n="Top right">Top right</li>
-                <li class="mdl-menu__item" data-value="bottom-left" data-i18n="Bottom left">Bottom left</li>
-                <li class="mdl-menu__item" data-value="bottom-right" data-i18n="Bottom right">Bottom right</li>
-              </ul>
             </div>
           </div>
           <div id="aboutSettings" class="settings-options">
@@ -950,11 +1063,14 @@
   <script defer src="static/js/jquery-2.2.0.min.js"></script>
   <script defer src="static/js/material.min.js"></script>
   <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+  <script type="text/javascript" src="platform/ambilight.js"></script>
   <script type="text/javascript" src="platform/messages.js"></script>
   <script type="text/javascript" src="platform/i18n.js"></script>
-  <script type="text/javascript" src="platform/common.js"></script>
+  <script type="text/javascript" src="platform/launch_splash.js"></script>
+   <script type="text/javascript" src="platform/common.js"></script>
   <script type="text/javascript" src="platform/gamepad.js"></script>
   <script type="text/javascript" src="platform/audio.js"></script>
+  <script type="text/javascript" src="platform/wmp_transport.js"></script>
   <script type="text/javascript" src="platform/index.js"></script>
   <script type="text/javascript" src="platform/screensaver.js"></script>
   <script type="text/javascript" src="platform/navigation.js"></script>
@@ -972,6 +1088,7 @@
     <div id="settingsTooltip" class="mdl-tooltip" for="settingsBtn" data-i18n="Settings">Settings</div>
     <div id="refreshHostsTooltip" class="mdl-tooltip" for="refreshHostsBtn" data-i18n="Rescan Network">Rescan Network</div>
     <div id="gamepadTestTooltip" class="mdl-tooltip" for="gamepadTestBtn" data-i18n="Gamepad Test">Gamepad Test</div>
+    <div id="regenerateAppImagesTooltip" class="mdl-tooltip" for="regenerateAppImagesBtn" data-i18n="Regenerate app image thumbnails">Regenerate app image thumbnails</div>
     <div id="supportTooltip" class="mdl-tooltip" for="supportBtn" data-i18n="Support">Support</div>
     <div id="restoreDefaultsTooltip" class="mdl-tooltip" for="restoreDefaultsBtn" data-i18n="Restore Defaults">Restore Defaults</div>
   <div id="addHostDialogOverlay" class="dialog-overlay">

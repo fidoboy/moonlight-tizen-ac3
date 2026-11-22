@@ -87,8 +87,19 @@ void MoonlightInstance::SetDolbyAudioOptions(const std::string& channelLayout, c
 }
 
 void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
-  // Tell the front end
+  // RTSP negotiation has completed. Refine the saved estimate for the next
+  // session without changing the bitrate already requested for this stream.
+  PostToJs(std::string("NegotiatedAudio: ") + GetNegotiatedAudioInfo());
   PostToJs(std::string("Connection Established"));
+}
+
+std::string MoonlightInstance::GetNegotiatedAudioInfo() const {
+  if (m_AudioBackend == AudioBackend::Disabled) return "OFF|0|-1";
+  const char* codec = LiIsEac3AudioNegotiated() ? "EAC3" :
+    (LiIsAc3AudioNegotiated() ? "AC3" : "OPUS");
+  return std::string(codec) + "|" +
+    std::to_string(CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(m_AudioConfig)) + "|" +
+    std::to_string(LiGetNegotiatedAudioQuality());
 }
 
 void MoonlightInstance::OnConnectionStopped(uint32_t error) {
@@ -254,8 +265,22 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
     PostToJs("Selecting the fallback server code mode to: SCM_H264");
   }
 
-  // Initialize the audio renderer capabilities with the value shared by both audio backends
+  // Initialize the audio renderer capabilities with the value shared by both audio backends.
+  // The learned preference is applied only to EMSS Opus sessions where Dolby passthrough
+  // is not enabled; it must not affect Web Audio or native Dolby sessions.
+  const bool requestSlowOpusDecoder =
+    me->m_SlowOpusDecoderRequired.load(std::memory_order_relaxed) &&
+    me->m_AudioBackend == AudioBackend::Emss &&
+    !me->m_OpticalOutputEnabled;
+  me->m_SlowOpusDecoderActive.store(requestSlowOpusDecoder, std::memory_order_relaxed);
   MoonlightInstance::s_ArCallbacks.capabilities = CAPABILITY_DIRECT_SUBMIT;
+  if (me->m_SlowOpusDecoderActive.load(std::memory_order_relaxed)) {
+    MoonlightInstance::s_ArCallbacks.capabilities |= CAPABILITY_SLOW_OPUS_DECODER;
+    PostToJs("SlowOpusDecoderStatus: 1");
+    PostToJs("Requesting 10 ms Opus packets because this TV previously rejected hardware Opus passthrough");
+  } else {
+    PostToJs("SlowOpusDecoderStatus: 0");
+  }
   // Handle setting of the audio renderer capabilities based on the selected audio backend
   if (me->m_AudioBackend == AudioBackend::WebAudio) { // Web Audio
     // The Web Audio backend reads the samples per frame from the Opus configuration, so it can
@@ -272,8 +297,9 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
     PostToJs("Selecting the audio renderer capabilities to: CAPABILITY_DIRECT_SUBMIT");
   }
 
-  err = LiStartConnection(&serverInfo, &me->m_StreamConfig, &MoonlightInstance::s_ClCallbacks,
-    &MoonlightInstance::s_DrCallbacks, &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0);
+  err = LiStartConnectionEx(&serverInfo, &me->m_StreamConfig, &MoonlightInstance::s_ClCallbacks,
+    &MoonlightInstance::s_DrCallbacks, &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0,
+    me->m_AudioBackend != AudioBackend::Disabled);
   if (err != 0) {
     // A failed media setup may leave the source attached. Clean it up before
     // telling JavaScript the stream ended, so the next session can start cleanly.
@@ -310,7 +336,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level) {
+  std::string h264Level, bool selectHoldStreamMenu, std::string mouseEmulationStick) {
   
   if (m_StopThread != 0) {
     pthread_join(m_StopThread, NULL);
@@ -318,8 +344,28 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   }
   m_ConnectionCancelled = false;
   m_SourceClosed = false;
+
+  // Read the learned TV-specific preference before starting the connection thread,
+  // so the capability is present when Moonlight builds the RTSP/SDP negotiation.
+  m_SlowOpusDecoderRequired.store(EM_ASM_INT({
+    try {
+      return localStorage.getItem('moonlight.slowOpusDecoderRequired') === 'true' ? 1 : 0;
+    } catch (error) {
+      return 0;
+    }
+  }) != 0, std::memory_order_relaxed);
+  m_SlowOpusDecoderActive.store(false, std::memory_order_relaxed);
   m_SourceAttached = false;
   m_InputThread = 0;
+
+  // Reset Opus passthrough probing once per streaming session, independent of EMSS latency mode.
+  m_OpusProbeAttempted.store(false);
+  m_OpusTrackAddCompleted.store(false);
+  m_OpusTrackAddSucceeded.store(false);
+  m_OpusPassthrough.store(false);
+  m_OpusHardwareActive.store(false);
+  m_OpusToDolbyTranscode.store(false);
+  m_OpusDolbyTranscodeLatencyMs.store(0.0, std::memory_order_relaxed);
 
   PostToJs("Setting the Host address to: " + host + ":" + std::to_string(httpPort));
   PostToJs("Setting the Video resolution to: " + width + "x" + height);
@@ -409,7 +455,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
     m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
     PostToJs("Selecting the fallback audio config to: AUDIO_CONFIGURATION_STEREO");
   }
-  // Store the audio configuration value from the stream configurations
+  // Store the effective audio configuration value from the stream configuration.
   m_AudioConfig = m_StreamConfig.audioConfiguration;
 
   // Initialize the supported video format with default value
@@ -452,7 +498,7 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   memcpy(m_StreamConfig.remoteInputAesIv, &rikeyiv, sizeof(rikeyiv));
 
   // Manage gamepad input states based on selected settings
-  HandleGamepadInputState(rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons);
+  HandleGamepadInputState(rumbleFeedback, mouseEmulation, mouseEmulationStick == "left", selectHoldStreamMenu, flipABfaceButtons, flipXYfaceButtons);
 
   // Apply the desired latency mode ​based on the toggle switch state
   EmssLatencyMode selectedLatencyMode = gameMode ? EmssLatencyMode::kUltraLow : EmssLatencyMode::kLow;
@@ -688,11 +734,11 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level) {
+  std::string h264Level, bool selectHoldStreamMenu, std::string mouseEmulationStick) {
   PostToJs("Starting the streaming session...");
   return g_Instance->StartStream(host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend, audioConfig, opticalOutputEnabled, audioSync,
-  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats, h264Level);
+  audioJitterMs, playHostAudio, decryptHostAudio, videoCodec, hdrMode, fullRange, gameMode, disableWarnings, performanceStats, h264Level, selectHoldStreamMenu, mouseEmulationStick);
 }
 
 void setDolbyAudioOptions(std::string dolbyChannelLayout, std::string dolbyDecodingMode) {

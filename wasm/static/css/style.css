@@ -779,7 +779,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
+#settingsBtn, #refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
     background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -822,16 +822,19 @@ body[data-color-theme="black-orange"] #background-layer {
     margin: 0 8px 0 -4px;
     font-size: 32px !important;
 }
-#gamepadTestBtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+#refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn {
+    text-align: center;
+    line-height: 50px;
 }
+#refreshHostsBtn .navigation-button-icons,
+#regenerateAppImagesBtn .navigation-button-icons,
 #gamepadTestBtn .navigation-button-icons {
-    display: block;
+    display: inline-block;
     width: 32px;
     margin: 0;
+    line-height: 1;
     text-align: center;
+    vertical-align: middle;
 }
 .nav-menu-parent {
     position: relative;
@@ -891,7 +894,7 @@ body[data-color-theme="black-orange"] #background-layer {
     transform-origin: 50% 50%;
     will-change: transform;
     border: 3px solid rgba(255, 255, 255, 0.28);
-    border-top-color: #fff;
+    border-top-color: var(--theme-accent);
     border-radius: 50%;
     box-sizing: border-box;
     animation: snackbar-spinner-rotation 0.8s linear infinite;
@@ -1251,6 +1254,34 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .ip-address-select-field.hovered, .ip-address-select-field:hover {
     box-shadow: 0 0 1px 2px var(--theme-accent);
+}
+
+/* Keep the Ambilight address editor consistent with the Add Host MDL fields. */
+#ambilightWledIpContainer {
+    margin-top: 15px;
+}
+#ambilightWledIpInputField {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+}
+#ambilightWledIpInputField .mdl-textfield__label,
+#ambilightWledIpSelectFields .mdl-textfield__label {
+    top: -12px;
+}
+#ambilightWledIpTextInput {
+    width: 100%;
+    height: 38px;
+    box-sizing: border-box;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface);
+}
+#ambilightWledIpSelectFields {
+    display: none;
+    width: 100%;
+    padding: 22px 0 0;
+    box-sizing: border-box;
 }
 #supportQrCode {
     width: 50%;
@@ -1803,6 +1834,35 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: 1.3;
 }
 
+#performance-stats .performance-stats-engine {
+    margin-bottom: 4px;
+}
+
+#performance-stats .performance-stats-slow-opus {
+    display: none;
+    /* JavaScript switches this to a shrink-wrapped table box when active. */
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto 10px;
+    padding: 2px 6px;
+    box-sizing: border-box;
+    border: 1px solid #d99b32;
+    border-radius: 6px;
+    color: #d99b32;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
+}
+
+#performance-stats .performance-stats-separator {
+    width: 80%;
+    height: 0;
+    margin: 9px auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 #performance-stats .performance-stats-row {
     display: flex;
     width: 100%;
@@ -1822,6 +1882,8 @@ body[data-color-theme="black-orange"] #background-layer {
     flex: 1 1 auto;
     min-width: 0;
     text-align: right;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 #performance-stats .performance-stats-audio-fec--normal .performance-stats-value { color: #fff; }
@@ -1893,29 +1955,38 @@ body[data-color-theme="black-orange"] #background-layer {
     overflow: hidden;
 }
 #settings-left-pane {
-    flex: 1 1 30%;
-    max-width: 30%;
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: 30%;
+    max-width: none;
     min-height: 0;
     box-sizing: border-box;
     padding: 20px;
     border-right: 4px solid var(--theme-border);
-    overflow: hidden;
+    overflow: visible;
 }
 .settings-categories {
-    width: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: max-content;
+    min-width: calc(30vw - 94px);
     height: auto;
-    margin: 5px 25px 5px 25px;
+    margin: 25px 25px;
     font-weight: 600;
     text-align: left;
-    overflow: hidden;
+    overflow: visible;
 }
 .settings-category {
+    width: auto;
+    box-sizing: border-box;
     color: var(--theme-text-secondary);
-    margin: 25px;
+    margin: 0 25px 25px;
     padding: 25px;
     border-bottom: 2px solid var(--theme-border);
     border-radius: 12px;
     cursor: pointer;
+    white-space: nowrap;
 }
 .settings-category.hovered, .settings-category:hover, .settings-category:focus {
     background-color: var(--theme-surface-hover);
@@ -1927,6 +1998,9 @@ body[data-color-theme="black-orange"] #background-layer {
     transform: scale(1.02);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
 }
+.settings-category:last-child {
+    margin-bottom: 0;
+}
 .settings-category.selected:hover, .settings-category.selected:focus {
     transform: scale(1.05);
 }
@@ -1935,6 +2009,8 @@ body[data-color-theme="black-orange"] #background-layer {
     font-size: 32px !important;
 }
 .settings-category label {
+    display: inline-block;
+    white-space: nowrap;
     position: relative;
     bottom: 6.5px;
     font-size: 1.8rem;
@@ -1944,18 +2020,21 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 #settings-right-pane {
     position: relative;
-    flex: 1 1 70%;
+    flex: 1 1 0%;
     min-width: 0;
     min-height: 0;
     height: 100%;
     box-sizing: border-box;
     padding: 20px;
+    /* Permanent scroll reserve: lets navigation keep 30% of the pane below focus. */
+    padding-bottom: 30vh;
     overflow-x: hidden;
     overflow-y: auto;
+    transition: opacity 160ms ease;
 }
-/* Add dropdown/focus safety space only when the settings content genuinely overflows. */
-#settings-right-pane.has-effective-scroll {
-    padding-bottom: 30vh;
+#settings-right-pane.settings-pane-dimmed {
+    opacity: 0.38;
+    overflow-y: hidden;
 }
 /* Keep settings dropdowns as wide as their trigger controls. The 160px
    allowance matches the pane padding and settings/options side margins. */
@@ -1973,6 +2052,17 @@ body[data-color-theme="black-orange"] #background-layer {
 .setting-option {
     margin: 25px 25px 37.5px;
 }
+
+.setting-sub-options {
+    margin-left: 24px;
+    padding-left: 16px;
+    border-left: 2px solid var(--theme-accent);
+}
+
+.setting-sub-options > .setting-option {
+    margin: 25px 0 0;
+}
+
 #dolbyAudioHeading .dolby-audio-heading-icon {
     display: inline-block;
     position: relative;
@@ -1995,7 +2085,7 @@ body[data-color-theme="black-orange"] #background-layer {
     font-weight: 700;
 }
 .settings-options label {
-    color: var(--theme-text-secondary);
+    color: var(--theme-text-primary);
     display: inline-block;
     margin-bottom: 12px;
     font-size: 1.7rem;
@@ -2004,12 +2094,13 @@ body[data-color-theme="black-orange"] #background-layer {
     text-align: left;
 }
 .settings-options .mdl-list__item-text-body {
-    color: var(--theme-text-primary);
+    color: var(--theme-text-secondary);
     display: block;
     margin-bottom: 12px;
-    font-size: 1.4rem;
-    line-height: 1.5;
-    letter-spacing: 0.5px;
+    font-size: 1.25rem;
+    line-height: 1.45;
+    letter-spacing: 0.2px;
+    opacity: 0.82;
     text-align: left;
 }
 .settings-options .mdl-switch__label {
@@ -2113,18 +2204,18 @@ body[data-color-theme="black-orange"] #background-layer {
     background-color: var(--theme-surface);
     border: 1px solid #FFA620;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #navigationGuideBtn,
+#selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
+#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
     text-indent: 36px;
 }
-#selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
-#discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn,
+#selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #framePacingBtn, #ambilightBtn, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #ipAddressFieldModeBtn, #navigationSoundBtn, #streamTransitionBackgroundBtn, #screensaverBtn,
+#discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn, #selectHoldStreamMenuBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
-#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
+#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
     color: var(--theme-text-primary);
     background-color: var(--theme-surface);
@@ -2179,12 +2270,15 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__container {
+.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
+.mouseEmulationStickMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
+
 .videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
-.languageMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
-.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu, .mdl-menu__outline {
+.languageMenu, .streamingEngineMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
+.videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
+.mouseEmulationStickMenu, .mdl-menu__outline {
     width: 100% !important;
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
@@ -2246,12 +2340,13 @@ body[data-color-theme="black-orange"] #background-layer {
     float: right;
     margin: 5px 28px 5px 28px;
 }
-#videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
+#streamingEngineMenu > #selectStreamingEngine, #videoResolutionMenu > #selectResolution, #videoFramerateMenu > #selectFramerate,
 #videoBitrateMenu > #selectBitrate, #languageMenu > #selectLanguage,
 #ambientBackgroundMenu > #selectAmbientBackground, #configSummaryPositionMenu > #selectConfigSummaryPosition, #audioBackendMenu > #selectAudioBackend, #audioConfigMenu > #selectAudio,
 #configSummaryPositionMenu > #selectConfigSummaryPosition, #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
-#h264LevelMenu > #selectH264Level, #performanceStatsPositionMenu > #selectPerformanceStatsPosition {
+#h264LevelMenu > #selectH264Level, #performanceStatsPositionMenu > #selectPerformanceStatsPosition,
+#mouseEmulationStickMenu > #selectMouseEmulationStick {
     color: var(--theme-text-primary);
     background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat var(--theme-surface);
 }
@@ -2284,14 +2379,14 @@ body[data-color-theme="black-orange"] #background-layer {
 #closeUpdateApp:hover, #closeUpdateApp:focus, #continueRestoreDefaults:hover, #continueRestoreDefaults:focus, #cancelRestoreDefaults:hover,
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
-#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
+#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #regenerateAppImagesBtn:hover, #regenerateAppImagesBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
-#selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
+#selectStreamingEngine:hover, #selectStreamingEngine:focus, #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
-#framePacingBtn:hover, #framePacingBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
+#framePacingBtn:hover, #framePacingBtn:focus, #ambilightBtn:hover, #ambilightBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
-#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
-#rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
+#discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #selectMouseEmulationStick:hover, #selectMouseEmulationStick:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,
+#rumbleFeedbackBtn:focus, #mouseEmulationBtn:hover, #mouseEmulationBtn:focus, #selectHoldStreamMenuBtn:hover, #selectHoldStreamMenuBtn:focus, #flipABfaceButtonsBtn:hover, #flipABfaceButtonsBtn:focus,
 #flipXYfaceButtonsBtn:hover, #flipXYfaceButtonsBtn:focus, #selectAudioBackend:hover, #selectAudioBackend:focus, #selectAudio:hover,
 #selectAudio:focus, #selectDolbyChannelLayout:hover, #selectDolbyChannelLayout:focus,
 #selectDolbyDecodingMode:hover, #selectDolbyDecodingMode:focus, #ac3AudioModeBtn:hover, #ac3AudioModeBtn:focus, #audioSyncBtn:hover, #audioSyncBtn:focus, #selectAudioJitter:hover, #selectAudioJitter:focus,
@@ -2355,6 +2450,11 @@ body[data-color-theme="black-orange"] #background-layer {
 /* Compact current-configuration strip, shown only on the Hosts and Apps screens. */
 #configSummaryBar {
     display: none;
+    position: fixed;
+    top: 80px;
+    right: 0;
+    left: 0;
+    z-index: 5;
     align-items: center;
     justify-content: safe center;
     gap: 0;
@@ -2372,7 +2472,11 @@ body[data-color-theme="black-orange"] #background-layer {
 
 /* The bottom summary overlays the background with a stronger translucent backing. */
 #configSummaryBar.config-summary-bottom {
-    background: rgba(0, 0, 0, 0.7);
+    top: auto;
+    bottom: 0;
+    /* Keep the bottom strip visibly translucent so the active background
+       remains visible through it. */
+    background: rgba(0, 0, 0, 0.4);
 }
 
 .config-summary-item {
@@ -2406,6 +2510,15 @@ body[data-color-theme="black-orange"] #background-layer {
 .config-summary-value { color: #fff; font-weight: 600; }
 .config-summary-toggle.is-on { color: #39e75f; }
 .config-summary-toggle.is-off { color: #ff4b4b; }
+.config-summary-toggle.is-software-warning { color: #ffb74d; }
+.config-summary-warning-icon {
+    display: inline-block;
+    margin-left: 3px;
+    font-size: 15px;
+    line-height: 1;
+    vertical-align: -2px;
+    color: #ffb74d;
+}
 @media (max-width: 800px) {
     #configSummaryBar { padding: 6px 8px; }
     .config-summary-item { padding: 0 7px; font-size: 14px; }
@@ -2778,3 +2891,92 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0;
 }
 #popup-layer > #screensaver-overlay { pointer-events: none; }
+
+
+/* Full-screen HTML launch presentation; it exists only during normal startup. */
+#html-launch-splash {
+    display: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    background: #000;
+    z-index: 2147483647;
+    pointer-events: auto;
+}
+#html-launch-splash.is-active {
+    display: block;
+}
+#html-launch-splash-stage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    overflow: hidden;
+    background: #000;
+    transform: translate(-50%, -50%);
+}
+#html-launch-splash-stars,
+#html-launch-splash-logo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#html-launch-splash-stars {
+    z-index: 0;
+}
+#html-launch-splash-logo {
+    z-index: 1;
+}
+
+
+/* Show the negotiated HDR marker with a static diagonal rainbow gradient. */
+#performance-stats .performance-stats-hdr-rainbow {
+    display: inline-block;
+    color: #fff;
+    font-weight: 700;
+    background-image: linear-gradient(135deg,
+        #ff3030 0%, #ff9f25 16%, #f3e63b 32%, #39d36b 48%,
+        #24c8e8 64%, #4777ff 80%, #bd4cff 100%);
+    background-size: 100% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Distinguish the active audio decoder mode in the performance statistics overlay. */
+#performance-stats .performance-stats-audio-mode-icon {
+    display: inline-block;
+    position: relative;
+    top: 1px;
+    margin-left: 2px;
+    margin-right: 0;
+    font-size: 14px;
+    line-height: 1;
+}
+#performance-stats .performance-stats-audio-mode-group {
+    display: inline-block;
+    margin-left: 3px;
+}
+#performance-stats .performance-stats-audio-mode-icon--hardware {
+    color: #35c879;
+}
+#performance-stats .performance-stats-audio-mode-icon--software {
+    color: #f2cc45;
+}
+#performance-stats .performance-stats-audio-hq {
+    display: inline-block;
+    margin-left: 2px;
+    color: inherit;
+    font-size: 0.68em;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: super;
+}
+#performance-stats .performance-stats-audio-hq--confirmed {
+    color: #35c879;
+}

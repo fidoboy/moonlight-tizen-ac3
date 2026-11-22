@@ -2,6 +2,45 @@ function remoteControllerHandler(e) {
   isGamepadActive = false;
   const keyCode = e.keyCode;
 
+  // Temporary diagnostics for the native-engine Play/Pause -> browser keyboard path.
+  if (keyCode === 53 || keyCode === tvKey.KEY_PLAY_PAUSE ||
+      keyCode === tvKey.KEY_PAUSE || keyCode === tvKey.KEY_PLAY) {
+    console.warn('[InputDiag][remoteControllerHandler]', JSON.stringify({
+      keyCode: keyCode,
+      key: e.key,
+      code: e.code,
+      repeat: e.repeat,
+      target: e.target && (e.target.id || e.target.tagName),
+      defaultPrevented: e.defaultPrevented,
+      engine: window._activeStreamingEngine || null,
+      menuVisible: !!document.getElementById('streamMenuDialogOverlay')
+    }));
+  }
+
+  // In native-engine mode the WASM input loop does not own the stream.
+  // Forward TV remote navigation keys directly to Moonlight Common C instead.
+  if (isInGame === true && isDialogOpen !== true && window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.sendKey === 'function') {
+    let virtualKey = 0;
+    switch (keyCode) {
+      case tvKey.KEY_UP: virtualKey = 0x26; break;
+      case tvKey.KEY_DOWN: virtualKey = 0x28; break;
+      case tvKey.KEY_LEFT: virtualKey = 0x25; break;
+      case tvKey.KEY_RIGHT: virtualKey = 0x27; break;
+      case tvKey.KEY_ENTER:
+      case tvKey.KEY_REMOTE_ENTER: virtualKey = 0x0D; break;
+      case tvKey.KEY_RETURN: virtualKey = 0x1B; break;
+      default: break;
+    }
+    if (virtualKey !== 0) {
+      e.preventDefault();
+      window.ESPlusPlayerTransport.sendKey(virtualKey, 3, 0);
+      window.ESPlusPlayerTransport.sendKey(virtualKey, 4, 0);
+      return;
+    }
+  }
+
   switch (keyCode) {
     case tvKey.KEY_UP:
       // Navigate in the up direction
@@ -33,7 +72,8 @@ function remoteControllerHandler(e) {
     case tvKey.KEY_PAUSE:
     case tvKey.KEY_PLAY:
       // Use the registered Tizen remote-controller events for media keys.
-      if (isInGame) {
+      if (isInGame || (typeof window.isNativeStreamingEngineActive === 'function' &&
+          window.isNativeStreamingEngineActive())) {
         e.preventDefault();
         toggleStreamMenuDialog();
       }

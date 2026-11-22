@@ -18,6 +18,7 @@
 #include "samsung/wasm/elementary_media_stream_source.h"
 
 extern std::atomic<bool> streamMenuInputBlocked;
+void ResetStreamInputState();
 #include "samsung/wasm/elementary_media_stream_source_listener.h"
 #include "samsung/wasm/elementary_media_track.h"
 #include "samsung/wasm/elementary_media_track_listener.h"
@@ -37,6 +38,9 @@ extern std::atomic<bool> streamMenuInputBlocked;
 // a bunch to allow more concurrent server requests
 // since our HTTP request library is synchronous.
 #define HTTP_HANDLER_THREADS 8
+
+// Encoder selected for the local Opus-to-Dolby fallback path.
+constexpr bool kOpusDolbyTranscodeEac3 = true;
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -78,6 +82,7 @@ typedef struct _VIDEO_STATS {
   float renderedFps;
   float receivedBitrate;
   float receivedAudioBitrateKbps;
+  float receivedAudioOutputBitrateKbps;
   uint32_t measurementStartTimestamp;
 } VIDEO_STATS, *PVIDEO_STATS;
 
@@ -108,8 +113,9 @@ class MoonlightInstance {
     bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
     std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
     std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-    std::string h264Level);
+    std::string h264Level, bool selectHoldStreamMenu, std::string mouseEmulationStick);
   void SetDolbyAudioOptions(const std::string& channelLayout, const std::string& decodingMode);
+  std::string GetNegotiatedAudioInfo() const;
   MessageResult StopStream();
 
   MessageResult CancelRequest();
@@ -131,7 +137,7 @@ class MoonlightInstance {
 
   void ReportMouseMovement();
 
-  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons);
+  void HandleGamepadInputState(bool rumbleFeedback, bool mouseEmulation, bool mouseEmulationUseLeftStick, bool selectHoldStreamMenu, bool flipABfaceButtons, bool flipXYfaceButtons);
   void PollGamepads();
 
   void MouseLockLost();
@@ -176,6 +182,7 @@ class MoonlightInstance {
   static void AddVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst);
   static void FormatVideoStats(VIDEO_STATS& stats, char* output, int length);
   void TogglePerformanceStats();
+  bool IsAudioBackendEnabled() const { return m_AudioBackend != AudioBackend::Disabled; }
 
   static int AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* context, int arFlags);
   static void AudDecCleanup(void);
@@ -265,6 +272,7 @@ class MoonlightInstance {
   std::string m_DolbyChannelLayout {"Back"};
   std::string m_DolbyDecodingMode {"Hardware"};
   std::atomic<uint64_t> m_AudioBytesReceived {0};
+  std::atomic<uint64_t> m_AudioBytesOutput {0};
   bool m_AudioSyncEnabled;
   int m_AudioJitterMs;
   bool m_PlayHostAudioEnabled;
@@ -303,6 +311,20 @@ class MoonlightInstance {
   std::condition_variable m_EmssVideoStateChanged;
   EmssReadyState m_EmssReadyState;
   std::atomic<bool> m_AudioStarted;
+  std::atomic<bool> m_OpusProbeAttempted{false};
+  std::atomic<bool> m_OpusTrackAddCompleted{false};
+  std::atomic<bool> m_OpusTrackAddSucceeded{false};
+  std::atomic<bool> m_OpusPassthrough{false};
+  // Learned per-device preference: request longer host Opus packets on future EMSS sessions.
+  std::atomic<bool> m_SlowOpusDecoderRequired{false};
+  // True only when this session actually advertises CAPABILITY_SLOW_OPUS_DECODER.
+  std::atomic<bool> m_SlowOpusDecoderActive{false};
+  std::atomic<bool> m_OpusHardwareActive{false};
+  std::atomic<bool> m_DolbyHardwareActive{false};
+  std::atomic<bool> m_DolbySoftwareDecode{false};
+  std::atomic<bool> m_OpusToDolbyTranscode{false};
+  std::atomic<double> m_OpusDolbyTranscodeLatencyMs{0.0};
+  std::condition_variable m_OpusTrackAddChanged;
   std::atomic<bool> m_VideoStarted;
   std::atomic<bool> m_ConnectionCancelled;
   pthread_t m_StopThread;
@@ -338,7 +360,7 @@ MessageResult startStream(std::string host, int httpPort, std::string width, std
   bool framePacing, bool optimizeGames, bool rumbleFeedback, bool mouseEmulation, bool flipABfaceButtons, bool flipXYfaceButtons,
   std::string audioBackend, std::string audioConfig, bool opticalOutputEnabled, bool audioSync, int audioJitterMs, bool playHostAudio, bool decryptHostAudio,
   std::string videoCodec, bool hdrMode, bool fullRange, bool gameMode, bool disableWarnings, bool performanceStats,
-  std::string h264Level);
+  std::string h264Level, bool selectHoldStreamMenu, std::string mouseEmulationStick);
 MessageResult stopStream();
 
 MessageResult cancelRequest();

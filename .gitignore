@@ -51,3 +51,9 @@ dir.stamp
 *.vs/
 *.vscode/
 .DS_Store
+
+# Generated FFmpeg source/build tree and installed WebAssembly libraries
+/ffmpeg/build/
+/ffmpeg/install/
+/ffmpeg-arm-build/
+/ffmpeg-arm-install/

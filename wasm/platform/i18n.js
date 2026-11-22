@@ -209,6 +209,16 @@
       element.setAttribute('placeholder', t(key));
     });
 
+    document.querySelectorAll('[data-i18n-title]').forEach((element) => {
+      const key = element.getAttribute('data-i18n-title');
+      if (key) element.setAttribute('title', t(key));
+    });
+
+    document.querySelectorAll('[data-i18n-aria-label]').forEach((element) => {
+      const key = element.getAttribute('data-i18n-aria-label');
+      if (key) element.setAttribute('aria-label', t(key));
+    });
+
     updateLocalizedSelections();
 
     // Keep the Dolby symbol embedded in the translated settings heading.

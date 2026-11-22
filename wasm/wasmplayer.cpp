@@ -1,5 +1,7 @@
 #include "moonlight_wasm.hpp"
 
+#include <cmath>
+
 #include <condition_variable>
 #include <chrono>
 #include <functional>
@@ -496,9 +498,15 @@ static uint32_t AudioFecCounterDelta(uint32_t current, uint32_t previous) {
 }
 
 static void UpdateAudioFecWindowStats(void) {
+  s_AudioFecWindowStats = {};
+  if (g_Instance == nullptr || !g_Instance->IsAudioBackendEnabled()) {
+    s_LastAudioFecStats = {};
+    s_AudioFecStatsBaselineValid = false;
+    return;
+  }
+
   RTP_AUDIO_FEC_STATS currentStats = {};
   LiGetRTPAudioFecStats(&currentStats);
-  s_AudioFecWindowStats = {};
   if (!s_AudioFecStatsBaselineValid) {
     s_LastAudioFecStats = currentStats;
     s_AudioFecStatsBaselineValid = true;
@@ -541,6 +549,29 @@ MoonlightInstance::AudioTrackListener::AudioTrackListener(
 
 void MoonlightInstance::AudioTrackListener::OnTrackOpen() {
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackOpen\n");
+  const auto activeMode = m_Instance->m_AudioTrack.GetActiveDecodingMode();
+  const bool emssHardwareActive = activeMode &&
+    *activeMode == samsung::wasm::ElementaryMediaTrack::ActiveDecodingMode::kHardware;
+  if (m_Instance->m_OpusToDolbyTranscode.load()) {
+    m_Instance->m_DolbyHardwareActive.store(emssHardwareActive);
+    ClLogMessage("Opus-to-Dolby fallback: %s output track opened; active decoder mode=%s\n",
+      kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3",
+      emssHardwareActive ? "Hardware" : "Software/unknown");
+  } else if (m_Instance->m_OpusPassthrough.load()) {
+    m_Instance->m_OpusHardwareActive.store(emssHardwareActive);
+    ClLogMessage("Opus passthrough: track opened; active decoder mode=%s\n",
+      emssHardwareActive ? "Hardware" : "Software/unknown");
+  } else if (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated()) {
+    const bool hardwareActive = !m_Instance->m_DolbySoftwareDecode.load() && emssHardwareActive;
+    m_Instance->m_DolbyHardwareActive.store(hardwareActive);
+    const char* decoderMode = m_Instance->m_DolbySoftwareDecode.load()
+      ? "Software (FFmpeg)"
+      : (hardwareActive ? "Hardware" : "Software/unknown");
+    ClLogMessage("Dolby audio: track opened; active decoder mode=%s\n", decoderMode);
+  } else {
+    m_Instance->m_OpusHardwareActive.store(false);
+    m_Instance->m_DolbyHardwareActive.store(false);
+  }
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_AudioStarted = true;
   m_Instance->m_EmssAudioStateChanged.notify_all();
@@ -550,6 +581,9 @@ void MoonlightInstance::AudioTrackListener::OnTrackClosed(samsung::wasm::Element
   ClLogMessage("AUDIO ElementaryMediaTrack::OnTrackClosed\n");
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_AudioStarted = false;
+  m_Instance->m_OpusHardwareActive.store(false);
+  m_Instance->m_DolbyHardwareActive.store(false);
+  m_Instance->m_DolbySoftwareDecode.store(false);
 }
 
 void MoonlightInstance::AudioTrackListener::OnSessionIdChanged(samsung::wasm::SessionId new_session_id) {
@@ -677,29 +711,34 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           return -1;
       }
 
-      const char* mimeType = isEac3 ? "audio/mp4; codecs=\"ec-3\"" : "audio/mp4; codecs=\"ac-3\"";
-      const auto sampleFormat = isEac3
-        ? samsung::wasm::SampleFormat::kEac3
-        : samsung::wasm::SampleFormat::kAc3;
+      const bool useSoftwareDecoder = g_Instance->m_DolbyDecodingMode == "Software";
+      const char* mimeType = useSoftwareDecoder
+        ? "audio/webm; codecs=\"pcm\""
+        : (isEac3 ? "audio/mp4; codecs=\"ec-3\"" : "audio/mp4; codecs=\"ac-3\"");
+      const auto sampleFormat = useSoftwareDecoder
+        ? samsung::wasm::SampleFormat::kS16
+        : (isEac3
+          ? samsung::wasm::SampleFormat::kEac3
+          : samsung::wasm::SampleFormat::kAc3);
       auto decodingMode = samsung::wasm::DecodingMode::kHardware;
       const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      if (hasDecodingMode) {
-        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
-          decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
-        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
-          decodingMode = samsung::wasm::DecodingMode::kSoftware;
-        }
+      g_Instance->m_DolbySoftwareDecode.store(useSoftwareDecoder);
+      if (!useSoftwareDecoder && hasDecodingMode &&
+          g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
+        decodingMode = samsung::wasm::DecodingMode::kHardwareWithFallback;
       }
       ClLogMessage("Configuring the EMSS track for %s (%d channels, layout=%s, decoding=%s)\n",
         isEac3 ? "E-AC-3" : "AC-3", channelCount,
-        g_Instance->m_DolbyChannelLayout.c_str(), hasDecodingMode ? g_Instance->m_DolbyDecodingMode.c_str() : "Hardware");
+        g_Instance->m_DolbyChannelLayout.c_str(),
+        useSoftwareDecoder ? "Software (FFmpeg)" :
+          (hasDecodingMode ? g_Instance->m_DolbyDecodingMode.c_str() : "Hardware"));
 
       auto add_track_result = g_Instance->m_Source->AddTrack(
         samsung::wasm::ElementaryAudioTrackConfig {
-          mimeType, // Compressed Dolby elementary bitstream
+          mimeType, // Compressed Dolby bitstream or decoded PCM
           {}, // Extradata: Empty
           decodingMode, // Dolby decoding mode selected by the user when supported
-          sampleFormat, // AC-3/E-AC-3 compressed bitstream
+          sampleFormat, // Compressed Dolby or signed 16-bit PCM
           channelLayout,
           kSampleRate, // Sample Rate: 48 kHz (48000 Hz)
         }
@@ -711,6 +750,56 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
       else {
         ClLogMessage("Failed to create %s audio track; aborting negotiated Dolby session\n",
           isEac3 ? "E-AC-3" : "AC-3");
+        return -1;
+      }
+    }
+    else if (g_Instance->m_AudioBackend == AudioBackend::Emss &&
+             g_Instance->m_OpticalOutputEnabled) {
+      const int outputChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+      samsung::wasm::ChannelLayout channelLayout;
+      switch (outputChannels) {
+        case 2:
+          channelLayout = samsung::wasm::ChannelLayout::kStereo;
+          break;
+        case 6:
+          channelLayout = g_Instance->m_DolbyChannelLayout == "Normal"
+            ? samsung::wasm::ChannelLayout::k5_1
+            : samsung::wasm::ChannelLayout::k5_1Back;
+          break;
+        default:
+          ClLogMessage("Unsupported channel layout for Opus-to-Dolby fallback: %d\n", outputChannels);
+          return -1;
+      }
+
+      // Native Dolby negotiation above always wins. This track is used only when
+      // the host fell back to Opus while the user still requires a Dolby bitstream.
+      g_Instance->m_OpusToDolbyTranscode.store(true);
+      const bool useEac3Fallback = kOpusDolbyTranscodeEac3;
+      const char* fallbackCodecName = useEac3Fallback ? "E-AC-3" : "AC-3";
+      const char* fallbackMimeType = useEac3Fallback
+        ? "audio/mp4; codecs=\"ec-3\""
+        : "audio/mp4; codecs=\"ac-3\"";
+      const auto fallbackSampleFormat = useEac3Fallback
+        ? samsung::wasm::SampleFormat::kEac3
+        : samsung::wasm::SampleFormat::kAc3;
+      ClLogMessage("Configuring the EMSS fallback track for FFmpeg Opus-to-%s transcoding (%d channels)\n",
+        fallbackCodecName, outputChannels);
+      auto add_track_result = g_Instance->m_Source->AddTrack(
+        samsung::wasm::ElementaryAudioTrackConfig {
+          fallbackMimeType,
+          {},
+          samsung::wasm::DecodingMode::kHardware,
+          fallbackSampleFormat,
+          channelLayout,
+          kSampleRate,
+        }
+      );
+      if (add_track_result) {
+        g_Instance->m_AudioTrack = std::move(*add_track_result);
+        g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+      } else {
+        g_Instance->m_OpusToDolbyTranscode.store(false);
+        ClLogMessage("The TV rejected the %s fallback track; audio cannot be initialized\n", fallbackCodecName);
         return -1;
       }
     }
@@ -734,22 +823,94 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width, int height
           return -1;
       }
 
-      auto add_track_result = g_Instance->m_Source->AddTrack(
-        samsung::wasm::ElementaryAudioTrackConfig {
-          "audio/webm; codecs=\"pcm\"", // Pulse Code Modulation (PCM)
-          {}, // Extradata: Empty
-          samsung::wasm::DecodingMode::kHardware, // Decoding mode: Hardware
-          samsung::wasm::SampleFormat::kS16, // 16-bit signed PCM
-          channelLayout,
-          kSampleRate, // Sample Rate: 48 kHz (48000 Hz)
+      // Probe native Opus hardware support once per streaming session. The asynchronous
+      // AddTrack overload reports hardware-decoder unavailability; the legacy synchronous
+      // overload cannot report that failure.
+      const bool firstProbe = !g_Instance->m_OpusProbeAttempted.exchange(true);
+      const auto emssVersion = samsung::wasm::EmssVersionInfo::Create();
+      // Legacy EMSS lacks the AddTrack overload that reports unavailable hardware decoders.
+      // On that API generation, retain the known-good libopus 1.6.1 software path.
+      const bool supportsHardwareOpusProbe = !emssVersion.has_legacy_emss;
+      const bool shouldConfigureOpus = supportsHardwareOpusProbe &&
+        (firstProbe || g_Instance->m_OpusPassthrough.load());
+      bool useOpusPassthrough = false;
+
+      if (shouldConfigureOpus) {
+        g_Instance->m_OpusTrackAddCompleted.store(false);
+        g_Instance->m_OpusTrackAddSucceeded.store(false);
+        g_Instance->m_OpusHardwareActive.store(false);
+
+        auto addTrackRequest = g_Instance->m_Source->AddTrack(
+          samsung::wasm::ElementaryAudioTrackConfig {
+            "audio/webm; codecs=\"opus\"",
+            {},
+            samsung::wasm::DecodingMode::kHardware,
+            samsung::wasm::SampleFormat::kPlanarF32,
+            channelLayout,
+            kSampleRate,
+          },
+          [](samsung::wasm::OperationResult result, samsung::wasm::ElementaryMediaTrack track) {
+            const bool succeeded = result == samsung::wasm::OperationResult::kSuccess && track.IsValid();
+            if (succeeded) {
+              g_Instance->m_AudioTrack = std::move(track);
+              g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+            }
+            g_Instance->m_OpusTrackAddSucceeded.store(succeeded);
+            g_Instance->m_OpusTrackAddCompleted.store(true);
+            g_Instance->m_OpusTrackAddChanged.notify_all();
+          }
+        );
+
+        if (!addTrackRequest) {
+          useOpusPassthrough = false;
+        } else if (!g_Instance->WaitFor(&g_Instance->m_OpusTrackAddChanged, [] {
+          return g_Instance->m_OpusTrackAddCompleted.load();
+        }, kMediaSetupTimeout)) {
+          // Do not race a still-pending EMSS AddTrack operation by adding a second
+          // audio track. A real hardware-unavailable result is handled by the fallback below.
+          return g_Instance->m_ConnectionCancelled
+            ? -1
+            : MediaSetupWaitFailed("Opus hardware track negotiation");
+        } else {
+          useOpusPassthrough = g_Instance->m_OpusTrackAddSucceeded.load();
         }
-      );
-      if (add_track_result) {
-        g_Instance->m_AudioTrack = std::move(*add_track_result);
-        g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
-      } else {
-        ClLogMessage("The TV rejected the audio track\n");
-        return -1;
+
+        g_Instance->m_OpusPassthrough.store(useOpusPassthrough);
+        if (useOpusPassthrough) {
+          ClLogMessage("Opus passthrough probe: EMSS accepted hardware Opus track configuration\n");
+        } else {
+          ClLogMessage("Opus passthrough probe: EMSS hardware Opus unavailable; using libopus 1.6.1 + PCM\n");
+        }
+
+        // Learn only from an actual hardware-Opus probe result. Legacy EMSS has no
+        // result-bearing overload, so its software fallback is not evidence of rejection.
+        if (firstProbe && supportsHardwareOpusProbe) {
+          PostToJs(useOpusPassthrough
+            ? "SlowOpusDecoderLearned: 0"
+            : "SlowOpusDecoderLearned: 1");
+        }
+      }
+
+      if (!useOpusPassthrough) {
+        g_Instance->m_OpusPassthrough.store(false);
+        g_Instance->m_OpusHardwareActive.store(false);
+        auto add_track_result = g_Instance->m_Source->AddTrack(
+          samsung::wasm::ElementaryAudioTrackConfig {
+            "audio/webm; codecs=\"pcm\"", // PCM produced by libopus 1.6.1
+            {},
+            samsung::wasm::DecodingMode::kHardware,
+            samsung::wasm::SampleFormat::kS16,
+            channelLayout,
+            kSampleRate,
+          }
+        );
+        if (add_track_result) {
+          g_Instance->m_AudioTrack = std::move(*add_track_result);
+          g_Instance->m_AudioTrack.SetListener(&g_Instance->m_AudioTrackListener);
+        } else {
+          ClLogMessage("The TV rejected the PCM fallback track; audio cannot be initialized\n");
+          return -1;
+        }
       }
     }
   }
@@ -1113,34 +1274,50 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       m_LastFrameNumber = decodeUnit->frameNumber;
     } else {
       // Any frame number greater than the last frame number + 1 represents a dropped frame.
-      m_ActiveWndVideoStats.networkDroppedFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
-      m_ActiveWndVideoStats.totalFrames += decodeUnit->frameNumber - (m_LastFrameNumber + 1);
+      // Frame counters can reset or wrap. Treat non-increasing values as a new
+      // baseline instead of allowing unsigned underflow into diagnostic counters.
+      if (decodeUnit->frameNumber > m_LastFrameNumber) {
+        const uint32_t missingFrames = decodeUnit->frameNumber - m_LastFrameNumber - 1;
+        m_ActiveWndVideoStats.networkDroppedFrames += missingFrames;
+        m_ActiveWndVideoStats.totalFrames += missingFrames;
+      }
       m_LastFrameNumber = decodeUnit->frameNumber;
     }
 
     const uint32_t nowMs = LiGetMillis();
 
     // Flip the performance stats window roughly every second.
-    if (m_ActiveWndVideoStats.measurementStartTimestamp + 1000 < nowMs) {
+    if (m_ActiveWndVideoStats.measurementStartTimestamp != 0 &&
+        nowMs > m_ActiveWndVideoStats.measurementStartTimestamp &&
+        nowMs - m_ActiveWndVideoStats.measurementStartTimestamp > 1000) {
       const uint32_t statsIntervalMs = nowMs - m_ActiveWndVideoStats.measurementStartTimestamp;
       const uint64_t audioBytesReceived =
         g_Instance->m_AudioBytesReceived.exchange(0, std::memory_order_relaxed);
+      const uint64_t audioBytesOutput =
+        g_Instance->m_AudioBytesOutput.exchange(0, std::memory_order_relaxed);
       const float audioBitrateKbps = statsIntervalMs > 0
         ? (static_cast<float>(audioBytesReceived) * 8.0f) / statsIntervalMs
+        : 0.0f;
+      const float audioOutputBitrateKbps = statsIntervalMs > 0
+        ? (static_cast<float>(audioBytesOutput) * 8.0f) / statsIntervalMs
         : 0.0f;
 
       // Sample audio FEC counters on the same one-second tick as text and graph statistics.
       UpdateAudioFecWindowStats();
 
       VIDEO_STATS lastTwoWndStats = {};
-      lastTwoWndStats.receivedBitrate =
-        (total_bytes * 8.0f) / (statsIntervalMs * 1000.0f);
+      lastTwoWndStats.receivedBitrate = statsIntervalMs > 0
+        ? (static_cast<double>(total_bytes) * 8.0) /
+          (static_cast<double>(statsIntervalMs) * 1000.0)
+        : 0.0;
       AddVideoStats(m_LastWndVideoStats, lastTwoWndStats);
       AddVideoStats(m_ActiveWndVideoStats, lastTwoWndStats);
       lastTwoWndStats.receivedAudioBitrateKbps = audioBitrateKbps;
+      lastTwoWndStats.receivedAudioOutputBitrateKbps = audioOutputBitrateKbps;
 
-      // Format and send text statistics.
-      FormatVideoStats(lastTwoWndStats, s_StatString.data(), s_StatString.length());
+      // Formatting failures only leave the diagnostics buffer empty or partial.
+      // The formatter has no fatal assertions and never changes the video callback result.
+      FormatVideoStats(lastTwoWndStats, s_StatString.data(), static_cast<int>(s_StatString.size()));
       PostToJs(std::string("StatMsg: ") + s_StatString.data());
 
       // Send host latency only when valid measurements are available.
@@ -1174,6 +1351,19 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
       if (graphMessageLength > 0 && graphMessageLength < (int)sizeof(graphMessage)) {
         PostToJs(graphMessage);
       }
+
+      // Mark the end of this statistics snapshot. Optional audio and host-latency
+      // fields do not affect whether the snapshot contains usable measurements.
+      const bool hasStatisticsValues =
+        lastTwoWndStats.receivedFrames > 0 ||
+        lastTwoWndStats.decodedFrames > 0 ||
+        lastTwoWndStats.renderedFrames > 0 ||
+        lastTwoWndStats.totalFrames > 0 ||
+        lastTwoWndStats.networkDroppedFrames > 0 ||
+        lastTwoWndStats.lastRtt > 0 ||
+        lastTwoWndStats.framesWithHostProcessingLatency > 0 ||
+        audioBytesReceived > 0;
+      PostToJs(std::string("StatsSnapshotMsg: ") + (hasStatisticsValues ? "1" : "0"));
 
       std::fill(s_StatString.begin(), s_StatString.end(), '\0');
       total_bytes = 0;
@@ -1250,7 +1440,8 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
 }
 
 void MoonlightInstance::AddVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst) {
-  // Accumulate video stats from src into dst for aggregated metrics
+  // Statistics are best-effort diagnostics. Missing or inconsistent measurements
+  // must never abort the video callback or affect the streaming session.
   dst.receivedFrames += src.receivedFrames;
   dst.decodedFrames += src.decodedFrames;
   dst.renderedFrames += src.renderedFrames;
@@ -1261,241 +1452,222 @@ void MoonlightInstance::AddVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst) {
   dst.totalPacerTime += src.totalPacerTime;
   dst.totalRenderTime += src.totalRenderTime;
 
-  // Update minimum host processing latency if it's not set or if the source has a valid smaller value
-  if (dst.minHostProcessingLatency == 0) {
-    dst.minHostProcessingLatency = src.minHostProcessingLatency;
-  } else if (src.minHostProcessingLatency != 0) {
-    dst.minHostProcessingLatency = MIN(dst.minHostProcessingLatency, src.minHostProcessingLatency);
+  if (src.minHostProcessingLatency != 0) {
+    dst.minHostProcessingLatency = dst.minHostProcessingLatency == 0
+      ? src.minHostProcessingLatency
+      : MIN(dst.minHostProcessingLatency, src.minHostProcessingLatency);
   }
-
-  // Update the maximum host processing latency if the current source value is higher
   dst.maxHostProcessingLatency = MAX(dst.maxHostProcessingLatency, src.maxHostProcessingLatency);
   dst.totalHostProcessingLatency += src.totalHostProcessingLatency;
   dst.framesWithHostProcessingLatency += src.framesWithHostProcessingLatency;
 
-  // Attempt to retrieve the latest estimated RTT and variance
-  if (!LiGetEstimatedRttInfo(&dst.lastRtt, &dst.lastRttVariance)) {
-    // Set RTTs to 0 if unavailable
+  uint32_t rtt = 0;
+  uint32_t rttVariance = 0;
+  if (LiGetEstimatedRttInfo(&rtt, &rttVariance) && rtt > 0) {
+    dst.lastRtt = rtt;
+    dst.lastRttVariance = rttVariance;
+  } else {
     dst.lastRtt = 0;
     dst.lastRttVariance = 0;
-  } else {
-    // Our logic to determine if RTT is valid depends on us never
-    // getting an RTT of 0. ENet currently ensures RTTs are >= 1.
-    assert(dst.lastRtt > 0);
   }
 
-  // Get the current time in milliseconds
-  auto now = LiGetMillis();
-
-  // Initialize the measurement start point if this is the first video stat window
-  if (!dst.measurementStartTimestamp) {
+  const uint32_t now = LiGetMillis();
+  if (dst.measurementStartTimestamp == 0 ||
+      (src.measurementStartTimestamp != 0 &&
+       src.measurementStartTimestamp < dst.measurementStartTimestamp)) {
     dst.measurementStartTimestamp = src.measurementStartTimestamp;
   }
 
-  // Ensure the global measurement timestamp has already started first
-  assert(dst.measurementStartTimestamp <= src.measurementStartTimestamp);
-
-  // Compute frames per second metrics for various stages of the video pipeline
-  dst.totalFps = (float)dst.totalFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.receivedFps = (float)dst.receivedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.decodedFps = (float)dst.decodedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
-  dst.renderedFps = (float)dst.renderedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
+  const uint32_t elapsedMs = dst.measurementStartTimestamp != 0 &&
+    now >= dst.measurementStartTimestamp ? now - dst.measurementStartTimestamp : 0;
+  if (elapsedMs > 0) {
+    const float elapsedSeconds = static_cast<float>(elapsedMs) / 1000.0f;
+    dst.totalFps = static_cast<float>(dst.totalFrames) / elapsedSeconds;
+    dst.receivedFps = static_cast<float>(dst.receivedFrames) / elapsedSeconds;
+    dst.decodedFps = static_cast<float>(dst.decodedFrames) / elapsedSeconds;
+    dst.renderedFps = static_cast<float>(dst.renderedFrames) / elapsedSeconds;
+  } else {
+    dst.totalFps = dst.receivedFps = dst.decodedFps = dst.renderedFps = 0.0f;
+  }
 }
 
 void MoonlightInstance::FormatVideoStats(VIDEO_STATS& stats, char* output, int length) {
-  int ret;
+  if (output == nullptr || length <= 0) {
+    return;
+  }
+  output[0] = '\0';
   int offset = 0;
-  const char* codecString;
+
+  // Append each row independently. A formatting/buffer problem only truncates
+  // the diagnostic text; it never propagates into video/session control.
+  auto append = [&](const char* format, auto... args) -> bool {
+    if (offset < 0 || offset >= length) {
+      return false;
+    }
+    const int remaining = length - offset;
+    const int written = snprintf(output + offset, static_cast<size_t>(remaining), format, args...);
+    if (written < 0 || written >= remaining) {
+      output[length - 1] = '\0';
+      return false;
+    }
+    offset += written;
+    return true;
+  };
+
+  const char* codecString = "UNKNOWN";
   std::string codecStringStorage;
-
-  // Start with an empty string
-  output[offset] = 0;
-
-  // Determine the video format being used and assign a readable string
   switch (s_VideoFormat) {
-    case VIDEO_FORMAT_H264: // H.264 codec
-      codecStringStorage = s_H264LevelName.empty()
-        ? "H.264"
-        : "H.264 L" + s_H264LevelName;
+    case VIDEO_FORMAT_H264:
+      codecStringStorage = s_H264LevelName.empty() ? "H.264" : "H.264 L" + s_H264LevelName;
       codecString = codecStringStorage.c_str();
       break;
-    case VIDEO_FORMAT_H265: // HEVC codec
+    case VIDEO_FORMAT_H265:
       codecString = "HEVC";
       break;
-    case VIDEO_FORMAT_H265_MAIN10: // HEVC Main10 codec
-      if (LiGetCurrentHostDisplayHdrMode()) {
-        codecString = "HEVC 10-bit HDR";
-      } else {
-        codecString = "HEVC 10-bit SDR";
-      }
+    case VIDEO_FORMAT_H265_MAIN10:
+      codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR";
       break;
-    case VIDEO_FORMAT_AV1_MAIN8: // AV1 codec
+    case VIDEO_FORMAT_AV1_MAIN8:
       codecString = "AV1";
       break;
-    case VIDEO_FORMAT_AV1_MAIN10: // AV1 Main10 codec
-      if (LiGetCurrentHostDisplayHdrMode()) {
-        codecString = "AV1 10-bit HDR";
-      } else {
-        codecString = "AV1 10-bit SDR";
-      }
+    case VIDEO_FORMAT_AV1_MAIN10:
+      codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR" : "AV1 10-bit SDR";
       break;
-    default: // Unknown codec
-      assert(false);
-      codecString = "UNKNOWN";
+    default:
+      // An unknown negotiated format is a display value, not a fatal error.
       break;
   }
 
-  // Report the audio codec negotiated for this session, not merely the user's preference.
-  // If neither Dolby codec was negotiated, the GameStream audio codec is Opus.
-  const char* audioCodecString = "OPUS";
+  const bool audioStreamEnabled =
+    g_Instance != nullptr && g_Instance->m_AudioBackend != AudioBackend::Disabled;
+  const bool ac3Negotiated = audioStreamEnabled && LiIsAc3AudioNegotiated();
+  const bool eac3Negotiated = audioStreamEnabled && LiIsEac3AudioNegotiated();
+  const bool opusToDolbyFallback = audioStreamEnabled &&
+    g_Instance->m_OpusToDolbyTranscode.load();
+  const char* audioCodecString = opusToDolbyFallback
+    ? (kOpusDolbyTranscodeEac3 ? "E-AC-3" : "AC-3")
+    : (eac3Negotiated ? "E-AC-3" : (ac3Negotiated ? "AC-3" : "OPUS"));
   int audioChannels = 0;
-  const char* audioLayoutString = "Unknown layout";
-  if (g_Instance != nullptr) {
-    if (LiIsEac3AudioNegotiated()) {
-      audioCodecString = "E-AC-3";
-    } else if (LiIsAc3AudioNegotiated()) {
-      audioCodecString = "AC-3";
-    }
-
-    audioChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
-    switch (audioChannels) {
-      case 2:
-        audioLayoutString = "Stereo";
-        break;
-      case 6:
-        audioLayoutString = "5.1";
-        break;
-      case 8:
-        audioLayoutString = "7.1";
-        break;
-      default:
-        audioLayoutString = "Unknown layout";
-        break;
+  const char* audioLayoutString = "-";
+  if (audioStreamEnabled && g_Instance != nullptr) {
+    const int configuredChannels = CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig);
+    switch (configuredChannels) {
+      case 2: audioChannels = 2; audioLayoutString = "Stereo"; break;
+      case 6: audioChannels = 6; audioLayoutString = "5.1"; break;
+      case 8: audioChannels = 8; audioLayoutString = "7.1"; break;
+      default: break;
     }
   }
 
-  // If there is a meaningful received frame rate, print basic stream info
-  if (stats.receivedFps > 0) {
-    if (codecString != nullptr) {
-      // Print video resolution, frame rate, and codec name
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Video stream: %dx%d %.2f FPS (Codec: %s)\n",
-        s_Width, s_Height, stats.totalFps, codecString
-      );
-      // Abort if string formatting failed or buffer overflowed
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
-    }
-
-    // Display measured audio payload bitrate directly below the video stream header.
-    if (g_Instance != nullptr) {
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Audio stream: %s (%s, %d channels, %.0f kbps)\n",
-        audioCodecString, audioLayoutString, audioChannels, stats.receivedAudioBitrateKbps
-      );
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
-    }
-
-    // Show the effective Dolby decoder mode only when AC-3/E-AC-3 was negotiated.
-    // If this TV's EMSS API cannot select a decoding mode, the track uses hardware.
-    if (g_Instance != nullptr && (LiIsAc3AudioNegotiated() || LiIsEac3AudioNegotiated())) {
-      const bool hasDecodingMode = samsung::wasm::EmssVersionInfo::Create().has_decoding_mode;
-      const char* decodingModeString = "Hardware";
-      if (hasDecodingMode) {
-        if (g_Instance->m_DolbyDecodingMode == "HardwareWithFallback") {
-          decodingModeString = "Automatic";
-        } else if (g_Instance->m_DolbyDecodingMode == "Software") {
-          decodingModeString = "Software";
-        }
-      }
-      ret = snprintf(
-        &output[offset], length - offset,
-        "Decoding mode: %s\n",
-        decodingModeString
-      );
-      if (ret < 0 || ret >= length - offset) {
-        assert(false);
-        return;
-      }
-      offset += ret;
-    }
-
-    // Keep this row permanently present; severity changes must not shift the overlay.
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Audio FEC: %u recovered · %u failed · %u out-of-order\n",
-      s_AudioFecWindowStats.recoveredPackets,
-      s_AudioFecWindowStats.failedBlocks,
-      s_AudioFecWindowStats.outOfOrderPackets
-    );
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
-
-    // Print frame rates at various stages of the pipeline
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Incoming frame rate from network: %.2f FPS\n"
-      "Decoding frame rate: %.2f FPS\n"
-      "Rendering frame rate: %.2f FPS\n"
-      "Incoming bitrate from network: %.2f Mbps\n",
-      stats.receivedFps, stats.decodedFps, stats.renderedFps, stats.receivedBitrate
-    );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
-    }
-    offset += ret;
-  }
-
-  // Show remaining statistics only if some frames have been rendered
-  if (stats.renderedFrames != 0) {
-    char rttString[32];
-    // Format the round-trip time string
-    if (stats.lastRtt != 0) {
-      // Print the last RTT including variance in milliseconds
-      snprintf(
-        rttString, sizeof(rttString),
-        "%u ms (variance: %u ms)",
-        stats.lastRtt, stats.lastRttVariance
-      );
+  if (stats.receivedFps > 0 && std::isfinite(stats.receivedFps)) {
+    char totalFps[24];
+    if (std::isfinite(stats.totalFps) && stats.totalFps >= 0) {
+      snprintf(totalFps, sizeof(totalFps), "%.2f", stats.totalFps);
     } else {
-      // Otherwise, print as "N/A" if RTT is unavailable
-      snprintf(rttString, sizeof(rttString), "N/A");
+      snprintf(totalFps, sizeof(totalFps), "-");
+    }
+    append("Video stream: %dx%d %s FPS (Codec: %s)\n",
+      s_Width > 0 ? s_Width : 0, s_Height > 0 ? s_Height : 0,
+      totalFps, codecString);
+
+    const float audioStreamBitrateKbps = opusToDolbyFallback
+      ? stats.receivedAudioOutputBitrateKbps
+      : stats.receivedAudioBitrateKbps;
+    if (audioStreamEnabled && audioChannels > 0 &&
+        std::isfinite(audioStreamBitrateKbps) && audioStreamBitrateKbps >= 0) {
+      const bool hardwareDecoderActive = (ac3Negotiated || eac3Negotiated)
+        ? g_Instance->m_DolbyHardwareActive.load()
+        : g_Instance->m_OpusHardwareActive.load();
+      const char* audioDecodingMode = opusToDolbyFallback
+        ? "Software"
+        : (hardwareDecoderActive ? "Hardware" : "Software");
+      const bool highQualityAudioRequested = LiGetRequestedAudioQuality() == 1;
+      const int hostReportedAudioQuality = LiGetHostReportedAudioQuality();
+      const char* highQualityAudioMarker = highQualityAudioRequested
+        ? (hostReportedAudioQuality == 1 ? "|HQG" :
+           (hostReportedAudioQuality < 0 ? "|HQ" : ""))
+        : "";
+      append("Audio stream: %s%s [%s] (%s, %d channels, %.0f kbps)\n",
+        audioCodecString, highQualityAudioMarker,
+        audioDecodingMode, audioLayoutString, audioChannels, audioStreamBitrateKbps);
+      if (opusToDolbyFallback) {
+        if (std::isfinite(stats.receivedAudioBitrateKbps) &&
+            stats.receivedAudioBitrateKbps >= 0) {
+          append("Audio input: OPUS (%.0f kbps)\n",
+            stats.receivedAudioBitrateKbps);
+        }
+        append("Audio transcode: %.2f ms avg\n",
+          g_Instance->m_OpusDolbyTranscodeLatencyMs.load(std::memory_order_relaxed));
+      }
+    } else {
+      append("Audio stream: -\n");
     }
 
-    // Print detailed drop rates and timing statistics
-    ret = snprintf(
-      &output[offset], length - offset,
-      "Frames dropped by your network connection: %.2f%%\n"
-      "Average network latency: %s\n"
-      "Average decoding time: %.2f ms\n"
-      "Average frame queue delay: %.2f ms\n"
-      "Average rendering time: %.2f ms\n",
-      (float)stats.networkDroppedFrames / stats.totalFrames * 100,
-      rttString,
-      (float)stats.totalDecodeTime / stats.decodedFrames,
-      (float)stats.totalPacerTime / stats.renderedFrames,
-      (float)stats.totalRenderTime / stats.renderedFrames
-    );
-    // Abort if string formatting failed or buffer overflowed
-    if (ret < 0 || ret >= length - offset) {
-      assert(false);
-      return;
+    if (audioStreamEnabled) {
+      append("Audio FEC: %u recovered · %u failed · %u out-of-order\n",
+        s_AudioFecWindowStats.recoveredPackets,
+        s_AudioFecWindowStats.failedBlocks,
+        s_AudioFecWindowStats.outOfOrderPackets);
+    } else {
+      append("Audio FEC: -\n");
     }
-    offset += ret;
+
+    char receivedFps[24], decodedFps[24], renderedFps[24];
+    snprintf(receivedFps, sizeof(receivedFps), "%.2f",
+      std::isfinite(stats.receivedFps) && stats.receivedFps >= 0 ? stats.receivedFps : 0.0);
+    if (!std::isfinite(stats.decodedFps) || stats.decodedFps < 0) {
+      snprintf(decodedFps, sizeof(decodedFps), "-");
+    } else {
+      snprintf(decodedFps, sizeof(decodedFps), "%.2f", stats.decodedFps);
+    }
+    if (!std::isfinite(stats.renderedFps) || stats.renderedFps < 0) {
+      snprintf(renderedFps, sizeof(renderedFps), "-");
+    } else {
+      snprintf(renderedFps, sizeof(renderedFps), "%.2f", stats.renderedFps);
+    }
+    append("Frame rates: %s Recv | %s Dec | %s Accepted\n",
+      receivedFps, decodedFps, renderedFps);
+
+    if (std::isfinite(stats.receivedBitrate) && stats.receivedBitrate >= 0) {
+      append("Incoming bitrate from network: %.2f Mbps\n", stats.receivedBitrate);
+    } else {
+      append("Incoming bitrate from network: -\n");
+    }
+  }
+
+  if (stats.renderedFrames != 0) {
+    char rttBuffer[64];
+    const char* rttString = "N/A";
+    if (stats.lastRtt > 0) {
+      snprintf(rttBuffer, sizeof(rttBuffer), "%u ms (variance: %u ms)",
+        stats.lastRtt, stats.lastRttVariance);
+      rttString = rttBuffer;
+    }
+
+    if (stats.totalFrames > 0 && stats.networkDroppedFrames <= stats.totalFrames) {
+      append("Frames missing from stream: %.2f%%\n",
+        100.0 * static_cast<double>(stats.networkDroppedFrames) /
+        static_cast<double>(stats.totalFrames));
+    } else {
+      append("Frames missing from stream: -\n");
+    }
+    append("Average network latency: %s\n", rttString);
+
+    if (stats.decodedFrames > 0) {
+      append("Average decoding time: %.2f ms\n",
+        static_cast<double>(stats.totalDecodeTime) / stats.decodedFrames);
+    } else {
+      append("Average decoding time: -\n");
+    }
+    if (stats.renderedFrames > 0) {
+      append("Average frame queue delay: %.2f ms\n",
+        static_cast<double>(stats.totalPacerTime) / stats.renderedFrames);
+      append("Average renderer submit time: %.2f ms\n",
+        static_cast<double>(stats.totalRenderTime) / stats.renderedFrames);
+    } else {
+      append("Average frame queue delay: -\n");
+      append("Average renderer submit time: -\n");
+    }
   }
 }
 

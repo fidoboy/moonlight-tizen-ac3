@@ -1,11 +1,16 @@
 const hoveredClassName = 'hovered';
 
-// Dedicated Web Audio engine for short interface effects. The MP3 is fetched and decoded
-// once while the application starts, then played from an AudioBuffer without per-click
+// Prevent re-entrant menu-close paths from popping the navigation stack twice.
+let navigationMenuClosePending = false;
+
+// Shared Web Audio engine for the launch presentation and short interface effects.
+// Navigation effects are decoded once and played from AudioBuffers without per-click
 // network, media-element or decoder initialization.
 let navigationSoundEnabled = false;
 let navigationSoundContext = null;
 let navigationSoundBuffer = null;
+let launchSplashSoundBuffer = null;
+let launchSplashSoundLoadPromise = null;
 let navigationSoundData = null;
 let navigationSoundLoadPromise = null;
 let navigationSoundInitializationPromise = null;
@@ -45,14 +50,14 @@ function decodeNavigationSound(context, data) {
   });
 }
 
-function initializeNavigationAudioEngine() {
-  if (!navigationSoundEnabled) return Promise.resolve(false);
-  if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
-  if (navigationSoundInitializationPromise) return navigationSoundInitializationPromise;
+function ensureNavigationAudioContext() {
+  if (navigationSoundContext && navigationSoundContext.state !== 'closed') {
+    return navigationSoundContext;
+  }
 
   var AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) {
-    return Promise.reject(new Error('The Web Audio API is not available on this device.'));
+    throw new Error('The Web Audio API is not available on this device.');
   }
 
   try {
@@ -62,7 +67,106 @@ function initializeNavigationAudioEngine() {
     navigationSoundContext = new AudioContextConstructor();
   }
 
+  return navigationSoundContext;
+}
+
+// Prepare the launch presentation with the same Web Audio engine used by the UI.
+// This deliberately does not change the user's navigation-sound preference.
+function prepareLaunchSplashAudio() {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
+  var context;
+  try {
+    context = ensureNavigationAudioContext();
+  } catch (error) {
+    return Promise.reject(error);
+  }
+
+  if (launchSplashSoundBuffer && navigationSoundContext === context) {
+    return resumeNavigationAudioContext(context);
+  }
+  if (launchSplashSoundLoadPromise) return launchSplashSoundLoadPromise;
+
+  var loadPromise = fetch('static/res/launch_screen.mp3').then(function(response) {
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' while loading launch_screen.mp3');
+    return response.arrayBuffer();
+  }).then(function(data) {
+    return decodeNavigationSound(context, data);
+  }).then(function(buffer) {
+    if (navigationSoundContext !== context || context.state === 'closed') {
+      throw new Error('The shared audio context changed while preparing the launch sound.');
+    }
+    launchSplashSoundBuffer = buffer;
+    return resumeNavigationAudioContext(context).then(function() {
+      if (context.state !== 'running') {
+        throw new Error('The shared audio context is not running.');
+      }
+      console.log('%c[navigation.js, audio]', 'color: gray;', 'Launch presentation sound decoded and audio context running (' +
+        buffer.duration.toFixed(3) + ' s, ' + buffer.sampleRate + ' Hz).');
+      return true;
+    });
+  }).finally(function() {
+    if (launchSplashSoundLoadPromise === loadPromise) launchSplashSoundLoadPromise = null;
+  });
+
+  launchSplashSoundLoadPromise = loadPromise;
+  return loadPromise;
+}
+
+function resumeNavigationAudioContext(context) {
+  if (!context || context.state === 'closed') {
+    return Promise.reject(new Error('The shared audio context is closed.'));
+  }
+  if (context.state === 'running') return Promise.resolve(true);
+  try {
+    return Promise.resolve(context.resume()).then(function() {
+      return context.state === 'running';
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+function playLaunchSplashSound() {
+  if (window._directSmartHubLaunch) return null;
   var context = navigationSoundContext;
+  if (!context || context.state !== 'running' || !launchSplashSoundBuffer) {
+    throw new Error('The launch presentation audio has not been prepared.');
+  }
+
+  var source = context.createBufferSource();
+  source.buffer = launchSplashSoundBuffer;
+  source.connect(context.destination);
+  navigationSoundSources.push(source);
+  source.onended = function() {
+    var sourceIndex = navigationSoundSources.indexOf(source);
+    if (sourceIndex !== -1) navigationSoundSources.splice(sourceIndex, 1);
+    try { source.disconnect(); } catch (error) {}
+  };
+
+  var startTime = context.currentTime;
+  source.start(startTime);
+  return {
+    context: context,
+    source: source,
+    startTime: startTime,
+    duration: launchSplashSoundBuffer.duration
+  };
+}
+
+
+window.prepareLaunchSplashAudio = prepareLaunchSplashAudio;
+window.playLaunchSplashSound = playLaunchSplashSound;
+function initializeNavigationAudioEngine() {
+  if (!navigationSoundEnabled) return Promise.resolve(false);
+  if (navigationSoundContext && navigationSoundBuffer) return Promise.resolve(true);
+  if (navigationSoundInitializationPromise) return navigationSoundInitializationPromise;
+
+  var context;
+  try {
+    context = ensureNavigationAudioContext();
+  } catch (error) {
+    return Promise.reject(error);
+  }
   var initializationPromise = loadNavigationSoundData().then(function(data) {
     return decodeNavigationSound(context, data);
   }).then(function(buffer) {
@@ -75,6 +179,7 @@ function initializeNavigationAudioEngine() {
     if (navigationSoundContext === context) {
       navigationSoundContext = null;
       navigationSoundBuffer = null;
+      launchSplashSoundBuffer = null;
       try { context.close(); } catch (closeError) {}
     }
     console.error('%c[navigation.js, audio]', 'color: red;', 'Could not initialize the local audio engine:', error);
@@ -91,6 +196,7 @@ function initializeNavigationAudioEngine() {
 }
 
 function closeNavigationAudioEngine() {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
   ++navigationSoundLifecycleId;
   navigationSoundEnabled = false;
 
@@ -104,6 +210,8 @@ function closeNavigationAudioEngine() {
   if (navigationSoundContext === context) {
     navigationSoundContext = null;
     navigationSoundBuffer = null;
+    launchSplashSoundBuffer = null;
+    launchSplashSoundLoadPromise = null;
   }
 
   // Detach the old sources before closing so a later re-enable can safely create
@@ -130,6 +238,7 @@ function closeNavigationAudioEngine() {
 }
 
 function setNavigationSoundEnabled(enabled) {
+  if (window._directSmartHubLaunch) return Promise.resolve(false);
   if (enabled !== true) return closeNavigationAudioEngine();
 
   navigationSoundEnabled = true;
@@ -159,7 +268,7 @@ function setNavigationSoundEnabled(enabled) {
 }
 
 function playNavigationSound() {
-  if (!navigationSoundEnabled || isInGame === true) return;
+  if (window._directSmartHubLaunch || !navigationSoundEnabled || isInGame === true) return;
 
   if (!navigationSoundContext || !navigationSoundBuffer) {
     initializeNavigationAudioEngine().then(function() {
@@ -171,15 +280,7 @@ function playNavigationSound() {
   var context = navigationSoundContext;
   if (context.state === 'closed') return;
 
-  // A new focus movement must always produce feedback. Stop the previous short
-  // effect before starting the next one instead of silently dropping this event.
-  navigationSoundSources.forEach(function(activeSource) {
-    activeSource.onended = null;
-    try { activeSource.stop(0); } catch (error) {}
-    try { activeSource.disconnect(); } catch (error) {}
-  });
-  navigationSoundSources = [];
-
+  // Keep previous navigation effects alive: rapid focus movements may overlap.
   if (context.state === 'suspended') {
     try {
       var resumeResult = context.resume();
@@ -326,11 +427,9 @@ function clickElement(target) {
 function mark(target) {
   unmark();
   const element = resolveElement(target);
-  if (element) {
+  if (element && !isDisabledNavigationTarget(element)) {
     element.classList.add(hoveredClassName);
     element.dispatchEvent(new Event('mouseenter'));
-  } else {
-    console.error('%c[navigation.js, mark]', 'color: gray;', 'Cannot mark the unresolved target:', target);
   }
 }
 
@@ -360,67 +459,69 @@ function elementId(target) {
 }
 
 // Safely add focus to an element
+// Reset the independently scrollable settings pane whenever navigation returns to the category list.
+function resetSettingsRightPaneScroll() {
+  const settingsPane = resolveElement('settings-right-pane');
+  if (settingsPane) settingsPane.scrollTop = 0;
+}
+
+// Position the settings pane immediately so rapid remote navigation cannot
+// leave the focused control outside the safe area while a smooth scroll is pending.
+function scrollSettingsPaneTo(settingsPane, top) {
+  settingsPane.scrollTop = top;
+}
+
 function focusElement(target) {
   const element = resolveElement(target);
+  // Never transfer focus to a hidden or disabled navigation target.
+  if (!element || isDisabledNavigationTarget(element)) {
+    return;
+  }
+
   const listener = document.getElementById('listener');
   const previousActiveElement = document.activeElement;
-  // Remove focus from the currently focused element first
-  blurElement(previousActiveElement);
-  // Check if the element exists before adding focus
-  if (!element) {
-    console.error('%c[navigation.js, focusElement]', 'color: gray;', 'Cannot focus the unresolved target:', target);
-    return;
+  // Avoid blurring and refocusing the same element.
+  if (previousActiveElement !== element) {
+    blurElement(previousActiveElement);
   }
 
 
-  // Check if the element is a SELECT dropdown
-  if (element.tagName === 'SELECT') {
-    // Delegate focus to the hidden listener element
-    if (listener && typeof listener.focus === 'function') {
-      listener.focus();
+  // Keep the entire focused setting row inside a safe viewport area. Use the
+  // row as the anchor so switches, selects, sliders and buttons get identical
+  // treatment, including SELECT controls that delegate actual focus to listener.
+  const settingsPane = element.closest && element.closest('#settings-right-pane');
+  if (settingsPane) {
+    const settingRow = element.closest('.setting-option') || element;
+    const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
+      .find(options => window.getComputedStyle(options).display !== 'none');
+    const paneRect = settingsPane.getBoundingClientRect();
+    const rowRect = settingRow.getBoundingClientRect();
+    const visibleTop = paneRect.top + settingsPane.clientTop + 8;
+    // Always preserve at least 30% of the settings pane below the focused row.
+    // The bottom padding in CSS provides enough scroll range to maintain this
+    // reserve even when the last setting in the category is selected.
+    const bottomSafetyMargin = Math.round(settingsPane.clientHeight * 0.30);
+    const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
+
+    if (rowRect.top < visibleTop) {
+      scrollSettingsPaneTo(settingsPane,
+        Math.max(0, settingsPane.scrollTop - (visibleTop - rowRect.top)));
+    } else if (rowRect.bottom > visibleBottom) {
+      scrollSettingsPaneTo(settingsPane,
+        settingsPane.scrollTop + rowRect.bottom - visibleBottom);
     }
+  }
+
+  // SELECT controls use the hidden listener for remote/gamepad navigation, but
+  // their setting row must still be scrolled into the safe area above.
+  if (element.tagName === 'SELECT') {
+    if (listener && typeof listener.focus === 'function') listener.focus();
     return;
   }
-  // Keep Settings focus scrolling inside the independently scrollable right pane.
+
   if (typeof element.focus === 'function') {
-    const settingsPane = element.closest && element.closest('#settings-right-pane');
     if (settingsPane) {
       element.focus({ preventScroll: true });
-
-      // When the first option in the active category receives focus, restore the
-      // explanatory text above it by returning the right pane to the very top.
-      const activeOptions = Array.from(settingsPane.querySelectorAll('.settings-options'))
-        .find(options => window.getComputedStyle(options).display !== 'none');
-      const firstOption = activeOptions && activeOptions.querySelector('.setting-option');
-      const isFirstOption = !!firstOption && element.closest('.setting-option') === firstOption;
-
-      if (isFirstOption) {
-        settingsPane.scrollTop = 0;
-      } else {
-        // Keep a deliberate safety margin below focused controls rather than
-        // allowing them to sit against the bottom edge of the scroll viewport.
-        const paneRect = settingsPane.getBoundingClientRect();
-        const elementRect = element.getBoundingClientRect();
-        const visibleTop = paneRect.top + settingsPane.clientTop + 8;
-        // The performance-position menu opens below its trigger and contains
-        // four entries. Keep enough room for the complete dropdown when this
-        // control is reached with the TV remote's directional navigation.
-        const dropdownSafetyMargin = element.id === 'selectPerformanceStatsPosition'
-          ? (4 * 48) + 16
-          : 0;
-        const bottomSafetyMargin = Math.max(
-          48,
-          Math.round(settingsPane.clientHeight * 0.06),
-          dropdownSafetyMargin
-        );
-        const visibleBottom = paneRect.top + settingsPane.clientTop + settingsPane.clientHeight - bottomSafetyMargin;
-
-        if (elementRect.top < visibleTop) {
-          settingsPane.scrollTop = Math.max(0, settingsPane.scrollTop - (visibleTop - elementRect.top));
-        } else if (elementRect.bottom > visibleBottom) {
-          settingsPane.scrollTop += elementRect.bottom - visibleBottom;
-        }
-      }
     } else if (element.closest && element.closest('#host-grid')) {
       // Let the carousel control horizontal positioning without browser auto-scroll.
       element.focus({ preventScroll: true });
@@ -444,60 +545,70 @@ function blurElement(target) {
   }
 }
 
-// Determine if a popup menu container is active
+// Determine whether the popup menu associated with a trigger is active.
+// Resolve it through MDL's "for" relationship instead of assuming the menu
+// container is nested under the trigger's immediate parent.
 function isPopupMenuActive(id) {
-  const element = resolveElement(id);
-  const parent = element ? element.parentNode : null;
-  const container = parent && parent.querySelector ? parent.querySelector('.mdl-menu__container') : null;
-  // Check if the container exists and is visible
+  const menu = document.querySelector('.mdl-menu[for="' + id + '"]');
+  const container = menu && menu.closest('.mdl-menu__container');
   return !!(container && container.classList.contains('is-visible'));
 }
 
-// Close any active visible menu containers
-function closeActiveVisibleMenu() {
-  const visibleMenuContainer = document.querySelectorAll('.mdl-menu__container.is-visible');
-  // If no visible menus are found, return false
-  if (!visibleMenuContainer || visibleMenuContainer.length === 0) {
-    return false;
+// Close active menu containers and remove their navigation view exactly once.
+function closeActiveVisibleMenu(menuId) {
+  // Back handlers may call both closePopupMenu() and closeActiveVisibleMenu().
+  // Keep the operation idempotent for the duration of the current event dispatch.
+  if (navigationMenuClosePending) return false;
+
+  let visibleMenuContainers = Array.from(
+    document.querySelectorAll('.mdl-menu__container.is-visible')
+  );
+
+  if (menuId) {
+    const menu = document.querySelector('.mdl-menu[for="' + menuId + '"]');
+    const container = menu && menu.closest('.mdl-menu__container');
+    if (!container || !container.classList.contains('is-visible')) return false;
+    visibleMenuContainers = [container];
   }
-  // Hide each visible menu using its MaterialMenu instance
-  visibleMenuContainer.forEach((menu) => {
-    const visibleMenu = menu.querySelector('.mdl-menu');
-    // Ensure the menu and its MaterialMenu instance exist before hiding
-    if (visibleMenu && visibleMenu.MaterialMenu && typeof visibleMenu.MaterialMenu.hide === 'function') {
+
+  if (visibleMenuContainers.length === 0) return false;
+
+  navigationMenuClosePending = true;
+  Promise.resolve().then(function() {
+    navigationMenuClosePending = false;
+  });
+
+  visibleMenuContainers.forEach((container) => {
+    const visibleMenu = container.querySelector('.mdl-menu');
+    if (visibleMenu && visibleMenu.MaterialMenu &&
+        typeof visibleMenu.MaterialMenu.hide === 'function') {
       visibleMenu.MaterialMenu.hide();
     }
   });
-  // Simulate an Escape key press to close menus that rely on it
+
+  // Preserve the existing MDL dismissal notifications, but do not click the
+  // trigger: its registered click handler would pop the same view independently.
   document.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'Escape', keyCode: 27, which: 27, bubbles: true
   }));
-  // Trigger a click on the body to ensure menus are closed
-  if (document.body) {
-    document.body.click();
-  }
+  if (document.body) document.body.click();
+
   Navigation.pop();
   return true;
 }
 
-// Close a specific popup menu container by its ID
+// Close a specific popup menu without activating its trigger's click handler.
 function closePopupMenu(id) {
-  // If the specified menu is active, click its opener to close it
-  if (isPopupMenuActive(id)) {
-    // Close the popup menu by clicking its opener element
-    clickElement(id);
-    return true;
-  }
-  return closeActiveVisibleMenu();
+  return closeActiveVisibleMenu(id);
 }
 
 // Handle the state of the IP address text input field
-function handleIpTextFieldState(enabled) {
+function handleIpTextFieldState(enabled, inputId) {
   const listener = document.getElementById('listener');
-  const textInput = document.getElementById('ipAddressTextInput');
+  const textInput = document.getElementById(inputId || 'ipAddressTextInput');
   // Check if the element exists before modifying
   if (!textInput) {
-    console.error('%c[navigation.js, handleIpTextFieldState]', 'color: gray;', 'Cannot find the IP address text input element!', textInput);
+    console.error('%c[navigation.js, handleIpTextFieldState]', 'color: gray;', 'Cannot find the IP address text input element:', inputId || 'ipAddressTextInput');
     return;
   }
   textInput.readOnly = !enabled;
@@ -520,7 +631,7 @@ function handleIpTextFieldState(enabled) {
 // Change the value of the IP address numeric field
 function changeIpNumericFieldValue(adjust) {
   const currentItem = elementId(this.view.current());
-  if (currentItem.startsWith('ipAddressField')) {
+  if (currentItem.startsWith('ipAddressField') || currentItem.startsWith('ambilightWledIpField')) {
     const digitElement = document.getElementById(currentItem);
     let currentValue = parseInt(digitElement.value, 10);
     currentValue = (currentValue + adjust + 256) % 256;
@@ -529,17 +640,36 @@ function changeIpNumericFieldValue(adjust) {
   }
 }
 
+// Navigation eligibility is determined by the target control itself.
+// Ancestors affect effective visibility, but their enabled/disabled state must
+// never make an otherwise visible and enabled child control non-navigable.
 function isDisabledNavigationTarget(target) {
   const element = resolveElement(target);
   if (!element || !element.getClientRects().length) return true;
-  return !!(
-    element.disabled ||
-    element.getAttribute('aria-disabled') === 'true' ||
-    element.classList.contains('is-disabled') ||
-    element.classList.contains('ui-disabled') ||
-    element.classList.contains('mdl-button--disabled') ||
-    element.classList.contains('mdl-menu__item--disabled')
-  );
+
+  // A target is hidden when it or any ancestor suppresses its rendering.
+  for (let current = element; current && current.nodeType === 1; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (
+      current.hidden ||
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      style.visibility === 'collapse' ||
+      style.contentVisibility === 'hidden'
+    ) {
+      return true;
+    }
+  }
+
+  // Disabled state belongs to the target only; never inherit it from a container.
+  return element.matches([
+    ':disabled',
+    '[aria-disabled="true"]',
+    '.is-disabled',
+    '.ui-disabled',
+    '.mdl-button--disabled',
+    '.mdl-menu__item--disabled'
+  ].join(','));
 }
 
 class ListView {
@@ -549,7 +679,26 @@ class ListView {
   }
 
   current() {
-    const array = this.func();
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      return undefined;
+    }
+
+    // Dynamic settings can hide or disable controls while a view is active.
+    // Reconcile the saved index before exposing the current navigation target.
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    if (isDisabledNavigationTarget(array[this.index])) {
+      for (let step = 1; step <= array.length; step++) {
+        const candidateIndex = (this.index + step) % array.length;
+        if (!isDisabledNavigationTarget(array[candidateIndex])) {
+          this.index = candidateIndex;
+          return array[this.index];
+        }
+      }
+      return undefined;
+    }
+
     return array[this.index];
   }
 
@@ -600,9 +749,15 @@ class ListView {
   }
 
   prevOption() {
-    const array = this.func();
-    if (!array.length) return undefined;
-    unmark(array[this.index]);
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      unmark();
+      return undefined;
+    }
+
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    unmark();
     for (let step = 1; step <= array.length; step++) {
       const candidateIndex = (this.index - step + array.length) % array.length;
       if (isDisabledNavigationTarget(array[candidateIndex])) continue;
@@ -610,13 +765,22 @@ class ListView {
       mark(array[this.index]);
       return array[this.index];
     }
-    return array[this.index];
+
+    this.index = 0;
+    unmark();
+    return undefined;
   }
 
   nextOption() {
-    const array = this.func();
-    if (!array.length) return undefined;
-    unmark(array[this.index]);
+    const array = Array.from(this.func() || []);
+    if (!array.length) {
+      this.index = 0;
+      unmark();
+      return undefined;
+    }
+
+    this.index = Math.max(0, Math.min(this.index, array.length - 1));
+    unmark();
     for (let step = 1; step <= array.length; step++) {
       const candidateIndex = (this.index + step) % array.length;
       if (isDisabledNavigationTarget(array[candidateIndex])) continue;
@@ -624,7 +788,10 @@ class ListView {
       mark(array[this.index]);
       return array[this.index];
     }
-    return array[this.index];
+
+    this.index = 0;
+    unmark();
+    return undefined;
   }
 
   prevCard(cardsPerRow) {
@@ -1473,30 +1640,72 @@ const Views = {
     },
   },
   BasicSettings: {
-    view: new ListView(() => [
-      'selectResolution',
-      'selectFramerate',
-      'selectBitrate',
-      'framePacingBtn'
-    ]),
+    view: new ListView(() => {
+      const items = [
+        'selectResolution',
+        'selectFramerate',
+        'selectBitrate',
+        'framePacingBtn',
+        'selectStreamingEngine',
+        'ambilightBtn'
+      ];
+      if ($('#ambilightSwitch').prop('checked')) {
+        if ($('#ipAddressFieldModeSwitch').prop('checked')) {
+          items.push('ambilightWledIpField1', 'ambilightWledIpField2',
+            'ambilightWledIpField3', 'ambilightWledIpField4');
+        } else {
+          items.push('ambilightWledIpTextInput');
+        }
+      }
+      return items;
+    }),
     up: function() {
-      this.view.prevOption();
-      focusElement(this.view.current());
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        changeIpNumericFieldValue.call(this, 1);
+      } else {
+        this.view.prevOption();
+        focusElement(this.view.current());
+      }
     },
     down: function() {
-      this.view.nextOption();
-      focusElement(this.view.current());
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        changeIpNumericFieldValue.call(this, -1);
+      } else {
+        this.view.nextOption();
+        focusElement(this.view.current());
+      }
     },
-    left: function() {},
-    right: function() {},
+    left: function() {
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        this.view.prev();
+        focusElement(this.view.current());
+      }
+    },
+    right: function() {
+      if (elementId(this.view.current()).startsWith('ambilightWledIpField')) {
+        this.view.next();
+        focusElement(this.view.current());
+      }
+    },
     accept: function() {
-      clickElement(this.view.current());
+      const currentItem = elementId(this.view.current());
+      if (currentItem === 'ambilightWledIpTextInput') {
+        handleIpTextFieldState(true, currentItem);
+      } else {
+        clickElement(this.view.current());
+      }
     },
     back: function() {
+      const currentItem = resolveElement(this.view.current());
+      if (currentItem && currentItem.id === 'ambilightWledIpTextInput' && !currentItem.readOnly) {
+        handleIpTextFieldState(false, currentItem.id);
+        return;
+      }
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from BasicSettings view
@@ -1508,6 +1717,36 @@ const Views = {
     },
     enter: function() {
       mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  SelectStreamingEngineMenu: {
+    isActive: () => isPopupMenuActive('streamingEngineMenu'),
+    view: new ListView(() => document.querySelector('.streamingEngineMenu').children),
+    up: function() {
+      this.view.prevOption();
+    },
+    down: function() {
+      this.view.nextOption();
+    },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectStreamingEngine'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectStreamingEngine');
+      closeActiveVisibleMenu();
+      focusElement('selectStreamingEngine');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectStreamingEngine');
     },
     leave: function() {
       unmark(this.view.current());
@@ -1647,7 +1886,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InterfaceSettings view
@@ -1782,7 +2022,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from HostSettings view
@@ -1803,6 +2044,8 @@ const Views = {
     view: new ListView(() => [
       'rumbleFeedbackBtn',
       'mouseEmulationBtn',
+      'selectMouseEmulationStick',
+      'selectHoldStreamMenuBtn',
       'flipABfaceButtonsBtn',
       'flipXYfaceButtonsBtn'
     ]),
@@ -1823,7 +2066,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from InputSettings view
@@ -1842,20 +2086,16 @@ const Views = {
   },
   AudioSettings: {
     view: new ListView(() => [
-      'ac3AudioModeBtn',
       'selectAudioBackend',
-      isAudioOutputDisabled() ? null : 'selectAudio',
-      // Dolby controls are navigable only when their corresponding setting is available.
-      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
-        $('#selectAudio').data('value') === '51Surround') ? 'selectDolbyChannelLayout' : null,
-      ($('#ac3AudioModeSwitch').parent().hasClass('is-checked') &&
-        $('#dolbyDecodingModeOption').is(':visible')) ? 'selectDolbyDecodingMode' : null,
-      // At most one of these settings is shown at a time, as each one belongs to a single backend,
-      // and neither is shown when the audio output is disabled
-      isAudioOutputDisabled() ? null : isWebAudioBackendSelected() ? 'selectAudioJitter' : 'audioSyncBtn',
+      'ac3AudioModeBtn',
+      'selectDolbyChannelLayout',
+      'selectDolbyDecodingMode',
+      'selectAudio',
+      'selectAudioJitter',
+      'audioSyncBtn',
       'playHostAudioBtn',
-      isAudioOutputDisabled() ? null : 'decryptHostAudioBtn'
-    ].filter(Boolean)),
+      'decryptHostAudioBtn'
+    ]),
     up: function() {
       this.view.prevOption();
       focusElement(this.view.current());
@@ -1873,7 +2113,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AudioSettings view
@@ -2033,7 +2274,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from VideoSettings view
@@ -2102,11 +2344,37 @@ const Views = {
     enter: function() { markSelectedMenuItem(this.view, 'selectH264Level'); },
     leave: function() { unmark(this.view.current()); },
   },
+  SelectMouseEmulationStickMenu: {
+    isActive: () => isPopupMenuActive('selectMouseEmulationStick'),
+    view: new ListView(() => {
+      const menu = document.querySelector('.mouseEmulationStickMenu');
+      return menu ? menu.children : [];
+    }),
+    up: function() { this.view.prevOption(); },
+    down: function() { this.view.nextOption(); },
+    left: function() {},
+    right: function() {},
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectMouseEmulationStick'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectMouseEmulationStick');
+      closeActiveVisibleMenu();
+      focusElement('selectMouseEmulationStick');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      markSelectedMenuItem(this.view, 'selectMouseEmulationStick');
+    },
+    leave: function() { unmark(this.view.current()); },
+  },
   SelectPerformanceStatsPositionMenu: {
     isActive: () => isPopupMenuActive('performanceStatsPositionMenu'),
     view: new ListView(() =>
-      document.getElementById('performanceStatsPositionMenu')
-      .parentNode.children[3].children[1].children),
+      document.querySelector('.performanceStatsPositionMenu').children),
     up: function() {
       this.view.prevOption();
     },
@@ -2159,7 +2427,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AdvancedSettings view
@@ -2201,7 +2470,8 @@ const Views = {
       // Remove focus from the current element before changing the view
       blurElement(this.view.current());
       // Reset the current settings view before navigating to the next settings view
-      resetSettingsView();
+      showSettingsOverview(lastSettingsCategory);
+      resetSettingsRightPaneScroll();
       // Navigate to the Settings view
       Navigation.change(Views.Settings);
       // Set focus on the category item in Settings view when transitioning from AboutSettings view
@@ -2413,10 +2683,15 @@ const Views = {
     },
   },
   AppsNav: {
-    view: new ListView(() => [
-      'goBackBtn',
-      'quitRunningAppBtn'
-    ]),
+    view: new ListView(() => {
+      const items = ['goBackBtn'];
+      const regenerateButton = document.getElementById('regenerateAppImagesBtn');
+      if (regenerateButton && !regenerateButton.hidden) items.push('regenerateAppImagesBtn');
+      const gamepadTestButton = document.getElementById('gamepadTestBtn');
+      if (gamepadTestButton && !gamepadTestButton.hidden) items.push('gamepadTestBtn');
+      items.push('quitRunningAppBtn');
+      return items;
+    }),
     up: function() {},
     down: function() {
       // Navigate to the Apps view
@@ -2425,10 +2700,12 @@ const Views = {
       focusElement(Views.Apps.view.current());
     },
     left: function() {
+      this.view.current();
       this.view.prev();
       focusElement(this.view.current());
     },
     right: function() {
+      this.view.current();
       this.view.next();
       focusElement(this.view.current());
     },
@@ -2440,10 +2717,13 @@ const Views = {
     },
     press: function() {},
     switch: function() {
+      const items = this.view.func();
+      this.view.index = Math.max(0, Math.min(this.view.index, items.length - 1));
       focusElement(this.view.current());
     },
     enter: function() {
-      mark(this.view.current());
+      const current = this.view.current();
+      if (current) mark(current);
     },
     leave: function() {
       unmark(this.view.current());
@@ -2792,6 +3072,10 @@ const Navigation = (function() {
       // Some modal dialogs must be immediately operable from the remote/gamepad,
       // even when the previous view had already lost navigation focus.
       if (restoreNavigationFocus) {
+        // A previous streaming transition may have stopped Navigation entirely.
+        // Restoring focus alone is insufficient because runOp() ignores input while
+        // State is stopped. Re-enable input before entering this modal view.
+        State.start();
         hasFocus = true;
       }
       viewStack.push(view);

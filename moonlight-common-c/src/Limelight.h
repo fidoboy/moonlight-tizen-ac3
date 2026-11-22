@@ -304,6 +304,8 @@ typedef void(*DecoderRendererCleanup)(void);
 // it must return DR_NEED_IDR to generate a keyframe.
 #define DR_OK 0
 #define DR_NEED_IDR -1
+// The decoder renderer cannot continue. Common C will terminate the active session.
+#define DR_FATAL -2
 typedef int(*DecoderRendererSubmitDecodeUnit)(PDECODE_UNIT decodeUnit);
 
 typedef struct _DECODER_RENDERER_CALLBACKS {
@@ -442,6 +444,8 @@ typedef void(*ConnListenerConnectionTerminated)(int errorCode);
 // desktop resolution and streaming resolution with HDR enabled. This value is
 // supported on GFE 3.22+.
 #define ML_ERROR_FRAME_CONVERSION -104
+// The local video renderer rejected a frame and cannot continue playback.
+#define ML_ERROR_VIDEO_RENDERER -300
 
 // This callback is invoked to log debug message
 typedef void(*ConnListenerLogMessage)(const char* format, ...);
@@ -556,11 +560,26 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
     void* audioContext, int arFlags);
 
+// Explicit audio-output variant. The audio transport and UDP ping remain active regardless
+// of this flag; when disabled, received audio packets are discarded without renderer callbacks.
+int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
+    PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
+    void* audioContext, int arFlags, int audioOutputEnabled);
+
 // Returns true only when the current RTSP session explicitly negotiated AC-3 with the host.
 bool LiIsAc3AudioNegotiated(void);
 
 // Returns true only when the current RTSP session explicitly negotiated E-AC-3 with the host.
 bool LiIsEac3AudioNegotiated(void);
+
+// Returns the quality mode Moonlight requested for the current audio stream (0=normal, 1=HQ).
+int LiGetRequestedAudioQuality(void);
+
+// Returns the quality mode explicitly reported by the host (0=normal, 1=HQ, -1=unknown).
+int LiGetHostReportedAudioQuality(void);
+
+// Returns the host-reported quality when available, otherwise Moonlight's requested quality.
+int LiGetNegotiatedAudioQuality(void);
 
 // Encryption status flags returned by LiGetEncryptionStatus().
 #define LI_ENCRYPTION_VIDEO             0x01
@@ -902,8 +921,7 @@ int LiGetPendingAudioFrames(void);
 // negotiated audio frame duration.
 int LiGetPendingAudioDuration(void);
 
-// Returns a pointer to a struct containing various statistics about the RTP audio stream.
-// The data should be considered read-only and must not be modified.
+// Populates a caller-supplied struct containing various statistics about the RTP audio stream.
 typedef struct _RTP_AUDIO_STATS {
     uint32_t packetCountAudio;         // total audio packets
     uint32_t packetCountFec;           // total packets of type FEC
@@ -914,7 +932,7 @@ typedef struct _RTP_AUDIO_STATS {
     uint32_t packetCountFecInvalid;    // invalid FEC packet
 } RTP_AUDIO_STATS, *PRTP_AUDIO_STATS;
 
-const RTP_AUDIO_STATS* LiGetRTPAudioStats(void);
+void LiGetRTPAudioStats(PRTP_AUDIO_STATS stats);
 
 // Thread-safe snapshot of the audio FEC counters used by live statistics overlays.
 // Counters are copied under the RTP audio queue's stats mutex.
@@ -926,8 +944,7 @@ typedef struct _RTP_AUDIO_FEC_STATS {
 
 void LiGetRTPAudioFecStats(PRTP_AUDIO_FEC_STATS stats);
 
-// Returns a pointer to a struct containing various statistics about the RTP video stream.
-// The data should be considered read-only and must not be modified.
+// Populates a caller-supplied struct containing various statistics about the RTP video stream.
 // Right now this is mainly used to track total video and FEC packets, as there are
 // many video stats already implemented at a higher level in moonlight-qt.
 typedef struct _RTP_VIDEO_STATS {
@@ -940,7 +957,7 @@ typedef struct _RTP_VIDEO_STATS {
     uint32_t packetCountFecInvalid;    // invalid FEC packet
 } RTP_VIDEO_STATS, *PRTP_VIDEO_STATS;
 
-const RTP_VIDEO_STATS* LiGetRTPVideoStats(void);
+void LiGetRTPVideoStats(PRTP_VIDEO_STATS stats);
 
 // Port index flags for use with LiGetPortFromPortFlagIndex() and LiGetProtocolFromPortFlagIndex()
 #define ML_PORT_INDEX_TCP_47984 0
@@ -1003,9 +1020,12 @@ unsigned int LiTestClientConnectivity(const char* testServer, unsigned short ref
 typedef void* VIDEO_FRAME_HANDLE;
 bool LiWaitForNextVideoFrame(VIDEO_FRAME_HANDLE* frameHandle, PDECODE_UNIT* decodeUnit);
 bool LiPollNextVideoFrame(VIDEO_FRAME_HANDLE* frameHandle, PDECODE_UNIT* decodeUnit);
-bool LiPeekNextVideoFrame(PDECODE_UNIT* decodeUnit);
 void LiWakeWaitForVideoFrame(void);
 void LiCompleteVideoFrame(VIDEO_FRAME_HANDLE handle, int drStatus);
+
+// Report a fatal native video-renderer failure from an asynchronous renderer callback.
+// The normal connection termination callback is dispatched by Common C on its own thread.
+void LiReportVideoRendererError(void);
 
 // This function returns the last reported HDR mode from the host PC.
 // See ConnListenerSetHdrMode() for more details.

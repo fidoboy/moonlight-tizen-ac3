@@ -1,5 +1,13 @@
 // Safely wraps IPv6 addresses in brackets for URL construction.
 // IPv4 addresses and DNS hostnames do not contain colons, so they are untouched.
+// Stable, host-scoped filenames prevent two hosts with the same app ID from
+// overwriting one another's Smart Hub Preview artwork.
+function getSmartHubPreviewFileName(serverUid, appId) {
+  var hostKey = String(serverUid == null ? 'host' : serverUid).replace(/[^A-Za-z0-9_-]/g, '_');
+  var appKey = String(appId == null ? 'app' : appId).replace(/[^A-Za-z0-9_-]/g, '_');
+  return 'preview-v2-' + hostKey + '-' + appKey + '.jpg';
+}
+
 function formatAddressForUrl(address) {
   if (address && address.indexOf(':') !== -1 && address.indexOf('[') === -1) {
     return '[' + address + ']';
@@ -197,29 +205,23 @@ NvHTTP.prototype = {
       preflightUrl = baseUrl + ':' + this.httpPort + '/serverinfo';
     }
 
-    return fetch(preflightUrl, abortCtrl ? { signal: abortCtrl.signal } : {})
-      .then(function(res) {
-        clearTimeout(timeoutId);
-        // The IP is alive and responded! Hand it over to C++
-        return sendMessage('openUrl', [url, ppkstr, false, 5000]).catch(error => {
-          throw error;
-        });
-      })
-      .catch(function(e) {
-        clearTimeout(timeoutId);
-        // If the fetch was forcefully aborted by our timeout, it means the IP is a black hole (silent drop).
-        // We MUST skip it, otherwise handing it to C++ will irrevocably freeze the WASM thread for 120 seconds!
-        if (e && e.name === 'AbortError') {
-          console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping dead/hanging URL to prevent C++ WASM freeze: ' + url);
-          return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
-        } else {
-          // Any other error (e.g. Cert Error, Connection Refused, CORS) means the IP actively responded quickly.
-          // C++ will also fail quickly without hanging (or succeed if mTLS), so it's safe to hand it over.
-          return sendMessage('openUrl', [url, ppkstr, false, 5000]).catch(error => {
-            throw error;
-          });
-        }
-      });
+    // This is only a reachability probe. no-cors allows an opaque response, so
+    // cross-origin policy cannot turn a reachable host into a false negative.
+    // DNS, connection-refused and other network failures still reject fetch().
+    var fetchOptions = { mode: 'no-cors' };
+    if (abortCtrl) fetchOptions.signal = abortCtrl.signal;
+
+    return fetch(preflightUrl, fetchOptions).then(function() {
+      clearTimeout(timeoutId);
+      // The host accepted an HTTP connection. Perform the authenticated request in C++.
+      return sendMessage('openUrl', [url, ppkstr, false, 5000]);
+    }, function(e) {
+      clearTimeout(timeoutId);
+      // A timeout or network-level failure (including DNS and connection refused)
+      // means the C++ request cannot succeed. Do not block its HTTP queue.
+      console.warn('%c[utils.js, _openUrlWithTimeout]', 'color: orange;', 'Skipping unreachable URL after HTTP preflight failure: ' + url, e);
+      return Promise.reject(-1); // Instantly fail (GS_FAILED), don't pass to C++!
+    });
   },
 
   // Refreshes the server info using the base URL. This is useful for testing whether we can successfully ping a host at the base URL
@@ -290,15 +292,26 @@ NvHTTP.prototype = {
       this._baseUrlHttps = 'https://' + urlAddr + ':' + this.httpsPort;
       this._baseUrlHttp = 'http://' + urlAddr + ':' + this.httpPort;
 
-      if (this.paired && this._pollCount === 0) updateMacAddress(this);
+      if (this.paired) {
+        if (this._pollCount === 0) updateMacAddress(this);
 
-      if (this.paired && this._pollCount++ % 10 === 1) {
-        this._backgroundAppListRefreshInProgress = true;
-        this.getAppListWithCacheFlush().catch(function(error) {
-          console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
-        }).finally(function() {
-          this._backgroundAppListRefreshInProgress = false;
-        }.bind(this));
+        // Refresh the selected host's app list periodically only while the Apps
+        // grid is actually visible. Host polling must not enumerate apps in Hosts mode.
+        if (this._pollCount++ % 10 === 1 &&
+            window.api === this && $('#game-grid').is(':visible') &&
+            !this._backgroundAppListRefreshInProgress) {
+          this._backgroundAppListRefreshInProgress = true;
+          this.getAppListWithCacheFlush(true).then(function(appList) {
+            if (window.api === this && $('#game-grid').is(':visible') &&
+                typeof window.reconcileVisibleAppGrid === 'function') {
+              return window.reconcileVisibleAppGrid(this, appList);
+            }
+          }.bind(this)).catch(function(error) {
+            console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
+          }).finally(function() {
+            this._backgroundAppListRefreshInProgress = false;
+          }.bind(this));
+        }
       }
 
       this._consecutivePollFailures = 0;
@@ -331,9 +344,20 @@ NvHTTP.prototype = {
     };
 
     addCandidate(this.address);
-    // Only append '.local' if the hostname doesn't already end with it
-    var localSuffix = this.hostname.endsWith('.local') ? this.hostname : this.hostname + '.local';
-    addCandidate(localSuffix);
+
+    // DNS hostnames are case-insensitive. Try both common local DNS suffixes.
+    var normalizedHostname = (this.hostname || '').trim().toLowerCase();
+    if (normalizedHostname) {
+      var lanHostname = normalizedHostname.endsWith('.lan')
+        ? normalizedHostname
+        : normalizedHostname.replace(/\.local$/i, '') + '.lan';
+      var localHostname = normalizedHostname.endsWith('.local')
+        ? normalizedHostname
+        : normalizedHostname.replace(/\.lan$/i, '') + '.local';
+      addCandidate(lanHostname);
+      addCandidate(localHostname);
+    }
+
     addCandidate(this.localAddress);
     addCandidate(this.externalIP);
     addCandidate(this.userEnteredAddress);
@@ -403,13 +427,10 @@ NvHTTP.prototype = {
       return false;
     }
 
-    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
-      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', 'Parsing server info: ', $root);
-    }
-
     // Retrieve the hostname and handle name validation
     var serverName = $root.find('hostname').text().trim();
     if (serverName != '') {
+      // DNS names are case-insensitive; keep the hostname normalized for lookups and logs.
       this.hostname = serverName;
     } else {
       this.hostname = 'UNKNOWN';
@@ -482,6 +503,20 @@ NvHTTP.prototype = {
       this.currentGame = parseInt($root.find('currentgame').text().trim(), 10);
     } else {
       this.currentGame = 0;
+    }
+
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      var displayModeCount = Object.keys(this.supportedDisplayModes).length;
+      var serverType = this.isNvidiaServerSoftware ? 'NVIDIA GameStream' : 'Sunshine-compatible';
+      var serverSummary = 'Host response parsed: ' + this.hostname +
+        ' | ' + serverType +
+        ' | app version: ' + (this.appVersion || 'unknown') +
+        (this.gfeVersion ? ' | GFE version: ' + this.gfeVersion : '') +
+        ' | paired: ' + (this.paired ? 'yes' : 'no') +
+        ' | state: ' + (this.serverState || 'unknown') +
+        ' | apps: ' + (this.numofapps || 'unknown') +
+        ' | display modes: ' + displayModeCount;
+      console.log('%c[utils.js, _parseServerInfo]', 'color: gray;', serverSummary);
     }
 
     return true;
@@ -712,9 +747,9 @@ NvHTTP.prototype = {
       var $root = $xml.find('root');
 
       if ($root.attr('status_code') != 200) {
-        // TODO: Bubble up an error here
-        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', $root.attr('status_code'));
-        return [];
+        var statusCode = $root.attr('status_code');
+        console.error('%c[utils.js, getAppListWithCacheFlush]', 'color: gray;', 'Error: Failed to request app list: ', statusCode);
+        throw new Error('The host rejected the app-list request (status ' + statusCode + ').');
       }
 
       var rootElement = $xml.find('root')[0];
@@ -747,10 +782,10 @@ NvHTTP.prototype = {
     return this.getAppListWithCacheFlush();
   },
 
-  // Returns the original PNG box art based on the the given app Id and generates an optimized JPEG preview when Smart Hub Preview is supported.
-  // The original PNG box art is stored in private storage, while the optimized JPEG preview is generated and stored asynchronously,
-  // in the public documents directory so that the Smart Hub Preview background service process can access it directly.
-  getBoxArt: function(appId, isSmartHubSupported) {
+  // Returns original PNG box art for the main app grid and generates a neutral,
+  // age-appropriate 16:9 JPEG thumbnail for Smart Hub Preview. The thumbnail is
+  // saved in Documents so the background service can serve it over local HTTP.
+  getBoxArt: function(appId, forceRefresh) {
     return new Promise(function(resolve, reject) {
       // Store the original PNG box art in the private directory
       var boxArtDir = 'wgt-private/' + this.hostname;
@@ -770,39 +805,36 @@ NvHTTP.prototype = {
           // Convert the fetched PNG into a data URL for display and caching
           reader.onloadend = function() {
             var dataUrl = reader.result;
-            // Always resolve for UI display regardless of caching outcome
-            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning network-fetched box art: ', appId);
+            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Caching network-fetched box art: ', appId);
 
-            // Save the original PNG to private storage as true binary PNG for local HTTP server and future cache using modern Tizen API
+            // The original PNG must be cached successfully before this card is considered ready.
             try {
-              // Create the private directory if it does not already exist
               tizen.filesystem.createDirectory(boxArtDir, true);
-              // Open the destination file for writing the original PNG data
               var fileHandleWrite = tizen.filesystem.openFile(boxArtDir + '/' + boxArtFileName, 'w');
-
-              // Write the original PNG bytes to private storage and close the file
-              fileHandleWrite.writeData(boxArtBuffer);
-              fileHandleWrite.close();
+              try {
+                fileHandleWrite.writeData(boxArtBuffer);
+              } finally {
+                fileHandleWrite.close();
+              }
               console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Saved original PNG box art: ' + boxArtFileName);
             } catch (error) {
-              // Failure to cache the original PNG box art does not prevent the fetched box art from being returned
               console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Error: Failed to cache original box art in ' + boxArtDir + ' for app ID ' + appId + ': ' + error.message);
-            }
-
-            // Return the fetched box art directly when Smart Hub Preview is not supported
-            if (!isSmartHubSupported) {
-              resolve(dataUrl);
+              reject(error);
               return;
             }
 
             // Generate and save the optimized JPEG preview box art asynchronously from network.
             // The original PNG box art can be returned immediately without waiting for preview generation.
             var previewPromise = self.generatePreviewImage(dataUrl, appId).then(function(previewDataUrl) {
-              if (previewDataUrl) {
-                self.savePreviewImage(appId, previewDataUrl);
-              }
+              var saved = previewDataUrl ? self.savePreviewImage(appId, previewDataUrl) : false;
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = saved === true;
+              return saved === true;
             }, function(error) {
-              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview box art from network for app ID ' + appId + ': ' + error);
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = false;
+              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview thumbnail from network for app ID ' + appId + ': ' + error);
+              return false;
             });
 
             if (!window.previewPromises) {
@@ -819,6 +851,14 @@ NvHTTP.prototype = {
           reject(error);
         });
       };
+
+      // Manual regeneration bypasses both local artwork caches for this host/app.
+      // Normal calls retain the existing cache-first behavior.
+      if (forceRefresh === true) {
+        self.invalidateBoxArt(appId);
+        fetchBoxArt();
+        return;
+      }
 
       // Try to load the cached original box art from private storage
       try {
@@ -840,14 +880,8 @@ NvHTTP.prototype = {
             var dataUrl = reader.result;
             console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art: ', appId);
 
-            // Return the cached original box art directly when Smart Hub Preview is not supported
-            if (!isSmartHubSupported) {
-              resolve(dataUrl);
-              return;
-            }
-
             // Check whether an optimized Smart Hub Preview has already been cached
-            var previewFileName = 'preview-' + appId + '.jpg';
+            var previewFileName = getSmartHubPreviewFileName(self.serverUid, appId);
             var previewFilePath = 'documents/' + previewFileName;
 
             // Try to open the cached preview box art to determine whether it already exists
@@ -855,6 +889,8 @@ NvHTTP.prototype = {
               // Open the cached preview file to check whether it already exists
               var previewFileHandle = tizen.filesystem.openFile(previewFilePath, 'r');
               previewFileHandle.close();
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[previewFileName] = true;
 
               console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Smart Hub Preview box art file already cached: ' + previewFileName);
               // The preview already exists, so no additional processing is required
@@ -868,11 +904,15 @@ NvHTTP.prototype = {
             // Generate and save the optimized JPEG preview box art asynchronously from storage.
             // The original PNG box art can be returned immediately without waiting for preview generation.
             var previewPromise = self.generatePreviewImage(dataUrl, appId).then(function(previewDataUrl) {
-              if (previewDataUrl) {
-                self.savePreviewImage(appId, previewDataUrl);
-              }
+              var saved = previewDataUrl ? self.savePreviewImage(appId, previewDataUrl) : false;
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = saved === true;
+              return saved === true;
             }, function(error) {
-              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview box art from storage for app ID ' + appId + ': ' + error);
+              if (!window.previewImageStatus) window.previewImageStatus = {};
+              window.previewImageStatus[getSmartHubPreviewFileName(self.serverUid, appId)] = false;
+              console.warn('%c[utils.js, getBoxArt]', 'color: gray;', 'Warning: Failed to generate Smart Hub Preview thumbnail from storage for app ID ' + appId + ': ' + error);
+              return false;
             });
 
             if (!window.previewPromises) {
@@ -909,7 +949,7 @@ NvHTTP.prototype = {
                 } catch(error) {
                   console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Error: Failed to delete original box art file ' + boxArtFileName + ': ' + error.message);
                 }
-                var previewFileName = 'preview-' + appId + '.jpg';
+                var previewFileName = getSmartHubPreviewFileName(self.serverUid, appId);
                 try {
                   tizen.filesystem.deleteFile('documents/' + previewFileName);
                 } catch(error) {
@@ -936,6 +976,32 @@ NvHTTP.prototype = {
         fetchBoxArt();
       }
     }.bind(this));
+  },
+
+  // Remove one app's original and Smart Hub Preview artwork when validation fails.
+  // The next app-list load will fetch the original image again from the host.
+  invalidateBoxArt: function(appId) {
+    var boxArtPath = 'wgt-private/' + this.hostname + '/boxart-' + appId + '.png';
+    var previewFileName = getSmartHubPreviewFileName(this.serverUid, appId);
+    var previewPath = 'documents/' + previewFileName;
+
+    try {
+      tizen.filesystem.deleteFile(boxArtPath);
+      console.log('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Removed invalid cached box art: ' + boxArtPath);
+    } catch (error) {
+      console.warn('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Could not remove cached box art ' + boxArtPath + ': ' + error.message);
+    }
+
+    try {
+      tizen.filesystem.deleteFile(previewPath);
+      console.log('%c[utils.js, invalidateBoxArt]', 'color: gray;', 'Removed associated Preview image: ' + previewPath);
+    } catch (error) {
+      // The Preview file may not exist or may already have been removed.
+    }
+
+    if (window.previewImageStatus) {
+      window.previewImageStatus[previewFileName] = false;
+    }
   },
 
   // Clears cached box art and preview images from local storage.
@@ -994,7 +1060,7 @@ NvHTTP.prototype = {
     }.bind(this));
   },
 
-  // Generates a JPEG preview image from the original box art.
+  // Generates a 2:3 JPEG preview image from the original box art.
   // The image is progressively compressed and resized until it fits within the
   // maximum file size allowed for Smart Hub Preview, while preserving a minimum
   // image size for small source images.
@@ -1006,6 +1072,7 @@ NvHTTP.prototype = {
       var SCALE_STEP = 0.9;
       var MIN_SCALE_WIDTH = 100;
       var MIN_SCALE_HEIGHT = 100;
+      var TARGET_ASPECT_RATIO = 2 / 3;
 
       // Create an image element to decode the original box art
       var image = new Image();
@@ -1014,15 +1081,33 @@ NvHTTP.prototype = {
       image.onload = function() {
         try {
           // Get the source image dimensions
-          var width = image.naturalWidth || image.width;
-          var height = image.naturalHeight || image.height;
+          var sourceWidth = image.naturalWidth || image.width;
+          var sourceHeight = image.naturalHeight || image.height;
 
           // Ensure the image has valid dimensions before processing
-          if (!width || !height) {
+          if (!sourceWidth || !sourceHeight) {
             console.error('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Invalid image dimensions for app ID ' + appId);
             resolve(null);
             return;
           }
+
+          // Center-crop the original box art to the required 2:3 tile ratio.
+          var sourceX = 0;
+          var sourceY = 0;
+          var sourceCropWidth = sourceWidth;
+          var sourceCropHeight = sourceHeight;
+          var sourceAspectRatio = sourceWidth / sourceHeight;
+
+          if (sourceAspectRatio > TARGET_ASPECT_RATIO) {
+            sourceCropWidth = Math.round(sourceHeight * TARGET_ASPECT_RATIO);
+            sourceX = Math.floor((sourceWidth - sourceCropWidth) / 2);
+          } else if (sourceAspectRatio < TARGET_ASPECT_RATIO) {
+            sourceCropHeight = Math.round(sourceWidth / TARGET_ASPECT_RATIO);
+            sourceY = Math.floor((sourceHeight - sourceCropHeight) / 2);
+          }
+
+          var width = sourceCropWidth;
+          var height = sourceCropHeight;
 
           // Create a canvas used to resize and convert the box art to JPEG
           var canvas = document.createElement('canvas');
@@ -1039,8 +1124,8 @@ NvHTTP.prototype = {
             canvas.width = width;
             canvas.height = height;
 
-            // Draw the source box art at the current dimensions
-            context.drawImage(image, 0, 0, width, height);
+            // Draw the centered 2:3 source crop at the current output dimensions
+            context.drawImage(image, sourceX, sourceY, sourceCropWidth, sourceCropHeight, 0, 0, width, height);
 
             // Try reducing JPEG quality before reducing the image dimensions
             var quality = 0.85;
@@ -1053,8 +1138,8 @@ NvHTTP.prototype = {
 
               // Return the first image that meets the file size limit
               if (fileSize <= MAX_FILE_SIZE) {
-                console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created preview image for app ID ' + 
-                appId + ': ' + Math.round(fileSize / 1024) + ' KB (' + width + 'x' + height + ', quality ' + quality.toFixed(2) + ')');
+                console.log('%c[utils.js, generatePreviewImage]', 'color: gray;', 'Created preview image for app ID ' +
+                appId + ': ' + Math.round(fileSize / 1024) + ' KB (' + width + 'x' + height + ', 2:3, quality ' + quality.toFixed(2) + ')');
                 resolve(jpegDataUrl);
                 return;
               }
@@ -1099,7 +1184,7 @@ NvHTTP.prototype = {
   savePreviewImage: function(appId, previewDataUrl) {
     try {
       // Build the filename and path used by the local HTTP server
-      var filename = 'preview-' + appId + '.jpg';
+      var filename = getSmartHubPreviewFileName(this.serverUid, appId);
       var filePath = 'documents/' + filename;
 
       // Extract the Base64 payload from the data URL and convert it to binary data
@@ -1131,21 +1216,21 @@ NvHTTP.prototype = {
     }
   },
 
-  launchApp: function(appId, mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask) {
+  launchApp: function(appId, mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/launch?' + this._buildUidStr() + '&appid=' + appId + '&mode=' + mode +
       '&additionalStates=1&sops=' + sops + '&rikey=' + rikey + '&rikeyid=' + rikeyid + '&hdrMode=' + enableHdr +
       '&localAudioPlayMode=' + localAudio + '&surroundAudioInfo=' + surroundAudioInfo +
-      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask, this.ppkstr, false
+      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : ''), this.ppkstr, false
     ]);
   },
 
-  resumeApp: function(mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask) {
+  resumeApp: function(mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
     return sendMessage('openUrl', [
       this._baseUrlHttps + '/resume?' + this._buildUidStr() + '&mode=' + mode +
       '&additionalStates=1&sops=' + sops + '&rikey=' + rikey + '&rikeyid=' + rikeyid + '&hdrMode=' + enableHdr +
       '&localAudioPlayMode=' + localAudio + '&surroundAudioInfo=' + surroundAudioInfo +
-      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask, this.ppkstr, false
+      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : ''), this.ppkstr, false
     ]);
   },
 

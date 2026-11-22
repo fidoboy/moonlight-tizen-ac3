@@ -66,6 +66,10 @@ add_library(moonlight-common-c STATIC
 )
 target_compile_definitions(moonlight-common-c PUBLIC
     LC_CHROME)
+# Keep the native-only WMP diagnostic callback out of the Emscripten build.
+# add_compile_options() is global; make this target's platform guard explicit.
+target_compile_definitions(moonlight-common-c PRIVATE
+    OS_WASM)
 # Keep Limelog() on the callback path in every build. ClLogMessage applies the debug filter.
 target_compile_definitions(moonlight-common-c PRIVATE
     LC_LOG)
@@ -249,9 +253,22 @@ target_compile_definitions(opus PUBLIC
      FIXED_POINT
      OPUS_BUILD)
 
+set(FFMPEG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/install" CACHE PATH "Minimal Emscripten FFmpeg installation")
+
+foreach(component avcodec swresample avutil)
+    if(NOT EXISTS "${FFMPEG_ROOT}/lib/lib${component}.a")
+        message(FATAL_ERROR "Missing FFmpeg static library: ${FFMPEG_ROOT}/lib/lib${component}.a")
+    endif()
+    add_library(ffmpeg_${component} STATIC IMPORTED GLOBAL)
+    set_target_properties(ffmpeg_${component} PROPERTIES
+        IMPORTED_LOCATION "${FFMPEG_ROOT}/lib/lib${component}.a")
+endforeach()
+
 add_executable(moonlight-wasm
     wasm/libchelper.c
     wasm/auddec.cpp
+    wasm/dolby_decoder.cpp
+    wasm/opus_dolby_transcoder.cpp
     wasm/connectionlistener.cpp
     wasm/gamepad.cpp
     wasm/http.cpp
@@ -278,6 +295,7 @@ target_include_directories(moonlight-wasm PUBLIC
     opus/silk
     opus/silk/fixed
     opus/celt
+    ${FFMPEG_ROOT}/include
 )
 set_target_properties(moonlight-wasm
     PROPERTIES
@@ -305,6 +323,9 @@ target_link_libraries(moonlight-wasm PUBLIC
     libgamestream
     h264bitstream
     opus
+    ffmpeg_avcodec
+    ffmpeg_swresample
+    ffmpeg_avutil
     moonlight-common-c
     moonlight-enet
     moonlight-rs

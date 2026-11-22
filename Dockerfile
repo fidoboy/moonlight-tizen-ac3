@@ -1,19 +1,3 @@
-# Generate only the static native Samsung TV splash fallbacks; animated MP4s are versioned separately.
-FROM ubuntu:22.04 AS splash
-RUN apt-get update && apt-get install -y --no-install-recommends librsvg2-bin fonts-dejavu-core python3 && rm -rf /var/lib/apt/lists/*
-COPY res/launch-screen.svg /tmp/launch-screen.svg
-COPY res/generate-launch-screen.py /tmp/generate-launch-screen.py
-COPY wasm/static/res/ic_dolby_double_d.svg /tmp/ic_dolby_double_d.svg
-RUN python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-final.svg --orientation landscape --static-only && \
-    python3 /tmp/generate-launch-screen.py --template /tmp/launch-screen.svg --dolby-logo /tmp/ic_dolby_double_d.svg --static-svg /tmp/launch-screen-portrait-final.svg --orientation portrait --static-only && \
-    rsvg-convert -w 1920 -h 1080 --format png -o /tmp/launch-screen.png /tmp/launch-screen-final.svg && \
-    rsvg-convert -w 1080 -h 1920 --format png -o /tmp/launch-screen-portrait.png /tmp/launch-screen-portrait-final.svg && \
-    test "$(stat -c %s /tmp/launch-screen.png)" -lt 204800 && \
-    test "$(stat -c %s /tmp/launch-screen-portrait.png)" -lt 204800
-COPY generated-videos/launch-screen.mp4 /tmp/launch-screen.mp4
-COPY generated-videos/launch-screen-portrait.mp4 /tmp/launch-screen-portrait.mp4
-RUN test -s /tmp/launch-screen.mp4 && \
-    test -s /tmp/launch-screen-portrait.mp4
 FROM ubuntu:22.04 AS sdk
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -23,6 +7,8 @@ ENV TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
 	cmake \
 	ccache \
+	make \
+	xz-utils \
 	expect \
 	git \
 	ninja-build \
@@ -48,22 +34,6 @@ ENV PATH=/home/moonlight/tizen-studio/tools/ide/bin:/home/moonlight/tizen-studio
 
 FROM sdk AS base
 
-# Prepare the Tizen certificate and security profiles for signing the application package
-RUN tizen certificate \
-	-a Moonlight \
-	-f Moonlight \
-	-p 123456
-RUN tizen security-profiles add \
-	-n Moonlight \
-	-a /home/moonlight/tizen-studio-data/keystore/author/Moonlight.p12 \
-	-p 123456
-
-# Workaround to package applications without gnome-keyring
-# These steps must be repeated each time before packaging an application
-# See: <https://developer.tizen.org/forums/sdk-ide/pwd-fle-format-profile.xml-certificates> for more details
-RUN sed -i 's|/home/moonlight/tizen-studio-data/keystore/author/Moonlight.pwd||' /home/moonlight/tizen-studio-data/profile/profiles.xml
-RUN sed -i 's|/home/moonlight/tizen-studio-data/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd|tizenpkcs12passfordsigner|' /home/moonlight/tizen-studio-data/profile/profiles.xml
-
 # Install Samsung Emscripten SDK and configure Java path for closure compiler
 RUN aria2c -x 5 -s 5 -o emscripten-1.39.4.7-linux64.zip 'https://developer.samsung.com/smarttv/file/a5013a65-af11-4b59-844f-2d34f14d19a9'
 RUN unzip emscripten-1.39.4.7-linux64.zip
@@ -78,8 +48,12 @@ RUN sed -i 's|https://www.openssl.org/source/old/1.1.1/openssl-|https://github.c
 WORKDIR emscripten-release-bundle/emsdk
 RUN ./emsdk activate latest-fastcomp
 
-# Copy only the backend files required for compiling the application
+# Build FFmpeg before copying the application sources so Docker can cache this dependency layer.
 WORKDIR /home/moonlight
+COPY --chown=moonlight scripts/build-ffmpeg.sh ./build-ffmpeg.sh
+RUN bash build-ffmpeg.sh
+
+# Copy only the backend files required for compiling the application
 COPY --chown=moonlight CMakeLists.txt ./moonlight-tizen/
 COPY --chown=moonlight h264bitstream ./moonlight-tizen/h264bitstream/
 COPY --chown=moonlight libgamestream ./moonlight-tizen/libgamestream/
@@ -99,6 +73,7 @@ RUN cmake \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DMOONLIGHT_DEBUG_MODE=${DEBUG_MODE} \
+	-DFFMPEG_ROOT=/home/moonlight/ffmpeg-install \
 	-G Ninja \
 	-S moonlight-tizen \
 	-B build
@@ -153,10 +128,6 @@ RUN \
 RUN cmake --install build --prefix build
 COPY --chown=moonlight tools/patch-embind-string.js ./moonlight-tizen/tools/
 RUN /home/moonlight/emscripten-release-bundle/emsdk/node/12.9.1_64bit/bin/node moonlight-tizen/tools/patch-embind-string.js build/widget/moonlight-wasm.js
-COPY --from=splash /tmp/launch-screen.png build/widget/static/res/launch-screen.png
-COPY --from=splash /tmp/launch-screen.mp4 build/widget/static/res/launch-screen.mp4
-COPY --from=splash /tmp/launch-screen-portrait.png build/widget/static/res/launch-screen-portrait.png
-COPY --from=splash /tmp/launch-screen-portrait.mp4 build/widget/static/res/launch-screen-portrait.mp4
 RUN cp moonlight-tizen/res/icon.png build/widget/
 
 # Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later
@@ -169,24 +140,12 @@ RUN if [ "$FORCE_GAME_MODE" = "true" ]; then \
 		echo "No Game Mode metadata injected into config.xml (Standard variant)"; \
 	fi
 
-# Sign and package the application into a WGT file using Expect to automate the interactive password prompts
-RUN echo \
-	'set timeout -1\n' \
-	'spawn tizen package -t wgt -- build/widget\n' \
-	'expect "Author password:"\n' \
-	'send -- "123456\\r"\n' \
-	'expect "Yes: (Y), No: (N) ?"\n' \
-	'send -- "N\\r"\n' \
-	'expect eof\n' \
-| expect
-
-# Rename the output WGT file by appending a suffix for the ForceGM variant, or leave without a suffix for the Standard variant
-RUN if [ "$FORCE_GAME_MODE" = "true" ]; then SUFFIX="-ForceGM"; else SUFFIX=""; fi; \
-	mv build/widget/Moonlight.wgt "Moonlight${SUFFIX}.wgt" && ls -la *.wgt
+# Keep the compiled Web application as files. The hybrid WGT is created and signed
+# once, after the native service TPK has been built, by Tizen Core CLI in CI.
 
 # Clean up unnecessary files to reduce image size
-RUN rm -rf \
-	build \
+RUN find build -mindepth 1 -maxdepth 1 ! -name widget -exec rm -rf {} + && \
+	rm -rf \
 	moonlight-tizen \
 	web-cli_Tizen_Studio_6.1_ubuntu-64.bin \
 	tizen-package-expect.sh \
@@ -197,7 +156,11 @@ RUN rm -rf \
 	.emscripten_cache \
 	.emscripten_cache.lock \
 	.emscripten_ports \
-	.emscripten_sanity
+	.emscripten_sanity \
+	ffmpeg-4.4.8 \
+	ffmpeg-install \
+	ffmpeg-download \
+	build-ffmpeg.sh
 
 # Use a multi-stage build to reclaim space from deleted files
 FROM ubuntu:22.04

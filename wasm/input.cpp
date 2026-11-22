@@ -1,8 +1,36 @@
 #include "moonlight_wasm.hpp"
 
 #include <Limelight.h>
+#include <map>
+#include <atomic>
 
 #define KEY_PREFIX 0x80
+
+namespace {
+std::map<uint32_t, char> forwardedKeys;
+bool forwardedMouseButtons[3] = {};
+std::atomic<bool> mouseMovementResetPending{false};
+}
+
+void ResetStreamInputState() {
+  // Release every key that was forwarded before the menu took ownership.
+  for (const auto& key : forwardedKeys) {
+    LiSendKeyboardEvent(KEY_PREFIX << 8 | key.first, KEY_ACTION_UP, key.second);
+  }
+  forwardedKeys.clear();
+
+  // Mouse buttons can also be held by gamepad mouse emulation, so release all
+  // three regardless of which input path originally pressed them.
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+  forwardedMouseButtons[0] = false;
+  forwardedMouseButtons[1] = false;
+  forwardedMouseButtons[2] = false;
+
+  // The movement accumulator is consumed by the input thread.
+  mouseMovementResetPending.store(true, std::memory_order_release);
+}
 
 static int ConvertButtonToLiButton(unsigned short button) {
   switch (button) {
@@ -42,7 +70,11 @@ EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
     return EM_TRUE;
   }
 
-  LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, ConvertButtonToLiButton(event.button));
+  const int button = ConvertButtonToLiButton(event.button);
+  if (button != 0) {
+    LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, button);
+    if (event.button < 3) forwardedMouseButtons[event.button] = true;
+  }
   return EM_TRUE;
 }
 
@@ -67,7 +99,11 @@ EM_BOOL MoonlightInstance::HandleMouseUp(const EmscriptenMouseEvent &event) {
     return EM_FALSE;
   }
 
-  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, ConvertButtonToLiButton(event.button));
+  const int button = ConvertButtonToLiButton(event.button);
+  if (button != 0 && event.button < 3 && forwardedMouseButtons[event.button]) {
+    forwardedMouseButtons[event.button] = false;
+    LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, button);
+  }
   return EM_TRUE;
 }
 
@@ -83,7 +119,12 @@ EM_BOOL MoonlightInstance::HandleWheel(const EmscriptenWheelEvent &event) {
 }
 
 EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
-  if (streamMenuInputBlocked.load(std::memory_order_acquire)) return EM_TRUE;
+  const bool menuInputBlocked = streamMenuInputBlocked.load(std::memory_order_acquire);
+  if (event.keyCode == 53) {
+    ClLogMessage("[InputDiag][HandleKeyDown] keyCode=%u (0x%X) blocked=%d mouseLocked=%d\n",
+                 event.keyCode, event.keyCode, menuInputBlocked ? 1 : 0, m_MouseLocked ? 1 : 0);
+  }
+  if (menuInputBlocked) return EM_TRUE;
   if (!m_MouseLocked) {
     return EM_FALSE;
   }
@@ -107,6 +148,7 @@ EM_BOOL MoonlightInstance::HandleKeyDown(const EmscriptenKeyboardEvent &event) {
     }
   }
 
+  forwardedKeys[keyCode] = modifiers;
   LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_DOWN, modifiers);
   return EM_TRUE;
 }
@@ -126,7 +168,13 @@ EM_BOOL MoonlightInstance::HandleKeyUp(const EmscriptenKeyboardEvent &event) {
     m_WaitingForAllModifiersUp = false;
   }
 
-  LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_UP, modifiers);
+  // A key release is forwarded only when its matching press was sent to
+  // the host. Menu navigation keys and releases after an input reset stay local.
+  const auto forwardedKey = forwardedKeys.find(keyCode);
+  if (forwardedKey != forwardedKeys.end()) {
+    forwardedKeys.erase(forwardedKey);
+    LiSendKeyboardEvent(KEY_PREFIX << 8 | keyCode, KEY_ACTION_UP, modifiers);
+  }
   return EM_TRUE;
 }
 
@@ -174,6 +222,10 @@ EM_BOOL handlePointerLockError(int eventType, const void *reserved, void *userDa
 }
 
 void MoonlightInstance::ReportMouseMovement() {
+  if (mouseMovementResetPending.exchange(false, std::memory_order_acq_rel)) {
+    m_MouseDeltaX = m_MouseDeltaY = 0;
+    m_AccumulatedTicks = 0;
+  }
   if (streamMenuInputBlocked.load(std::memory_order_acquire)) {
     m_MouseDeltaX = m_MouseDeltaY = 0;
     m_AccumulatedTicks = 0;

@@ -11,16 +11,15 @@ Esta página descreve o projeto do cliente Moonlight para Tizen. A disponibilida
 
 ## Principal diferencial em relação a outros clientes: áudio Dolby pela saída digital
 
-O principal diferencial do projeto é o passthrough opcional de áudio Dolby Digital e Dolby Digital Plus para TVs Samsung compatíveis conectadas a um receiver ou sistema de som pela saída óptica (TOSLINK) ou HDMI.
+O principal diferencial deste projeto é a saída opcional de áudio Dolby Digital e Dolby Digital Plus em TVs Samsung compatíveis conectadas a um receiver ou sistema de som pela saída óptica (TOSLINK) ou HDMI. Diferentemente das versões anteriores, não é necessário que o host forneça um fluxo de áudio Dolby nativo.
 
-- **AC-3 (Dolby Digital):** áudio comprimido estéreo ou 5.1 pode ser enviado ao renderizador de áudio EMSS nativo do Tizen quando o host negocia AC-3 com sucesso.
-- **E-AC-3 (Dolby Digital Plus):** compatível quando o host, o firmware da TV, a configuração de saída de áudio e o equipamento receptor aceitam o formato. E-AC-3 pela saída óptica não é garantido em todas as TVs.
-- **Estéreo e 5.1:** o encoder experimental correspondente do Sunshine oferece estéreo e 5.1. AC-3 é limitado a 5.1. A seleção 7.1 continua disponível pelo caminho de áudio normal quando suportada, mas não faz parte do caminho atual do encoder Dolby.
-- **Negociação opcional:** habilite **Enable Dolby Digital** para solicitar o caminho Dolby. O áudio Dolby só é usado quando o host anuncia e seleciona um formato compatível.
-- **Compatibilidade com OPUS:** se um host enviar apenas OPUS, não anunciar a extensão Dolby opcional ou não selecionar um formato Dolby, o cliente continuará usando o caminho OPUS normal. Hosts somente com OPUS não precisam de alterações.
-- **Host compatível:** o passthrough Dolby atualmente exige o branch experimental correspondente [fidoboy/Sunshine ac3-audio](https://github.com/fidoboy/Sunshine/tree/ac3-audio). O caminho normal de áudio do cliente continua disponível quando essa funcionalidade não existe no host.
+- **AC-3 (Dolby Digital):** áudio comprimido estéreo ou 5.1 pode ser enviado ao renderizador de áudio EMSS nativo do Tizen quando o formato estiver disponível e for compatível com a TV e os dispositivos conectados.
+- **E-AC-3 (Dolby Digital Plus):** compatível quando o firmware da TV, a configuração da saída de áudio e o equipamento receptor aceitam o formato. E-AC-3 pela saída óptica não é garantido em todas as TVs.
+- **Suporte Dolby no host (recomendado):** se o host puder fornecer AC-3 ou E-AC-3 nativamente, o Moonlight poderá usar esse fluxo diretamente. Isso é altamente recomendável porque evita a conversão de áudio em tempo real no cliente da TV e, assim, reduz a latência adicional de processamento de áudio, melhorando a resposta aos controles e ao som.
+- **Conversão de OPUS para Dolby:** se o host não fornecer áudio Dolby, ele poderá continuar enviando OPUS. O Moonlight para Tizen tentará converter o áudio OPUS recebido para Dolby Digital em tempo real, conforme o modelo da TV, os recursos de áudio do Tizen, as configurações selecionadas e os dispositivos de áudio conectados. Isso amplia a compatibilidade com hosts GameStream e diferentes configurações de TVs e equipamentos de som, embora a conversão por software possa adicionar latência.
+- **Estéreo e som surround:** a disposição dos canais e o formato Dolby disponíveis dependem do fluxo recebido, do caminho de conversão e dos recursos da TV e do receiver. A saída AC-3 é limitada a 5.1 canais.
 
-O caminho de áudio óptico foi testado de ponta a ponta com uma build experimental do Sunshine, uma TV Samsung e um sistema de som compatível conectado por óptico. Os resultados podem variar conforme o modelo da TV, o firmware e o receiver. Consulte [Problemas conhecidos e limitações](Known-Issues-and-Limitations-pt-br.html#dolby-optical-audio).
+O caminho de áudio Dolby foi testado com TVs Samsung compatíveis e equipamentos de áudio externos. Os resultados podem variar conforme o modelo da TV, a versão do firmware e o receiver. Consulte [Problemas conhecidos e limitações](Known-Issues-and-Limitations-pt-br.html#dolby-optical-audio).
 
 ## Estatísticas do fluxo de áudio
 
@@ -29,7 +28,7 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 ## Outras melhorias específicas deste projeto
 
 - **Localização da interface:** a interface está disponível em inglês, espanhol, alemão, francês, italiano, russo e português brasileiro.
-- **Menu de streaming acessível pelo controle remoto:** abra o menu de streaming com **Play/Pause** ou **Voltar** no controle remoto da TV para acessar os controles e as estatísticas sem precisar de um teclado.
+- **Menu de streaming acessível pelo controle remoto:** abra o menu de streaming com **Play/Pause** ou **Voltar** no controle remoto da TV. Você também pode manter **Select** pressionado por um segundo em um controle de jogo e soltá-lo para acessar os controles e as estatísticas sem precisar de um teclado.
 - **Overlay de estatísticas em tempo real aprimorado:** inclui gráficos ao vivo da latência do host e da qualidade/velocidade da conexão, ajudando a identificar picos de latência, recepção degradada, largura de banda insuficiente e outros problemas de comunicação.
 - **Atalhos de inicialização direta pelo Smart Hub:** inicie diretamente pelo Smart Hub os aplicativos configurados no host remoto, ignorando a interface usual do Moonlight, a verificação de atualizações e a descoberta de hosts.
 - **Fechar o aplicativo do host ao desconectar:** solicitação opcional, sujeita à disponibilidade, para fechar o aplicativo do host em execução após uma desconexão normal. Falhas inesperadas de conexão não acionam essa opção.
@@ -38,6 +37,10 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 - **Inicialização:** melhora a transição da tela nativa de abertura para a lista de hosts e evita um overlay desnecessário de carregamento em tela cheia.
 - **Aprimoramentos de entrada e interface:** inclui melhorias no teclado, foco e navegação pelas configurações.
 
+- **Temas e decorações da interface:** permite escolher entre diferentes esquemas de cores e decorações da interface.
+- **Protetor de tela:** quando a TV permanece ligada, mas não está recebendo nenhuma transmissão, exibe um logotipo simples em movimento para economizar energia e proteger a tela. O movimento evita que a mesma forma estática permaneça iluminada por muito tempo na mesma posição.
+- **Planos de fundo animados:** esses fundos opcionais proporcionam aparência e experiência semelhantes às de consoles de videogame. Eles dão à interface um visual de console, embora o Moonlight também possa ser usado para outras finalidades, como demonstrações comerciais ou como tela secundária sem fio conectada a um computador. Os fundos animados podem ser desativados.
+- **Melhorias no processamento de áudio:** este projeto aprimora o tratamento de diferentes codecs de áudio e permite tanto a reprodução nativa quanto o processamento ou a conversão por software, de acordo com os recursos de cada TV. Isso amplia a compatibilidade com um número maior de modelos e diferentes configurações de áudio, embora os resultados e a experiência final possam variar em cada caso.
 
 ## Recursos principais herdados do projeto comunitário Moonlight Tizen
 
@@ -54,4 +57,4 @@ O overlay de desempenho pode ser aberto com **Ctrl+Alt+Shift+S** se houver um te
 
 ## Observação sobre compatibilidade
 
-Dolby é uma extensão opcional e não substitui o protocolo geral de streaming OPUS. O host Sunshine correspondente também deve ser compilado com o encoder Dolby disponível e configurado para selecionar AC-3 ou E-AC-3. Para instalar, comece pelo [Guia de início rápido](Quick-Start-Guide-pt-br.html).
+O Moonlight para Tizen é compatível com qualquer software de host que utilize o protocolo GameStream; não é necessário que o host forneça áudio Dolby Digital. No entanto, se você quiser usar Dolby Digital, é preferível que o host possa fornecer AC-3 ou E-AC-3 nativamente. A saída Dolby nativa evita a conversão de OPUS para Dolby em tempo real no cliente da TV, reduz a latência adicional de processamento de áudio e geralmente proporciona uma experiência mais responsiva. Se o host fornecer apenas OPUS, o Moonlight tentará fazer a conversão em tempo real quando a TV e os dispositivos de áudio conectados permitirem. Para instalar, comece pelo [Guia de início rápido](Quick-Start-Guide-pt-br.html).

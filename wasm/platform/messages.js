@@ -1,5 +1,120 @@
 /* eslint-disable */
 
+function normalizeStreamingEngine(value) {
+  return value === 'ESPLUSPLAYER' || value === 'WMP' ? 'ESPLUSPLAYER' : value === 'EMSS' ? 'EMSS' : null;
+}
+
+// Explicit engine lifecycle state; native video readiness is independent of HTML video.
+window._streamingEngineState = window._streamingEngineState || {
+  selected: null, active: null, confirmed: false, videoReady: false
+};
+window.getStreamingEngineState = function() { return window._streamingEngineState; };
+window.isNativeStreamingEngineActive = function() {
+  var state = window._streamingEngineState;
+  return !!state && state.active === 'ESPLUSPLAYER' && state.confirmed === true;
+};
+function resetStreamingEngineState(engine) {
+  var normalized = normalizeStreamingEngine(engine);
+  window._streamingEngineState = {
+    selected: normalized, active: normalized, confirmed: false, videoReady: false
+  };
+  // Keep the legacy diagnostics fields synchronized until their remaining consumers migrate.
+  window._activeStreamingEngine = normalized;
+  window._activeStreamingEngineConfirmed = false;
+}
+function confirmStreamingEngineConnection() {
+  var state = window._streamingEngineState;
+  if (state && state.active) {
+    state.confirmed = true;
+    window._activeStreamingEngineConfirmed = true;
+  }
+}
+function markStreamingEngineVideoReady() {
+  var state = window._streamingEngineState;
+  if (state && state.active && state.confirmed) state.videoReady = true;
+}
+
+function getSelectedStreamingEngine() {
+  if (window._directSmartHubLaunch) {
+    var directSettings = window._directSmartHubStreamSettings;
+    return directSettings ? normalizeStreamingEngine(directSettings.streamingEngine) : null;
+  }
+
+  var engineButton = document.getElementById('selectStreamingEngine');
+  var selectedEngine = engineButton && engineButton.getAttribute('data-value');
+  return normalizeStreamingEngine(selectedEngine);
+}
+
+function startESPlusPlayerSession(args) {
+  window._esplusStartupAudioHandoverRequested = false;
+  if (!window.ESPlusPlayerTransport || typeof window.ESPlusPlayerTransport.startStream !== 'function') {
+    pendingStreamApiMessage = 'ESPlusPlayer native transport is unavailable.';
+    handleMessage('streamTerminated: -1');
+    return;
+  }
+
+  var parameters = {
+    host: args[0],
+    w: args[2],
+    h: args[3],
+    fps: args[4],
+    bitrate: args[5],
+    rikey: args[6],
+    rikeyid: args[7],
+    appVer: args[8],
+    gfeVer: args[9],
+    rtspUrl: args[10],
+    codecMode: args[11],
+    debugMode: typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE === true,
+    audioEnabled: args[18] === 'ESPLUSPLAYER' || args[18] === 'WMP',
+    mouseEmulation: args[15] === true || args[15] === 1 || args[15] === 'true',
+    mouseEmulationStick: args[35] === 'left' ? 'left' : 'right',
+    selectHoldStreamMenu: args[34] === true || args[34] === 1 || args[34] === 'true',
+    audioConfig: args[19],
+    opticalOutputEnabled: !!args[20],
+    videoCodec: args[25],
+    hdr: args[26],
+    fullRange: args[27],
+    gameMode: !!args[28],
+    disableWarnings: args[29] === true || args[29] === 1 || args[29] === 'true',
+    performanceStats: Number(args[30]) !== 0
+  };
+
+  if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+    var diagnosticParameters = {};
+    Object.keys(parameters).forEach(function(name) {
+      // Keep the debug log useful without exposing addresses or session secrets.
+      diagnosticParameters[name] = name === 'host' || name === 'rikey' || name === 'rtspUrl'
+        ? '<redacted>'
+        : parameters[name];
+    });
+    console.debug('[esplusplayer] Moonlight is requesting native stream startup', {
+      parameters: diagnosticParameters
+    });
+  }
+
+  var startupStatus = document.getElementById('loadingSpinnerMessage');
+  if (startupStatus) startupStatus.textContent = t('Starting native video playback service...');
+
+  window.ESPlusPlayerTransport.startStream(parameters).catch(function(error) {
+    pendingStreamApiMessage = error && error.message
+      ? error.message
+      : String(error);
+    if (error && error.code !== undefined) {
+      pendingStreamApiMessage += ' (code ' + error.code + ')';
+    }
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.debug('[esplusplayer] Native stream startup request failed', {
+        name: error && error.name || null,
+        message: pendingStreamApiMessage,
+        code: error && error.code !== undefined ? error.code : null,
+        nativePayload: error && error.nativePayload || null
+      });
+    }
+    handleMessage('streamTerminated: -1');
+  });
+}
+
 const SyncFunctions = {
   // no parameters
   'makeCert': (...args) => Module.makeCert(...args),
@@ -8,25 +123,83 @@ const SyncFunctions = {
   /* host, httpPort, width, height, fps, bitrate, rikey, rikeyid, appversion, gfeversion, rtspurl, serverCodecModeSupport,
   framePacing, optimizeGames, rumbleFeedback, mouseEmulation, flipABfaceButtons, flipXYfaceButtons, audioBackend,
   audioConfig, opticalOutputEnabled, audioSync, audioJitter, playHostAudio, decryptHostAudio, videoCodec, hdrMode,
-  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode */
+  fullRange, gameMode, disableWarnings, performanceStats, dolbyChannelLayout, dolbyDecodingMode, h264Level, selectHoldStreamMenu, mouseEmulationStick */
   'startRequest': (...args) => {
+    // Reset overlay state for every new session, including sessions started after
+    // a previous stream set performanceStatsStreamTerminated.
+    beginPerformanceStatsStream();
+
+    // Use only the explicitly selected engine. An unknown/unavailable preference
+    // must fail closed; it must never be interpreted as permission to use EMSS.
+    const activeStreamingEngine = getSelectedStreamingEngine();
+    resetStreamingEngineState(activeStreamingEngine);
+    window._esplusActiveAudioCodec = null;
+    window._esplusAudioQuality = null;
+    if (!activeStreamingEngine) {
+      pendingStreamApiMessage = 'Could not determine the selected streaming engine. Select EMSS or ESPlusPlayer and try again.';
+      handleMessage('streamTerminated: -1');
+      return {type: 'resolve', ret: null};
+    }
+    if (activeStreamingEngine === 'ESPLUSPLAYER') {
+      startESPlusPlayerSession(args);
+      return {type: 'resolve', ret: null};
+    }
     const dolbyChannelLayout = args[31] || 'Back';
     const dolbyDecodingMode = args[32] || 'Hardware';
     const rawH264Level = args[33];
     const h264Level = rawH264Level == null || rawH264Level === ''
       ? 'Auto'
       : String(rawH264Level).replace(/\./g, '_');
+    const selectHoldStreamMenu = !!args[34];
+    const mouseEmulationStick = args[35] === 'left' ? 'left' : 'right';
     if (typeof Module.setDolbyAudioOptions === 'function') {
       Module.setDolbyAudioOptions(dolbyChannelLayout, dolbyDecodingMode);
     }
-    return Module.startStream(...args.slice(0, 31), h264Level);
+    return Module.startStream(...args.slice(0, 31), h264Level, selectHoldStreamMenu, mouseEmulationStick);
   },
   // no parameters
-  'stopRequest': (...args) => Module.stopStream(...args),
+  'stopRequest': (...args) => {
+    if (window.moonlightAmbilight) {
+      window.moonlightAmbilight.stop().catch(function(error) {
+        console.warn('[ambilight] Could not stop native service:', error);
+      });
+    }
+    // Begin the same UI termination path for both engines before sending the
+    // engine-specific stop signal. Unsolicited terminations converge on the same
+    // helper from handleMessage('streamTerminated: ...') below.
+    hidePerformanceStatsForStreamTermination();
+
+    // Stop the engine captured when this session started, not a preference that
+    // may have been changed while the stream was running.
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.stopStream === 'function') {
+        window.ESPlusPlayerTransport.stopStream().catch(function(error) {
+          console.warn('[messages.js, stopRequest]', 'ESPlusPlayer stop request failed:', error);
+        });
+      } else {
+        console.error('[messages.js, stopRequest] ESPlusPlayer was active but its transport is unavailable.');
+      }
+      return {type: 'resolve', ret: null};
+    }
+    return Module.stopStream(...args);
+  },
   // no parameters
   'cancelRequest': (...args) => Module.cancelRequest(...args),
   // no parameters
-  'toggleStats': (...args) => Module.toggleStats(...args),
+  'toggleStats': (...args) => {
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport && typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+        // HostProtocol publishes the authoritative StatsStateMsg before its
+        // response. Do not synthesize a second state event from the Promise:
+        // a delayed response can otherwise replay an obsolete visibility state.
+        window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+          console.warn('[messages.js, toggleStats] ESPlusPlayer statistics toggle failed:', error);
+        });
+      }
+      return {type: 'resolve', ret: null};
+    }
+    return Module.toggleStats(...args);
+  },
 };
 
 const AsyncFunctions = {
@@ -103,6 +276,10 @@ function replaceKnownStatsLabels(text) {
   return text
     .replace(/Video stream:/g, t('Video stream:'))
     .replace(/Audio stream:/g, t('Audio stream:'))
+    .replace(/Audio input:/g, t('Audio input:'))
+    .replace(/Audio latency:/g, t('Audio latency:'))
+    .replace(/Audio delay:/g, t('Audio delay:'))
+    .replace(/Audio transcoding latency:/g, t('Audio delay:'))
     .replace(/Decoding mode: (Automatic|Hardware|Software)/g, function(match, mode) {
       return t('Decoding mode:') + ' ' + (mode === 'Automatic' ? t('Automatic') : mode);
     })
@@ -112,23 +289,27 @@ function replaceKnownStatsLabels(text) {
         ' · ' + outOfOrder + ' ' + t('FEC out-of-order');
     })
     .replace(/Codec:/g, t('Codec:'))
-    .replace(/Incoming frame rate from network:/g, t('Incoming frame rate from network:'))
-    .replace(/Decoding frame rate:/g, t('Decoding frame rate:'))
-    .replace(/Rendering frame rate:/g, t('Rendering frame rate:'))
+    .replace(/Frame rates:/g, t('Frame rates:'))
+    .replace(/\\bRecv\\b/g, t('Recv'))
+    .replace(/\\bDec\\b/g, t('Dec'))
+    .replace(/\\bAccepted\\b/g, t('Accepted'))
     .replace(/Incoming bitrate from network:/g, t('Incoming bitrate from network:'))
-    .replace(/Frames dropped by your network connection:/g, t('Frames dropped by your network connection:'))
+    .replace(/Frames missing from stream:/g, t('Frames missing from stream:'))
     .replace(/Average network latency:/g, t('Average network latency:'))
     .replace(/\bvariance:/g, t('variance:'))
     .replace(/\bN\/A\b/g, t('N/A'))
     .replace(/Average decoding time:/g, t('Average decoding time:'))
+    .replace(/Average processing time:/g, t('Average processing time:'))
     .replace(/Average frame queue delay:/g, t('Average frame queue delay:'))
-    .replace(/Average rendering time:/g, t('Average rendering time:'))
+    .replace(/Average renderer submit time:/g, t('Average renderer submit time:'))
     .replace(/Slow connection to PC\.\nReduce your bitrate!/g, t('Slow connection to PC.\nReduce your bitrate!'));
 }
 
 
 // Ignore queued statistics messages after a stream has terminated.
 var performanceStatsStreamTerminated = false;
+// True when this session advertised CAPABILITY_SLOW_OPUS_DECODER to the host.
+window._slowOpusDecoderActive = false;
 var h264TrackRejectionClosingMessage = null;
 var pendingStreamDialogMessage = null;
 var pendingStreamApiMessage = null;
@@ -136,7 +317,28 @@ var pendingMediaPipelineErrorMessage = null;
 var pendingMediaPipelineApiMessage = null;
 var pendingVideoTrackCloseErrorMessage = null;
 var pendingVideoTrackCloseApiMessage = null;
+// Prevent delayed native progress/error callbacks from overwriting the closing transition.
+var streamTerminationTransitionActive = false;
 var pendingMediaPipelineStopRequested = false;
+
+function formatESPlusPlayerStartupDiagnostic(message) {
+  if (typeof message !== 'string' || !/^ML-ERROR\b/.test(message)) return message;
+
+  // ML-ERROR is a debug record containing internal state. Expose only the
+  // startup stage in the dialog, prefixed with its originating engine.
+  var stageMatch = message.match(/\bstage=(.*?)(?=\s+[A-Za-z][A-Za-z0-9_-]*=|$)/);
+  if (stageMatch && stageMatch[1].trim()) {
+    var stage = stageMatch[1].trim().replace(/[^A-Za-z0-9_.:/ -]/g, '').trim();
+    if (stage) return 'ESPlusPlayer::' + stage;
+  }
+
+  return 'ESPlusPlayer::Stream startup';
+}
+
+function logStreamTerminationRecovery(stage, details) {
+  if (typeof DEBUG_MODE === 'undefined' || !DEBUG_MODE) return;
+  console.debug('[stream/recovery]', stage, details || '');
+}
 
 function stopStreamAfterMediaPipelineError() {
   if (pendingMediaPipelineStopRequested || !isInGame ||
@@ -155,6 +357,12 @@ function stopStreamAfterMediaPipelineError() {
 var performanceStatsGraphSamples = [];
 var performanceStatsHostLatencyLatest = null;
 var performanceStatsPendingFirstReveal = false;
+var performanceStatsInitialSnapshotReady = false;
+var performanceStatsSnapshotComplete = false;
+var performanceStatsEnabled = null;
+var performanceStatsPendingSnapshot = null;
+var performanceStatsFirstRevealAt = 0;
+var performanceStatsRevealTimer = null;
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -176,12 +384,56 @@ function resetPerformanceStatsGraph() {
   performanceStatsGraphSamples.length = 0;
   performanceStatsHostLatencyLatest = null;
   performanceStatsPendingFirstReveal = false;
+  performanceStatsInitialSnapshotReady = false;
+  performanceStatsSnapshotComplete = false;
+  performanceStatsPendingSnapshot = null;
+  performanceStatsFirstRevealAt = 0;
+  if (performanceStatsRevealTimer !== null) {
+    window.clearTimeout(performanceStatsRevealTimer);
+    performanceStatsRevealTimer = null;
+  }
 }
 
-// Reveal the overlay only after both its text and the first network graph sample are ready.
+/**
+ * Shared UI preamble for every stream termination path. Hide and lock
+ * diagnostics before either engine begins teardown; streamTerminated calls
+ * the same helper again to cover unsolicited/remote termination.
+ */
+function hidePerformanceStatsForStreamTermination() {
+  performanceStatsStreamTerminated = true;
+  if (typeof hideUiLayerImmediately === 'function') {
+    hideUiLayerImmediately('stream-diagnostics-layer');
+  } else if (typeof hideStreamDiagnosticsLayer === 'function') {
+    hideStreamDiagnosticsLayer();
+  }
+  $('#connection-warnings').css('display', 'none').text('');
+  $('#performance-stats').css('display', 'none').text('');
+  resetPerformanceStatsGraph();
+}
+
+// Reveal only after one completed initial statistics snapshot contains at least
+// one available value and the stream transition has completely disappeared.
 function revealPerformanceStatsOverlayWhenReady() {
   if (!performanceStatsPendingFirstReveal || performanceStatsStreamTerminated ||
-      performanceStatsGraphSamples.length === 0) return;
+      !performanceStatsInitialSnapshotReady) return;
+
+  // Wait for the transition layer to disappear. Polling here is limited to UI
+  // presentation and does not participate in stream/session state.
+  var transitionLayer = document.getElementById('stream-transition-layer');
+  if (transitionLayer && window.getComputedStyle(transitionLayer).display !== 'none') {
+    if (performanceStatsRevealTimer === null) {
+      performanceStatsRevealTimer = window.setTimeout(function() {
+        performanceStatsRevealTimer = null;
+        revealPerformanceStatsOverlayWhenReady();
+      }, 50);
+    }
+    return;
+  }
+
+  // Begin the one-second reveal delay when the transition is actually hidden.
+  if (performanceStatsFirstRevealAt === 0) {
+    performanceStatsFirstRevealAt = Date.now();
+  }
 
   var overlay = document.getElementById('performance-stats');
   if (!overlay) return;
@@ -189,7 +441,20 @@ function revealPerformanceStatsOverlayWhenReady() {
   var text = overlay.querySelector('.performance-stats-text');
   if (!text || !text.textContent.trim()) return;
 
+  var elapsed = Date.now() - performanceStatsFirstRevealAt;
+  if (elapsed < 1000) {
+    if (performanceStatsRevealTimer === null) {
+      performanceStatsRevealTimer = window.setTimeout(function() {
+        performanceStatsRevealTimer = null;
+        revealPerformanceStatsOverlayWhenReady();
+      }, 1000 - elapsed);
+    }
+    return;
+  }
+
   performanceStatsPendingFirstReveal = false;
+  performanceStatsFirstRevealAt = 0;
+  overlay.style.visibility = 'visible';
   fadeInUiElement(overlay, 'inline-block');
 }
 
@@ -262,6 +527,51 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
+  // Keep the selected engine visible above the shared statistics for both
+  // renderers. This is UI metadata, not an engine-specific performance metric.
+  var engineElement = container.querySelector('.performance-stats-engine');
+  if (!engineElement) {
+    engineElement = document.createElement('div');
+    engineElement.className = 'performance-stats-row performance-stats-engine';
+    var engineLabel = document.createElement('span');
+    engineLabel.className = 'performance-stats-label';
+    var engineValue = document.createElement('span');
+    engineValue.className = 'performance-stats-value';
+    engineElement.appendChild(engineLabel);
+    engineElement.appendChild(engineValue);
+    container.insertBefore(engineElement, container.firstChild);
+  } else if (!engineElement.querySelector('.performance-stats-label') ||
+             !engineElement.querySelector('.performance-stats-value')) {
+    engineElement.className = 'performance-stats-row performance-stats-engine';
+    engineElement.textContent = '';
+    var engineLabel = document.createElement('span');
+    engineLabel.className = 'performance-stats-label';
+    var engineValue = document.createElement('span');
+    engineValue.className = 'performance-stats-value';
+    engineElement.appendChild(engineLabel);
+    engineElement.appendChild(engineValue);
+  }
+  // This compact diagnostic belongs at the very top of the overlay, above
+  // the engine row. Its visibility follows the session capability, not decoder success.
+  var slowOpusIndicator = container.querySelector('.performance-stats-slow-opus');
+  if (!slowOpusIndicator) {
+    slowOpusIndicator = document.createElement('div');
+    slowOpusIndicator.className = 'performance-stats-slow-opus';
+    slowOpusIndicator.textContent = 'SLOW OPUS ACTIVE';
+    slowOpusIndicator.setAttribute('aria-label',
+      'The learned slow Opus decoder preference is active for this session');
+  }
+  container.insertBefore(slowOpusIndicator, engineElement);
+  slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'table' : 'none';
+
+  var activeEngine = window._activeStreamingEngine;
+  var engineLabelElement = engineElement.querySelector('.performance-stats-label');
+  var engineValueElement = engineElement.querySelector('.performance-stats-value');
+  engineLabelElement.textContent = activeEngine ? 'Motor:' : '';
+  engineValueElement.textContent = activeEngine === 'ESPLUSPLAYER'
+    ? 'Nativo'
+    : activeEngine === 'EMSS' ? 'EMSS' : '';
+
   // The stream-negotiation result is cached by the transition screen. Reuse it
   // here instead of querying the core again, since this overlay may be created later.
   if (typeof currentStreamEncryptionStatus === 'number' &&
@@ -272,6 +582,8 @@ function ensurePerformanceStatsOverlayElements() {
 
   return { container: container, text: textElement, canvas: canvas, hostCanvas: hostCanvas, encryptionStatus: encryptionStatus };
 }
+
+
 
 function getPerformanceStatsGraphColor(sample) {
   if (sample.droppedFrames > 0 || sample.rtt >= 20 || sample.variance >= 50) {
@@ -316,8 +628,8 @@ function drawPerformanceStatsGraph() {
     { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: '20+ !' }
   ];
   var fecLegend = [
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery / out-of-order') },
-    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC recovery failed') }
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.warning, label: t('FEC recovery') },
+    { color: PERFORMANCE_STATS_GRAPH_COLORS.critical, label: t('FEC error') }
   ];
 
   // Widen the overlay only when necessary to keep the complete one-line legend visible.
@@ -417,8 +729,9 @@ function drawPerformanceStatsGraph() {
     context.fillStyle = getPerformanceStatsGraphColor(sample);
     context.fillRect(Math.round(x), Math.round(plotBottom - barHeight), barWidth, Math.ceil(barHeight));
 
-    // RTT bar colors remain dedicated to latency; FEC is shown in separate markers below.
-    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0 || sample.audioFecOutOfOrder > 0) {
+    // Only recovered and failed FEC events get markers. Out-of-order packets
+    // remain in the numeric statistics line, not as graph markers.
+    if (sample.audioFecRecovered > 0 || sample.audioFecFailed > 0) {
       context.beginPath();
       context.fillStyle = sample.audioFecFailed > 0
         ? PERFORMANCE_STATS_GRAPH_COLORS.critical
@@ -429,19 +742,20 @@ function drawPerformanceStatsGraph() {
   });
 }
 
-function handlePerformanceStatsGraphMessage(message) {
-  if (!isPerformanceStatsOverlayVisible()) return;
+function parsePerformanceStatsGraphSample(message) {
+  var values = message.replace('GraphMsg: ', '').split(',').map(function(value) {
+    return value.trim() === '' ? NaN : Number(value);
+  });
+  if (values.length < 3 || !values.every(Number.isFinite)) return null;
 
-  var values = message.replace('GraphMsg: ', '').split(',').map(Number);
-  if (values.length < 3 || !values.every(Number.isFinite)) return;
-
-  performanceStatsGraphSamples.push({
+  // Audio FEC fields are optional and remain unavailable when not supplied.
+  return {
     rtt: Math.max(0, values[0]),
     variance: Math.max(0, values[1]),
     droppedFrames: Math.max(0, values[2]),
-    audioFecRecovered: Math.max(0, values[3] || 0),
-    audioFecFailed: Math.max(0, values[4] || 0),
-    audioFecOutOfOrder: Math.max(0, values[5] || 0),
+    audioFecRecovered: values.length > 3 && Number.isFinite(values[3]) ? Math.max(0, values[3]) : null,
+    audioFecFailed: values.length > 4 && Number.isFinite(values[4]) ? Math.max(0, values[4]) : null,
+    audioFecOutOfOrder: values.length > 5 && Number.isFinite(values[5]) ? Math.max(0, values[5]) : null,
     hostLatency: performanceStatsHostLatencyLatest
       ? {
         min: performanceStatsHostLatencyLatest.min,
@@ -449,26 +763,106 @@ function handlePerformanceStatsGraphMessage(message) {
         avg: performanceStatsHostLatencyLatest.avg
       }
       : null
-  });
+  };
+}
+
+function appendPerformanceStatsGraphSample(sample) {
+  if (!sample) return;
+  performanceStatsGraphSamples.push(sample);
   if (performanceStatsGraphSamples.length > PERFORMANCE_STATS_GRAPH_SECONDS) {
     performanceStatsGraphSamples.shift();
   }
-  drawPerformanceStatsGraph();
-  drawHostProcessingLatencyGraph();
-  revealPerformanceStatsOverlayWhenReady();
+}
+
+function handlePerformanceStatsGraphMessage(message) {
+  var sample = parsePerformanceStatsGraphSample(message);
+  if (!sample) return;
+
+  if (!isPerformanceStatsOverlayVisible() && performanceStatsPendingFirstReveal) {
+    if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+    performanceStatsPendingSnapshot.graphSample = sample;
+    return;
+  }
+  if (!isPerformanceStatsOverlayVisible()) return;
+
+  try {
+    appendPerformanceStatsGraphSample(sample);
+    drawPerformanceStatsGraph();
+    drawHostProcessingLatencyGraph();
+  } catch (error) {
+    console.warn('[messages.js] Unable to render performance statistics graph:', error);
+  }
+}
+
+function handlePerformanceStatsSnapshotComplete(message) {
+  if (performanceStatsStreamTerminated) return;
+
+  var hasValues = message.replace('StatsSnapshotMsg: ', '').trim() === '1';
+  if (!hasValues) return;
+
+  // The native marker may arrive before the first StatMsg. Latch completion
+  // and wait for the first payload instead of discarding the initial snapshot.
+  performanceStatsSnapshotComplete = true;
+  if (!performanceStatsPendingFirstReveal) return;
+
+  var snapshot = performanceStatsPendingSnapshot;
+  if (!snapshot ||
+      (!snapshot.statsText && !snapshot.graphSample && !snapshot.hostLatency)) return;
+  performanceStatsPendingSnapshot = null;
+
+  try {
+    var elements = ensurePerformanceStatsOverlayElements();
+    if (!elements) return;
+
+    if (typeof snapshot.statsText === 'string') {
+      renderPerformanceStatsText(
+        elements.text,
+        translateBackendMessage(snapshot.statsText),
+        snapshot.statsText
+      );
+    }
+    if (snapshot.hostLatency) {
+      performanceStatsHostLatencyLatest = snapshot.hostLatency;
+      if (snapshot.graphSample) {
+        snapshot.graphSample.hostLatency = {
+          min: snapshot.hostLatency.min,
+          max: snapshot.hostLatency.max,
+          avg: snapshot.hostLatency.avg
+        };
+      }
+    }
+    appendPerformanceStatsGraphSample(snapshot.graphSample);
+    drawPerformanceStatsGraph();
+    drawHostProcessingLatencyGraph();
+
+    performanceStatsInitialSnapshotReady = true;
+    revealPerformanceStatsOverlayWhenReady();
+  } catch (error) {
+    console.warn('[messages.js] Unable to render initial performance statistics snapshot:', error);
+  }
 }
 
 function handlePerformanceStatsHostLatencyMessage(message) {
-  if (!isPerformanceStatsOverlayVisible()) return;
-
-  var values = message.replace('HostLatencyMsg: ', '').split(',').map(Number);
+  // Host latency is optional, but valid samples may arrive before the snapshot marker.
+  var values = message.replace('HostLatencyMsg: ', '').split(',').map(function(value) {
+    return value.trim() === '' ? NaN : Number(value);
+  });
   if (values.length < 3 || !values.every(Number.isFinite)) return;
 
-  performanceStatsHostLatencyLatest = {
+  var sample = {
     min: Math.max(0, values[0]),
     max: Math.max(0, values[1]),
     avg: Math.max(0, values[2])
   };
+
+  if (!isPerformanceStatsOverlayVisible() && performanceStatsPendingFirstReveal) {
+    if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+    performanceStatsPendingSnapshot.hostLatency = sample;
+    return;
+  }
+  if (!isPerformanceStatsOverlayVisible()) return;
+
+  performanceStatsHostLatencyLatest = sample;
 }
 
 // Repeat the most recently reported values on regular graph ticks until another
@@ -577,6 +971,13 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
   var sourceLines = String(sourceText || '').split('\n');
   String(text || '').split('\n').forEach(function(line, lineIndex) {
     if (!line) return;
+    if (sourceLines[lineIndex] &&
+        sourceLines[lineIndex].indexOf('Frames dropped by your network connection:') === 0) {
+      var separator = document.createElement('div');
+      separator.className = 'performance-stats-separator';
+      separator.setAttribute('aria-hidden', 'true');
+      textElement.appendChild(separator);
+    }
     var row = document.createElement('div');
     if (sourceLines[lineIndex] && sourceLines[lineIndex].indexOf('Audio FEC:') === 0) {
       var fecMatch = sourceLines[lineIndex].match(/^Audio FEC: (\d+) recovered · (\d+) failed · (\d+) out-of-order$/);
@@ -594,7 +995,84 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
       label.textContent = line.slice(0, separator + 1);
       var value = document.createElement('span');
       value.className = 'performance-stats-value';
-      value.textContent = line.slice(separator + 1).trim();
+      var valueText = line.slice(separator + 1).trim();
+      var sourceLine = sourceLines[lineIndex] || '';
+      var isAudioStreamLine = sourceLine.indexOf('Audio stream:') === 0;
+      var audioCodecMatch = isAudioStreamLine ? valueText.match(/^(\S+)([\s\S]*)$/) : null;
+      var hqMarkerMatch = audioCodecMatch && audioCodecMatch[1].match(/\|HQ(G)?$/);
+      var hasHqMarker = !!hqMarkerMatch;
+      var audioHighQualityConfirmed = !!(hqMarkerMatch && hqMarkerMatch[1] === 'G');
+      if (hasHqMarker) {
+        valueText = audioCodecMatch[1].replace(/\|HQG?$/, '') + audioCodecMatch[2];
+      }
+      var audioHighQuality = isAudioStreamLine && hasHqMarker;
+      var audioModeMatch = isAudioStreamLine
+        ? valueText.match(/\[(Hardware|Software)\]/)
+        : null;
+      // ESPlusPlayer normally forwards the negotiated codec to the native
+      // player. Preserve an explicit [Software] marker when the Tizen 5 OPUS
+      // preroll fallback is active; default to [Hardware] for native passthrough.
+      if (isAudioStreamLine && window._activeStreamingEngine === 'ESPLUSPLAYER') {
+        if (!audioModeMatch && valueText !== '-') {
+          valueText = valueText.replace(/^(\S+)(?=\s|\(|$)/, '$1 [Hardware]');
+          audioModeMatch = valueText.match(/\[Hardware\]/);
+        }
+      }
+      function appendAudioCodecPrefix(prefix, suffix) {
+        if (!audioHighQuality) {
+          value.appendChild(document.createTextNode(prefix + suffix));
+          return;
+        }
+        var codecMatch = prefix.match(/^(\S+)([\s\S]*)$/);
+        if (!codecMatch) {
+          value.appendChild(document.createTextNode(prefix + suffix));
+          return;
+        }
+        value.appendChild(document.createTextNode(codecMatch[1]));
+        var hq = document.createElement('sup');
+        hq.className = 'performance-stats-audio-hq' +
+          (audioHighQualityConfirmed ? ' performance-stats-audio-hq--confirmed' : '');
+        hq.textContent = 'HQ';
+        hq.setAttribute('aria-label', 'High quality audio');
+        value.appendChild(hq);
+        value.appendChild(document.createTextNode(codecMatch[2] + suffix));
+      }
+      if (audioModeMatch) {
+        var modeStart = audioModeMatch.index;
+        var modeEnd = modeStart + audioModeMatch[0].length;
+        appendAudioCodecPrefix(valueText.slice(0, modeStart), '');
+
+        var modeGroup = document.createElement('span');
+        modeGroup.className = 'performance-stats-audio-mode-group';
+
+        var modeIcon = document.createElement('i');
+        modeIcon.className = 'material-icons performance-stats-audio-mode-icon performance-stats-audio-mode-icon--' +
+          audioModeMatch[1].toLowerCase();
+        modeIcon.setAttribute('aria-hidden', 'true');
+        modeIcon.textContent = audioModeMatch[1] === 'Hardware' ? 'check_circle' : 'error';
+
+        modeGroup.appendChild(document.createTextNode('['));
+        modeGroup.appendChild(modeIcon);
+        modeGroup.appendChild(document.createTextNode(' ' + audioModeMatch[1] + ']'));
+        value.appendChild(modeGroup);
+        value.appendChild(document.createTextNode(valueText.slice(modeEnd)));
+      } else if (isAudioStreamLine) {
+        appendAudioCodecPrefix(valueText, '');
+      } else if (sourceLine.indexOf('Video stream:') === 0 && valueText.indexOf('HDR') !== -1) {
+        var codecParts = valueText.split(/(HDR)/g);
+        codecParts.forEach(function(part) {
+          if (part === 'HDR') {
+            var hdrMarker = document.createElement('span');
+            hdrMarker.className = 'performance-stats-hdr-rainbow';
+            hdrMarker.textContent = part;
+            value.appendChild(hdrMarker);
+          } else if (part) {
+            value.appendChild(document.createTextNode(part));
+          }
+        });
+      } else {
+        value.textContent = valueText;
+      }
       row.appendChild(label);
       row.appendChild(value);
     } else {
@@ -607,6 +1085,10 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
+  performanceStatsEnabled = null;
+  window._slowOpusDecoderActive = false;
+  var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
+  if (slowOpusIndicator) slowOpusIndicator.style.display = 'none';
   resetPerformanceStatsGraph();
 }
 
@@ -664,6 +1146,9 @@ var _queuedPairing = null;
 var sendMessage = function(method, params) {
   if (SyncFunctions[method]) {
     if (method === 'startRequest') {
+      // A new session has not crossed the startup success boundary yet.
+      window._streamTransitionHiddenForSession = false;
+      streamTerminationTransitionActive = false;
       h264TrackRejectionClosingMessage = null;
       pendingStreamDialogMessage = null;
       pendingStreamApiMessage = null;
@@ -798,19 +1283,49 @@ function handleMessage(msg) {
   // Avoid console I/O for recurring statistics messages, especially when their overlay is hidden.
   if (msg.indexOf('StatMsg: ') !== 0 &&
       msg.indexOf('GraphMsg: ') !== 0 &&
-      msg.indexOf('HostLatencyMsg: ') !== 0) {
+      msg.indexOf('HostLatencyMsg: ') !== 0 &&
+      msg.indexOf('ProgressMsg: ') !== 0 &&
+      msg.indexOf('StatsSnapshotMsg: ') !== 0) {
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Message data: ', msg);
   }
+  // Native callbacks may already be queued when the stream stops. They must not
+  // overwrite the new closing title/status once termination has begun.
+  if (streamTerminationTransitionActive &&
+      /^(?:ProgressMsg: |TransientMsg: |DialogMsg: |MediaPipelineErrorMsg: |VideoTrackCloseErrorMsg: |H264TrackRejectedMsg: )/.test(String(msg))) {
+    return;
+  }
+
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Lock and reset the transition immediately, before teardown work or any
+    // callback can expose stale startup text from the previous session.
+    streamTerminationTransitionActive = true;
+    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    // Snapshot the sole success boundary before teardown resets any session state.
+    var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
+    var streamRemoteAppLaunchRequested = window._remoteStreamAppLaunchRequested === true;
+    window._streamTransitionHiddenForSession = false;
+    window._remoteStreamAppLaunchRequested = false;
+    var initialClosingAppName = window._activeStreamAppName || t('Apps');
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', initialClosingAppName));
+    $('#loadingSpinnerMessage').empty();
+    var engineState = window.getStreamingEngineState();
+    engineState.confirmed = false;
+    engineState.videoReady = false;
+    window._activeStreamingEngineConfirmed = false;
+    // Reset the native gamepad's local mouse mode even if polling has already
+    // stopped; it must never leak into the next streaming session.
+    if (typeof Module !== 'undefined' &&
+        typeof Module._resetGamepadMouseEmulation === 'function') {
+      Module._resetGamepadMouseEmulation();
+    }
+    window._esplusActiveAudioCodec = null;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     // Stop encryption-status polling for every termination path, including negotiation failures.
     stopStreamEncryptionStatusPolling();
     // Hide and lock the overlay before painting the direct-launch closing status.
-    performanceStatsStreamTerminated = true;
-    hideStreamDiagnosticsLayer(function() {
-      resetPerformanceStatsGraph();
-    });
+    // Also cover unsolicited native termination and the EMSS callback path.
+    hidePerformanceStatsForStreamTermination();
 
     // Close the Stream Menu if it is open
     closeStreamMenuDialog(false);
@@ -820,7 +1335,6 @@ function handleMessage(msg) {
     // Remove the video stream now
     $('#listener').removeClass('fullscreen');
     $('body').css('backgroundColor', '#282C38');
-    var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     var streamH264TrackRejectionMessage = h264TrackRejectionClosingMessage;
     var streamDialogMessage = pendingStreamDialogMessage;
     var streamApiMessage = pendingStreamApiMessage;
@@ -828,6 +1342,7 @@ function handleMessage(msg) {
     var streamMediaPipelineApiMessage = pendingMediaPipelineApiMessage;
     var streamVideoTrackCloseErrorMessage = pendingVideoTrackCloseErrorMessage;
     var streamVideoTrackCloseApiMessage = pendingVideoTrackCloseApiMessage;
+    var hasESPlusPlayerStartupDiagnostic = typeof streamApiMessage === 'string' && /^ML-ERROR\b/.test(streamApiMessage);
     h264TrackRejectionClosingMessage = null;
     pendingStreamDialogMessage = null;
     pendingStreamApiMessage = null;
@@ -836,6 +1351,19 @@ function handleMessage(msg) {
     pendingVideoTrackCloseErrorMessage = null;
     pendingVideoTrackCloseApiMessage = null;
 
+    if (typeof DEBUG_MODE !== 'undefined' && DEBUG_MODE) {
+      console.debug('[stream] Stream termination diagnostics', {
+        streamingEngine: window._activeStreamingEngine || null,
+        errorCode: errorCode,
+        manualStopRequested: window._manualStreamStopRequested === true,
+        streamApiMessage: streamApiMessage,
+        streamDialogMessage: streamDialogMessage,
+        mediaPipelineApiMessage: streamMediaPipelineApiMessage,
+        videoTrackCloseApiMessage: streamVideoTrackCloseApiMessage,
+        h264TrackRejection: streamH264TrackRejectionMessage
+      });
+    }
+
     // A startup watchdog already owns the visible error and recovery/exit sequence.
     // Ignore the native stop acknowledgement to prevent a second UI transition.
     if (window._streamStartupFailureHandled) {
@@ -843,9 +1371,13 @@ function handleMessage(msg) {
       return;
     }
 
+    // Snapshot the sole stream-success boundary before any termination path resets it.
+    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
+    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
+
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
-    // Preserve the optional "quit host app after disconnect" behavior for graceful disconnects,
-    // but always exit this client regardless of whether the stream ended normally or with an error.
+    // The host app is closed for manual termination and pre-success startup failures, but
+    // retained after unexpected errors once the transition has actually been hidden.
     if (window._directSmartHubLaunch) {
       // Reuse the shared transition layer for the closing status; never restore the home UI.
       resetStreamEncryptionStatus();
@@ -877,6 +1409,9 @@ function handleMessage(msg) {
         case -201:
           directClosingMessage = t('The TV rejected the H.264 video configuration.');
           break;
+        case -300:
+          directClosingMessage = t('The TV media player reported an error.');
+          break;
         default:
           directClosingMessage = t('Connection to %1$s lost.', directHostName);
           break;
@@ -900,14 +1435,19 @@ function handleMessage(msg) {
               ? t('Unable to launch the selected app.')
               : directClosingMessage));
       }
-      var shouldQuitDirectHostApp = errorCode === 0 &&
-        !streamMediaPipelineErrorMessage && !streamDialogMessage &&
-        !streamH264TrackRejectionMessage && !streamVideoTrackCloseErrorMessage &&
-        !!(window._directSmartHubStreamSettings &&
-          window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var directQuitPreferenceEnabled = !!(window._directSmartHubStreamSettings &&
+        window._directSmartHubStreamSettings.quitAppAfterDisconnect);
+      var shouldQuitDirectHostApp = directQuitPreferenceEnabled && (
+        manualStreamStopAtTermination ||
+        (!streamTransitionWasHiddenAtTermination && directStreamHasError) ||
+        (!directStreamHasError && errorCode === 0)
+      );
       var exitDirectLaunch = function() {
         try {
-          tizen.application.getCurrentApplication().exit();
+          // Reuse Moonlight's common exit path so the optional Ambilight service
+          // receives shutdown before the Web application returns to Smart Hub.
+          if (typeof exitApplication === 'function') exitApplication();
+          else tizen.application.getCurrentApplication().exit();
         } catch (error) {
           console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not exit after direct Smart Hub session ended:', error);
         }
@@ -919,10 +1459,15 @@ function handleMessage(msg) {
 
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
-          withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+          try {
+            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
+              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+              finishDirectLaunch();
+            });
+          } catch (failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
             finishDirectLaunch();
-          });
+          }
         } else {
           finishDirectLaunch();
         }
@@ -937,6 +1482,14 @@ function handleMessage(msg) {
       }
       return;
     }
+
+    if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
+      window.moonlightAmbilight.shutdown().catch(function(error) {
+        console.warn('[ambilight] Could not shut down service after stream termination:', error);
+      });
+    }
+
+    logStreamTerminationRecovery('termination received', {errorCode: errorCode, engine: window._activeStreamingEngine || null});
 
     // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
     // This also prevents the manual Quit App action from racing the recovery request.
@@ -990,8 +1543,13 @@ function handleMessage(msg) {
         case -201:
           transitionStatusMessage = t('The TV rejected the H.264 video configuration.');
           break;
+        case -300:
+          transitionStatusMessage = t('The TV media player reported an error.');
+          break;
         default:
-          transitionStatusMessage = t('Connection to %1$s lost.', activeStreamHostName);
+          transitionStatusMessage = window._activeStreamingEngine === 'ESPLUSPLAYER' && hasESPlusPlayerStartupDiagnostic
+            ? t('Unable to launch the selected app.')
+            : t('Connection to %1$s lost.', activeStreamHostName);
           break;
       }
     }
@@ -1013,20 +1571,22 @@ function handleMessage(msg) {
           : transitionStatusMessage));
     var streamErrorApiMessage = streamMediaPipelineApiMessage ||
       streamApiMessage || streamVideoTrackCloseApiMessage || null;
+    // Keep the ESPlusPlayer engine and failing startup stage identifiable in the dialog,
+    // while leaving the full ML-ERROR record exclusively in DEBUG_MODE logs.
+    streamErrorApiMessage = formatESPlusPlayerStartupDiagnostic(streamErrorApiMessage);
     console.info('[stream]', 'Stream ended. Error code: ' + errorCode +
       (hasStreamError ? ' — ' + streamErrorDialogMessage : ''));
     if (typeof logStreamModeClosing === 'function') logStreamModeClosing();
 
-    // Set the message first, then show the complete transition layer. The local UI
-    // audio engine is rebuilt only after this layer is fully visible.
+    // Prepare the closing copy immediately before requesting the existing transition.
+    // This replaces startup-phase text without changing when or how the transition appears.
     window._normalStreamVideoReady = false;
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     var resolveLocalAudioRestoration;
     var localAudioRestoration = new Promise(function(resolve) {
       resolveLocalAudioRestoration = resolve;
     });
     var restoreLocalAudioAfterTransitionAppears = function() {
+      logStreamTerminationRecovery('closing transition visible');
       if (window._directSmartHubLaunch) {
         resolveLocalAudioRestoration();
         return;
@@ -1053,6 +1613,10 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
       });
     };
+    // Set both text fields before the transition can become visible. The title is
+    // specific to the closing phase; the status starts with its closing-phase message.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
       showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
     } else {
@@ -1062,8 +1626,36 @@ function handleMessage(msg) {
     }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
-    var shouldQuitHostApp = errorCode === 0 && !hasStreamError &&
-      $('#quitAppAfterDisconnectSwitch').parent().hasClass('is-checked');
+    var persistedPreferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
+    var quitAfterDisconnect = persistedPreferences && (
+      persistedPreferences.quitAppAfterDisconnect === true ||
+      persistedPreferences.quitAppAfterDisconnect === 'true' ||
+      persistedPreferences.quitAppAfterDisconnect === 1
+    );
+    // Preserve the existing graceful/manual-disconnect behavior. In addition,
+    // a startup failure before the transition was hidden must make a best-effort
+    // attempt to close the remote app. Once hidden, unexpected errors never do.
+    var shouldQuitHostApp = !!quitAfterDisconnect && (
+      manualStreamStopRequested ||
+      (hasStreamError && !streamTransitionWasHidden) ||
+      (errorCode === 0 && !hasStreamError)
+    );
+    var startupRemoteAppQuit = Promise.resolve();
+    if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
+        streamRemoteAppLaunchRequested && shouldQuitHostApp &&
+        window._activeStreamAppName && window._activeStreamAppName !== t('Apps') &&
+        api && typeof api.quitApp === 'function') {
+      console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
+      try {
+        startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
+          console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
+        }, function(error) {
+          console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
+        });
+      } catch (error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
+      }
+    }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
       console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not restore the host app list after stream termination; returning to Hosts instead:', failure);
@@ -1173,6 +1765,7 @@ function handleMessage(msg) {
     // shortly before the transition starts fading out, avoiding a flash of the page
     // background behind the animated starfield.
     var beginRecoveryAfterTransition = function() {
+      logStreamTerminationRecovery('closing transition hidden; Apps UI shown');
       if (hasStreamError) {
         // The transition is now fully hidden and the Apps interface is visible.
         // Keep the error modal open until the user acknowledges it; refresh the
@@ -1191,8 +1784,9 @@ function handleMessage(msg) {
         window._streamTerminationRecoveryInProgress = false;
         var errorQuitButton = document.getElementById('quitRunningAppBtn');
         if (errorQuitButton) errorQuitButton.disabled = false;
+        logStreamTerminationRecovery('opening shared stream error dialog', {errorCode: errorCode, hasApiMessage: !!streamErrorApiMessage});
         warningDialog(t('Error'), streamErrorDialogMessage, function() {
-          refreshHostAndReturnToApps();
+          startupRemoteAppQuit.then(refreshHostAndReturnToApps);
         }, true, 'OK', {
           code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
           apiMessage: streamErrorApiMessage
@@ -1220,6 +1814,7 @@ function handleMessage(msg) {
     };
 
     var hideTransitionAndBeginRecovery = function() {
+      logStreamTerminationRecovery('Apps UI fade completed; hiding closing transition');
       // showAppsMode has completed its UI fade and all app-list recovery work.
       // Restart ambient animation now, immediately before the transition fades out.
       if (typeof updateAmbientBackgroundActivation === 'function') {
@@ -1235,6 +1830,7 @@ function handleMessage(msg) {
     };
 
     var showAppsUiBeforeTransitionCloses = function() {
+      logStreamTerminationRecovery('restoring Apps UI');
       // showAppsMode completes the normal UI fade before invoking its callback.
       // Starting the transition fade there leaves only a brief overlap between layers.
       showAppsMode(true, hideTransitionAndBeginRecovery, true);
@@ -1243,6 +1839,7 @@ function handleMessage(msg) {
     // Do not continue recovery or reveal the Apps UI until the local audio engine
     // has been recreated and click.mp3 has been decoded.
     localAudioRestoration.then(function() {
+      logStreamTerminationRecovery('local audio restoration released');
       var remainingTransitionMs = streamTerminationMinimumVisibleMs -
         (Date.now() - streamTerminationTransitionShownAt);
       if (remainingTransitionMs > 0) {
@@ -1252,7 +1849,22 @@ function handleMessage(msg) {
       }
     });
 
+  } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
+    var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
+    if (typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
+        typeof updateOptimizedBitrateAfterNegotiation === 'function') {
+      updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1], negotiatedAudio[2]);
+    }
   } else if (msg === 'Connection Established') {
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
+        typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
+        typeof updateOptimizedBitrateAfterNegotiation === 'function') {
+      var nativeAudioPreferences = configSummarySnapshot && configSummarySnapshot.preferences;
+      if (nativeAudioPreferences && nativeAudioPreferences.audioBackend === 'Disabled') {
+        updateOptimizedBitrateAfterNegotiation('OFF', 0);
+      }
+    }
+    confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
@@ -1262,8 +1874,11 @@ function handleMessage(msg) {
     // Prepare the screen for video stream, but keep the negotiation animation visible
     // until the first decoded host frame arrives.
     $('body').css('backgroundColor', 'transparent');
-    $('#wasm_module').css('display', '');
-    $('#wasm_module').focus();
+    // ESPlusPlayer presents through its native Tizen surface, not #wasm_module.
+    if (!window.isNativeStreamingEngineActive()) {
+      $('#wasm_module').css('display', '');
+      $('#wasm_module').focus();
+    }
   } else if (msg.indexOf('MediaPipelineErrorMsg: ') === 0) {
     // MediaSource may report a format error while it is being closed. Such a
     // callback is a teardown side effect, not a failure of the active stream.
@@ -1338,7 +1953,13 @@ function handleMessage(msg) {
   } else if (typeof msg === 'string' && msg.trim() === 'displayVideo') {
     // A late first-frame notification must not revive a stream whose startup failed.
     if (window._streamStartupFailureHandled) return;
-    if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
+    var nativeWmpVideo = window.getStreamingEngineState().active === 'ESPLUSPLAYER';
+    // EMSS keeps its existing readiness boundary. WMP remains in startup until
+    // the transition layer has actually disappeared over the native video.
+    if (!nativeWmpVideo) {
+      if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
+      markStreamingEngineVideoReady();
+    }
     console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Video-ready notification received.');
     // Prefer the browser's shared playback-ready handler. The video element's
     // "playing" event is also wired as a fallback for builds that omit this message.
@@ -1358,6 +1979,7 @@ function handleMessage(msg) {
         $('#listener').addClass('fullscreen');
       }
     }
+
   } else if (msg.indexOf('NoWarningMsg: ') === 0) {
     // Hide the connection warnings overlay
     fadeOutUiElement('connection-warnings', function() {
@@ -1369,46 +1991,121 @@ function handleMessage(msg) {
     $('#connection-warnings').css('background', 'rgba(0, 0, 0, 0.5)');
     $('#connection-warnings').text(translateBackendMessage(msg.replace('WarningMsg: ', '')));
     fadeInUiElement('connection-warnings', 'inline-block');
+  } else if (msg.indexOf('StatsStateMsg: ') === 0) {
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      var nextStatsEnabled = msg.replace('StatsStateMsg: ', '').trim() === '1';
+      if (performanceStatsEnabled !== nextStatsEnabled) {
+        performanceStatsEnabled = nextStatsEnabled;
+        resetPerformanceStatsGraph();
+
+        var nativeStatsOverlay = document.getElementById('performance-stats');
+        if (nativeStatsOverlay) {
+          if (nextStatsEnabled) {
+            // Start each native reveal from a clean, hidden state. The overlay
+            // becomes visible only after the service sends a complete snapshot.
+            nativeStatsOverlay.style.display = 'inline-block';
+            nativeStatsOverlay.style.opacity = '0';
+            nativeStatsOverlay.style.visibility = 'hidden';
+            nativeStatsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+            performanceStatsPendingFirstReveal = true;
+          } else {
+            // Invalidate any pending first-reveal work before fading out. The
+            // callback must not clear a newer snapshot if the user re-enables it.
+            fadeOutUiElement(nativeStatsOverlay, function() {
+              if (performanceStatsEnabled !== false) return;
+              nativeStatsOverlay.style.background = 'transparent';
+              nativeStatsOverlay.textContent = '';
+            });
+          }
+        }
+      }
+    }
   } else if (msg.indexOf('NoStatMsg: ') === 0) {
-    // Hide the overlay for this streaming session without changing the saved preference.
-    resetPerformanceStatsGraph();
-    fadeOutUiElement('performance-stats', function() {
-      $('#performance-stats').css('background', 'transparent');
-      $('#performance-stats').text('');
-    });
+    // Common C uses this event directly. For ESPlusPlayer, StatsStateMsg above
+    // already performed the complete transition and this event is redundant.
+    if (window._activeStreamingEngine !== 'ESPLUSPLAYER') {
+      resetPerformanceStatsGraph();
+      fadeOutUiElement('performance-stats', function() {
+        $('#performance-stats').css('background', 'transparent');
+        $('#performance-stats').text('');
+      });
+    }
+  } else if (msg.indexOf('SlowOpusDecoderStatus: ') === 0) {
+    window._slowOpusDecoderActive = msg.replace('SlowOpusDecoderStatus: ', '').trim() === '1';
+    var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
+    if (slowOpusIndicator) {
+      slowOpusIndicator.style.display = window._slowOpusDecoderActive ? 'table' : 'none';
+    }
+  } else if (msg.indexOf('SlowOpusDecoderLearned: ') === 0) {
+    var slowOpusLearned = msg.replace('SlowOpusDecoderLearned: ', '').trim();
+    if (slowOpusLearned === '0' || slowOpusLearned === '1') {
+      try {
+        localStorage.setItem('moonlight.slowOpusDecoderRequired', slowOpusLearned === '1' ? 'true' : 'false');
+      } catch (error) {
+        console.warn('[audio] Could not persist the learned Opus passthrough result:', error);
+      }
+    }
+  } else if (msg.indexOf('EncryptionStatusMsg: ') === 0) {
+    var encryptionStatusValue = Number(msg.replace('EncryptionStatusMsg: ', '').trim());
+    if (Number.isInteger(encryptionStatusValue) && encryptionStatusValue >= 0) {
+      currentStreamEncryptionStatus = encryptionStatusValue;
+      if (typeof renderStreamEncryptionStatus === 'function') {
+        renderStreamEncryptionStatus(currentStreamEncryptionStatus);
+      }
+    }
   } else if (msg.indexOf('StatMsg: ') === 0) {
-    if (performanceStatsStreamTerminated) return;
+    if (performanceStatsStreamTerminated ||
+        (window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) return;
 
     var statsOverlay = document.getElementById('performance-stats');
     if (!statsOverlay) return;
     var overlayWasVisible = isPerformanceStatsOverlayVisible();
+    var sourceStatsText = msg.replace('StatMsg: ', '');
 
-    // Keep the overlay transparent while the first statistics message is rendered.
-    // fadeInUiElement schedules the opacity transition on the next animation frame,
-    // so the first visible frame already contains the populated statistics.
     if (!overlayWasVisible) {
       statsOverlay.style.display = 'inline-block';
       statsOverlay.style.opacity = '0';
+      statsOverlay.style.visibility = 'hidden';
       performanceStatsPendingFirstReveal = true;
+      performanceStatsPendingSnapshot = sourceStatsText
+        ? { statsText: sourceStatsText }
+        : null;
     }
     statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
 
-    var statsElements = ensurePerformanceStatsOverlayElements();
-    if (statsElements) {
-      var sourceStatsText = msg.replace('StatMsg: ', '');
-      renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
-      drawPerformanceStatsGraph();
-      drawHostProcessingLatencyGraph();
-
-      if (!overlayWasVisible) {
-        // GraphMsg arrives separately; keep the overlay transparent until its first sample is drawn.
-        revealPerformanceStatsOverlayWhenReady();
+    if (overlayWasVisible) {
+      var statsElements = ensurePerformanceStatsOverlayElements();
+      if (statsElements) {
+        try {
+          renderPerformanceStatsText(statsElements.text, translateBackendMessage(sourceStatsText), sourceStatsText);
+          drawPerformanceStatsGraph();
+          drawHostProcessingLatencyGraph();
+        } catch (error) {
+          console.warn('[messages.js] Unable to render performance statistics:', error);
+        }
+      }
+    } else if (sourceStatsText) {
+      if (!performanceStatsPendingSnapshot) performanceStatsPendingSnapshot = {};
+      performanceStatsPendingSnapshot.statsText = sourceStatsText;
+      if (performanceStatsSnapshotComplete) {
+        handlePerformanceStatsSnapshotComplete('StatsSnapshotMsg: 1');
       }
     }
   } else if (msg.indexOf('HostLatencyMsg: ') === 0) {
-    if (!performanceStatsStreamTerminated) handlePerformanceStatsHostLatencyMessage(msg);
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsHostLatencyMessage(msg);
+    }
   } else if (msg.indexOf('GraphMsg: ') === 0) {
-    if (!performanceStatsStreamTerminated) handlePerformanceStatsGraphMessage(msg);
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsGraphMessage(msg);
+    }
+  } else if (msg.indexOf('StatsSnapshotMsg: ') === 0) {
+    if (!performanceStatsStreamTerminated &&
+        !(window._activeStreamingEngine === 'ESPLUSPLAYER' && performanceStatsEnabled === false)) {
+      handlePerformanceStatsSnapshotComplete(msg);
+    }
   } else if (msg.indexOf('controllerRumble: ') === 0) {
     const eventData = msg.split(' ')[1].split(',');
     const gamepadIdx = parseInt(eventData[0]);
@@ -1428,6 +2125,9 @@ function handleMessage(msg) {
     } else {
       console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Warning: Gamepad ' + gamepadIdx + ' does not support the rumble feature!');
     }
+  } else if (msg.indexOf('openStreamMenu') === 0) {
+    // The native gamepad handler requests the existing UI menu; JS only presents it.
+    if (typeof openStreamMenuFromGamepad === 'function') openStreamMenuFromGamepad();
   } else if (msg.indexOf('mouseEmulationOn') === 0) {
     // Show mouse emulation enable status as a notification
     snackbarLogLong('Mouse emulation is activated');

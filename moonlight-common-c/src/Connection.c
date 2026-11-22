@@ -2,7 +2,7 @@
 
 static int stage = STAGE_NONE;
 static ConnListenerConnectionTerminated originalTerminationCallback;
-static bool alreadyTerminated;
+static atomic_bool alreadyTerminated;
 static PLT_THREAD terminationCallbackThread;
 static int terminationCallbackErrorCode;
 
@@ -16,10 +16,14 @@ STREAM_CONFIGURATION StreamConfig;
 CONNECTION_LISTENER_CALLBACKS ListenerCallbacks;
 DECODER_RENDERER_CALLBACKS VideoCallbacks;
 AUDIO_RENDERER_CALLBACKS AudioCallbacks;
+bool AudioTransportEnabled = true;
+bool AudioOutputEnabled = true;
 int NegotiatedVideoFormat;
-volatile bool ConnectionInterrupted;
+atomic_bool ConnectionInterrupted;
 bool HighQualitySurroundSupported;
 bool HighQualitySurroundEnabled;
+bool DolbyAudioOffered;
+bool HighQualityAudioEnabled;
 OPUS_MULTISTREAM_CONFIGURATION NormalQualityOpusConfig;
 OPUS_MULTISTREAM_CONFIGURATION HighQualityOpusConfig;
 int AudioPacketDuration;
@@ -91,8 +95,8 @@ void LiStopConnection(void) {
     if (stage == STAGE_AUDIO_STREAM_START) {
         Limelog("Stopping audio stream...");
         stopAudioStream();
-        stage--;
         Limelog("done\n");
+        stage--;
     }
     if (stage == STAGE_VIDEO_STREAM_START) {
         Limelog("Stopping video stream...");
@@ -131,8 +135,8 @@ void LiStopConnection(void) {
     if (stage == STAGE_AUDIO_STREAM_INIT) {
         Limelog("Cleaning up audio stream...");
         destroyAudioStream();
-        stage--;
         Limelog("done\n");
+        stage--;
     }
     if (stage == STAGE_NAME_RESOLUTION) {
         // Nothing to do
@@ -168,13 +172,17 @@ static void ClInternalConnectionTerminated(int errorCode)
 {
     int err;
 
-    // Avoid recursion and issuing multiple callbacks
-    if (alreadyTerminated || ConnectionInterrupted) {
+    // Ensure only one thread triggers connection termination
+    if (atomic_exchange_explicit(&alreadyTerminated, true, memory_order_acq_rel)) {
+        return;
+    }
+
+    // If the connection is being stopped, no callback is needed
+    if (ConnectionInterrupted) {
         return;
     }
 
     terminationCallbackErrorCode = errorCode;
-    alreadyTerminated = true;
 
     // Invoke the termination callback on a separate thread
     err = PltCreateThread("AsyncTerm", terminationCallbackThreadFunc, NULL, &terminationCallbackThread);
@@ -215,10 +223,14 @@ static bool parseRtspPortNumberFromUrl(const char* rtspSessionUrl, uint16_t* por
 }
 
 // Starts the connection to the streaming machine
-int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
+int LiStartConnectionEx(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
     PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
-    void* audioContext, int arFlags) {
+    void* audioContext, int arFlags, int audioOutputEnabled) {
     int err;
+
+    AudioTransportEnabled = true;
+    AudioOutputEnabled = audioOutputEnabled != 0;
+    HighQualityAudioEnabled = false;
 
     // Do not expose a previous stream's encryption status while this connection negotiates.
     EncryptionStatus = -1;
@@ -436,7 +448,7 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
         }
     }
 
-    Limelog("Initializing audio stream...");
+    Limelog("Initializing audio transport...");
     ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_INIT);
     err = initializeAudioStream();
     if (err != 0) {
@@ -517,7 +529,7 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     ListenerCallbacks.stageComplete(STAGE_VIDEO_STREAM_START);
     Limelog("done\n");
 
-    Limelog("Starting audio stream...");
+    Limelog(AudioOutputEnabled ? "Starting audio playback..." : "Starting audio transport (playback disabled)...");
     ListenerCallbacks.stageStarting(STAGE_AUDIO_STREAM_START);
     err = startAudioStream(audioContext, arFlags);
     if (err != 0) {
@@ -557,6 +569,13 @@ Cleanup:
         LiStopConnection();
     }
     return err;
+}
+
+int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION streamConfig, PCONNECTION_LISTENER_CALLBACKS clCallbacks,
+    PDECODER_RENDERER_CALLBACKS drCallbacks, PAUDIO_RENDERER_CALLBACKS arCallbacks, void* renderContext, int drFlags,
+    void* audioContext, int arFlags) {
+    return LiStartConnectionEx(serverInfo, streamConfig, clCallbacks, drCallbacks, arCallbacks,
+                              renderContext, drFlags, audioContext, arFlags, 1);
 }
 
 const char* LiGetLaunchUrlQueryParameters(void) {
