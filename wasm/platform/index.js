@@ -5097,7 +5097,7 @@ function showApps(host, options) {
   return new Promise((resolve, reject) => {
     var settled = false;
     var artworkAbandoned = false;
-    var preserveExistingAppGrid = appListInteractionLocked;
+    var preserveExistingAppGrid = appListInteractionLocked && !(options && options.forceRebuildAppGrid);
     var ownsAppListLock = false;
     var suppressLoadingSnackbar = !!(options && options.suppressLoadingSnackbar);
 
@@ -5548,6 +5548,7 @@ function showAppsWithCachedList(host) {
 
   return showApps(host, {
     appListOverride: cachedAppList,
+    forceRebuildAppGrid: true,
     suppressLoadingSnackbar: true,
     suppressEmptyListSnackbar: true,
     keepInteractionLocked: true
