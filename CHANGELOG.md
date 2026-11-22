@@ -22,6 +22,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Settings section navigation:** Kept the right-hand pane and its controls visible while navigating between settings sections, dimming the pane during the transition instead of hiding it.
 
 ### Fixed
+- **Samsung Smart Hub Preview integration:** Fixed the application metadata so that Smart Hub Preview correctly displays the host name associated with the applications shown in its app cards.
 - **Performance statistics robustness:** Made unavailable, invalid or incomplete video, network and audio measurements non-fatal. Invalid counters and timing intervals now produce unavailable placeholders instead of unsafe calculations, and unknown video formats no longer trigger assertions. Statistics overlay rendering errors are isolated from stream processing.
 - **Performance statistics startup timing:** Kept the statistics overlay hidden until the startup transition has completely disappeared, then enforced an additional one-second delay before its first reveal.
 - **Streaming with audio output disabled:** Kept the GameStream audio transport and UDP ping active while discarding received audio packets without decoding or routing them to a playback backend.
