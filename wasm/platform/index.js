@@ -5666,10 +5666,22 @@ function showAppsWithCachedList(host) {
       }, 1000);
 
       return request.then(function(freshAppList) {
+        // The one-second threshold measures only the /applist request, not
+        // subsequent differential rendering or artwork downloads.
+        if (operation.timer !== null) {
+          clearTimeout(operation.timer);
+          operation.timer = null;
+        }
         if (!isCurrentOperation()) return;
         return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
           if (isCurrentOperation()) host._memCachedApplist = freshAppList;
         });
+      }, function(error) {
+        if (operation.timer !== null) {
+          clearTimeout(operation.timer);
+          operation.timer = null;
+        }
+        throw error;
       }).catch(function(error) {
         // A failed confirmation must not discard the already visible cached list.
         console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not confirm the cached app list with Sunshine; keeping the cached grid visible:', error);
