@@ -5007,7 +5007,7 @@ function sortAppsForHost(host, appList) {
 }
 
 // Handle layout elements when displaying the Apps view
-function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions) {
+function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions, preserveLoadingSnackbar) {
   stopDisabledSwitchAppearanceObserver();
   if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
@@ -5030,7 +5030,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   // Only use the full fade transition when entering Apps from another view.
   var preserveVisibleAppGrid = appListInteractionLocked && $('#game-grid').children('.game-container').length > 0;
   var finishAppsGridReveal = function() {
-    if (!deferPostTransitionActions) clearViewLoadingSnackbarTimer();
+    if (!deferPostTransitionActions && !preserveLoadingSnackbar) clearViewLoadingSnackbarTimer();
     if (appListInteractionLocked) {
       if (!keepInteractionLocked) unlockAppListInteraction();
     } else {
@@ -5396,7 +5396,7 @@ function showApps(host, options) {
         }
 
         // Navigate to the Apps view without starting diagnostic audio playback.
-        showAppsMode(!!(options && options.keepInteractionLocked));
+        showAppsMode(!!(options && options.keepInteractionLocked), undefined, false, true);
 
         // Keep the delayed loading snackbar active until the artwork and Preview work
         // has settled. Fast app-list operations still cancel it before the one-second
