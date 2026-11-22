@@ -5091,6 +5091,39 @@ function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
 // Show the Apps grid
 function showApps(host, options) {
   return new Promise((resolve, reject) => {
+    var settled = false;
+    var suppressLoadingSnackbar = !!(options && options.suppressLoadingSnackbar);
+
+    // All exits share the same cleanup path so neither a rejected request nor an
+    // exception during rendering can leave the delayed loading snackbar behind.
+    var finishSuccess = function(persistentMessageHandled) {
+      if (settled) return;
+      settled = true;
+      clearViewLoadingSnackbarTimer();
+      var dismissal = persistentMessageHandled || suppressLoadingSnackbar
+        ? Promise.resolve()
+        : dismissPersistentSnackbar();
+      Promise.resolve(dismissal).catch(function(error) {
+        console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after a successful app-list operation:', error);
+      }).then(function() {
+        resolve();
+      });
+    };
+
+    var finishError = function(error, persistentMessageHandled) {
+      if (settled) return;
+      settled = true;
+      clearViewLoadingSnackbarTimer();
+      var dismissal = persistentMessageHandled || suppressLoadingSnackbar
+        ? Promise.resolve()
+        : dismissPersistentSnackbar();
+      Promise.resolve(dismissal).catch(function(dismissError) {
+        console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after an app-list error:', dismissError);
+      }).then(function() {
+        reject(error);
+      });
+    };
+
     var operationToken = options && options.operationToken;
     var isOperationCancelled = function() {
       return !!(operationToken && operationToken.cancelled);
@@ -5101,7 +5134,7 @@ function showApps(host, options) {
         operationToken.cancelled = true;
         var cancellationError = new Error('Application list operation was cancelled.');
         cancellationError.name = 'AbortError';
-        reject(cancellationError);
+        finishError(cancellationError);
       };
     }
     // Safety checking should happen before attempting to show the app list
@@ -5138,12 +5171,13 @@ function showApps(host, options) {
     }
 
     setTimeout(() => {
-      if (isOperationCancelled()) return;
-      var appListRequest = (options && options.forceRefreshAppList)
-        ? host.getAppListWithCacheFlush()
-        : host.getAppList();
-      appListRequest.then(function(appList) {
-        if (isOperationCancelled()) return;
+      if (isOperationCancelled() || settled) return;
+      try {
+        var appListRequest = (options && options.forceRefreshAppList)
+          ? host.getAppListWithCacheFlush()
+          : host.getAppList();
+        Promise.resolve(appListRequest).then(function(appList) {
+          if (settled) return;
         // Show the game grid section
         $('#game-grid').show();
 
@@ -5164,7 +5198,7 @@ function showApps(host, options) {
           // Stream recovery excludes this host from the global polling restart.
           // With no apps there are no box-art downloads to trigger the usual resume.
           beginBackgroundPollingOfHost(host);
-          resolve();
+          finishSuccess(!!(options && options.suppressEmptyListSnackbar) === false);
           return;
         }
 
@@ -5364,41 +5398,42 @@ function showApps(host, options) {
         // Navigate to the Apps view without starting diagnostic audio playback.
         showAppsMode(!!(options && options.keepInteractionLocked));
         clearViewLoadingSnackbarTimer();
-        if (!(options && options.suppressLoadingSnackbar)) dismissPersistentSnackbar();
-        resolve();
-
-        Promise.all(settledPromises).then(function() {
+        return Promise.all(settledPromises).then(function() {
           if (isOperationCancelled()) return;
-          // Resume background polling now that all box art downloads are complete
+          // Resume background polling now that all box art downloads are complete.
           beginBackgroundPollingOfHost(host);
 
-          // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk
-          // before sending the updated data to the background service.
+          // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk.
           var previewsDone = window.previewPromises || [];
-          Promise.all(previewsDone).then(function() {
+          return Promise.all(previewsDone).then(function() {
             if (isOperationCancelled()) return;
             savePreviewApps();
             updatePreviewData();
           });
+        }).then(function() {
+          finishSuccess(false);
         });
-      }, function(failedAppList) {
-        if (isOperationCancelled()) return;
+      }).catch(function(failedAppList) {
+        if (settled || isOperationCancelled()) return;
+        console.error('%c[index.js, showApps]', 'color: red;', 'Error while retrieving or processing the app list for ' + host.hostname + ':', failedAppList);
         clearViewLoadingSnackbarTimer();
-        console.error('%c[index.js, showApps]', 'color: green;', 'Error: Failed to get app list from ' + host.hostname + '. Host object: ', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
         var errorAppListImg = new Image();
         errorAppListImg.src = 'static/res/applist_error.svg';
         $('#game-grid').html(errorAppListImg);
-        if (!(options && options.suppressLoadingSnackbar)) {
-          snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
-        }
 
-        // During stream recovery, do not expose an error Apps screen or unlock the stale
-        // grid. Let the caller's recovery handler return to Hosts in one consistent step.
+        // During stream recovery, do not expose an error Apps screen or unlock the stale grid.
         if (!appListInteractionLocked) {
           showAppsMode(!!(options && options.keepInteractionLocked));
         }
-        reject(failedAppList);
+        if (!suppressLoadingSnackbar) {
+          snackbarLogLong('Unable to retrieve your list of apps at this time. Please refresh the list of apps or try again later!');
+        }
+        finishError(failedAppList, !suppressLoadingSnackbar);
       });
+      } catch (error) {
+        console.error('%c[index.js, showApps]', 'color: red;', 'Synchronous error while starting the app-list operation:', error);
+        finishError(error);
+      }
     }, 500);
   });
 }
