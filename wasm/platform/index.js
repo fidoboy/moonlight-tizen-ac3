@@ -996,6 +996,7 @@ function attachListeners() {
   $('#settingsBtn').on('click', showSettings);
   $('#refreshHostsBtn').on('click', refreshHosts);
   $('#gamepadTestBtn').on('click', gamepadTestDialog);
+  $('#regenerateAppImagesBtn').on('click', regenerateAppImageThumbnails);
   $('#supportBtn').on('click', appSupportDialog);
   $('#goBackBtn').on('click', showHosts);
   installNavigationTooltipActionHiding();
@@ -1218,7 +1219,7 @@ function loadConfigSummarySettings(callback) {
 // until both pointer hover and keyboard focus have left the activated button.
 function installNavigationTooltipActionHiding() {
   const navigationButtonSelector =
-    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #gamepadTestBtn, ' +
+    '#goBackBtn, #settingsBtn, #refreshHostsBtn, #gamepadTestBtn, #regenerateAppImagesBtn, ' +
     '#supportBtn, #restoreDefaultsBtn, #updateAppBtn';
 
   document.addEventListener('click', function(event) {
@@ -1917,6 +1918,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   $('#game-grid').hide();
   $('#goBackBtn').hide();
   $('#restoreDefaultsBtn').hide();
+  $('#regenerateAppImagesBtn').hide();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
 
@@ -2026,8 +2028,159 @@ function clearViewLoadingSnackbarTimer() {
   viewLoadingSnackbarTimer = null;
 }
 
+var activeAppImageRegeneration = null;
+var appImageRegenerationSequence = 0;
+
+function cancelAppImageRegeneration() {
+  var operation = activeAppImageRegeneration;
+  appImageRegenerationSequence++;
+  if (!operation) return;
+  operation.cancelled = true;
+  activeAppImageRegeneration = null;
+  if (operation.button) {
+    operation.button.disabled = false;
+    operation.button.removeAttribute('aria-busy');
+  }
+  if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
+}
+
+function regenerateAppImageThumbnails() {
+  var host = api;
+  var button = document.getElementById('regenerateAppImagesBtn');
+  var grid = document.getElementById('game-grid');
+  if (!host || !host.paired || !button || button.disabled || !grid ||
+      window.getComputedStyle(grid).display === 'none') return;
+
+  cancelAppImageRegeneration();
+  var operation = {
+    sequence: ++appImageRegenerationSequence,
+    host: host,
+    button: button,
+    cancelled: false,
+    ownsLock: !appListInteractionLocked
+  };
+  activeAppImageRegeneration = operation;
+
+  function isCurrent() {
+    return activeAppImageRegeneration === operation &&
+      !operation.cancelled && api === host &&
+      window.getComputedStyle(grid).display !== 'none';
+  }
+  function finish() {
+    if (!isCurrent()) return;
+    activeAppImageRegeneration = null;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
+  }
+  function showError(error) {
+    console.error('%c[index.js, regenerateAppImageThumbnails]', 'color: red;', 'Could not regenerate app image thumbnails:', error);
+    if (typeof snackbarLogLong === 'function') snackbarLogLong('Could not regenerate app image thumbnails.');
+  }
+
+  var existingIds = {};
+  Array.prototype.forEach.call(grid.querySelectorAll('.game-container'), function(card) {
+    var match = card.id.match(/^game-container-(.+)$/);
+    if (match) existingIds[String(match[1])] = true;
+  });
+
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  if (!appListInteractionLocked) lockAppListInteraction();
+
+  var request;
+  try { request = Promise.resolve(host.getAppListWithCacheFlush()); }
+  catch (error) { request = Promise.reject(error); }
+
+  request.then(function(freshAppList) {
+    if (!isCurrent()) return;
+    // Reconcile app IDs and titles first. Healthy existing cards retain their DOM;
+    // newly discovered apps obtain their first artwork during this reconciliation.
+    return showApps(host, {
+      appListOverride: freshAppList,
+      suppressLoadingSnackbar: true,
+      suppressEmptyListSnackbar: true,
+      keepInteractionLocked: true,
+      waitForArtworkCompletion: true
+    }).then(function() {
+      if (!isCurrent()) return;
+      var appsToRegenerate = sortAppsForHost(host, freshAppList).filter(function(app) {
+        return existingIds[String(app.id)] === true;
+      });
+
+      var refreshes = appsToRegenerate.map(function(app) {
+        var card = document.getElementById('game-container-' + app.id);
+        var image = card && card.querySelector('img');
+        if (!image) return Promise.resolve();
+
+        return Promise.resolve(host.getBoxArt(app.id, true)).then(function(dataUrl) {
+          if (!isCurrent() || !document.documentElement.contains(image)) return;
+          return new Promise(function(resolve) {
+            image.onload = function() {
+              delete image.dataset.artworkError;
+              image.classList.add('fade-in');
+              resolve();
+            };
+            image.onerror = function() {
+              image.dataset.artworkError = 'true';
+              if (typeof host.invalidateBoxArt === 'function') host.invalidateBoxArt(app.id);
+              image.onload = function() { image.classList.add('fade-in'); resolve(); };
+              image.onerror = function() { resolve(); };
+              image.src = 'static/res/placeholder_error.svg';
+            };
+            image.src = dataUrl;
+          });
+        }).catch(function(error) {
+          if (!isCurrent() || !document.documentElement.contains(image)) return;
+          console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Failed to regenerate artwork for app ID ' + app.id + ':', error);
+          if (typeof host.invalidateBoxArt === 'function') host.invalidateBoxArt(app.id);
+          return new Promise(function(resolve) {
+            image.dataset.artworkError = 'true';
+            image.onload = function() { image.classList.add('fade-in'); resolve(); };
+            image.onerror = function() { resolve(); };
+            image.src = 'static/res/placeholder_error.svg';
+          });
+        });
+      });
+
+      return Promise.all(refreshes).then(function() {
+        if (!isCurrent()) return;
+        return Promise.all(window.previewPromises || []).then(function() {
+          if (!isCurrent()) return;
+          var previewHost = _previewApps[host.serverUid];
+          if (!previewHost || !Array.isArray(previewHost.apps)) return;
+          var tvIp = '127.0.0.1';
+          try {
+            if (typeof webapis !== 'undefined' && webapis.network) tvIp = webapis.network.getIp();
+          } catch (error) {}
+          previewHost.apps.forEach(function(entry) {
+            var filename = getSmartHubPreviewFileName(host.serverUid, entry.id);
+            try {
+              var documentsPath = tizen.filesystem.toURI('documents').replace('file://', '');
+              entry.txtPath = documentsPath + '/' + filename;
+            } catch (error) {
+              entry.txtPath = '/opt/usr/home/owner/content/Documents/' + filename;
+            }
+            entry.imageUri = 'http://' + tvIp + ':8888/' + filename + '?v=' + Date.now();
+            entry.imageRatio = '2by3';
+          });
+          savePreviewApps();
+          updatePreviewData();
+        });
+      });
+    });
+  }).then(function() {
+    if (isCurrent()) finish();
+  }).catch(function(error) {
+    if (!isCurrent()) return;
+    showError(error);
+    finish();
+  });
+}
+
 // Return to the Hosts grid with a short fade transition.
 function showHosts(onShown, suppressLoadingSnackbar) {
+  cancelAppImageRegeneration();
   cancelActiveCachedAppListConfirmation();
   Navigation.stop();
   if (!suppressLoadingSnackbar) scheduleViewLoadingSnackbar('Loading Hosts...');
@@ -3161,8 +3314,11 @@ function updateGamepadTestButtonVisibility() {
   var onHostsView = !!hostGrid && window.getComputedStyle(hostGrid).display !== 'none' &&
     (!settingsList || window.getComputedStyle(settingsList).display === 'none') &&
     (!gameGrid || window.getComputedStyle(gameGrid).display === 'none');
+  var onAppsView = !!gameGrid && window.getComputedStyle(gameGrid).display !== 'none' &&
+    (!settingsList || window.getComputedStyle(settingsList).display === 'none') &&
+    (!hostGrid || window.getComputedStyle(hostGrid).display === 'none');
   var button = document.getElementById('gamepadTestBtn');
-  if (button) button.hidden = !(connected && onHostsView);
+  if (button) button.hidden = !(connected && (onHostsView || onAppsView));
 }
 
 // Consume gamepad input exclusively while the controller test modal is open.
@@ -3924,6 +4080,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
+  cancelAppImageRegeneration();
   startDisabledSwitchAppearanceObserver();
   $('#main-ui-layer').removeClass('waves-active');
   console.log('%c[index.js, showSettingsMode]', 'color: green;', 'Entering "Show Settings" mode.');
@@ -5053,6 +5210,7 @@ function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActi
   $('#refreshHostsBtn').hide();
   $('#supportBtn').hide();
   $('#restoreDefaultsBtn').hide();
+  $('#regenerateAppImagesBtn').show();
   updateGamepadTestButtonVisibility();
   $('#main-content').removeClass('fullscreen');
   $('#listener').removeClass('fullscreen');
