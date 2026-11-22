@@ -5398,7 +5398,7 @@ function showApps(host, options) {
           boxArtPromises.push(boxArtPromise);
         });
 
-        if (appListInteractionLocked) {
+        if (preserveExistingAppGrid) {
           // Reorder only where necessary, retaining DOM nodes and loaded artwork for unchanged apps.
           const grid = document.getElementById('game-grid');
           sortedAppList.forEach(function(app, index) {
