@@ -5539,12 +5539,14 @@ function showApps(host, options) {
 // A cached-list confirmation owns its delayed snackbar until the operation finishes.
 // Keeping the operation object lets navigation or a newer host selection invalidate its timer.
 var activeCachedAppListConfirmation = null;
+var cachedAppListConfirmationSequence = 0;
 
 function cancelActiveCachedAppListConfirmation() {
   var operation = activeCachedAppListConfirmation;
   if (!operation) return;
 
   activeCachedAppListConfirmation = null;
+  cachedAppListConfirmationSequence++;
   operation.cancelled = true;
   if (operation.timer !== null) {
     clearTimeout(operation.timer);
@@ -5583,6 +5585,7 @@ function showAppsWithCachedList(host) {
 
   var cachedAppList = host._memCachedApplist.slice();
   var operation = {
+    sequence: ++cachedAppListConfirmationSequence,
     cancelled: false,
     timer: null,
     snackbarRequested: false
@@ -5617,6 +5620,7 @@ function showAppsWithCachedList(host) {
     }).then(function() {
       // Do not unlock if another operation took ownership while dismissal ran.
       if (activeCachedAppListConfirmation === null &&
+          cachedAppListConfirmationSequence === operation.sequence &&
           window.api === host &&
           $('#game-grid').is(':visible') &&
           appListInteractionLocked) {
