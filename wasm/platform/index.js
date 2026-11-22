@@ -2077,16 +2077,24 @@ function regenerateAppImageThumbnails() {
   }
   function finish() {
     if (!isCurrent()) return Promise.resolve();
-    return dismissPersistentSnackbar().catch(function(error) {
+
+    // Order the snackbar's disappearance first, then restore the cards and
+    // navigation immediately. The snackbar may continue its exit animation
+    // without keeping the Apps view dimmed or its navigation disabled.
+    var dismissal;
+    try {
+      dismissal = dismissPersistentSnackbar();
+    } catch (error) {
+      dismissal = Promise.reject(error);
+    }
+
+    activeAppImageRegeneration = null;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
+
+    return Promise.resolve(dismissal).catch(function(error) {
       console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Could not dismiss the regeneration snackbar:', error);
-    }).then(function() {
-      // Keep the operation current until dismissal completes. If the user leaves
-      // Apps during the snackbar transition, cancellation owns the unlock instead.
-      if (!isCurrent()) return;
-      activeAppImageRegeneration = null;
-      button.disabled = false;
-      button.removeAttribute('aria-busy');
-      if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
     });
   }
   function showError(error) {
@@ -2102,15 +2110,19 @@ function regenerateAppImageThumbnails() {
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   if (!appListInteractionLocked) lockAppListInteraction();
+  // Wait until the persistent spinner snackbar has actually been presented
+  // before starting the host request, so feedback is visible from the start
+  // of the regeneration work rather than appearing after it has begun.
   snackbarLogPersistent('Regenerating app image thumbnails...').catch(function(error) {
     console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Could not show the regeneration snackbar:', error);
-  });
+  }).then(function() {
+    if (!isCurrent()) return;
 
-  var request;
-  try { request = Promise.resolve(host.getAppListWithCacheFlush()); }
-  catch (error) { request = Promise.reject(error); }
+    var request;
+    try { request = Promise.resolve(host.getAppListWithCacheFlush()); }
+    catch (error) { request = Promise.reject(error); }
 
-  request.then(function(freshAppList) {
+    return request.then(function(freshAppList) {
     if (!isCurrent()) return;
     // Reconcile app IDs and titles first. Healthy existing cards retain their DOM;
     // newly discovered apps obtain their first artwork during this reconciliation.
@@ -2188,6 +2200,7 @@ function regenerateAppImageThumbnails() {
           updatePreviewData();
         });
       });
+    });
     });
   }).then(function() {
     if (isCurrent()) return finish();
