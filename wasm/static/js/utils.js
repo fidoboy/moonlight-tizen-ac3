@@ -794,23 +794,22 @@ NvHTTP.prototype = {
           // Convert the fetched PNG into a data URL for display and caching
           reader.onloadend = function() {
             var dataUrl = reader.result;
-            // Always resolve for UI display regardless of caching outcome
-            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning network-fetched box art: ', appId);
+            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Caching network-fetched box art: ', appId);
 
-            // Save the original PNG to private storage as true binary PNG for local HTTP server and future cache using modern Tizen API
+            // The original PNG must be cached successfully before this card is considered ready.
             try {
-              // Create the private directory if it does not already exist
               tizen.filesystem.createDirectory(boxArtDir, true);
-              // Open the destination file for writing the original PNG data
               var fileHandleWrite = tizen.filesystem.openFile(boxArtDir + '/' + boxArtFileName, 'w');
-
-              // Write the original PNG bytes to private storage and close the file
-              fileHandleWrite.writeData(boxArtBuffer);
-              fileHandleWrite.close();
+              try {
+                fileHandleWrite.writeData(boxArtBuffer);
+              } finally {
+                fileHandleWrite.close();
+              }
               console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Saved original PNG box art: ' + boxArtFileName);
             } catch (error) {
-              // Failure to cache the original PNG box art does not prevent the fetched box art from being returned
               console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Error: Failed to cache original box art in ' + boxArtDir + ' for app ID ' + appId + ': ' + error.message);
+              reject(error);
+              return;
             }
 
             // Generate and save the optimized JPEG preview box art asynchronously from network.
