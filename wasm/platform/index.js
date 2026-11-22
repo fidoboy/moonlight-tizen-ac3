@@ -5134,7 +5134,13 @@ function showApps(host, options) {
         console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after an app-list error:', dismissError);
       }).then(function() {
         if (ownsAppListLock) unlockAppListInteraction();
-        if (!suppressLoadingSnackbar) showHosts();
+        if (!suppressLoadingSnackbar) {
+          try {
+            showHosts();
+          } catch (navigationError) {
+            console.error('%c[index.js, showApps]', 'color: red;', 'Could not return to Hosts after an app-list failure:', navigationError);
+          }
+        }
         reject(error);
       });
     };
@@ -5221,7 +5227,7 @@ function showApps(host, options) {
           }
           clearViewLoadingSnackbarTimer();
           // Navigate to the Apps view
-          showAppsMode(!!(options && options.keepInteractionLocked));
+          showAppsMode(ownsAppListLock || !!(options && options.keepInteractionLocked));
           // Stream recovery excludes this host from the global polling restart.
           // With no apps there are no box-art downloads to trigger the usual resume.
           beginBackgroundPollingOfHost(host);
