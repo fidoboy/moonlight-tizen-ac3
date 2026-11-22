@@ -2026,9 +2026,9 @@ function clearViewLoadingSnackbarTimer() {
 }
 
 // Return to the Hosts grid with a short fade transition.
-function showHosts(onShown) {
+function showHosts(onShown, suppressLoadingSnackbar) {
   Navigation.stop();
-  scheduleViewLoadingSnackbar('Loading Hosts...');
+  if (!suppressLoadingSnackbar) scheduleViewLoadingSnackbar('Loading Hosts...');
 
   // Fade out the Apps grid, then reveal the Hosts grid.
   $('#game-grid').stop(true, true).fadeOut(UI_FADE_DURATION_MS, function() {
@@ -5136,7 +5136,7 @@ function showApps(host, options) {
         if (ownsAppListLock) unlockAppListInteraction();
         if (!suppressLoadingSnackbar) {
           try {
-            showHosts();
+            showHosts(undefined, true);
           } catch (navigationError) {
             console.error('%c[index.js, showApps]', 'color: red;', 'Could not return to Hosts after an app-list failure:', navigationError);
           }
