@@ -5092,6 +5092,7 @@ function finishAppsModeAfterStreamTransition(skipNavigationAudioRestore) {
 function showApps(host, options) {
   return new Promise((resolve, reject) => {
     var settled = false;
+    var artworkAbandoned = false;
     var suppressLoadingSnackbar = !!(options && options.suppressLoadingSnackbar);
 
     // All exits share the same cleanup path so neither a rejected request nor an
@@ -5419,14 +5420,14 @@ function showApps(host, options) {
         // courtesy delay expires.
         var artworkCompletion = withOperationTimeout(
           Promise.all(settledPromises).then(function() {
-            if (settled || isOperationCancelled()) return;
+            if (artworkAbandoned || isOperationCancelled()) return;
             // Resume background polling now that all box art downloads are complete.
             beginBackgroundPollingOfHost(host);
 
             // Wait for all Smart Hub Preview JPEGs to finish encoding and saving to disk.
             var previewsDone = window.previewPromises || [];
             return Promise.all(previewsDone).then(function() {
-              if (settled || isOperationCancelled()) return;
+              if (artworkAbandoned || isOperationCancelled()) return;
               savePreviewApps();
               updatePreviewData();
             });
@@ -5440,6 +5441,7 @@ function showApps(host, options) {
         if (suppressLoadingSnackbar) {
           finishSuccess(true);
           artworkCompletion.catch(function(error) {
+            artworkAbandoned = true;
             console.error('%c[index.js, showApps]', 'color: red;', 'Error while finishing background artwork processing:', error);
           });
           return;
@@ -5450,6 +5452,7 @@ function showApps(host, options) {
         });
       }).catch(function(failedAppList) {
         if (settled || isOperationCancelled()) return;
+        artworkAbandoned = true;
         console.error('%c[index.js, showApps]', 'color: red;', 'Error while retrieving or processing the app list for ' + (host.hostname || 'the host') + ':', failedAppList);
 
         // Start cleanup before touching the error UI: even a secondary rendering
