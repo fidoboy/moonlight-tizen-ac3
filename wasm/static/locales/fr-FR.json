@@ -666,5 +666,6 @@
   "Disconnected": "Déconnecté",
   "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "Calcule le débit binaire de référence recommandé au début de chaque session de streaming, une fois la négociation avec l’hôte terminée. La valeur calculée est enregistrée et utilisée lors des sessions suivantes. Il est recommandé de laisser cette option activée pendant plusieurs sessions, jusqu’à ce que le débit se stabilise. Vous pouvez ensuite la désactiver et ajuster manuellement la valeur obtenue dans les paramètres de base.",
   "Developer host PC IP: %1$s": "IP du PC hôte du mode développeur : %1$s",
-  "Enabled": "Activé"
+  "Enabled": "Activé",
+  "TV IP address: %1$s": "Adresse IP du téléviseur : %1$s"
 }
