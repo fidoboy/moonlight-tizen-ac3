@@ -4940,9 +4940,12 @@ function exitAppDialog() {
 // this requires a hot-off-the-host `api`, and the appId we're going to stylize
 // the function was made like this so that we can remove duplicated code, but
 // not do N*N stylization of the box art, or make the code not flow very well
-function stylizeBoxArts(freshApi, appsList) {
-  // Check each app in the list and apply CSS styling based on whether it's currently running or not
-  appsList.forEach(function(app) {
+function stylizeBoxArts(freshApi, appsList, appIdsToUpdate) {
+  // When reconciling a live list, touch only cards whose running state can have changed.
+  var appsToStylize = Array.isArray(appIdsToUpdate)
+    ? appsList.filter(function(app) { return appIdsToUpdate.indexOf(Number(app.id)) !== -1; })
+    : appsList;
+  appsToStylize.forEach(function(app) {
     var appBox = document.querySelector('#game-container-' + app.id);
     if (!appBox) {
       console.warn('%c[index.js, stylizeBoxArts]', 'color: green;', 'Warning: No box art found for appId: ' + app.id);
@@ -5432,7 +5435,8 @@ function showApps(host, options) {
         }
 
         // Check all game containers for the current running app and apply CSS styling accordingly
-        stylizeBoxArts(host, sortedAppList);
+        stylizeBoxArts(host, sortedAppList, options && options.differentialAppIds);
+        host._lastRenderedCurrentGame = host.currentGame;
 
         var settledPromises = boxArtPromises;
 
@@ -5503,6 +5507,70 @@ function showApps(host, options) {
       }
       });
 }
+
+// Reconcile a fresh /applist response with the currently visible Apps grid.
+// Identical lists do not touch the DOM, card nodes, or artwork cache.
+function reconcileVisibleAppGrid(host, freshAppList) {
+  if (!host || window.api !== host || !$('#game-grid').is(':visible') ||
+      !Array.isArray(freshAppList)) return;
+
+  var previousList = Array.isArray(host._memCachedApplist) ? host._memCachedApplist : [];
+  var previousById = Object.create(null);
+  var nextById = Object.create(null);
+  previousList.forEach(function(app) { previousById[String(app.id)] = app; });
+  freshAppList.forEach(function(app) { nextById[String(app.id)] = app; });
+
+  var changedIds = [];
+  var hasListChanges = false;
+  previousList.forEach(function(app) {
+    var next = nextById[String(app.id)];
+    if (!next) {
+      hasListChanges = true;
+      changedIds.push(Number(app.id));
+    } else if (String(next.title) !== String(app.title)) {
+      hasListChanges = true;
+      changedIds.push(Number(app.id));
+    }
+  });
+  freshAppList.forEach(function(app) {
+    if (!previousById[String(app.id)]) {
+      hasListChanges = true;
+      changedIds.push(Number(app.id));
+    }
+  });
+
+  if (!hasListChanges) {
+    // The server's running-app state is independent of /applist. Update only
+    // the previous and current running cards when that state actually changes.
+    if (host._lastRenderedCurrentGame !== host.currentGame) {
+      var runningIds = [];
+      var previousRunningId = Number(host._lastRenderedCurrentGame);
+      var currentRunningId = Number(host.currentGame);
+      if (previousRunningId) runningIds.push(previousRunningId);
+      if (currentRunningId && runningIds.indexOf(currentRunningId) === -1) runningIds.push(currentRunningId);
+      stylizeBoxArts(host, previousList, runningIds);
+      host._lastRenderedCurrentGame = host.currentGame;
+    }
+    return;
+  }
+
+  // Commit the fresh list only after establishing that the selected view still
+  // belongs to this host. showApps() then reuses every unchanged card and image.
+  if (window.api !== host || !$('#game-grid').is(':visible')) return;
+  host._memCachedApplist = freshAppList;
+  lockAppListInteraction();
+  showApps(host, {
+    suppressLoadingSnackbar: true,
+    keepInteractionLocked: true,
+    differentialAppIds: changedIds
+  }).then(function() {
+    if (appListInteractionLocked) unlockAppListInteraction();
+  }).catch(function(error) {
+    if (appListInteractionLocked) unlockAppListInteraction();
+    console.warn('%c[index.js, reconcileVisibleAppGrid]', 'color: gray;', 'Could not reconcile the visible Apps grid:', error);
+  });
+}
+window.reconcileVisibleAppGrid = reconcileVisibleAppGrid;
 
 // Offer a direct choice when the selected app is already running on this host.
 function showRunningAppDialog(host, appId, appTitle) {
