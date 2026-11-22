@@ -5563,7 +5563,7 @@ function showAppsWithCachedList(host) {
 
     return host.getAppListWithCacheFlush(true).then(function(freshAppList) {
       if (window.api !== host || !$('#game-grid').is(':visible')) return;
-      return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList)).then(function() {
+      return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
         host._memCachedApplist = freshAppList;
       });
     }).catch(function(error) {
@@ -5587,7 +5587,7 @@ function showAppsWithCachedList(host) {
 
 // Reconcile a fresh /applist response with the currently visible Apps grid.
 // Identical lists do not touch the DOM, card nodes, or artwork cache.
-function reconcileVisibleAppGrid(host, freshAppList) {
+function reconcileVisibleAppGrid(host, freshAppList, keepInteractionLockedOnCompletion) {
   if (!host || window.api !== host || !$('#game-grid').is(':visible') ||
       !Array.isArray(freshAppList)) return;
 
@@ -5650,9 +5650,9 @@ function reconcileVisibleAppGrid(host, freshAppList) {
     keepInteractionLocked: true,
     differentialAppIds: changedIds
   }).then(function() {
-    if (appListInteractionLocked) unlockAppListInteraction();
+    if (!keepInteractionLockedOnCompletion && appListInteractionLocked) unlockAppListInteraction();
   }).catch(function(error) {
-    if (appListInteractionLocked) unlockAppListInteraction();
+    if (!keepInteractionLockedOnCompletion && appListInteractionLocked) unlockAppListInteraction();
     console.warn('%c[index.js, reconcileVisibleAppGrid]', 'color: gray;', 'Could not reconcile the visible Apps grid:', error);
   });
 }
