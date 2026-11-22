@@ -171,11 +171,9 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
  * not call them. Keep this block only as implementation history/reference;
  * re-enable or adapt it only after a future feature explicitly requires it.
  *
- * /*
- *  * Request Cloud Game Mode and read it back for diagnostics. The public API
- *  * returns the remote D-Bus 'ret' value (or a dispatcher error); its remote
- *  * success-code semantics are deliberately not assumed here.
- *  */
+ * Request Cloud Game Mode and read it back for diagnostics. The public API
+ * returns the remote D-Bus 'ret' value (or a dispatcher error); its remote
+ * success-code semantics are deliberately not assumed here.
  * int ml_avoc_set_cloud_game_mode(int enabled)
  * {
  *     int mode = enabled != 0;
@@ -204,7 +202,9 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
  *     return setter_rc;
  * }
  * 
- * /* Set picture mode for the requested display. Known mode values from ExLink:\n * 4 = Standard; 3 = Dynamic. Mode 1 is the current candidate for Game,\n * not yet verified. These ExLink values are evidence, not confirmed AVOC enums. */
+ * Set picture mode for the requested display. Known mode values from ExLink:
+ * 4 = Standard; 3 = Dynamic. Mode 1 is the current candidate for Game,
+ * not yet verified. These ExLink values are evidence, not confirmed AVOC enums.
  * int ml_avoc_set_picture_mode(int display_index, int mode)
  * {
  *     int rc;
