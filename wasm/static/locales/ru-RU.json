@@ -666,5 +666,6 @@
   "Disconnected": "Нет подключения",
   "Calculates the recommended baseline bitrate at the beginning of each streaming session, after negotiation with the host. The calculated value is saved and used in subsequent sessions. Keep this enabled for several sessions, or until the bitrate stabilizes. You can then disable it and fine-tune the resulting value manually in Basic Settings.": "Рассчитывает рекомендуемый базовый битрейт в начале каждого сеанса трансляции, после согласования параметров с хостом. Рассчитанное значение сохраняется и используется в последующих сеансах. Рекомендуется оставить эту функцию включённой на несколько сеансов, пока битрейт не стабилизируется. После этого её можно отключить и вручную немного скорректировать полученное значение в основных настройках.",
   "Developer host PC IP: %1$s": "IP компьютера-хоста режима разработчика: %1$s",
-  "Enabled": "Включён"
+  "Enabled": "Включён",
+  "TV IP address: %1$s": "IP-адрес телевизора: %1$s"
 }
