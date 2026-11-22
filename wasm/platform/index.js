@@ -2158,7 +2158,7 @@ function hostChosen(host, onSuccessCallback) {
       // After pairing the host, save the host object, show the apps, and navigate to the Apps view
       saveHosts();
       Navigation.push(Views.Apps);
-      showApps(host, { forceRefreshAppList: true }).then(() => {
+      showAppsWithCachedList(host).then(() => {
         // Scroll to the current game row
         Navigation.switch();
         // Switch to Apps view
@@ -5210,9 +5210,14 @@ function showApps(host, options) {
 
       if (isOperationCancelled() || settled) return;
       try {
-        var appListRequest = (options && options.forceRefreshAppList)
-          ? host.getAppListWithCacheFlush()
-          : host.getAppList();
+        var appListRequest;
+        if (options && Array.isArray(options.appListOverride)) {
+          appListRequest = Promise.resolve(options.appListOverride);
+        } else {
+          appListRequest = (options && options.forceRefreshAppList)
+            ? host.getAppListWithCacheFlush()
+            : host.getAppList();
+        }
         Promise.resolve(appListRequest).then(function(appList) {
           if (settled) return;
         // Show the game grid section
@@ -5245,6 +5250,12 @@ function showApps(host, options) {
         if (preserveExistingAppGrid) {
           // Reconcile by app ID instead of tearing down the entire visible list.
           const grid = document.getElementById('game-grid');
+          // A cached empty list may have rendered the empty-state illustration.
+          // Remove it only when the confirmed list now contains applications.
+          if (sortedAppList.length > 0) {
+            var emptyState = grid.querySelector('img[src="static/res/applist_empty.svg"]');
+            if (emptyState) emptyState.remove();
+          }
           const desiredIds = new Set(sortedAppList.map(function(app) {
             return 'game-container-' + app.id;
           }));
@@ -5514,6 +5525,55 @@ function showApps(host, options) {
         finishError(error);
       }
       });
+}
+
+// Open Apps immediately from the selected host's in-memory list, then confirm it with Sunshine.
+// The cached presentation is silent; only the subsequent server request owns the loading snackbar.
+function showAppsWithCachedList(host) {
+  if (!host || !Array.isArray(host._memCachedApplist)) {
+    return showApps(host, { forceRefreshAppList: true });
+  }
+
+  var cachedAppList = host._memCachedApplist.slice();
+  var snackbarOwned = false;
+  lockAppListInteraction();
+
+  return showApps(host, {
+    appListOverride: cachedAppList,
+    suppressLoadingSnackbar: true,
+    keepInteractionLocked: true
+  }).then(function() {
+    if (window.api !== host || !$('#game-grid').is(':visible')) {
+      if (appListInteractionLocked) unlockAppListInteraction();
+      return;
+    }
+
+    if (!persistentSnackbarVisible) {
+      snackbarLogPersistent('Loading Apps...');
+      snackbarOwned = true;
+    }
+
+    return host.getAppListWithCacheFlush(true).then(function(freshAppList) {
+      if (window.api !== host || !$('#game-grid').is(':visible')) return;
+      return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList)).then(function() {
+        host._memCachedApplist = freshAppList;
+      });
+    }).catch(function(error) {
+      // A failed confirmation must not discard the already visible cached list.
+      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not confirm the cached app list with Sunshine; keeping the cached grid visible:', error);
+    }).then(function() {
+      if (snackbarOwned && persistentSnackbarVisible) {
+        return dismissPersistentSnackbar().catch(function(error) {
+          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss the app-list confirmation snackbar:', error);
+        });
+      }
+    }).then(function() {
+      if (appListInteractionLocked) unlockAppListInteraction();
+    });
+  }).catch(function(error) {
+    if (appListInteractionLocked) unlockAppListInteraction();
+    throw error;
+  });
 }
 
 // Reconcile a fresh /applist response with the currently visible Apps grid.
