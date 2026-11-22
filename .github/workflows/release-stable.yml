@@ -23,6 +23,7 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: master
           submodules: recursive
 
       - name: Validate release version
