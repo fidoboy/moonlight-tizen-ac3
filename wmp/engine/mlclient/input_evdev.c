@@ -70,6 +70,8 @@ static char s_modifiers;
 static int s_suppress_stop_key;
 static int s_mouse_dx, s_mouse_dy, s_mouse_wheel;
 
+void input_shutdown(void);
+
 static int bit_is_set(const unsigned long *bits, unsigned bit) {
     return (bits[bit / (8 * sizeof(unsigned long))] >>
             (bit % (8 * sizeof(unsigned long)))) & 1UL;
