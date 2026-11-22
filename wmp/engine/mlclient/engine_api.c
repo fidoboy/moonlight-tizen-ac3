@@ -276,6 +276,7 @@ static int start_connection(int game_mode) {
 
     MLT("TV AVOC: activating Game Mode after LiStartConnectionEx");
     int game_mode_rc = ml_avoc_set_game_mode_with_retry(1, 1, 3);
+    (void)game_mode_rc;
     MLT("TV AVOC: Game Mode activation completed with raw ret=%d", game_mode_rc);
   }
 
@@ -609,6 +610,7 @@ void ml_engine_stop(void) {
   /* Restore Game Mode after ESPlus releases the player. */
   if (__atomic_exchange_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_ACQ_REL)) {
     int game_mode_rc = ml_avoc_set_game_mode_with_retry(1, 0, 3);
+    (void)game_mode_rc;
     MLT("TV AVOC: Game Mode restoration completed with raw ret=%d", game_mode_rc);
   }
   MLT("ml_engine_stop -> done");
