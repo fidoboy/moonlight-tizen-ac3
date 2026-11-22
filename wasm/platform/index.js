@@ -5397,8 +5397,11 @@ function showApps(host, options) {
 
         // Navigate to the Apps view without starting diagnostic audio playback.
         showAppsMode(!!(options && options.keepInteractionLocked));
-        clearViewLoadingSnackbarTimer();
-        return Promise.all(settledPromises).then(function() {
+
+        // Keep the delayed loading snackbar active until the artwork and Preview work
+        // has settled. Fast app-list operations still cancel it before the one-second
+        // courtesy delay expires.
+        var artworkCompletion = Promise.all(settledPromises).then(function() {
           if (isOperationCancelled()) return;
           // Resume background polling now that all box art downloads are complete.
           beginBackgroundPollingOfHost(host);
@@ -5410,7 +5413,19 @@ function showApps(host, options) {
             savePreviewApps();
             updatePreviewData();
           });
-        }).then(function() {
+        });
+
+        // Silent refreshes (notably stopGame) retain their original completion boundary:
+        // callers may impose a short timeout and do not own a loading snackbar.
+        if (suppressLoadingSnackbar) {
+          finishSuccess(true);
+          artworkCompletion.catch(function(error) {
+            console.error('%c[index.js, showApps]', 'color: red;', 'Error while finishing background artwork processing:', error);
+          });
+          return;
+        }
+
+        return artworkCompletion.then(function() {
           finishSuccess(false);
         });
       }).catch(function(failedAppList) {
