@@ -21,7 +21,6 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <tizen_error.h>
 
 #include "mltrace.h"
 
@@ -129,10 +128,8 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
     }
 
     if (rc != 0) {
-        const char *message = get_error_message(rc);
-        MLT("AVOC: avoc_set_game_mode(%d, %d) failed after %d attempt(s): ret=%d (%s)",
-            save_type, on, attempt + 1, rc,
-            message ? message : "unknown");
+        MLT("AVOC: avoc_set_game_mode(%d, %d) failed after %d attempt(s): rc=%d",
+            save_type, on, attempt + 1, rc);
     } else {
         MLT("AVOC: Game Mode %s request accepted (save_type=%d)",
             on ? "activation" : "restoration", save_type);
