@@ -5546,24 +5546,25 @@ function cancelActiveCachedAppListConfirmation() {
   // Invalidate even an operation that has already started finalizing its
   // snackbar; its eventual completion must not unlock a newer view.
   cachedAppListConfirmationSequence++;
-  if (!operation) return;
 
-  activeCachedAppListConfirmation = null;
-  operation.cancelled = true;
-  if (operation.timer !== null) {
-    clearTimeout(operation.timer);
-    operation.timer = null;
-  }
+  if (operation) {
+    activeCachedAppListConfirmation = null;
+    operation.cancelled = true;
+    if (operation.timer !== null) {
+      clearTimeout(operation.timer);
+      operation.timer = null;
+    }
 
-  // Cancel a presentation that may already have started. The persistent snackbar
-  // implementation also cancels requests that have not reached the screen yet.
-  if (operation.snackbarRequested) {
-    try {
-      Promise.resolve(dismissPersistentSnackbar()).catch(function(error) {
-        console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
-      });
-    } catch (error) {
-      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not start dismissal of a cancelled app-list confirmation snackbar:', error);
+    // Cancel a presentation that may already have started. The persistent snackbar
+    // implementation also cancels requests that have not reached the screen yet.
+    if (operation.snackbarRequested) {
+      try {
+        Promise.resolve(dismissPersistentSnackbar()).catch(function(error) {
+          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss a cancelled app-list confirmation snackbar:', error);
+        });
+      } catch (error) {
+        console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not start dismissal of a cancelled app-list confirmation snackbar:', error);
+      }
     }
   }
 
