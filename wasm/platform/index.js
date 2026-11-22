@@ -5667,32 +5667,51 @@ function showAppsWithCachedList(host) {
         request = Promise.reject(error);
       }
 
-      operation.timer = setTimeout(function() {
+      operation.requestStartedAt = Date.now();
+
+      function showConfirmationSnackbarIfDue() {
+        if (!isCurrentOperation() || operation.snackbarRequested) return;
+
+        var elapsed = Date.now() - operation.requestStartedAt;
+        if (elapsed < 1000) {
+          operation.timer = setTimeout(showConfirmationSnackbarIfDue, 1000 - elapsed);
+          return;
+        }
+
         operation.timer = null;
-        if (!isCurrentOperation()) return;
-
         operation.snackbarRequested = true;
-        snackbarLogPersistent('Loading Apps...').catch(function(error) {
-          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not show the app-list confirmation snackbar:', error);
-        });
-      }, 1000);
+        try {
+          Promise.resolve(snackbarLogPersistent('Loading Apps...')).catch(function(error) {
+            console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not show the app-list confirmation snackbar:', error);
+          });
+        } catch (error) {
+          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not start the app-list confirmation snackbar:', error);
+        }
+      }
 
-      return request.then(function(freshAppList) {
-        // The one-second threshold measures only the /applist request, not
-        // subsequent differential rendering or artwork downloads.
+      function settleRequestTimer() {
+        var elapsed = Date.now() - operation.requestStartedAt;
         if (operation.timer !== null) {
           clearTimeout(operation.timer);
           operation.timer = null;
         }
+        // A delayed event loop must not suppress the snackbar if the request
+        // itself really exceeded the one-second threshold.
+        if (elapsed >= 1000) showConfirmationSnackbarIfDue();
+      }
+
+      operation.timer = setTimeout(showConfirmationSnackbarIfDue, 1000);
+
+      return request.then(function(freshAppList) {
+        // The one-second threshold measures only the /applist request, not
+        // subsequent differential rendering or artwork downloads.
+        settleRequestTimer();
         if (!isCurrentOperation()) return;
         return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
           if (isCurrentOperation()) host._memCachedApplist = freshAppList;
         });
       }, function(error) {
-        if (operation.timer !== null) {
-          clearTimeout(operation.timer);
-          operation.timer = null;
-        }
+        settleRequestTimer();
         throw error;
       }).catch(function(error) {
         // A failed confirmation must not discard the already visible cached list.
