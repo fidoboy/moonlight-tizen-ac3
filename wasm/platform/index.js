@@ -5680,58 +5680,6 @@ function showAppsWithCachedList(host) {
   });
 }
 
-  if (!host || !Array.isArray(host._memCachedApplist)) {
-    // A host without its own cached list must never inherit the previous host's cards.
-    // Force a clean grid and let the server response populate it from scratch.
-    return showApps(host, {
-      forceRefreshAppList: true,
-      forceRebuildAppGrid: true
-    });
-  }
-
-  var cachedAppList = host._memCachedApplist.slice();
-  var snackbarOwned = false;
-  lockAppListInteraction();
-
-  return showApps(host, {
-    appListOverride: cachedAppList,
-    forceRebuildAppGrid: true,
-    suppressLoadingSnackbar: true,
-    suppressEmptyListSnackbar: true,
-    keepInteractionLocked: true
-  }).then(function() {
-    if (window.api !== host || !$('#game-grid').is(':visible')) {
-      if (appListInteractionLocked) unlockAppListInteraction();
-      return;
-    }
-
-    snackbarLogPersistent('Loading Apps...');
-    snackbarOwned = true;
-
-    return host.getAppListWithCacheFlush(true).then(function(freshAppList) {
-      if (window.api !== host || !$('#game-grid').is(':visible')) return;
-      return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
-        host._memCachedApplist = freshAppList;
-      });
-    }).catch(function(error) {
-      // A failed confirmation must not discard the already visible cached list.
-      console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not confirm the cached app list with Sunshine; keeping the cached grid visible:', error);
-    }).then(function() {
-      if (snackbarOwned) {
-        // Also cancel a snackbar that is still waiting for its presentation delay.
-        return Promise.resolve(dismissPersistentSnackbar()).catch(function(error) {
-          console.warn('%c[index.js, showAppsWithCachedList]', 'color: gray;', 'Could not dismiss the app-list confirmation snackbar:', error);
-        });
-      }
-    }).then(function() {
-      if (appListInteractionLocked) unlockAppListInteraction();
-    });
-  }).catch(function(error) {
-    if (appListInteractionLocked) unlockAppListInteraction();
-    throw error;
-  });
-}
-
 // Reconcile a fresh /applist response with the currently visible Apps grid.
 // Identical lists do not touch the DOM, card nodes, or artwork cache.
 function reconcileVisibleAppGrid(host, freshAppList, keepInteractionLockedOnCompletion) {
