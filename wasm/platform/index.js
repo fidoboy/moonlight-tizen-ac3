@@ -5204,8 +5204,7 @@ function showApps(host, options) {
       return;
     }
 
-    setTimeout(() => {
-      if (isOperationCancelled() || settled) return;
+          if (isOperationCancelled() || settled) return;
       try {
         var appListRequest = (options && options.forceRefreshAppList)
           ? host.getAppListWithCacheFlush()
@@ -5501,8 +5500,7 @@ function showApps(host, options) {
         console.error('%c[index.js, showApps]', 'color: red;', 'Synchronous error while starting the app-list operation:', error);
         finishError(error);
       }
-    }, 500);
-  });
+      });
 }
 
 // Offer a direct choice when the selected app is already running on this host.
