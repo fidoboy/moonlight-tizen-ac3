@@ -5100,9 +5100,14 @@ function showApps(host, options) {
       if (settled) return;
       settled = true;
       clearViewLoadingSnackbarTimer();
-      var dismissal = persistentMessageHandled || suppressLoadingSnackbar
-        ? Promise.resolve()
-        : dismissPersistentSnackbar();
+      var dismissal = Promise.resolve();
+      if (!persistentMessageHandled && !suppressLoadingSnackbar) {
+        try {
+          dismissal = dismissPersistentSnackbar();
+        } catch (error) {
+          console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not start loading snackbar dismissal after a successful app-list operation:', error);
+        }
+      }
       Promise.resolve(dismissal).catch(function(error) {
         console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after a successful app-list operation:', error);
       }).then(function() {
@@ -5114,9 +5119,14 @@ function showApps(host, options) {
       if (settled) return;
       settled = true;
       clearViewLoadingSnackbarTimer();
-      var dismissal = persistentMessageHandled || suppressLoadingSnackbar
-        ? Promise.resolve()
-        : dismissPersistentSnackbar();
+      var dismissal = Promise.resolve();
+      if (!persistentMessageHandled && !suppressLoadingSnackbar) {
+        try {
+          dismissal = dismissPersistentSnackbar();
+        } catch (dismissError) {
+          console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not start loading snackbar dismissal after an app-list error:', dismissError);
+        }
+      }
       Promise.resolve(dismissal).catch(function(dismissError) {
         console.warn('%c[index.js, showApps]', 'color: gray;', 'Could not dismiss the loading snackbar after an app-list error:', dismissError);
       }).then(function() {
