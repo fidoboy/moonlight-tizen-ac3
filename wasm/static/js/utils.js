@@ -785,7 +785,7 @@ NvHTTP.prototype = {
   // Returns original PNG box art for the main app grid and generates a neutral,
   // age-appropriate 16:9 JPEG thumbnail for Smart Hub Preview. The thumbnail is
   // saved in Documents so the background service can serve it over local HTTP.
-  getBoxArt: function(appId) {
+  getBoxArt: function(appId, forceRefresh) {
     return new Promise(function(resolve, reject) {
       // Store the original PNG box art in the private directory
       var boxArtDir = 'wgt-private/' + this.hostname;
@@ -851,6 +851,14 @@ NvHTTP.prototype = {
           reject(error);
         });
       };
+
+      // Manual regeneration bypasses both local artwork caches for this host/app.
+      // Normal calls retain the existing cache-first behavior.
+      if (forceRefresh === true) {
+        self.invalidateBoxArt(appId);
+        fetchBoxArt();
+        return;
+      }
 
       // Try to load the cached original box art from private storage
       try {
