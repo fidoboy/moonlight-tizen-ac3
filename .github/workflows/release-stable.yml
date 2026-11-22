@@ -500,13 +500,25 @@ jobs:
           RELEASE_URL="$API_ROOT/releases/tags/$RELEASE_TAG"
 
           # Retry transient network errors, rate limits and GitHub 5xx responses.
+          # GitHub may report primary/secondary rate limits as HTTP 403; do not
+          # retry ordinary permission-related 403 responses.
           api_request() {
             local output="$1"
             shift
-            local status attempt
+            local headers="${output}.headers"
+            local status attempt retryable
             for attempt in 1 2 3 4 5; do
-              status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' "$@" || true)"
-              if [[ "$status" != "000" && "$status" != "429" && ! "$status" =~ ^5 ]]; then
+              status="$(curl --silent --show-error --output "$output" --dump-header "$headers" --write-out '%{http_code}' "$@" || true)"
+              retryable=false
+              if [[ "$status" == "000" || "$status" == "429" || "$status" =~ ^5 ]]; then
+                retryable=true
+              elif [[ "$status" == "403" ]] && {
+                grep -Eqi 'rate limit exceeded|secondary rate limit|abuse detection' "$output" 2>/dev/null ||
+                grep -Eqi '^x-ratelimit-remaining:[[:space:]]*0' "$headers" 2>/dev/null
+              }; then
+                retryable=true
+              fi
+              if [[ "$retryable" == false ]]; then
                 printf '%s' "$status"
                 return 0
               fi
@@ -557,13 +569,25 @@ jobs:
           REF_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG"
 
           # Retry transient network errors, rate limits and GitHub 5xx responses.
+          # GitHub may report primary/secondary rate limits as HTTP 403; do not
+          # retry ordinary permission-related 403 responses.
           api_request() {
             local output="$1"
             shift
-            local status attempt
+            local headers="${output}.headers"
+            local status attempt retryable
             for attempt in 1 2 3 4 5; do
-              status="$(curl --silent --show-error --output "$output" --write-out '%{http_code}' "$@" || true)"
-              if [[ "$status" != "000" && "$status" != "429" && ! "$status" =~ ^5 ]]; then
+              status="$(curl --silent --show-error --output "$output" --dump-header "$headers" --write-out '%{http_code}' "$@" || true)"
+              retryable=false
+              if [[ "$status" == "000" || "$status" == "429" || "$status" =~ ^5 ]]; then
+                retryable=true
+              elif [[ "$status" == "403" ]] && {
+                grep -Eqi 'rate limit exceeded|secondary rate limit|abuse detection' "$output" 2>/dev/null ||
+                grep -Eqi '^x-ratelimit-remaining:[[:space:]]*0' "$headers" 2>/dev/null
+              }; then
+                retryable=true
+              fi
+              if [[ "$retryable" == false ]]; then
                 printf '%s' "$status"
                 return 0
               fi
