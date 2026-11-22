@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEPS="${WMP_DEPS:-/opt/wmp-tizen-deps}"
-TOOL_BIN="$DEPS/toolchain/data/tools/arm-linux-gnabi-gcc-6.2/bin"
+TOOL_BIN="$DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin"
 SOURCE_DIR="$ROOT/ffmpeg"
 WORK_DIR="${FFMPEG_ARM_WORK_DIR:-$ROOT/ffmpeg-arm-build}"
 BUILD_SOURCE_DIR="$WORK_DIR/source"
