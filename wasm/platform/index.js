@@ -5215,7 +5215,7 @@ function showApps(host, options) {
           // Stream recovery excludes this host from the global polling restart.
           // With no apps there are no box-art downloads to trigger the usual resume.
           beginBackgroundPollingOfHost(host);
-          finishSuccess(!!(options && options.suppressEmptyListSnackbar) === false);
+          finishSuccess(!(options && options.suppressEmptyListSnackbar));
           return;
         }
 
