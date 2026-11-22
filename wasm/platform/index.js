@@ -5146,28 +5146,34 @@ function showApps(host, options) {
       console.log('%c[index.js, showApps]', 'color: green;', 'Current host object: \n', host, '\n' + host.toString()); // Logging both object (for console) and toString-ed object (for text logs)
     }
 
-    // Stop navigation while transitioning from Hosts to Apps.
-    Navigation.stop();
-    if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
+    try {
+      // Stop navigation while transitioning from Hosts to Apps.
+      Navigation.stop();
+      if (typeof window.abortSubnetScan === 'function') window.abortSubnetScan();
 
-    // Normal navigation waits one second before showing feedback. Stream recovery
-    // already displays a persistent snackbar from refreshHostAndReturnToApps().
-    if (!(options && options.suppressLoadingSnackbar)) {
-      if (options && options.showLoadingSnackbarImmediately) {
-        if (!persistentSnackbarVisible) snackbarLogPersistent('Loading Apps...');
-      } else {
-        scheduleViewLoadingSnackbar('Loading Apps...');
+      // Normal navigation waits one second before showing feedback. Stream recovery
+      // already displays a persistent snackbar from refreshHostAndReturnToApps().
+      if (!suppressLoadingSnackbar) {
+        if (options && options.showLoadingSnackbarImmediately) {
+          if (!persistentSnackbarVisible) snackbarLogPersistent('Loading Apps...');
+        } else {
+          scheduleViewLoadingSnackbar('Loading Apps...');
+        }
       }
-    }
 
-    // Fade out the Hosts viewport so its cards and overflow indicators disappear together.
-    $('#hosts-carousel-viewport').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
+      // Fade out the Hosts viewport so its cards and overflow indicators disappear together.
+      $('#hosts-carousel-viewport').stop(true, true).fadeOut(UI_FADE_DURATION_MS);
 
-    // Keep the current cards in place during a locked refresh (stream recovery / app close).
-    // Normal host navigation still starts with a clean grid.
-    if (!appListInteractionLocked) {
-      $('#game-grid').empty();
-      $('div.game-container').remove();
+      // Keep the current cards in place during a locked refresh (stream recovery / app close).
+      // Normal host navigation still starts with a clean grid.
+      if (!appListInteractionLocked) {
+        $('#game-grid').empty();
+        $('div.game-container').remove();
+      }
+    } catch (error) {
+      console.error('%c[index.js, showApps]', 'color: red;', 'Synchronous error while preparing the Apps view:', error);
+      finishError(error);
+      return;
     }
 
     setTimeout(() => {
