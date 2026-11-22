@@ -292,20 +292,20 @@ NvHTTP.prototype = {
       this._baseUrlHttps = 'https://' + urlAddr + ':' + this.httpsPort;
       this._baseUrlHttp = 'http://' + urlAddr + ':' + this.httpPort;
 
-      if (this.paired && this._pollCount === 0) updateMacAddress(this);
+      if (this.paired) {
+        if (this._pollCount === 0) updateMacAddress(this);
 
-      // Refresh the selected host's app list periodically only while the Apps
-      // grid is actually visible. Host polling must not enumerate apps in Hosts mode.
-      if (this.paired && this._pollCount++ % 10 === 1 &&
-          window.api === this && $('#game-grid').is(':visible')) {
-        this._backgroundAppListRefreshInProgress = true;
-        this.getAppListWithCacheFlush().catch(function(error) {
-          console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
-        }).finally(function() {
-          this._backgroundAppListRefreshInProgress = false;
-        }.bind(this));
-      } else if (this.paired) {
-        this._pollCount++;
+        // Refresh the selected host's app list periodically only while the Apps
+        // grid is actually visible. Host polling must not enumerate apps in Hosts mode.
+        if (this._pollCount++ % 10 === 1 &&
+            window.api === this && $('#game-grid').is(':visible')) {
+          this._backgroundAppListRefreshInProgress = true;
+          this.getAppListWithCacheFlush().catch(function(error) {
+            console.warn('%c[utils.js, pollServer]', 'color: gray;', 'Background app-list refresh failed:', error);
+          }).finally(function() {
+            this._backgroundAppListRefreshInProgress = false;
+          }.bind(this));
+        }
       }
 
       this._consecutivePollFailures = 0;
