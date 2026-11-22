@@ -822,11 +822,13 @@ body[data-color-theme="black-orange"] #background-layer {
     margin: 0 8px 0 -4px;
     font-size: 32px !important;
 }
-#gamepadTestBtn {
+#refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
+#refreshHostsBtn .navigation-button-icons,
+#regenerateAppImagesBtn .navigation-button-icons,
 #gamepadTestBtn .navigation-button-icons {
     display: block;
     width: 32px;
