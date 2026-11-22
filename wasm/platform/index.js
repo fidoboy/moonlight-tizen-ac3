@@ -1659,6 +1659,7 @@ function resumeBackgroundHostPollingAfterNetworkTest() {
 
 var persistentSnackbarVisible = false;
 var persistentSnackbarShownAt = 0;
+var persistentSnackbarPending = null;
 var snackbarTransitionPromise = Promise.resolve();
 
 function clearQueuedSnackbarNotifications() {
@@ -1757,43 +1758,81 @@ function setSnackbarProgress(isVisible) {
 }
 
 function snackbarLogPersistent(...args) {
-  return Promise.resolve(snackbarTransitionPromise).then(function() {
-    return dismissPersistentSnackbar();
-  }).then(function() {
-    return waitForSnackbarPhaseCourtesy();
-  }).then(function() {
-    clearQueuedSnackbarNotifications();
-    setSnackbarProgress(true);
-    const translatedMessage = t(...args);
-    console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
-    persistentSnackbarVisible = true;
-    // The caller may start its work only after this slide-in has completed.
-    return waitForSnackbarTransform(function() {
-      document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
-        message: translatedMessage,
-        timeout: 2147483647
-      });
+  // A newer persistent message supersedes a presentation that has not finished.
+  // Keep the request itself so a later dismiss can cancel it even before the
+  // snackbar has become visible.
+  var previousRequest = persistentSnackbarPending;
+  if (previousRequest) previousRequest.cancelled = true;
+
+  var request = { cancelled: false, promise: null };
+  persistentSnackbarPending = request;
+
+  request.promise = Promise.resolve(previousRequest ? previousRequest.promise : snackbarTransitionPromise)
+    .then(function() {
+      // Preserve this request while dismissing any previously visible message.
+      return dismissPersistentSnackbar(true);
     }).then(function() {
-      persistentSnackbarShownAt = Date.now();
+      return waitForSnackbarPhaseCourtesy();
+    }).then(function() {
+      // The host may have returned its app list while the courtesy delay or
+      // another snackbar transition was in progress.
+      if (request.cancelled) return;
+
+      clearQueuedSnackbarNotifications();
+      setSnackbarProgress(true);
+      const translatedMessage = t(...args);
+      console.log('%c[index.js, snackbarLogPersistent]', 'color: green;', ...args);
+
+      // Mark it visible only when showSnackbar is actually about to run.
+      return waitForSnackbarTransform(function() {
+        if (request.cancelled) return;
+        persistentSnackbarVisible = true;
+        document.querySelector('#snackbar').MaterialSnackbar.showSnackbar({
+          message: translatedMessage,
+          timeout: 2147483647
+        });
+      }).then(function() {
+        if (persistentSnackbarVisible) persistentSnackbarShownAt = Date.now();
+      });
+    }).finally(function() {
+      if (persistentSnackbarPending === request) persistentSnackbarPending = null;
     });
-  });
+
+  return request.promise;
 }
 
-function dismissPersistentSnackbar() {
+function dismissPersistentSnackbar(preservePendingPresentation) {
   clearQueuedSnackbarNotifications();
+
+  // A dismiss received before presentation must invalidate that request. If
+  // presentation has already started, wait for its transition and then close
+  // it through the same path used for an already-visible snackbar.
+  if (persistentSnackbarPending && !preservePendingPresentation) {
+    var pendingRequest = persistentSnackbarPending;
+    pendingRequest.cancelled = true;
+    return Promise.resolve(pendingRequest.promise).then(function() {
+      return dismissPersistentSnackbar();
+    });
+  }
+
   if (!persistentSnackbarVisible) return Promise.resolve(snackbarTransitionPromise);
   persistentSnackbarVisible = false;
-  return waitForSnackbarMinimumVisible().then(function() {
+
+  // Wait for the entrance transition before measuring the minimum visible
+  // interval or starting the exit transition.
+  return Promise.resolve(snackbarTransitionPromise).then(function() {
+    return waitForSnackbarMinimumVisible();
+  }).then(function() {
     return waitForSnackbarTransform(function() {
-    const snackbarElement = document.querySelector('#snackbar');
-    if (snackbarElement) {
-      if (snackbarElement.MaterialSnackbar &&
-          typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
-        snackbarElement.MaterialSnackbar.cleanup_();
+      const snackbarElement = document.querySelector('#snackbar');
+      if (snackbarElement) {
+        if (snackbarElement.MaterialSnackbar &&
+            typeof snackbarElement.MaterialSnackbar.cleanup_ === 'function') {
+          snackbarElement.MaterialSnackbar.cleanup_();
+        }
+        snackbarElement.classList.remove('mdl-snackbar--active');
+        snackbarElement.setAttribute('aria-hidden', 'true');
       }
-      snackbarElement.classList.remove('mdl-snackbar--active');
-      snackbarElement.setAttribute('aria-hidden', 'true');
-    }
     }).then(function() {
       // Keep the spinner visible until the snackbar has completely slid out.
       setSnackbarProgress(false);
