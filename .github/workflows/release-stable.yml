@@ -1,15 +1,6 @@
 name: Generate stable release
 
 on:
-  push:
-    branches:
-      - master
-    tags:
-      - 'v*'
-    paths:
-      - 'res/config.xml'
-      - '.github/workflows/release-stable.yml'
-      - '.github/release-notes.md'
   workflow_dispatch:
     inputs:
       version:
@@ -20,17 +11,40 @@ on:
 permissions:
   contents: write
   actions: write
+  packages: read
+
+# Serialize attempts for the same version without cancelling an active publication.
+concurrency:
+  group: stable-release-${{ inputs.version }}
+  cancel-in-progress: false
 
 jobs:
   publish:
-    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || (github.event_name == 'push' && github.ref == 'refs/heads/master' && (contains(github.event.head_commit.message, '[release]') || contains(github.event.head_commit.message, '[release-notes-fix]')))
-    name: Build and publish versioned WGTs
+    name: Build and publish release WGT
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Validate workflow branch
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "workflow_dispatch" ]]; then
+            echo "::error::This workflow can only be started manually using workflow_dispatch (received: $EVENT_NAME)." >&2
+            exit 1
+          fi
+          if [[ "$REF" != "refs/heads/master" ]]; then
+            echo "::error::Stable releases can only be produced from master. The workflow was started from '$REF'." >&2
+            exit 1
+          fi
+          echo "Workflow dispatch confirmed on master."
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
+          ref: master
           submodules: recursive
 
       - name: Validate release version
@@ -38,35 +52,120 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
-          UPDATE_RELEASE_NOTES: ${{ contains(github.event.head_commit.message, '[release-notes-fix]') }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            VERSION="$REQUESTED_VERSION"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="$(grep -oP 'version="\K[0-9]+\.[0-9]+\.[0-9]+' res/config.xml | head -n1)"
-          fi
+          VERSION="$REQUESTED_VERSION"
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Expected a stable semantic version such as 1.0.0, got: $VERSION" >&2
+            echo "::error::Expected a stable semantic version such as 1.0.0, got: $VERSION." >&2
             exit 1
           fi
-          CONFIG_VERSION="$(grep -oP 'version="\K[0-9]+\.[0-9]+\.[0-9]+' res/config.xml | head -n1)"
+          if [[ ! -f "res/config.xml" ]]; then
+            echo "::error::Required version file res/config.xml does not exist." >&2
+            exit 1
+          fi
+          CONFIG_VERSION="$(grep -oP 'version="\K[0-9]+\.[0-9]+\.[0-9]+' res/config.xml | head -n1 || true)"
+          if [[ -z "$CONFIG_VERSION" ]]; then
+            echo "::error::Could not read a valid version attribute from res/config.xml." >&2
+            exit 1
+          fi
           if [[ "$VERSION" != "$CONFIG_VERSION" ]]; then
-            echo "Release version $VERSION does not match res/config.xml ($CONFIG_VERSION)." >&2
+            echo "::error::Release version $VERSION does not match res/config.xml ($CONFIG_VERSION)." >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          if [[ "$UPDATE_RELEASE_NOTES" == "true" ]]; then
-            echo "mode=update-notes" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=publish" >> "$GITHUB_OUTPUT"
+
+      - name: Reject an already published release version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+          status="$(curl --silent --show-error --output "$RUNNER_TEMP/existing-release.json" --write-out '%{http_code}' \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$API_URL")"
+          if [[ "$status" == "200" ]]; then
+            echo "::error::Release $RELEASE_TAG already exists. Delete the existing GitHub Release before publishing this version again, or increase the version in res/config.xml and the workflow input." >&2
+            exit 1
+          elif [[ "$status" != "404" ]]; then
+            echo "::error::Could not verify whether release $RELEASE_TAG already exists (HTTP $status)." >&2
+            cat "$RUNNER_TEMP/existing-release.json" >&2
+            exit 1
+          fi
+          echo "No existing GitHub Release found for $RELEASE_TAG."
+
+      - name: Validate release notes format
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOTES_FILE=".github/release-notes.md"
+          if [[ ! -f "$NOTES_FILE" ]]; then
+            echo "::error::Required release notes file $NOTES_FILE does not exist." >&2
+            exit 1
+          fi
+          FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
+          if [[ "$FIRST_LINE" != "## 🔥 Highlights" ]]; then
+            echo "::error::The first line of $NOTES_FILE must be exactly '## 🔥 Highlights'." >&2
+            exit 1
           fi
 
+      - name: Validate matching changelog entry
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          CHANGELOG_FILE="CHANGELOG.md"
+          if [[ ! -f "$CHANGELOG_FILE" ]]; then
+            echo "::error::Required changelog file $CHANGELOG_FILE does not exist." >&2
+            exit 1
+          fi
+          LATEST_CHANGELOG_VERSION="$(awk '/^## v[0-9]+\.[0-9]+\.[0-9]+([[:space:]]|$)/ { print $2; exit }' "$CHANGELOG_FILE")"
+          if [[ -z "$LATEST_CHANGELOG_VERSION" ]]; then
+            echo "::error::No versioned release entries were found in $CHANGELOG_FILE. Add a '## v$RELEASE_VERSION' entry before publishing." >&2
+            exit 1
+          fi
+          if [[ "$LATEST_CHANGELOG_VERSION" != "v$RELEASE_VERSION" ]]; then
+            echo "::error::The changelog entry for v$RELEASE_VERSION is not the latest entry. The latest version listed is $LATEST_CHANGELOG_VERSION. Move the v$RELEASE_VERSION section to the top of $CHANGELOG_FILE before publishing." >&2
+            exit 1
+          fi
+          echo "The latest changelog entry is v$RELEASE_VERSION."
+
+      - name: Prepare release notes with version changelog details
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          CHANGELOG_FILE="CHANGELOG.md"
+          VERSIONED_ENTRY="$RUNNER_TEMP/version-changelog-entry.md"
+          CHANGELOG_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/CHANGELOG.md#v${RELEASE_VERSION//./}"
+
+          # Extract only the requested version section, stopping before the next version heading.
+          awk -v target="v$RELEASE_VERSION" '
+            $0 == "## " target || index($0, "## " target " ") == 1 { in_entry=1; next }
+            in_entry && /^## v[0-9]+\.[0-9]+\.[0-9]+([[:space:]]|$)/ { exit }
+            in_entry { print }
+          ' "$CHANGELOG_FILE" > "$VERSIONED_ENTRY"
+
+          if ! grep -q '[^[:space:]]' "$VERSIONED_ENTRY"; then
+            echo "::error::The changelog entry for v$RELEASE_VERSION is empty. Add its details to $CHANGELOG_FILE before publishing." >&2
+            exit 1
+          fi
+
+          {
+            cat .github/release-notes.md
+            printf '\n\n---\n\n<details>\n<summary>⚙️ Changelog details for v%s</summary>\n\n' "$RELEASE_VERSION"
+            cat "$VERSIONED_ENTRY"
+            printf '\n\n</details>\n\n**Changelog:** [View the entry for v%s](%s)\n' "$RELEASE_VERSION" "$CHANGELOG_URL"
+          } > "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+
       - name: Ensure required versioned MP4 assets are available
-        if: steps.version.outputs.mode == 'publish'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -137,65 +236,8 @@ jobs:
           done
           echo "Installed all versioned MP4 assets into generated-videos/."
 
-      - name: Validate release notes format
-        shell: bash
-        run: |
-          set -euo pipefail
-          NOTES_FILE=".github/release-notes.md"
-          if [[ ! -s "$NOTES_FILE" ]]; then
-            echo "Release notes file $NOTES_FILE is missing or empty." >&2
-            exit 1
-          fi
-          FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
-          case "$FIRST_LINE" in
-            "## Highlights"|"## What's Changed"|"## What's Changed:")
-              ;;
-            *)
-              echo "Invalid release notes heading: '$FIRST_LINE'." >&2
-              echo "The first line must be exactly '## Highlights' or '## What's Changed' (optionally followed by a colon), as required by the in-app update notes parser." >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Update existing public release notes
-        if: steps.version.outputs.mode == 'update-notes'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          API_ROOT="https://api.github.com/repos/$GITHUB_REPOSITORY"
-          status="$(curl --silent --show-error --output /tmp/release.json --write-out '%{http_code}' \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "$API_ROOT/releases/tags/$RELEASE_TAG")"
-          if [[ "$status" != "200" ]]; then
-            echo "Cannot update notes: release $RELEASE_TAG lookup returned HTTP $status." >&2
-            cat /tmp/release.json >&2
-            exit 1
-          fi
-          RELEASE_ID="$(jq -er '.id' /tmp/release.json)"
-          jq -n --rawfile body .github/release-notes.md '{body: $body}' > /tmp/release-patch.json
-          status="$(curl --silent --show-error --output /tmp/release-updated.json --write-out '%{http_code}' \
-            --request PATCH \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            -H 'Content-Type: application/json' \
-            --data-binary @/tmp/release-patch.json \
-            "$API_ROOT/releases/$RELEASE_ID")"
-          if [[ "$status" != "200" ]]; then
-            echo "Failed to update release $RELEASE_TAG (HTTP $status)." >&2
-            cat /tmp/release-updated.json >&2
-            exit 1
-          fi
-          jq -e --arg tag "$RELEASE_TAG" '.tag_name == $tag and (.body | startswith("## Highlights"))' /tmp/release-updated.json >/dev/null
-          echo "Updated release notes for $RELEASE_TAG without rebuilding or replacing the WGT assets."
-
       - name: Move release tag to the current source commit
-        if: steps.version.outputs.mode == 'publish'
+        id: release-tag
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -240,71 +282,198 @@ jobs:
             exit 1
           fi
           echo "Created or moved $RELEASE_TAG to $GITHUB_SHA."
+          echo "updated=true" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/setup-buildx-action@v3
+      - name: Prepare persistent ccache directory
+        shell: bash
+        run: mkdir -p "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
-      - name: Build standard WGT
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/build-push-action@v7
+      - name: Restore Moonlight Web compiler cache
+        uses: actions/cache/restore@v4
         with:
-          context: .
-          push: false
-          load: true
-          tags: moonlight-tizen-release:standard
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_TYPE=release
-            OFFICIAL_RELEASE=true
-            REPO_OWNER=${{ github.repository_owner }}
-            REPO_NAME=${{ github.event.repository.name }}
-            FORCE_GAME_MODE=false
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}
+            moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-
+            moonlight-web-ccache-${{ runner.os }}-
 
-      - name: Extract standard WGT
-        if: steps.version.outputs.mode == 'publish'
+
+      - name: Log in to GitHub Container Registry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Pull Tizen build image from GHCR
+        shell: bash
+        run: docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+
+      - name: Build WMP engine and .NET ServiceApp inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
-          container_id="$(docker create moonlight-tizen-release:standard)"
-          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm --user root \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e WMP_DEPS=/opt/wmp-tizen-deps \
+            -e WMP_BACKPORT_DEPS=/opt/wmp-backport-deps \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
+            "$image" bash -lc '
+              set -euo pipefail
+              for tool in autoconf automake autoreconf libtoolize pkg-config; do command -v "$tool" >/dev/null; done
+              test -x "$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+              test -s /opt/wmp-backport-deps/arm-static/lib/libcrypto.a
+              test -s /opt/wmp-backport-deps/arm-static/lib/libssl.a
+              test -s /opt/wmp-backport-deps/arm-static/lib/libcurl.a
+              echo "::group::WMP transport and native unit tests"
+              node tests/wmp_transport_test.js
+              cc -std=c99 -Wall -Wextra -Werror -pthread -Imoonlight-common-c/src -Iwmp/engine/mlclient -Iwmp/service/src -Iopus/include wmp/tests/wmp_audio_passthrough_test.c -o /runner-temp/wmp-audio-passthrough-test
+              /runner-temp/wmp-audio-passthrough-test
+              bash wmp/tests/wmp_esplus_abi_test.sh
+              echo "::endgroup::"
+              ARM_GCC="$WMP_DEPS/toolchain/data/tools/arm-linux-gnueabi-gcc-6.2/bin/arm-linux-gnueabi-gcc"
+              ARM_GCC_DIR="$(dirname "$ARM_GCC")"
+              for tool in g++ nm ranlib; do
+                found="$(find "$WMP_DEPS/toolchain" -type f -name "arm-linux-gnueabi-$tool" -perm -u+x -print -quit)"
+                test -n "$found"
+                target="$ARM_GCC_DIR/arm-linux-gnueabi-$tool"
+                if [[ ! -x "$target" ]]; then ln -sfn "$found" "$target"; fi
+              done
+              CCACHE_BIN=/runner-temp/wmp-ccache-bin
+              mkdir -p "$CCACHE_BIN" "$CCACHE_DIR"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/arm-linux-gnueabi-gcc"
+              ln -sf "$(command -v ccache)" "$CCACHE_BIN/gcc"
+              export CCACHE_COMPILERCHECK=content
+              export CCACHE_BASEDIR=/workspace
+              export PATH="$CCACHE_BIN:$ARM_GCC_DIR:$PATH"
+              ccache --version
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" OUT=/runner-temp/wmp-deps-build JOBS=2 bash wmp/engine/build/build-deps-lib.sh
+              export FFMPEG_ARM_PREFIX=/runner-temp/ffmpeg-arm-install
+              export FFMPEG_ARM_WORK_DIR=/runner-temp/ffmpeg-arm-build
+              bash scripts/build-ffmpeg-arm.sh
+              WMP_ARM_CC="$CCACHE_BIN/arm-linux-gnueabi-gcc" MLT=/workspace DEPS="$WMP_DEPS" BPD="$WMP_BACKPORT_DEPS" FFMPEG_ARM_PREFIX="$FFMPEG_ARM_PREFIX" DEPSBUILD=/runner-temp/wmp-deps-build OUT=/runner-temp/wmp-engine-build BUILD_VARIANT=release WMP_MLT_TRACE=false bash wmp/engine/mlclient/build-engine-so.sh
+              echo "::group::WMP ARM ccache statistics"
+              ccache --show-stats
+              echo "::endgroup::"
+              test -s /runner-temp/wmp-engine-build/libmlengine.so
+              readelf -h /runner-temp/wmp-engine-build/libmlengine.so | grep -F "Machine:" | grep -F "ARM"
+              mkdir -p wmp/dotnet-host/lib
+              cp /runner-temp/wmp-engine-build/libmlengine.so wmp/dotnet-host/lib/libmlengine.so
+              echo "WMP native engine built. The managed host will be compiled and packaged by its Tizen Core dependency project."
+            '
+      - name: Restore compiler cache ownership after WMP build
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+
+      - name: Restore FFmpeg WebAssembly build cache
+        id: restore-ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+      - name: Build the release Moonlight Web payload inside optimized v5 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/moonlight-home"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e HOME=/runner-temp/moonlight-home \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
+            -e EMSDK=/opt/emscripten-release-bundle/emsdk \
+            -e BUILD_TYPE=release \
+            -e DEBUG_MODE=false \
+            -e LOG_SHOW_PRIVATE_DATA=false \
+            -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
+            -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
+            "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
+
+      - name: Save FFmpeg WebAssembly build cache
+        if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ffmpeg-install
+          key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
+      - name: Prepare compiler cache ownership for saving
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/moonlight-home/.cache/ccache" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/moonlight-home/.cache/ccache"
+          fi
+
+      - name: Save Moonlight Web compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/moonlight-home/.cache/ccache
+          key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Extract unsigned Moonlight Web files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a "$RUNNER_TEMP/moonlight-web/web" "$RUNNER_TEMP/web"
+          for project in "$RUNNER_TEMP/web"; do
+            test -s "$project/config.xml"
+            test -s "$project/index.html"
+            test -s "$project/moonlight-wasm.js"
+            test -s "$project/moonlight-wasm.wasm"
+            test -s "$project/service/service.js"
+          done
+
+      - name: Package the Tizen Core hybrid workspaces
+        shell: bash
+        env:
+          BUILD_OUTPUT_NAME: Moonlight.wgt
+          BASE_WGT_NAME: MoonlightWeb-base.wgt
+          DOTNET_BUILD_CONFIGURATION: Release
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
+          docker run --rm -i --user root \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e RUNNER_TEMP=/runner-temp \
+            -e GITHUB_SHA="$GITHUB_SHA" \
+            -e BUILD_OUTPUT_NAME="$BUILD_OUTPUT_NAME" \
+            -e BASE_WGT_NAME="$BASE_WGT_NAME" \
+            -e DOTNET_BUILD_CONFIGURATION="$DOTNET_BUILD_CONFIGURATION" \
+            "$image" bash /workspace/scripts/package-hybrid-wgt.sh
+      - name: Show packaging diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          find "$RUNNER_TEMP" "$HOME" -type f \
+            \( -path '*/cli/logs/cli.log' -o -name 'tizen-core.log' -o -name 'tz.log' \) \
+            -print 2>/dev/null | while IFS= read -r log; do
+              echo "--- $log (last 300 lines) ---"
+              tail -n 300 "$log"
+            done
+
+      - name: Collect the single release WGT
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p dist
-          docker cp "$container_id:/home/moonlight/Moonlight.wgt" dist/Moonlight.wgt
+          cp "$RUNNER_TEMP/hybrid-output/Moonlight.wgt" dist/Moonlight.wgt
           test -s dist/Moonlight.wgt
           sha256sum dist/Moonlight.wgt
 
-      - name: Build ForceGM WGT
-        if: steps.version.outputs.mode == 'publish'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: false
-          load: true
-          tags: moonlight-tizen-release:forcegm
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_TYPE=release
-            OFFICIAL_RELEASE=true
-            REPO_OWNER=${{ github.repository_owner }}
-            REPO_NAME=${{ github.event.repository.name }}
-            FORCE_GAME_MODE=true
-
-      - name: Extract ForceGM WGT
-        if: steps.version.outputs.mode == 'publish'
-        shell: bash
-        run: |
-          set -euo pipefail
-          container_id="$(docker create moonlight-tizen-release:forcegm)"
-          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
-          mkdir -p dist
-          docker cp "$container_id:/home/moonlight/Moonlight-ForceGM.wgt" dist/Moonlight-ForceGM.wgt
-          test -s dist/Moonlight-ForceGM.wgt
-          sha256sum dist/Moonlight-ForceGM.wgt
-
       - name: Publish public GitHub Release
-        if: steps.version.outputs.mode == 'publish'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -314,9 +483,131 @@ jobs:
           prerelease: false
           draft: false
           make_latest: true
-          overwrite_files: true
           fail_on_unmatched_files: true
           files: |
             dist/Moonlight.wgt
-            dist/Moonlight-ForceGM.wgt
-          body_path: .github/release-notes.md
+          body_path: ${{ runner.temp }}/release-notes.md
+
+      - name: Delete GitHub Release if the workflow fails
+        if: ${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          API_ROOT="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          RELEASE_URL="$API_ROOT/releases/tags/$RELEASE_TAG"
+
+          # Retry transient network errors, rate limits and GitHub 5xx responses.
+          # GitHub may report primary/secondary rate limits as HTTP 403; do not
+          # retry ordinary permission-related 403 responses.
+          api_request() {
+            local output="$1"
+            shift
+            local headers="${output}.headers"
+            local status attempt retryable
+            for attempt in 1 2 3 4 5; do
+              status="$(curl --silent --show-error --output "$output" --dump-header "$headers" --write-out '%{http_code}' "$@" || true)"
+              retryable=false
+              if [[ "$status" == "000" || "$status" == "429" || "$status" =~ ^5 ]]; then
+                retryable=true
+              elif [[ "$status" == "403" ]] && {
+                grep -Eqi 'rate limit exceeded|secondary rate limit|abuse detection' "$output" 2>/dev/null ||
+                grep -Eqi '^x-ratelimit-remaining:[[:space:]]*0' "$headers" 2>/dev/null
+              }; then
+                retryable=true
+              fi
+              if [[ "$retryable" == false ]]; then
+                printf '%s' "$status"
+                return 0
+              fi
+              if [[ "$attempt" -lt 5 ]]; then
+                echo "Transient GitHub API response HTTP $status; retrying ($attempt/5)..." >&2
+                sleep "$((attempt * 2))"
+              fi
+            done
+            printf '%s' "$status"
+          }
+
+          status="$(api_request "$RUNNER_TEMP/release-lookup.json" \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$RELEASE_URL")"
+
+          if [[ "$status" == "404" ]]; then
+            echo "No GitHub Release exists for $RELEASE_TAG; nothing to delete."
+          elif [[ "$status" == "200" ]]; then
+            release_id="$(jq -er '.id' "$RUNNER_TEMP/release-lookup.json")"
+            status="$(api_request "$RUNNER_TEMP/release-delete.json" \
+              --request DELETE \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "$API_ROOT/releases/$release_id")"
+            if [[ "$status" != "204" && "$status" != "404" ]]; then
+              echo "::error::Could not delete failed GitHub Release $RELEASE_TAG after retries (HTTP $status)." >&2
+              cat "$RUNNER_TEMP/release-delete.json" >&2
+              exit 1
+            fi
+            echo "Deleted failed GitHub Release $RELEASE_TAG."
+          else
+            echo "::error::Could not inspect GitHub Release $RELEASE_TAG after retries (HTTP $status)." >&2
+            cat "$RUNNER_TEMP/release-lookup.json" >&2
+            exit 1
+          fi
+
+      - name: Delete release tag if the workflow fails
+        if: ${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          REF_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG"
+
+          # Retry transient network errors, rate limits and GitHub 5xx responses.
+          # GitHub may report primary/secondary rate limits as HTTP 403; do not
+          # retry ordinary permission-related 403 responses.
+          api_request() {
+            local output="$1"
+            shift
+            local headers="${output}.headers"
+            local status attempt retryable
+            for attempt in 1 2 3 4 5; do
+              status="$(curl --silent --show-error --output "$output" --dump-header "$headers" --write-out '%{http_code}' "$@" || true)"
+              retryable=false
+              if [[ "$status" == "000" || "$status" == "429" || "$status" =~ ^5 ]]; then
+                retryable=true
+              elif [[ "$status" == "403" ]] && {
+                grep -Eqi 'rate limit exceeded|secondary rate limit|abuse detection' "$output" 2>/dev/null ||
+                grep -Eqi '^x-ratelimit-remaining:[[:space:]]*0' "$headers" 2>/dev/null
+              }; then
+                retryable=true
+              fi
+              if [[ "$retryable" == false ]]; then
+                printf '%s' "$status"
+                return 0
+              fi
+              if [[ "$attempt" -lt 5 ]]; then
+                echo "Transient GitHub API response HTTP $status; retrying ($attempt/5)..." >&2
+                sleep "$((attempt * 2))"
+              fi
+            done
+            printf '%s' "$status"
+          }
+
+          status="$(api_request "$RUNNER_TEMP/tag-delete.json" \
+            --request DELETE \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$REF_URL")"
+          if [[ "$status" != "204" && "$status" != "404" ]]; then
+            echo "::error::Could not delete unpublished release tag $RELEASE_TAG after retries (HTTP $status)." >&2
+            cat "$RUNNER_TEMP/tag-delete.json" >&2
+            exit 1
+          fi
+          echo "Deleted unpublished release tag $RELEASE_TAG after workflow failure or cancellation."
