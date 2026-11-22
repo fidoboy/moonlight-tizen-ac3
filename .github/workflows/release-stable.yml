@@ -58,6 +58,30 @@ jobs:
             echo "mode=publish" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Reject an already published release version
+        if: steps.version.outputs.mode == 'publish'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          API_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+          status="$(curl --silent --show-error --output "$RUNNER_TEMP/existing-release.json" --write-out '%{http_code}' \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$API_URL")"
+          if [[ "$status" == "200" ]]; then
+            echo "::error::Release $RELEASE_TAG already exists. Delete the existing GitHub Release before publishing this version again, or increase the version in res/config.xml and the workflow input." >&2
+            exit 1
+          elif [[ "$status" != "404" ]]; then
+            echo "::error::Could not verify whether release $RELEASE_TAG already exists (HTTP $status)." >&2
+            cat "$RUNNER_TEMP/existing-release.json" >&2
+            exit 1
+          fi
+          echo "No existing GitHub Release found for $RELEASE_TAG."
+
       - name: Validate release notes format
         shell: bash
         run: |
