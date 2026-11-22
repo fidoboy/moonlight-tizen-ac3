@@ -2046,6 +2046,9 @@ function cancelAppImageRegeneration() {
     operation.button.disabled = false;
     operation.button.removeAttribute('aria-busy');
   }
+  dismissPersistentSnackbar().catch(function(error) {
+    console.warn('%c[index.js, cancelAppImageRegeneration]', 'color: gray;', 'Could not dismiss the app image regeneration snackbar:', error);
+  });
   if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
 }
 
@@ -2073,15 +2076,18 @@ function regenerateAppImageThumbnails() {
       window.getComputedStyle(grid).display !== 'none';
   }
   function finish() {
-    if (!isCurrent()) return;
+    if (!isCurrent()) return Promise.resolve();
     activeAppImageRegeneration = null;
     button.disabled = false;
     button.removeAttribute('aria-busy');
-    if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
+    return dismissPersistentSnackbar().catch(function(error) {
+      console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Could not dismiss the regeneration snackbar:', error);
+    }).then(function() {
+      if (operation.ownsLock && appListInteractionLocked) unlockAppListInteraction();
+    });
   }
   function showError(error) {
     console.error('%c[index.js, regenerateAppImageThumbnails]', 'color: red;', 'Could not regenerate app image thumbnails:', error);
-    if (typeof snackbarLogLong === 'function') snackbarLogLong('Could not regenerate app image thumbnails.');
   }
 
   var existingIds = {};
@@ -2093,6 +2099,9 @@ function regenerateAppImageThumbnails() {
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   if (!appListInteractionLocked) lockAppListInteraction();
+  snackbarLogPersistent('Regenerating app image thumbnails...').catch(function(error) {
+    console.warn('%c[index.js, regenerateAppImageThumbnails]', 'color: gray;', 'Could not show the regeneration snackbar:', error);
+  });
 
   var request;
   try { request = Promise.resolve(host.getAppListWithCacheFlush()); }
@@ -2178,11 +2187,13 @@ function regenerateAppImageThumbnails() {
       });
     });
   }).then(function() {
-    if (isCurrent()) finish();
+    if (isCurrent()) return finish();
   }).catch(function(error) {
     if (!isCurrent()) return;
     showError(error);
-    finish();
+    return finish().then(function() {
+      if (typeof snackbarLogLong === 'function') return snackbarLogLong('Could not regenerate app image thumbnails.');
+    });
   });
 }
 
