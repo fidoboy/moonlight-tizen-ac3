@@ -779,7 +779,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
+#settingsBtn, #refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
     background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -2376,7 +2376,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #closeUpdateApp:hover, #closeUpdateApp:focus, #continueRestoreDefaults:hover, #continueRestoreDefaults:focus, #cancelRestoreDefaults:hover,
 #cancelRestoreDefaults:focus, #continueQuitApp:hover, #continueQuitApp:focus, #cancelQuitApp:hover, #cancelQuitApp:focus, #closeWarning:hover,
 #closeWarning:focus, #continueRestartApp:hover, #continueRestartApp:focus, #cancelRestartApp:hover, #cancelRestartApp:focus, #continueExitApp:hover,
-#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
+#continueExitApp:focus, #cancelExitApp:hover, #cancelExitApp:focus, #settingsBtn:hover, #settingsBtn:focus, #refreshHostsBtn:hover, #refreshHostsBtn:focus, #regenerateAppImagesBtn:hover, #regenerateAppImagesBtn:focus, #gamepadTestBtn:hover, #gamepadTestBtn:focus, #supportBtn:hover, #supportBtn:focus,
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectStreamingEngine:hover, #selectStreamingEngine:focus, #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
