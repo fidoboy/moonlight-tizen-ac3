@@ -9437,13 +9437,13 @@ function getSystemInfoDeveloperDetails() {
     var device = data && data.device ? data.device : {};
     var mode = device.developerMode;
     if (mode === '0' || mode === 0 || mode === false) {
-      return { developerInfo: t('No') };
+      return { developerInfo: t('Disabled') };
     }
     if (mode === '1' || mode === 1 || mode === true) {
       var hostIP = typeof device.developerIP === 'string' && device.developerIP.trim()
         ? device.developerIP.trim()
         : '';
-      return { developerInfo: t('Yes') + (hostIP ? ' - IP: ' + hostIP : '') };
+      return { developerInfo: t('Enabled') + (hostIP ? ' - IP: ' + hostIP : '') };
     }
     return { developerInfo: t('N/A') };
   }).catch(function(error) {
