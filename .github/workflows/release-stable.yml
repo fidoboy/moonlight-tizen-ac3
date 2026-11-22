@@ -1,15 +1,6 @@
 name: Generate stable release
 
 on:
-  push:
-    branches:
-      - master
-    tags:
-      - 'v*'
-    paths:
-      - 'res/config.xml'
-      - '.github/workflows/release-stable.yml'
-      - '.github/release-notes.md'
   workflow_dispatch:
     inputs:
       version:
@@ -24,7 +15,7 @@ permissions:
 
 jobs:
   publish:
-    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || (github.event_name == 'push' && github.ref == 'refs/heads/master' && (contains(github.event.head_commit.message, '[release]') || contains(github.event.head_commit.message, '[release-notes-fix]')))
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
     name: Build and publish release WGT
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -64,6 +55,21 @@ jobs:
             echo "mode=update-notes" >> "$GITHUB_OUTPUT"
           else
             echo "mode=publish" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate release notes format
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOTES_FILE=".github/release-notes.md"
+          if [[ ! -f "$NOTES_FILE" ]]; then
+            echo "::error::Required release notes file $NOTES_FILE does not exist." >&2
+            exit 1
+          fi
+          FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
+          if [[ "$FIRST_LINE" != "## Highlights" ]]; then
+            echo "::error::The first line of $NOTES_FILE must be exactly '## Highlights'." >&2
+            exit 1
           fi
 
       - name: Ensure required versioned MP4 assets are available
@@ -137,26 +143,6 @@ jobs:
             fi
           done
           echo "Installed all versioned MP4 assets into generated-videos/."
-
-      - name: Validate release notes format
-        shell: bash
-        run: |
-          set -euo pipefail
-          NOTES_FILE=".github/release-notes.md"
-          if [[ ! -s "$NOTES_FILE" ]]; then
-            echo "Release notes file $NOTES_FILE is missing or empty." >&2
-            exit 1
-          fi
-          FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
-          case "$FIRST_LINE" in
-            "## Highlights"|"## What's Changed"|"## What's Changed:")
-              ;;
-            *)
-              echo "Invalid release notes heading: '$FIRST_LINE'." >&2
-              echo "The first line must be exactly '## Highlights' or '## What's Changed' (optionally followed by a colon), as required by the in-app update notes parser." >&2
-              exit 1
-              ;;
-          esac
 
       - name: Update existing public release notes
         if: steps.version.outputs.mode == 'update-notes'
