@@ -7786,7 +7786,7 @@ function getData(key, callbackFunction, errorCallback) {
             throw new Error('The stored Moonlight certificate record is invalid.');
           }
           if (typeof errorCallback === 'function' && value != null && key === 'uniqueid' &&
-              (typeof value !== 'object' || typeof value.uniqueid !== 'string' || !value.uniqueid)) {
+              (typeof value !== 'object' || typeof value.uniqueid !== 'string' || !value.uniqueid.trim())) {
             throw new Error('The stored Moonlight unique ID record is invalid.');
           }
           finishRead(value);
@@ -11097,7 +11097,7 @@ function loadHTTPCertsCb() {
         // stream is still idle. prepare() does not create a playback session.
         var nativeCertificateGenerated = false;
         var nativeCredentialPromise = Promise.resolve().then(function() {
-          if (!myUniqueid || typeof myUniqueid !== 'string') {
+          if (!myUniqueid || typeof myUniqueid !== 'string' || !myUniqueid.trim()) {
             throw new Error('The stored Moonlight unique ID is invalid.');
           }
           return savedUniqueid && savedUniqueid.uniqueid != null
