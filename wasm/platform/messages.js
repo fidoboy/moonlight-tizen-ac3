@@ -650,7 +650,7 @@ function ensurePerformanceStatsOverlayElements() {
   var engineValueElement = engineElement.querySelector('.performance-stats-value');
   engineLabelElement.textContent = activeEngine ? 'Motor:' : '';
   engineValueElement.textContent = activeEngine === 'ESPLUSPLAYER'
-    ? 'Nativo'
+    ? t('Native')
     : activeEngine === 'EMSS' ? 'EMSS' : '';
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
