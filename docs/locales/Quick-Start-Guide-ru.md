@@ -30,7 +30,6 @@ description: "Начало работы с Moonlight Tizen и хостами, с
 - **Apps2Samsung:** выберите **Custom WGT / TPK** и укажите скачанный файл.
 - **Tizen Studio:** подключитесь к телевизору с включённым режимом разработчика и установите пакет средствами развёртывания Tizen, используя профиль сертификата, принимаемый телевизором. Подробности см. в [руководстве по установке](Installation-Guide-ru.html).
 
-Используйте `Moonlight-ForceGM.wgt` только в том случае, если телевизору специально нужны альтернативные метаданные Game Mode.
 ## 3. Настройте хост и выполните сопряжение
 
 1. Установите и запустите на ПК любой хост-сервер, совместимый с GameStream. Например: [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) или [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Могут подойти и другие совместимые хост-программы.
