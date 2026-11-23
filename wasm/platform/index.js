@@ -7803,8 +7803,13 @@ function openIndexDB(callback, errorCallback) {
 
   request.onerror = function(e) {
     console.error('%c[index.js, openIndexDB]', 'color: red;', 'Cannot create or access IndexedDB:', e);
-    if (typeof errorCallback === 'function') errorCallback(request.error || e);
-    if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
+    var openError = request.error || e;
+    if (typeof errorCallback === 'function') {
+      openError.moonlightReadStage = 'database-open';
+      errorCallback(openError);
+    } else if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
+    }
   };
 
   request.onsuccess = function(e) {
@@ -7862,15 +7867,27 @@ function getData(key, callbackFunction, errorCallback) {
               : readRequest.result;
             console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
           }
-          var value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
+          var value = null;
+          if (readRequest.result != null) {
+            try {
+              value = JSON.parse(readRequest.result);
+            } catch (parseError) {
+              parseError.moonlightReadStage = key + '-parse';
+              throw parseError;
+            }
+          }
           if (typeof errorCallback === 'function' && value != null && key === 'cert' &&
               (typeof value !== 'object' || typeof value.cert !== 'string' || !value.cert ||
                typeof value.privateKey !== 'string' || !value.privateKey)) {
-            throw new Error('The stored Moonlight certificate record is invalid.');
+            var certError = new Error('The stored Moonlight certificate record is invalid.');
+            certError.moonlightReadStage = 'cert-invalid';
+            throw certError;
           }
           if (typeof errorCallback === 'function' && value != null && key === 'uniqueid' &&
               (typeof value !== 'object' || typeof value.uniqueid !== 'string' || !value.uniqueid.trim())) {
-            throw new Error('The stored Moonlight unique ID record is invalid.');
+            var uniqueidError = new Error('The stored Moonlight unique ID record is invalid.');
+            uniqueidError.moonlightReadStage = 'uniqueid-invalid';
+            throw uniqueidError;
           }
           finishRead(value);
         } catch (error) {
@@ -7878,26 +7895,45 @@ function getData(key, callbackFunction, errorCallback) {
           finishRead({}, error);
         }
       };
+      readRequest.onerror = function(event) {
+        var error = readRequest.error || event || new Error('IndexedDB request failed for key: ' + key);
+        error.moonlightReadStage = key + '-read';
+        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', error);
+        finishRead({}, error);
+      };
       transaction.onerror = function(event) {
-        var error = transaction.error || event;
+        var error = transaction.error || event || new Error('IndexedDB read failed for key: ' + key);
+        error.moonlightReadStage = key + '-read';
         console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', error);
         finishRead({}, error);
       };
       transaction.onabort = function() {
         var error = transaction.error || new Error('IndexedDB read transaction aborted for key: ' + key);
+        error.moonlightReadStage = key + '-read';
         console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', error);
         finishRead({}, error);
       };
     } catch (error) {
+      error.moonlightReadStage = key + '-read';
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
       finishRead({}, error);
     }
   };
   if (db) cb();
-  else openIndexDB(cb, function(error) {
-    console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
-    finishRead({}, error || new Error('IndexedDB could not be opened while reading key: ' + key));
-  });
+  else {
+    try {
+      openIndexDB(cb, function(error) {
+        error = error || new Error('IndexedDB could not be opened while reading key: ' + key);
+        error.moonlightReadStage = 'database-open';
+        console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
+        finishRead({}, error);
+      });
+    } catch (error) {
+      error.moonlightReadStage = 'database-open';
+      console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
+      finishRead({}, error);
+    }
+  }
 }
 var preferenceRestoreInProgress = false;
 
@@ -11153,12 +11189,26 @@ function loadHTTPCertsCb() {
   var directWmpSelected = !!_directSmartHubLaunch &&
     _directSmartHubNativeLaunch === true;
   function nativeCredentialReadFailed(error) {
-    console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity:', error);
-    directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming identity.'));
+    var stage = error && error.moonlightReadStage;
+    var messageByStage = {
+      'database-open': 'Moonlight could not open its saved data database.',
+      'cert-read': 'Moonlight could not read its saved certificate from IndexedDB.',
+      'cert-parse': 'Moonlight could not decode its saved certificate data.',
+      'cert-invalid': 'Moonlight found an invalid or incomplete saved certificate.',
+      'uniqueid-read': 'Moonlight could not read its saved client identifier from IndexedDB.',
+      'uniqueid-parse': 'Moonlight could not decode its saved client identifier.',
+      'uniqueid-invalid': 'Moonlight found an invalid saved client identifier.'
+    };
+    var message = messageByStage[stage] || 'Moonlight encountered an unidentified error while recovering its saved streaming identity.';
+    console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity at stage ' + (stage || 'unknown') + ':', error);
+    directSmartHubLaunchFailure(t(message));
   }
   // Only direct Smart Hub + WMP treats identity-read failures as fatal.
   // Other launch paths retain their existing IndexedDB recovery behavior.
-  var identityReadErrorCallback = directWmpSelected
+  var certReadErrorCallback = directWmpSelected
+    ? nativeCredentialReadFailed
+    : undefined;
+  var uniqueidReadErrorCallback = directWmpSelected
     ? nativeCredentialReadFailed
     : undefined;
   getData('cert', function(savedCert) {
@@ -11376,8 +11426,8 @@ function loadHTTPCertsCb() {
         isHostsLoaded = true;
         directSmartHubLaunchFailure(t('Moonlight could not retrieve the requested host from saved data.'));
       } : null);
-    }, identityReadErrorCallback);
-  }, identityReadErrorCallback);
+    }, uniqueidReadErrorCallback);
+  }, certReadErrorCallback);
 }
 
 // A Smart Hub app shortcut is a single-purpose launch. It never navigates
