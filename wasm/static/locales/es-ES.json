@@ -671,5 +671,6 @@
   "Enabled": "Activado",
   "TV IP address: %1$s": "Dirección IP del televisor: %1$s",
   "App Version: %1$s v%2$s": "Versión de la aplicación: %1$s v%2$s",
-  "Could not regenerate app image thumbnails.": "No se pudieron volver a generar las miniaturas de las aplicaciones."
+  "Could not regenerate app image thumbnails.": "No se pudieron volver a generar las miniaturas de las aplicaciones.",
+  "Requesting to close application %1$s...": "Solicitando el cierre de la aplicación %1$s..."
 }
