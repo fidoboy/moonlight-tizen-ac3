@@ -20,16 +20,15 @@ Il repository attuale non contiene sottomoduli Git attivi: il codice sorgente de
 
 Il Dockerfile del repository include l'ambiente di compilazione e crea il pacchetto widget Tizen. Dalla directory principale del repository, compila la variante standard:
 
-    docker build --tag moonlight-tizen-ac3:standard --build-arg BUILD_TYPE=release --build-arg REPO_OWNER=fidoboy --build-arg REPO_NAME=moonlight-tizen-ac3 --build-arg FORCE_GAME_MODE=false .
+    docker build --tag moonlight-tizen-ac3:standard --build-arg BUILD_TYPE=release --build-arg REPO_OWNER=fidoboy --build-arg REPO_NAME=moonlight-tizen-ac3 .
     container_id=$(docker create moonlight-tizen-ac3:standard)
     docker cp "$container_id:/home/moonlight/Moonlight.wgt" ./Moonlight.wgt
     docker rm "$container_id"
 
-Per compilare il pacchetto ForceGM, ripeti la build con `FORCE_GAME_MODE=true` ed estrai `/home/moonlight/Moonlight-ForceGM.wgt`.
 
 ## Integrazione continua
 
-Il workflow **Build WGT (CI)** convalida il JavaScript di avvio, la coerenza delle traduzioni e le pagine di documentazione richieste, quindi compila le varianti standard e ForceGM del pacchetto. Si avvia in seguito a modifiche al branch `master` e alle pull request; può anche essere eseguito manualmente. Gli artefatti CI sono build di test temporanee, non release pubbliche versionate.
+I workflow CI convalidano le modifiche e compilano il pacchetto WGT ibrido. Gli artefatti CI sono build di test temporanee, non release pubbliche versionate.
 
 ## Pubblicare una release pubblica
 
@@ -38,7 +37,7 @@ Il progetto usa una propria sequenza di versioni semantiche, a partire da **1.0.
 1. Aggiorna la versione in `res/config.xml` (ad esempio `1.0.1` per la prossima patch).
 2. Aggiungi le note di rilascio in cima a `CHANGELOG.md`.
 3. Esegui il commit delle modifiche e uniscile a `master`.
-4. Apri Actions → **Release WGTs**, avvialo su `master` e inserisci la stessa versione. Il workflow convalida la versione, impedisce di sovrascrivere una release pubblica esistente, compila entrambe le varianti WGT e pubblica una GitHub Release con tag `vVERSION`.
+4. Apri Actions → **Release WGTs**, avvialo su `master` e inserisci la stessa versione. Il workflow convalida la versione, impedisce di sovrascrivere una release pubblica esistente, compila il pacchetto WGT e pubblica/ una GitHub Release con tag `vVERSION`.
 
 In alternativa, dopo aver impostato la versione corrispondente in `res/config.xml`, puoi inviare un tag Git come `v1.0.1`. Lo stesso workflow compila i pacchetti e li allega automaticamente alla release. Le release stabili usano il tag semantico semplice; le build preliminari usano il suffisso `-dev`.
 
