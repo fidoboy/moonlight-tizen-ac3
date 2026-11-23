@@ -11523,7 +11523,11 @@ function updatePreviewData() {
         };
         tile.txtPath = app.txtPath;
         return tile;
-      });
+      }, directWmpSelected ? function(error) {
+        console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not retrieve the requested host from IndexedDB:', error);
+        isHostsLoaded = true;
+        directSmartHubLaunchFailure(t('Moonlight could not retrieve the requested host from saved data.'));
+      } : null);
       totalTiles += tiles.length;
       if (tiles.length) sections.push({ title: t('Apps in %1$s', entry.hostname || t('Host')), tiles: tiles });
     });
