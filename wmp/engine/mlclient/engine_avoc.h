@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries);
+int ml_avoc_get_game_mode(int save_type, int *mode);
 
 /*
  * Cloud Game Mode and standalone Picture Mode wrappers are retained as
