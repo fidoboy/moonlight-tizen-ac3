@@ -1377,8 +1377,7 @@ function startDirectSmartHubHttpInitialization() {
     return;
   }
 
-  var directWmpSelected = typeof getSelectedStreamingEngine === 'function' &&
-    getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+  var directWmpSelected = _directSmartHubNativeLaunch === true;
   // WMP owns certificate generation and HTTP initialization natively. EMSS
   // still waits for the WASM runtime before entering the original path.
   if (!directWmpSelected && !_wasmModuleDidLoad) return;
@@ -11086,8 +11085,7 @@ function loadHTTPCerts() {
 function loadHTTPCertsCb() {
   console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Load the HTTP certificate and unique ID if they are already available.');
   var directWmpSelected = !!_directSmartHubLaunch &&
-    typeof getSelectedStreamingEngine === 'function' &&
-    getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+    _directSmartHubNativeLaunch === true;
   function nativeCredentialReadFailed(error) {
     console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity:', error);
     directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming identity.'));
