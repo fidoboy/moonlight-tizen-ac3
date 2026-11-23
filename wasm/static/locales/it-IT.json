@@ -673,5 +673,13 @@
   "Enabled": "Attivato",
   "TV IP address: %1$s": "Indirizzo IP TV: %1$s",
   "App Version: %1$s v%2$s": "Versione dell’app: %1$s v%2$s",
-  "Could not regenerate app image thumbnails.": "Impossibile rigenerare le miniature delle app."
+  "Could not regenerate app image thumbnails.": "Impossibile rigenerare le miniature delle app.",
+  "Moonlight could not open its saved data database.": "Moonlight non è riuscito ad aprire il database dei dati salvati.",
+  "Moonlight could not read its saved certificate from IndexedDB.": "Moonlight non è riuscito a leggere il certificato salvato da IndexedDB.",
+  "Moonlight could not decode its saved certificate data.": "Moonlight non è riuscito a decodificare i dati del certificato salvato.",
+  "Moonlight found an invalid or incomplete saved certificate.": "Moonlight ha trovato un certificato salvato non valido o incompleto.",
+  "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight non è riuscito a leggere l'identificatore client salvato da IndexedDB.",
+  "Moonlight could not decode its saved client identifier.": "Moonlight non è riuscito a decodificare l'identificatore client salvato.",
+  "Moonlight found an invalid saved client identifier.": "Moonlight ha trovato un identificatore client salvato non valido.",
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha riscontrato un errore non identificato durante il recupero dell'identità di streaming salvata."
 }
