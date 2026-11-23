@@ -98,7 +98,7 @@
   var SERVICE_STOP_VERIFY_DELAY_MS = 100;
   var SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS = 5000;
 
-  function getRunningServiceContexts(applicationId) {
+  function getRunningServiceContexts(applicationId, timeoutMs) {
     applicationId = applicationId || SERVICE_APP_ID;
     return new Promise(function(resolve, reject) {
       try {
@@ -111,7 +111,7 @@
           if (settled) return;
           settled = true;
           reject(makeError('checking the native service state timed out'));
-        }, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
+        }, timeoutMs || SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
         tizen.application.getAppsContext(function(contexts) {
           if (settled) return;
           settled = true;
@@ -2070,6 +2070,23 @@
     stopStream: function() {
       resetGamepadShortcutState();
       return request('stop_session');
+    },
+    waitForTermination: function(timeoutMs) {
+      var timeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : 5000;
+      var deadline = Date.now() + timeout;
+      function check() {
+        var remaining = deadline - Date.now();
+        if (remaining <= 0) return Promise.reject(makeError('native WMP service termination timed out'));
+        return getRunningServiceContexts(SERVICE_APP_ID, Math.min(1000, remaining)).then(function(contexts) {
+          if (contexts.length === 0) return true;
+          remaining = deadline - Date.now();
+          if (remaining <= 0) throw makeError('native WMP service termination timed out');
+          return new Promise(function(resolve) {
+            global.setTimeout(resolve, Math.min(100, remaining));
+          }).then(check);
+        });
+      }
+      return check();
     },
     sendKey: sendKey,
     setStreamMenuInputBlocked: setStreamMenuInputBlocked,
