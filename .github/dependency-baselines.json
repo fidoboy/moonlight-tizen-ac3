@@ -39,8 +39,8 @@
       "repo": "moonlight-embedded",
       "branch": "master",
       "path": "libgamestream",
-      "baseline_sha": "f32e415aea6797d261d6b470dcf8bf18727341c2",
-      "baseline_label": "Reviewed upstream through f32e415 (2026-06-06; vendored Tizen subset)",
+      "baseline_sha": "33142e58ebd576085a076f4ce24881d20b3c4ef5",
+      "baseline_label": "Reviewed upstream through 33142e5 (2026-11-23; vendored Tizen subset)",
       "note": "MEDIUM RISK: the vendored subset has local Tizen-specific changes, including IPv6/HTTP handling, and this SHA is an approximate monitoring reference—not an exact snapshot pin. Inspect relevant changes within libgamestream, compare affected files, and port selectively while preserving local behavior; never overwrite the directory wholesale."
     },
     {
