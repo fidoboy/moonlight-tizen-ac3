@@ -640,6 +640,11 @@ function ensurePerformanceStatsOverlayElements() {
   container.insertBefore(slowOpusIndicator, engineElement);
   slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'table' : 'none';
 
+  // Keep the feature indicators as the first element in the overlay, above
+  // the slow-Opus notice and the selected streaming engine.
+  var pillsRow = container.querySelector('.performance-stats-pills');
+  if (pillsRow) container.insertBefore(pillsRow, container.firstChild);
+
   var activeEngine = window._activeStreamingEngine;
   var engineLabelElement = engineElement.querySelector('.performance-stats-label');
   var engineValueElement = engineElement.querySelector('.performance-stats-value');
