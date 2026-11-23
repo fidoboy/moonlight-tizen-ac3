@@ -7049,10 +7049,18 @@ function startGame(host, appID) {
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
-      // Ambilight has its own transition phase and starts independently of the
-      // selected video engine. Its failure must not block the game stream.
-      await startAmbilightForStream(true);
+      // Read the persisted preference before invoking any Ambilight startup
+      // logic. When disabled (or unavailable), skip the function entirely:
+      // no capability initialization, service checks, or transient status.
+      window._ambilightStartupFailed = false;
+      var ambilightPreference = await readAmbilightStoredValue('ambilightEnabled');
       if (!isStreamStartupCurrent(startupGeneration)) return;
+      if (ambilightPreference && ambilightPreference.ambilightEnabled === true) {
+        // Ambilight has its own transition phase and starts independently of the
+        // selected video engine. Its failure must not block the game stream.
+        await startAmbilightForStream(true);
+        if (!isStreamStartupCurrent(startupGeneration)) return;
+      }
 
       // Prepare WMP before asking Sunshine to launch/resume the app. This phase
       // starts the supervised process, loads the native library and probes ESPlus,
@@ -8588,16 +8596,10 @@ function startAmbilightForStream(showTransitionStatus) {
 
   return initializeAmbilightSupport().then(function(supported) {
     if (!supported) return false;
-    return Promise.all([
-      readAmbilightStoredValue('ambilightEnabled'),
-      readAmbilightStoredValue('ambilightWledIp')
-    ]);
-  }).then(function(settings) {
-    if (!settings) return false;
-    var enabledData = settings[0];
-    var ipData = settings[1];
-    if (!enabledData || enabledData.ambilightEnabled !== true) return false;
-    var ip = ipData && ipData.ambilightWledIp;
+    return readAmbilightStoredValue('ambilightWledIp');
+  }).then(function(ipData) {
+    if (!ipData) return false;
+    var ip = ipData.ambilightWledIp;
     if (!ip) {
       console.warn('[ambilight] Enabled but no WLED IP address is configured.');
       if (showTransitionStatus === true) window._ambilightStartupFailed = true;
