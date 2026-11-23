@@ -1092,6 +1092,13 @@
       parameters: summarizePayload(command, payload)
     });
 
+    // Network-backed native operations need bounded reply waits. Existing
+    // commands retain their previous timeout behavior.
+    var commandTimeoutMs = command === 'open_url' ? 30000 :
+      (command === 'pair' ? 60000 :
+      (command === 'make_cert' || command === 'http_init' ||
+       command === 'cancel_request' ? 10000 : undefined));
+
     return connect(false).then(function() {
       if (command === 'start_session') {
         startSessionPending = true;
@@ -1115,7 +1122,7 @@
         throw makeError('native service process terminated during startup: ' +
           (supervisorTerminationDetail || 'supervisor notification received'));
       }
-      return sendConnectedRequest(command, serializedPayload, payload);
+      return sendConnectedRequest(command, serializedPayload, payload, commandTimeoutMs);
     }).then(function(response) {
       if (command === 'start_session' && response.status === 'ok' &&
           response.payload && response.payload.accepted === true) {
