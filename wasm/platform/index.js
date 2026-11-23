@@ -11065,6 +11065,11 @@ function loadHTTPCertsCb() {
     console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity:', error);
     directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming identity.'));
   }
+  // Only direct Smart Hub + WMP treats identity-read failures as fatal.
+  // Other launch paths retain their existing IndexedDB recovery behavior.
+  var identityReadErrorCallback = directWmpSelected
+    ? nativeCredentialReadFailed
+    : undefined;
   getData('cert', function(savedCert) {
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
@@ -11276,8 +11281,8 @@ function loadHTTPCertsCb() {
           });
         });
       }, directWmpSelected ? nativeCredentialReadFailed : null);
-    }, directWmpSelected ? nativeCredentialReadFailed : null);
-  });
+    }, directWmpSelected ? nativeCredentialReadFailed : null, identityReadErrorCallback);
+  }, identityReadErrorCallback);
 }
 
 // A Smart Hub app shortcut is a single-purpose launch. It never navigates
