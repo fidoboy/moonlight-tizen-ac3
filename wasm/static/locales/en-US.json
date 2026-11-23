@@ -349,6 +349,7 @@
   "Moonlight could not initialize the streaming interface.": "Moonlight could not initialize the streaming interface.",
   "Moonlight could not load its saved configuration.": "Moonlight could not load its saved configuration.",
   "Moonlight could not load its saved streaming settings.": "Moonlight could not load its saved streaming settings.",
+  "Moonlight could not load its saved streaming identity.": "Moonlight could not load its saved streaming identity.",
   "Moonlight could not prepare the saved host and streaming settings in time.": "Moonlight could not prepare the saved host and streaming settings in time.",
   "Moonlight could not restore the selected host.": "Moonlight could not restore the selected host.",
   "Mouse emulation": "Mouse emulation",
