@@ -972,7 +972,7 @@ namespace MoonlightWmpHost
             string ppkArg = Arg(bundle, "ppk");
             string addressArg = Arg(bundle, "address");
             string pinArg = Arg(bundle, "pin");
-            int serverMajorArg, httpPortArg;
+            int serverMajorArg = 0, httpPortArg = 0;
             bool pairNumbersValid = TryInt(Arg(bundle, "serverMajor"), out serverMajorArg) &&
                 TryInt(Arg(bundle, "httpPort"), out httpPortArg);
 
@@ -1078,13 +1078,12 @@ namespace MoonlightWmpHost
 
                         if (command == "pair")
                         {
-                            int serverMajor, httpPort;
+                            int serverMajor = serverMajorArg;
+                            int httpPort = httpPortArg;
                             string address = addressArg;
                             string pin = pinArg;
-                            if (!pairNumbersValid ||
-                                (serverMajor = serverMajorArg) <= 0 ||
-                                (httpPort = httpPortArg) <= 0 ||
-                                serverMajor <= 0 || httpPort <= 0 || httpPort > 65535 ||
+                            if (!pairNumbersValid || serverMajor <= 0 ||
+                                httpPort <= 0 || httpPort > 65535 ||
                                 String.IsNullOrEmpty(address) || address.Length > 1024 ||
                                 String.IsNullOrEmpty(pin) || pin.Length > 128)
                             {
