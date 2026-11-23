@@ -283,14 +283,14 @@
     .resource-list a:hover { border-color: rgba(120, 184, 255, .5); background: rgba(120, 184, 255, .05); }
     .resource-list span { color: var(--blue); font-size: 16px; }
     .download-heading {
-      display: grid; margin-top: -50px; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
-      gap: clamp(36px, 5vw, 60px); align-items: center;
+      display: grid; margin-top: -50px; grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
+      column-gap: clamp(36px, 5vw, 60px); align-items: center;
       margin-bottom: 29px;
     }
     .download-heading .section-head { max-width: none; margin: 0; }
     .download-packages {
       display: block; position: relative; left: 0; top: 60px;
-      width: 100%; max-width: 270px; height: auto;
+      width: 100%; max-width: 310px; height: auto;
       justify-self: center; overflow: visible;
       filter: drop-shadow(0 10px 50px rgba(120, 184, 255, .37));
     }
@@ -459,7 +459,7 @@
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
       .download-heading { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-      .download-packages { top: 0; left: 0; margin: 20px auto 0; width: min(72%, 240px); max-width: 240px; }
+      .download-packages { top: 0; left: 0; margin: 20px auto 0; width: 100%; max-width: 310px; }
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
       .apps2samsung-logo { width: 84px; height: 84px; }
@@ -752,7 +752,7 @@
       </div>
     </div>
   </footer>
-  <script src="assets/language-switcher.js?v=20261105-1"></script>
+  <script src="assets/language-switcher.js?v=20261123-2"></script>
   <script src="assets/latest-release.js"></script>
   <script src="assets/site-navigation.js"></script>
   <script src="assets/features-starfield.js"></script>
