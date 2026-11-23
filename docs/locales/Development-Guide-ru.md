@@ -20,16 +20,15 @@ description: "Локальная сборка, артефакты CI и публ
 
 Dockerfile репозитория содержит среду сборки и упаковывает виджет Tizen. Из корневой папки репозитория соберите стандартный вариант:
 
-    docker build --tag moonlight-tizen-ac3:standard --build-arg BUILD_TYPE=release --build-arg REPO_OWNER=fidoboy --build-arg REPO_NAME=moonlight-tizen-ac3 --build-arg FORCE_GAME_MODE=false .
+    docker build --tag moonlight-tizen-ac3:standard --build-arg BUILD_TYPE=release --build-arg REPO_OWNER=fidoboy --build-arg REPO_NAME=moonlight-tizen-ac3 .
     container_id=$(docker create moonlight-tizen-ac3:standard)
     docker cp "$container_id:/home/moonlight/Moonlight.wgt" ./Moonlight.wgt
     docker rm "$container_id"
 
-Чтобы собрать пакет ForceGM, повторите сборку с `FORCE_GAME_MODE=true` и извлеките `/home/moonlight/Moonlight-ForceGM.wgt`.
 
 ## Непрерывная интеграция
 
-Workflow **Build WGT (CI)** проверяет стартовый JavaScript, согласованность переводов и наличие необходимых страниц документации, а затем собирает стандартный пакет и вариант ForceGM. Он запускается при изменениях ветки `master` и при pull request; его также можно запустить вручную. Артефакты CI — временные тестовые сборки, а не опубликованные версии с тегом.
+CI-workflows проверяют изменения и собирают гибридный пакет WGT. Артефакты CI — временные тестовые сборки, а не опубликованные версии с тегом.
 
 ## Публикация публичного релиза
 
@@ -38,7 +37,7 @@ Workflow **Build WGT (CI)** проверяет стартовый JavaScript, с
 1. Обновите версию в `res/config.xml` (например, до `1.0.1` для следующего исправляющего релиза).
 2. Добавьте примечания к релизу в начало `CHANGELOG.md`.
 3. Создайте коммит с изменениями релиза и слейте его в `master`.
-4. Откройте Actions → **Release WGTs**, запустите workflow в `master` и укажите ту же версию. Workflow проверит версию, не позволит перезаписать существующий публичный релиз, соберёт обе версии WGT и опубликует GitHub Release с тегом `vVERSION`.
+4. Откройте Actions → **Release WGTs**, запустите workflow в `master` и укажите ту же версию. Workflow проверит версию, не позволит перезаписать существующий публичный релиз, соберёт пакет WGT и опубликует/ GitHub Release с тегом `vVERSION`.
 
 Вместо этого можно отправить Git-тег вроде `v1.0.1`, предварительно задав соответствующую версию в `res/config.xml). Тот же workflow соберёт пакеты и автоматически приложит их к релизу. Стабильные релизы используют обычный семантический тег; предварительные сборки получают суффикс `-dev`.
 
