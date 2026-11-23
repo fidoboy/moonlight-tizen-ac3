@@ -132,6 +132,8 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
+    window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
+    window._confirmedGameMode = false;
     resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
     window._esplusAudioQuality = null;
@@ -1957,6 +1959,7 @@ function handleMessage(msg) {
   } else if (msg === 'Connection Established') {
     setPerformanceStatsPill('emss', window._activeStreamingEngine === 'EMSS');
     setPerformanceStatsPill('wmp', window._activeStreamingEngine === 'ESPLUSPLAYER');
+    setPerformanceStatsPill('game', window._activeStreamingEngine === 'EMSS' && window._requestedGameMode === true);
     if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
         typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
@@ -2131,6 +2134,9 @@ function handleMessage(msg) {
         $('#performance-stats').text('');
       });
     }
+  } else if (msg.indexOf('GameModeStatus: ') === 0) {
+    window._confirmedGameMode = msg.replace('GameModeStatus: ', '').trim() === '1';
+    setPerformanceStatsPill('game', window._confirmedGameMode);
   } else if (msg.indexOf('SlowOpusDecoderStatus: ') === 0) {
     window._slowOpusDecoderActive = msg.replace('SlowOpusDecoderStatus: ', '').trim() === '1';
     var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
