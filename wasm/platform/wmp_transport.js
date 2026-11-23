@@ -2077,10 +2077,14 @@
       function check() {
         var remaining = deadline - Date.now();
         if (remaining <= 0) return Promise.reject(makeError('native WMP service termination timed out'));
-        return getRunningServiceContexts(SERVICE_APP_ID, Math.min(1000, remaining)).then(function(contexts) {
-          if (contexts.length === 0) return true;
+        var inspectionTimeout = Math.min(1000, remaining);
+        return Promise.all([
+          getRunningServiceContexts(SERVICE_APP_ID, inspectionTimeout),
+          getRunningServiceContexts(SUPERVISOR_APP_ID, inspectionTimeout)
+        ]).then(function(contextGroups) {
+          if (contextGroups[0].length === 0 && contextGroups[1].length === 0) return true;
           remaining = deadline - Date.now();
-          if (remaining <= 0) throw makeError('native WMP service termination timed out');
+          if (remaining <= 0) throw makeError('native WMP service or supervisor termination timed out');
           return new Promise(function(resolve) {
             global.setTimeout(resolve, Math.min(100, remaining));
           }).then(check);
