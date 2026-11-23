@@ -7148,7 +7148,9 @@ function startGame(host, appID) {
           }
           // Keep the lightweight canvas running until the first native stream frame is visible.
           // Start stream request
-          armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+          if (streamSettings.streamingEngine !== 'ESPLUSPLAYER') {
+            armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+          }
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
             host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
@@ -7227,7 +7229,9 @@ function startGame(host, appID) {
         }
         // Keep the lightweight canvas running until the first native stream frame is visible.
         // Start stream request
-        armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+        if (streamSettings.streamingEngine !== 'ESPLUSPLAYER') {
+          armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+        }
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
           host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
