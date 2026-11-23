@@ -11607,18 +11607,12 @@ function directSmartHubLaunchFailure(message) {
 
 function maybeStartDirectSmartHubLaunch() {
   if (!_directSmartHubLaunch || _directSmartHubLaunchStarted || _directSmartHubLaunchFailed ||
-      !_directSmartHubHostReady || !_directSmartHubSettingsReady) return;
+      !_directSmartHubSettingsReady) return;
 
-  var host = _directSmartHubHost;
-  if (!host || !host.paired) {
-    directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
-    return;
-  }
-
-  // Smart Hub + WMP must expose the stream transition before prepare(), makeCert()
-  // or httpInit() can start or communicate with the native service. Reuse this
-  // same transition promise in startGame so the UI is never entered twice.
-  if (_directSmartHubNativeLaunch === true && !isStartupHttpReady) {
+  // Host restoration currently shares the IndexedDB lifecycle initiated by
+  // loadHTTPCerts(). Start the WMP transition from the saved stream settings
+  // first; this deliberately does not depend on host readiness.
+  if (_directSmartHubNativeLaunch === true && window._directSmartHubTransitionReady !== true) {
     if (window._directSmartHubTransitionStarted !== true) {
       window._directSmartHubTransitionStarted = true;
       var directSettings = _directSmartHubStreamSettings;
@@ -11644,7 +11638,14 @@ function maybeStartDirectSmartHubLaunch() {
     return;
   }
 
+  if (!_directSmartHubHostReady) return;
+  var host = _directSmartHubHost;
+  if (!host || !host.paired) {
+    directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
+    return;
+  }
   if (!isStartupHttpReady) return;
+
   _directSmartHubLaunchStarted = true;
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
   // startGame performs one host-specific server-info refresh before launching.
