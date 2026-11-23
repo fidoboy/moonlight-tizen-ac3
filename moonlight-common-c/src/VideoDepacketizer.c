@@ -101,6 +101,7 @@ void initializeVideoDepacketizer(int pktSize) {
     firstPacketRtpTimestamp = 0;
     lastPacketPayloadLength = 0;
     dropStatePending = false;
+    consecutiveFrameDrops = 0;
     idrFrameProcessed = false;
     strictIdrFrameWait = !isReferenceFrameInvalidationEnabled();
 }
