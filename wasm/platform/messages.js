@@ -1575,7 +1575,7 @@ function handleMessage(msg) {
     window._normalStreamVideoReady = false;
     var beginClosingOperations = function() {
       logStreamTerminationRecovery('closing transition visible');
-      runClosingSequence();
+      window.setTimeout(runClosingSequence, 0);
     };
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
@@ -1783,7 +1783,7 @@ function handleMessage(msg) {
     // Run every shutdown operation serially. Each step has a hard upper bound;
     // failures are logged and converted to a resolved step so later cleanup always runs.
     var runClosingStep = function(operationName, statusMessage, operation, timeoutMs, onFailure) {
-      $('#loadingSpinnerMessage').text(t(statusMessage));
+      $('#loadingSpinnerMessage').text(statusMessage);
       logStreamTerminationRecovery('closing operation started', {operation: operationName});
       var pendingOperation = Promise.resolve().then(operation);
       return withOperationTimeout(pendingOperation, timeoutMs, operationName).then(function(result) {
@@ -1808,7 +1808,7 @@ function handleMessage(msg) {
       if (window._activeStreamingEngine === 'ESPLUSPLAYER' && window.ESPlusPlayerTransport &&
           typeof window.ESPlusPlayerTransport.waitForTermination === 'function') {
         sequence = sequence.then(function() {
-          return runClosingStep('WMP service shutdown', 'Stopping WMP service...', function() {
+          return runClosingStep('WMP service shutdown', t('Stopping WMP service...'), function() {
             return window.ESPlusPlayerTransport.waitForTermination(5000);
           }, 5000);
         });
@@ -1816,7 +1816,7 @@ function handleMessage(msg) {
 
       if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
         sequence = sequence.then(function() {
-          return runClosingStep('Ambilight shutdown', 'Stopping Ambilight service...', function() {
+          return runClosingStep('Ambilight shutdown', t('Stopping Ambilight service...'), function() {
             return window.moonlightAmbilight.shutdown();
           }, 5000);
         });
@@ -1824,7 +1824,7 @@ function handleMessage(msg) {
 
       if (!window._directSmartHubLaunch) {
         sequence = sequence.then(function() {
-          return runClosingStep('Local audio restoration', 'Restoring local audio engine...', function() {
+          return runClosingStep('Local audio restoration', t('Restoring local audio engine...'), function() {
             return typeof setNavigationSoundEnabled === 'function'
               ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
               : Promise.resolve();
@@ -1837,7 +1837,7 @@ function handleMessage(msg) {
           logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
             appName: activeStreamAppName
           });
-          return runClosingStep('Host app shutdown', 'Requesting to close application %1$s...', function() {
+          return runClosingStep('Host app shutdown', t('Requesting to close application %1$s...', activeStreamAppName), function() {
             return api.quitApp();
           }, 10000, function() {
             hostAppQuitFailedDuringTransition = true;
