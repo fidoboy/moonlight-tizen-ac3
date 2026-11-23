@@ -1,6 +1,14 @@
 #define _GNU_SOURCE
 #include "Limelight-internal.h"
 #include <time.h>
+
+#ifndef HAVE_CLOCK_GETTIME
+#ifdef CLOCK_MONOTONIC
+#define HAVE_CLOCK_GETTIME 1
+#else
+#define HAVE_CLOCK_GETTIME 0
+#endif
+#endif
 #if defined(__vita__)
 #include <pthread.h>
 #include <psp2/kernel/processmgr.h>
@@ -565,7 +573,7 @@ uint64_t PltGetMicroseconds(void) {
 #else
 
 /* Use CLOCK_MONOTONIC_RAW, if available, which is not subject to adjustment by NTP */
-#ifdef HAVE_CLOCK_GETTIME
+#if HAVE_CLOCK_GETTIME
 static struct timespec start_ts;
 # ifdef CLOCK_MONOTONIC_RAW
 #  define PLT_MONOTONIC_CLOCK CLOCK_MONOTONIC_RAW
@@ -578,7 +586,7 @@ static bool has_monotonic_time = false;
 static struct timeval start_tv;
 
 static void PltTicksInitInternal(void) {
-#ifdef HAVE_CLOCK_GETTIME
+#if HAVE_CLOCK_GETTIME
     if (clock_gettime(PLT_MONOTONIC_CLOCK, &start_ts) == 0) {
         has_monotonic_time = true;
     } else
@@ -594,7 +602,7 @@ uint64_t PltGetMicroseconds(void) {
     }
 
     if (has_monotonic_time) {
-#ifdef HAVE_CLOCK_GETTIME
+#if HAVE_CLOCK_GETTIME
         struct timespec now;
         clock_gettime(PLT_MONOTONIC_CLOCK, &now);
         return (uint64_t)(((int64_t)(now.tv_sec - start_ts.tv_sec) * 1000000) + ((now.tv_nsec - start_ts.tv_nsec) / 1000));
