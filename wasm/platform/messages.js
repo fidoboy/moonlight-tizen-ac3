@@ -1142,6 +1142,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
+  resetPerformanceStatsPills();
   performanceStatsEnabled = null;
   window._slowOpusDecoderActive = false;
   var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
@@ -1921,12 +1922,16 @@ function handleMessage(msg) {
     };
 
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
-    var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
+    var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
+    updatePerformanceStatsPillsFromNegotiatedAudio(negotiatedAudioMessage);
+    var negotiatedAudio = negotiatedAudioMessage.split('|');
     if (typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
       updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1], negotiatedAudio[2]);
     }
   } else if (msg === 'Connection Established') {
+    setPerformanceStatsPill('emss', window._activeStreamingEngine === 'EMSS');
+    setPerformanceStatsPill('wmp', window._activeStreamingEngine === 'ESPLUSPLAYER');
     if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
         typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
