@@ -582,6 +582,8 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
+  ensurePerformanceStatsPills(container);
+
   // Keep the selected engine visible above the shared statistics for both
   // renderers. This is UI metadata, not an engine-specific performance metric.
   var engineElement = container.querySelector('.performance-stats-engine');
