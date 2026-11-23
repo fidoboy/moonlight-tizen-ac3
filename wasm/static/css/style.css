@@ -1829,6 +1829,38 @@ body[data-color-theme="black-orange"] #background-layer {
     white-space: pre-wrap;
 }
 
+#performance-stats .performance-stats-pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    margin: 0 0 7px;
+    max-width: 100%;
+}
+#performance-stats .performance-stats-pill {
+    display: inline-block;
+    padding: 1px 3px;
+    border: 1px solid rgba(150, 150, 150, 0.20);
+    border-radius: 3px;
+    background: rgba(90, 90, 90, 0.12);
+    color: rgba(170, 170, 170, 0.28);
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+#performance-stats .performance-stats-pill.is-active {
+    border-color: rgba(60, 205, 115, 0.6);
+    background: rgba(30, 150, 75, 0.16);
+    color: #35c879;
+}
+#performance-stats .performance-stats-pill[data-pill="softdec"].is-active {
+    border-color: rgba(235, 190, 55, 0.65);
+    background: rgba(200, 155, 25, 0.15);
+    color: #f2cc45;
+}
+
 #performance-stats .performance-stats-text {
     white-space: normal;
     line-height: 1.3;
