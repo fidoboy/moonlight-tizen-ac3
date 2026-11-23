@@ -1607,7 +1607,6 @@ function handleMessage(msg) {
         // A sound-effects failure must not strand the user in the closing transition.
         console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
       }).then(function() {
-        $('#loadingSpinnerMessage').text(transitionStatusMessage);
         resolveLocalAudioRestoration();
       });
     };
@@ -1633,15 +1632,12 @@ function handleMessage(msg) {
     var shouldQuitHostAppDuringTransition = !!shouldQuitHostApp &&
       (!hasStreamError || isPreSuccessStartupFailure) &&
       activeStreamAppName !== t('Apps') && api && typeof api.quitApp === 'function';
-    if (shouldQuitHostAppDuringTransition) {
-      transitionStatusMessage = t('Requesting to close application %1$s...', activeStreamAppName);
-    }
-    // Set both text fields before the transition can become visible. The title is
-    // specific to the closing phase; the status reflects the pending host operation.
+    // Keep the original termination reason as the first closing status. Later
+    // operations advance the same status line instead of replacing this message early.
     $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
     $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears, true, true);
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
@@ -1823,8 +1819,8 @@ function handleMessage(msg) {
       logStreamTerminationRecovery('local audio restoration released');
       var hostAppQuitOperation = Promise.resolve();
       if (shouldQuitHostAppDuringTransition) {
-        // Keep the animated closing screen visible and identify the app while
-        // the host processes the cancellation request.
+        // Advance the status only when the host shutdown request is actually next.
+        $('#loadingSpinnerMessage').text(t('Requesting to close application %1$s...', activeStreamAppName));
         logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
           appName: activeStreamAppName
         });
@@ -1843,6 +1839,9 @@ function handleMessage(msg) {
         }
       }
       Promise.resolve(hostAppQuitOperation).then(function() {
+        // The next visible stage is rebuilding the Apps list, whether or not a
+        // remote-app shutdown was needed or succeeded.
+        $('#loadingSpinnerMessage').text(t('Loading Apps...'));
         var remainingTransitionMs = streamTerminationMinimumVisibleMs -
           (Date.now() - streamTerminationTransitionShownAt);
         if (remainingTransitionMs > 0) {
