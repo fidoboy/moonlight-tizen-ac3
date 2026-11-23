@@ -213,7 +213,42 @@ NvHTTP.prototype = {
 
     return fetch(preflightUrl, fetchOptions).then(function() {
       clearTimeout(timeoutId);
-      // The host accepted an HTTP connection. Perform the authenticated request in C++.
+      // In the Smart Hub direct-launch + WMP path, perform the authenticated
+      // request through the already-running native WMP service. All other
+      // startup paths retain the original WASM message bridge unchanged.
+      var useNativeWmpHttp = window._directSmartHubLaunch &&
+        typeof window.getSelectedStreamingEngine === 'function' &&
+        window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+        window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+      if (useNativeWmpHttp) {
+        return window.ESPlusPlayerTransport.openUrl(url, ppkstr).then(function(response) {
+          var payload = response && response.payload ? response.payload : {};
+          if (!response || response.status !== 'ok' ||
+              typeof payload.dataBase64 !== 'string') {
+            return Promise.reject(payload && typeof payload.code === 'number'
+              ? payload.code : -1);
+          }
+
+          var responseBuffer = _base64ToArrayBuffer(payload.dataBase64);
+          var responseBytes = new Uint8Array(responseBuffer);
+          var binary = '';
+          for (var i = 0; i < responseBytes.length; i++) {
+            binary += String.fromCharCode(responseBytes[i]);
+          }
+          try {
+            return decodeURIComponent(escape(binary));
+          } catch (decodeError) {
+            // Preserve the bytes as a binary string if the host response is
+            // not valid UTF-8, matching the legacy bridge's string contract.
+            return binary;
+          }
+        });
+      }
+
+      // Normal startup, EMSS, and every non-deeplink request continue using
+      // the original authenticated WASM HTTP bridge.
       return sendMessage('openUrl', [url, ppkstr, false, 5000]);
     }, function(e) {
       clearTimeout(timeoutId);
