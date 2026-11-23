@@ -1824,7 +1824,7 @@ function handleMessage(msg) {
 
       if (!window._directSmartHubLaunch) {
         sequence = sequence.then(function() {
-          return runClosingStep('Local audio restoration', t('Restoring Moonlight interface audio...'), function() {
+          return runClosingStep('Local audio restoration', t('Restoring local audio engine...'), function() {
             return typeof setNavigationSoundEnabled === 'function'
               ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
               : Promise.resolve();
