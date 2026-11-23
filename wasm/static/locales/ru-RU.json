@@ -673,5 +673,13 @@
   "Enabled": "Включён",
   "TV IP address: %1$s": "IP-адрес телевизора: %1$s",
   "App Version: %1$s v%2$s": "Версия приложения: %1$s v%2$s",
-  "Could not regenerate app image thumbnails.": "Не удалось повторно создать миниатюры приложений."
+  "Could not regenerate app image thumbnails.": "Не удалось повторно создать миниатюры приложений.",
+  "Moonlight could not open its saved data database.": "Moonlight не удалось открыть базу данных с сохранёнными данными.",
+  "Moonlight could not read its saved certificate from IndexedDB.": "Moonlight не удалось прочитать сохранённый сертификат из IndexedDB.",
+  "Moonlight could not decode its saved certificate data.": "Moonlight не удалось декодировать данные сохранённого сертификата.",
+  "Moonlight found an invalid or incomplete saved certificate.": "Moonlight обнаружил недействительный или неполный сохранённый сертификат.",
+  "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight не удалось прочитать сохранённый идентификатор клиента из IndexedDB.",
+  "Moonlight could not decode its saved client identifier.": "Moonlight не удалось декодировать сохранённый идентификатор клиента.",
+  "Moonlight found an invalid saved client identifier.": "Moonlight обнаружил недействительный сохранённый идентификатор клиента.",
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "При восстановлении сохранённой потоковой идентичности Moonlight возникла неопознанная ошибка."
 }
