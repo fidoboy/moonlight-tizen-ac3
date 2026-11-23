@@ -11215,7 +11215,9 @@ function loadHTTPCertsCb() {
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
       if (directWmpSelected && (!pairingCert.cert || !pairingCert.privateKey)) {
-        nativeCredentialReadFailed(new Error('The stored Moonlight certificate is incomplete.'));
+        var incompleteCertError = new Error('The stored Moonlight certificate is incomplete.');
+        incompleteCertError.moonlightReadStage = 'cert-invalid';
+        nativeCredentialReadFailed(incompleteCertError);
         return;
       }
     }
