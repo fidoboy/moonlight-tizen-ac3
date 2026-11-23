@@ -11059,14 +11059,17 @@ function loadHTTPCertsCb() {
         storeData('uniqueid', myUniqueid, null);
       }
 
-      var directWmpNativeCredentials = !!_directSmartHubLaunch &&
+      var directWmpSelected = !!_directSmartHubLaunch &&
         typeof getSelectedStreamingEngine === 'function' &&
-        getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+        getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+      var directWmpNativeCredentials = directWmpSelected &&
         window.ESPlusPlayerTransport &&
         typeof window.ESPlusPlayerTransport.makeCert === 'function' &&
         typeof window.ESPlusPlayerTransport.httpInit === 'function';
 
-      if (directWmpNativeCredentials) {
+      if (directWmpSelected && !directWmpNativeCredentials) {
+        directSmartHubLaunchFailure(t('The native streaming service is unavailable.'));
+      } else if (directWmpNativeCredentials) {
         // Only Smart Hub + WMP uses the native certificate/HTTP API. The
         // existing WASM path below remains untouched for EMSS and normal launch.
         var nativeCredentialPromise = pairingCert
