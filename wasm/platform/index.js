@@ -787,6 +787,8 @@ var _directSmartHubStreamSettings = null;
 var _directSmartHubLaunchStarted = false;
 var _directSmartHubLaunchFailed = false;
 var _directSmartHubNativeLaunch = false;
+var _wasmModuleDidLoad = false;
+var _directSmartHubHttpInitStarted = false;
 
 const REPEAT_DELAY = 350; // Repeat delay set to 350ms (milliseconds)
 const REPEAT_INTERVAL = 100; // Repeat interval set to 100ms (milliseconds)
@@ -1369,7 +1371,31 @@ function maybeRestoreUiAfterStartup() {
   maybePrepareNormalStartup();
 }
 
+function startDirectSmartHubHttpInitialization() {
+  if (!_directSmartHubLaunch || !_directSmartHubSettingsReady ||
+      _directSmartHubLaunchFailed || _directSmartHubHttpInitStarted) {
+    return;
+  }
+
+  var directWmpSelected = typeof getSelectedStreamingEngine === 'function' &&
+    getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+  // WMP owns certificate generation and HTTP initialization natively. EMSS
+  // still waits for the WASM runtime before entering the original path.
+  if (!directWmpSelected && !_wasmModuleDidLoad) return;
+
+  _directSmartHubHttpInitStarted = true;
+  loadHTTPCerts();
+}
+
 function moduleDidLoad() {
+  _wasmModuleDidLoad = true;
+  if (_directSmartHubLaunch) {
+    // The selected engine is resolved asynchronously from saved preferences.
+    // Defer the decision until that snapshot is ready; this prevents WMP from
+    // entering loadHTTPCerts through the WASM lifecycle.
+    startDirectSmartHubHttpInitialization();
+    return;
+  }
   loadHTTPCerts();
 }
 
@@ -10508,6 +10534,7 @@ function loadDirectSmartHubStreamSettings() {
     document.body.setAttribute('data-color-theme', activeColorTheme);
     _directSmartHubSettingsReady = true;
     console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB.');
+    startDirectSmartHubHttpInitialization();
     maybeStartDirectSmartHubLaunch();
     return _directSmartHubStreamSettings;
   }).catch(function(error) {
