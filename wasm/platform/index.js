@@ -11371,7 +11371,11 @@ function loadHTTPCertsCb() {
             return runInitialHostDiscovery(hasConfiguredHosts);
           });
         });
-      }, directWmpSelected ? nativeCredentialReadFailed : null);
+      }, directWmpSelected ? function(error) {
+        console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not retrieve the requested host from IndexedDB:', error);
+        isHostsLoaded = true;
+        directSmartHubLaunchFailure(t('Moonlight could not retrieve the requested host from saved data.'));
+      } : null);
     }, identityReadErrorCallback);
   }, identityReadErrorCallback);
 }
