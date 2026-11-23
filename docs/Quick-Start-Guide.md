@@ -29,7 +29,6 @@ See [Prerequisites in the README](https://github.com/fidoboy/moonlight-tizen-ac3
 - **Apps2Samsung:** choose **Custom WGT / TPK** and select the downloaded file.
 - **Tizen Studio:** connect to the TV with Developer Mode enabled and install the package using the Tizen deployment tools and a certificate profile accepted by the TV. See the [Installation Guide](Installation-Guide.md) for details.
 
-Use `Moonlight-ForceGM.wgt` only if your TV specifically needs the alternative Game Mode metadata.
 ## 3. Configure the host and pair
 
 1. Install and start any GameStream-compatible host server on the PC. Examples include [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases), and [Punktfunk](https://docs.punktfunk.unom.io/docs/install). Other compatible host software may also work.
