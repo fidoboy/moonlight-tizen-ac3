@@ -1378,8 +1378,10 @@ function startDirectSmartHubHttpInitialization() {
   }
 
   var directWmpSelected = _directSmartHubNativeLaunch === true;
-  // WMP owns certificate generation and HTTP initialization natively. EMSS
-  // still waits for the WASM runtime before entering the original path.
+  // WMP must not start its native service until the Smart Hub stream
+  // transition has completed its visible-entry sequence.
+  if (directWmpSelected && window._directSmartHubTransitionReady !== true) return;
+  // EMSS still waits for the WASM runtime before entering the original path.
   if (!directWmpSelected && !_wasmModuleDidLoad) return;
 
   _directSmartHubHttpInitStarted = true;
@@ -6766,9 +6768,11 @@ function startGame(host, appID) {
     var directAppName = _directSmartHubLaunch.appName || String(appID);
     $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
     $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
-    window._directSmartHubTransitionPromise = showStreamMode(
-      directSettings.streamWidth, directSettings.streamHeight, startupGeneration
-    );
+    if (!window._directSmartHubTransitionPromise) {
+      window._directSmartHubTransitionPromise = showStreamMode(
+        directSettings.streamWidth, directSettings.streamHeight, startupGeneration
+      );
+    }
   }
 
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
@@ -11346,6 +11350,9 @@ function beginDirectSmartHubLaunch(actionData) {
   _directSmartHubStreamSettings = null;
   _directSmartHubLaunchStarted = false;
   _directSmartHubLaunchFailed = false;
+  window._directSmartHubTransitionStarted = false;
+  window._directSmartHubTransitionReady = false;
+  window._directSmartHubTransitionPromise = null;
   streamStartupFailureHandled = false;
   window._streamStartupFailureHandled = false;
 
@@ -11600,13 +11607,45 @@ function directSmartHubLaunchFailure(message) {
 
 function maybeStartDirectSmartHubLaunch() {
   if (!_directSmartHubLaunch || _directSmartHubLaunchStarted || _directSmartHubLaunchFailed ||
-      !_directSmartHubHostReady || !_directSmartHubSettingsReady || !isStartupHttpReady) return;
-  _directSmartHubLaunchStarted = true;
+      !_directSmartHubHostReady || !_directSmartHubSettingsReady) return;
+
   var host = _directSmartHubHost;
   if (!host || !host.paired) {
     directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
     return;
   }
+
+  // Smart Hub + WMP must expose the stream transition before prepare(), makeCert()
+  // or httpInit() can start or communicate with the native service. Reuse this
+  // same transition promise in startGame so the UI is never entered twice.
+  if (_directSmartHubNativeLaunch === true && !isStartupHttpReady) {
+    if (window._directSmartHubTransitionStarted !== true) {
+      window._directSmartHubTransitionStarted = true;
+      var directSettings = _directSmartHubStreamSettings;
+      if (!directSettings) {
+        directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming settings.'));
+        return;
+      }
+      var directAppName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
+      $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
+      $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
+      window._directSmartHubTransitionPromise = showStreamMode(
+        directSettings.streamWidth, directSettings.streamHeight
+      );
+      window._directSmartHubTransitionPromise.then(function() {
+        if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
+        window._directSmartHubTransitionReady = true;
+        startDirectSmartHubHttpInitialization();
+      }, function(error) {
+        console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not reveal the Smart Hub stream transition before native startup:', error);
+        directSmartHubLaunchFailure(t('Moonlight could not prepare the streaming interface.'));
+      });
+    }
+    return;
+  }
+
+  if (!isStartupHttpReady) return;
+  _directSmartHubLaunchStarted = true;
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
   // startGame performs one host-specific server-info refresh before launching.
   // Do not run the background host-polling path for a direct Smart Hub request.
