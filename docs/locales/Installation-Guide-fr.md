@@ -62,14 +62,14 @@ Utilisez l'adresse IPv4 de l'ordinateur, **pas** la passerelle par défaut, l'ad
 1. Ouvrez Apps2Samsung sur l'ordinateur.
 2. Sélectionnez le téléviseur lorsqu'il apparaît dans les résultats de recherche. S'il n'est pas détecté automatiquement, saisissez son adresse IP manuellement si l'option est disponible.
 3. Ouvrez le catalogue d'applications et recherchez **Moonlight**.
-4. Sélectionnez **Moonlight**, puis la variante **fidoboy · Enhanced · Dolby** ou, si votre modèle de téléviseur l'exige, **fidoboy · Enhanced · Dolby · ForceGM**.
+4. Sélectionnez **Moonlight**, puis la variante **fidoboy · Enhanced · Dolby**.
 5. Lancez l'installation avec **Download & Install** et attendez la confirmation de réussite d'Apps2Samsung. L'outil télécharge et prépare lui-même le paquet.
 6. Ouvrez l'écran **Apps** du téléviseur et lancez Moonlight.
 
 **C'est la méthode recommandée.** Il n'est pas nécessaire de visiter GitHub Releases ni de télécharger `Moonlight.wgt` manuellement. Lors de la première utilisation, Apps2Samsung peut demander une connexion au compte Samsung afin de créer un certificat de signature. Suivez les indications et laissez la sélection du certificat en mode automatique/par défaut, sauf si l'outil exige un autre type. Il n'est pas nécessaire de configurer manuellement les certificats dans Seller Office.
 
 > [!WARNING]
-> **N'installez un WGT manuellement que si la méthode du catalogue échoue.** Téléchargez `Moonlight.wgt` depuis la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). Dans Apps2Samsung, choisissez **Custom WGT / TPK**, sélectionnez le fichier téléchargé et lancez l'installation. N'utilisez cette solution de repli qu'en cas de besoin. Pour la variante ForceGM, téléchargez plutôt `Moonlight-ForceGM.wgt` depuis la même page.
+> **N'installez un WGT manuellement que si la méthode du catalogue échoue.** Téléchargez `Moonlight.wgt` depuis la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). Dans Apps2Samsung, choisissez **Custom WGT / TPK**, sélectionnez le fichier téléchargé et lancez l'installation. N'utilisez cette solution de repli qu'en cas de besoin.
 
 ### Dépannage
 
