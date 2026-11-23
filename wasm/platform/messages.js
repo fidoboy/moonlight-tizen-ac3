@@ -1028,25 +1028,26 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
   var videoLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Video stream:') === 0; })[0] || '';
   var audioLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Audio stream:') === 0; })[0] || '';
   var decoderLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Decoding mode:') === 0; })[0] || '';
-  setPerformanceStatsPill('h264', /H\\.?264/i.test(videoLine));
-  setPerformanceStatsPill('hevc', /HEVC|H\\.?265/i.test(videoLine));
+  setPerformanceStatsPill('h264', /H\.?264/i.test(videoLine));
+  setPerformanceStatsPill('hevc', /HEVC|H\.?265/i.test(videoLine));
   setPerformanceStatsPill('av1', /AV1/i.test(videoLine));
   setPerformanceStatsPill('hdr', /HDR/i.test(videoLine));
-  setPerformanceStatsPill('harddec', /Decoding mode:\\s*Hardware/i.test(decoderLine));
-  setPerformanceStatsPill('softdec', /Decoding mode:\\s*Software/i.test(decoderLine));
-  var audioCodec = audioLine.match(/Audio stream:\\s*(OPUS|AC3|EAC3)/i);
-  var audioChannels = audioLine.match(/(?:\\b2\\b|Stereo)|(?:\\b6\\b|5\\.1)|(?:\\b8\\b|7\\.1)/i);
+  setPerformanceStatsPill('harddec', /Decoding mode:\s*Hardware/i.test(decoderLine));
+  setPerformanceStatsPill('softdec', /Decoding mode:\s*Software/i.test(decoderLine));
+  var audioCodec = audioLine.match(/Audio stream:\s*(OPUS|AC3|EAC3)/i);
+  var has71Channels = /7\.1|8\s*(?:ch|channel)/i.test(audioLine);
+  var has51Channels = !has71Channels && /5\.1|6\s*(?:ch|channel)/i.test(audioLine);
+  var hasStereoChannels = !has71Channels && !has51Channels && /stereo|2\s*(?:ch|channel)/i.test(audioLine);
   if (audioCodec) {
     var normalizedAudioCodec = audioCodec[1].toUpperCase();
     setPerformanceStatsPill('opus', normalizedAudioCodec === 'OPUS');
     setPerformanceStatsPill('dd', normalizedAudioCodec === 'AC3');
     setPerformanceStatsPill('ddplus', normalizedAudioCodec === 'EAC3');
   }
-  if (audioChannels) {
-    var channelToken = audioChannels[0];
-    setPerformanceStatsPill('stereo', /Stereo|\\b2\\b/.test(channelToken));
-    setPerformanceStatsPill('51', /5\\.1|\\b6\\b/.test(channelToken));
-    setPerformanceStatsPill('71', /7\\.1|\\b8\\b/.test(channelToken));
+  if (/7\.1|8\s*(?:ch|channel)|5\.1|6\s*(?:ch|channel)|stereo|2\s*(?:ch|channel)/i.test(audioLine)) {
+    setPerformanceStatsPill('stereo', hasStereoChannels);
+    setPerformanceStatsPill('51', has51Channels);
+    setPerformanceStatsPill('71', has71Channels);
   }
   textElement.textContent = '';
   var sourceLines = String(sourceText || '').split('\n');
