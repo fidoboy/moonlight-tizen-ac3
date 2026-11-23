@@ -105,9 +105,19 @@ function remoteControllerHandler(e) {
       }
       break;
     case tvKey.KEY_YELLOW:
-      // Toggle performance stats overlay
+      // Toggle performance stats through the engine that owns the active stream.
       if (isInGame === true) {
-        Module.toggleStats();
+        if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+          if (window.ESPlusPlayerTransport &&
+              typeof window.ESPlusPlayerTransport.toggleStats === 'function') {
+            window.ESPlusPlayerTransport.toggleStats().catch(function(error) {
+              console.warn('[remote_controller] Could not toggle native performance statistics:', error);
+            });
+          }
+        } else {
+          // Preserve the original EMSS/WASM behavior.
+          Module.toggleStats();
+        }
       }
       break;
     default:
