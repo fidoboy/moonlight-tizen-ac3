@@ -1,12 +1,13 @@
 # Changelog
 
+All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
+
+
 ## Unreleased
 
 ### Fixed
 - **GameStream launch failure cleanup:** Prevented a potential double-free of the XML result buffer when the host returns a session ID of `0`.
 
-
-All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
 ## v1.3.0
