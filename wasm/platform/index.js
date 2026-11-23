@@ -11079,7 +11079,7 @@ function loadHTTPCertsCb() {
         myUniqueid = savedUniqueid.uniqueid;
       } else {
         myUniqueid = uniqueid();
-        storeData('uniqueid', myUniqueid, null);
+        if (!directWmpSelected) storeData('uniqueid', myUniqueid, null);
       }
 
       var directWmpNativeCredentials = directWmpSelected &&
