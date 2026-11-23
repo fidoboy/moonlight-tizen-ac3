@@ -135,6 +135,7 @@ static void dropFrameState(void) {
         // received an IDR frame, if we explicitly need an IDR frame, or if we
         // just dropped a partially processed IDR frame.
         waitingForIdrFrame = true;
+        waitingForRefInvalFrame = false;
     }
     else {
         waitingForRefInvalFrame = true;
@@ -152,6 +153,7 @@ static void dropFrameState(void) {
 
         // Request an IDR frame
         waitingForIdrFrame = true;
+        waitingForRefInvalFrame = false;
         LiRequestIdrFrame();
     }
 
@@ -792,6 +794,7 @@ static bool processAvcHevcRtpPayloadSlow(PBUFFER_DESC currentPos, PLENTRY_INTERN
 void requestDecoderRefresh(void) {
     // Wait for the next IDR frame
     waitingForIdrFrame = true;
+    waitingForRefInvalFrame = false;
 
     // Flush the decode unit queue
     freeDecodeUnitList(LbqFlushQueueItems(&decodeUnitQueue));
