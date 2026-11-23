@@ -670,5 +670,6 @@
   "Developer host PC IP: %1$s": "Developer host PC IP: %1$s",
   "Enabled": "Enabled",
   "TV IP address: %1$s": "TV IP address: %1$s",
-  "Could not regenerate app image thumbnails.": "Could not regenerate app image thumbnails."
+  "Could not regenerate app image thumbnails.": "Could not regenerate app image thumbnails.",
+  "Requesting to close application %1$s...": "Requesting to close application %1$s..."
 }
