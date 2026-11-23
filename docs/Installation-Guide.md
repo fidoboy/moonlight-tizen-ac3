@@ -69,7 +69,7 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 **This is the recommended method.** You do not need to visit the GitHub Releases page or download `Moonlight.wgt` manually. On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow its prompts and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. You do not need to configure certificates manually in Seller Office.
 
 > [!WARNING]
-> **Use manual WGT installation only if the catalog method fails.** Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung, choose **Custom WGT / TPK**, select the downloaded file, and start the installation. Do not use this fallback unless needed. If you specifically want the ForceGM variant, download `Moonlight-ForceGM.wgt` from the same release page instead.
+> **Use manual WGT installation only if the catalog method fails.** Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung, choose **Custom WGT / TPK**, select the downloaded file, and start the installation. Do not use this fallback unless needed.
  
 ### Troubleshooting
 
