@@ -1389,10 +1389,11 @@ function startDirectSmartHubHttpInitialization() {
 function moduleDidLoad() {
   _wasmModuleDidLoad = true;
   if (_directSmartHubLaunch) {
-    // The selected engine is resolved asynchronously from saved preferences.
-    // Defer the decision until that snapshot is ready; this prevents WMP from
-    // entering loadHTTPCerts through the WASM lifecycle.
-    startDirectSmartHubHttpInitialization();
+    // Native WMP HTTP initialization is started by beginDirectSmartHubLaunch,
+    // independently of the WASM lifecycle. EMSS retains its WASM dependency.
+    if (_directSmartHubNativeLaunch !== true) {
+      startDirectSmartHubHttpInitialization();
+    }
     return;
   }
   loadHTTPCerts();
@@ -10533,7 +10534,6 @@ function loadDirectSmartHubStreamSettings() {
     document.body.setAttribute('data-color-theme', activeColorTheme);
     _directSmartHubSettingsReady = true;
     console.log('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: green;', 'Loaded direct stream preferences from IndexedDB.');
-    startDirectSmartHubHttpInitialization();
     maybeStartDirectSmartHubLaunch();
     return _directSmartHubStreamSettings;
   }).catch(function(error) {
@@ -11337,7 +11337,12 @@ function beginDirectSmartHubLaunch(actionData) {
   updateDirectSmartHubStartingStatus();
   armStreamStartupWatchdog('initialization', 15000);
 
-  loadDirectSmartHubStreamSettings().catch(function() {
+  loadDirectSmartHubStreamSettings().then(function() {
+    // Start certificate and HTTP initialization from the direct-launch
+    // lifecycle itself. Smart Hub + WMP takes the native path without waiting
+    // for moduleDidLoad or the WebAssembly runtime.
+    startDirectSmartHubHttpInitialization();
+  }).catch(function() {
     // loadDirectSmartHubStreamSettings already reports the failure and exits.
   });
 
