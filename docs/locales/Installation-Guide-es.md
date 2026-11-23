@@ -69,7 +69,7 @@ Utiliza la dirección IPv4 del ordenador, **no** la puerta de enlace predetermin
 **Este es el método recomendado.** No necesitas visitar GitHub Releases ni descargar manualmente `Moonlight.wgt`. La primera vez, Apps2Samsung puede pedirte que inicies sesión en tu cuenta Samsung para crear un certificado de firma. Sigue las indicaciones y deja la selección de certificado en la opción automática/predeterminada, salvo que la herramienta indique que hace falta otro tipo. No necesitas configurar certificados manualmente en Seller Office.
 
 > [!WARNING]
-> **Instala el WGT manualmente solo si falla el método del catálogo.** Descarga `Moonlight.wgt` desde la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). En Apps2Samsung, elige **Custom WGT / TPK**, selecciona el archivo descargado e inicia la instalación. No recurras a esta alternativa salvo que sea necesario. Si necesitas específicamente la variante ForceGM, descarga `Moonlight-ForceGM.wgt` desde la misma página de versiones.
+> **Instala el WGT manualmente solo si falla el método del catálogo.** Descarga `Moonlight.wgt` desde la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). En Apps2Samsung, elige **Custom WGT / TPK**, selecciona el archivo descargado e inicia la instalación. No recurras a esta alternativa salvo que sea necesario.
 
 ### Solución de problemas
 
