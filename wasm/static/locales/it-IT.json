@@ -316,6 +316,7 @@
   "Moonlight could not initialize the streaming interface.": "Moonlight non è riuscito a inizializzare l’interfaccia di streaming.",
   "Moonlight could not load its saved configuration.": "Moonlight non è riuscito a caricare la configurazione salvata.",
   "Moonlight could not load its saved streaming settings.": "Moonlight non è riuscito a caricare le impostazioni di streaming salvate.",
+  "Moonlight could not load its saved streaming identity.": "Moonlight non è riuscito a caricare la propria identità di streaming salvata.",
   "Moonlight could not prepare the saved host and streaming settings in time.": "Moonlight non è riuscito a preparare in tempo l’host salvato e le impostazioni di streaming.",
   "Control for mouse emulation": "Controllo per l’emulazione del mouse",
   "Select which of the two gamepad sticks to use to emulate mouse movement on the screen.": "Consente di selezionare quale dei due stick del gamepad utilizzare per emulare il movimento del mouse sullo schermo.",
