@@ -6398,7 +6398,7 @@ function startStreamEncryptionStatusPolling() {
   pollStreamEncryptionStatus();
 }
 
-function showStreamTransitionBackground(onVisible) {
+function showStreamTransitionBackground(onVisible, showStatusImmediately) {
   // A new transition supersedes any delayed hide requested by the previous stream's
   // video-ready callback. In particular, termination must retain the closing layer.
   cancelStreamVideoReadyTransitionHide();
@@ -6420,18 +6420,26 @@ function showStreamTransitionBackground(onVisible) {
     // Keep the normal Web UI behind the transition while its background fades in.
     showUiLayer('stream-transition-layer');
 
-    // Wait for the background fade to finish, then reveal the progress UI. The
-    // connection work must not begin until that second fade has also completed.
+    // Closing transitions already have a meaningful status before the layer
+    // appears, so reveal it with the background instead of leaving a blank interval.
+    if (showStatusImmediately) {
+      fadeInUiElement('loadingSpinner', 'inline-block');
+    }
+
+    // Startup keeps its original staged reveal. Closing work may start only after
+    // the background entrance has completed and the status has had time to settle.
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
       if (!streamTransitionVisible || streamTransitionHiding) return;
 
-      fadeInUiElement('loadingSpinner', 'inline-block', function() {
+      var onStatusReady = function() {
         if (typeof onVisible !== 'function') return;
         window.setTimeout(function() {
           if (streamTransitionVisible && !streamTransitionHiding) onVisible();
         }, 400);
-      });
+      };
+      if (showStatusImmediately) onStatusReady();
+      else fadeInUiElement('loadingSpinner', 'inline-block', onStatusReady);
 
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
       var encryptionMessage = document.getElementById('streamEncryptionMessage');
