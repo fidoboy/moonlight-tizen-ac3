@@ -11064,6 +11064,7 @@ function loadHTTPCertsCb() {
         getSelectedStreamingEngine() === 'ESPLUSPLAYER';
       var directWmpNativeCredentials = directWmpSelected &&
         window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.prepare === 'function' &&
         typeof window.ESPlusPlayerTransport.makeCert === 'function' &&
         typeof window.ESPlusPlayerTransport.httpInit === 'function';
 
@@ -11072,9 +11073,12 @@ function loadHTTPCertsCb() {
       } else if (directWmpNativeCredentials) {
         // Only Smart Hub + WMP uses the native certificate/HTTP API. The
         // existing WASM path below remains untouched for EMSS and normal launch.
-        var nativeCredentialPromise = pairingCert
-          ? Promise.resolve(pairingCert)
-          : window.ESPlusPlayerTransport.makeCert().then(function(response) {
+        // Start and verify the supervised native service now, while the
+        // stream is still idle. prepare() does not create a playback session.
+        var nativeCredentialPromise = window.ESPlusPlayerTransport.prepare().then(function() {
+          return pairingCert
+            ? pairingCert
+            : window.ESPlusPlayerTransport.makeCert().then(function(response) {
               var payload = response && response.payload ? response.payload : {};
               if (!response || response.status !== 'ok' ||
                   typeof payload.certPem !== 'string' || !payload.certPem ||
@@ -11090,6 +11094,7 @@ function loadHTTPCertsCb() {
               console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate through native WMP transport.');
               return generatedCert;
             });
+        });
 
         nativeCredentialPromise.then(function(cert) {
           if (!cert || !cert.cert || !cert.privateKey) {
