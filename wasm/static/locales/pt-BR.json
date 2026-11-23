@@ -517,6 +517,7 @@
   "The required data could not be retrieved from the host. The test has been aborted.": "Não foi possível obter os dados necessários do host. O teste foi abortado.",
   "The selected app is no longer available on this host. Showing the current app list.": "O aplicativo selecionado não está mais disponível neste host. Mostrando a lista atual de aplicativos.",
   "The selected host is no longer available on Moonlight.": "O host selecionado não está mais disponível no Moonlight.",
+  "Moonlight could not retrieve the requested host from saved data.": "O Moonlight não conseguiu recuperar o host solicitado dos dados salvos.",
   "The streaming connection with %1$s ended unexpectedly.": "A conexão de transmissão com %1$s terminou inesperadamente.",
   "This dialog will close once the pairing is complete.": "Este diálogo será fechado quando o pareamento for concluído.",
   "This is a warning message, proceed with caution!": "Esta é uma mensagem de aviso, prossiga com cautela!",
