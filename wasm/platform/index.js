@@ -11068,6 +11068,10 @@ function loadHTTPCertsCb() {
   getData('cert', function(savedCert) {
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
+      if (directWmpSelected && (!pairingCert.cert || !pairingCert.privateKey)) {
+        nativeCredentialReadFailed(new Error('The stored Moonlight certificate is incomplete.'));
+        return;
+      }
     }
 
     getData('uniqueid', function(savedUniqueid) {
@@ -11078,11 +11082,6 @@ function loadHTTPCertsCb() {
         storeData('uniqueid', myUniqueid, null);
       }
 
-      if (directWmpSelected && savedCert && savedCert.cert != null &&
-          (!savedCert.cert.cert || !savedCert.cert.privateKey)) {
-        nativeCredentialReadFailed(new Error('The stored Moonlight certificate is incomplete.'));
-        return;
-      }
       var directWmpNativeCredentials = directWmpSelected &&
         window.ESPlusPlayerTransport &&
         typeof window.ESPlusPlayerTransport.prepare === 'function' &&
@@ -11096,6 +11095,7 @@ function loadHTTPCertsCb() {
         // existing WASM path below remains untouched for EMSS and normal launch.
         // Start and verify the supervised native service now, while the
         // stream is still idle. prepare() does not create a playback session.
+        var nativeCertificateGenerated = false;
         var nativeCredentialPromise = Promise.resolve().then(function() {
           if (!myUniqueid || typeof myUniqueid !== 'string') {
             throw new Error('The stored Moonlight unique ID is invalid.');
@@ -11115,15 +11115,11 @@ function loadHTTPCertsCb() {
                   typeof payload.keyPem !== 'string' || !payload.keyPem) {
                 throw new Error('Native WMP certificate generation returned an invalid response.');
               }
-              var generatedCert = {
+              nativeCertificateGenerated = true;
+              return {
                 cert: payload.certPem,
                 privateKey: payload.keyPem
               };
-              return storeData('cert', generatedCert, null).then(function() {
-                pairingCert = generatedCert;
-                console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated and persistently stored new certificate through native WMP transport.');
-                return generatedCert;
-              });
             });
         });
 
@@ -11133,13 +11129,20 @@ function loadHTTPCertsCb() {
           }
           return window.ESPlusPlayerTransport.httpInit(
             cert.cert, cert.privateKey, myUniqueid
-          );
-        }).then(function(response) {
-          var payload = response && response.payload ? response.payload : {};
-          if (!response || response.status !== 'ok' ||
-              typeof payload.code !== 'number' || payload.code !== 0) {
-            throw new Error('Native WMP HTTP initialization failed.');
-          }
+          ).then(function(response) {
+            var payload = response && response.payload ? response.payload : {};
+            if (!response || response.status !== 'ok' ||
+                typeof payload.code !== 'number' || payload.code !== 0) {
+              throw new Error('Native WMP HTTP initialization failed.');
+            }
+            if (!nativeCertificateGenerated) return cert;
+            return storeData('cert', cert, null).then(function() {
+              pairingCert = cert;
+              console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated and persistently stored new certificate through native WMP transport.');
+              return cert;
+            });
+          });
+        }).then(function() {
           isStartupHttpReady = true;
           if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
           else maybeRestoreUiAfterStartup();
