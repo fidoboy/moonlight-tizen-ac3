@@ -25,19 +25,18 @@
 #include "mltrace.h"
 
 typedef int (*avoc_set_game_mode_fn)(int save_type, int on);
+typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);
 #ifdef MLT_TRACE
 typedef int (*avoc_check_game_mode_fn)(void);
-/* Getter ABI: mode output pointer only. */
-typedef int (*avoc_get_game_mode_fn)(int *mode);
 #endif
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
 static void *s_library;
 static avoc_set_game_mode_fn s_set_game_mode;
+static avoc_get_game_mode_fn s_get_game_mode;
 static int s_lookup_attempted;
 #ifdef MLT_TRACE
 static avoc_check_game_mode_fn s_check_game_mode;
-static avoc_get_game_mode_fn s_get_game_mode;
 #endif
 
 static int resolve_avoc(void)
@@ -68,6 +67,16 @@ static int resolve_avoc(void)
     }
 
 #ifdef MLT_TRACE
+    /* Read-back is required to confirm Game Mode activation. */
+    (void)dlerror();
+    *(void **)(&s_get_game_mode) = dlsym(s_library, "avoc_get_game_mode");
+    error = dlerror();
+    if (error || !s_get_game_mode) {
+        MLT("AVOC: dlsym(avoc_get_game_mode) failed: %s",
+            error ? error : "symbol address is NULL");
+        s_get_game_mode = NULL;
+    }
+
     /*
      * Diagnostic-only APIs: resolve them only in trace-enabled builds.
      * They are invoked only after avoc_set_game_mode() returns zero.
@@ -93,6 +102,28 @@ static int resolve_avoc(void)
 
     MLT("AVOC: libavoc.so loaded once; required setter resolved");
     return 1;
+}
+
+int ml_avoc_get_game_mode(int save_type, int *mode)
+{
+    int rc = -1;
+
+    if (!mode)
+        return -1;
+
+    pthread_mutex_lock(&s_lock);
+    if (!resolve_avoc() || !s_get_game_mode) {
+        MLT("AVOC: Game Mode getter unavailable for save_type=%d", save_type);
+        pthread_mutex_unlock(&s_lock);
+        return -1;
+    }
+
+    *mode = -1;
+    rc = s_get_game_mode(0, save_type, mode);
+    MLT("AVOC: avoc_get_game_mode(save_type=%d) returned rc=%d, mode=%d",
+        save_type, rc, *mode);
+    pthread_mutex_unlock(&s_lock);
+    return rc;
 }
 
 int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
@@ -148,7 +179,7 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
 
         if (s_get_game_mode) {
             int observed_mode = -1;
-            int get_rc = s_get_game_mode(&observed_mode);
+            int get_rc = s_get_game_mode(0, save_type, &observed_mode);
             MLT("AVOC debug: avoc_get_game_mode(&mode) -> ret=%d, mode=%d",
                 get_rc, observed_mode);
         } else {
