@@ -673,5 +673,13 @@
   "Developer host PC IP: %1$s": "IP do PC host do modo desenvolvedor: %1$s",
   "Enabled": "Ativado",
   "TV IP address: %1$s": "Endereço IP da TV: %1$s",
-  "Could not regenerate app image thumbnails.": "Não foi possível regenerar as miniaturas dos aplicativos."
+  "Could not regenerate app image thumbnails.": "Não foi possível regenerar as miniaturas dos aplicativos.",
+  "Moonlight could not open its saved data database.": "O Moonlight não conseguiu abrir o banco de dados dos dados salvos.",
+  "Moonlight could not read its saved certificate from IndexedDB.": "O Moonlight não conseguiu ler o certificado salvo no IndexedDB.",
+  "Moonlight could not decode its saved certificate data.": "O Moonlight não conseguiu decodificar os dados do certificado salvo.",
+  "Moonlight found an invalid or incomplete saved certificate.": "O Moonlight encontrou um certificado salvo inválido ou incompleto.",
+  "Moonlight could not read its saved client identifier from IndexedDB.": "O Moonlight não conseguiu ler o identificador do cliente salvo no IndexedDB.",
+  "Moonlight could not decode its saved client identifier.": "O Moonlight não conseguiu decodificar o identificador do cliente salvo.",
+  "Moonlight found an invalid saved client identifier.": "O Moonlight encontrou um identificador de cliente salvo inválido.",
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "O Moonlight encontrou um erro não identificado ao recuperar a identidade de streaming salva."
 }
