@@ -7884,7 +7884,7 @@ function getData(key, callbackFunction, errorCallback) {
             throw certError;
           }
           if (typeof errorCallback === 'function' && value != null && key === 'uniqueid' &&
-              (typeof value !== 'object' || typeof value.uniqueid !== 'string' || !value.uniqueid.trim())) {
+              (typeof value !== 'string' || !value.trim())) {
             var uniqueidError = new Error('The stored Moonlight unique ID record is invalid.');
             uniqueidError.moonlightReadStage = 'uniqueid-invalid';
             throw uniqueidError;
