@@ -676,5 +676,13 @@
   "— Stop the streaming session.": "— Detener la retransmisión.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Cambiar el modo del campo de dirección IP y abrir el menú del PC anfitrión.",
   "— Toggle the performance statistics overlay.": "— Mostrar u ocultar la superposición de estadísticas de rendimiento.",
-  "• No relevant changes found.": "• No se han encontrado cambios relevantes."
+  "• No relevant changes found.": "• No se han encontrado cambios relevantes.",
+  "Moonlight could not open its saved data database.": "Moonlight no ha podido abrir la base de datos de los datos guardados.",
+  "Moonlight could not read its saved certificate from IndexedDB.": "Moonlight no ha podido leer el certificado guardado en IndexedDB.",
+  "Moonlight could not decode its saved certificate data.": "Moonlight no ha podido descodificar los datos del certificado guardado.",
+  "Moonlight found an invalid or incomplete saved certificate.": "Moonlight ha encontrado un certificado guardado no válido o incompleto.",
+  "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight no ha podido leer el identificador de cliente guardado en IndexedDB.",
+  "Moonlight could not decode its saved client identifier.": "Moonlight no ha podido descodificar el identificador de cliente guardado.",
+  "Moonlight found an invalid saved client identifier.": "Moonlight ha encontrado un identificador de cliente guardado no válido.",
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha encontrado un error no identificado al recuperar la identidad de streaming guardada."
 }
