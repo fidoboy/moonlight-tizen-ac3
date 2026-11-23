@@ -284,13 +284,13 @@
     .resource-list span { color: var(--blue); font-size: 16px; }
     .download-heading {
       display: grid; margin-top: -50px; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
-      gap: clamp(22px, 4vw, 48px); align-items: center;
+      gap: clamp(36px, 5vw, 60px); align-items: center;
       margin-bottom: 29px;
     }
     .download-heading .section-head { max-width: none; margin: 0; }
     .download-packages {
-      display: block; position: relative; left: 27px; top: 60px;
-      width: 150%; max-width: 310px; height: auto;
+      display: block; position: relative; left: 0; top: 60px;
+      width: 100%; max-width: 270px; height: auto;
       justify-self: center; overflow: visible;
       filter: drop-shadow(0 10px 50px rgba(120, 184, 255, .37));
     }
@@ -459,7 +459,7 @@
       .section { padding: 48px 0; }
       .feature-grid, .download-grid { grid-template-columns: 1fr; }
       .download-heading { grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }
-      .download-packages { top: 0; margin-left: -50px; margin-top: 20px; width: 100%; max-width: 310px; }
+      .download-packages { top: 0; left: 0; margin: 20px auto 0; width: min(72%, 240px); max-width: 240px; }
       .apps2samsung-cta { margin-top: 22px; }
       .apps2samsung-link { width: 100%; min-height: 140px; padding: 18px 16px; gap: 14px; }
       .apps2samsung-logo { width: 84px; height: 84px; }
