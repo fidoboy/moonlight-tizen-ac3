@@ -1385,7 +1385,32 @@ function startDirectSmartHubHttpInitialization() {
   if (!directWmpSelected && !_wasmModuleDidLoad) return;
 
   _directSmartHubHttpInitStarted = true;
-  loadHTTPCerts();
+  if (!directWmpSelected) {
+    loadHTTPCerts();
+    return;
+  }
+
+  // WMP is a prerequisite for every native identity/HTTP operation. Fully
+  // start and validate the supervised service before opening IndexedDB for
+  // the saved certificate and unique ID.
+  var transport = window.ESPlusPlayerTransport;
+  if (!transport || typeof transport.prepare !== 'function') {
+    directSmartHubLaunchFailure(t('The native streaming service is unavailable.'));
+    return;
+  }
+
+  $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
+  withOperationTimeout(
+    transport.prepare(),
+    STREAM_OPERATION_TIMEOUTS.streamConnection,
+    'Native service preparation'
+  ).then(function() {
+    if (_directSmartHubLaunchFailed) return;
+    loadHTTPCerts();
+  }).catch(function(error) {
+    console.error('%c[index.js, startDirectSmartHubHttpInitialization]', 'color: red;', 'Could not prepare the native playback service before loading the saved streaming identity:', error);
+    directSmartHubLaunchFailure(t('The local device could not prepare the native video playback service.'));
+  });
 }
 
 function moduleDidLoad() {
@@ -11173,8 +11198,8 @@ function loadHTTPCertsCb() {
             ? Promise.resolve()
             : storeData('uniqueid', myUniqueid, null);
         }).then(function() {
-          return window.ESPlusPlayerTransport.prepare();
-        }).then(function() {
+          // startDirectSmartHubHttpInitialization has already prepared and
+          // verified WMP before loadHTTPCertsCb began reading this identity.
           return pairingCert
             ? pairingCert
             : window.ESPlusPlayerTransport.makeCert().then(function(response) {
