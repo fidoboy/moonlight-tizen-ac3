@@ -1636,6 +1636,18 @@ function handleMessage(msg) {
     if (shouldQuitHostAppDuringTransition) {
       transitionStatusMessage = t('Requesting to close application %1$s...', activeStreamAppName);
     }
+    // Set both text fields before the transition can become visible. The title is
+    // specific to the closing phase; the status reflects the pending host operation.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
+    if (typeof showStreamTransitionBackground === "function") {
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
+    } else {
+      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
+      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
+      restoreLocalAudioAfterTransitionAppears();
+    }
+
     var startupRemoteAppQuit = Promise.resolve();
     if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
         streamRemoteAppLaunchRequested && shouldQuitHostApp &&
@@ -1651,18 +1663,6 @@ function handleMessage(msg) {
       } catch (error) {
         console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
       }
-    }
-
-    // Set both text fields before the transition can become visible. The title is
-    // specific to the closing phase; the status reflects the pending host operation.
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
-    if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
-    } else {
-      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
-      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-      restoreLocalAudioAfterTransitionAppears();
     }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -1772,8 +1772,12 @@ function handleMessage(msg) {
     // Keep the Web UI hidden while the closing transition is shown. Reveal it only
     // shortly before the transition starts fading out, avoiding a flash of the page
     // background behind the animated starfield.
+    var hostAppQuitFailedDuringTransition = false;
     var beginRecoveryAfterTransition = function() {
       logStreamTerminationRecovery('closing transition hidden; Apps UI shown');
+      if (hostAppQuitFailedDuringTransition && !hasStreamError) {
+        snackbarLogLong('Could not automatically quit the host app.');
+      }
       if (hasStreamError) {
         // The transition is now fully hidden and the Apps interface is visible.
         // Keep the error modal open until the user acknowledges it; refresh the
@@ -1847,12 +1851,12 @@ function handleMessage(msg) {
           ).then(function() {
             console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed during closing transition.');
           }, function(error) {
+            hostAppQuitFailedDuringTransition = true;
             console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request failed during closing transition:', error);
-            snackbarLogLong('Could not automatically quit the host app.');
           });
         } catch (error) {
+          hostAppQuitFailedDuringTransition = true;
           console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request could not be started during closing transition:', error);
-          snackbarLogLong('Could not automatically quit the host app.');
         }
       }
       Promise.resolve(hostAppQuitOperation).then(function() {
