@@ -108,8 +108,8 @@ jobs:
             exit 1
           fi
           FIRST_LINE="$(head -n 1 "$NOTES_FILE" | tr -d '\r')"
-          if [[ "$FIRST_LINE" != "## 🔥 Highlights" ]]; then
-            echo "::error::The first line of $NOTES_FILE must be exactly '## 🔥 Highlights'." >&2
+          if [[ "$FIRST_LINE" != "## Highlights" ]]; then
+            echo "::error::The first line of $NOTES_FILE must be exactly '## Highlights'." >&2
             exit 1
           fi
 
@@ -158,7 +158,8 @@ jobs:
           fi
 
           {
-            cat .github/release-notes.md
+            printf '## 🔥 Highlights\n\n'
+            tail -n +2 .github/release-notes.md
             printf '\n\n---\n\n<details>\n<summary>⚙️ Changelog details for v%s</summary>\n\n' "$RELEASE_VERSION"
             cat "$VERSIONED_ENTRY"
             printf '\n\n</details>\n\n**Changelog:** [View the entry for v%s](%s)\n' "$RELEASE_VERSION" "$CHANGELOG_URL"
