@@ -1400,11 +1400,13 @@ function startDirectSmartHubHttpInitialization() {
   }
 
   $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
-  withOperationTimeout(
-    transport.prepare(),
-    STREAM_OPERATION_TIMEOUTS.streamConnection,
-    'Native service preparation'
-  ).then(function() {
+  Promise.resolve().then(function() {
+    return withOperationTimeout(
+      transport.prepare(),
+      STREAM_OPERATION_TIMEOUTS.streamConnection,
+      'Native service preparation'
+    );
+  }).then(function() {
     if (_directSmartHubLaunchFailed) return;
     loadHTTPCerts();
   }).catch(function(error) {
