@@ -1613,17 +1613,6 @@ function handleMessage(msg) {
         resolveLocalAudioRestoration();
       });
     };
-    // Set both text fields before the transition can become visible. The title is
-    // specific to the closing phase; the status starts with its closing-phase message.
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
-    if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
-    } else {
-      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
-      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-      restoreLocalAudioAfterTransitionAppears();
-    }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
     var persistedPreferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
@@ -1640,6 +1629,13 @@ function handleMessage(msg) {
       (hasStreamError && !streamTransitionWasHidden) ||
       (errorCode === 0 && !hasStreamError)
     );
+    // Normal/manual termination performs the host request while the closing
+    // transition is still visible, before the Apps interface starts returning.
+    var shouldQuitHostAppDuringTransition = !!shouldQuitHostApp && !hasStreamError &&
+      activeStreamAppName !== t('Apps') && api && typeof api.quitApp === 'function';
+    if (shouldQuitHostAppDuringTransition) {
+      transitionStatusMessage = t('Requesting to close application %1$s...', activeStreamAppName);
+    }
     var startupRemoteAppQuit = Promise.resolve();
     if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
         streamRemoteAppLaunchRequested && shouldQuitHostApp &&
@@ -1655,6 +1651,18 @@ function handleMessage(msg) {
       } catch (error) {
         console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
       }
+    }
+
+    // Set both text fields before the transition can become visible. The title is
+    // specific to the closing phase; the status reflects the pending host operation.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
+    if (typeof showStreamTransitionBackground === "function") {
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
+    } else {
+      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
+      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
+      restoreLocalAudioAfterTransitionAppears();
     }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -1794,23 +1802,9 @@ function handleMessage(msg) {
         return;
       }
 
-      window.setTimeout(function() {
-        // Resume ordinary UI state and flush deferred UI actions only after the full
-        // transition fadeout and the additional 200 ms breathing room.
-        if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
-          console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-          withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown').then(function() {
-            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
-            refreshHostAndReturnToApps();
-          }, function(failedQuitApp) {
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
-            snackbarLogLong('Could not automatically quit the host app.');
-            refreshHostAndReturnToApps();
-          });
-        } else {
-          refreshHostAndReturnToApps();
-        }
-      }, 200);
+      // The remote app shutdown request has already completed (or failed) while
+      // the closing transition was visible. Refresh the host and Apps list now.
+      window.setTimeout(refreshHostAndReturnToApps, 200);
     };
 
     var hideTransitionAndBeginRecovery = function() {
@@ -1840,13 +1834,36 @@ function handleMessage(msg) {
     // has been recreated and click.mp3 has been decoded.
     localAudioRestoration.then(function() {
       logStreamTerminationRecovery('local audio restoration released');
-      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
-        (Date.now() - streamTerminationTransitionShownAt);
-      if (remainingTransitionMs > 0) {
-        window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
-      } else {
-        showAppsUiBeforeTransitionCloses();
+      var hostAppQuitOperation = Promise.resolve();
+      if (shouldQuitHostAppDuringTransition) {
+        // Keep the animated closing screen visible and identify the app while
+        // the host processes the cancellation request.
+        logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
+          appName: activeStreamAppName
+        });
+        try {
+          hostAppQuitOperation = withOperationTimeout(
+            api.quitApp(), 10000, 'Host app shutdown during closing transition'
+          ).then(function() {
+            console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed during closing transition.');
+          }, function(error) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request failed during closing transition:', error);
+            snackbarLogLong('Could not automatically quit the host app.');
+          });
+        } catch (error) {
+          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request could not be started during closing transition:', error);
+          snackbarLogLong('Could not automatically quit the host app.');
+        }
       }
+      Promise.resolve(hostAppQuitOperation).then(function() {
+        var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+          (Date.now() - streamTerminationTransitionShownAt);
+        if (remainingTransitionMs > 0) {
+          window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
+        } else {
+          showAppsUiBeforeTransitionCloses();
+        }
+      });
     });
 
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
