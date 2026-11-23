@@ -1302,6 +1302,9 @@ function handleMessage(msg) {
     streamTerminationTransitionActive = true;
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
     var streamRemoteAppLaunchRequestedAtTermination = window._remoteStreamAppLaunchRequested === true;
+    // Preserve the phase-1/phase-2 boundary before resetting per-session state.
+    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
+    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
     window._streamTransitionHiddenForSession = false;
     window._remoteStreamAppLaunchRequested = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
@@ -1369,10 +1372,6 @@ function handleMessage(msg) {
       return;
     }
 
-    // Snapshot the sole stream-success boundary before any termination path resets it.
-    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
-    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
-
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // The host app is closed for manual termination and pre-success startup failures, but
     // retained after unexpected errors once the transition has actually been hidden.
@@ -1437,7 +1436,8 @@ function handleMessage(msg) {
         window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var shouldQuitDirectHostApp = directQuitPreferenceEnabled && (
         manualStreamStopAtTermination ||
-        (!streamTransitionWasHiddenAtTermination && directStreamHasError) ||
+        (!streamTransitionWasHiddenAtTermination && directStreamHasError &&
+          streamRemoteAppLaunchRequestedAtTermination) ||
         (!directStreamHasError && errorCode === 0)
       );
       var exitDirectLaunch = function() {
