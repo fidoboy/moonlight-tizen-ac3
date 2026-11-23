@@ -316,6 +316,7 @@
   "Moonlight could not initialize the streaming interface.": "Moonlight не удалось инициализировать интерфейс потоковой передачи.",
   "Moonlight could not load its saved configuration.": "Moonlight не удалось загрузить сохранённую конфигурацию.",
   "Moonlight could not load its saved streaming settings.": "Moonlight не удалось загрузить сохранённые настройки потоковой передачи.",
+  "Moonlight could not load its saved streaming identity.": "Moonlight не удалось загрузить сохранённую идентификацию для потоковой передачи.",
   "Moonlight could not prepare the saved host and streaming settings in time.": "Moonlight не удалось вовремя подготовить сохранённый хост и настройки потоковой передачи.",
   "Control for mouse emulation": "Управление эмуляцией мыши",
   "Select which of the two gamepad sticks to use to emulate mouse movement on the screen.": "Позволяет выбрать, какой из двух стиков геймпада использовать для имитации движения мыши на экране.",
