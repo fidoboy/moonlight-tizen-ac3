@@ -6404,6 +6404,13 @@ function renderStreamEncryptionStatus(status, targetIds) {
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
   if (!streamEncryptionStatusPollingActive) return;
+  // WMP owns its stream encryption pipeline natively. Do not wait for or poll
+  // the WebAssembly module on the direct Smart Hub + WMP route.
+  if (window.getStreamingEngineState &&
+      window.getStreamingEngineState().active === 'ESPLUSPLAYER') {
+    stopStreamEncryptionStatusPolling();
+    return;
+  }
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
     var status = Module.getEncryptionStatus();
     if (typeof status === 'number' && status >= 0) {
@@ -6420,6 +6427,9 @@ function pollStreamEncryptionStatus() {
 
 function startStreamEncryptionStatusPolling() {
   stopStreamEncryptionStatusPolling();
+  // Encryption status is reported by the WASM core only for EMSS.
+  if (window.getStreamingEngineState &&
+      window.getStreamingEngineState().active === 'ESPLUSPLAYER') return;
   streamEncryptionStatusPollingActive = true;
   pollStreamEncryptionStatus();
 }
@@ -7557,10 +7567,14 @@ function createStreamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
-  Module._setStreamMenuInputBlocked(1);
-  if (window.ESPlusPlayerTransport &&
-      typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
-    window.ESPlusPlayerTransport.setStreamMenuInputBlocked(true);
+  if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+    if (window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+      window.ESPlusPlayerTransport.setStreamMenuInputBlocked(true);
+    }
+  } else {
+    // Preserve the original EMSS input-blocking path.
+    Module._setStreamMenuInputBlocked(1);
   }
   fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
@@ -7596,10 +7610,14 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
     if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
     closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
-    Module._setStreamMenuInputBlocked(0);
-    if (window.ESPlusPlayerTransport &&
-        typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
-      window.ESPlusPlayerTransport.setStreamMenuInputBlocked(false);
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport &&
+          typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+        window.ESPlusPlayerTransport.setStreamMenuInputBlocked(false);
+      }
+    } else {
+      // Preserve the original EMSS input-blocking path.
+      Module._setStreamMenuInputBlocked(0);
     }
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
