@@ -105,7 +105,7 @@ void* ThreadProc(void* context) {
 #endif
 }
 
-void PltSleepMs(int ms) {
+void PltSleepMs(uint32_t ms) {
 #if defined(LC_WINDOWS)
     SleepEx(ms, FALSE);
 #elif defined(__3DS__)
@@ -121,9 +121,9 @@ void PltSleepMs(int ms) {
 #endif
 }
 
-void PltSleepMsInterruptible(PLT_THREAD* thread, int ms) {
+void PltSleepMsInterruptible(PLT_THREAD* thread, uint32_t ms) {
     while (ms > 0 && !PltIsThreadInterrupted(thread)) {
-        int msToSleep = ms < INTERRUPT_PERIOD_MS ? ms : INTERRUPT_PERIOD_MS;
+        uint32_t msToSleep = ms < INTERRUPT_PERIOD_MS ? ms : INTERRUPT_PERIOD_MS;
         PltSleepMs(msToSleep);
         ms -= msToSleep;
     }
