@@ -276,18 +276,8 @@ static int start_connection(int game_mode) {
 
     MLT("TV AVOC: activating Game Mode after LiStartConnectionEx");
     int game_mode_rc = ml_avoc_set_game_mode_with_retry(1, 1, 3);
-    int game_mode_observed = -1;
-    int game_mode_get_rc = -1;
-    if (game_mode_rc == 0) {
-      game_mode_get_rc = ml_avoc_get_game_mode(1, &game_mode_observed);
-    }
-    int game_mode_confirmed = game_mode_rc == 0 && game_mode_get_rc == 0 && game_mode_observed == 1;
-    MLT("TV AVOC: Game Mode activation ret=%d getter ret=%d observed=%d confirmed=%d",
-        game_mode_rc, game_mode_get_rc, game_mode_observed, game_mode_confirmed);
-    fprintf(stderr, "[ml] Game Mode activation=%d getter=%d observed=%d confirmed=%d\n",
-        game_mode_rc, game_mode_get_rc, game_mode_observed, game_mode_confirmed);
-    extern void ml_engine_emit_game_mode_status(int active);
-    ml_engine_emit_game_mode_status(game_mode_confirmed);
+    (void)game_mode_rc;
+    MLT("TV AVOC: Game Mode activation completed with raw ret=%d", game_mode_rc);
   }
 
   int in = input_init();
@@ -726,10 +716,6 @@ static int start_session_impl(const char *host, int width, int height, int fps, 
   int rc = start_connection(game_mode != 0);
   MLT("ml_engine_start_session -> %d", rc);
   return rc;
-}
-
-void ml_engine_emit_game_mode_status(int active) {
-  fprintf(stderr, "[ml] Game Mode confirmed active=%d\n", active != 0);
 }
 
 int ml_engine_start_session(const char *host, int width, int height, int fps, int bitrate_kbps,
