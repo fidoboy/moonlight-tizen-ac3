@@ -1059,7 +1059,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
   setPerformanceStatsPill('harddec', /Decoding mode:\s*Hardware/i.test(decoderLine));
   setPerformanceStatsPill('softdec', /Decoding mode:\s*Software/i.test(decoderLine));
   var audioCodec = audioLine.match(/Audio stream:\s*(OPUS|AC-3|E-AC-3)/i);
-  var audioLayout = audioLine.match(/\((Stereo|5\.1|7\.1),\s*\d+\s*kbps\)/i);
+  var audioLayout = audioLine.match(/\((Stereo|5\.1|7\.1)(?:,\s*\d+\s*channels?)?,\s*[\d.]+\s*kbps\)/i);
   if (audioCodec) {
     var normalizedAudioCodec = audioCodec[1].toUpperCase();
     setPerformanceStatsPill('opus', normalizedAudioCodec === 'OPUS');
