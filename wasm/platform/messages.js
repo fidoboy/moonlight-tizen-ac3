@@ -1301,8 +1301,6 @@ function handleMessage(msg) {
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
-    // Snapshot the sole success boundary before teardown resets any session state.
-    var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
     window._streamTransitionHiddenForSession = false;
     window._remoteStreamAppLaunchRequested = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
