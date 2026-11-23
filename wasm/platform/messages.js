@@ -1301,6 +1301,7 @@ function handleMessage(msg) {
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
+    var streamRemoteAppLaunchRequestedAtTermination = window._remoteStreamAppLaunchRequested === true;
     window._streamTransitionHiddenForSession = false;
     window._remoteStreamAppLaunchRequested = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
@@ -1618,16 +1619,19 @@ function handleMessage(msg) {
       persistedPreferences.quitAppAfterDisconnect === 'true' ||
       persistedPreferences.quitAppAfterDisconnect === 1
     );
-    // Only the two orderly termination paths may request a remote app shutdown:
-    // an explicit user stop, or a normal host-reported session end. Player,
-    // transport, network and startup errors must never trigger quitApp().
+    // Close the remote app for explicit user stops, normal host-reported ends,
+    // and errors before the initial stream transition has disappeared. Errors
+    // after that success boundary must leave the remote app running.
+    var isPreSuccessStartupFailure = hasStreamError && !streamTransitionWasHiddenAtTermination &&
+      streamRemoteAppLaunchRequestedAtTermination;
     var shouldQuitHostApp = !!quitAfterDisconnect && (
       manualStreamStopRequested ||
-      (errorCode === 0 && !hasStreamError)
+      (errorCode === 0 && !hasStreamError) ||
+      isPreSuccessStartupFailure
     );
-    // Normal/manual termination performs the host request while the closing
-    // transition is still visible, before the Apps interface starts returning.
-    var shouldQuitHostAppDuringTransition = !!shouldQuitHostApp && !hasStreamError &&
+    // All authorized requests run while the closing transition is visible.
+    var shouldQuitHostAppDuringTransition = !!shouldQuitHostApp &&
+      (!hasStreamError || isPreSuccessStartupFailure) &&
       activeStreamAppName !== t('Apps') && api && typeof api.quitApp === 'function';
     if (shouldQuitHostAppDuringTransition) {
       transitionStatusMessage = t('Requesting to close application %1$s...', activeStreamAppName);
