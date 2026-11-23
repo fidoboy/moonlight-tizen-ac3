@@ -1637,7 +1637,7 @@ function handleMessage(msg) {
     $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
     $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears, true, true);
+      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears, true);
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
