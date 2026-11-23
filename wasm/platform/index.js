@@ -11059,6 +11059,58 @@ function loadHTTPCertsCb() {
         storeData('uniqueid', myUniqueid, null);
       }
 
+      var directWmpNativeCredentials = !!_directSmartHubLaunch &&
+        typeof getSelectedStreamingEngine === 'function' &&
+        getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+        window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.makeCert === 'function' &&
+        typeof window.ESPlusPlayerTransport.httpInit === 'function';
+
+      if (directWmpNativeCredentials) {
+        // Only Smart Hub + WMP uses the native certificate/HTTP API. The
+        // existing WASM path below remains untouched for EMSS and normal launch.
+        var nativeCredentialPromise = pairingCert
+          ? Promise.resolve(pairingCert)
+          : window.ESPlusPlayerTransport.makeCert().then(function(response) {
+              var payload = response && response.payload ? response.payload : {};
+              if (!response || response.status !== 'ok' ||
+                  typeof payload.certPem !== 'string' || !payload.certPem ||
+                  typeof payload.keyPem !== 'string' || !payload.keyPem) {
+                throw new Error('Native WMP certificate generation returned an invalid response.');
+              }
+              var generatedCert = {
+                cert: payload.certPem,
+                privateKey: payload.keyPem
+              };
+              pairingCert = generatedCert;
+              storeData('cert', generatedCert, null);
+              console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate through native WMP transport.');
+              return generatedCert;
+            });
+
+        nativeCredentialPromise.then(function(cert) {
+          if (!cert || !cert.cert || !cert.privateKey) {
+            throw new Error('Stored Moonlight certificate is incomplete.');
+          }
+          return window.ESPlusPlayerTransport.httpInit(
+            cert.cert, cert.privateKey, myUniqueid
+          );
+        }).then(function(response) {
+          var payload = response && response.payload ? response.payload : {};
+          if (!response || response.status !== 'ok' ||
+              typeof payload.code !== 'number' || payload.code !== 0) {
+            throw new Error('Native WMP HTTP initialization failed.');
+          }
+          isStartupHttpReady = true;
+          if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
+          else maybeRestoreUiAfterStartup();
+        }).catch(function(error) {
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Native WMP certificate/HTTP initialization failed:', error);
+          if (_directSmartHubLaunch) {
+            directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials or HTTP connection.'));
+          }
+        });
+      } else {
       if (!pairingCert) { // We couldn't load a cert. Let's attempt to generate a new one.
         console.warn('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Warning: Local certificate not found! Generating a new one...');
         sendMessage('makeCert', []).then(function(cert) {
@@ -11087,6 +11139,7 @@ function loadHTTPCertsCb() {
           console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
             if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not initialize its streaming connection.');
         });
+      }
       }
 
       // load previously connected hosts, which have been killed into an object, and revive them back into a class
