@@ -62,14 +62,14 @@ Use o IPv4 do computador, **não** o Gateway Padrão, o IP da TV, `127.0.0.1` ne
 1. Abra o Apps2Samsung no computador.
 2. Selecione a TV quando ela aparecer nos resultados da busca. Se não for detectada automaticamente, informe o IP manualmente, caso essa opção esteja disponível.
 3. Abra o catálogo de aplicativos e procure **Moonlight**.
-4. Selecione **Moonlight** e escolha a variante **fidoboy · Enhanced · Dolby** ou, se o modelo da sua TV exigir, **fidoboy · Enhanced · Dolby · ForceGM**.
+4. Selecione **Moonlight** e escolha a variante **fidoboy · Enhanced · Dolby**.
 5. Inicie a instalação com **Download & Install** e aguarde a confirmação de sucesso do Apps2Samsung. O próprio programa baixa e prepara o pacote.
 6. Abra a tela **Apps** da TV e inicie o Moonlight.
 
 **Este é o método recomendado.** Você não precisa acessar GitHub Releases nem baixar manualmente o `Moonlight.wgt`. No primeiro uso, o Apps2Samsung pode solicitar login na conta Samsung para criar um certificado de assinatura. Siga as instruções e mantenha a seleção do certificado no modo automático/padrão, a menos que a ferramenta solicite outro tipo. Não é necessário configurar certificados manualmente no Seller Office.
 
 > [!WARNING]
-> **Instale o WGT manualmente apenas se o método do catálogo falhar.** Baixe `Moonlight.wgt` da [última release estável](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). No Apps2Samsung, escolha **Custom WGT / TPK**, selecione o arquivo baixado e inicie a instalação. Use essa alternativa apenas quando necessário. Para a variante ForceGM, baixe `Moonlight-ForceGM.wgt` na mesma página.
+> **Instale o WGT manualmente apenas se o método do catálogo falhar.** Baixe `Moonlight.wgt` da [última release estável](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). No Apps2Samsung, escolha **Custom WGT / TPK**, selecione o arquivo baixado e inicie a instalação. Use essa alternativa apenas quando necessário.
 
 ### Solução de problemas
 

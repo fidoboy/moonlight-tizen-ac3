@@ -62,14 +62,14 @@ Use the computer's IPv4 address, **not** the Default Gateway, the TV's IP addres
 1. Open Apps2Samsung on your computer.
 2. Select your TV after it appears in the scan results. If it is not discovered automatically, enter the TV's IP address manually if that option is available.
 3. Open the app list catalog and find **Moonlight**.
-4. Select **Moonlight**, then choose the **`fidoboy · Enhanced · Dolby`** variant or if your TV model requires it, the **`fidoboy · Enhanced · Dolby · ForceGM`** variant.
+4. Select **Moonlight**, then choose the **`fidoboy · Enhanced · Dolby`** variant variant.
 5. Start the installation with **`Download & Install`** and wait for Apps2Samsung to report success. Apps2Samsung downloads and prepares the package itself.
 6. Open the TV's **Apps** screen and launch Moonlight.
 
 **This is the recommended method.** You do not need to visit the GitHub Releases page or download `Moonlight.wgt` manually. On first use, Apps2Samsung may ask you to sign in to your Samsung account so it can create a signing certificate. Follow its prompts and leave certificate selection on its automatic/default option unless the tool reports that a different certificate type is required. You do not need to configure certificates manually in Seller Office.
 
 > [!WARNING]
-> **Use manual WGT installation only if the catalog method fails.** Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung, choose **Custom WGT / TPK**, select the downloaded file, and start the installation. Do not use this fallback unless needed. If you specifically want the ForceGM variant, download `Moonlight-ForceGM.wgt` from the same release page instead.
+> **Use manual WGT installation only if the catalog method fails.** Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung, choose **Custom WGT / TPK**, select the downloaded file, and start the installation. Do not use this fallback unless needed.
  
 ### Troubleshooting
 

@@ -62,14 +62,14 @@ Utiliza la dirección IPv4 del ordenador, **no** la puerta de enlace predetermin
 1. Abre Apps2Samsung en el ordenador.
 2. Selecciona el televisor cuando aparezca en los resultados de búsqueda. Si no se detecta automáticamente, introduce manualmente su dirección IP si está disponible esa opción.
 3. Abre el catálogo de aplicaciones y busca **Moonlight**.
-4. Selecciona **Moonlight** y elige la variante **fidoboy · Enhanced · Dolby** o, si tu modelo de televisor lo requiere, **fidoboy · Enhanced · Dolby · ForceGM**.
+4. Selecciona **Moonlight** y elige la variante **fidoboy · Enhanced · Dolby**.
 5. Inicia la instalación con **Download & Install** y espera a que Apps2Samsung confirme que ha terminado correctamente. Apps2Samsung descarga y prepara el paquete por sí mismo.
 6. Abre la pantalla **Apps** del televisor e inicia Moonlight.
 
 **Este es el método recomendado.** No necesitas visitar GitHub Releases ni descargar manualmente `Moonlight.wgt`. La primera vez, Apps2Samsung puede pedirte que inicies sesión en tu cuenta Samsung para crear un certificado de firma. Sigue las indicaciones y deja la selección de certificado en la opción automática/predeterminada, salvo que la herramienta indique que hace falta otro tipo. No necesitas configurar certificados manualmente en Seller Office.
 
 > [!WARNING]
-> **Instala el WGT manualmente solo si falla el método del catálogo.** Descarga `Moonlight.wgt` desde la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). En Apps2Samsung, elige **Custom WGT / TPK**, selecciona el archivo descargado e inicia la instalación. No recurras a esta alternativa salvo que sea necesario. Si necesitas específicamente la variante ForceGM, descarga `Moonlight-ForceGM.wgt` desde la misma página de versiones.
+> **Instala el WGT manualmente solo si falla el método del catálogo.** Descarga `Moonlight.wgt` desde la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). En Apps2Samsung, elige **Custom WGT / TPK**, selecciona el archivo descargado e inicia la instalación. No recurras a esta alternativa salvo que sea necesario.
 
 ### Solución de problemas
 

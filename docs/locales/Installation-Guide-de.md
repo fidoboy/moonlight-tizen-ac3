@@ -62,14 +62,14 @@ Verwende die IPv4-Adresse des Computers, **nicht** das Standardgateway, die TV-I
 1. Öffne Apps2Samsung am Computer.
 2. Wähle den Fernseher aus, sobald er in den Suchergebnissen erscheint. Wird er nicht automatisch erkannt, gib seine IP-Adresse manuell ein, sofern diese Option vorhanden ist.
 3. Öffne den App-Katalog und suche nach **Moonlight**.
-4. Wähle **Moonlight** und anschließend die Variante **fidoboy · Enhanced · Dolby** oder, falls dein TV-Modell sie benötigt, **fidoboy · Enhanced · Dolby · ForceGM**.
+4. Wähle **Moonlight** und anschließend die Variante **fidoboy · Enhanced · Dolby**.
 5. Starte die Installation mit **Download & Install** und warte auf die Erfolgsmeldung von Apps2Samsung. Apps2Samsung lädt das Paket selbst herunter und bereitet es vor.
 6. Öffne am Fernseher den Bildschirm **Apps** und starte Moonlight.
 
 **Dies ist die empfohlene Methode.** Du musst weder GitHub Releases besuchen noch `Moonlight.wgt` manuell herunterladen. Beim ersten Start kann Apps2Samsung dich auffordern, dich mit deinem Samsung-Konto anzumelden, damit ein Signaturzertifikat erstellt werden kann. Folge den Anweisungen und belasse die Zertifikatsauswahl auf automatisch/Standard, sofern das Tool keinen anderen Zertifikatstyp verlangt. Eine manuelle Zertifikatskonfiguration in Seller Office ist nicht nötig.
 
 > [!WARNING]
-> **Installiere ein WGT nur manuell, wenn die Katalogmethode fehlschlägt.** Lade `Moonlight.wgt` aus dem [neuesten stabilen Release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) herunter. Wähle in Apps2Samsung **Custom WGT / TPK**, wähle die Datei aus und starte die Installation. Nutze diesen Umweg nur bei Bedarf. Für die ForceGM-Variante lade stattdessen `Moonlight-ForceGM.wgt` von derselben Release-Seite herunter.
+> **Installiere ein WGT nur manuell, wenn die Katalogmethode fehlschlägt.** Lade `Moonlight.wgt` aus dem [neuesten stabilen Release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) herunter. Wähle in Apps2Samsung **Custom WGT / TPK**, wähle die Datei aus und starte die Installation. Nutze diesen Umweg nur bei Bedarf.
 
 ### Fehlerbehebung
 
