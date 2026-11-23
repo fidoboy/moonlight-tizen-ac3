@@ -7777,6 +7777,15 @@ function getData(key, callbackFunction) {
             console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
           }
           value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
+          if (typeof errorCallback === 'function' && value != null && key === 'cert' &&
+              (typeof value !== 'object' || typeof value.cert !== 'string' || !value.cert ||
+               typeof value.privateKey !== 'string' || !value.privateKey)) {
+            throw new Error('The stored Moonlight certificate record is invalid.');
+          }
+          if (typeof errorCallback === 'function' && value != null && key === 'uniqueid' &&
+              (typeof value !== 'object' || typeof value.uniqueid !== 'string' || !value.uniqueid)) {
+            throw new Error('The stored Moonlight unique ID record is invalid.');
+          }
           finishRead(value);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
@@ -11075,7 +11084,16 @@ function loadHTTPCertsCb() {
         // existing WASM path below remains untouched for EMSS and normal launch.
         // Start and verify the supervised native service now, while the
         // stream is still idle. prepare() does not create a playback session.
-        var nativeCredentialPromise = window.ESPlusPlayerTransport.prepare().then(function() {
+        var nativeCredentialPromise = Promise.resolve().then(function() {
+          if (!myUniqueid || typeof myUniqueid !== 'string') {
+            throw new Error('The stored Moonlight unique ID is invalid.');
+          }
+          return savedUniqueid && savedUniqueid.uniqueid != null
+            ? Promise.resolve()
+            : storeData('uniqueid', myUniqueid, null);
+        }).then(function() {
+          return window.ESPlusPlayerTransport.prepare();
+        }).then(function() {
           return pairingCert
             ? pairingCert
             : window.ESPlusPlayerTransport.makeCert().then(function(response) {
@@ -11089,10 +11107,11 @@ function loadHTTPCertsCb() {
                 cert: payload.certPem,
                 privateKey: payload.keyPem
               };
-              pairingCert = generatedCert;
-              storeData('cert', generatedCert, null);
-              console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate through native WMP transport.');
-              return generatedCert;
+              return storeData('cert', generatedCert, null).then(function() {
+                pairingCert = generatedCert;
+                console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated and persistently stored new certificate through native WMP transport.');
+                return generatedCert;
+              });
             });
         });
 
@@ -11241,8 +11260,8 @@ function loadHTTPCertsCb() {
             return runInitialHostDiscovery(hasConfiguredHosts);
           });
         });
-      });
-    });
+      }, directWmpSelected ? nativeCredentialReadFailed : null);
+    }, directWmpSelected ? nativeCredentialReadFailed : null);
   });
 }
 
