@@ -5,7 +5,7 @@
 # Moonlight Tizen with AC-3 support
 
 [![Release Version](https://img.shields.io/github/v/release/fidoboy/moonlight-tizen-ac3?style=for-the-badge&logo=github)](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/fidoboy/moonlight-tizen-ac3/build-ac3-passthrough.yml?branch=master&style=for-the-badge&logo=docker)](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-ac3-passthrough.yml?query=branch%3Amaster)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/fidoboy/moonlight-tizen-ac3/build-hybrid-wgt.yml?branch=master&style=for-the-badge&logo=docker)](https://github.com/fidoboy/moonlight-tizen-ac3/actions/workflows/build-hybrid-wgt.yml?query=branch%3Amaster)
 [<img src="https://img.shields.io/badge/Tizen-TV-blue?style=for-the-badge" />](https://www.tizen.org/)
 [![Total Downloads](https://img.shields.io/github/downloads/fidoboy/moonlight-tizen-ac3/total?style=for-the-badge&logo=github)](https://github.com/fidoboy/moonlight-tizen-ac3/releases)
 [![Project Website](https://img.shields.io/website?url=https%3A%2F%2Ffidoboy.github.io%2Fmoonlight-tizen-ac3%2F&style=for-the-badge&link=https%3A%2F%2Ffidoboy.github.io%2Fmoonlight-tizen-ac3%2F)](https://fidoboy.github.io/moonlight-tizen-ac3/)
@@ -79,7 +79,7 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 
 ## 📦 Installation
 
-Download `Moonlight.wgt` or `Moonlight-ForceGM.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio. Both methods require enabling Developer Mode on the TV. See the [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for step-by-step instructions.
+Download `Moonlight.wgt` from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it using [Apps2Samsung](https://apps2samsung.com/#download) or Tizen Studio. Both methods require enabling Developer Mode on the TV. See the [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for step-by-step instructions.
 
 ---
 
