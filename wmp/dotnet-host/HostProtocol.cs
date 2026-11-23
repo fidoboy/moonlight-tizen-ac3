@@ -963,6 +963,19 @@ namespace MoonlightWmpHost
                 return;
             }
 
+            // Copy MessagePort arguments before leaving the callback: the worker
+            // must not depend on the lifetime of the received Bundle.
+            string certPemArg = Arg(bundle, "certPem");
+            string keyPemArg = Arg(bundle, "keyPem");
+            string uniqueIdArg = Arg(bundle, "uniqueId");
+            string urlArg = Arg(bundle, "url");
+            string ppkArg = Arg(bundle, "ppk");
+            string addressArg = Arg(bundle, "address");
+            string pinArg = Arg(bundle, "pin");
+            int serverMajorArg, httpPortArg;
+            bool pairNumbersValid = TryInt(Arg(bundle, "serverMajor"), out serverMajorArg) &&
+                TryInt(Arg(bundle, "httpPort"), out httpPortArg);
+
             // Native HTTP calls may block on network I/O. Never run them on the
             // MessagePort callback thread or on the session lifecycle worker.
             ThreadPool.QueueUserWorkItem(delegate
@@ -1001,9 +1014,9 @@ namespace MoonlightWmpHost
 
                         if (command == "http_init")
                         {
-                            string cert = Arg(bundle, "certPem");
-                            string key = Arg(bundle, "keyPem");
-                            string uniqueId = Arg(bundle, "uniqueId");
+                            string cert = certPemArg;
+                            string key = keyPemArg;
+                            string uniqueId = uniqueIdArg;
                             if (String.IsNullOrEmpty(cert) || String.IsNullOrEmpty(key) ||
                                 String.IsNullOrEmpty(uniqueId) || cert.Length > 32768 ||
                                 key.Length > 32768 || uniqueId.Length > 128)
@@ -1021,8 +1034,8 @@ namespace MoonlightWmpHost
 
                         if (command == "open_url")
                         {
-                            string url = Arg(bundle, "url");
-                            string ppk = Arg(bundle, "ppk");
+                            string url = urlArg;
+                            string ppk = ppkArg;
                             if (String.IsNullOrEmpty(url) || url.Length > 32768 ||
                                 (ppk != null && ppk.Length > 32768))
                             {
@@ -1066,10 +1079,11 @@ namespace MoonlightWmpHost
                         if (command == "pair")
                         {
                             int serverMajor, httpPort;
-                            string address = Arg(bundle, "address");
-                            string pin = Arg(bundle, "pin");
-                            if (!TryInt(Arg(bundle, "serverMajor"), out serverMajor) ||
-                                !TryInt(Arg(bundle, "httpPort"), out httpPort) ||
+                            string address = addressArg;
+                            string pin = pinArg;
+                            if (!pairNumbersValid ||
+                                (serverMajor = serverMajorArg) <= 0 ||
+                                (httpPort = httpPortArg) <= 0 ||
                                 serverMajor <= 0 || httpPort <= 0 || httpPort > 65535 ||
                                 String.IsNullOrEmpty(address) || address.Length > 1024 ||
                                 String.IsNullOrEmpty(pin) || pin.Length > 128)
