@@ -185,7 +185,7 @@ int gs_orchestrate(const char *host, unsigned short httpPort, unsigned short htt
       xml_search(data->memory, data->size, "resume", &result) != GS_OK) {
     fprintf(stderr, "[gs] no gamesession in %s response\n", verb); MLT("gs: no gamesession in %s response", verb); ret = GS_FAILED; goto fail;
   }
-  if (!strcmp(result, "0")) { fprintf(stderr, "[gs] %s returned session 0\n", verb); MLT("gs: %s returned session 0", verb); free(result); ret = GS_FAILED; goto fail; }
+  if (!strcmp(result, "0")) { fprintf(stderr, "[gs] %s returned session 0\n", verb); MLT("gs: %s returned session 0", verb); free(result); result = NULL; ret = GS_FAILED; goto fail; }
   free(result); result = NULL;
   if (xml_search(data->memory, data->size, "sessionUrl0", &result) == GS_OK) { si->rtspSessionUrl = result; result = NULL; }
 
