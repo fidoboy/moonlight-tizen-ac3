@@ -588,6 +588,8 @@
         global._esplusAudioQuality = nativeAudioQuality === 0 || nativeAudioQuality === 1
           ? nativeAudioQuality : null;
         if (global._esplusActiveAudioCodec &&
+            typeof global.isBitrateOptimizationEnabled === 'function' &&
+            global.isBitrateOptimizationEnabled() &&
             typeof global.updateOptimizedBitrateAfterNegotiation === 'function') {
           var audioPreferences = global.configSummarySnapshot && global.configSummarySnapshot.preferences;
           var audioConfig = audioPreferences && audioPreferences.audioConfig;
