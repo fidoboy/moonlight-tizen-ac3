@@ -1481,12 +1481,6 @@ function handleMessage(msg) {
       return;
     }
 
-    if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
-      window.moonlightAmbilight.shutdown().catch(function(error) {
-        console.warn('[ambilight] Could not shut down service after stream termination:', error);
-      });
-    }
-
     logStreamTerminationRecovery('termination received', {errorCode: errorCode, engine: window._activeStreamingEngine || null});
 
     // Standard Moonlight launches retain the Apps UI lock until recovery has completed.
@@ -1579,36 +1573,9 @@ function handleMessage(msg) {
     // Prepare the closing copy immediately before requesting the existing transition.
     // This replaces startup-phase text without changing when or how the transition appears.
     window._normalStreamVideoReady = false;
-    var resolveLocalAudioRestoration;
-    var localAudioRestoration = new Promise(function(resolve) {
-      resolveLocalAudioRestoration = resolve;
-    });
-    var restoreLocalAudioAfterTransitionAppears = function() {
+    var beginClosingOperations = function() {
       logStreamTerminationRecovery('closing transition visible');
-      if (window._directSmartHubLaunch) {
-        resolveLocalAudioRestoration();
-        return;
-      }
-      var restoration = typeof setNavigationSoundEnabled === 'function'
-        ? withOperationTimeout(setNavigationSoundEnabled(navigationSoundPreferenceEnabled), 10000, 'Local audio restoration')
-        : Promise.resolve();
-      if (hasStreamError) {
-        // Do not hold the user on the transition for local UI audio restoration after
-        // a connection failure. The interface can return immediately while audio
-        // restoration completes independently in the background.
-        Promise.resolve(restoration).catch(function(audioRestoreError) {
-          console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
-        });
-        resolveLocalAudioRestoration();
-        return;
-      }
-      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
-      Promise.resolve(restoration).catch(function(audioRestoreError) {
-        // A sound-effects failure must not strand the user in the closing transition.
-        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
-      }).then(function() {
-        resolveLocalAudioRestoration();
-      });
+      runClosingSequence();
     };
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
@@ -1637,11 +1604,11 @@ function handleMessage(msg) {
     $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
     $('#loadingSpinnerMessage').text(transitionStatusMessage);
     if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears, true);
+      showStreamTransitionBackground(beginClosingOperations, true);
     } else {
       var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
       if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-      restoreLocalAudioAfterTransitionAppears();
+      beginClosingOperations();
     }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -1813,35 +1780,74 @@ function handleMessage(msg) {
       showAppsMode(true, hideTransitionAndBeginRecovery, true);
     };
 
-    // Do not continue recovery or reveal the Apps UI until the local audio engine
-    // has been recreated and click.mp3 has been decoded.
-    localAudioRestoration.then(function() {
-      logStreamTerminationRecovery('local audio restoration released');
-      var hostAppQuitOperation = Promise.resolve();
-      if (shouldQuitHostAppDuringTransition) {
-        // Advance the status only when the host shutdown request is actually next.
-        $('#loadingSpinnerMessage').text(t('Requesting to close application %1$s...', activeStreamAppName));
-        logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
-          appName: activeStreamAppName
+    // Run every shutdown operation serially. Each step has a hard upper bound;
+    // failures are logged and converted to a resolved step so later cleanup always runs.
+    var runClosingStep = function(operationName, statusMessage, operation, timeoutMs, onFailure) {
+      $('#loadingSpinnerMessage').text(t(statusMessage));
+      logStreamTerminationRecovery('closing operation started', {operation: operationName});
+      var pendingOperation = Promise.resolve().then(operation);
+      return withOperationTimeout(pendingOperation, timeoutMs, operationName).then(function(result) {
+        logStreamTerminationRecovery('closing operation completed', {operation: operationName});
+        return result;
+      }, function(error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', operationName + ' did not complete; continuing shutdown:', error);
+        logStreamTerminationRecovery('closing operation failed or timed out; continuing', {
+          operation: operationName,
+          message: error && error.message ? error.message : String(error)
         });
-        try {
-          hostAppQuitOperation = withOperationTimeout(
-            api.quitApp(), 10000, 'Host app shutdown during closing transition'
-          ).then(function() {
-            console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed during closing transition.');
-          }, function(error) {
-            hostAppQuitFailedDuringTransition = true;
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request failed during closing transition:', error);
-          });
-        } catch (error) {
-          hostAppQuitFailedDuringTransition = true;
-          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request could not be started during closing transition:', error);
-        }
+        if (typeof onFailure === 'function') onFailure(error);
+        return null;
+      });
+    };
+
+    var runClosingSequence = function() {
+      var sequence = Promise.resolve();
+
+      // streamTerminated is the stream's terminal event. For ESPlusPlayer, wait
+      // separately for the native WMP ServiceApplication process to disappear.
+      if (window._activeStreamingEngine === 'ESPLUSPLAYER' && window.ESPlusPlayerTransport &&
+          typeof window.ESPlusPlayerTransport.waitForTermination === 'function') {
+        sequence = sequence.then(function() {
+          return runClosingStep('WMP service shutdown', 'Stopping WMP service...', function() {
+            return window.ESPlusPlayerTransport.waitForTermination(5000);
+          }, 5000);
+        });
       }
-      Promise.resolve(hostAppQuitOperation).then(function() {
-        // The next visible stage is rebuilding the Apps list, whether or not a
-        // remote-app shutdown was needed or succeeded.
+
+      if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
+        sequence = sequence.then(function() {
+          return runClosingStep('Ambilight shutdown', 'Stopping Ambilight service...', function() {
+            return window.moonlightAmbilight.shutdown();
+          }, 5000);
+        });
+      }
+
+      if (!window._directSmartHubLaunch) {
+        sequence = sequence.then(function() {
+          return runClosingStep('Local audio restoration', 'Restoring local audio engine...', function() {
+            return typeof setNavigationSoundEnabled === 'function'
+              ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
+              : Promise.resolve();
+          }, 10000);
+        });
+      }
+
+      if (shouldQuitHostAppDuringTransition) {
+        sequence = sequence.then(function() {
+          logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
+            appName: activeStreamAppName
+          });
+          return runClosingStep('Host app shutdown', 'Requesting to close application %1$s...', function() {
+            return api.quitApp();
+          }, 10000, function() {
+            hostAppQuitFailedDuringTransition = true;
+          });
+        });
+      }
+
+      sequence.then(function() {
         $('#loadingSpinnerMessage').text(t('Loading Apps...'));
+        logStreamTerminationRecovery('closing operations sequence completed');
         var remainingTransitionMs = streamTerminationMinimumVisibleMs -
           (Date.now() - streamTerminationTransitionShownAt);
         if (remainingTransitionMs > 0) {
@@ -1849,8 +1855,13 @@ function handleMessage(msg) {
         } else {
           showAppsUiBeforeTransitionCloses();
         }
+      }).catch(function(unexpectedSequenceError) {
+        // Defensive final guard: no unexpected cleanup exception may strand the UI.
+        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Unexpected closing sequence failure; continuing to Apps recovery:', unexpectedSequenceError);
+        $('#loadingSpinnerMessage').text(t('Loading Apps...'));
+        showAppsUiBeforeTransitionCloses();
       });
-    });
+    };
 
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
