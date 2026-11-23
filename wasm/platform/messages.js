@@ -471,6 +471,61 @@ function isPerformanceStatsOverlayVisible() {
   return overlayStyle.display !== 'none' && overlayStyle.visibility !== 'hidden';
 }
 
+// Compact negotiated/session indicators shown in the performance overlay.
+var PERFORMANCE_STATS_PILL_DEFINITIONS = [
+  ['emss', 'EMSS'], ['wmp', 'WMP nat.'], ['h264', 'H264'], ['hevc', 'HEVC'],
+  ['av1', 'AV1'], ['hdr', 'HDR'], ['opus', 'OPUS'], ['dd', 'DD'],
+  ['ddplus', 'DD+'], ['harddec', 'Hard dec.'], ['softdec', 'Soft dec.'],
+  ['stereo', 'Stereo'], ['51', '5.1'], ['71', '7.1'], ['wifi', 'WiFi'],
+  ['eth', 'Eth.'], ['game', 'Game']
+];
+window._performanceStatsPillState = window._performanceStatsPillState || {};
+function setPerformanceStatsPill(name, active) {
+  if (!Object.prototype.hasOwnProperty.call(window._performanceStatsPillState, name)) return;
+  window._performanceStatsPillState[name] = active === true;
+  var pill = document.querySelector('#performance-stats .performance-stats-pill[data-pill="' + name + '"]');
+  if (pill) pill.classList.toggle('is-active', active === true);
+}
+function resetPerformanceStatsPills() {
+  PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+    window._performanceStatsPillState[def[0]] = false;
+  });
+  var pills = document.querySelectorAll('#performance-stats .performance-stats-pill');
+  Array.prototype.forEach.call(pills, function(pill) { pill.classList.remove('is-active', 'is-soft-active'); });
+}
+function ensurePerformanceStatsPills(container) {
+  var row = container.querySelector('.performance-stats-pills');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'performance-stats-pills';
+    row.setAttribute('aria-label', 'Stream feature indicators');
+    PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+      var pill = document.createElement('span');
+      pill.className = 'performance-stats-pill';
+      pill.dataset.pill = def[0];
+      pill.textContent = def[1];
+      row.appendChild(pill);
+    });
+    container.insertBefore(row, container.firstChild);
+  }
+  PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+    var active = window._performanceStatsPillState[def[0]] === true;
+    var pill = row.querySelector('[data-pill="' + def[0] + '"]');
+    if (pill) pill.classList.toggle('is-active', active);
+  });
+  return row;
+}
+function updatePerformanceStatsPillsFromNegotiatedAudio(message) {
+  var values = String(message || '').split('|');
+  var codec = values[0];
+  var channels = Number(values[1]);
+  setPerformanceStatsPill('opus', codec === 'OPUS');
+  setPerformanceStatsPill('dd', codec === 'AC3');
+  setPerformanceStatsPill('ddplus', codec === 'EAC3');
+  setPerformanceStatsPill('stereo', channels === 2);
+  setPerformanceStatsPill('51', channels === 6);
+  setPerformanceStatsPill('71', channels === 8);
+}
 function ensurePerformanceStatsOverlayElements() {
   var container = document.getElementById('performance-stats');
   if (!container) return null;
