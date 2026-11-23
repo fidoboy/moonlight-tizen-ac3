@@ -11281,7 +11281,7 @@ function loadHTTPCertsCb() {
           });
         });
       }, directWmpSelected ? nativeCredentialReadFailed : null);
-    }, directWmpSelected ? nativeCredentialReadFailed : null, identityReadErrorCallback);
+    }, identityReadErrorCallback);
   }, identityReadErrorCallback);
 }
 
