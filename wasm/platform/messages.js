@@ -517,6 +517,23 @@ function ensurePerformanceStatsPills(container) {
   });
   return row;
 }
+function updatePerformanceStatsNetworkPills() {
+  if (typeof tizen === 'undefined' || !tizen.systeminfo ||
+      typeof tizen.systeminfo.getPropertyValue !== 'function') return;
+  try {
+    tizen.systeminfo.getPropertyValue('NETWORK', function(networkInfo) {
+      var type = networkInfo && networkInfo.networkType ? String(networkInfo.networkType).toUpperCase() : '';
+      var isWifi = type.indexOf('WIFI') !== -1;
+      var isEthernet = type.indexOf('ETHERNET') !== -1 || type.indexOf('ETH') !== 0;
+      setPerformanceStatsPill('wifi', isWifi);
+      setPerformanceStatsPill('eth', isEthernet);
+    }, function() {
+      // Leave the network indicators inactive if the platform cannot report it.
+    });
+  } catch (e) {
+    // SystemInfo can be unavailable on some firmware versions.
+  }
+}
 function updatePerformanceStatsPillsFromNegotiatedAudio(message) {
   var values = String(message || '').split('|');
   var codec = values[0];
@@ -1036,21 +1053,26 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
   setPerformanceStatsPill('hdr', /HDR/i.test(videoLine));
   setPerformanceStatsPill('harddec', /Decoding mode:\s*Hardware/i.test(decoderLine));
   setPerformanceStatsPill('softdec', /Decoding mode:\s*Software/i.test(decoderLine));
-  var audioCodec = audioLine.match(/Audio stream:\s*(OPUS|AC3|EAC3)/i);
-  var has71Channels = /7\.1|8\s*(?:ch|channel)/i.test(audioLine);
-  var has51Channels = !has71Channels && /5\.1|6\s*(?:ch|channel)/i.test(audioLine);
-  var hasStereoChannels = !has71Channels && !has51Channels && /stereo|2\s*(?:ch|channel)/i.test(audioLine);
+  var audioCodec = audioLine.match(/Audio stream:\s*(OPUS|AC-3|E-AC-3)/i);
+  var audioLayout = audioLine.match(/\((Stereo|5\.1|7\.1),\s*\d+\s*kbps\)/i);
   if (audioCodec) {
     var normalizedAudioCodec = audioCodec[1].toUpperCase();
     setPerformanceStatsPill('opus', normalizedAudioCodec === 'OPUS');
-    setPerformanceStatsPill('dd', normalizedAudioCodec === 'AC3');
-    setPerformanceStatsPill('ddplus', normalizedAudioCodec === 'EAC3');
+    setPerformanceStatsPill('dd', normalizedAudioCodec === 'AC-3');
+    setPerformanceStatsPill('ddplus', normalizedAudioCodec === 'E-AC-3');
   }
-  if (/7\.1|8\s*(?:ch|channel)|5\.1|6\s*(?:ch|channel)|stereo|2\s*(?:ch|channel)/i.test(audioLine)) {
-    setPerformanceStatsPill('stereo', hasStereoChannels);
-    setPerformanceStatsPill('51', has51Channels);
-    setPerformanceStatsPill('71', has71Channels);
+  if (audioLayout) {
+    var normalizedLayout = audioLayout[1];
+    setPerformanceStatsPill('stereo', normalizedLayout === 'Stereo');
+    setPerformanceStatsPill('51', normalizedLayout === '5.1');
+    setPerformanceStatsPill('71', normalizedLayout === '7.1');
   }
+  // The decoder mode is embedded in brackets in the Audio stream line.
+  // It is a guaranteed choice for enabled audio: Hardware or Software.
+  var hardwareDecoding = /\[\s*Hardware\s*\]/i.test(audioLine);
+  var softwareDecoding = /\[\s*Software\s*\]/i.test(audioLine);
+  setPerformanceStatsPill('harddec', hardwareDecoding);
+  setPerformanceStatsPill('softdec', !hardwareDecoding && (softwareDecoding || audioLine.indexOf('Audio stream:') === 0));
   textElement.textContent = '';
   var sourceLines = String(sourceText || '').split('\n');
   String(text || '').split('\n').forEach(function(line, lineIndex) {
@@ -1170,6 +1192,7 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
   resetPerformanceStatsPills();
+  updatePerformanceStatsNetworkPills();
   performanceStatsEnabled = null;
   window._slowOpusDecoderActive = false;
   var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
