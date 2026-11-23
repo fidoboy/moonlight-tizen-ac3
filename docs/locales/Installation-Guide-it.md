@@ -62,14 +62,14 @@ Usa l'indirizzo IPv4 del computer, **non** il gateway predefinito, l'indirizzo I
 1. Apri Apps2Samsung sul computer.
 2. Seleziona il televisore quando appare nei risultati della scansione. Se non viene rilevato automaticamente, inserisci manualmente il suo indirizzo IP se l'opzione è disponibile.
 3. Apri il catalogo delle applicazioni e cerca **Moonlight**.
-4. Seleziona **Moonlight**, quindi scegli la variante **fidoboy · Enhanced · Dolby** oppure, se richiesta dal modello del televisore, **fidoboy · Enhanced · Dolby · ForceGM**.
+4. Seleziona **Moonlight**, quindi scegli la variante **fidoboy · Enhanced · Dolby**.
 5. Avvia l'installazione con **Download & Install** e attendi la conferma di successo di Apps2Samsung. Il programma scarica e prepara il pacchetto automaticamente.
 6. Apri la schermata **Apps** del televisore e avvia Moonlight.
 
 **Questo è il metodo consigliato.** Non serve visitare GitHub Releases o scaricare manualmente `Moonlight.wgt`. Al primo utilizzo, Apps2Samsung potrebbe chiederti di accedere all'account Samsung per creare un certificato di firma. Segui le istruzioni e lascia la selezione del certificato su automatica/predefinita, a meno che il programma richieda un altro tipo. Non occorre configurare manualmente i certificati in Seller Office.
 
 > [!WARNING]
-> **Installa un WGT manualmente solo se il metodo del catalogo non funziona.** Scarica `Moonlight.wgt` dall'[ultima release stabile](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung scegli **Custom WGT / TPK**, seleziona il file scaricato e avvia l'installazione. Usa questa alternativa solo se necessario. Per la variante ForceGM, scarica `Moonlight-ForceGM.wgt` dalla stessa pagina.
+> **Installa un WGT manualmente solo se il metodo del catalogo non funziona.** Scarica `Moonlight.wgt` dall'[ultima release stabile](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). In Apps2Samsung scegli **Custom WGT / TPK**, seleziona il file scaricato e avvia l'installazione. Usa questa alternativa solo se necessario.
 
 ### Risoluzione dei problemi
 
