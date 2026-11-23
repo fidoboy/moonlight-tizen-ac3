@@ -675,5 +675,13 @@
   "— Stop the streaming session.": "— Stop the streaming session.",
   "— Switch the mode of the IP address field, and open the host PC menu.": "— Switch the mode of the IP address field, and open the host PC menu.",
   "— Toggle the performance statistics overlay.": "— Toggle the performance statistics overlay.",
-  "• No relevant changes found.": "• No relevant changes found."
+  "• No relevant changes found.": "• No relevant changes found.",
+  "Moonlight could not open its saved data database.": "Moonlight could not open its saved data database.",
+  "Moonlight could not read its saved certificate from IndexedDB.": "Moonlight could not read its saved certificate from IndexedDB.",
+  "Moonlight could not decode its saved certificate data.": "Moonlight could not decode its saved certificate data.",
+  "Moonlight found an invalid or incomplete saved certificate.": "Moonlight found an invalid or incomplete saved certificate.",
+  "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight could not read its saved client identifier from IndexedDB.",
+  "Moonlight could not decode its saved client identifier.": "Moonlight could not decode its saved client identifier.",
+  "Moonlight found an invalid saved client identifier.": "Moonlight found an invalid saved client identifier.",
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight encountered an unidentified error while recovering its saved streaming identity."
 }
