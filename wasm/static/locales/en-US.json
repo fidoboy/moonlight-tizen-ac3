@@ -568,6 +568,7 @@
   "The selected app is no longer available on the host.": "The selected app is no longer available on the host.",
   "The selected app is no longer available on this host. Showing the current app list.": "The selected app is no longer available on this host. Showing the current app list.",
   "The selected host is no longer available on Moonlight.": "The selected host is no longer available on Moonlight.",
+  "Moonlight could not retrieve the requested host from saved data.": "Moonlight could not retrieve the requested host from saved data.",
   "The streaming connection with %1$s ended unexpectedly.": "The streaming connection with %1$s ended unexpectedly.",
   "This dialog will close once the pairing is complete.": "This dialog will close once the pairing is complete.",
   "This is a warning message, proceed with caution!": "This is a warning message, proceed with caution!",
