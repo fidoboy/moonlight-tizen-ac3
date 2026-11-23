@@ -1105,7 +1105,11 @@
         throw makeError('native service process terminated during startup: ' +
           (supervisorTerminationDetail || 'supervisor notification received'));
       }
-      return command === 'start_session' ? waitForServiceReady(0) : true;
+      var engineCommands = command === 'start_session' ||
+        command === 'make_cert' || command === 'http_init' ||
+        command === 'open_url' || command === 'pair' ||
+        command === 'cancel_request';
+      return engineCommands ? waitForServiceReady(0) : true;
     }).then(function() {
       if (command === 'start_session' && supervisorTerminationObserved) {
         throw makeError('native service process terminated during startup: ' +
@@ -2035,6 +2039,21 @@
       });
     },
     request: request,
+    makeCert: function() { return request('make_cert'); },
+    httpInit: function(certPem, keyPem, uniqueId) {
+      return request('http_init', {
+        certPem: certPem, keyPem: keyPem, uniqueId: uniqueId
+      });
+    },
+    openUrl: function(url, ppk) {
+      return request('open_url', {url: url, ppk: ppk});
+    },
+    pair: function(serverMajor, address, httpPort, pin) {
+      return request('pair', {
+        serverMajor: serverMajor, address: address, httpPort: httpPort, pin: pin
+      });
+    },
+    cancelRequest: function() { return request('cancel_request'); },
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
     getLogs: function() { return request('get_new_logs'); },
