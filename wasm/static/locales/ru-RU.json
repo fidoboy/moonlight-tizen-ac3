@@ -516,6 +516,7 @@
   "The required data could not be retrieved from the host. The test has been aborted.": "Не удалось получить необходимые данные с хоста. Проверка прервана.",
   "The selected app is no longer available on this host. Showing the current app list.": "Выбранное приложение больше недоступно на этом хосте. Отображается текущий список приложений.",
   "The selected host is no longer available on Moonlight.": "Выбранный хост больше недоступен в Moonlight.",
+  "Moonlight could not retrieve the requested host from saved data.": "Moonlight не удалось получить запрошенный хост из сохранённых данных.",
   "The streaming connection with %1$s ended unexpectedly.": "Соединение для трансляции с %1$s неожиданно завершилось.",
   "This dialog will close once the pairing is complete.": "Это диалоговое окно закроется после завершения сопряжения.",
   "This is a warning message, proceed with caution!": "Это предупреждение. Соблюдайте осторожность!",
