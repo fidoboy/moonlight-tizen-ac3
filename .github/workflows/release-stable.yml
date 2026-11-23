@@ -396,6 +396,7 @@ jobs:
             -e BUILD_TYPE=release \
             -e DEBUG_MODE=false \
             -e LOG_SHOW_PRIVATE_DATA=false \
+            -e OFFICIAL_RELEASE=true \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
             "$image" bash scripts/build-moonlight-web.sh /runner-temp/moonlight-web
