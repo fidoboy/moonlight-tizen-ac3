@@ -7052,15 +7052,11 @@ function startGame(host, appID) {
       // Read the persisted preference before invoking any Ambilight startup
       // logic. When disabled (or unavailable), skip the function entirely:
       // no capability initialization, service checks, or transient status.
-      window._ambilightStartupFailed = false;
-      var ambilightPreference = await readAmbilightStoredValue('ambilightEnabled');
+      // Ambilight has its own transition phase and starts independently of the
+      // selected video engine. The persisted preference is checked before the
+      // startup function is invoked; disabled means no Ambilight work at all.
+      await startAmbilightForStreamIfEnabled(true);
       if (!isStreamStartupCurrent(startupGeneration)) return;
-      if (ambilightPreference && ambilightPreference.ambilightEnabled === true) {
-        // Ambilight has its own transition phase and starts independently of the
-        // selected video engine. Its failure must not block the game stream.
-        await startAmbilightForStream(true);
-        if (!isStreamStartupCurrent(startupGeneration)) return;
-      }
 
       // Prepare WMP before asking Sunshine to launch/resume the app. This phase
       // starts the supervised process, loads the native library and probes ESPlus,
@@ -8560,7 +8556,7 @@ function saveAmbilightPreference() {
     updateAmbilightSettingsVisibility();
 
     if (enabled) {
-      if (isInGame) startAmbilightForStream(false);
+      if (isInGame) startAmbilightForStreamIfEnabled(false);
     } else if (window.moonlightAmbilight) {
       window.moonlightAmbilight.stop().catch(function(error) {
         console.warn('[ambilight] Could not stop capture:', error);
@@ -8573,9 +8569,8 @@ function saveAmbilightWledIp() {
   var ip = getAmbilightWledIpValue();
   storeData('ambilightWledIp', ip, null);
 
-  if (ambilightSupportState === 'supported' &&
-      $('#ambilightSwitch').prop('checked') === true && isInGame) {
-    startAmbilightForStream(false);
+  if (ambilightSupportState === 'supported' && isInGame) {
+    startAmbilightForStreamIfEnabled(false);
   }
 }
 
@@ -8584,6 +8579,22 @@ function readAmbilightStoredValue(key) {
     getData(key, function(data) {
       resolve(data || {});
     });
+  });
+}
+
+function startAmbilightForStreamIfEnabled(showTransitionStatus) {
+  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
+    var enabled = preference && preference.ambilightEnabled === true;
+    if (!enabled) {
+      if (showTransitionStatus === true) window._ambilightStartupFailed = false;
+      return false;
+    }
+    return startAmbilightForStream(showTransitionStatus);
+  }).catch(function(error) {
+    // Fail closed: a missing or unreadable preference must never start Ambilight.
+    console.warn('[ambilight] Could not read the enabled preference; skipping startup:', error);
+    if (showTransitionStatus === true) window._ambilightStartupFailed = false;
+    return false;
   });
 }
 
