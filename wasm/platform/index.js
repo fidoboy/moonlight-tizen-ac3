@@ -7755,16 +7755,19 @@ function callCb(key, value, callbackFunction) {
   callbackFunction(obj);
 }
 
-function getData(key, callbackFunction) {
+function getData(key, callbackFunction, errorCallback) {
   var callbackCompleted = false;
-  function finishRead(value) {
+  function finishRead(value, error) {
     if (callbackCompleted) return;
     callbackCompleted = true;
+    if (error && typeof errorCallback === 'function') {
+      errorCallback(error);
+      return;
+    }
     callCb(key, value, callbackFunction);
   }
 
   let cb = function() {
-    let value = null;
     try {
       const transaction = db.transaction(storeName, 'readonly');
       const readRequest = transaction.objectStore(storeName).get(key);
@@ -7776,7 +7779,7 @@ function getData(key, callbackFunction) {
               : readRequest.result;
             console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
           }
-          value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
+          var value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
           if (typeof errorCallback === 'function' && value != null && key === 'cert' &&
               (typeof value !== 'object' || typeof value.cert !== 'string' || !value.cert ||
                typeof value.privateKey !== 'string' || !value.privateKey)) {
@@ -7789,30 +7792,30 @@ function getData(key, callbackFunction) {
           finishRead(value);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
-          finishRead({});
+          finishRead({}, error);
         }
       };
       transaction.onerror = function(event) {
-        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', transaction.error || event);
-        finishRead({});
+        var error = transaction.error || event;
+        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', error);
+        finishRead({}, error);
       };
       transaction.onabort = function() {
-        console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
-        // Match the legacy callback contract on every terminal read outcome.
-        finishRead({});
+        var error = transaction.error || new Error('IndexedDB read transaction aborted for key: ' + key);
+        console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', error);
+        finishRead({}, error);
       };
     } catch (error) {
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
-      finishRead({});
+      finishRead({}, error);
     }
   };
   if (db) cb();
   else openIndexDB(cb, function(error) {
     console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
-    finishRead({});
+    finishRead({}, error || new Error('IndexedDB could not be opened while reading key: ' + key));
   });
 }
-
 var preferenceRestoreInProgress = false;
 
 function restorePersistedSettingsAfterWriteFailure() {
@@ -11055,6 +11058,13 @@ function loadHTTPCerts() {
 
 function loadHTTPCertsCb() {
   console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Load the HTTP certificate and unique ID if they are already available.');
+  var directWmpSelected = !!_directSmartHubLaunch &&
+    typeof getSelectedStreamingEngine === 'function' &&
+    getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+  function nativeCredentialReadFailed(error) {
+    console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity:', error);
+    directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming identity.'));
+  }
   getData('cert', function(savedCert) {
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
@@ -11068,9 +11078,11 @@ function loadHTTPCertsCb() {
         storeData('uniqueid', myUniqueid, null);
       }
 
-      var directWmpSelected = !!_directSmartHubLaunch &&
-        typeof getSelectedStreamingEngine === 'function' &&
-        getSelectedStreamingEngine() === 'ESPLUSPLAYER';
+      if (directWmpSelected && savedCert && savedCert.cert != null &&
+          (!savedCert.cert.cert || !savedCert.cert.privateKey)) {
+        nativeCredentialReadFailed(new Error('The stored Moonlight certificate is incomplete.'));
+        return;
+      }
       var directWmpNativeCredentials = directWmpSelected &&
         window.ESPlusPlayerTransport &&
         typeof window.ESPlusPlayerTransport.prepare === 'function' &&
