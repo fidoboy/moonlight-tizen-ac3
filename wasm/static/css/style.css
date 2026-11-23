@@ -1834,7 +1834,6 @@ body[data-color-theme="black-orange"] #background-layer {
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 3px;
     margin: 0 0 7px;
     max-width: 100%;
 }
@@ -1849,6 +1848,7 @@ body[data-color-theme="black-orange"] #background-layer {
     font-weight: 600;
     line-height: 1.1;
     white-space: nowrap;
+    margin: 0 3px 3px 0;
 }
 #performance-stats .performance-stats-pill.is-active {
     border-color: rgba(60, 205, 115, 0.6);
