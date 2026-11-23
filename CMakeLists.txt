@@ -79,7 +79,7 @@ target_include_directories(moonlight-common-c PUBLIC
     moonlight-common-c/nanors
     moonlight-common-c/nanors/deps
     moonlight-common-c/nanors/deps/obl)
-target_compile_features(moonlight-common-c PUBLIC c_std_99)
+target_compile_features(moonlight-common-c PUBLIC c_std_11)
 set_target_properties(moonlight-common-c
     PROPERTIES
         COMPILE_FLAGS
