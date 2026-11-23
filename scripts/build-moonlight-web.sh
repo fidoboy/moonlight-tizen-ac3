@@ -7,7 +7,7 @@ BUILD_TYPE="${BUILD_TYPE:-release}"
 REPO_OWNER="${REPO_OWNER:-fidoboy}"
 REPO_NAME="${REPO_NAME:-moonlight-tizen-ac3}"
 DEBUG_MODE="${DEBUG_MODE:-false}"
-OFFICIAL_RELEASE=false
+OFFICIAL_RELEASE="${OFFICIAL_RELEASE:-false}"
 LOG_SHOW_PRIVATE_DATA="${LOG_SHOW_PRIVATE_DATA:-false}"
 
 if [[ "$DEBUG_MODE" != "true" && "$DEBUG_MODE" != "false" ]]; then
