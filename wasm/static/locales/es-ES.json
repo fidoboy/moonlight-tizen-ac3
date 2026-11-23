@@ -569,6 +569,7 @@
   "The selected app is no longer available on the host.": "La aplicación seleccionada ya no está disponible en el host.",
   "The selected app is no longer available on this host. Showing the current app list.": "La aplicación seleccionada ya no está disponible en este equipo. Se mostrará la lista actual.",
   "The selected host is no longer available on Moonlight.": "El equipo seleccionado ya no está disponible en Moonlight.",
+  "Moonlight could not retrieve the requested host from saved data.": "Moonlight no ha podido recuperar de los datos guardados el equipo solicitado.",
   "The streaming connection with %1$s ended unexpectedly.": "La conexión de retransmisión con %1$s ha terminado inesperadamente.",
   "This dialog will close once the pairing is complete.": "Este diálogo se cerrará cuando termine la vinculación.",
   "This is a warning message, proceed with caution!": "Este es un mensaje de advertencia. Proceda con precaución.",
