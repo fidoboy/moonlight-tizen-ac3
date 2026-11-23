@@ -30,7 +30,6 @@ Consultez les [prérequis du README](../#compatibility) pour plus de détails.
 - **Apps2Samsung :** choisissez **Custom WGT / TPK** et sélectionnez le fichier téléchargé.
 - **Tizen Studio :** connectez le téléviseur avec le mode développeur activé et installez le paquet avec les outils de déploiement Tizen et un profil de certificat accepté par le téléviseur. Consultez le [Guide d'installation](Installation-Guide-fr.html) pour plus de détails.
 
-N'utilisez `Moonlight-ForceGM.wgt` que si votre téléviseur a spécifiquement besoin des métadonnées alternatives de Game Mode.
 ## 3. Configurer l'hôte et l'associer
 
 1. Installez et démarrez sur le PC n’importe quel serveur hôte compatible avec GameStream. Exemples : [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) et [Punktfunk](https://docs.punktfunk.unom.io/docs/install). D’autres logiciels hôtes compatibles peuvent également fonctionner.
