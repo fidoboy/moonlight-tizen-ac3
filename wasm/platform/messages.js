@@ -524,7 +524,7 @@ function updatePerformanceStatsNetworkPills() {
     tizen.systeminfo.getPropertyValue('NETWORK', function(networkInfo) {
       var type = networkInfo && networkInfo.networkType ? String(networkInfo.networkType).toUpperCase() : '';
       var isWifi = type.indexOf('WIFI') !== -1;
-      var isEthernet = type.indexOf('ETHERNET') !== -1 || type.indexOf('ETH') !== 0;
+      var isEthernet = type.indexOf('ETHERNET') !== -1 || type.indexOf('ETH') === 0;
       setPerformanceStatsPill('wifi', isWifi);
       setPerformanceStatsPill('eth', isEthernet);
     }, function() {
