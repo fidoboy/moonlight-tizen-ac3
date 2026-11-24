@@ -1256,30 +1256,39 @@ body[data-color-theme="black-orange"] #background-layer {
     box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 
-/* Keep the Ambilight address editor consistent with the Add Host MDL fields. */
+/* The WLED address is a regular nested setting, with the same title/body/control
+   hierarchy and spacing as the other child settings. */
 #ambilightWledIpContainer {
     margin-top: 15px;
+}
+#ambilightWledIpContainer > .setting-option {
+    margin: 25px 0 0;
 }
 #ambilightWledIpInputField {
     display: block;
     width: 100%;
     max-width: 100%;
     padding: 0;
-}
-#ambilightWledIpInputField .mdl-textfield__label,
-#ambilightWledIpSelectFields .mdl-textfield__label {
-    top: -12px;
+    margin-top: 12px;
 }
 #ambilightWledIpTextInput {
     width: 100%;
-    height: 38px;
+    height: 44px;
     box-sizing: border-box;
+    padding: 0 12px;
     color: var(--theme-text-primary);
     background-color: var(--theme-surface-selected);
+    font-size: 1.65rem;
+    letter-spacing: 0.5px;
 }
 #ambilightWledIpSelectFields .ip-address-select-field {
+    height: 44px;
+    padding: 0 12px;
     color: var(--theme-text-primary);
     background-color: var(--theme-surface-selected);
+    font-size: 1.65rem;
+    letter-spacing: 0.5px;
+    text-indent: 0;
 }
 #ambilightWledIpSelectFields .ip-address-select-field.hovered,
 #ambilightWledIpSelectFields .ip-address-select-field:hover,
@@ -1290,7 +1299,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #ambilightWledIpSelectFields {
     display: none;
     width: 100%;
-    padding: 22px 0 0;
+    padding: 12px 0 0;
     box-sizing: border-box;
 }
 #supportQrCode {
