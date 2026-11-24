@@ -102,10 +102,17 @@ function createEnvironment(platformVersion) {
     'stream shutdown must leave no Ambilight service process running');
   assert.strictEqual(env.api.isActive(), false);
 
-  const unsupported = createEnvironment('6.0');
+  const tizen60 = createEnvironment('6.0');
+  assert.strictEqual(await tizen60.api.initialize(), true,
+    'Tizen 6.0 must pass the minimum platform version check');
+  assert.deepStrictEqual(tizen60.commands, ['initialize']);
+  assert.strictEqual(tizen60.running().length, 0,
+    'the Tizen 6.0 capability probe must leave no resident service process');
+
+  const unsupported = createEnvironment('5.5');
   assert.strictEqual(await unsupported.api.initialize(), false);
   assert.deepStrictEqual(unsupported.commands, [],
-    'unsupported Tizen versions must not launch the optional service');
+    'platforms below Tizen 6.0 must not launch the optional service');
 
   console.log('Ambilight service lifecycle tests passed.');
 })().catch(error => {
