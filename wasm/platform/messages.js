@@ -133,6 +133,9 @@ const SyncFunctions = {
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
+    window._ambilightNegotiatedProfileReady = false;
+    window._ambilightColorProfile = null;
+    window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
     window._confirmedGameMode = false;
     resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
@@ -2029,6 +2032,20 @@ function handleMessage(msg) {
       });
     };
 
+  } else if (msg.indexOf('AmbilightProfile: ') === 0) {
+    var ambilightParts = msg.replace('AmbilightProfile: ', '').split('|');
+    var ambilightHdr = ambilightParts[0] === '1';
+    var ambilightColorSpace = parseInt(ambilightParts[1], 10);
+    var ambilightFullRange = ambilightParts[2] === '1';
+    if (ambilightColorSpace !== 0 && ambilightColorSpace !== 1 && ambilightColorSpace !== 2) {
+      ambilightColorSpace = ambilightHdr ? 2 : 1;
+    }
+    window._ambilightColorProfile = {
+      hdr: ambilightHdr,
+      colorSpace: ambilightColorSpace,
+      fullRange: ambilightFullRange
+    };
+    window._ambilightNegotiatedProfileReady = true;
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
     updatePerformanceStatsPillsFromNegotiatedAudio(negotiatedAudioMessage);
@@ -2052,6 +2069,21 @@ function handleMessage(msg) {
     confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+
+    // EMSS publishes the authoritative profile immediately before this event.
+    // ESPlusPlayer does not expose Moonlight's RTSP-selected format here, so use
+    // a conservative SDR fallback rather than falsely enabling the PQ pipeline.
+    if (window._ambilightNegotiatedProfileReady !== true) {
+      window._ambilightColorProfile = {
+        hdr: false,
+        colorSpace: 1,
+        fullRange: window._ambilightRequestedFullRange === true
+      };
+      window._ambilightNegotiatedProfileReady = true;
+    }
+    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled(false);
+    }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
     // Stop the connection watchdog; do not impose a separate first-frame deadline.
