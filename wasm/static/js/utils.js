@@ -1252,12 +1252,23 @@ NvHTTP.prototype = {
   },
 
   launchApp: function(appId, mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
-    return sendMessage('openUrl', [
-      this._baseUrlHttps + '/launch?' + this._buildUidStr() + '&appid=' + appId + '&mode=' + mode +
+    var launchUrl = this._baseUrlHttps + '/launch?' + this._buildUidStr() + '&appid=' + appId + '&mode=' + mode +
       '&additionalStates=1&sops=' + sops + '&rikey=' + rikey + '&rikeyid=' + rikeyid + '&hdrMode=' + enableHdr +
       '&localAudioPlayMode=' + localAudio + '&surroundAudioInfo=' + surroundAudioInfo +
-      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : ''), this.ppkstr, false
-    ]);
+      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : '');
+
+    // Direct Smart Hub launches using WMP must perform /launch through the
+    // native HTTP client, whose TLS identity was initialized by WMP httpInit().
+    // Keep the existing WASM bridge for every other launch path.
+    var useNativeWmpHttp = window._directSmartHubLaunch &&
+      typeof window.getSelectedStreamingEngine === 'function' &&
+      window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+    return useNativeWmpHttp
+      ? this._openUrlWithTimeout(launchUrl, this.ppkstr)
+      : sendMessage('openUrl', [launchUrl, this.ppkstr, false]);
   },
 
   resumeApp: function(mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
