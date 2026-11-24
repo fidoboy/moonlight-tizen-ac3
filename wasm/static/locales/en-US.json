@@ -614,6 +614,7 @@
   "Video stream from %1$s stopped being received.": "Video stream from %1$s stopped being received.",
   "Video stream:": "Video stream:",
   "View Details": "View Details",
+  "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.",
   "WLED IP address": "WLED IP address",
   "WMP cleanup failed:": "WMP cleanup failed:",
   "Waiting for the host PC to wake up and connect to the network...": "Waiting for the host PC to wake up and connect to the network...",
