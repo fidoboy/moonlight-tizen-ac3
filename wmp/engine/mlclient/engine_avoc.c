@@ -24,7 +24,7 @@
 
 #include "mltrace.h"
 
-/* The examined ARM ABI consumes r1/r2: keep the leading placeholder argument. */
+/* Confirmed public setter ABI: save_type and mode are the two C arguments. */
 typedef int (*avoc_set_game_mode_fn)(int save_type, int on);
 #ifdef MLT_TRACE
 typedef int (*avoc_check_game_mode_fn)(void);
@@ -115,7 +115,7 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
 
     for (attempt = 0; attempt <= max_retries; ++attempt) {
         rc = s_set_game_mode(save_type, on);
-        MLT("AVOC: avoc_set_game_mode(0, %d, %d) attempt %d/%d returned rc=%d",
+        MLT("AVOC: avoc_set_game_mode(%d, %d) attempt %d/%d returned rc=%d",
             save_type, on, attempt + 1, max_retries + 1, rc);
 
         if (rc == 0)
@@ -129,7 +129,7 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
     }
 
     if (rc != 0) {
-        MLT("AVOC: avoc_set_game_mode(0, %d, %d) failed after %d attempt(s): rc=%d",
+        MLT("AVOC: avoc_set_game_mode(%d, %d) failed after %d attempt(s): rc=%d",
             save_type, on, attempt + 1, rc);
     } else {
         MLT("AVOC: Game Mode %s request accepted (save_type=%d)",
