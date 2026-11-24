@@ -2011,7 +2011,7 @@ function showHostsMode(deferAmbientBackgroundActivation) {
   $('#updateAppBtn').show();
   $('#settingsBtn').show();
   $('#refreshHostsBtn').show();
-  $('#avocDiagnosticBtn').show();
+  $('#avocDiagnosticBtn').prop('hidden', false).show();
   $('#supportBtn').show();
   $('#main-content').children().not('#listener, #wasmSpinner').show();
   $('#hosts-carousel-viewport').show();
@@ -4388,7 +4388,7 @@ function appSupportDialog() {
 
 // Handle layout elements when displaying the Settings view
 function showSettingsMode() {
-  $('#avocDiagnosticBtn').hide();
+  $('#avocDiagnosticBtn').prop('hidden', true).hide();
   cancelAppImageRegeneration();
   startDisabledSwitchAppearanceObserver();
   $('#main-ui-layer').removeClass('waves-active');
