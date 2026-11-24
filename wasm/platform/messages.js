@@ -2051,9 +2051,8 @@ function handleMessage(msg) {
       fullRange: ambilightFullRange
     };
     window._ambilightNegotiatedProfileReady = true;
-    if (window._streamConnectionEstablished === true &&
-        typeof window.startAmbilightForStreamIfEnabled === 'function') {
-      window.startAmbilightForStreamIfEnabled(false);
+    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
+      window.notifyAmbilightStreamReadinessChanged(false);
     }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
@@ -2083,9 +2082,8 @@ function handleMessage(msg) {
     // its profile only after the first accepted native video frame; wait for that
     // event rather than guessing from the requested HDR toggle.
     window._streamConnectionEstablished = true;
-    if (window._ambilightNegotiatedProfileReady === true &&
-        typeof window.startAmbilightForStreamIfEnabled === 'function') {
-      window.startAmbilightForStreamIfEnabled(false);
+    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
+      window.notifyAmbilightStreamReadinessChanged(false);
     }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
