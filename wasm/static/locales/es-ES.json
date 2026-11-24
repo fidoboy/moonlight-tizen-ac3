@@ -81,7 +81,7 @@
   "Ambilight": "Ambilight",
   "Ambilight is not supported on this TV.": "Este televisor no es compatible con Ambilight.",
   "Ambilight service failed to start.": "El servicio Ambilight no se ha podido iniciar.",
-  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight permite sincronizar los colores de la imagen en pantalla con tiras LED. Antes de activarlo, asegúrese de disponer de un dispositivo WLED configurado con una dirección IP perteneciente a la misma red que el televisor.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip.": "Ambilight permite sincronizar los colores de la imagen en pantalla con tiras LED. Para utilizarlo, necesita un dispositivo WLED conectado a una tira de luces.",
   "An error occurred while processing the video stream from %1$s.": "Se produjo un error al procesar el flujo de vídeo desde %1$s.",
   "An error occurred while processing video from %1$s.": "Se ha producido un error al procesar el vídeo de %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "Se ha producido un problema al iniciar la retransmisión en el PC anfitrión. Compruebe que no haya contenido protegido por DRM abierto.",
