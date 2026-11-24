@@ -176,13 +176,16 @@ reported its termination; it cannot, by itself, distinguish SIGSEGV, an
 external kill, a runtime failure, or another termination cause.
 
 For an unexpected WMP exit, the supervisor calls the AVOC
-`avoc_set_game_mode` entry point from its own process and independently
-clears source (`save_type=1`) and global (`save_type=0`) Game Mode state.
+`avoc_set_game_mode` entry point from its own process and issues independent
+off requests for source (`save_type=1`) and global (`save_type=0`) Game Mode.
 The same cleanup runs before the startup watchdog force-kills WMP. Normal
 WMP teardown performs both requests after ESPlus releases the player. The
-native setter declaration follows the three-argument ARM register convention
-documented in `AVOC-TIZEN60-INVESTIGATION.md`; its leading argument is an
-ABI placeholder whose contractual meaning remains unknown.
+supervisor runs AVOC calls on a background thread, waits up to 2.5 seconds
+before continuing, and allows a further 5 seconds before exiting; an unresolved
+call is logged rather than allowed to block process supervision indefinitely.
+The native setter declaration follows the three-argument ARM register
+convention documented in `AVOC-TIZEN60-INVESTIGATION.md`; its leading
+argument is an ABI placeholder whose contractual meaning remains unknown.
 
 ### WebApp: recovery path
 
