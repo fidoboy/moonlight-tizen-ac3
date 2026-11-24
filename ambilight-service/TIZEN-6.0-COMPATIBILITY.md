@@ -197,7 +197,64 @@ The extracted `libvideo-capture-impl-sec.so.0.1.0` is not the same file as `libv
 
 The SEC implementation declares a dependency on `libvideo-capture.so.0`, but that dependency does not establish that the exact `.0.1.0` library was extracted or that its exported API matches the newer firmware ABI.
 
-**The actual Tizen 6.0 `libvideo-capture.so.0` / `.0.1.0` binary still needs to be acquired and inspected.** This is a key missing piece before drawing conclusions about the public capture entry point and the `rc=-95` result.
+**The public Tizen 6.0 `libvideo-capture.so.0` / `.0.1.0` binary has since been acquired and inspected.** The two filenames are byte-identical (24,104 bytes each), with SONAME `libvideo-capture.so.0` and Build ID `ab0f48022fbb90b351a5138fabcb614b208678a4`. Its dependency list does not contain the SEC implementation; the public library imports `dlopen()` and `dlerror()` and contains paths naming `/usr/lib/libvideo-capture-impl-sec.so` and its diagnosis variant. This indicates dynamic implementation loading rather than a direct `DT_NEEDED` dependency. The exact public entry-point-to-builder call chain is still being reconstructed.
+
+### 5.4 Public capture library and SEC builder injection
+
+The public Tizen 6.0 library was subsequently extracted as both `libvideo-capture.so.0` and `libvideo-capture.so.0.1.0`. The two files are byte-identical and each is 24,104 bytes.
+
+Confirmed ELF observations:
+
+- ELF32, little-endian ARM, EABI5, shared object; stripped.
+- SONAME: `libvideo-capture.so.0`.
+- Build ID: `ab0f48022fbb90b351a5138fabcb614b208678a4`.
+- Its `DT_NEEDED` entries do **not** include `libvideo-capture-impl-sec.so.0.1.0`.
+- It imports `dlopen()` and `dlerror()`; strings include `/usr/lib/libvideo-capture-impl-sec.so`, `/usr/lib/libvideo-capture-impl-sec-diagnosis.so` and diagnostic messages referring to loading the lower library and injecting a builder.
+
+This is consistent with a plugin/builder architecture: the public library dynamically loads an implementation instead of linking the SEC implementation as a normal ELF dependency. The presence of `dlopen()` and the path strings alone do not establish the full selection logic or prove which implementation is chosen for every call.
+
+#### ELF constructor/destructor registration in the SEC implementation
+
+The SEC implementation's initialization and finalization arrays were inspected:
+
+| Section | Address range | Relocation target | Meaning |
+|---|---:|---|---|
+| `.init_array` | `0x1b000–0x1b007` | `0x29c8`, `CaptureSecImpl_Inject()` | Runs when the shared object is loaded |
+| `.fini_array` | `0x1b008–0x1b00f` | `0x29c4`, `CaptureSecImpl_destructor()` | Runs during shared-object finalization/unload |
+
+The corresponding relocation records are:
+
+```text
+0001b000  R_ARM_RELATIVE
+0001b004  R_ARM_ABS32  000029c8  _Z21CaptureSecImpl_Injectv
+0001b008  R_ARM_RELATIVE
+0001b00c  R_ARM_ABS32  000029c4  _Z25CaptureSecImpl_destructorv
+```
+
+The hex dumps show one pointer-sized entry in each array. The paired `R_ARM_RELATIVE` and `R_ARM_ABS32` relocations are consistent with the dynamic loader relocating the registered function pointers. This confirms that `CaptureSecImpl_Inject()` is an ELF constructor and `CaptureSecImpl_destructor()` is registered for finalization.
+
+#### Reconstructed `CaptureSecImpl_Inject()`
+
+The function at `0x29c8` was initially disassembled with the Thumb triple, which produced invalid/misleading instructions. Re-disassembly with `--triple=armv7-linux-gnueabihf` produced a coherent ARM instruction stream. The relevant control flow is:
+
+| Address | Instruction/call | Confirmed interpretation |
+|---|---|---|
+| `0x29d0` | `getpid()` | Obtains the process ID for diagnostic logging |
+| `0x2a24` | `__dlog_print()` | Logs entry into the injection routine |
+| `0x2a28–0x2a38` | Loads a size of 4 and calls `operator new(unsigned int, std::nothrow_t const&)` | Allocates storage for the builder pointer/object |
+| `0x2a3c–0x2a40` | Tests the returned pointer | Branches on allocation success/failure |
+| `0x2a44` | `CaptureBuilderSecImpl::CaptureBuilderSecImpl()` | Constructs the SEC builder when allocation succeeds |
+| `0x2a4c–0x2a58` | Loads a global address and stores the allocated pointer | Updates the SEC implementation's global builder pointer |
+| `0x2a5c` | `IVideoCaptureBuilder::setThisBuilder()` | Registers the builder with the public capture library |
+| `0x2a68` | Unconditional branch to `capture_shm_init()` | Tail-calls shared-memory initialization after restoring the stack |
+
+On allocation failure, the alternate path stores the null pointer in the global builder-pointer slot, logs the failure and returns without calling the constructor or `setThisBuilder()`.
+
+The call to `capture_shm_init()` is a tail branch, not a normal call followed by additional work in `CaptureSecImpl_Inject()`. It occurs after the builder registration on the successful path. Its implementation and failure behaviour have not yet been analysed.
+
+**Confirmed architectural consequence:** loading the SEC shared object causes the ELF loader to invoke `CaptureSecImpl_Inject()` through `.init_array`. The public library therefore does not need to find or call `CaptureSecImpl_Inject()` through `dlsym()`. The constructor itself creates and registers the SEC builder. This does not yet establish the public library's complete dynamic-loading policy, builder-selection logic, or the outcome of shared-memory initialization.
+
+The SEC shared object's `.fini_array` separately registers `CaptureSecImpl_destructor()`. Its exact cleanup behaviour has not yet been disassembled.
 
 ## 6. Current Moonlight implementation constraints
 
@@ -213,9 +270,9 @@ No code change is implied by this document. In particular, do not change the pro
 
 The following work is required, in this order:
 
-1. **Acquire the exact public capture library from the Tizen 6.0 TV.** Pull `/usr/lib/libvideo-capture.so.0` and resolve whether it is a symlink or the versioned implementation. Record its size, Build ID and SHA-256.
-2. **Inspect its dynamic exports and dependencies.** Confirm whether `secvideo_api_capture_video_main` exists, its symbol type/version, and its relationship to `libvideo-capture-impl-sec.so.0.1.0`.
-3. **Disassemble all three Tizen 6.0 libraries with LLVM.** Use the ARM Thumb triple, relocations, dynamic symbols and string tables. Reconstruct the call chain from the public entry point through the SEC implementation.
+1. **Complete public-library loader analysis.** Reconstruct the public library's dynamic loading, implementation selection, builder retrieval and fallback/diagnosis paths. The public binary is now available and its lack of a direct SEC `DT_NEEDED` entry is confirmed.
+2. **Analyse shared-memory initialization.** Disassemble `capture_shm_init()` and trace its system calls, device/file access, mappings, permissions and error propagation.
+3. **Analyse builder creation.** Reconstruct `CaptureBuilderSecImpl::buildNewCaptureHandle()`, including allocation, constructor and failure paths.
 4. **Resolve the parameter ABI.** Verify pointer widths, field offsets, struct size/alignment, argument count, calling convention, expected buffer sizes and output fields from the Tizen 6.0 machine code.
 5. **Trace return values.** Determine where `-95` originates and whether it is propagated from the implementation, generated by a lower layer, or returned by a capability/permission check. Do not assign it a meaning until traced.
 6. **Reconstruct secure-path selection.** Determine the role of `scaler_capture_is_protect`, `scaler_capture_secure` and the TZCAPTURE calls. Establish whether ordinary unprotected video capture requires TEE initialization.
@@ -261,12 +318,14 @@ The intended outcome is a Tizen 6.0-compatible implementation, not merely a newe
 | Finding | Classification |
 |---|---|
 | Moonlight service targets `tizen80` with manifest API 6.0 / service API 8 | Confirmed from current branch project files |
-| Two extracted binaries are ARM ELF32 EABI5 shared objects | Confirmed by `file` and `llvm-readelf -h` |
+| Extracted Tizen 6.0 capture libraries are ARM ELF32 EABI5 shared objects | Confirmed by `file` and `llvm-readelf -h` |
 | Tizen 6.0 `libtzcapturec.so` uses the TEE Client API | Confirmed by dynamic dependencies and imported symbols |
 | SEC implementation imports TZCAPTURE functions and exports secure/non-secure scaler functions | Confirmed by dynamic symbol inspection |
-| Exact public Tizen 6.0 capture ABI and call chain | Not yet established |
+| Public Tizen 6.0 library dynamically loads an implementation; SEC constructor registers its builder through `setThisBuilder()` | Confirmed by ELF dependencies, strings, relocations and ARM disassembly |
+| Exact public Tizen 6.0 capture ABI and complete call chain | Not yet established |
 | Meaning and origin of `rc=-95` | Unknown |
 | Tizen 6.0 capture permission/SMACK requirements | Unknown |
+| Whether `capture_shm_init()` succeeds and what resources it requires | Unknown |
 | Whether Tizen 6.0 ordinary video capture requires TEE initialization | Unknown |
 | General Tizen 6.0 compatibility across TV models | Not established |
 
