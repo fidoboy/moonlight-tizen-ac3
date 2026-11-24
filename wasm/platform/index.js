@@ -4596,6 +4596,14 @@ function extractReleaseNotes(releaseNotes) {
     lines.shift();
   }
 
+  // Exclude the appended changelog details section and everything after it.
+  const changelogDetailsIndex = lines.findIndex(function(line) {
+    return /^##\s+.*Changelog details\s+/i.test(line);
+  });
+  if (changelogDetailsIndex !== -1) {
+    lines.splice(changelogDetailsIndex);
+  }
+
   return lines.join('\n').trim() || null;
 }
 
