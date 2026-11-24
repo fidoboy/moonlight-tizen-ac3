@@ -11,6 +11,7 @@ function createEnvironment(platformVersion) {
   let running = [];
   let nextId = 0;
   const commands = [];
+  const payloads = [];
   const killed = [];
 
   function ApplicationControl(operation, uri, mime, category, data) {
@@ -40,6 +41,7 @@ function createEnvironment(platformVersion) {
         control.data.forEach(item => { values[item.key] = item.value[0]; });
         const command = values.command;
         commands.push(command);
+        payloads.push(values);
         let context = running.find(item => item.appId === appId);
         if (!context) {
           context = {id: 'ambilight-' + (++nextId), appId};
@@ -69,6 +71,7 @@ function createEnvironment(platformVersion) {
   return {
     api: window.moonlightAmbilight,
     commands,
+    payloads,
     killed,
     addStaleService() {
       running.push({id: 'stale-ambilight', appId: 'MoonLightS.MoonlightAmbilight'});
@@ -85,7 +88,20 @@ function createEnvironment(platformVersion) {
     'the capability probe must leave no resident Ambilight process');
 
   env.addStaleService();
-  await env.api.start('192.168.0.100', 21324, 73);
+  await env.api.start('192.168.0.100', 21324, 73, {
+    hdr: true,
+    colorSpace: 2,
+    fullRange: false
+  });
+  assert.deepStrictEqual(env.payloads[1], {
+    command: 'start',
+    wledIp: '192.168.0.100',
+    wledPort: '21324',
+    ledCount: '73',
+    hdr: 'true',
+    colorSpace: '2',
+    fullRange: 'false'
+  }, 'the negotiated HDR profile must be forwarded to the service');
   assert.deepStrictEqual(env.killed, ['stale-ambilight'],
     'a stale service process must be killed before the new stream starts');
   assert.deepStrictEqual(env.commands, ['initialize', 'start']);
