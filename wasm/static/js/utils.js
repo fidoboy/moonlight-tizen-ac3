@@ -1292,11 +1292,24 @@ NvHTTP.prototype = {
   },
 
   quitApp: function() {
-    // Refresh server info after quitting because it may silently fail if the session belongs to a different client
-    return sendMessage('openUrl', [
-      this._baseUrlHttps + '/cancel?' + this._buildUidStr(), this.ppkstr, false
-    ]).then(this.refreshServerInfo());
-    // TODO: We should probably bubble this up to our caller.
+    var cancelUrl = this._baseUrlHttps + '/cancel?' + this._buildUidStr();
+
+    // Direct Smart Hub launches using WMP must perform /cancel through the
+    // native HTTP client. WASM is not initialized in this startup path.
+    var useNativeWmpHttp = window._directSmartHubLaunch &&
+      typeof window.getSelectedStreamingEngine === 'function' &&
+      window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+    var quitRequest = useNativeWmpHttp
+      ? this._openUrlWithTimeout(cancelUrl, this.ppkstr)
+      : sendMessage('openUrl', [cancelUrl, this.ppkstr, false]);
+
+    // Refresh server info only after the cancellation request has completed.
+    return quitRequest.then(function() {
+      return this.refreshServerInfo();
+    }.bind(this));
   },
 
   updateExternalAddressIP4: function() {
