@@ -1429,7 +1429,8 @@ function handleMessage(msg) {
     window._activeStreamingEngineConfirmed = false;
     // Reset the native gamepad's local mouse mode even if polling has already
     // stopped; it must never leak into the next streaming session.
-    if (typeof Module !== 'undefined' &&
+    if (window._activeStreamingEngine !== 'ESPLUSPLAYER' &&
+        typeof Module !== 'undefined' &&
         typeof Module._resetGamepadMouseEmulation === 'function') {
       Module._resetGamepadMouseEmulation();
     }
