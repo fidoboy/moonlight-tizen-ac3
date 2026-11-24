@@ -104,7 +104,9 @@ package_base_web "$RUNNER_TEMP/web" MoonlightWeb "$RUNNER_TEMP/$BASE_WGT_NAME"
 run_tz "create-dotnet-service" "$TIZEN_CORE_CLI" new -t TizenServiceApp -n AmbilightService -T dotnet -p tv-samsung-6.0 -w "$workspace"
 test -d "$service_project"
 rm -f "$service_project/AmbilightService_App.cs"
-cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs "$service_project/"
+cp ambilight-service/Program.cs ambilight-service/VideoPlaneCapture.cs ambilight-service/WledOutput.cs \
+   ambilight-service/PpiCapture.cs ambilight-service/PpiSampler.cs \
+   "$service_project/"
 cp ambilight-service/tizen-manifest.xml "$service_project/tizen-manifest.xml"
 cp ambilight-service/TizenAmbilight.csproj "$service_project/AmbilightService.csproj"
 cat > "$service_project/tizen_dotnet_project.yaml" <<YAML
@@ -118,6 +120,8 @@ files:
   - Program.cs
   - VideoPlaneCapture.cs
   - WledOutput.cs
+  - PpiCapture.cs
+  - PpiSampler.cs
   - tizen-manifest.xml
   - shared/res/AmbilightService.png
 deps: []
