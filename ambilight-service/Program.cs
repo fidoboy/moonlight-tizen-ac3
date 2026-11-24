@@ -19,6 +19,8 @@ namespace MoonlightAmbilight
         private bool _hdr;
         private int _colorSpace = 1;
         private bool _fullRange;
+        private string _captureBackend = VideoPlaneCapture.BackendName;
+        private PpiSampler _ppiSampler;
 
         protected override void OnCreate()
         {
