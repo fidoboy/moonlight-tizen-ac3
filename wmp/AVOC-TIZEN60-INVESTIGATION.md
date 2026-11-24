@@ -133,7 +133,7 @@ The native C interface must not be confused with internal wrapper-to-proxy call 
 
 Accordingly, the two-argument function pointer used by the Tizen client is consistent with the examined ARM implementations and the independent WMP implementation. The third value previously inferred from the disassembly is not a third setter parameter. Firmware-specific symbol availability and runtime behavior still require device validation, but the setter's public C signature is two arguments.
 
-This disassembly confirms wrapper control flow and argument forwarding only. It does not establish the forwarded arguments' semantic names or types, the D-Bus/GVariant signatures, or the meaning of proxy return codes.
+This disassembly confirms wrapper control flow and argument forwarding. The public C argument lists are established above; the exact semantic range of accepted values and the meaning of proxy return codes remain separate questions. The D-Bus/GVariant signatures are described in the server-side analysis below.
 
 ### Server-side Game Mode implementation
 
