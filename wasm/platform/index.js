@@ -6703,7 +6703,7 @@ function logStreamModeClosing() {
 
 function showStreamMode(streamWidth, streamHeight, startupGeneration) {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  return new Promise(function(resolve) {
+  return new Promise(function(resolve, reject) {
     var isDirectLaunch = !!window._directSmartHubLaunch;
     var enterFullscreenStreamLayout = function() {
       if (typeof startupGeneration === 'number' && !isStreamStartupCurrent(startupGeneration)) {
@@ -6758,21 +6758,25 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       Module.resetEncryptionStatus();
     }
     showStreamTransitionBackground(function() {
-      // Direct EMSS loads WASM only after this transition has become visible.
-      // Its encryption polling starts later from moduleDidLoad().
-      if (!isDirectLaunch) {
-        startStreamEncryptionStatusPolling();
-      }
+      try {
+        // Direct EMSS loads WASM only after this transition has become visible.
+        // Its encryption polling starts later from moduleDidLoad().
+        if (!isDirectLaunch) {
+          startStreamEncryptionStatusPolling();
+        }
 
-      // Smart Hub launches have no earlier opportunity to load the Stream Menu
-      // fonts. Load them while the transition is visible, before stream startup
-      // continues; ordinary launches retain their existing preparation path.
-      if (isDirectLaunch) {
-        preloadStreamMenuFonts().then(function() {
+        // Smart Hub launches have no earlier opportunity to load the Stream Menu
+        // fonts. Load them while the transition is visible, before stream startup
+        // continues; ordinary launches retain their existing preparation path.
+        if (isDirectLaunch) {
+          preloadStreamMenuFonts().then(function() {
+            enterFullscreenStreamLayout();
+          }).catch(reject);
+        } else {
           enterFullscreenStreamLayout();
-        });
-      } else {
-        enterFullscreenStreamLayout();
+        }
+      } catch (error) {
+        reject(error);
       }
     });
   });
