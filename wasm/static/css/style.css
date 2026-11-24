@@ -779,7 +779,7 @@ body[data-color-theme="black-orange"] #background-layer {
 /* =============================
    Navigation Menu
 ============================= */
-#settingsBtn, #refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn, #supportBtn, #restoreDefaultsBtn {
+#settingsBtn, #refreshHostsBtn, #regenerateAppImagesBtn, #gamepadTestBtn, #avocDiagnosticBtn, #supportBtn, #restoreDefaultsBtn {
     background-color: var(--theme-surface);    width: 50px;
     height: 50px;
     margin: 0 10px;
@@ -3021,4 +3021,141 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 #performance-stats .performance-stats-audio-hq--confirmed {
     color: #35c879;
+}
+
+/* Temporary AVOC diagnostic lab */
+.avoc-lab-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.62);
+}
+.avoc-lab-dialog {
+    /* Native <dialog> defaults to absolute positioning, so make it a flex item
+       of the full-screen overlay instead of letting it anchor to a viewport corner. */
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    margin: 0;
+    transform: none;
+    width: 92%;
+    max-width: 1100px;
+    min-width: 0;
+    height: 82vh;
+    max-height: 82vh;
+    min-height: 0;
+    padding: 18px 24px 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    color: var(--theme-text-primary);
+    background: var(--theme-background, #202124);
+    border-radius: 14px;
+    border: 0;
+}
+.avoc-lab-dialog[open] { display: flex; }
+.avoc-lab-title {
+    flex: 0 0 auto;
+    margin: 6px 0 16px;
+    text-align: center;
+    font-size: 1.9rem;
+}
+.avoc-lab-progress-track {
+    flex: 0 0 auto;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(128, 128, 128, 0.25);
+}
+.avoc-lab-progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: #36c66b;
+    transition: width 160ms ease;
+}
+.avoc-lab-current {
+    flex: 0 0 auto;
+    margin: 10px 0 12px;
+    min-height: 24px;
+    font-size: 1.05rem;
+    font-weight: 500;
+    text-align: center;
+}
+.avoc-lab-history {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.10);
+}
+.avoc-lab-result-group {
+    padding: 9px 0 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.22);
+}
+.avoc-lab-result-heading {
+    margin-bottom: 6px;
+    font-weight: 600;
+    word-wrap: break-word;
+}
+.avoc-lab-result-line {
+    display: flex;
+    align-items: flex-start;
+    margin: 3px 0;
+    font-family: monospace;
+    font-size: 0.92rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.avoc-lab-result-icon {
+    display: inline-block;
+    flex: 0 0 20px;
+    width: 20px;
+    margin-right: 7px;
+    font-family: Arial, sans-serif;
+    font-size: 1.05rem;
+    font-weight: bold;
+    line-height: 1.25;
+    text-align: center;
+}
+.avoc-lab-result-line--pass .avoc-lab-result-icon { color: #36c66b; }
+.avoc-lab-result-line--fail .avoc-lab-result-icon { color: #ef5350; }
+.avoc-lab-result-line--info .avoc-lab-result-icon { color: #9e9e9e; }
+.avoc-lab-result-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+ .avoc-lab-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding-top: 12px;
+}
+.avoc-lab-footer button {
+    width: auto;
+    min-width: 120px;
+    margin: 0;
+}
+.avoc-lab-footer button.hovered,
+.avoc-lab-footer button:focus {
+    outline: none;
+    box-shadow: 0 0 2px 3px var(--theme-accent);
+}
+@media (max-width: 600px) {
+    .avoc-lab-dialog { width: calc(100vw - 20px); height: 86vh; max-height: 86vh; padding: 12px; }
+    .avoc-lab-title { font-size: 1.5rem; }
 }
