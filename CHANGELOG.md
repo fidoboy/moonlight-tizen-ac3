@@ -20,7 +20,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
   - Preserved the fork's Tizen-specific platform, renderer, networking and Dolby Digital/AC-3/E-AC-3 adaptations.
 
 ### Fixed
-- **Direct Smart Hub WMP shutdown coordination:** Kept the native WMP service alive until Moonlight completes its remote application shutdown request, then released it only after the session worker and all queued or active native HTTP operations have finished.
+- **Remote application shutdown from Smart Hub shortcuts:** Fixed an issue that prevented the remote application's shutdown request from being completed correctly, even when the corresponding setting was enabled, for streams launched from Smart Hub shortcuts using the native WMP engine. WMP now remains available until Moonlight has completed the remote shutdown request and all pending native HTTP operations.
 - **Automatic optimal bitrate setting:** Fixed the automatic optimal-bitrate mode continuing to overwrite the manually configured bitrate after the mode had been disabled.
 - **Native WMP engine lifecycle:** Fixed several issues in the initialization and handling of the native WMP engine, particularly during quick launches from Samsung Smart Hub shortcuts.
 - **Video depacketizer concurrency:** Applied the compatible upstream synchronization and state-management fixes while retaining defensive handling for the Tizen integration.
