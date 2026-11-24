@@ -11264,7 +11264,7 @@ function loadHTTPCertsCb() {
         myUniqueid = savedUniqueid.uniqueid;
       } else {
         myUniqueid = uniqueid();
-        if (!directWmpSelected) storeData('uniqueid', myUniqueid, null);
+        if (!_directSmartHubLaunch) storeData('uniqueid', myUniqueid, null);
       }
 
       var directWmpNativeCredentials = directWmpSelected &&
