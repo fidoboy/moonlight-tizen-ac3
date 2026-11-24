@@ -577,6 +577,14 @@ namespace TizenAmbilight
                 gd = yy - 0.344136 * cb - 0.714136 * cr;
                 bd = yy + 1.7720 * cb;
             }
+            else if (colorSpace == 2)
+            {
+                // Rec.2020 SDR fallback: same primaries/matrix family, but no PQ
+                // decoding or gamut conversion because the negotiated stream is not HDR.
+                rd = yy + 1.4746 * cr;
+                gd = yy - 0.164553 * cb - 0.571353 * cr;
+                bd = yy + 1.8814 * cb;
+            }
             else
             {
                 rd = yy + 1.5748 * cr;
