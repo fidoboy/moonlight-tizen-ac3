@@ -3,9 +3,8 @@
 
   var SERVICE_APP_ID = 'MoonLightS.MoonlightAmbilight';
   var OPERATION = 'http://tizen.org/appcontrol/operation/default';
-  // Tizen API 9 (tizen90) maps to Tizen 6.5. Older TVs still install and run
-  // Moonlight, but must never be asked to launch this optional .NET service.
-  var MINIMUM_SERVICE_PLATFORM_VERSION = '6.5';
+  // Ambilight service compatibility starts at Tizen 6.0.
+  var MINIMUM_SERVICE_PLATFORM_VERSION = '6.0';
 
   function platformSupportsService() {
     try {
