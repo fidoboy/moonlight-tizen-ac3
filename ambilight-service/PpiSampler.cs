@@ -137,7 +137,7 @@ namespace MoonlightAmbilight
                 valid = (bool[])_valid.Clone();
                 updated = (long[])_updated.Clone();
                 for (int i = 0; i < valid.Length; i++)
-                    if (valid[i] && Stopwatch.GetElapsedTime(updated[i]).TotalSeconds > 2.0)
+                    if (valid[i] && (Stopwatch.GetTimestamp() - updated[i]) / (double)Stopwatch.Frequency > 2.0)
                         valid[i] = false;
                 for (int i = 0; i < valid.Length; i++) if (valid[i]) return true;
                 return false;
