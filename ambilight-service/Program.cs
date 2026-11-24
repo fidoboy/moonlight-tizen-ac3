@@ -198,7 +198,14 @@ namespace MoonlightAmbilight
             if (worker != null && worker.IsAlive && worker != Thread.CurrentThread)
                 worker.Join();
 
+            if (_ppiSampler != null)
+            {
+                _ppiSampler.Stop();
+                _ppiSampler = null;
+            }
+            PpiCapture.Shutdown();
             VideoPlaneCapture.Shutdown();
+            _captureBackend = VideoPlaneCapture.BackendName;
         }
 
         private void CaptureLoop()
@@ -214,10 +221,22 @@ namespace MoonlightAmbilight
                 {
                     while (!_stopping)
                     {
-                        VideoPlaneResult frame = VideoPlaneCapture.Capture();
-                        if (frame != null && frame.HasFrame)
+                        byte[] packet = null;
+                        if (String.Equals(_captureBackend, PpiCapture.BackendName, StringComparison.OrdinalIgnoreCase))
                         {
-                            byte[] packet = WledOutput.BuildFrame(frame, _ledCount, _hdr, _colorSpace, _fullRange);
+                            PpiSampler sampler = _ppiSampler;
+                            byte[] rgb; bool[] valid; long[] updated;
+                            if (sampler != null && sampler.TrySnapshot(out rgb, out valid, out updated))
+                                packet = WledOutput.BuildPpiFrame(rgb, valid, _ledCount);
+                        }
+                        else
+                        {
+                            VideoPlaneResult frame = VideoPlaneCapture.Capture();
+                            if (frame != null && frame.HasFrame)
+                                packet = WledOutput.BuildFrame(frame, _ledCount, _hdr, _colorSpace, _fullRange);
+                        }
+                        if (packet != null)
+                        {
                             try { udp.Send(packet, packet.Length, endpoint); }
                             catch { }
                         }
