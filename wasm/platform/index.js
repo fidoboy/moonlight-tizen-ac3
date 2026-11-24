@@ -10637,6 +10637,7 @@ function readStreamingSettingsSnapshot() {
 
 function loadDirectSmartHubStreamSettings() {
   return readStreamingSettingsSnapshot().then(function(snapshot) {
+    if (_directSmartHubLaunchFailed) return null;
     var stored = snapshot.preferences;
     _directSmartHubStreamSettings = Object.assign({}, snapshot, {
       quitAppAfterDisconnect: stored.quitAppAfterDisconnect === true ||
@@ -10661,6 +10662,7 @@ function loadDirectSmartHubStreamSettings() {
     maybeStartDirectSmartHubLaunch();
     return _directSmartHubStreamSettings;
   }).catch(function(error) {
+    if (_directSmartHubLaunchFailed) return null;
     console.error('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: red;', 'Could not load direct stream preferences:', error);
     directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
     throw error;
@@ -11232,11 +11234,13 @@ function loadHTTPCertsCb() {
     ? nativeCredentialReadFailed
     : undefined;
   getData('cert', function(savedCert) {
+    if (directWmpSelected && _directSmartHubLaunchFailed) return;
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
     }
 
     getData('uniqueid', function(savedUniqueid) {
+      if (directWmpSelected && _directSmartHubLaunchFailed) return;
       if (savedUniqueid && savedUniqueid.uniqueid != null) { // We have a saved uniqueid
         myUniqueid = savedUniqueid.uniqueid;
       } else {
@@ -11283,26 +11287,31 @@ function loadHTTPCertsCb() {
         });
 
         nativeCredentialPromise.then(function(cert) {
+          if (_directSmartHubLaunchFailed) return null;
           return window.ESPlusPlayerTransport.httpInit(
             cert.cert, cert.privateKey, myUniqueid
           ).then(function(response) {
+            if (_directSmartHubLaunchFailed) return cert;
             var payload = response && response.payload ? response.payload : {};
             if (!response || response.status !== 'ok' ||
                 typeof payload.code !== 'number' || payload.code !== 0) {
               throw new Error('Native WMP HTTP initialization failed.');
             }
-            if (!nativeCertificateGenerated) return cert;
+            if (!nativeCertificateGenerated || _directSmartHubLaunchFailed) return cert;
             return storeData('cert', cert, null).then(function() {
+              if (_directSmartHubLaunchFailed) return cert;
               pairingCert = cert;
               console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated and persistently stored new certificate through native WMP transport.');
               return cert;
             });
           });
         }).then(function() {
+          if (_directSmartHubLaunchFailed) return;
           isStartupHttpReady = true;
           if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
           else maybeRestoreUiAfterStartup();
         }).catch(function(error) {
+          if (_directSmartHubLaunchFailed) return;
           console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Native WMP certificate/HTTP initialization failed:', error);
           if (_directSmartHubLaunch) {
             directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials or HTTP connection.'));
@@ -11342,6 +11351,7 @@ function loadHTTPCertsCb() {
 
       // load previously connected hosts, which have been killed into an object, and revive them back into a class
       getData('hosts', function(previousValue) {
+        if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
         if (_directSmartHubLaunch) {
           var savedHosts = previousValue.hosts != null ? previousValue.hosts : {};
           var targetUID = _directSmartHubLaunch.serverUid;
@@ -11432,6 +11442,7 @@ function loadHTTPCertsCb() {
           });
         });
       }, directWmpSelected ? function(error) {
+        if (_directSmartHubLaunchFailed) return;
         console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not retrieve the requested host from IndexedDB:', error);
         isHostsLoaded = true;
         directSmartHubLaunchFailure(t('Moonlight could not retrieve the requested host from saved data.'));
@@ -11678,7 +11689,7 @@ function removeDirectSmartHubPreviewTile() {
 }
 
 function updateDirectSmartHubStartingStatus() {
-  if (!_directSmartHubLaunch) return;
+  if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
   var appName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
   var title = document.getElementById('loadingSpinnerTitle');
   var message = document.getElementById('loadingSpinnerMessage');
@@ -11693,27 +11704,78 @@ if (_directSmartHubLaunch) {
 
 function directSmartHubLaunchFailure(message) {
   if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
+
+  // Make the failure terminal before touching the UI or starting cleanup. Every
+  // asynchronous startup continuation checks this flag before doing more work.
   _directSmartHubLaunchFailed = true;
   streamStartupGeneration++;
   streamStartupFailureHandled = true;
   window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
-  console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', message);
+
+  var failureMessage = message || t('Unable to launch the selected app.');
+  console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', failureMessage);
   var title = document.getElementById('loadingSpinnerTitle');
   var status = document.getElementById('loadingSpinnerMessage');
   if (title) title.textContent = t('Unable to start streaming');
-  if (status) status.textContent = message || t('Unable to launch the selected app.');
+  if (status) status.textContent = failureMessage;
 
-  var exitAfterMessage = function() {
+  // WMP preparation starts a separate native service and supervisor. Tear both
+  // down and verify that their processes are gone before returning to Smart Hub.
+  // abortPreparedStartup closes the MessagePort first, rejects pending requests,
+  // stops the supervisor/service and performs a final process-state check.
+  var cleanupPromise = Promise.resolve();
+  if (_directSmartHubNativeLaunch === true) {
+    var transport = window.ESPlusPlayerTransport;
+    if (transport && typeof transport.abortPreparedStartup === 'function') {
+      cleanupPromise = Promise.resolve().then(function() {
+        return transport.abortPreparedStartup();
+      }).catch(function(error) {
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup did not complete successfully:', error);
+      });
+    } else {
+      cleanupPromise = Promise.resolve().then(function() {
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup is unavailable; the service process could not be verified as stopped.');
+      });
+    }
+  }
+
+  // Do not exit until the error has actually been revealed for the minimum
+  // visibility interval and native cleanup has finished. A late callback cannot
+  // replace the message because all direct-launch status writers are now gated.
+  var errorVisibleForMinimum = false;
+  var cleanupFinished = false;
+  var exitStarted = false;
+  function finishFailureIfReady() {
+    if (exitStarted || !errorVisibleForMinimum || !cleanupFinished) return;
+    exitStarted = true;
+    exitApplication();
+  }
+  var markErrorVisible = function() {
     window.setTimeout(function() {
-      exitApplication();
+      errorVisibleForMinimum = true;
+      finishFailureIfReady();
     }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
-  if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
-  else {
+
+  cleanupPromise.then(function() {
+    cleanupFinished = true;
+    finishFailureIfReady();
+  });
+
+  if (typeof showStreamTransitionBackground === 'function') {
+    try {
+      showStreamTransitionBackground(markErrorVisible, true);
+    } catch (error) {
+      console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not reveal the stream transition while closing:', error);
+      var layer = document.getElementById('stream-transition-layer');
+      if (layer) layer.style.display = 'block';
+      markErrorVisible();
+    }
+  } else {
     var layer = document.getElementById('stream-transition-layer');
     if (layer) layer.style.display = 'block';
-    exitAfterMessage();
+    markErrorVisible();
   }
 }
 
