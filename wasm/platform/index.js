@@ -1378,10 +1378,9 @@ function startDirectSmartHubHttpInitialization() {
   }
 
   var directWmpSelected = _directSmartHubNativeLaunch === true;
-  // WMP must not start its native service until the Smart Hub stream
-  // transition has completed its visible-entry sequence.
-  if (directWmpSelected && window._directSmartHubTransitionReady !== true) return;
-  // EMSS still waits for the WASM runtime before entering the original path.
+  // Both engines wait until the Smart Hub stream transition has completed its
+  // visible-entry sequence before starting engine-specific initialization.
+  if (window._directSmartHubTransitionReady !== true) return;
   if (!directWmpSelected && !_wasmModuleDidLoad) return;
 
   _directSmartHubHttpInitStarted = true;
@@ -1418,9 +1417,10 @@ function startDirectSmartHubHttpInitialization() {
 function moduleDidLoad() {
   _wasmModuleDidLoad = true;
   if (_directSmartHubLaunch) {
-    // Native WMP HTTP initialization is started by beginDirectSmartHubLaunch,
-    // independently of the WASM lifecycle. EMSS retains its WASM dependency.
+    // Direct EMSS begins its HTTP initialization only after the delayed WASM
+    // runtime has loaded; its encryption polling also belongs after this point.
     if (_directSmartHubNativeLaunch !== true) {
+      startStreamEncryptionStatusPolling();
       startDirectSmartHubHttpInitialization();
     }
     return;
@@ -6725,7 +6725,11 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
       Module.resetEncryptionStatus();
     }
     showStreamTransitionBackground(function() {
-      startStreamEncryptionStatusPolling();
+      // Direct EMSS loads WASM only after this transition has become visible.
+      // Its encryption polling starts later from moduleDidLoad().
+      if (!isDirectLaunch || getSelectedStreamingEngine() === 'ESPLUSPLAYER') {
+        startStreamEncryptionStatusPolling();
+      }
 
       // Smart Hub launches have no earlier opportunity to load the Stream Menu
       // fonts. Load them while the transition is visible, before stream startup
@@ -10626,13 +10630,6 @@ function loadDirectSmartHubStreamSettings() {
       document.documentElement.classList.add('native-stream-launch');
       document.documentElement.style.backgroundColor = 'transparent';
       document.body.style.backgroundColor = 'transparent';
-    } else {
-      // Direct EMSS retains the original WASM startup path. Native WMP must
-      // never create the Emscripten module or fetch moonlight-wasm.js/.wasm.
-      if (typeof window.startDirectSmartHubWasm !== 'function') {
-        throw new Error('Direct EMSS WebAssembly startup hook is unavailable.');
-      }
-      window.startDirectSmartHubWasm();
     }
     streamTransitionBackgroundEnabled = stored.streamTransitionBackground == null ||
       stored.streamTransitionBackground === true || stored.streamTransitionBackground === 'true' ||
@@ -11701,10 +11698,10 @@ function maybeStartDirectSmartHubLaunch() {
   if (!_directSmartHubLaunch || _directSmartHubLaunchStarted || _directSmartHubLaunchFailed ||
       !_directSmartHubSettingsReady) return;
 
-  // Host restoration currently shares the IndexedDB lifecycle initiated by
-  // loadHTTPCerts(). Start the WMP transition from the saved stream settings
-  // first; this deliberately does not depend on host readiness.
-  if (_directSmartHubNativeLaunch === true && window._directSmartHubTransitionReady !== true) {
+  // Show the Smart Hub transition before starting either engine. WASM loading
+  // and native-service preparation are both deferred until its entry sequence
+  // has completed; this deliberately does not depend on host readiness.
+  if (window._directSmartHubTransitionReady !== true) {
     if (window._directSmartHubTransitionStarted !== true) {
       window._directSmartHubTransitionStarted = true;
       var directSettings = _directSmartHubStreamSettings;
@@ -11721,7 +11718,13 @@ function maybeStartDirectSmartHubLaunch() {
       window._directSmartHubTransitionPromise.then(function() {
         if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
         window._directSmartHubTransitionReady = true;
-        startDirectSmartHubHttpInitialization();
+        if (_directSmartHubNativeLaunch === true) {
+          startDirectSmartHubHttpInitialization();
+        } else if (typeof window.startDirectSmartHubWasm === 'function') {
+          window.startDirectSmartHubWasm();
+        } else {
+          directSmartHubLaunchFailure(t('Moonlight could not initialize the streaming interface.'));
+        }
       }, function(error) {
         console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not reveal the Smart Hub stream transition before native startup:', error);
         directSmartHubLaunchFailure(t('Moonlight could not prepare the streaming interface.'));
