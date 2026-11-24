@@ -132,6 +132,7 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
+    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
     window._ambilightNegotiatedProfileReady = false;
     window._streamConnectionEstablished = false;
@@ -1416,6 +1417,7 @@ function handleMessage(msg) {
     // this stream has already entered teardown.
     window._streamConnectionEstablished = false;
     window._ambilightNegotiatedProfileReady = false;
+    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
     // Lock and reset the transition immediately, before teardown work or any
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
