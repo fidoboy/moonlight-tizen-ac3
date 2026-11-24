@@ -54,10 +54,12 @@ namespace MoonlightAmbilight
             {
                 double p = perimeter * i / _spotCount;
                 double px, py;
-                if (p < width) { px = p; py = 0; }
-                else if ((p -= width) < height) { px = width - 1; py = p; }
-                else if ((p -= height) < width) { px = width - 1 - p; py = height - 1; }
-                else { p -= width; px = 0; py = height - 1 - p; }
+                if (p < width) { px = p; py = height * 0.04; }
+                else if ((p -= width) < height) { px = width - width * 0.04; py = p; }
+                else if ((p -= height) < width) { px = width - 1 - p; py = height - height * 0.04; }
+                else { p -= width; px = width * 0.04; py = height - 1 - p; }
+                // Position the hardware measurement block inside the same 8%-deep perimeter
+                // band used by the video-plane zones, rather than straddling the panel edge.
                 _x[i] = Math.Max(0, Math.Min(maxX, (int)Math.Round(px - PpiCapture.BlockWidth * 0.5)));
                 _y[i] = Math.Max(0, Math.Min(maxY, (int)Math.Round(py - PpiCapture.BlockHeight * 0.5)));
             }
