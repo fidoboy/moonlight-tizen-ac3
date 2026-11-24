@@ -397,6 +397,83 @@ Not established:
 No implementation changes are justified by these static findings alone.
 
 
+
+#### Capture pipeline: DRM execution, protected TEE route and shared plane transfer
+
+The disassembly of `scaler_capture_buffer_create()`, `scaler_capture_execute()`, `scaler_capture_fill_captbuff()`, `scaler_capture_secure()` and `scaler_capture_secure_fill_captbuff()` now makes the internal capture pipeline substantially clearer.
+
+At the architectural level, the SEC implementation has two capture routes:
+
+- **Ordinary route:** the scaler path submits the hardware-capture operation through DRM and then prepares/transfers the resulting capture planes into the caller-facing capture buffer.
+- **Protected route:** the scaler path still performs the DRM hardware-capture operation, but adds the TZCAPTURE/TEE interaction before completing the output through the secure fill routine.
+
+Both routes converge on the same lower-level plane-copy helper, `scaler_capture_buffer_memcpy()`. This is the important commonality: the secure route does not define an unrelated output-transfer mechanism. Its secure fill routine invokes the same helper used by the ordinary fill path, then writes the corresponding output metadata.
+
+##### Ordinary route
+
+The reconstructed flow is:
+
+```text
+scaler_capture()
+  ├─ scaler_drm_open()
+  ├─ scaler_capture_buffer_create()
+  │    └─ prepare capture-buffer state and map required buffers
+  ├─ [capture locking on applicable paths]
+  ├─ scaler_capture_execute()
+  │    └─ DRM ioctl: 0xC0786452
+  └─ scaler_capture_fill_captbuff()
+       └─ scaler_capture_buffer_memcpy()
+            └─ populate caller-facing plane data
+```
+
+`scaler_capture_buffer_create()` initializes the scaler capture-buffer structure, obtains configuration/dimension values and maps the buffers required by the selected path through `scaler_map_buff()`. The disassembly shows paths mapping two buffers and conditional paths mapping additional buffers. A return value of zero therefore means that this function completed its selected branch; it must not be interpreted as proof that every possible plane was mapped. The inspected body does not establish that this function allocates the underlying GEM objects itself.
+
+`scaler_capture_execute()` is the DRM hardware-capture submission/status stage. It issues `drmIoctl()` with request `0xC0786452`. A successful ioctl is not by itself sufficient for success: the function subsequently checks the status field at offset `+0x4c` in the capture argument and checks two other parameter values against `0xffff`. It returns `-1` on ioctl failure and `-4` when the post-ioctl checks reject the result; the exact driver-level meaning of those fields is not yet known.
+
+`scaler_capture_fill_captbuff()` is the output preparation/transfer stage, not the hardware-capture submission itself. It uses `scaler_capture_buffer_memcpy()` to transfer the plane data and populates the capture-buffer metadata consumed by the upper layer.
+
+##### Protected route
+
+The reconstructed high-level flow is:
+
+```text
+scaler_capture_secure()
+  ├─ scaler_drm_open()
+  ├─ scaler_capture_buffer_create()
+  ├─ secvideo_capture_lock()
+  ├─ scaler_capture_execute()
+  ├─ TZCAPTURE_Initialize()
+  ├─ TZCAPTURE_Capture_screen()
+  ├─ obtain secure capture payload
+  ├─ scaler_capture_secure_fill_captbuff()
+  │    └─ scaler_capture_buffer_memcpy()
+  │         └─ populate caller-facing plane data
+  ├─ TZCAPTURE_Finalize() [cleanup path]
+  └─ secvideo_capture_unlock()
+```
+
+The secure route therefore does not replace DRM with TEE. It combines the DRM capture operation with the TEE-backed `TZCAPTURE_Initialize()` / `TZCAPTURE_Capture_screen()` sequence and then completes the output transfer through `scaler_capture_secure_fill_captbuff()`.
+
+The secure fill routine calls `scaler_capture_buffer_memcpy()` and retains its return value. A negative result is propagated; on success, the routine writes output metadata into the capture-buffer structure, including fields at offsets such as `+0x04`, `+0x08`, `+0x10`, `+0x20`, `+0x38`, `+0x3c` and `+0x40`. Its format/layout branches depend on FOURCC and capture-type values. The complete semantic mapping of those fields and formats remains part of the ABI reconstruction.
+
+The secure function's detailed cleanup/error paths still need a dedicated pass before making guarantees about every failure edge. The sequence above records the successful route and the cleanup operations visible in the disassembly; it is not a claim that every possible failure path finalizes and unlocks identically.
+
+##### Architectural conclusion and implication for PPI
+
+The current evidence supports this division of responsibility:
+
+1. **Capture execution:** DRM submits and reports the hardware capture operation.
+2. **Protection handling:** the SEC wrapper queries the protection state and, for the relevant protected case, selects the secure route that adds TEE/TZCAPTURE.
+3. **Output transfer:** ordinary and secure fill routines converge on `scaler_capture_buffer_memcpy()` and produce the capture-buffer representation expected by the upper layer.
+
+This is the key design boundary for Moonlight's PPI fallback. **PPI should target the output contract required by our existing Ambilight processing, not reproduce Samsung's DRM/TEE implementation.** Reimplementing Samsung's DRM ioctls, buffer mapping, SHM coordination or TEE calls inside PPI would duplicate platform-specific machinery without being necessary to provide an alternate source of colour samples.
+
+For the PPI integration, the reusable contract is the data presented to our processing pipeline: valid sample/plane data together with the dimensions, layout/format and per-plane metadata needed to interpret it correctly. The exact structure and field mapping still need to be completed from `scaler_capture_buffer_memcpy()` and the relevant capture-buffer structures before treating this as a finalized ABI.
+
+This separation does **not** mean PPI can ignore content protection. The protection query must remain a separate state with three outcomes—unprotected, protected, and unknown/query-failed—and PPI must only be selected under an explicitly validated policy for the relevant content and device. In particular, a failed DRM protection query must not be silently converted into an unprotected result.
+
+No code change follows from this static-analysis conclusion alone. The immediate reverse-engineering work is to finish the common memcpy helper and reconstruct the buffer/parameter structures so the output contract can be specified precisely.
+
 ## 6. Current Moonlight implementation constraints
 
 The current service implementation is in [VideoPlaneCapture.cs](VideoPlaneCapture.cs). It dynamically loads `libvideo-capture.so.0.1.0`, resolves `secvideo_api_capture_video_main` and uses a 32-bit parameter layout with caller-owned buffers.
