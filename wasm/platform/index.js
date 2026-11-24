@@ -11726,7 +11726,7 @@ function maybeStartDirectSmartHubLaunch() {
           directSmartHubLaunchFailure(t('Moonlight could not initialize the streaming interface.'));
         }
       }, function(error) {
-        console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not reveal the Smart Hub stream transition before native startup:', error);
+        console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not reveal the Smart Hub stream transition before engine startup:', error);
         directSmartHubLaunchFailure(t('Moonlight could not prepare the streaming interface.'));
       });
     }
