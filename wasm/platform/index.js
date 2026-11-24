@@ -11182,7 +11182,7 @@ function loadHTTPCertsCb() {
       'cert-read': 'Moonlight could not read its saved certificate from IndexedDB.',
       'cert-parse': 'Moonlight could not decode its saved certificate data.',
       'uniqueid-read': 'Moonlight could not read its saved client identifier from IndexedDB.',
-      'uniqueid-parse': 'Moonlight could not decode its saved client identifier.',
+      'uniqueid-parse': 'Moonlight could not decode its saved client identifier.'
     };
     var message = messageByStage[stage] || 'Moonlight encountered an unidentified error while recovering its saved streaming identity.';
     console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity at stage ' + (stage || 'unknown') + ':', error);
