@@ -84,7 +84,8 @@ namespace MoonlightAmbilight
                     bool hdr = ParseBool(GetExtra(control, "hdr"), false);
                     int colorSpace = ParseInt(GetExtra(control, "colorSpace"), hdr ? 2 : 1);
                     bool fullRange = ParseBool(GetExtra(control, "fullRange"), false);
-                    error = StartCapture(ip, port, leds, hdr, colorSpace, fullRange);
+                    string backend = GetExtra(control, "captureBackend");
+                    error = StartCapture(ip, port, leds, hdr, colorSpace, fullRange, backend);
                     ok = error == null;
                     supported = _supported;
                     exitAfterReply = !_supported;
@@ -128,7 +129,7 @@ namespace MoonlightAmbilight
                 Exit();
         }
 
-        private string StartCapture(string ip, int port, int ledCount, bool hdr, int colorSpace, bool fullRange)
+        private string StartCapture(string ip, int port, int ledCount, bool hdr, int colorSpace, bool fullRange, string backend)
         {
             IPAddress address;
             if (!IPAddress.TryParse(ip, out address) || address.AddressFamily != AddressFamily.InterNetwork)
