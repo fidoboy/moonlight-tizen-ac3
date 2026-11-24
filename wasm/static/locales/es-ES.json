@@ -81,7 +81,7 @@
   "Ambilight": "Ambilight",
   "Ambilight is not supported on this TV.": "Este televisor no es compatible con Ambilight.",
   "Ambilight service failed to start.": "El servicio Ambilight no se ha podido iniciar.",
-  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "Ambilight sincroniza la iluminación LED con los colores de la imagen en pantalla. Se necesita un dispositivo WLED.",
+  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "Ambilight sincroniza los colores de la imagen en pantalla con la iluminación. Se necesita un dispositivo WLED.",
   "An error occurred while processing the video stream from %1$s.": "Se produjo un error al procesar el flujo de vídeo desde %1$s.",
   "An error occurred while processing video from %1$s.": "Se ha producido un error al procesar el vídeo de %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "Se ha producido un problema al iniciar la retransmisión en el PC anfitrión. Compruebe que no haya contenido protegido por DRM abierto.",
