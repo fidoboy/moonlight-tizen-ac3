@@ -437,12 +437,9 @@ namespace TizenAmbilight
         /// code for 203 nits - a transfer-function ceiling, not scene content. Decoding PQ as BT.601
         /// limited-range threw away the entire upper half of the signal (code 148 came out as 154
         /// instead of 255), which is exactly what "washed out, nothing like the screen" looks like.</summary>
-        /// <summary>Reference luminance mapped to full scale. 203 nits is the HDR convention for
-        /// diffuse white, which is why it is the default. Content varies ABOVE this (highlights run
-        /// 203-4000 nits), and anything over the reference CLIPS - which does not merely lose detail,
-        /// it pins all three channels to 255 and a bright coloured zone renders as WHITE. Raise it for
-        /// very bright films (at the cost of a dimmer picture; raise `gamma` to compensate), lower it
-        /// for dim ones. Live-tunable so the choice is per-content rather than a guess.</summary>
+        /// <summary>Diffuse-white reference in nits. 203 nits is the HDR convention for graphics
+        /// white. Values above it are compressed by a smooth highlight shoulder instead of being
+        /// clipped, preserving saturated highlight colour in the ambient output.</summary>
         public static double HdrPeakNits = 203.0;
 
         static bool _abiWarned;
@@ -475,10 +472,15 @@ namespace TizenAmbilight
                 double den = c2 - c3 * Nm;
                 double nits = den > 1e-9 ? 10000.0 * Math.Pow(num / den, 1.0 / m1) : 0.0;
                 double x = nits / refNits;
-                // Above the 203-nit reference we clip. Further highlight tone-mapping is taste and
-                // belongs downstream, not inside the transfer function.
-                double outp = x <= 0.0 ? 0.0 : 255.0 * Math.Pow(x, 1.0 / 2.4);
-                if (outp > 255.0) outp = 255.0;
+                // Keep diffuse white below the LED ceiling and roll highlights smoothly
+                // toward it. A hard 203-nit clip turns every brighter saturated highlight
+                // into white and destroys the colour information the zones are meant to keep.
+                double linear;
+                if (x <= 0.0) linear = 0.0;
+                else if (x <= 1.0) linear = 0.72 * x;
+                else linear = 0.72 + 0.28 * (1.0 - Math.Exp(-(x - 1.0) / 1.6));
+                if (linear > 1.0) linear = 1.0;
+                double outp = 255.0 * Math.Pow(linear, 1.0 / 2.4);
                 t[code] = (byte)(outp + 0.5);
             }
             return t;
@@ -569,8 +571,8 @@ namespace TizenAmbilight
                 return;
             }
 
-            // SDR matrix coefficients: Rec.601 and Rec.709 are distinct; Rec.2020
-            // is handled by the HDR branch above.
+            // SDR matrix coefficients: Rec.601, Rec.709 and Rec.2020 are distinct.
+            // Rec.2020 SDR fallback uses its matrix without PQ decoding or gamut conversion.
             if (colorSpace == 0)
             {
                 rd = yy + 1.4020 * cr;
