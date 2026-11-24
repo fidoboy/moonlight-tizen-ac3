@@ -500,7 +500,9 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
   // Request the matching encoder colorimetry and range. SDR streams use Rec.709;
   // HDR streams use Rec.2020. The negotiated codec later determines whether HDR
   // actually became active for this session.
-  m_StreamConfig.colorSpace = hdrMode ? COLORSPACE_REC_2020 : COLORSPACE_REC_709;
+  m_StreamConfig.colorSpace =
+    (hdrMode && (m_StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_10BIT) != 0)
+      ? COLORSPACE_REC_2020 : COLORSPACE_REC_709;
   m_StreamConfig.colorRange = fullRange ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
 
   // Apply encryption audio only when decrypt host audio is enabled, otherwise disable encryption
