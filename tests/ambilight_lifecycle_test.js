@@ -27,6 +27,10 @@ assert(platformSource.includes("preference.ambilightEnabled === true"),
 assert(platformSource.includes('var profile = window._ambilightColorProfile;') &&
   !platformSource.includes('var profile = window._ambilightColorProfile ||'),
   'the service must receive the negotiated profile, never a guessed fallback');
+assert(platformSource.includes("readAmbilightStoredValue('ambilightCaptureBackend')") &&
+  platformSource.includes("backendData.ambilightCaptureBackend === 'ppi'") &&
+  platformSource.includes('profile, captureBackend'),
+  'the stream coordinator must honor only an explicit persisted PPI backend selection');
 assert(messagesSource.includes("msg.indexOf('AmbilightProfile: ') === 0") &&
   messagesSource.includes("msg === 'Connection Established'") &&
   messagesSource.includes('window.notifyAmbilightStreamReadinessChanged(false);'),
@@ -157,8 +161,9 @@ function createEnvironment(platformVersion) {
     ledCount: '73',
     hdr: 'true',
     colorSpace: '2',
-    fullRange: 'false'
-  }, 'the negotiated HDR profile must be forwarded to the service');
+    fullRange: 'false',
+    captureBackend: 'video_plane'
+  }, 'the negotiated HDR profile and default capture backend must be forwarded to the service');
   assert.deepStrictEqual(env.killed, ['stale-ambilight'],
     'a stale service process must be killed before the new stream starts');
   assert.deepStrictEqual(env.commands, ['initialize', 'start']);
