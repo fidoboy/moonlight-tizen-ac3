@@ -11,6 +11,23 @@ const infoEntries = [];
 const errorEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const hostProtocol = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/HostProtocol.cs'), 'utf8');
+const engineAvoc = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_avoc.c'), 'utf8');
+const engineApi = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_api.c'), 'utf8');
+const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpSupervisor.cs'), 'utf8');
+assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int reserved, int save_type, int on\)/.test(engineAvoc),
+  'AVOC setter declaration must match the verified three-argument ARM ABI');
+assert.ok(engineAvoc.includes('s_set_game_mode(0, save_type, on)'),
+  'AVOC setter must place save_type and mode in the ABI-verified second and third argument positions');
+assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
+  'native AVOC full-off must attempt source and global scopes independently');
+assert.ok(engineApi.includes('ml_avoc_force_game_mode_off(3)'),
+  'normal WMP teardown must use the AVOC full-off helper');
+assert.ok(supervisor.includes('AvocSetGameMode(0, saveType, 0)'),
+  'the independent supervisor must call AVOC with the verified three-argument ABI');
+assert.ok(supervisor.includes('ForceGameModeFullOff("WMP startup watchdog termination")'),
+  'the startup watchdog must restore AVOC before force-killing WMP');
+assert.ok(supervisor.includes('ForceGameModeFullOff("unexpected WMP process termination")'),
+  'unexpected WMP process death must trigger AVOC full-off in the supervisor');
 assert.ok(/case "get_logs":[\s\S]{0,220}SendNewNativeDiagnosticLogs\(appId, remotePort, id\)/.test(hostProtocol),
   'legacy get_logs must use the same incremental cursor as get_new_logs');
 assert.ok(!hostProtocol.includes('SendDiagnosticLogs('),
