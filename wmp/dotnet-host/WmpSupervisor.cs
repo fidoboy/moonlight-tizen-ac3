@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Diagnostics;
 using System.Threading;
+using System.Runtime.InteropServices;
 using Tizen.Applications;
 using Tizen.Applications.Messages;
 
@@ -36,6 +37,49 @@ namespace MoonlightWmpHost
                 " utc=" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
                 " pid=" + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture) +
                 " detail=" + (detail ?? String.Empty));
+        }
+
+        // Keep the exact three-argument ARM ABI verified in AVOC-TIZEN60-INVESTIGATION.md.
+        // The first argument is currently an ABI placeholder; save_type=1 is the
+        // source scope and save_type=0 is the global scope.
+        [DllImport("libavoc.so", EntryPoint = "avoc_set_game_mode",
+            CallingConvention = CallingConvention.Cdecl)]
+        private static extern int AvocSetGameMode(int reserved, int saveType, int mode);
+
+        private static int SetGameModeOff(int saveType, string scope, string reason)
+        {
+            int rc = -1;
+            try
+            {
+                for (int attempt = 0; attempt <= 3; attempt++)
+                {
+                    rc = AvocSetGameMode(0, saveType, 0);
+                    LogLifecycle("avoc_full_off_attempt",
+                        "reason=" + reason + " scope=" + scope +
+                        " saveType=" + saveType.ToString(CultureInfo.InvariantCulture) +
+                        " attempt=" + (attempt + 1).ToString(CultureInfo.InvariantCulture) +
+                        "/4 rc=" + rc.ToString(CultureInfo.InvariantCulture));
+                    if (rc == 0 || rc != -2 || attempt == 3) break;
+                    Thread.Sleep(200);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WMP_SUPERVISOR AVOC full-off failed for " + scope + ": " + ex);
+            }
+            return rc;
+        }
+
+        private static void ForceGameModeFullOff(string reason)
+        {
+            // Do not short-circuit: the global safety-net call must run even if
+            // the source-scoped AVOC request fails or the source state is absent.
+            int sourceRc = SetGameModeOff(1, "source", reason);
+            int globalRc = SetGameModeOff(0, "global", reason);
+            LogLifecycle("avoc_full_off_complete",
+                "reason=" + reason +
+                " source_rc=" + sourceRc.ToString(CultureInfo.InvariantCulture) +
+                " global_rc=" + globalRc.ToString(CultureInfo.InvariantCulture));
         }
 
         internal static void Start(ServiceApplication application)
@@ -226,6 +270,10 @@ namespace MoonlightWmpHost
                 Log.Error("WMP_SUPERVISOR startup_timeout_forward_failed " + ex);
             }
 
+            // The startup watchdog can kill WMP after Game Mode was enabled but
+            // before WMP reaches its own cleanup path. Clear both AVOC scopes here.
+            ForceGameModeFullOff("WMP startup watchdog termination");
+
             // StartSessionV2 may be blocked in native code. Do not call ml_engine_stop
             // concurrently; terminate the isolated WMP process so the OS releases
             // its ESPlus handles, IPC endpoints, and native resources.
@@ -271,6 +319,10 @@ namespace MoonlightWmpHost
 
             if (!expected)
             {
+                // WMP may have died before ml_engine_stop could restore AVOC.
+                // The supervisor is a separate process, so it can still issue
+                // the source and global full-off requests after the player dies.
+                ForceGameModeFullOff("unexpected WMP process termination");
                 try
                 {
                     var notification = new Bundle();
