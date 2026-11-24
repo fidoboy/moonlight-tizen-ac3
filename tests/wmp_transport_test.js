@@ -16,7 +16,7 @@ const engineApi = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/e
 const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpSupervisor.cs'), 'utf8');
 assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int save_type, int on\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
   'AVOC setter must use the confirmed two-argument C ABI');
-assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int reserved, int save_type, int \*mode\)/.test(engineAvoc) &&
+assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int save_type, int \*mode\)/.test(engineAvoc) &&
   engineAvoc.includes('s_get_game_mode(1, &observed_mode)'),
   'trace-only AVOC getter must use the confirmed two-argument C ABI');
 assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
