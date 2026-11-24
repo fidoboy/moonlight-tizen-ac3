@@ -8688,7 +8688,7 @@ function saveAmbilightPreference() {
     updateAmbilightSettingsVisibility();
 
     if (enabled) {
-      if (isInGame) startAmbilightForStreamIfEnabled(false);
+      if (isInGame) window.notifyAmbilightStreamReadinessChanged(false);
     } else if (window.moonlightAmbilight) {
       window.moonlightAmbilight.stop().catch(function(error) {
         console.warn('[ambilight] Could not stop capture:', error);
@@ -8702,7 +8702,7 @@ function saveAmbilightWledIp() {
   storeData('ambilightWledIp', ip, null);
 
   if (ambilightSupportState === 'supported' && isInGame) {
-    startAmbilightForStreamIfEnabled(false);
+    window.notifyAmbilightStreamReadinessChanged(false);
   }
 }
 
@@ -8714,7 +8714,18 @@ function readAmbilightStoredValue(key) {
   });
 }
 
-window.startAmbilightForStreamIfEnabled = startAmbilightForStreamIfEnabled;
+// Single rendezvous for both streaming engines. EMSS and WMP only publish readiness;
+// this coordinator is the sole automatic startup entry point.
+window.notifyAmbilightStreamReadinessChanged = function(showTransitionStatus) {
+  if (window._streamStartupFailureHandled === true ||
+      window._streamConnectionEstablished !== true ||
+      window._ambilightNegotiatedProfileReady !== true) {
+    return Promise.resolve(false);
+  }
+  return startAmbilightForStreamIfEnabled(showTransitionStatus === true);
+};
+
+window.startAmbilightForStreamIfEnabled = startAmbilightForStreamReadinessChanged;
 
 function startAmbilightForStreamIfEnabled(showTransitionStatus) {
   // Do not launch the capture service before the active stream profile is known.
