@@ -6746,7 +6746,7 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
     showStreamTransitionBackground(function() {
       // Direct EMSS loads WASM only after this transition has become visible.
       // Its encryption polling starts later from moduleDidLoad().
-      if (!isDirectLaunch || getSelectedStreamingEngine() === 'ESPLUSPLAYER') {
+      if (!isDirectLaunch) {
         startStreamEncryptionStatusPolling();
       }
 
