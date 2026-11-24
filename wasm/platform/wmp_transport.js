@@ -2097,7 +2097,7 @@
         });
       }
       requestParameters.debugMode = global.DEBUG_MODE === true;
-      requestParameters.deferExitUntilReleased = global._directSmartHubLaunch === true;
+      requestParameters.deferExitUntilReleased = !!global._directSmartHubLaunch;
       startupDiagnosticTerminalEventSeen = false;
       startupDiagnosticFinalSnapshotRequested = false;
       return request('start_session', requestParameters);
