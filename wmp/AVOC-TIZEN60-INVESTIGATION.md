@@ -67,22 +67,11 @@ The exported `avoc_get_game_mode` and `avoc_check_game_mode` wrappers were disas
 
 #### `avoc_get_game_mode` native ABI
 
-The ARM Thumb wrapper preserves the incoming `r1` value as the `save_type`, preserves the incoming `r2` value as the output pointer, and forwards `save_type` to `avoc_proxy_call_get_game_mode_sync`. After the proxy call, it copies the first reply field (`mode`) through the supplied output pointer. The second reply field (`ret`) is handled separately as the AVOC method result.
+The ARM Thumb wrapper forwards the `save_type` input to `avoc_proxy_call_get_game_mode_sync` and copies the first reply field (`mode`) through the output pointer. The second reply field (`ret`) is handled separately as the AVOC method result.
 
-The compatible function-pointer declaration for this examined ARM library is:
+**Correction:** the earlier interpretation that introduced an `int reserved` parameter for `r0` was incorrect. There is no such documented C parameter, and the register observation must not be turned into a fabricated argument in the public function-pointer type. In particular, do not use the previously published three-argument declaration or the call shape containing a leading zero.
 
-```c
-typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);
-```
-
-The first argument occupies `r0` but is not used as an operational argument by the examined wrapper. `reserved` is only a pragmatic placeholder name; its contractual meaning is unknown.
-
-The call shape is therefore:
-
-```c
-int mode = -1;
-int ret = get_game_mode(0, save_type, &mode);
-```
+The proxy metadata establishes the logical getter input (`save_type`) and its two reply fields (`mode`, `ret`). The exact native C prototype and the correspondence between the wrapper's register usage and its public calling convention must be described only from the verified native declaration; this document does not assert a placeholder parameter.
 
 The proxy helper confirms that `GetGameMode` sends one integer (`save_type`) and extracts two integer reply fields in this order: `mode`, then `ret`. The native wrapper writes `mode` through the caller's pointer; it does not substitute the method's `ret` field for that value. The D-Bus method result and the state value must therefore be kept distinct.
 
@@ -118,14 +107,14 @@ Disassembly of the three native Game Mode entry points establishes the following
 | Function | Proxy operation | Arguments forwarded by the native wrapper | Output handling |
 |---|---|---|---|
 | `avoc_set_game_mode` | `avoc_proxy_call_set_game_mode_sync` | The two public C arguments (cdecl offsets `[ebp+0x8]` and `[ebp+0xc]`) | Returns a local result value populated through the proxy-call dispatch path. |
-| `avoc_get_game_mode` | `avoc_proxy_call_get_game_mode_sync` | The second incoming stack argument (`[ebp+0xc]`) | Copies the proxy-provided mode value to the pointer supplied as the third incoming stack argument (`[ebp+0x10]`); returns a separate result value. |
+| `avoc_get_game_mode` | `avoc_proxy_call_get_game_mode_sync` | Forwards the getter's `save_type` input | Copies the proxy-provided `mode` value through the getter's output pointer; returns a separate result value. |
 | `avoc_check_game_mode` | `avoc_proxy_call_check_game_mode_sync` | No incoming arguments are read or forwarded | Returns a local result value populated through the proxy-call dispatch path. |
 
-For `avoc_get_game_mode`, the first incoming stack argument (`[ebp+8]`) is not referenced in the disassembled function body; the getter's operational arguments are the subsequent `save_type` and output pointer. This getter-specific observation must not be applied to `avoc_set_game_mode`, whose public interface has two arguments.
+The earlier interpretation of the getter's first incoming stack slot as an unused public argument was not justified. It must not be named `reserved` or represented as an `int` parameter in a C function pointer. The getter's proxy-level input is `save_type`, and its output pointer carries `mode`; the public native prototype must follow the verified declaration rather than a speculative reconstruction of stack slots. This getter-specific analysis must not be applied to `avoc_set_game_mode`, whose public interface has two arguments.
 
 All three functions call `avoc_init_gdbus_connections` before obtaining the proxy and making a synchronous proxy call. If initialization returns nonzero, each function follows an error path that returns `-7` (`0xfffffff9`). Their result locals are initialized to `-1` before the proxy-call path; the final meaning of that value, and the values written by the dispatch helper, are not yet established.
 
-This disassembly shows that the **Tizen 6.0 x86 getter** has a three-slot call frame, with its first incoming slot unused and its operational `save_type` and output-pointer arguments at `[ebp+0xc]` and `[ebp+0x10]`. That getter-specific layout does not establish a three-argument setter.
+The **Tizen 6.0 x86 getter** disassembly must not be used to invent a leading `int reserved` parameter. Stack-frame offsets alone do not establish an extra public C argument. The getter's proxy operation has one input (`save_type`) and returns `mode` plus the separate AVOC result.
 
 The x86 disassembly also exposes the internal stack arguments used along the wrapper-to-proxy/D-Bus path. In particular, the third/final value visible at that internal call boundary is not a third public `avoc_set_game_mode` C parameter. The exported setter remains a two-argument function; its internal proxy call serializes the two operational integers into `SetGameMode(ii)`. The getter has its own distinct pointer-bearing interface, described above.
 
