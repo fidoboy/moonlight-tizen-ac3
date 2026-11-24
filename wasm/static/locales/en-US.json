@@ -80,7 +80,6 @@
   "Ambilight": "Ambilight",
   "Ambilight is not supported on this TV.": "Ambilight is not supported on this TV.",
   "Ambilight service failed to start.": "Ambilight service failed to start.",
-  "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip.": "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip.": "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.",
   "An error occurred while processing the video stream from %1$s.": "An error occurred while processing the video stream from %1$s.",
   "An error occurred while processing video from %1$s.": "An error occurred while processing video from %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.",
@@ -684,5 +683,6 @@
   "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight could not read its saved client identifier from IndexedDB.",
   "Moonlight could not decode its saved client identifier.": "Moonlight could not decode its saved client identifier.",
   "Moonlight found an invalid saved client identifier.": "Moonlight found an invalid saved client identifier.",
-  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight encountered an unidentified error while recovering its saved streaming identity."
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight encountered an unidentified error while recovering its saved streaming identity.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip.": "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip."
 }
