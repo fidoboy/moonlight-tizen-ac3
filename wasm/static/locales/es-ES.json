@@ -81,7 +81,6 @@
   "Ambilight": "Ambilight",
   "Ambilight is not supported on this TV.": "Este televisor no es compatible con Ambilight.",
   "Ambilight service failed to start.": "El servicio Ambilight no se ha podido iniciar.",
-  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "Ambilight sincroniza los colores de la imagen en pantalla con la iluminación. Se necesita un dispositivo WLED.",
   "An error occurred while processing the video stream from %1$s.": "Se produjo un error al procesar el flujo de vídeo desde %1$s.",
   "An error occurred while processing video from %1$s.": "Se ha producido un error al procesar el vídeo de %1$s.",
   "An issue occurred on your host PC while starting the stream. Make sure you don't have any DRM-protected content open on your host PC.": "Se ha producido un problema al iniciar la retransmisión en el PC anfitrión. Compruebe que no haya contenido protegido por DRM abierto.",
@@ -685,5 +684,6 @@
   "Moonlight could not read its saved client identifier from IndexedDB.": "Moonlight no ha podido leer el identificador de cliente guardado en IndexedDB.",
   "Moonlight could not decode its saved client identifier.": "Moonlight no ha podido descodificar el identificador de cliente guardado.",
   "Moonlight found an invalid saved client identifier.": "Moonlight ha encontrado un identificador de cliente guardado no válido.",
-  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha encontrado un error no identificado al recuperar la identidad de streaming guardada."
+  "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha encontrado un error no identificado al recuperar la identidad de streaming guardada.",
+  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight sincroniza los colores de la pantalla con la iluminación LED. Se necesita un dispositivo WLED para controlar las luces."
 }
