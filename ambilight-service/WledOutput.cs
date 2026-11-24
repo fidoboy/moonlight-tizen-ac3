@@ -89,6 +89,94 @@ namespace MoonlightAmbilight
             return packet;
         }
 
+        /// <summary>
+        /// Builds the same DRGB output from PPI perimeter spots. PPI already supplies RGB;
+        /// no NV12, YUV matrix, PQ tone-map or gamut conversion is applied here.
+        /// Missing/stale spots are skipped and the nearest valid perimeter measurements are interpolated.
+        /// </summary>
+        public static byte[] BuildPpiFrame(byte[] spotsRgb, bool[] valid, int ledCount)
+        {
+            if (spotsRgb == null || valid == null || valid.Length == 0 || spotsRgb.Length < valid.Length * 3)
+                return new byte[2];
+            if (ledCount < 1) ledCount = 1;
+            if (ledCount > MaxLeds) ledCount = MaxLeds;
+
+            byte[] packet = new byte[2 + ledCount * 3];
+            packet[0] = Drgb;
+            packet[1] = 1;
+            EnsurePrevious(ledCount);
+
+            int count = valid.Length;
+            for (int led = 0; led < ledCount; led++)
+            {
+                double position = (double)led * count / ledCount;
+                int left = (int)Math.Floor(position) % count;
+                int right = (left + 1) % count;
+                double fraction = position - Math.Floor(position);
+                int a = FindValid(valid, left, -1);
+                int b = FindValid(valid, right, 1);
+                byte red = 0, green = 0, blue = 0;
+                if (a >= 0 && b >= 0)
+                {
+                    double da = (position - a + count) % count;
+                    double db = (b - position + count) % count;
+                    double span = da + db;
+                    double mix = span > 0.0001 ? da / span : fraction;
+                    red = Interpolate(spotsRgb[a * 3], spotsRgb[b * 3], mix);
+                    green = Interpolate(spotsRgb[a * 3 + 1], spotsRgb[b * 3 + 1], mix);
+                    blue = Interpolate(spotsRgb[a * 3 + 2], spotsRgb[b * 3 + 2], mix);
+                }
+                else if (a >= 0 || b >= 0)
+                {
+                    int source = a >= 0 ? a : b;
+                    red = spotsRgb[source * 3];
+                    green = spotsRgb[source * 3 + 1];
+                    blue = spotsRgb[source * 3 + 2];
+                }
+
+                int offset = led * 3;
+                if (_previous[offset] + _previous[offset + 1] + _previous[offset + 2] != 0)
+                {
+                    red = Blend(_previous[offset], red);
+                    green = Blend(_previous[offset + 1], green);
+                    blue = Blend(_previous[offset + 2], blue);
+                }
+                _previous[offset] = red;
+                _previous[offset + 1] = green;
+                _previous[offset + 2] = blue;
+                int packetOffset = 2 + offset;
+                packet[packetOffset] = red;
+                packet[packetOffset + 1] = green;
+                packet[packetOffset + 2] = blue;
+            }
+            return packet;
+        }
+
+        private static int FindValid(bool[] valid, int start, int direction)
+        {
+            for (int i = 0; i < valid.Length; i++)
+            {
+                int index = (start + direction * i) % valid.Length;
+                if (index < 0) index += valid.Length;
+                if (valid[index]) return index;
+            }
+            return -1;
+        }
+
+        private static byte Interpolate(byte a, byte b, double amount)
+        {
+            return (byte)Math.Max(0, Math.Min(255, (int)Math.Round(a + (b - a) * amount)));
+        }
+
+        private static void EnsurePrevious(int ledCount)
+        {
+            if (_previous == null || _previousLedCount != ledCount)
+            {
+                _previous = new byte[ledCount * 3];
+                _previousLedCount = ledCount;
+            }
+        }
+
         private static byte Blend(byte previous, byte current)
         {
             return (byte)Math.Max(0, Math.Min(255,
