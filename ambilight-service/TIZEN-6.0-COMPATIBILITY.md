@@ -391,7 +391,7 @@ Not established:
 - Whether the helpers are called indirectly or from another loaded object.
 - Whether the SHM protocol is required for ordinary video-main capture, secure capture, diagnostics, or another path.
 - The caller's intended threshold and policy for `is_call_time_slow()`.
-- The internal behaviour and return-code origin of `scaler_capture_is_protect()`.
+- The exact driver-side semantics of ioctl request `0xC0086461`, including the meaning and encoding of its protection-state output; the userspace call/return contract is reconstructed above.
 - Whether the SMACK readiness gate explains any observed capture failure on the physical TV.
 
 No implementation changes are justified by these static findings alone.
