@@ -1412,6 +1412,10 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Prevent a delayed WMP profile callback from restarting Ambilight after
+    // this stream has already entered teardown.
+    window._streamConnectionEstablished = false;
+    window._ambilightNegotiatedProfileReady = false;
     // Lock and reset the transition immediately, before teardown work or any
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
