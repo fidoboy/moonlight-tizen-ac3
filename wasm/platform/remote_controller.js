@@ -104,9 +104,6 @@ function remoteControllerHandler(e) {
         requestManualStreamStop();
       }
       break;
-    case tvKey.KEY_YELLOW:
-      // Performance statistics are not exposed through the yellow key.
-      break;
     default:
       break;
   }
