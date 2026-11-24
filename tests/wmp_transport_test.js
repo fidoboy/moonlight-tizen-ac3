@@ -31,6 +31,8 @@ assert.ok(supervisor.includes('ForceGameModeFullOff("WMP startup watchdog termin
   'the startup watchdog must restore AVOC before force-killing WMP');
 assert.ok(supervisor.includes('ForceGameModeFullOff("unexpected WMP process termination")'),
   'unexpected WMP process death must trigger AVOC full-off in the supervisor');
+assert.ok(supervisor.includes('cleanupThread.Join(2500)') && supervisor.includes('cleanup.Join(5000)'),
+  'AVOC cleanup waits must be bounded so a stalled firmware call cannot block the WMP watchdog or supervisor exit');
 assert.ok(/case "get_logs":[\s\S]{0,220}SendNewNativeDiagnosticLogs\(appId, remotePort, id\)/.test(hostProtocol),
   'legacy get_logs must use the same incremental cursor as get_new_logs');
 assert.ok(!hostProtocol.includes('SendDiagnosticLogs('),
