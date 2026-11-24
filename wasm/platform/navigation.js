@@ -1138,6 +1138,8 @@ const Views = {
       const items = [];
       if (document.getElementById('updateAppBtn')) items.push('updateAppBtn');
       items.push('settingsBtn', 'refreshHostsBtn');
+      const avocDiagnosticButton = document.getElementById('avocDiagnosticBtn');
+      if (avocDiagnosticButton && !avocDiagnosticButton.hidden) items.push('avocDiagnosticBtn');
       const gamepadTestButton = document.getElementById('gamepadTestBtn');
       if (gamepadTestButton && !gamepadTestButton.hidden) items.push('gamepadTestBtn');
       items.push('supportBtn');
