@@ -8591,6 +8591,12 @@ function updateAmbilightAvailability(supported) {
 
   updateAmbilightDescription();
 
+  if (!supported) {
+    // An unavailable service must also clear the persisted preference so it
+    // cannot be restored as enabled if the capability check later changes.
+    storeData('ambilightEnabled', false, null);
+  }
+
   if (switchText && supported) {
     switchText.textContent = t('Enable Ambilight');
   }
