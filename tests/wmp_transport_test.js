@@ -697,26 +697,8 @@ vm.runInNewContext(source, {
   console.error(error);
   process.exitCode = 1;
 });assert.ok(/typedef int \\(\\*avoc_get_game_mode_fn\\)\\(int save_type, int \\*mode\\)/.test(engineAvoc) &&
-  /s_get_game_mode\\(1, &observed_mode\\)/.test(engineAvoc),
+  engineAvoc.includes('s_get_game_mode(1, &observed_mode)'),
   'trace-only AVOC getter must use the confirmed two-argument C ABI');
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-
-const pendingMessages = [];
-const debugEntries = [];
-const infoEntries = [];
-const errorEntries = [];
-const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
-const hostProtocol = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/HostProtocol.cs'), 'utf8');
-const engineAvoc = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_avoc.c'), 'utf8');
-const engineApi = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_api.c'), 'utf8');
-const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpSupervisor.cs'), 'utf8');
-assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int save_type, int on\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
-  'AVOC setter must use the confirmed two-argument C ABI');
-assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int reserved, int save_type, int \*mode\)/.test(engineAvoc) &&
-  engineAvoc.includes('s_get_game_mode(0, 1, &observed_mode)'),
-  'trace-only AVOC getter must use its independently verified getter ABI');
 assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
   'native AVOC full-off must attempt source and global scopes independently');
 assert.ok(engineApi.includes('ml_avoc_force_game_mode_off(3)'),
