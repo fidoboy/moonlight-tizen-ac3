@@ -14,9 +14,7 @@ const hostProtocol = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/Ho
 const engineAvoc = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_avoc.c'), 'utf8');
 const engineApi = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_api.c'), 'utf8');
 const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpSupervisor.cs'), 'utf8');
-assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int reserved, int save_type, int on\)/.test(engineAvoc),
-  'AVOC setter declaration must match the verified three-argument ARM ABI');
-assert.ok(/typedef int \\(\\*avoc_set_game_mode_fn\\)\\(int save_type, int on\\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
+assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int save_type, int on\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
   'AVOC setter must use the confirmed two-argument C ABI');
 assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int reserved, int save_type, int \*mode\)/.test(engineAvoc) &&
   engineAvoc.includes('s_get_game_mode(0, 1, &observed_mode)'),
