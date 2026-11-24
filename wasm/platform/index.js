@@ -6530,7 +6530,13 @@ function showStreamTransitionBackground(onVisible, showStatusImmediately) {
 
   var canvas = createStreamTransitionBackground();
   if (!canvas) { streamTransitionVisible = true; revealTransitionContent(); return; }
-  if (streamTransitionVisible) { revealTransitionContent(); return; }
+  // The direct Smart Hub launch marks the transition as active as soon as its
+  // launch route is recognized. That does not mean this canvas has been prepared:
+  // initialize it once here unless the existing canvas/context are already ready.
+  if (streamTransitionVisible && streamTransitionCanvas === canvas && streamTransitionContext) {
+    revealTransitionContent();
+    return;
+  }
 
   streamTransitionCanvas = canvas;
   streamTransitionCanvas.width = Math.max(1, window.innerWidth);
@@ -11434,6 +11440,10 @@ function beginDirectSmartHubLaunch(actionData) {
   if (_directSmartHubLaunch || !actionData || !actionData.serverUid ||
       actionData.appId === null || actionData.appId === undefined) return;
 
+  // Smart Hub enters directly into its launch transition; treat that transition as
+  // active immediately, while showStreamTransitionBackground prepares its canvas
+  // on the first call if it has not already been initialized.
+  streamTransitionVisible = true;
   _directSmartHubLaunch = {
     serverUid: String(actionData.serverUid),
     appId: actionData.appId,
