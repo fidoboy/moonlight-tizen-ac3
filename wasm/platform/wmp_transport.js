@@ -1070,7 +1070,12 @@
 
     var serializedPayload;
     try {
-      serializedPayload = JSON.stringify(payload === undefined ? {} : payload);
+      // http_init carries PEM credentials in dedicated arg_* MessagePort
+      // fields. Keep the generic payload envelope small; embedding both PEM
+      // values here would duplicate them and exceed the control-message limit.
+      serializedPayload = command === 'http_init'
+        ? '{}'
+        : JSON.stringify(payload === undefined ? {} : payload);
     } catch (error) {
       debugLog('request payload serialization failed', {
         command: command,
