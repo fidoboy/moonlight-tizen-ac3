@@ -7150,13 +7150,11 @@ function startGame(host, appID) {
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
-      // Read the persisted preference before invoking any Ambilight startup
-      // logic. When disabled (or unavailable), skip the function entirely:
-      // no capability initialization, service checks, or transient status.
-      // Ambilight has its own transition phase and starts independently of the
-      // selected video engine. The persisted preference is checked before the
-      // startup function is invoked; disabled means no Ambilight work at all.
-      await startAmbilightForStreamIfEnabled(true);
+      // Ambilight must wait until Moonlight has completed host negotiation.
+      // Its color pipeline depends on the selected video format, colorspace and
+      // range, none of which are authoritative at this point in startup.
+      window._ambilightNegotiatedProfileReady = false;
+      window._ambilightColorProfile = null;
       if (!isStreamStartupCurrent(startupGeneration)) return;
 
       // Direct Smart Hub + WMP already prepared the native service before
@@ -8717,6 +8715,8 @@ function readAmbilightStoredValue(key) {
 }
 
 function startAmbilightForStreamIfEnabled(showTransitionStatus) {
+  // Do not launch the capture service before the active stream profile is known.
+  if (window._ambilightNegotiatedProfileReady !== true) return Promise.resolve(false);
   return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
     var enabled = preference && preference.ambilightEnabled === true;
     if (!enabled) {
@@ -8756,7 +8756,12 @@ function startAmbilightForStream(showTransitionStatus) {
       if (status) status.textContent = t('Starting Ambilight service...');
     }
 
-    return window.moonlightAmbilight.start(ip, 21324, 73).then(function() {
+    var profile = window._ambilightColorProfile || {
+      hdr: false,
+      colorSpace: 1,
+      fullRange: window._ambilightRequestedFullRange === true
+    };
+    return window.moonlightAmbilight.start(ip, 21324, 73, profile).then(function() {
       return true;
     }).catch(function(error) {
       console.warn('[ambilight] Could not start capture:', error);
