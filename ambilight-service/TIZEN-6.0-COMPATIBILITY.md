@@ -334,7 +334,42 @@ This does **not** establish that the helpers are unused. Possible explanations s
 
 `CaptureSecImpl::isProtectCapture(int&)` at `0x7488` delegates to `scaler_capture_is_protect()`. A nonnegative result is returned directly. A negative result causes the wrapper to retrieve `errno` and log diagnostic information before returning the original negative result. The wrapper itself does not interpret the protection state; the scaler function owns that behaviour.
 
-The beginning of `CaptureSecImpl::getScreenPostYUV()` at `0x752c` prepares capture parameters, calls `scaler_capture_is_protect()`, and then, on the observed branch, calls `scaler_capture()`. The supplied disassembly excerpt ends at `0x75e8`, so the remainder of its control flow has not yet been reconstructed. This is not sufficient to infer the complete protected/unprotected capture selection policy.
+The complete `CaptureSecImpl::getScreenPostYUV()` body at `0x752c` has now been disassembled. It initializes a local protection-output word to zero, passes its address to `scaler_capture_is_protect()`, and then tests that output word. It does **not** test the function's return value. If the output word equals `1` and `InputParams + 0x18` is zero, it calls `scaler_capture_secure()`; otherwise it calls `scaler_capture()`. The implications and exact control flow are detailed below.
+
+
+#### DRM protection query and secure/non-secure route selection
+
+The full ARM disassembly of `scaler_capture_is_protect()` (`0x575c`, 388 bytes) establishes the following contract:
+
+1. It calls `scaler_drm_open()`.
+2. If opening DRM fails (negative return), it logs the failure and returns that negative result.
+3. If opening succeeds, it issues `drmIoctl()` with request value `0xC0086461`, passing a pointer to a local output word.
+4. If the ioctl fails (negative return), it reads `errno` for logging and returns the negative ioctl result.
+5. If the ioctl succeeds, it copies the output word into the caller-provided `int*` and returns the ioctl result.
+
+Thus, the function has two distinct outputs: its **return value is operation status**, while the integer written through its pointer is the **protection state**. A caller must check the return value before treating the output integer as authoritative. A successful ioctl normally returns zero; the protection state is not the function's return value.
+
+`CaptureSecImpl::isProtectCapture(int&)` (`0x7488`) delegates to this function and preserves a negative return value after logging. This wrapper therefore exposes query failure to its caller.
+
+The `getScreenPostYUV()` call site reveals an important caveat:
+
+- It initializes the local protection-output word to `0`.
+- It passes the address of that word to `scaler_capture_is_protect()`.
+- It ignores the function's return value.
+- It compares only the output word against `1`.
+- If the output is `1` and `InputParams + 0x18` is zero, it selects `scaler_capture_secure()`.
+- In every other case, it selects `scaler_capture()`.
+
+Consequently, if DRM open or the protection ioctl fails, the output word remains at its initialized value of zero and this particular call site proceeds down the **ordinary `scaler_capture()` path**. This is a fail-open behaviour with respect to the protection-query error: an unknown protection state is treated as if the content were not protected. This conclusion is specific to the disassembled `getScreenPostYUV()` call site; it must not be generalized to every capture method without inspecting its caller.
+
+The byte at `InputParams + 0x18` is demonstrably involved in selecting the secure versus ordinary path when the protection output is `1`, but its semantic name/meaning has not yet been recovered. Do not assign it a public API meaning based only on this branch.
+
+**Implication for Moonlight's future PPI fallback:** preserve query status separately from the protection value. The state model must distinguish at least:
+- query succeeded, content not protected;
+- query succeeded, content protected;
+- query failed / protection state unknown.
+
+A negative DRM-open or ioctl result must never be normalized to `protect == 0` by Moonlight's own fallback logic. If the video-plane path cannot establish protection state, the caller must make an explicit fallback decision; where PPI is available and appropriate, it may be selected as a separate fallback path rather than silently attempting ordinary capture. This is a design requirement for our caller, not proof that the firmware's own `getScreenPostYUV()` follows it. PPI's exact behaviour and suitability for each protected-content case still require separate validation.
 
 #### Current interpretation and unresolved questions
 
@@ -381,7 +416,7 @@ The following work is required, in this order:
 3. **Complete builder/capture analysis.** `buildNewCaptureHandle()` and the `isProtectCapture()` wrapper are reconstructed in section 5.5; the scaler implementation and complete capture call chain remain to be analysed.
 4. **Resolve the parameter ABI.** Verify pointer widths, field offsets, struct size/alignment, argument count, calling convention, expected buffer sizes and output fields from the Tizen 6.0 machine code.
 5. **Trace return values.** Determine where `-95` originates and whether it is propagated from the implementation, generated by a lower layer, or returned by a capability/permission check. Do not assign it a meaning until traced.
-6. **Reconstruct secure-path selection.** Determine the role of `scaler_capture_is_protect`, `scaler_capture_secure` and the TZCAPTURE calls. Establish whether ordinary unprotected video capture requires TEE initialization.
+6. **Complete secure-path and PPI fallback analysis.** The DRM query contract and `getScreenPostYUV()` selection (including its ignored query-status return) are now reconstructed in section 5.5. Determine the behaviour of `scaler_capture_secure`, trace the TZCAPTURE calls, and design Moonlight's fallback so a failed protection query remains an explicit unknown/error state rather than being treated as unprotected. Establish whether ordinary unprotected video capture requires TEE initialization.
 7. **Check runtime loading and security policy.** Inspect `dlopen` failure paths, unresolved dependencies, SMACK/access requirements and any Tizen privileges actually required by the public capture path. Do not add manifest privileges speculatively.
 8. **Validate on hardware.** Separate library/symbol availability, initialization, first capture, repeated capture, protected-content behaviour and recovery after stream end. A static analysis result alone cannot prove runtime permissions or successful capture.
 
@@ -437,6 +472,7 @@ The intended outcome is a Tizen 6.0-compatible implementation, not merely a newe
 | `copy_to_shm`, `copy_from_shm` and `copy_to_time` direct call sites | No direct BL references found in the current full disassembly search; indirect/external call paths remain possible |
 | `is_call_time_slow` compares monotonic microsecond timestamps against a caller-supplied threshold | Confirmed by ARM disassembly; caller policy and threshold unit remain unverified |
 | `buildNewCaptureHandle()` allocates and constructs a `CaptureSecImpl`; protection wrapper delegates to `scaler_capture_is_protect()` | Confirmed by ARM disassembly |
+| `scaler_capture_is_protect()` distinguishes DRM-open failure, ioctl failure and successful protection-state output; `getScreenPostYUV()` ignores its status return and defaults its output word to zero | Confirmed by ARM disassembly; the resulting fail-open branch is specific to `getScreenPostYUV()` |
 | General Tizen 6.0 compatibility across TV models | Not established |
 
 This document is a working record. Add new device observations, binary hashes, symbol findings and verified runtime results here, while preserving the distinction between confirmed facts, external reports and hypotheses.
