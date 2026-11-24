@@ -8714,6 +8714,9 @@ function saveAmbilightWledIp() {
   storeData('ambilightWledIp', ip, null);
 
   if (ambilightSupportState === 'supported' && isInGame) {
+    // A changed WLED destination is an explicit reconfiguration, not a duplicate
+    // readiness notification. Allow the coordinator to replace the active process.
+    resetAmbilightStreamStartupState();
     window.notifyAmbilightStreamReadinessChanged(false);
   }
 }
