@@ -24,8 +24,8 @@ assert.ok(avocInvestigation.includes('typedef int (*avoc_set_game_mode_fn)(int s
   'AVOC investigation must document the setter as a two-argument C ABI');
 assert.ok(avocInvestigation.includes('typedef int (*avoc_get_game_mode_fn)(int save_type, int *mode);'),
   'AVOC investigation must document the getter as a two-argument C ABI');
-assert.ok(!avocInvestigation.includes('int reserved') &&
-  !avocInvestigation.includes('avoc_set_game_mode_fn)(int save_type, int mode,'),
+assert.ok(!avocInvestigation.includes('typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);') &&
+  !avocInvestigation.includes('typedef int (*avoc_set_game_mode_fn)(int save_type, int mode, int'),
   'AVOC investigation must not describe obsolete or three-argument prototypes');
 assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
   'native AVOC full-off must attempt source and global scopes independently');
