@@ -349,6 +349,21 @@ function quitRemoteAppAfterStartupFailure() {
   });
 }
 
+function shutdownAmbilightForStreamIfEnabled(context) {
+  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
+    if (!preference || preference.ambilightEnabled !== true) return false;
+    if (!window.moonlightAmbilight ||
+        typeof window.moonlightAmbilight.shutdown !== 'function') return false;
+    return window.moonlightAmbilight.shutdown().catch(function(error) {
+      console.warn('[ambilight] Could not clean up ' + context + ':', error);
+      return false;
+    });
+  }).catch(function(error) {
+    console.warn('[ambilight] Could not read the enabled preference during ' + context + '; skipping shutdown:', error);
+    return false;
+  });
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
@@ -364,11 +379,8 @@ function streamStartupTimeoutFailure(stage, customMessage) {
     : message;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
 
-  if (!isInGame && window.moonlightAmbilight &&
-      typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().catch(function(error) {
-      console.warn('[ambilight] Could not clean up after stream startup timeout:', error);
-    });
+  if (!isInGame) {
+    shutdownAmbilightForStreamIfEnabled('stream startup timeout');
   }
   if (isInGame) {
     try {
@@ -429,12 +441,7 @@ function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
 
-  if (window.moonlightAmbilight &&
-      typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().catch(function(error) {
-      console.warn('[ambilight] Could not clean up after host launch failure:', error);
-    });
-  }
+  shutdownAmbilightForStreamIfEnabled('host launch failure');
 
   var numericErrorCode = errorCode == null || errorCode === ''
     ? null : Number(errorCode);
