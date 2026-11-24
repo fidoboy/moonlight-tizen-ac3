@@ -5488,7 +5488,7 @@ function sortAppsForHost(host, appList) {
 
 // Handle layout elements when displaying the Apps view
 function showAppsMode(keepInteractionLocked, afterShown, deferPostTransitionActions, preserveLoadingSnackbar) {
-  $('#avocDiagnosticBtn').hide();
+  $('#avocDiagnosticBtn').prop('hidden', true).hide();
   stopDisabledSwitchAppearanceObserver();
   if (!deferPostTransitionActions) updateAmbientBackgroundActivation(true);
   console.log('%c[index.js, showAppsMode]', 'color: green;', 'Entering "Show Apps" mode.');
