@@ -5157,14 +5157,25 @@ function requiredRestartAppDialog() {
 
 // Stop the independent Ambilight service before returning to Smart Hub.
 function exitApplication() {
-  var application = tizen.application.getCurrentApplication();
+  var application;
+  try {
+    application = tizen.application.getCurrentApplication();
+  } catch (error) {
+    console.error('%c[index.js, exitApplication]', 'color: red;', 'Could not obtain the current Tizen application for controlled exit:', error);
+    return;
+  }
+
+  var exitStarted = false;
   var exit = function() {
+    if (exitStarted) return;
+    exitStarted = true;
     try { application.exit(); }
     catch (error) {
       console.error('%c[index.js, exitApplication]', 'color: red;', 'Could not exit Moonlight:', error);
     }
   };
 
+  // Ambilight shutdown is best-effort; it must not block application exit.
   var exitTimeout = window.setTimeout(exit, 2500);
   shutdownAmbilightForStreamIfEnabled('application exit').then(function() {
     window.clearTimeout(exitTimeout);
