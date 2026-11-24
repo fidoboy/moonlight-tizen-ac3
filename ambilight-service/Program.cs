@@ -36,6 +36,7 @@ namespace MoonlightAmbilight
             bool exitAfterReply = false;
             bool? supported = null;
             string error = null;
+            string diagnostic = null;
 
             try
             {
@@ -48,6 +49,31 @@ namespace MoonlightAmbilight
                     VideoPlaneCapture.Shutdown();
                     ok = true; // Unsupported is a capability result, not an AppControl transport failure.
                     // Capability checks are short-lived; no idle Ambilight process should remain.
+                    exitAfterReply = true;
+                }
+                else if (String.Equals(command, "ppi-probe", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Explicit diagnostic only. PPI is never selected by the capture loop.
+                    error = PpiCapture.Init();
+                    if (error == null)
+                    {
+                        int x = PpiCapture.MeasureWidth / 2;
+                        int y = PpiCapture.MeasureHeight / 2;
+                        PpiCapture.Pixel sample = PpiCapture.Read(0, x, y);
+                        diagnostic = PpiCapture.Describe() +
+                            " sampleRc=" + sample.Rc +
+                            " rgb10=" + sample.Red10 + "," + sample.Green10 + "," + sample.Blue10 +
+                            " sampleMs=" + sample.ElapsedMs.ToString("0.0");
+                        if (sample.Rc < 0)
+                            error = "PPI initialized but the diagnostic sample failed: " + diagnostic;
+                    }
+                    else
+                    {
+                        diagnostic = PpiCapture.Describe();
+                    }
+                    ok = error == null;
+                    supported = ok;
+                    PpiCapture.Shutdown();
                     exitAfterReply = true;
                 }
                 else if (String.Equals(command, "start", StringComparison.OrdinalIgnoreCase))
@@ -95,7 +121,7 @@ namespace MoonlightAmbilight
                 }
             }
 
-            Reply(control, ok, supported, error);
+            Reply(control, ok, supported, error, diagnostic);
 
             // Reply first so the Web/WASM caller receives the result before this service exits.
             if (exitAfterReply)
@@ -187,7 +213,8 @@ namespace MoonlightAmbilight
             }
         }
 
-        private static void Reply(ReceivedAppControl control, bool ok, bool? supported, string error)
+        private static void Reply(ReceivedAppControl control, bool ok, bool? supported, string error,
+                                  string diagnostic = null)
         {
             if (control == null || !control.IsReplyRequest) return;
 
@@ -199,6 +226,8 @@ namespace MoonlightAmbilight
                     reply.ExtraData.Add("supported", supported.Value ? "true" : "false");
                 if (!String.IsNullOrEmpty(error))
                     reply.ExtraData.Add("error", error);
+                if (!String.IsNullOrEmpty(diagnostic))
+                    reply.ExtraData.Add("diagnostic", diagnostic);
                 control.ReplyToLaunchRequest(reply, AppControlReplyResult.Succeeded);
             }
             catch
