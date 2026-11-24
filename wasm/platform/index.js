@@ -7101,9 +7101,9 @@ function startGame(host, appID) {
       await startAmbilightForStreamIfEnabled(true);
       if (!isStreamStartupCurrent(startupGeneration)) return;
 
-      // Prepare WMP before asking Sunshine to launch/resume the app. This phase
-      // starts the supervised process, loads the native library and probes ESPlus,
-      // but deliberately does not start a Moonlight session or touch ESPlus playback.
+      // Direct Smart Hub + WMP already prepared the native service before
+      // recovering the saved identity and host. Normal app launches still
+      // perform their own native-service preparation here.
       var nativeServicePrepared = false;
       var abortPreparedNativeService = function() {
         if (!nativeServicePrepared || !window.ESPlusPlayerTransport ||
@@ -7115,7 +7115,7 @@ function startGame(host, appID) {
           console.error('[esplusplayer] Could not clean up WMP after host negotiation failure:', cleanupError);
         });
       };
-      if (streamSettings.streamingEngine === 'ESPLUSPLAYER') {
+      if (!_directSmartHubLaunch && streamSettings.streamingEngine === 'ESPLUSPLAYER') {
         $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
         try {
           if (!window.ESPlusPlayerTransport ||
