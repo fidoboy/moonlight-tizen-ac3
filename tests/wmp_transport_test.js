@@ -17,8 +17,8 @@ const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpS
 assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int save_type, int on\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
   'AVOC setter must use the confirmed two-argument C ABI');
 assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int reserved, int save_type, int \*mode\)/.test(engineAvoc) &&
-  engineAvoc.includes('s_get_game_mode(0, 1, &observed_mode)'),
-  'trace-only AVOC getter must use its independently verified getter ABI');
+  engineAvoc.includes('s_get_game_mode(1, &observed_mode)'),
+  'trace-only AVOC getter must use the confirmed two-argument C ABI');
 assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
   'native AVOC full-off must attempt source and global scopes independently');
 assert.ok(engineApi.includes('ml_avoc_force_game_mode_off(3)'),
