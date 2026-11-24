@@ -19,6 +19,8 @@ namespace MoonlightAmbilight
         private bool _hdr;
         private int _colorSpace = 1;
         private bool _fullRange;
+        private PpiSampler _ppiSampler;
+        private string _captureBackend = VideoPlaneCapture.BackendName;
 
         protected override void OnCreate()
         {
@@ -226,7 +228,7 @@ namespace MoonlightAmbilight
                         if (String.Equals(_captureBackend, PpiCapture.BackendName, StringComparison.OrdinalIgnoreCase))
                         {
                             PpiSampler sampler = _ppiSampler;
-                            byte[] rgb; bool[] valid; long[] updated;
+                            byte[] rgb = null; bool[] valid = null; long[] updated = null;
                             if (sampler != null && sampler.TrySnapshot(out rgb, out valid, out updated))
                                 packet = WledOutput.BuildPpiFrame(rgb, valid, _ledCount);
                         }
