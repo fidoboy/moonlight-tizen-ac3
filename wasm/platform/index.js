@@ -8714,6 +8714,8 @@ function readAmbilightStoredValue(key) {
   });
 }
 
+window.startAmbilightForStreamIfEnabled = startAmbilightForStreamIfEnabled;
+
 function startAmbilightForStreamIfEnabled(showTransitionStatus) {
   // Do not launch the capture service before the active stream profile is known.
   if (window._ambilightNegotiatedProfileReady !== true) return Promise.resolve(false);
