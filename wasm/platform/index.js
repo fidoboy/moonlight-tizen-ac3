@@ -6434,9 +6434,12 @@ function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
   if (!streamEncryptionStatusPollingActive) return;
   // WMP owns its stream encryption pipeline natively. Do not wait for or poll
-  // the WebAssembly module on the direct Smart Hub + WMP route.
-  if (window.getStreamingEngineState &&
-      window.getStreamingEngineState().active === 'ESPLUSPLAYER') {
+  // the WebAssembly module once it is selected, including before startRequest
+  // has populated the active-engine state.
+  if ((typeof getSelectedStreamingEngine === 'function' &&
+       getSelectedStreamingEngine() === 'ESPLUSPLAYER') ||
+      (window.getStreamingEngineState &&
+       window.getStreamingEngineState().active === 'ESPLUSPLAYER')) {
     stopStreamEncryptionStatusPolling();
     return;
   }
@@ -6456,9 +6459,12 @@ function pollStreamEncryptionStatus() {
 
 function startStreamEncryptionStatusPolling() {
   stopStreamEncryptionStatusPolling();
-  // Encryption status is reported by the WASM core only for EMSS.
-  if (window.getStreamingEngineState &&
-      window.getStreamingEngineState().active === 'ESPLUSPLAYER') return;
+  // Encryption status is reported by the WASM core only for EMSS. The
+  // selected engine must be checked before startRequest sets the active engine.
+  if ((typeof getSelectedStreamingEngine === 'function' &&
+       getSelectedStreamingEngine() === 'ESPLUSPLAYER') ||
+      (window.getStreamingEngineState &&
+       window.getStreamingEngineState().active === 'ESPLUSPLAYER')) return;
   streamEncryptionStatusPollingActive = true;
   pollStreamEncryptionStatus();
 }
@@ -6714,7 +6720,8 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
     window._normalStreamVideoReady = false;
     if (isDirectLaunch) window._directSmartHubVideoReady = false;
     resetStreamEncryptionStatus();
-    if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+    if (getSelectedStreamingEngine() !== 'ESPLUSPLAYER' &&
+        typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
       Module.resetEncryptionStatus();
     }
     showStreamTransitionBackground(function() {
@@ -6736,6 +6743,11 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
 function fullscreenWasmModule(configuredWidth, configuredHeight) {
+  // The native player renders through its own Tizen surface; it has no WASM
+  // video element to resize.
+  if (typeof getSelectedStreamingEngine === 'function' &&
+      getSelectedStreamingEngine() === 'ESPLUSPLAYER') return;
+
   var streamWidth = configuredWidth || $('#selectResolution').data('value').split(':')[0];
   var streamHeight = configuredHeight || $('#selectResolution').data('value').split(':')[1];
   var screenWidth = window.innerWidth;
@@ -10614,6 +10626,13 @@ function loadDirectSmartHubStreamSettings() {
       document.documentElement.classList.add('native-stream-launch');
       document.documentElement.style.backgroundColor = 'transparent';
       document.body.style.backgroundColor = 'transparent';
+    } else {
+      // Direct EMSS retains the original WASM startup path. Native WMP must
+      // never create the Emscripten module or fetch moonlight-wasm.js/.wasm.
+      if (typeof window.startDirectSmartHubWasm !== 'function') {
+        throw new Error('Direct EMSS WebAssembly startup hook is unavailable.');
+      }
+      window.startDirectSmartHubWasm();
     }
     streamTransitionBackgroundEnabled = stored.streamTransitionBackground == null ||
       stored.streamTransitionBackground === true || stored.streamTransitionBackground === 'true' ||
