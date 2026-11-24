@@ -16,6 +16,9 @@ namespace MoonlightAmbilight
         private string _ip;
         private int _port = 21324;
         private int _ledCount = 73;
+        private bool _hdr;
+        private int _colorSpace = 1;
+        private bool _fullRange;
 
         protected override void OnCreate()
         {
@@ -52,7 +55,10 @@ namespace MoonlightAmbilight
                     string ip = GetExtra(control, "wledIp");
                     int port = ParseInt(GetExtra(control, "wledPort"), 21324);
                     int leds = ParseInt(GetExtra(control, "ledCount"), 73);
-                    error = StartCapture(ip, port, leds);
+                    bool hdr = ParseBool(GetExtra(control, "hdr"), false);
+                    int colorSpace = ParseInt(GetExtra(control, "colorSpace"), hdr ? 2 : 1);
+                    bool fullRange = ParseBool(GetExtra(control, "fullRange"), false);
+                    error = StartCapture(ip, port, leds, hdr, colorSpace, fullRange);
                     ok = error == null;
                     supported = _supported;
                     exitAfterReply = !_supported;
@@ -96,7 +102,7 @@ namespace MoonlightAmbilight
                 Exit();
         }
 
-        private string StartCapture(string ip, int port, int ledCount)
+        private string StartCapture(string ip, int port, int ledCount, bool hdr, int colorSpace, bool fullRange)
         {
             IPAddress address;
             if (!IPAddress.TryParse(ip, out address) || address.AddressFamily != AddressFamily.InterNetwork)
@@ -122,6 +128,10 @@ namespace MoonlightAmbilight
                 _ip = address.ToString();
                 _port = port;
                 _ledCount = ledCount;
+                _hdr = hdr;
+                _colorSpace = colorSpace >= 0 && colorSpace <= 2 ? colorSpace : (hdr ? 2 : 1);
+                _fullRange = fullRange;
+                WledOutput.Reset();
                 _stopping = false;
                 _worker = new Thread(CaptureLoop) { IsBackground = true };
                 _worker.Start();
@@ -162,7 +172,7 @@ namespace MoonlightAmbilight
                         VideoPlaneResult frame = VideoPlaneCapture.Capture();
                         if (frame != null && frame.HasFrame)
                         {
-                            byte[] packet = WledOutput.BuildFrame(frame, _ledCount);
+                            byte[] packet = WledOutput.BuildFrame(frame, _ledCount, _hdr, _colorSpace, _fullRange);
                             try { udp.Send(packet, packet.Length, endpoint); }
                             catch { }
                         }
@@ -208,6 +218,13 @@ namespace MoonlightAmbilight
         {
             int parsed;
             return Int32.TryParse(value, out parsed) ? parsed : fallback;
+        }
+
+        private static bool ParseBool(string value, bool fallback)
+        {
+            if (String.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1") return true;
+            if (String.Equals(value, "false", StringComparison.OrdinalIgnoreCase) || value == "0") return false;
+            return fallback;
         }
 
         protected override void OnTerminate()
