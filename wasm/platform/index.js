@@ -8725,7 +8725,7 @@ window.notifyAmbilightStreamReadinessChanged = function(showTransitionStatus) {
   return startAmbilightForStreamIfEnabled(showTransitionStatus === true);
 };
 
-window.startAmbilightForStreamIfEnabled = startAmbilightForStreamReadinessChanged;
+window.startAmbilightForStreamIfEnabled = window.notifyAmbilightStreamReadinessChanged;
 
 function startAmbilightForStreamIfEnabled(showTransitionStatus) {
   // Do not launch the capture service before the active stream profile is known.
