@@ -249,6 +249,52 @@ namespace TizenAmbilight
             }
         }
 
+        /// <summary>Arms up to Slots positions, waits once for the hardware settle interval,
+        /// then reads every armed slot. This is the continuous sampler's efficient path.</summary>
+        public static Pixel[] ReadBatch(int[] x, int[] y)
+        {
+            if (x == null || y == null || x.Length != y.Length || x.Length == 0 || x.Length > Slots)
+                throw new ArgumentException("PPI batch must contain 1..Slots matching coordinates.");
+            lock (Gate)
+            {
+                if (_condition == null || _setPosition == null || _getPixel == null)
+                    throw new InvalidOperationException("PPI is not initialized.");
+                Pixel[] result = new Pixel[x.Length];
+                for (int i = 0; i < x.Length; i++)
+                {
+                    result[i] = new Pixel { Slot = i, X = x[i], Y = y[i], Rc = -1 };
+                    if (x[i] < 0 || y[i] < 0 || x[i] >= MeasureWidth || y[i] >= MeasureHeight)
+                    { result[i].Rc = -1002; return result; }
+                    result[i].PositionRc = _setPosition(i, x[i], y[i]);
+                    if (result[i].PositionRc < 0)
+                    { result[i].Rc = result[i].PositionRc; return result; }
+                }
+                Thread.Sleep(SettleMs);
+                for (int i = 0; i < x.Length; i++)
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    try
+                    {
+                        Marshal.Copy(ZeroBuffer, 0, _colorBuffer, BufferBytes);
+                        result[i].Rc = _getPixel(i, _colorBuffer);
+                        if (result[i].Rc >= 0)
+                        {
+                            result[i].Red10 = Marshal.ReadInt32(_colorBuffer, 0);
+                            result[i].Green10 = Marshal.ReadInt32(_colorBuffer, 4);
+                            result[i].Blue10 = Marshal.ReadInt32(_colorBuffer, 8);
+                            result[i].LowInputLag = Marshal.ReadInt32(_colorBuffer, 12);
+                            if (result[i].Red10 < 0 || result[i].Red10 > 1023 ||
+                                result[i].Green10 < 0 || result[i].Green10 > 1023 ||
+                                result[i].Blue10 < 0 || result[i].Blue10 > 1023)
+                                result[i].Rc = -1003;
+                        }
+                    }
+                    finally { watch.Stop(); result[i].ElapsedMs = watch.Elapsed.TotalMilliseconds; }
+                }
+                return result;
+            }
+        }
+
         public static string Describe()
         {
             lock (Gate)
