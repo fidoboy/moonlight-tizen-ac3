@@ -10,6 +10,8 @@ const platformSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/in
 const messagesSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/messages.js'), 'utf8');
 const ppiSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/PpiCapture.cs'), 'utf8');
 const serviceSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/Program.cs'), 'utf8');
+const samplerSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/PpiSampler.cs'), 'utf8');
+const outputSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/WledOutput.cs'), 'utf8');
 
 // Startup-order regression checks: both engines publish readiness into one
 // coordinator, and only that coordinator may launch the optional service.
@@ -46,6 +48,17 @@ assert(ppiSource.includes('lock (Gate)') &&
 assert(serviceSource.includes('command, "ppi-probe"') &&
   serviceSource.includes('PpiCapture.Read(0, x, y)'),
   'PPI initialization and one-shot reading must be explicitly diagnosable');
+assert(samplerSource.includes('PpiCapture.ReadBatch(bx, by)') &&
+  samplerSource.includes('new Thread(Run)') && samplerSource.includes('TrySnapshot'),
+  'continuous PPI sampling must use a dedicated thread and non-blocking snapshots');
+assert(outputSource.includes('BuildPpiFrame(byte[] spotsRgb, bool[] valid, int ledCount)') &&
+  outputSource.includes('FindValid(valid, left, -1)') &&
+  outputSource.includes('Blend(_previous[offset], red)'),
+  'PPI spot RGB must interpolate around the perimeter and share temporal output smoothing');
+assert(serviceSource.includes('captureBackend') &&
+  serviceSource.includes('selected, PpiCapture.BackendName') &&
+  serviceSource.includes('PpiCapture.Shutdown()'),
+  'PPI must be selected explicitly and released during service shutdown');
 assert(!serviceSource.includes('PpiCapture.Read(') ||
   serviceSource.indexOf('PpiCapture.Read(') > serviceSource.indexOf('command, "ppi-probe"'),
   'PPI reads must not be wired into the automatic video-plane capture loop');
@@ -134,7 +147,8 @@ function createEnvironment(platformVersion) {
   await env.api.start('192.168.0.100', 21324, 73, {
     hdr: true,
     colorSpace: 2,
-    fullRange: false
+    fullRange: false,
+    captureBackend: 'video_plane'
   });
   assert.deepStrictEqual(env.payloads[1], {
     command: 'start',
@@ -151,7 +165,9 @@ function createEnvironment(platformVersion) {
   assert.strictEqual(env.running().length, 1);
   assert.strictEqual(env.api.isActive(), true);
 
-  await env.api.start('192.168.0.100', 21324, 73);
+  await env.api.start('192.168.0.100', 21324, 73, null, 'ppi');
+  assert.strictEqual(env.payloads[2].captureBackend, 'ppi',
+    'PPI must be selectable explicitly through the AppControl API');
   assert.strictEqual(env.killed.length, 2,
     'restarting Ambilight during a stream must replace the existing process');
   assert.strictEqual(env.commands.filter(command => command === 'start').length, 2);
