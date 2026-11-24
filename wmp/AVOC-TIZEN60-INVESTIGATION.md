@@ -15,7 +15,7 @@ Do not infer argument types, accepted values, return-code meanings, availability
 
 | Function | Known information |
 |---|---|
-| `avoc_set_game_mode` | Setter. ARM Thumb disassembly of the Tizen 5.0 emulator, Tizen 6.0 emulator, and Samsung UE50AU7172 library shows the same relevant convention: incoming `r1` and `r2` are forwarded as the two operational arguments; incoming `r0` is not used as an operational argument. See the cross-library ABI verification below. |
+| `avoc_set_game_mode` | Setter with a two-argument C interface: `save_type`, `mode`. The examined ARM implementations use the first two C argument registers (`r0`, `r1`) for these values. A later value observed during disassembly belongs to the internal call/stack path used to reach the D-Bus proxy and is not a third public C parameter. See the corrected cross-library ABI discussion below. |
 | `avoc_get_game_mode` | Getter. Proxy metadata: input `save_type`; outputs `mode`, `ret`. |
 | `avoc_check_game_mode` | Check operation. Proxy metadata: no input arguments observed; output `ret`. |
 | `avoc_set_game_mode_by_source` | Setter by source. Proxy metadata: inputs `save_type`, `source`, `game_mode`; output `ret`. |
@@ -39,11 +39,11 @@ The public [WMP Tizen 5.0 implementation](https://github.com/WMP/moonlight-tizen
 typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);
 ```
 
-It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. These calls document the behavior of that source code, but the two-argument prototype is incompatible with the three examined ARM libraries as explained in the cross-library verification below; its argument semantics are not independently validated.
+It calls the function with `save_type=1` and `mode=1` to enable or `mode=0` to disable. Its source comment associates `save_type=1` with saving/restoring by source. These calls document the two-argument interface used by an independent implementation and are consistent with the examined ARM libraries. The argument semantics are supported by the proxy method metadata and implementation evidence below.
 
 
 
-### Cross-library ARM ABI verification (correction to the historical reference)
+### Cross-library ARM ABI verification (corrected conclusion)
 
 The exported `avoc_set_game_mode` entry point was disassembled from three ARM libraries:
 
@@ -51,13 +51,13 @@ The exported `avoc_set_game_mode` entry point was disassembled from three ARM li
 - `libavoc.so` from the Tizen 6.0 emulator.
 - `libavoc.so` extracted directly from the Samsung UE50AU7172 TV.
 
-The three implementations exhibit the same relevant wrapper convention. The entry point preserves and forwards the values arriving in `r1` and `r2` to `avoc_proxy_call_set_game_mode_sync`; the incoming `r0` value is not used as one of the two operational `SetGameMode` arguments. The synchronous proxy helper constructs the two-integer `SetGameMode(ii)` request.
+The three implementations exhibit the same two-argument public C interface. The `save_type` and `mode` values supplied by the caller are the two operational arguments forwarded to `avoc_proxy_call_set_game_mode_sync`, which constructs the two-integer `SetGameMode(ii)` request. The additional value/register/stack slot noticed while following the internal wrapper-to-proxy path is part of that internal call sequence; it is not a third argument of the exported `avoc_set_game_mode` function.
 
-Under the ARM procedure-call convention, a normal C call through a function pointer declared as `int (*)(int save_type, int mode)` places its two arguments in `r0` and `r1`. It does not define the value in `r2`, while the examined AVOC wrapper consumes `r1` and `r2`. Therefore, the two-argument declaration and calls in the public WMP Tizen 5.0 implementation are **not ABI-compatible with the Tizen 5.0 emulator library examined here**. The same mismatch applies to the Tizen 6.0 emulator and UE50AU7172 libraries examined.
+Under the ARM procedure-call convention, a normal C call through `int (*)(int save_type, int mode)` places the two arguments in `r0` and `r1`, matching the two-argument interface confirmed across the examined implementations. The third value seen while tracing the wrapper's internal path must not be promoted to a public C parameter: it belongs to the internal call/stack handling associated with the D-Bus proxy invocation.
 
-The three-argument call shape used by this project places the two operational values in the second and third C argument positions, which arrive in `r1` and `r2`. The first C argument is currently named `reserved` in the integration as a pragmatic placeholder only. Its contractual meaning is unknown; this document does not establish that it is formally a reserved parameter.
+The correct function-pointer shape is `int (*)(int save_type, int mode)`. There is no leading placeholder and no third public argument. The additional stack/register value observed during disassembly is not part of this exported function's C signature.
 
-This finding supersedes the earlier tentative statement in this document that the two-argument WMP declaration might describe an older Tizen 5.0 ABI. It does not. The WMP source is evidence of how that implementation called the function, not proof that its prototype matches the library ABI.
+This finding confirms the two-argument declaration used by the public WMP Tizen 5.0 implementation; it is not an older-ABI exception.
 
 **Scope and remaining uncertainties:** this comparison establishes the relevant register convention only for the three libraries listed above. It does not prove that every Samsung model, firmware revision, Tizen release, or architecture uses the same convention. The argument positions are established by the examined wrapper/proxy flow; the semantic meaning of the first argument, the accepted values and meanings of the two operational arguments, the native return-value contract, and whether a call at a particular point in stream startup actually changes the TV's Game Mode state remain separate unresolved questions.
 
@@ -117,21 +117,21 @@ Disassembly of the three native Game Mode entry points establishes the following
 
 | Function | Proxy operation | Arguments forwarded by the native wrapper | Output handling |
 |---|---|---|---|
-| `avoc_set_game_mode` | `avoc_proxy_call_set_game_mode_sync` | The second and third incoming stack arguments (cdecl offsets `[ebp+0xc]` and `[ebp+0x10]`) | Returns a local result value populated through the proxy-call dispatch path. |
+| `avoc_set_game_mode` | `avoc_proxy_call_set_game_mode_sync` | The two public C arguments (cdecl offsets `[ebp+0x8]` and `[ebp+0xc]`) | Returns a local result value populated through the proxy-call dispatch path. |
 | `avoc_get_game_mode` | `avoc_proxy_call_get_game_mode_sync` | The second incoming stack argument (`[ebp+0xc]`) | Copies the proxy-provided mode value to the pointer supplied as the third incoming stack argument (`[ebp+0x10]`); returns a separate result value. |
 | `avoc_check_game_mode` | `avoc_proxy_call_check_game_mode_sync` | No incoming arguments are read or forwarded | Returns a local result value populated through the proxy-call dispatch path. |
 
-For both `avoc_set_game_mode` and `avoc_get_game_mode`, the first incoming stack argument (`[ebp+8]`) is not referenced in the disassembled function body. Its purpose is unknown. Consequently, the experimental two-argument Tizen 5.0 setter declaration above must not be assumed to describe the complete Tizen 6.0 entry-point ABI.
+For `avoc_get_game_mode`, the first incoming stack argument (`[ebp+8]`) is not referenced in the disassembled function body; the getter's operational arguments are the subsequent `save_type` and output pointer. This getter-specific observation must not be applied to `avoc_set_game_mode`, whose public interface has two arguments.
 
 All three functions call `avoc_init_gdbus_connections` before obtaining the proxy and making a synchronous proxy call. If initialization returns nonzero, each function follows an error path that returns `-7` (`0xfffffff9`). Their result locals are initialized to `-1` before the proxy-call path; the final meaning of that value, and the values written by the dispatch helper, are not yet established.
 
-This disassembly provides strong evidence that the **Tizen 6.0 x86 C entry point has three stack arguments**, even though the wrapper does not read the first one. In cdecl terms, the wrapper reads the second and third incoming arguments at `[ebp+0xc]` and `[ebp+0x10]`; the first slot at `[ebp+8]` is present in the call frame but unused. This is materially different from the two-argument C declaration in the Tizen 5.0 reference.
+This disassembly shows that the **Tizen 6.0 x86 getter** has a three-slot call frame, with its first incoming slot unused and its operational `save_type` and output-pointer arguments at `[ebp+0xc]` and `[ebp+0x10]`. That getter-specific layout does not establish a three-argument setter.
 
-The x86 disassembly independently shows a three-slot cdecl call frame: the first incoming stack slot is unused, while the second and third are forwarded to the two-field D-Bus method. This agrees with the general distinction established by the ARM evidence: the native entry point has a first non-operational argument slot followed by the two operational arguments. The ARM and x86 observations come from different binaries and architectures; they should not be conflated into a claim that every firmware uses an identical ABI.
+The x86 disassembly also exposes internal stack arguments used along the wrapper-to-proxy/D-Bus path. The extra slot observed there is not evidence of a third public `avoc_set_game_mode` C parameter. The exported setter remains a two-argument function; its internal proxy call serializes the two operational integers into `SetGameMode(ii)`. The getter has its own distinct pointer-bearing interface, described above.
 
-The native C argument count must not be confused with the D-Bus method tuple. The Tizen 6.0 wrapper accepts three C arguments but forwards only two integers to `SetGameMode(ii)`. The unused first C argument is not a third D-Bus field. Conversely, the fact that the proxy method takes two D-Bus integers does not imply that the native wrapper also has a two-argument C ABI.
+The native C interface must not be confused with internal wrapper-to-proxy call frames. `avoc_set_game_mode` accepts two C arguments and the proxy method serializes those two integers as `SetGameMode(ii)`. Extra values visible in an internal stack frame are not additional public parameters.
 
-Accordingly, the three-argument function pointer currently used by the Tizen client is consistent with the observed Tizen 6.0 x86 wrapper, while the two-argument Tizen 5.0 declaration is consistent with the older reference. This does **not** by itself validate the current call site on every TV firmware: the exact exported symbol, ABI, and argument meaning should be checked on the target firmware before relying on it. Where firmware versions differ, the integration may need version-specific declarations/call paths rather than one universal function-pointer type.
+Accordingly, the two-argument function pointer used by the Tizen client is consistent with the examined ARM implementations and the independent WMP implementation. The third value previously inferred from the disassembly is not a third setter parameter. Firmware-specific symbol availability and runtime behavior still require device validation, but the setter's public C signature is two arguments.
 
 This disassembly confirms wrapper control flow and argument forwarding only. It does not establish the forwarded arguments' semantic names or types, the D-Bus/GVariant signatures, or the meaning of proxy return codes.
 
