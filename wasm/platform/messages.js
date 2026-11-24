@@ -1567,19 +1567,44 @@ function handleMessage(msg) {
         window.setTimeout(exitDirectLaunch, directStreamHasError ? 4500 : 3000);
       };
 
+      var waitForDirectWmpTermination = function() {
+        if (window._activeStreamingEngine !== 'ESPLUSPLAYER' ||
+            !window.ESPlusPlayerTransport ||
+            typeof window.ESPlusPlayerTransport.waitForTermination !== 'function') {
+          finishDirectLaunch();
+          return;
+        }
+
+        // stop_session acknowledges the request, but the native service and
+        // supervisor must both disappear before Moonlight exits.
+        try {
+          withOperationTimeout(
+            window.ESPlusPlayerTransport.waitForTermination(5000),
+            6000,
+            'WMP service shutdown'
+          ).then(finishDirectLaunch, function(failedWmpShutdown) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'WMP service or supervisor did not terminate before direct Smart Hub exit:', failedWmpShutdown);
+            finishDirectLaunch();
+          });
+        } catch (failedWmpShutdown) {
+          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not wait for WMP service termination before direct Smart Hub exit:', failedWmpShutdown);
+          finishDirectLaunch();
+        }
+      };
+
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
           try {
-            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
+            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(waitForDirectWmpTermination, function(failedQuitApp) {
               console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
-              finishDirectLaunch();
+              waitForDirectWmpTermination();
             });
           } catch (failedQuitApp) {
             console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
-            finishDirectLaunch();
+            waitForDirectWmpTermination();
           }
         } else {
-          finishDirectLaunch();
+          waitForDirectWmpTermination();
         }
       };
 
