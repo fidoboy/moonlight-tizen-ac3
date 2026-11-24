@@ -1264,6 +1264,9 @@ body[data-color-theme="black-orange"] #background-layer {
 #ambilightWledIpContainer > .setting-option {
     margin: 25px 0 0;
 }
+#ambilightWledIpContainer .setting-option > label {
+    color: var(--theme-text-primary);
+}
 #ambilightWledIpInputField {
     display: block;
     width: 100%;
