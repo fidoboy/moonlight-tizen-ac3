@@ -9,6 +9,7 @@
 #include <iostream>
 
 extern char* g_UniqueId;
+extern "C" int NegotiatedVideoFormat;
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
@@ -87,8 +88,20 @@ void MoonlightInstance::SetDolbyAudioOptions(const std::string& channelLayout, c
 }
 
 void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
-  // RTSP negotiation has completed. Refine the saved estimate for the next
-  // session without changing the bitrate already requested for this stream.
+  // RTSP negotiation has completed: report the actual selected profile to Ambilight.
+  // A requested HDR mode is not sufficient by itself; the host must have selected
+  // a negotiated 10-bit format as well.
+  const bool negotiated10Bit = (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_10BIT) != 0;
+  const bool hdrActive = m_HdrModeEnabled && negotiated10Bit;
+  // Preserve the actual encoder CSC mode even if an HDR request fell back to
+  // an 8-bit profile; that can still be SDR encoded with Rec.2020 primaries.
+  const int colorSpace = m_StreamConfig.colorSpace;
+  const bool fullRange = m_StreamConfig.colorRange == COLOR_RANGE_FULL;
+  PostToJs(std::string("AmbilightProfile: ") +
+    (hdrActive ? "1" : "0") + "|" + std::to_string(colorSpace) + "|" +
+    (fullRange ? "1" : "0"));
+
+  // Refine the saved estimate for the next session without changing this stream's bitrate.
   PostToJs(std::string("NegotiatedAudio: ") + GetNegotiatedAudioInfo());
   PostToJs(std::string("Connection Established"));
 }
@@ -484,10 +497,13 @@ MessageResult MoonlightInstance::StartStream(std::string host, int httpPort, std
     PostToJs("Selecting the fallback video format to: VIDEO_FORMAT_H264");
   }
 
-  // Initialize the color range with default value
-  m_StreamConfig.colorRange = 0;
-  // Apply the desired color range ​based on the toggle switch state
-  m_StreamConfig.colorRange |= fullRange ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
+  // Request the matching encoder colorimetry and range. SDR streams use Rec.709;
+  // HDR streams use Rec.2020. The negotiated codec later determines whether HDR
+  // actually became active for this session.
+  m_StreamConfig.colorSpace =
+    (hdrMode && (m_StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_10BIT) != 0)
+      ? COLORSPACE_REC_2020 : COLORSPACE_REC_709;
+  m_StreamConfig.colorRange = fullRange ? COLOR_RANGE_FULL : COLOR_RANGE_LIMITED;
 
   // Apply encryption audio only when decrypt host audio is enabled, otherwise disable encryption
   m_StreamConfig.encryptionFlags = decryptHostAudio ? ENCFLG_AUDIO : ENCFLG_NONE;

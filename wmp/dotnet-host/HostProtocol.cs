@@ -1720,6 +1720,23 @@ namespace MoonlightWmpHost
                         videoReady = true;
                         Log.Info("WMP ESPlus playback clock advanced after video start; submitted=" +
                             (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
+
+                        // Publish the profile only after the native decoder has accepted video.
+                        // VideoHdrActive is latched from the actual decode-unit HDR state; the
+                        // requested HDR toggle alone is not sufficient to select the PQ path.
+                        var ambilightStreamInfo = new EngineApi.StreamInfo();
+                        ambilightStreamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
+                        if (_engine.GetStreamInfo(ref ambilightStreamInfo) == 0)
+                        {
+                            bool ambilightHdr = ambilightStreamInfo.VideoHdrActive != 0;
+                            bool ambilightHevc = (ambilightStreamInfo.VideoFormat & 0x0F00u) != 0;
+                            int ambilightColorSpace = request.Hdr != 0 && ambilightHevc ? 2 : 1;
+                            bool ambilightFullRange = request.FullRange != 0;
+                            Event(appId, remotePort, "AmbilightProfile: " +
+                                (ambilightHdr ? "1" : "0") + "|" +
+                                ambilightColorSpace.ToString(CultureInfo.InvariantCulture) + "|" +
+                                (ambilightFullRange ? "1" : "0"), null);
+                        }
                         Event(appId, remotePort, "displayVideo", null);
                     }
                     if (statsResult == 0 && stats.Errors > lastReportedPlayerErrors)

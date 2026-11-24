@@ -132,7 +132,12 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
+    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
+    window._ambilightNegotiatedProfileReady = false;
+    window._streamConnectionEstablished = false;
+    window._ambilightColorProfile = null;
+    window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
     window._confirmedGameMode = false;
     resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
@@ -1408,6 +1413,11 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Prevent a delayed WMP profile callback from restarting Ambilight after
+    // this stream has already entered teardown.
+    window._streamConnectionEstablished = false;
+    window._ambilightNegotiatedProfileReady = false;
+    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
     // Lock and reset the transition immediately, before teardown work or any
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
@@ -2029,6 +2039,23 @@ function handleMessage(msg) {
       });
     };
 
+  } else if (msg.indexOf('AmbilightProfile: ') === 0) {
+    var ambilightParts = msg.replace('AmbilightProfile: ', '').split('|');
+    var ambilightHdr = ambilightParts[0] === '1';
+    var ambilightColorSpace = parseInt(ambilightParts[1], 10);
+    var ambilightFullRange = ambilightParts[2] === '1';
+    if (ambilightColorSpace !== 0 && ambilightColorSpace !== 1 && ambilightColorSpace !== 2) {
+      ambilightColorSpace = ambilightHdr ? 2 : 1;
+    }
+    window._ambilightColorProfile = {
+      hdr: ambilightHdr,
+      colorSpace: ambilightColorSpace,
+      fullRange: ambilightFullRange
+    };
+    window._ambilightNegotiatedProfileReady = true;
+    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
+      window.notifyAmbilightStreamReadinessChanged(false);
+    }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
     updatePerformanceStatsPillsFromNegotiatedAudio(negotiatedAudioMessage);
@@ -2052,6 +2079,14 @@ function handleMessage(msg) {
     confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+
+    // EMSS publishes its profile immediately before this event. WMP publishes
+    // its profile only after the first accepted native video frame; wait for that
+    // event rather than guessing from the requested HDR toggle.
+    window._streamConnectionEstablished = true;
+    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
+      window.notifyAmbilightStreamReadinessChanged(false);
+    }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
     // Stop the connection watchdog; do not impose a separate first-frame deadline.

@@ -16,6 +16,11 @@ namespace MoonlightAmbilight
         private string _ip;
         private int _port = 21324;
         private int _ledCount = 73;
+        private bool _hdr;
+        private int _colorSpace = 1;
+        private bool _fullRange;
+        private PpiSampler _ppiSampler;
+        private string _captureBackend = VideoPlaneCapture.BackendName;
 
         protected override void OnCreate()
         {
@@ -33,6 +38,7 @@ namespace MoonlightAmbilight
             bool exitAfterReply = false;
             bool? supported = null;
             string error = null;
+            string diagnostic = null;
 
             try
             {
@@ -47,12 +53,41 @@ namespace MoonlightAmbilight
                     // Capability checks are short-lived; no idle Ambilight process should remain.
                     exitAfterReply = true;
                 }
+                else if (String.Equals(command, "ppi-probe", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Explicit diagnostic only. PPI is never selected by the capture loop.
+                    error = PpiCapture.Init();
+                    if (error == null)
+                    {
+                        int x = PpiCapture.MeasureWidth / 2;
+                        int y = PpiCapture.MeasureHeight / 2;
+                        PpiCapture.Pixel sample = PpiCapture.Read(0, x, y);
+                        diagnostic = PpiCapture.Describe() +
+                            " sampleRc=" + sample.Rc +
+                            " rgb10=" + sample.Red10 + "," + sample.Green10 + "," + sample.Blue10 +
+                            " sampleMs=" + sample.ElapsedMs.ToString("0.0");
+                        if (sample.Rc < 0)
+                            error = "PPI initialized but the diagnostic sample failed: " + diagnostic;
+                    }
+                    else
+                    {
+                        diagnostic = PpiCapture.Describe();
+                    }
+                    ok = error == null;
+                    supported = ok;
+                    PpiCapture.Shutdown();
+                    exitAfterReply = true;
+                }
                 else if (String.Equals(command, "start", StringComparison.OrdinalIgnoreCase))
                 {
                     string ip = GetExtra(control, "wledIp");
                     int port = ParseInt(GetExtra(control, "wledPort"), 21324);
                     int leds = ParseInt(GetExtra(control, "ledCount"), 73);
-                    error = StartCapture(ip, port, leds);
+                    bool hdr = ParseBool(GetExtra(control, "hdr"), false);
+                    int colorSpace = ParseInt(GetExtra(control, "colorSpace"), hdr ? 2 : 1);
+                    bool fullRange = ParseBool(GetExtra(control, "fullRange"), false);
+                    string backend = GetExtra(control, "captureBackend");
+                    error = StartCapture(ip, port, leds, hdr, colorSpace, fullRange, backend);
                     ok = error == null;
                     supported = _supported;
                     exitAfterReply = !_supported;
@@ -89,14 +124,14 @@ namespace MoonlightAmbilight
                 }
             }
 
-            Reply(control, ok, supported, error);
+            Reply(control, ok, supported, error, diagnostic);
 
             // Reply first so the Web/WASM caller receives the result before this service exits.
             if (exitAfterReply)
                 Exit();
         }
 
-        private string StartCapture(string ip, int port, int ledCount)
+        private string StartCapture(string ip, int port, int ledCount, bool hdr, int colorSpace, bool fullRange, string backend)
         {
             IPAddress address;
             if (!IPAddress.TryParse(ip, out address) || address.AddressFamily != AddressFamily.InterNetwork)
@@ -109,19 +144,42 @@ namespace MoonlightAmbilight
             {
                 StopCaptureLocked();
 
-                // Every stream starts in a fresh ServiceApplication process.
-                // Initialize capture here instead of relying on a previous probe.
-                string initError = VideoPlaneCapture.Init();
-                _supported = initError == null;
-                if (initError != null)
+                // Backend selection is explicit; PPI is opt-in, never a DRM fallback.
+                string selected = String.IsNullOrEmpty(backend) ? VideoPlaneCapture.BackendName : backend;
+                string initError;
+                if (String.Equals(selected, PpiCapture.BackendName, StringComparison.OrdinalIgnoreCase))
                 {
-                    VideoPlaneCapture.Shutdown();
-                    return initError;
+                    initError = PpiCapture.Init();
+                    if (initError == null)
+                    {
+                        _ppiSampler = new PpiSampler(Math.Min(24, Math.Max(8, ledCount)));
+                        try { _ppiSampler.Start(); }
+                        catch (Exception ex) { initError = ex.GetType().Name + ": " + ex.Message; }
+                    }
+                    if (initError != null)
+                    {
+                        if (_ppiSampler != null) { _ppiSampler.Stop(); _ppiSampler = null; }
+                        PpiCapture.Shutdown();
+                        return initError;
+                    }
                 }
+                else if (String.Equals(selected, VideoPlaneCapture.BackendName, StringComparison.OrdinalIgnoreCase))
+                {
+                    initError = VideoPlaneCapture.Init();
+                    if (initError != null) { VideoPlaneCapture.Shutdown(); return initError; }
+                }
+                else return "Unknown capture backend. Use video_plane or ppi.";
+
+                _captureBackend = selected;
+                _supported = true;
 
                 _ip = address.ToString();
                 _port = port;
                 _ledCount = ledCount;
+                _hdr = hdr;
+                _colorSpace = colorSpace >= 0 && colorSpace <= 2 ? colorSpace : (hdr ? 2 : 1);
+                _fullRange = fullRange;
+                WledOutput.Reset();
                 _stopping = false;
                 _worker = new Thread(CaptureLoop) { IsBackground = true };
                 _worker.Start();
@@ -143,7 +201,14 @@ namespace MoonlightAmbilight
             if (worker != null && worker.IsAlive && worker != Thread.CurrentThread)
                 worker.Join();
 
+            if (_ppiSampler != null)
+            {
+                _ppiSampler.Stop();
+                _ppiSampler = null;
+            }
+            PpiCapture.Shutdown();
             VideoPlaneCapture.Shutdown();
+            _captureBackend = VideoPlaneCapture.BackendName;
         }
 
         private void CaptureLoop()
@@ -159,10 +224,22 @@ namespace MoonlightAmbilight
                 {
                     while (!_stopping)
                     {
-                        VideoPlaneResult frame = VideoPlaneCapture.Capture();
-                        if (frame != null && frame.HasFrame)
+                        byte[] packet = null;
+                        if (String.Equals(_captureBackend, PpiCapture.BackendName, StringComparison.OrdinalIgnoreCase))
                         {
-                            byte[] packet = WledOutput.BuildFrame(frame, _ledCount);
+                            PpiSampler sampler = _ppiSampler;
+                            byte[] rgb = null; bool[] valid = null; long[] updated = null;
+                            if (sampler != null && sampler.TrySnapshot(out rgb, out valid, out updated))
+                                packet = WledOutput.BuildPpiFrame(rgb, valid, _ledCount);
+                        }
+                        else
+                        {
+                            VideoPlaneResult frame = VideoPlaneCapture.Capture();
+                            if (frame != null && frame.HasFrame)
+                                packet = WledOutput.BuildFrame(frame, _ledCount, _hdr, _colorSpace, _fullRange);
+                        }
+                        if (packet != null)
+                        {
                             try { udp.Send(packet, packet.Length, endpoint); }
                             catch { }
                         }
@@ -177,7 +254,8 @@ namespace MoonlightAmbilight
             }
         }
 
-        private static void Reply(ReceivedAppControl control, bool ok, bool? supported, string error)
+        private static void Reply(ReceivedAppControl control, bool ok, bool? supported, string error,
+                                  string diagnostic = null)
         {
             if (control == null || !control.IsReplyRequest) return;
 
@@ -189,6 +267,8 @@ namespace MoonlightAmbilight
                     reply.ExtraData.Add("supported", supported.Value ? "true" : "false");
                 if (!String.IsNullOrEmpty(error))
                     reply.ExtraData.Add("error", error);
+                if (!String.IsNullOrEmpty(diagnostic))
+                    reply.ExtraData.Add("diagnostic", diagnostic);
                 control.ReplyToLaunchRequest(reply, AppControlReplyResult.Succeeded);
             }
             catch
@@ -208,6 +288,13 @@ namespace MoonlightAmbilight
         {
             int parsed;
             return Int32.TryParse(value, out parsed) ? parsed : fallback;
+        }
+
+        private static bool ParseBool(string value, bool fallback)
+        {
+            if (String.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1") return true;
+            if (String.Equals(value, "false", StringComparison.OrdinalIgnoreCase) || value == "0") return false;
+            return fallback;
         }
 
         protected override void OnTerminate()
