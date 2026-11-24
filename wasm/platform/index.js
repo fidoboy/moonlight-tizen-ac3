@@ -171,6 +171,15 @@ var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
 var ambilightSupportState = 'checking';
 var ambilightInitializationPromise = null;
+var ambilightStreamStartPromise = null;
+var ambilightStreamStartGeneration = 0;
+var ambilightStreamStartedGeneration = -1;
+
+function resetAmbilightStreamStartupState() {
+  ambilightStreamStartGeneration++;
+  ambilightStreamStartPromise = null;
+  ambilightStreamStartedGeneration = -1;
+}
 var isStartupUiRestored = false;
 var isDeferredStartupScheduled = false;
 var isDeferredStartupStarted = false;
@@ -8689,10 +8698,13 @@ function saveAmbilightPreference() {
 
     if (enabled) {
       if (isInGame) window.notifyAmbilightStreamReadinessChanged(false);
-    } else if (window.moonlightAmbilight) {
-      window.moonlightAmbilight.stop().catch(function(error) {
-        console.warn('[ambilight] Could not stop capture:', error);
-      });
+    } else {
+      resetAmbilightStreamStartupState();
+      if (window.moonlightAmbilight) {
+        window.moonlightAmbilight.stop().catch(function(error) {
+          console.warn('[ambilight] Could not stop capture:', error);
+        });
+      }
     }
   }, 100);
 }
@@ -8714,29 +8726,53 @@ function readAmbilightStoredValue(key) {
   });
 }
 
-// Single rendezvous for both streaming engines. EMSS and WMP only publish readiness;
-// this coordinator is the sole automatic startup entry point.
+// Single rendezvous for both streaming engines. EMSS and WMP only publish
+// the negotiated profile and connection state; this coordinator owns startup.
 window.notifyAmbilightStreamReadinessChanged = function(showTransitionStatus) {
   if (window._streamStartupFailureHandled === true ||
       window._streamConnectionEstablished !== true ||
       window._ambilightNegotiatedProfileReady !== true) {
     return Promise.resolve(false);
   }
-  return startAmbilightForStreamIfEnabled(showTransitionStatus === true);
+
+  if (ambilightStreamStartedGeneration === ambilightStreamStartGeneration) {
+    return Promise.resolve(true);
+  }
+  if (ambilightStreamStartPromise) return ambilightStreamStartPromise;
+
+  var generation = ambilightStreamStartGeneration;
+  ambilightStreamStartPromise = startAmbilightForStreamIfEnabled(showTransitionStatus === true, generation)
+    .then(function(started) {
+      if (generation !== ambilightStreamStartGeneration) return false;
+      if (started) ambilightStreamStartedGeneration = generation;
+      else ambilightStreamStartPromise = null;
+      return started;
+    }, function(error) {
+      if (generation === ambilightStreamStartGeneration) ambilightStreamStartPromise = null;
+      console.warn('[ambilight] Central startup coordinator failed:', error);
+      return false;
+    });
+  return ambilightStreamStartPromise;
 };
 
 window.startAmbilightForStreamIfEnabled = window.notifyAmbilightStreamReadinessChanged;
 
-function startAmbilightForStreamIfEnabled(showTransitionStatus) {
-  // Do not launch the capture service before the active stream profile is known.
-  if (window._ambilightNegotiatedProfileReady !== true) return Promise.resolve(false);
+function startAmbilightForStreamIfEnabled(showTransitionStatus, generation) {
+  // Fail closed unless both engines have published the same two readiness facts.
+  if (window._streamConnectionEstablished !== true ||
+      window._ambilightNegotiatedProfileReady !== true ||
+      generation !== ambilightStreamStartGeneration) return Promise.resolve(false);
+
   return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
+    if (generation !== ambilightStreamStartGeneration ||
+        window._streamConnectionEstablished !== true ||
+        window._ambilightNegotiatedProfileReady !== true) return false;
     var enabled = preference && preference.ambilightEnabled === true;
     if (!enabled) {
       if (showTransitionStatus === true) window._ambilightStartupFailed = false;
       return false;
     }
-    return startAmbilightForStream(showTransitionStatus);
+    return startAmbilightForStream(showTransitionStatus, generation);
   }).catch(function(error) {
     // Fail closed: a missing or unreadable preference must never start Ambilight.
     console.warn('[ambilight] Could not read the enabled preference; skipping startup:', error);
@@ -8745,7 +8781,7 @@ function startAmbilightForStreamIfEnabled(showTransitionStatus) {
   });
 }
 
-function startAmbilightForStream(showTransitionStatus) {
+function startAmbilightForStream(showTransitionStatus, generation) {
   if (showTransitionStatus === true) window._ambilightStartupFailed = false;
   if (!window.moonlightAmbilight) {
     if (showTransitionStatus === true) window._ambilightStartupFailed = true;
@@ -8753,10 +8789,14 @@ function startAmbilightForStream(showTransitionStatus) {
   }
 
   return initializeAmbilightSupport().then(function(supported) {
-    if (!supported) return false;
+    if (!supported || generation !== ambilightStreamStartGeneration ||
+        window._streamConnectionEstablished !== true ||
+        window._ambilightNegotiatedProfileReady !== true) return false;
     return readAmbilightStoredValue('ambilightWledIp');
   }).then(function(ipData) {
-    if (!ipData) return false;
+    if (!ipData || generation !== ambilightStreamStartGeneration ||
+        window._streamConnectionEstablished !== true ||
+        window._ambilightNegotiatedProfileReady !== true) return false;
     var ip = ipData.ambilightWledIp;
     if (!ip) {
       console.warn('[ambilight] Enabled but no WLED IP address is configured.');
@@ -8769,13 +8809,18 @@ function startAmbilightForStream(showTransitionStatus) {
       if (status) status.textContent = t('Starting Ambilight service...');
     }
 
-    var profile = window._ambilightColorProfile || {
-      hdr: false,
-      colorSpace: 1,
-      fullRange: window._ambilightRequestedFullRange === true
-    };
+    // The profile is mandatory here: readiness is only published after it has
+    // been supplied by the active engine. Never substitute requested settings.
+    var profile = window._ambilightColorProfile;
+    if (!profile || typeof profile.hdr !== 'boolean' ||
+        (profile.colorSpace !== 0 && profile.colorSpace !== 1 && profile.colorSpace !== 2) ||
+        typeof profile.fullRange !== 'boolean') {
+      console.warn('[ambilight] Negotiated video profile is incomplete; skipping startup.');
+      return false;
+    }
+
     return window.moonlightAmbilight.start(ip, 21324, 73, profile).then(function() {
-      return true;
+      return generation === ambilightStreamStartGeneration;
     }).catch(function(error) {
       console.warn('[ambilight] Could not start capture:', error);
       if (showTransitionStatus === true) window._ambilightStartupFailed = true;
