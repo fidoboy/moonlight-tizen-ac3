@@ -43,19 +43,21 @@ function remoteControllerHandler(e) {
 
   switch (keyCode) {
     case tvKey.KEY_UP:
-      // Navigate in the up direction
+      // These keys are handled by the application's remote navigation. Prevent
+      // the browser from also scrolling the focused settings pane or page.
+      e.preventDefault();
       Navigation.up();
       break;
     case tvKey.KEY_DOWN:
-      // Navigate in the down direction
+      e.preventDefault();
       Navigation.down();
       break;
     case tvKey.KEY_LEFT:
-      // Navigate in the left direction
+      e.preventDefault();
       Navigation.left();
       break;
     case tvKey.KEY_RIGHT:
-      // Navigate in the right direction
+      e.preventDefault();
       Navigation.right();
       break;
     case tvKey.KEY_ENTER:
