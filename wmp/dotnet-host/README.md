@@ -239,6 +239,11 @@ The following are implementation facts or explicit unknowns, not guarantees:
 - The supervisor reports termination, not the underlying crash cause. A
   native crash reason requires surviving platform crash logs or other
   diagnostics; the supervisor cannot reconstruct it.
+- The supervisor's separate-process `libavoc.so` P/Invoke and its ability
+  to change AVOC state under the supervisor application's Tizen security
+  context still require on-device verification. AVOC failures are logged
+  independently for source and global scopes; a successful build cannot prove
+  that firmware accepted either request.
 - If the supervisor itself is terminated or crashes, this implementation has
   no second-level supervisor. The existing WebApp Tizen status callback is
   only a fallback and has its previously described limitations.
