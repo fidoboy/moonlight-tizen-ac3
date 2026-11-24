@@ -11213,6 +11213,7 @@ function loadHTTPCertsCb() {
   var directWmpSelected = !!_directSmartHubLaunch &&
     _directSmartHubNativeLaunch === true;
   function nativeCredentialReadFailed(error) {
+    if (_directSmartHubLaunchFailed) return;
     var stage = error && error.moonlightReadStage;
     var messageByStage = {
       'database-open': 'Moonlight could not open its saved data database.',
@@ -11263,10 +11264,12 @@ function loadHTTPCertsCb() {
         // stream is still idle. prepare() does not create a playback session.
         var nativeCertificateGenerated = false;
         var nativeCredentialPromise = Promise.resolve().then(function() {
+          if (_directSmartHubLaunchFailed) return null;
           return savedUniqueid && savedUniqueid.uniqueid != null
             ? Promise.resolve()
             : storeData('uniqueid', myUniqueid, null);
         }).then(function() {
+          if (_directSmartHubLaunchFailed) return null;
           // startDirectSmartHubHttpInitialization has already prepared and
           // verified WMP before loadHTTPCertsCb began reading this identity.
           return pairingCert
