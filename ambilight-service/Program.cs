@@ -141,15 +141,34 @@ namespace MoonlightAmbilight
             {
                 StopCaptureLocked();
 
-                // Every stream starts in a fresh ServiceApplication process.
-                // Initialize capture here instead of relying on a previous probe.
-                string initError = VideoPlaneCapture.Init();
-                _supported = initError == null;
-                if (initError != null)
+                // Backend selection is explicit; PPI is opt-in, never a DRM fallback.
+                string selected = String.IsNullOrEmpty(backend) ? VideoPlaneCapture.BackendName : backend;
+                string initError;
+                if (String.Equals(selected, PpiCapture.BackendName, StringComparison.OrdinalIgnoreCase))
                 {
-                    VideoPlaneCapture.Shutdown();
-                    return initError;
+                    initError = PpiCapture.Init();
+                    if (initError == null)
+                    {
+                        _ppiSampler = new PpiSampler(Math.Min(24, Math.Max(8, ledCount)));
+                        try { _ppiSampler.Start(); }
+                        catch (Exception ex) { initError = ex.GetType().Name + ": " + ex.Message; }
+                    }
+                    if (initError != null)
+                    {
+                        if (_ppiSampler != null) { _ppiSampler.Stop(); _ppiSampler = null; }
+                        PpiCapture.Shutdown();
+                        return initError;
+                    }
                 }
+                else if (String.Equals(selected, VideoPlaneCapture.BackendName, StringComparison.OrdinalIgnoreCase))
+                {
+                    initError = VideoPlaneCapture.Init();
+                    if (initError != null) { VideoPlaneCapture.Shutdown(); return initError; }
+                }
+                else return "Unknown capture backend. Use video_plane or ppi.";
+
+                _captureBackend = selected;
+                _supported = true;
 
                 _ip = address.ToString();
                 _port = port;
