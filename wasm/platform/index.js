@@ -8795,8 +8795,13 @@ function startAmbilightForStream(showTransitionStatus, generation) {
     if (!supported || generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
-    return readAmbilightStoredValue('ambilightWledIp');
-  }).then(function(ipData) {
+    return Promise.all([
+      readAmbilightStoredValue('ambilightWledIp'),
+      readAmbilightStoredValue('ambilightCaptureBackend')
+    ]);
+  }).then(function(storedValues) {
+    var ipData = storedValues && storedValues[0];
+    var backendData = storedValues && storedValues[1];
     if (!ipData || generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
@@ -8822,7 +8827,9 @@ function startAmbilightForStream(showTransitionStatus, generation) {
       return false;
     }
 
-    return window.moonlightAmbilight.start(ip, 21324, 73, profile).then(function() {
+    // Explicit opt-in only. Missing or unknown preference keeps the established plane backend.
+    var captureBackend = backendData && backendData.ambilightCaptureBackend === 'ppi' ? 'ppi' : 'video_plane';
+    return window.moonlightAmbilight.start(ip, 21324, 73, profile, captureBackend).then(function() {
       return generation === ambilightStreamStartGeneration;
     }).catch(function(error) {
       console.warn('[ambilight] Could not start capture:', error);
