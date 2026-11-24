@@ -364,6 +364,21 @@ function shutdownAmbilightForStreamIfEnabled(context) {
   });
 }
 
+function stopAmbilightForStreamIfEnabled(context) {
+  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
+    if (!preference || preference.ambilightEnabled !== true) return false;
+    if (!window.moonlightAmbilight ||
+        typeof window.moonlightAmbilight.stop !== 'function') return false;
+    return window.moonlightAmbilight.stop().catch(function(error) {
+      console.warn('[ambilight] Could not stop capture during ' + context + ':', error);
+      return false;
+    });
+  }).catch(function(error) {
+    console.warn('[ambilight] Could not read the enabled preference during ' + context + '; skipping stop:', error);
+    return false;
+  });
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
   streamStartupFailureHandled = true;
@@ -5044,14 +5059,10 @@ function wakeOnLanWarningDialog(host) {
 // Restart the application only after the independent Ambilight service has exited.
 function restartApplication() {
   var reload = function() { window.location.reload(true); };
-  if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().then(reload, function(error) {
-      console.warn('[ambilight] Could not shut down service before restart:', error);
-      reload();
-    });
-  } else {
+  shutdownAmbilightForStreamIfEnabled('application restart').then(reload, function(error) {
+    console.warn('[ambilight] Could not shut down service before restart:', error);
     reload();
-  }
+  });
 }
 
 // Show the Restart Moonlight dialog
@@ -5140,13 +5151,8 @@ function exitApplication() {
     }
   };
 
-  if (!window.moonlightAmbilight || typeof window.moonlightAmbilight.shutdown !== 'function') {
-    exit();
-    return;
-  }
-
   var exitTimeout = window.setTimeout(exit, 2500);
-  window.moonlightAmbilight.shutdown().then(function() {
+  shutdownAmbilightForStreamIfEnabled('application exit').then(function() {
     window.clearTimeout(exitTimeout);
     exit();
   }).catch(function(error) {
