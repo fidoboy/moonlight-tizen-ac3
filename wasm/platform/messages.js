@@ -134,6 +134,7 @@ const SyncFunctions = {
     const activeStreamingEngine = getSelectedStreamingEngine();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
     window._ambilightNegotiatedProfileReady = false;
+    window._streamConnectionEstablished = false;
     window._ambilightColorProfile = null;
     window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
     window._confirmedGameMode = false;
@@ -2046,6 +2047,10 @@ function handleMessage(msg) {
       fullRange: ambilightFullRange
     };
     window._ambilightNegotiatedProfileReady = true;
+    if (window._streamConnectionEstablished === true &&
+        typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled(false);
+    }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
     updatePerformanceStatsPillsFromNegotiatedAudio(negotiatedAudioMessage);
@@ -2070,18 +2075,12 @@ function handleMessage(msg) {
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
 
-    // EMSS publishes the authoritative profile immediately before this event.
-    // ESPlusPlayer does not expose Moonlight's RTSP-selected format here, so use
-    // a conservative SDR fallback rather than falsely enabling the PQ pipeline.
-    if (window._ambilightNegotiatedProfileReady !== true) {
-      window._ambilightColorProfile = {
-        hdr: false,
-        colorSpace: 1,
-        fullRange: window._ambilightRequestedFullRange === true
-      };
-      window._ambilightNegotiatedProfileReady = true;
-    }
-    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+    // EMSS publishes its profile immediately before this event. WMP publishes
+    // its profile only after the first accepted native video frame; wait for that
+    // event rather than guessing from the requested HDR toggle.
+    window._streamConnectionEstablished = true;
+    if (window._ambilightNegotiatedProfileReady === true &&
+        typeof window.startAmbilightForStreamIfEnabled === 'function') {
       window.startAmbilightForStreamIfEnabled(false);
     }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
