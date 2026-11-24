@@ -8,6 +8,8 @@ const vm = require('vm');
 const source = fs.readFileSync(path.join(__dirname, '../wasm/platform/ambilight.js'), 'utf8');
 const platformSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/index.js'), 'utf8');
 const messagesSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/messages.js'), 'utf8');
+const ppiSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/PpiCapture.cs'), 'utf8');
+const serviceSource = fs.readFileSync(path.join(__dirname, '../ambilight-service/Program.cs'), 'utf8');
 
 // Startup-order regression checks: both engines publish readiness into one
 // coordinator, and only that coordinator may launch the optional service.
@@ -29,6 +31,24 @@ assert(messagesSource.includes("msg.indexOf('AmbilightProfile: ') === 0") &&
   'both engines must converge through the common readiness coordinator');
 assert(messagesSource.includes('resetAmbilightStreamStartupState()'),
   'stream boundaries must reset the coordinator idempotency state');
+
+// PPI remains an explicit diagnostic backend until hardware validation is complete.
+assert(ppiSource.includes('libvideoenhance.so') &&
+  ppiSource.includes('ppi_ve') && ppiSource.includes('cs_ve'),
+  'PPI must resolve the supported Samsung export families');
+assert(ppiSource.includes('Slots > MaxSlots') &&
+  ppiSource.includes('slot >= Slots') &&
+  ppiSource.includes('x >= MeasureWidth') && ppiSource.includes('y >= MeasureHeight'),
+  'PPI must validate reported capabilities, slot indexes and measurement coordinates');
+assert(ppiSource.includes('lock (Gate)') &&
+  ppiSource.includes('Thread.Sleep(SettleMs)'),
+  'PPI native reads must be serialized and respect the TV-reported settle interval');
+assert(serviceSource.includes('command, "ppi-probe"') &&
+  serviceSource.includes('PpiCapture.Read(0, x, y)'),
+  'PPI initialization and one-shot reading must be explicitly diagnosable');
+assert(!serviceSource.includes('PpiCapture.Read(') ||
+  serviceSource.indexOf('PpiCapture.Read(') > serviceSource.indexOf('command, "ppi-probe"'),
+  'PPI reads must not be wired into the automatic video-plane capture loop');
 
 function createEnvironment(platformVersion) {
   let running = [];
