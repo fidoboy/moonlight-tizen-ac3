@@ -11819,12 +11819,20 @@ function directSmartHubLaunchFailure(message) {
   var errorVisibleForMinimum = false;
   var cleanupFinished = false;
   var exitStarted = false;
+  var errorVisibilityTimerStarted = false;
+  var errorVisibilityFallbackTimeout = null;
   function finishFailureIfReady() {
     if (exitStarted || !errorVisibleForMinimum || !cleanupFinished) return;
     exitStarted = true;
     exitApplication();
   }
   var markErrorVisible = function() {
+    if (errorVisibilityTimerStarted) return;
+    errorVisibilityTimerStarted = true;
+    if (errorVisibilityFallbackTimeout !== null) {
+      window.clearTimeout(errorVisibilityFallbackTimeout);
+      errorVisibilityFallbackTimeout = null;
+    }
     window.setTimeout(function() {
       errorVisibleForMinimum = true;
       finishFailureIfReady();
@@ -11850,6 +11858,27 @@ function directSmartHubLaunchFailure(message) {
     if (layer) layer.style.display = 'block';
     markErrorVisible();
   }
+
+  // The transition's animation/reveal callback is asynchronous. If it never
+  // arrives (for example, because the animation frame cannot be scheduled),
+  // force the status layer visible and start the same minimum-read interval.
+  errorVisibilityFallbackTimeout = window.setTimeout(function() {
+    if (errorVisibilityTimerStarted || exitStarted) return;
+    try {
+      showUiLayer('stream-transition-layer');
+      fadeInUiElement('loadingSpinner', 'inline-block');
+    } catch (error) {
+      var fallbackLayer = document.getElementById('stream-transition-layer');
+      if (fallbackLayer) fallbackLayer.style.display = 'block';
+      var fallbackSpinner = document.getElementById('loadingSpinner');
+      if (fallbackSpinner) {
+        fallbackSpinner.style.display = 'inline-block';
+        fallbackSpinner.style.opacity = '1';
+      }
+      console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not animate the error status into view; forced its visibility:', error);
+    }
+    markErrorVisible();
+  }, 2000);
 }
 
 function maybeStartDirectSmartHubLaunch() {
