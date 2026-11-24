@@ -126,8 +126,9 @@ var common = (function() {
       window._directSmartHubLocalePromise.catch(function(error) {
         console.warn('[common.js] Could not load direct-stream translations:', error);
       });
-      // Start WebAssembly immediately; only its message bridge is attached above.
-      createWASMModule();
+      // The direct-launch engine is read from IndexedDB by index.js. Defer
+      // WebAssembly until that selection is known; WMP must not load it.
+      window.startDirectSmartHubWasm = createWASMModule;
     } else {
       // Normal startup waits until the localized UI has been displayed for 500 ms.
       window.startNormalStartupWasm = createWASMModule;
