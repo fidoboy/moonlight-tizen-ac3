@@ -1275,7 +1275,17 @@ body[data-color-theme="black-orange"] #background-layer {
     height: 38px;
     box-sizing: border-box;
     color: var(--theme-text-primary);
-    background-color: var(--theme-surface);
+    background-color: var(--theme-surface-selected);
+}
+#ambilightWledIpSelectFields .ip-address-select-field {
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface-selected);
+}
+#ambilightWledIpSelectFields .ip-address-select-field.hovered,
+#ambilightWledIpSelectFields .ip-address-select-field:hover,
+#ambilightWledIpTextInput:hover,
+#ambilightWledIpTextInput:focus {
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 #ambilightWledIpSelectFields {
     display: none;
