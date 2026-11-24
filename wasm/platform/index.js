@@ -6862,8 +6862,13 @@ function startGame(host, appID) {
     startAudioScheduler();
   }
 
-  // Refresh the server info, because the user might have quit the game
-  withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
+  // Refresh the server info, because the user might have quit the game. Defer
+  // invocation so a synchronous host-adapter exception follows the same failure path.
+  withOperationTimeout(
+    Promise.resolve().then(function() { return host.refreshServerInfo(); }),
+    STREAM_OPERATION_TIMEOUTS.hostRefresh,
+    'Host information refresh'
+  ).then(function(ret) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
     // Smart Hub shortcuts are trusted launch requests: do not enumerate the host's
@@ -11570,7 +11575,6 @@ function beginDirectSmartHubLaunch(actionData) {
     _directSmartHubHost = host;
     _directSmartHubHostReady = true;
     api = host;
-    localStorage.setItem('lastOpenedHost', host.serverUid);
     maybeStartDirectSmartHubLaunch();
   }
 
@@ -11888,9 +11892,14 @@ function maybeStartDirectSmartHubLaunch() {
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
   // startGame performs one host-specific server-info refresh before launching.
   // Do not run the background host-polling path for a direct Smart Hub request.
-  api = host;
-  localStorage.setItem('lastOpenedHost', host.serverUid);
-  startGame(host, _directSmartHubLaunch.appId);
+  try {
+    api = host;
+    localStorage.setItem('lastOpenedHost', host.serverUid);
+    startGame(host, _directSmartHubLaunch.appId);
+  } catch (error) {
+    console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'A synchronous error interrupted the direct Smart Hub launch:', error);
+    directSmartHubLaunchFailure(t('Moonlight could not start the selected app.'));
+  }
 }
 
 // Do not create the summary bar until the persisted preference has been loaded.
