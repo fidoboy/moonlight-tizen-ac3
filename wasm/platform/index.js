@@ -7876,19 +7876,6 @@ function getData(key, callbackFunction, errorCallback) {
               throw parseError;
             }
           }
-          if (typeof errorCallback === 'function' && value != null && key === 'cert' &&
-              (typeof value !== 'object' || typeof value.cert !== 'string' || !value.cert ||
-               typeof value.privateKey !== 'string' || !value.privateKey)) {
-            var certError = new Error('The stored Moonlight certificate record is invalid.');
-            certError.moonlightReadStage = 'cert-invalid';
-            throw certError;
-          }
-          if (typeof errorCallback === 'function' && value != null && key === 'uniqueid' &&
-              (typeof value !== 'string' || !value.trim())) {
-            var uniqueidError = new Error('The stored Moonlight unique ID record is invalid.');
-            uniqueidError.moonlightReadStage = 'uniqueid-invalid';
-            throw uniqueidError;
-          }
           finishRead(value);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
@@ -11194,10 +11181,8 @@ function loadHTTPCertsCb() {
       'database-open': 'Moonlight could not open its saved data database.',
       'cert-read': 'Moonlight could not read its saved certificate from IndexedDB.',
       'cert-parse': 'Moonlight could not decode its saved certificate data.',
-      'cert-invalid': 'Moonlight found an invalid or incomplete saved certificate.',
       'uniqueid-read': 'Moonlight could not read its saved client identifier from IndexedDB.',
       'uniqueid-parse': 'Moonlight could not decode its saved client identifier.',
-      'uniqueid-invalid': 'Moonlight found an invalid saved client identifier.'
     };
     var message = messageByStage[stage] || 'Moonlight encountered an unidentified error while recovering its saved streaming identity.';
     console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity at stage ' + (stage || 'unknown') + ':', error);
@@ -11214,12 +11199,6 @@ function loadHTTPCertsCb() {
   getData('cert', function(savedCert) {
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
-      if (directWmpSelected && (!pairingCert.cert || !pairingCert.privateKey)) {
-        var incompleteCertError = new Error('The stored Moonlight certificate is incomplete.');
-        incompleteCertError.moonlightReadStage = 'cert-invalid';
-        nativeCredentialReadFailed(incompleteCertError);
-        return;
-      }
     }
 
     getData('uniqueid', function(savedUniqueid) {
@@ -11245,9 +11224,6 @@ function loadHTTPCertsCb() {
         // stream is still idle. prepare() does not create a playback session.
         var nativeCertificateGenerated = false;
         var nativeCredentialPromise = Promise.resolve().then(function() {
-          if (!myUniqueid || typeof myUniqueid !== 'string' || !myUniqueid.trim()) {
-            throw new Error('The stored Moonlight unique ID is invalid.');
-          }
           return savedUniqueid && savedUniqueid.uniqueid != null
             ? Promise.resolve()
             : storeData('uniqueid', myUniqueid, null);
@@ -11272,9 +11248,6 @@ function loadHTTPCertsCb() {
         });
 
         nativeCredentialPromise.then(function(cert) {
-          if (!cert || !cert.cert || !cert.privateKey) {
-            throw new Error('Stored Moonlight certificate is incomplete.');
-          }
           return window.ESPlusPlayerTransport.httpInit(
             cert.cert, cert.privateKey, myUniqueid
           ).then(function(response) {
