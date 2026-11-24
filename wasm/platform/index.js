@@ -4589,16 +4589,14 @@ function renderReleaseNotesMarkdown(markdown, container) {
 
 // Extract only the release notes section from the released update.
 function extractReleaseNotes(releaseNotes) {
-  // Support both upstream "What's Changed" notes and this project's "Highlights" section.
-  const match = String(releaseNotes || '').match(/## (?:What's Changed:?|Highlights)\r?\n+([\s\S]+?)(?=\r?\n+## |\r?\n+\*\*Full Changelog\*\*|$)/);
-  if (!match) return null;
+  const lines = String(releaseNotes || '').split(/\r?\n/);
 
-  return match[1].split('\n').map(function(line) {
-    let cleaned = line.trim();
-    cleaned = cleaned.replace(/\s+by\s+@[^]+$/i, '');
-    if (cleaned && !cleaned.endsWith('.')) cleaned += '.';
-    return cleaned;
-  }).filter(Boolean).join('\n');
+  // Remove the first Markdown level-two heading, regardless of its title.
+  if (lines[0] && /^##\s+/.test(lines[0])) {
+    lines.shift();
+  }
+
+  return lines.join('\n').trim() || null;
 }
 
 // Format the update timestamp into a readable string as "dd/mm/yyyy hh:mm"
