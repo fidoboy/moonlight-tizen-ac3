@@ -51,11 +51,11 @@ The exported `avoc_set_game_mode` entry point was disassembled from three ARM li
 - `libavoc.so` from the Tizen 6.0 emulator.
 - `libavoc.so` extracted directly from the Samsung UE50AU7172 TV.
 
-The three implementations exhibit the same two-argument public C interface. The `save_type` and `mode` values supplied by the caller are the two operational arguments forwarded to `avoc_proxy_call_set_game_mode_sync`, which constructs the two-integer `SetGameMode(ii)` request. The additional value/register/stack slot noticed while following the internal wrapper-to-proxy path is part of that internal call sequence; it is not a third argument of the exported `avoc_set_game_mode` function.
+The three implementations exhibit the same two-argument public C interface. The caller supplies `save_type` and `mode`; these are the only two arguments in the exported function signature and are forwarded to `avoc_proxy_call_set_game_mode_sync`, which constructs the two-integer `SetGameMode(ii)` request. During disassembly, a third, final value/stack argument is visible deeper in the wrapper's internal call path. That value belongs to the internal proxy/D-Bus call sequence, not to the exported C entry point. It must not be added to the caller's function-pointer declaration or passed by Moonlight.
 
-Under the ARM procedure-call convention, a normal C call through `int (*)(int save_type, int mode)` places the two arguments in `r0` and `r1`, matching the two-argument interface confirmed across the examined implementations. The third value seen while tracing the wrapper's internal path must not be promoted to a public C parameter: it belongs to the internal call/stack handling associated with the D-Bus proxy invocation.
+Under the ARM procedure-call convention, a normal C call through `int (*)(int save_type, int mode)` places the two arguments in `r0` and `r1`, matching the two-argument interface confirmed across the examined implementations. The third/final value seen while tracing the wrapper's internal path is used by the internal proxy/D-Bus call; it is not an incoming argument to `avoc_set_game_mode` and must not be promoted to a public C parameter.
 
-The correct function-pointer shape is `int (*)(int save_type, int mode)`. There is no leading placeholder and no third public argument. The additional stack/register value observed during disassembly is not part of this exported function's C signature.
+The correct function-pointer shape is `int (*)(int save_type, int mode)`. There is no leading placeholder and no third public argument. The extra final argument belongs exclusively to the internal call path toward the D-Bus proxy. This setter finding is independent of the getter ABI described in the following section; the getter has a different signature and must not be used to infer the setter's argument count.
 
 This finding confirms the two-argument declaration used by the public WMP Tizen 5.0 implementation; it is not an older-ABI exception.
 
@@ -127,7 +127,7 @@ All three functions call `avoc_init_gdbus_connections` before obtaining the prox
 
 This disassembly shows that the **Tizen 6.0 x86 getter** has a three-slot call frame, with its first incoming slot unused and its operational `save_type` and output-pointer arguments at `[ebp+0xc]` and `[ebp+0x10]`. That getter-specific layout does not establish a three-argument setter.
 
-The x86 disassembly also exposes internal stack arguments used along the wrapper-to-proxy/D-Bus path. The extra slot observed there is not evidence of a third public `avoc_set_game_mode` C parameter. The exported setter remains a two-argument function; its internal proxy call serializes the two operational integers into `SetGameMode(ii)`. The getter has its own distinct pointer-bearing interface, described above.
+The x86 disassembly also exposes the internal stack arguments used along the wrapper-to-proxy/D-Bus path. In particular, the third/final value visible at that internal call boundary is not a third public `avoc_set_game_mode` C parameter. The exported setter remains a two-argument function; its internal proxy call serializes the two operational integers into `SetGameMode(ii)`. The getter has its own distinct pointer-bearing interface, described above.
 
 The native C interface must not be confused with internal wrapper-to-proxy call frames. `avoc_set_game_mode` accepts two C arguments and the proxy method serializes those two integers as `SetGameMode(ii)`. Extra values visible in an internal stack frame are not additional public parameters.
 
