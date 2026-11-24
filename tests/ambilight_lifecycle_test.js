@@ -11,7 +11,7 @@ const messagesSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/me
 
 // Startup-order regression checks: both engines publish readiness into one
 // coordinator, and only that coordinator may launch the optional service.
-assert.strictEqual((platformSource.match(/moonlightAmbilight\\.start\\(/g) || []).length, 1,
+assert.strictEqual(platformSource.split('moonlightAmbilight.start(').length - 1, 1,
   'there must be exactly one automatic Ambilight service start call');
 assert(platformSource.includes('window._streamConnectionEstablished !== true') &&
   platformSource.includes('window._ambilightNegotiatedProfileReady !== true'),
