@@ -183,9 +183,7 @@ WMP teardown performs both requests after ESPlus releases the player. The
 supervisor runs AVOC calls on a background thread, waits up to 2.5 seconds
 before continuing, and allows a further 5 seconds before exiting; an unresolved
 call is logged rather than allowed to block process supervision indefinitely.
-The native setter declaration follows the three-argument ARM register
-convention documented in `AVOC-TIZEN60-INVESTIGATION.md`; its leading
-argument is an ABI placeholder whose contractual meaning remains unknown.
+The native setter declaration follows the confirmed two-argument C interface documented in `AVOC-TIZEN60-INVESTIGATION.md`.
 
 ### WebApp: recovery path
 
