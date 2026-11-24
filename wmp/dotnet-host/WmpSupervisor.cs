@@ -40,9 +40,8 @@ namespace MoonlightWmpHost
                 " detail=" + (detail ?? String.Empty));
         }
 
-        // Keep the exact three-argument ARM ABI verified in AVOC-TIZEN60-INVESTIGATION.md.
-        // The first argument is currently an ABI placeholder; save_type=1 is the
-        // source scope and save_type=0 is the global scope.
+        // The exported AVOC setter has two C arguments: save_type and mode.
+        // save_type=1 is the source scope; save_type=0 is the global scope.
         [DllImport("libavoc.so", EntryPoint = "avoc_set_game_mode",
             CallingConvention = CallingConvention.Cdecl)]
         private static extern int AvocSetGameMode(int saveType, int mode);
