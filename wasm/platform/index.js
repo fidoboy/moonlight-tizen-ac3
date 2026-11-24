@@ -243,6 +243,7 @@ const STREAM_OPERATION_TIMEOUTS = {
   hostLaunch: 15000, streamConnection: 15000
 };
 const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 4500;
+const SMART_HUB_STARTUP_CLEANUP_TIMEOUT_MS = 20000;
 var streamStartupWatchdogTimeout = null;
 var streamStartupFailureHandled = false;
 var streamStartupGeneration = 0;
@@ -381,9 +382,6 @@ function stopAmbilightForStreamIfEnabled(context) {
 
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
-  streamStartupFailureHandled = true;
-  streamStartupGeneration++;
-  window._streamStartupFailureHandled = true;
   var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
     : (stage === 'initialization'
@@ -392,6 +390,17 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   var transitionMessage = stage === 'video'
     ? t('Connection ended. Frame loss detected.')
     : message;
+
+  // Direct Smart Hub startup errors are terminal immediately. Do not run the
+  // regular recovery path, which can issue more requests or rewrite the status.
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(transitionMessage);
+    return;
+  }
+
+  streamStartupFailureHandled = true;
+  streamStartupGeneration++;
+  window._streamStartupFailureHandled = true;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
 
   if (!isInGame) {
@@ -451,6 +460,11 @@ function streamStartupTimeoutFailure(stage, customMessage) {
 // sequence, while retaining the host API status code and its original message.
 function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   if (streamStartupFailureHandled) return;
+  // Direct Smart Hub failures must not enter the normal Apps/Hosts recovery UI.
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(message);
+    return;
+  }
   streamStartupFailureHandled = true;
   streamStartupGeneration++;
   window._streamStartupFailureHandled = true;
@@ -11725,20 +11739,25 @@ function directSmartHubLaunchFailure(message) {
 
   // WMP preparation starts a separate native service and supervisor. Tear both
   // down and verify that their processes are gone before returning to Smart Hub.
-  // abortPreparedStartup closes the MessagePort first, rejects pending requests,
-  // stops the supervisor/service and performs a final process-state check.
+  // The overall deadline is independent of the individual Tizen callbacks: a
+  // stalled native cleanup must never keep the application alive indefinitely.
   var cleanupPromise = Promise.resolve();
   if (_directSmartHubNativeLaunch === true) {
     var transport = window.ESPlusPlayerTransport;
     if (transport && typeof transport.abortPreparedStartup === 'function') {
-      cleanupPromise = Promise.resolve().then(function() {
+      var nativeCleanup = Promise.resolve().then(function() {
         return transport.abortPreparedStartup();
-      }).catch(function(error) {
-        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup did not complete successfully:', error);
+      });
+      cleanupPromise = withOperationTimeout(
+        nativeCleanup,
+        SMART_HUB_STARTUP_CLEANUP_TIMEOUT_MS,
+        'Native WMP startup cleanup'
+      ).catch(function(error) {
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup did not finish before the shutdown deadline; proceeding with controlled application exit:', error);
       });
     } else {
       cleanupPromise = Promise.resolve().then(function() {
-        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup is unavailable; the service process could not be verified as stopped.');
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup is unavailable; proceeding with controlled application exit without process-state verification.');
       });
     }
   }
