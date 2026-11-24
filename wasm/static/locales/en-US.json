@@ -684,5 +684,5 @@
   "Moonlight could not decode its saved client identifier.": "Moonlight could not decode its saved client identifier.",
   "Moonlight found an invalid saved client identifier.": "Moonlight found an invalid saved client identifier.",
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight encountered an unidentified error while recovering its saved streaming identity.",
-  "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip.": "Ambilight synchronizes the colors of the on-screen image with LED strips. You need a WLED device connected to an LED strip."
+  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required."
 }
