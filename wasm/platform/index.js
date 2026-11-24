@@ -7037,9 +7037,8 @@ function startGame(host, appID) {
       var audioSync = streamSettings.audioSync;
       var audioJitter = streamSettings.audioJitter;
       var playHostAudio = streamSettings.playHostAudio;
-      // Request continuous audio only for the native ESPlusPlayer audio path.
-      var continuousAudio = streamSettings.streamingEngine === 'ESPLUSPLAYER' &&
-        streamSettings.audioBackend === 'ESPLUSPLAYER';
+      // Request continuous audio from the host for both EMSS and native ESPlusPlayer streams.
+      var continuousAudio = true;
       var decryptHostAudio = streamSettings.decryptHostAudio;
       var videoCodec = streamSettings.videoCodec;
       var h264Level = streamSettings.h264Level;
