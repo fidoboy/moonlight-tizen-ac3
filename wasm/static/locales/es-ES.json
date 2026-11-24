@@ -615,6 +615,7 @@
   "Video stream from %1$s stopped being received.": "Se dejó de recibir el flujo de vídeo desde %1$s.",
   "Video stream:": "Flujo de vídeo:",
   "View Details": "Ver detalles",
+  "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Introduzca la dirección IP de su dispositivo WLED. Asegúrese de que el televisor pueda acceder a él a través de la red local.",
   "WLED IP address": "Dirección IP de WLED",
   "WMP cleanup failed:": "Error al limpiar WMP:",
   "Waiting for the host PC to wake up and connect to the network...": "Esperando a que el PC anfitrión se encienda y se conecte a la red…",
