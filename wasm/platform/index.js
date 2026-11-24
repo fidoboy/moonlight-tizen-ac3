@@ -11244,22 +11244,22 @@ function loadHTTPCertsCb() {
     console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity at stage ' + (stage || 'unknown') + ':', error);
     directSmartHubLaunchFailure(t(message));
   }
-  // Only direct Smart Hub + WMP treats identity-read failures as fatal.
-  // Other launch paths retain their existing IndexedDB recovery behavior.
-  var certReadErrorCallback = directWmpSelected
+  // Every direct Smart Hub launch treats an identity-read failure as terminal;
+  // normal in-app launches retain their existing IndexedDB recovery behavior.
+  var certReadErrorCallback = _directSmartHubLaunch
     ? nativeCredentialReadFailed
     : undefined;
-  var uniqueidReadErrorCallback = directWmpSelected
+  var uniqueidReadErrorCallback = _directSmartHubLaunch
     ? nativeCredentialReadFailed
     : undefined;
   getData('cert', function(savedCert) {
-    if (directWmpSelected && _directSmartHubLaunchFailed) return;
+    if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
     }
 
     getData('uniqueid', function(savedUniqueid) {
-      if (directWmpSelected && _directSmartHubLaunchFailed) return;
+      if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
       if (savedUniqueid && savedUniqueid.uniqueid != null) { // We have a saved uniqueid
         myUniqueid = savedUniqueid.uniqueid;
       } else {
@@ -11338,36 +11338,68 @@ function loadHTTPCertsCb() {
             directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials or HTTP connection.'));
           }
         });
-      } else {
-      if (!pairingCert) { // We couldn't load a cert. Let's attempt to generate a new one.
-        console.warn('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Warning: Local certificate not found! Generating a new one...');
-        sendMessage('makeCert', []).then(function(cert) {
-          storeData('cert', cert, null);
-          pairingCert = cert;
-          console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate: ', cert);
-        }, function(failedCert) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed to generate a new certificate! Returned error was: \n', failedCert + '!');
-          if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials.'));
-        }).then(function(ret) {
-          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
-            isStartupHttpReady = true;
-            if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
-            else maybeRestoreUiAfterStartup();
-          }, function(failedInit) {
-            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
-            if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming connection.'));
+      } else if (_directSmartHubLaunch) {
+        // Direct EMSS must stop the credential chain at the first failure. In
+        // particular, a failed makeCert must never fall through into httpInit.
+        var directCredentialStage = 'credentials';
+        var directEmssCredentialPromise = Promise.resolve().then(function() {
+          if (_directSmartHubLaunchFailed) return null;
+          if (savedUniqueid && savedUniqueid.uniqueid != null) return null;
+          return storeData('uniqueid', myUniqueid, null);
+        }).then(function() {
+          if (_directSmartHubLaunchFailed || pairingCert) return pairingCert;
+          return sendMessage('makeCert', []).then(function(cert) {
+            if (_directSmartHubLaunchFailed) return null;
+            if (!cert || !cert.cert || !cert.privateKey) {
+              throw new Error('WASM certificate generation returned an invalid response.');
+            }
+            return storeData('cert', cert, null).then(function() {
+              if (_directSmartHubLaunchFailed) return null;
+              pairingCert = cert;
+              return cert;
+            });
           });
         });
-      } else {
-        sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+        directEmssCredentialPromise.then(function(cert) {
+          if (_directSmartHubLaunchFailed || !cert) return null;
+          directCredentialStage = 'http';
+          return sendMessage('httpInit', [cert.cert, cert.privateKey, myUniqueid]);
+        }).then(function() {
+          if (_directSmartHubLaunchFailed) return;
           isStartupHttpReady = true;
-          if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
-          else maybeRestoreUiAfterStartup();
-        }, function(failedInit) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
-            if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not initialize its streaming connection.');
+          maybeStartDirectSmartHubLaunch();
+        }).catch(function(error) {
+          if (_directSmartHubLaunchFailed) return;
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Direct EMSS credential/HTTP initialization failed:', error);
+          directSmartHubLaunchFailure(directCredentialStage === 'http'
+            ? t('Moonlight could not initialize its streaming connection.')
+            : t('Moonlight could not initialize its streaming credentials.'));
         });
-      }
+      } else {
+        if (!pairingCert) { // We couldn't load a cert. Let's attempt to generate a new one.
+          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Warning: Local certificate not found! Generating a new one...');
+          sendMessage('makeCert', []).then(function(cert) {
+            storeData('cert', cert, null);
+            pairingCert = cert;
+            console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate: ', cert);
+          }, function(failedCert) {
+            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed to generate a new certificate! Returned error was: \n', failedCert + '!');
+          }).then(function(ret) {
+            sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+              isStartupHttpReady = true;
+              maybeRestoreUiAfterStartup();
+            }, function(failedInit) {
+              console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
+            });
+          });
+        } else {
+          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+            isStartupHttpReady = true;
+            maybeRestoreUiAfterStartup();
+          }, function(failedInit) {
+            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
+          });
+        }
       }
 
       // load previously connected hosts, which have been killed into an object, and revive them back into a class
