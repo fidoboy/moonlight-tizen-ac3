@@ -681,6 +681,6 @@
   "Moonlight could not decode its saved client identifier.": "O Moonlight não conseguiu decodificar o identificador do cliente salvo.",
   "Moonlight found an invalid saved client identifier.": "O Moonlight encontrou um identificador de cliente salvo inválido.",
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "O Moonlight encontrou um erro não identificado ao recuperar a identidade de streaming salva.",
-  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "O Ambilight sincroniza a iluminação LED com as cores exibidas na tela. É necessário um dispositivo WLED.",
+  "Ambilight synchronizes your LED lighting with the colors on screen. A WLED device is required.": "O Ambilight sincroniza as cores exibidas na tela com a iluminação. É necessário um dispositivo WLED.",
   "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Digite o endereço IP do seu dispositivo WLED. Verifique se ele pode ser acessado pela TV por meio da rede local."
 }
