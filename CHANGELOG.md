@@ -5,6 +5,9 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ## v1.3.1
 
+### Added
+- **Live stream indicators in the performance overlay:** Added compact visual indicators for the active streaming engine, negotiated video codec and HDR, audio codec, decoding mode and channel layout, network connection type, and confirmed Game Mode. Each indicator lights up according to the effective state detected or negotiated for the current streaming session, rather than merely reflecting the saved preferences.
+
 ### Changed
 - **Stream shutdown sequence:** Made the closing transition report its work in a visible, sequential status flow. WMP service termination, Ambilight shutdown, local audio restoration, optional remote application closure, and return to the Apps view are handled in order. Each operation has a bounded wait; failures and timeouts are recorded without preventing the interface from recovering.
 - **Closing transition feedback:** Ensure a status is visible as soon as the closing transition appears, avoiding an initially blank progress screen. Preserve the established local audio restoration message.
