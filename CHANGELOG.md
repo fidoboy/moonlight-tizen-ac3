@@ -17,6 +17,8 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
   - Preserved the fork's Tizen-specific platform, renderer, networking and Dolby Digital/AC-3/E-AC-3 adaptations.
 
 ### Fixed
+- **Automatic optimal bitrate setting:** Fixed the automatic optimal-bitrate mode continuing to overwrite the manually configured bitrate after the mode had been disabled.
+- **Native WMP engine lifecycle:** Fixed several issues in the initialization and handling of the native WMP engine, particularly during quick launches from Samsung Smart Hub shortcuts.
 - **Video depacketizer concurrency:** Applied the compatible upstream synchronization and state-management fixes while retaining defensive handling for the Tizen integration.
 - **Stream-closing status progression:** Prevented later shutdown operations from prematurely replacing earlier status messages, and ensured each stage advances only after the preceding operation completes, fails, or times out.
 
