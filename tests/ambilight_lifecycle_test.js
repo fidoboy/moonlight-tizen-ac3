@@ -6,6 +6,29 @@ const path = require('path');
 const vm = require('vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../wasm/platform/ambilight.js'), 'utf8');
+const platformSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/index.js'), 'utf8');
+const messagesSource = fs.readFileSync(path.join(__dirname, '../wasm/platform/messages.js'), 'utf8');
+
+// Startup-order regression checks: both engines publish readiness into one
+// coordinator, and only that coordinator may launch the optional service.
+assert.strictEqual((platformSource.match(/moonlightAmbilight\\.start\\(/g) || []).length, 1,
+  'there must be exactly one automatic Ambilight service start call');
+assert(platformSource.includes('window._streamConnectionEstablished !== true') &&
+  platformSource.includes('window._ambilightNegotiatedProfileReady !== true'),
+  'the coordinator must wait for both connection and negotiated-profile readiness');
+assert(platformSource.includes('if (ambilightStreamStartPromise) return ambilightStreamStartPromise;'),
+  'concurrent readiness notifications must share one in-flight startup');
+assert(platformSource.includes("preference.ambilightEnabled === true"),
+  'the coordinator must require the persisted Ambilight enabled preference');
+assert(platformSource.includes('var profile = window._ambilightColorProfile;') &&
+  !platformSource.includes('var profile = window._ambilightColorProfile ||'),
+  'the service must receive the negotiated profile, never a guessed fallback');
+assert(messagesSource.includes("msg.indexOf('AmbilightProfile: ') === 0") &&
+  messagesSource.includes("msg === 'Connection Established'") &&
+  messagesSource.includes('window.notifyAmbilightStreamReadinessChanged(false);'),
+  'both engines must converge through the common readiness coordinator');
+assert(messagesSource.includes('resetAmbilightStreamStartupState()'),
+  'stream boundaries must reset the coordinator idempotency state');
 
 function createEnvironment(platformVersion) {
   let running = [];
