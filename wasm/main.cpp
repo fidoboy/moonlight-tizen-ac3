@@ -93,7 +93,9 @@ void MoonlightInstance::OnConnectionStarted(uint32_t unused) {
   // a negotiated 10-bit format as well.
   const bool negotiated10Bit = (NegotiatedVideoFormat & VIDEO_FORMAT_MASK_10BIT) != 0;
   const bool hdrActive = m_HdrModeEnabled && negotiated10Bit;
-  const int colorSpace = hdrActive ? COLORSPACE_REC_2020 : COLORSPACE_REC_709;
+  // Preserve the actual encoder CSC mode even if an HDR request fell back to
+  // an 8-bit profile; that can still be SDR encoded with Rec.2020 primaries.
+  const int colorSpace = m_StreamConfig.colorSpace;
   const bool fullRange = m_StreamConfig.colorRange == COLOR_RANGE_FULL;
   PostToJs(std::string("AmbilightProfile: ") +
     (hdrActive ? "1" : "0") + "|" + std::to_string(colorSpace) + "|" +
