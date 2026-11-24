@@ -30,6 +30,7 @@ namespace MoonlightWmpHost
         private static int _startupTargetPid;
         private static int _startupTimeoutSeconds;
         private static long _startupWatchdogGeneration;
+        private static Thread _avocCleanupThread;
 
         private static void LogLifecycle(string phase, string detail)
         {
@@ -72,14 +73,29 @@ namespace MoonlightWmpHost
 
         private static void ForceGameModeFullOff(string reason)
         {
-            // Do not short-circuit: the global safety-net call must run even if
-            // the source-scoped AVOC request fails or the source state is absent.
-            int sourceRc = SetGameModeOff(1, "source", reason);
-            int globalRc = SetGameModeOff(0, "global", reason);
-            LogLifecycle("avoc_full_off_complete",
-                "reason=" + reason +
-                " source_rc=" + sourceRc.ToString(CultureInfo.InvariantCulture) +
-                " global_rc=" + globalRc.ToString(CultureInfo.InvariantCulture));
+            // AVOC uses a synchronous firmware call. Keep it off the watchdog
+            // callback's critical path so a stalled AVOC service cannot prevent
+            // the supervisor from killing a hung WMP process.
+            Thread cleanupThread = new Thread(delegate()
+            {
+                // Do not short-circuit: the global safety-net call must run even
+                // if the source operation fails or the source state is absent.
+                int sourceRc = SetGameModeOff(1, "source", reason);
+                int globalRc = SetGameModeOff(0, "global", reason);
+                LogLifecycle("avoc_full_off_complete",
+                    "reason=" + reason +
+                    " source_rc=" + sourceRc.ToString(CultureInfo.InvariantCulture) +
+                    " global_rc=" + globalRc.ToString(CultureInfo.InvariantCulture));
+            });
+            cleanupThread.IsBackground = true;
+            _avocCleanupThread = cleanupThread;
+            cleanupThread.Start();
+
+            if (!cleanupThread.Join(2500))
+            {
+                LogLifecycle("avoc_full_off_wait_timeout",
+                    "reason=" + reason + " wait_ms=2500; cleanup continues in background");
+            }
         }
 
         internal static void Start(ServiceApplication application)
@@ -348,6 +364,14 @@ namespace MoonlightWmpHost
 
             ThreadPool.QueueUserWorkItem(delegate(object state)
             {
+                // Give an AVOC call that outlived the first bounded wait a
+                // further opportunity to finish before this supervisor exits.
+                Thread cleanup = _avocCleanupThread;
+                if (cleanup != null && !cleanup.Join(5000))
+                {
+                    LogLifecycle("avoc_full_off_exit_timeout",
+                        "additional_wait_ms=5000; supervisor is exiting with cleanup unresolved");
+                }
                 Thread.Sleep(250);
                 try
                 {
