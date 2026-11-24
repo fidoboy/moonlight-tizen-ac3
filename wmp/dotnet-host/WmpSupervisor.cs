@@ -45,7 +45,7 @@ namespace MoonlightWmpHost
         // source scope and save_type=0 is the global scope.
         [DllImport("libavoc.so", EntryPoint = "avoc_set_game_mode",
             CallingConvention = CallingConvention.Cdecl)]
-        private static extern int AvocSetGameMode(int reserved, int saveType, int mode);
+        private static extern int AvocSetGameMode(int saveType, int mode);
 
         private static int SetGameModeOff(int saveType, string scope, string reason)
         {
@@ -54,7 +54,7 @@ namespace MoonlightWmpHost
             {
                 for (int attempt = 0; attempt <= 3; attempt++)
                 {
-                    rc = AvocSetGameMode(0, saveType, 0);
+                    rc = AvocSetGameMode(saveType, 0);
                     LogLifecycle("avoc_full_off_attempt",
                         "reason=" + reason + " scope=" + scope +
                         " saveType=" + saveType.ToString(CultureInfo.InvariantCulture) +
