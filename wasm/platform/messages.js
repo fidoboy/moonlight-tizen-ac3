@@ -161,10 +161,8 @@ const SyncFunctions = {
   },
   // no parameters
   'stopRequest': (...args) => {
-    if (window.moonlightAmbilight) {
-      window.moonlightAmbilight.stop().catch(function(error) {
-        console.warn('[ambilight] Could not stop native service:', error);
-      });
+    if (typeof window.stopAmbilightForStreamIfEnabled === 'function') {
+      window.stopAmbilightForStreamIfEnabled('stream termination');
     }
     // Begin the same UI termination path for both engines before sending the
     // engine-specific stop signal. Unsolicited terminations converge on the same
