@@ -66,6 +66,7 @@
       data.push(new tizen.ApplicationControlData('hdr', [settings.hdr === true ? 'true' : 'false']));
       data.push(new tizen.ApplicationControlData('colorSpace', [String(settings.colorSpace === 0 || settings.colorSpace === 2 ? settings.colorSpace : 1)]));
       data.push(new tizen.ApplicationControlData('fullRange', [settings.fullRange === true ? 'true' : 'false']));
+      data.push(new tizen.ApplicationControlData('captureBackend', [settings.captureBackend === 'ppi' ? 'ppi' : 'video_plane']));
     }
 
     var control = new tizen.ApplicationControl(OPERATION, null, null, null, data);
@@ -268,7 +269,7 @@
       return initialized && supported;
     },
 
-    start: function(ip, port, ledCount, colorProfile) {
+    start: function(ip, port, ledCount, colorProfile, captureBackend) {
       if (!ip) return Promise.reject(new Error('WLED IP address is required.'));
       return initialize().then(function(available) {
         if (!available) throw new Error('Ambilight capture is not supported on this TV.');
@@ -279,7 +280,8 @@
           ledCount: ledCount,
           hdr: colorProfile.hdr === true,
           colorSpace: colorProfile.colorSpace,
-          fullRange: colorProfile.fullRange === true
+          fullRange: colorProfile.fullRange === true,
+          captureBackend: captureBackend === 'ppi' ? 'ppi' : 'video_plane'
         }, true);
       }).then(function(result) {
         if (result.supported === false) {
