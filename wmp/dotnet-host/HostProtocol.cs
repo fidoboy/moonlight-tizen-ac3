@@ -25,6 +25,9 @@ namespace MoonlightWmpHost
         // Native libgamestream HTTP state is process-global. Serialize HTTP
         // operations, while allowing cancel_request to interrupt an active call.
         private static readonly object NativeHttpGate = new object();
+        private static readonly object NativeHttpActivityGate = new object();
+        private static readonly ManualResetEvent NativeHttpIdle = new ManualResetEvent(true);
+        private static int _nativeHttpPendingOperations;
         private static MessagePort _port;
         private static EngineApi _engine;
         private static Thread _worker;
@@ -93,6 +96,7 @@ namespace MoonlightWmpHost
             internal int GameMode;
             internal int DisableWarnings;
             internal int DebugMode;
+            internal int DeferExitUntilReleased;
         }
 
         internal static bool NotifySupervisorStartupWatchdog(int timeoutSeconds)
@@ -424,6 +428,8 @@ namespace MoonlightWmpHost
 
             if (!TryBool(Arg(bundle, "debugMode"), out value.DebugMode))
                 value.DebugMode = 0; // Optional: older Web clients do not send this field.
+            if (!TryBool(Arg(bundle, "deferExitUntilReleased"), out value.DeferExitUntilReleased))
+                value.DeferExitUntilReleased = 0; // Optional: older Web clients retain automatic exit.
             if (invalidField != null) return false;
             request = value;
             return true;
@@ -924,6 +930,9 @@ namespace MoonlightWmpHost
                     case "stop_session":
                         StopSession(appId, remotePort, id);
                         return;
+                    case "release_session":
+                        ReleaseSession(appId, remotePort, id);
+                        return;
                     default:
                         Respond(appId, remotePort, id, "error",
                             "{\"error\":\"unsupported_command\"}");
@@ -978,6 +987,9 @@ namespace MoonlightWmpHost
 
             // Native HTTP calls may block on network I/O. Never run them on the
             // MessagePort callback thread or on the session lifecycle worker.
+            // Track queued as well as running operations so release_session cannot
+            // overtake a request that has not acquired NativeHttpGate yet.
+            BeginNativeHttpOperation();
             ThreadPool.QueueUserWorkItem(delegate
             {
                 try
@@ -1120,6 +1132,10 @@ namespace MoonlightWmpHost
                     Log.Error("WMP native HTTP command failed command=" + command + ": " + ex);
                     Respond(appId, remotePort, id, "error",
                         "{\"error\":\"native_call_failed\"}");
+                }
+                finally
+                {
+                    EndNativeHttpOperation();
                 }
             });
         }
@@ -1373,7 +1389,8 @@ namespace MoonlightWmpHost
                 ", fullRange=" + DiagnosticArgument(bundle, "fullRange", false) +
                 ", gameMode=" + DiagnosticArgument(bundle, "gameMode", false) +
                 ", opticalOutputEnabled=" + DiagnosticArgument(bundle, "opticalOutputEnabled", false) +
-                ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false));
+                ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false) +
+                ", deferExitUntilReleased=" + DiagnosticArgument(bundle, "deferExitUntilReleased", false));
         }
 
         private static void StartSession(Bundle bundle, string appId,
@@ -1443,6 +1460,7 @@ namespace MoonlightWmpHost
                 _worker = worker;
             }
 
+            App.SetExitDeferred(request.DeferExitUntilReleased != 0);
             Log.Info("WMP_LIFECYCLE worker_created requestId=" + id);
             Respond(appId, remotePort, id, "ok", "{\"accepted\":true}");
             Log.Info("WMP_LIFECYCLE start_session_accepted requestId=" + id);
@@ -1494,6 +1512,53 @@ namespace MoonlightWmpHost
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
             App.RequestExitAfterSession();
+        }
+
+        private static void ReleaseSession(string appId, string remotePort, string id)
+        {
+            // Run the release barrier away from the MessagePort callback thread.
+            // It must not allow WMP to exit while the session worker or any native
+            // HTTP operation submitted before this command is still active.
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    Thread worker;
+                    lock (Gate) worker = _worker;
+                    if (worker != null && worker != Thread.CurrentThread && worker.IsAlive)
+                        worker.Join();
+
+                    NativeHttpIdle.WaitOne();
+                    Respond(appId, remotePort, id, "ok", "{\"released\":true}");
+                    Log.Info("WMP_LIFECYCLE deferred_exit_released after_session_and_native_http_idle");
+                    App.ReleaseExitAfterSession();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP_LIFECYCLE deferred_exit_release_failed " + ex);
+                    Respond(appId, remotePort, id, "error", "{\"error\":\"release_failed\"}");
+                }
+            });
+        }
+
+        private static void BeginNativeHttpOperation()
+        {
+            lock (NativeHttpActivityGate)
+            {
+                _nativeHttpPendingOperations++;
+                NativeHttpIdle.Reset();
+            }
+        }
+
+        private static void EndNativeHttpOperation()
+        {
+            lock (NativeHttpActivityGate)
+            {
+                if (_nativeHttpPendingOperations > 0)
+                    _nativeHttpPendingOperations--;
+                if (_nativeHttpPendingOperations == 0)
+                    NativeHttpIdle.Set();
+            }
         }
 
         private static bool StopWasRequested()

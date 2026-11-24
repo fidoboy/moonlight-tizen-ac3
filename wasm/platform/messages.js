@@ -1592,19 +1592,48 @@ function handleMessage(msg) {
         }
       };
 
+      var releaseDirectWmpSession = function() {
+        if (window._activeStreamingEngine !== 'ESPLUSPLAYER' ||
+            !window.ESPlusPlayerTransport ||
+            typeof window.ESPlusPlayerTransport.releaseSession !== 'function') {
+          waitForDirectWmpTermination();
+          return;
+        }
+
+        // WMP defers its process exit for direct Smart Hub sessions until this
+        // acknowledgement. The native side waits for the session worker and all
+        // queued/in-flight native HTTP operations before scheduling its exit.
+        try {
+          window.ESPlusPlayerTransport.releaseSession().then(waitForDirectWmpTermination, function(releaseError) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not release the deferred WMP session shutdown:', releaseError);
+            waitForDirectWmpTermination();
+          });
+        } catch (releaseError) {
+          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start the deferred WMP session release:', releaseError);
+          waitForDirectWmpTermination();
+        }
+      };
+
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
+          var quitRequest;
           try {
-            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(waitForDirectWmpTermination, function(failedQuitApp) {
-              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
-              waitForDirectWmpTermination();
-            });
+            // Do not impose a shorter UI timeout than the native HTTP request:
+            // releasing WMP while /cancel or the follow-up /serverinfo is still
+            // running would recreate the original lifecycle race.
+            quitRequest = window.api.quitApp();
           } catch (failedQuitApp) {
             console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
-            waitForDirectWmpTermination();
+            releaseDirectWmpSession();
+            return;
           }
+
+          Promise.resolve(quitRequest).then(releaseDirectWmpSession, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+            releaseDirectWmpSession();
+          });
         } else {
-          waitForDirectWmpTermination();
+          releaseDirectWmpSession();
         }
       };
 

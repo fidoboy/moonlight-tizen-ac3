@@ -1103,8 +1103,9 @@
     // commands retain their previous timeout behavior.
     var commandTimeoutMs = command === 'open_url' ? 30000 :
       (command === 'pair' ? 60000 :
+      (command === 'release_session' ? 60000 :
       (command === 'make_cert' || command === 'http_init' ||
-       command === 'cancel_request' ? 10000 : undefined));
+       command === 'cancel_request' ? 10000 : undefined)));
 
     return connect(false).then(function() {
       if (command === 'start_session') {
@@ -2096,6 +2097,7 @@
         });
       }
       requestParameters.debugMode = global.DEBUG_MODE === true;
+      requestParameters.deferExitUntilReleased = global._directSmartHubLaunch === true;
       startupDiagnosticTerminalEventSeen = false;
       startupDiagnosticFinalSnapshotRequested = false;
       return request('start_session', requestParameters);
@@ -2103,6 +2105,9 @@
     stopStream: function() {
       resetGamepadShortcutState();
       return request('stop_session');
+    },
+    releaseSession: function() {
+      return request('release_session');
     },
     waitForTermination: function(timeoutMs) {
       var timeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : 5000;
