@@ -2348,7 +2348,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: flex;
     align-items: center;
 }
-.videoBitrateMenu, .audioJitterMenu, .mdl-menu__container {
+.videoBitrateMenu, .performanceStatsOpacityMenu, .audioJitterMenu, .mdl-menu__container {
     height: 20% !important;
 }
 .mdl-slider {
