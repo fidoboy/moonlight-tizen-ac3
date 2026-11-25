@@ -2397,26 +2397,21 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
 }
 
-/* Keep both slider menus on the same three-column layout. The endpoint
-   labels stay inside the panel while the slider uses all remaining width. */
-.videoBitrateMenu,
+/* Keep the opacity slider and its endpoint labels within the dropdown. */
 .performanceStatsOpacityMenu {
     display: grid !important;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
-    column-gap: 10px;
+    column-gap: 12px;
     box-sizing: border-box;
-    padding: 0 18px !important;
+    padding: 0 36px !important;
     min-width: 0;
 }
-.videoBitrateMenu > #bitrateLowestValue,
-.videoBitrateMenu > #bitrateHighestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     margin: 0;
     white-space: nowrap;
 }
-.videoBitrateMenu > #bitrateSlider,
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
     display: block;
