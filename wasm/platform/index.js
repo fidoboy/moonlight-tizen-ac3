@@ -8037,6 +8037,13 @@ function storeData(key, data, callbackFunction) {
         const transaction = db.transaction(storeName, 'readwrite');
         transaction.objectStore(storeName).put(JSON.stringify(data), key);
         transaction.oncomplete = function() {
+          if (NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
+            persistedPreferences[key] = data;
+            if (!persistedPreferencesReady) persistedPreferencesPendingWrites[key] = data;
+            if (configSummarySnapshot && configSummarySnapshot.preferences) {
+              configSummarySnapshot.preferences[key] = data;
+            }
+          }
           if (DEBUG_MODE) {
             var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
             console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
@@ -10455,58 +10462,80 @@ function loadSystemInfo() {
   });
 }
 
-function readStoredPreferences(keys) {
+// Keep every persisted user preference available independently of which UI is shown.
+// The other records in this object store are application data, not preferences.
+var persistedPreferences = {};
+var persistedPreferencesPendingWrites = {};
+var persistedPreferencesReady = false;
+var NON_PREFERENCE_DATA_KEYS = ['cert', 'hosts', 'previewApps', 'uniqueid'];
+window.persistedPreferences = persistedPreferences;
+window.persistedPreferencesReady = false;
+
+function readStoredPreferences() {
   return new Promise(function(resolve, reject) {
     try {
       var transaction = db.transaction(storeName, 'readonly');
       var objectStore = transaction.objectStore(storeName);
       var values = {};
-      var remaining = keys.length;
       var failed = false;
-      if (remaining === 0) {
-        transaction.oncomplete = function() { resolve(values); };
-        return;
+
+      function fail(error) {
+        if (failed) return;
+        failed = true;
+        reject(error);
       }
-      keys.forEach(function(key) {
-        var request = objectStore.get(key);
-        request.onsuccess = function() {
-          if (failed) return;
+
+      var request = objectStore.openCursor();
+      request.onsuccess = function(event) {
+        if (failed) return;
+        var cursor = event.target.result;
+        if (!cursor) return;
+
+        var key = String(cursor.key);
+        if (NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
           try {
-            var storedValue = request.result != null ? JSON.parse(request.result) : null;
+            var storedValue = cursor.value != null ? JSON.parse(cursor.value) : null;
             values[key] = storedValue !== null && typeof storedValue === 'object' &&
               Object.prototype.hasOwnProperty.call(storedValue, key) ? storedValue[key] : storedValue;
-            remaining--;
           } catch (error) {
-            failed = true;
-            reject(new Error('Invalid stored setting "' + key + '": ' + error.message));
+            fail(new Error('Invalid stored setting "' + key + '": ' + error.message));
+            return;
           }
-        };
-        request.onerror = function() {
-          if (failed) return;
-          failed = true;
-          reject(request.error || new Error('Could not read setting: ' + key));
-        };
-      });
+        }
+        cursor.continue();
+      };
+      request.onerror = function() {
+        fail(request.error || new Error('Could not read persisted preferences.'));
+      };
       transaction.oncomplete = function() {
-        if (!failed && remaining === 0) resolve(values);
-        else if (!failed) reject(new Error('IndexedDB completed without returning every requested setting.'));
+        if (failed) return;
+        Object.keys(persistedPreferences).forEach(function(key) {
+          delete persistedPreferences[key];
+        });
+        Object.keys(values).forEach(function(key) {
+          persistedPreferences[key] = values[key];
+        });
+        Object.keys(persistedPreferencesPendingWrites).forEach(function(key) {
+          persistedPreferences[key] = persistedPreferencesPendingWrites[key];
+          delete persistedPreferencesPendingWrites[key];
+        });
+        persistedPreferencesReady = true;
+        window.persistedPreferencesReady = true;
+        resolve(persistedPreferences);
       };
       transaction.onerror = function() {
-        if (failed) return;
-        failed = true;
-        reject(transaction.error || new Error('Could not read streaming settings.'));
+        fail(transaction.error || new Error('Could not read persisted preferences.'));
       };
       transaction.onabort = function() {
-        if (failed) return;
-        failed = true;
-        reject(transaction.error || new Error('Streaming settings read was aborted.'));
+        fail(transaction.error || new Error('Persisted-preferences read was aborted.'));
       };
-    } catch (error) { reject(error); }
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
-// Smart Hub launches read only stream-related preferences. They are kept as plain
-// data and never applied to the hidden Material Design controls or UI subsystems.
+// Restore the complete persisted preference collection before either startup path continues.
 var configSummarySnapshot = null;
 var configSummaryRefreshPromise = null;
 var configSummaryRevision = 0;
@@ -10519,10 +10548,6 @@ var STREAMING_PREFERENCE_KEYS = [
   'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
   'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate', 'showConfigSummaryBar', 'performanceStatsPosition', 'streamTransitionBackground', 'colorTheme', 'quitAppAfterDisconnect'
 ];
-
-var DIRECT_STREAM_PREFERENCE_KEYS = STREAMING_PREFERENCE_KEYS.concat([
-  'ambilightEnabled', 'ambilightWledIp', 'ambilightCaptureBackend'
-]);
 
 function applyPersistedPreferenceToSnapshot(key, value) {
   if (!configSummarySnapshot || !configSummarySnapshot.preferences) return;
@@ -10586,7 +10611,7 @@ function readStreamingSettingsSnapshot() {
       else openIndexDB(resolve);
     } catch (error) { reject(error); }
   }).then(function() {
-    return readStoredPreferences(DIRECT_STREAM_PREFERENCE_KEYS);
+    return readStoredPreferences();
   }), 10000, 'Saved streaming preferences load').then(function(stored) {
     var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var defaults = {
@@ -10604,8 +10629,8 @@ function readStreamingSettingsSnapshot() {
       colorTheme: COLOR_THEME_DEFAULT, quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom',
       ambilightEnabled: false, ambilightWledIp: null, ambilightCaptureBackend: 'video_plane'
     };
-    var missingKeys = DIRECT_STREAM_PREFERENCE_KEYS.filter(function(key) {
-      return stored[key] == null && Object.prototype.hasOwnProperty.call(defaults, key);
+    var missingKeys = Object.keys(defaults).filter(function(key) {
+      return stored[key] == null;
     });
     var persistDefaults = missingKeys.length ? new Promise(function(resolve, reject) {
       try {
@@ -10614,7 +10639,10 @@ function readStreamingSettingsSnapshot() {
         missingKeys.forEach(function(key) {
           objectStore.put(JSON.stringify(defaults[key]), key);
         });
-        transaction.oncomplete = function() { resolve(); };
+        transaction.oncomplete = function() {
+          missingKeys.forEach(function(key) { persistedPreferences[key] = defaults[key]; });
+          resolve();
+        };
         transaction.onerror = function() { reject(transaction.error || new Error('Could not persist default streaming preferences.')); };
         transaction.onabort = function() { reject(transaction.error || new Error('Default streaming preference write was aborted.')); };
       } catch (error) { reject(error); }
@@ -10736,7 +10764,15 @@ function loadDirectSmartHubStreamSettings() {
 
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
-  openIndexDB(loadUserDataCb);
+  openIndexDB(function() {
+    readStoredPreferences().then(function() {
+      loadUserDataCb();
+    }).catch(function(error) {
+      // Preserve the existing per-setting recovery path if the bulk read fails.
+      console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
+      loadUserDataCb();
+    });
+  });
 }
 
 function loadUserDataCb() {
