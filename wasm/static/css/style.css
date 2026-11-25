@@ -1840,6 +1840,8 @@ body[data-color-theme="black-orange"] #background-layer {
     position: absolute;
     top: 10px;
     left: 10px;
+    width: max-content;
+    max-width: none;
     padding: 20px;
     border-radius: 8px;
     font-size: 16px;
@@ -1850,11 +1852,12 @@ body[data-color-theme="black-orange"] #background-layer {
 
 #performance-stats .performance-stats-pills {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
     margin: 0 0 7px;
-    max-width: 100%;
+    width: max-content;
+    max-width: none;
 }
 #performance-stats .performance-stats-pill {
     display: inline-block;
