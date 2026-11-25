@@ -224,7 +224,7 @@
     });
   }
 
-  function initialize() {
+  function checkPlatformCompatibility() {
     if (initialization) return initialization;
 
     // Compatibility detection is deliberately limited to the Tizen platform
@@ -237,7 +237,7 @@
   }
 
   window.moonlightAmbilight = {
-    initialize: initialize,
+    checkPlatformCompatibility: checkPlatformCompatibility,
 
     isSupported: function() {
       return initialized && supported;
@@ -245,7 +245,7 @@
 
     start: function(ip, port, ledCount, colorProfile, captureBackend) {
       if (!ip) return Promise.reject(new Error('WLED IP address is required.'));
-      return initialize().then(function(available) {
+      return checkPlatformCompatibility().then(function(available) {
         if (!available) throw new Error('Ambilight capture is not supported on this TV.');
         colorProfile = colorProfile || {};
         return serialize('start', {
