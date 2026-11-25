@@ -5748,12 +5748,13 @@ function showApps(host, options) {
         });
 
         if (preserveExistingAppGrid) {
-          // Reorder only where necessary, retaining DOM nodes and loaded artwork for unchanged apps.
+          // Reorder the actual app cards in the computed sequence. Do not use
+          // grid.children indexes: non-card children must not affect card ordering.
+          // Moving existing nodes preserves their loaded artwork and event handlers.
           const grid = document.getElementById('game-grid');
-          sortedAppList.forEach(function(app, index) {
+          sortedAppList.forEach(function(app) {
             const card = document.getElementById('game-container-' + app.id);
-            const currentAtIndex = grid.children[index] || null;
-            if (card && card !== currentAtIndex) grid.insertBefore(card, currentAtIndex);
+            if (card && card.parentNode === grid) grid.appendChild(card);
           });
         }
 
