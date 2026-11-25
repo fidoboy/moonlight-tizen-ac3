@@ -85,7 +85,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out Moonlight
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.ref }}
           submodules: recursive
@@ -96,7 +96,7 @@ jobs:
         run: mkdir -p "$RUNNER_TEMP/moonlight-home/.cache/ccache"
 
       - name: Restore Moonlight Web compiler cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
           key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ matrix.variant }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -182,7 +182,7 @@ jobs:
 
       - name: Restore FFmpeg WebAssembly build cache
         id: restore-ffmpeg-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ffmpeg-install
           key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
@@ -209,7 +209,7 @@ jobs:
 
       - name: Save FFmpeg WebAssembly build cache
         if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ffmpeg-install
           key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
@@ -223,7 +223,7 @@ jobs:
 
       - name: Save Moonlight Web compiler cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
           key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-${{ matrix.variant }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
