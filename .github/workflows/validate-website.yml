@@ -1,0 +1,44 @@
+name: Validate website scripts and language picker
+
+on:
+  pull_request:
+    paths:
+      - "docs/index.html"
+      - "docs/assets/*.js"
+      - "docs/assets/**/*.js"
+      - ".github/scripts/validate-language-picker.mjs"
+      - ".github/workflows/validate-website.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-website:
+    name: Validate website JavaScript and language picker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check syntax of website JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=(docs/assets/*.js docs/assets/**/*.js)
+          if (( ${#files[@]} == 0 )); then
+            echo "::error::No website JavaScript files were found."
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      - name: Validate language picker structure and behavior hooks
+        run: node .github/scripts/validate-language-picker.mjs
