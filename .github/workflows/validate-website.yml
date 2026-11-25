@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          shopt -s nullglob
+          shopt -s globstar nullglob
           files=(docs/assets/*.js docs/assets/**/*.js)
           if (( ${#files[@]} == 0 )); then
             echo "::error::No website JavaScript files were found."
