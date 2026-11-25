@@ -269,7 +269,7 @@ jobs:
               tail -n 300 "$log"
             done
       - name: Upload ${{ matrix.variant }} hybrid WGT for Apps2Samsung
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: ${{ runner.temp }}/hybrid-output/${{ matrix.output_name }}
