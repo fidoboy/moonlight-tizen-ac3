@@ -45,6 +45,11 @@ try {
   await page.evaluate(({ theme }) => {
     document.body.dataset.colorTheme = theme;
     document.documentElement.classList.remove('app-starting');
+
+    // The animated HTML launch splash is a separate full-screen layer above the app.
+    // Remove it (and any stream transition overlay) so the Apps grid is visible.
+    document.getElementById('html-launch-splash')?.remove();
+    document.getElementById('stream-transition-layer')?.remove();
     const main = document.getElementById('main-ui-layer');
     main.classList.remove('ui-inactive');
     main.style.opacity = '1';
