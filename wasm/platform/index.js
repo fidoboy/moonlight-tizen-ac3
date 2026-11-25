@@ -4243,7 +4243,7 @@ function showSettingsMode() {
 function showSettings() {
   // Defer the optional Ambilight capability probe until the user opens Settings.
   // This keeps the native service out of the normal application startup path.
-  initializeAmbilightSupport();
+  checkAmbilightPlatformCompatibility();
 
   // Remove the background layer entirely while Settings is displayed.
   $('#background-layer').hide();
@@ -8618,17 +8618,17 @@ function updateAmbilightAvailability(supported) {
   loadAmbilightPreferences();
 }
 
-function initializeAmbilightSupport() {
+function checkAmbilightPlatformCompatibility() {
   if (ambilightInitializationPromise) return ambilightInitializationPromise;
 
   if (!window.moonlightAmbilight ||
-      typeof window.moonlightAmbilight.initialize !== 'function') {
+      typeof window.moonlightAmbilight.checkPlatformCompatibility !== 'function') {
     updateAmbilightAvailability(false);
     ambilightInitializationPromise = Promise.resolve(false);
     return ambilightInitializationPromise;
   }
 
-  ambilightInitializationPromise = window.moonlightAmbilight.initialize().then(function(supported) {
+  ambilightInitializationPromise = window.moonlightAmbilight.checkPlatformCompatibility().then(function(supported) {
     updateAmbilightAvailability(supported === true);
     return supported === true;
   }).catch(function(error) {
@@ -8779,7 +8779,7 @@ function startAmbilightForStream(showTransitionStatus, generation) {
     return Promise.resolve(false);
   }
 
-  return initializeAmbilightSupport().then(function(supported) {
+  return checkAmbilightPlatformCompatibility().then(function(supported) {
     if (!supported || generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
