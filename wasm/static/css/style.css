@@ -1851,15 +1851,16 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 
 #performance-stats .performance-stats-pills {
-    /* An inline flex row shrink-wraps its pills and contributes its full width
-       to the overlay's intrinsic width instead of overflowing as a block. */
-    display: inline-flex;
+    /* Give the pill row an explicit max-content width. As a block-level flex
+       item, its full width participates in the overlay's intrinsic sizing, so
+       the panel expands around the row instead of letting it invade the padding. */
+    display: flex;
     flex: 0 0 auto;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
     margin: 0 0 7px;
-    width: auto;
+    width: max-content;
     max-width: none;
 }
 #performance-stats .performance-stats-pill {
