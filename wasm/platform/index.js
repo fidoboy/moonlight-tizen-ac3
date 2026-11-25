@@ -7103,9 +7103,9 @@ function startGame(host, appID) {
       window._activeStreamHostName = host.hostname || '';
       // Every new attempt starts before the sole success boundary.
       window._streamTransitionHiddenForSession = false;
-      // A resume is already running; a new launch becomes eligible for cleanup
-      // immediately before its host.launchApp request is issued.
-      window._remoteStreamAppLaunchRequested = host.currentGame == appID;
+      // Resuming an app that was already running must never authorize cleanup.
+      // A new launch becomes eligible only immediately before host.launchApp is issued.
+      window._remoteStreamAppLaunchRequested = false;
       window._manualStreamStopRequested = false;
 
       // Show the transition first. Only after it is fully visible may the local UI
