@@ -1036,7 +1036,6 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
-  loadAmbilightPreferencesFromStorage();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -8623,25 +8622,6 @@ function checkAmbilightPlatformCompatibility() {
   return ambilightInitializationPromise;
 }
 
-function loadAmbilightPreferencesFromStorage() {
-  return Promise.all([
-    readAmbilightStoredValue('ambilightEnabled'),
-    readAmbilightStoredValue('ambilightWledIp'),
-    readAmbilightStoredValue('ambilightCaptureBackend')
-  ]).then(function(values) {
-    ambilightPreferences.ambilightEnabled = values[0].ambilightEnabled === true;
-    ambilightPreferences.ambilightWledIp =
-      typeof values[1].ambilightWledIp === 'string' && values[1].ambilightWledIp.trim()
-        ? values[1].ambilightWledIp.trim() : null;
-    ambilightPreferences.ambilightCaptureBackend = values[2].ambilightCaptureBackend === 'ppi'
-      ? 'ppi' : 'video_plane';
-    return ambilightPreferences;
-  }).catch(function(error) {
-    console.warn('[ambilight] Could not load saved preferences:', error);
-    return ambilightPreferences;
-  });
-}
-
 function loadAmbilightPreferences() {
   var enabled = ambilightSupportState === 'supported' &&
     ambilightPreferences.ambilightEnabled === true;
@@ -8684,14 +8664,6 @@ function saveAmbilightWledIp() {
   var ip = getAmbilightWledIpValue();
   ambilightPreferences.ambilightWledIp = ip;
   storeData('ambilightWledIp', ip, null);
-}
-
-function readAmbilightStoredValue(key) {
-  return new Promise(function(resolve) {
-    getData(key, function(data) {
-      resolve(data || {});
-    });
-  });
 }
 
 // The negotiated profile and connection event can arrive in either order.
@@ -10685,6 +10657,20 @@ function loadUserData() {
 }
 
 function loadUserDataCb() {
+  // Load Ambilight preferences with the rest of Moonlight's saved settings.
+  getData('ambilightEnabled', function(value) {
+    ambilightPreferences.ambilightEnabled = value.ambilightEnabled === true;
+  });
+  getData('ambilightWledIp', function(value) {
+    ambilightPreferences.ambilightWledIp =
+      typeof value.ambilightWledIp === 'string' && value.ambilightWledIp.trim()
+        ? value.ambilightWledIp.trim() : null;
+  });
+  getData('ambilightCaptureBackend', function(value) {
+    ambilightPreferences.ambilightCaptureBackend = value.ambilightCaptureBackend === 'ppi'
+      ? 'ppi' : 'video_plane';
+  });
+
   getData('streamingEngine', function(previousValue) {
     var engine = previousValue && previousValue.streamingEngine;
     if (engine === 'WMP') engine = 'ESPLUSPLAYER';
