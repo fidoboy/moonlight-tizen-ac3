@@ -7,12 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       build_release:
-        description: "Generate Moonlight.wgt (Release)"
+        description: "Generate Moonlight.wgt and Moonlight-ForceGM.wgt (Release)"
         required: false
         type: boolean
         default: true
       build_debug:
-        description: "Generate Moonlight-Debug.wgt (Debug)"
+        description: "Generate Moonlight-Debug.wgt and Moonlight-Debug-ForceGM.wgt (Debug)"
         required: false
         type: boolean
         default: false
