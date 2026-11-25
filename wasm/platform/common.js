@@ -9,7 +9,24 @@
 var common = (function() {
   var wasmModuleStarted = false;
 
+  // Global startup flag: true means the WASM path was blocked by the preflight check.
+  window.WASM_COMPATIBILITY_FAILED = false;
+
+  function checkWasmCompatibility() {
+    // This check must run before moonlight-wasm.js is injected. At this stage,
+    // only browser-level WebAssembly support can be tested without loading the module.
+    return typeof WebAssembly === 'object' &&
+      typeof WebAssembly.instantiate === 'function' &&
+      typeof WebAssembly.validate === 'function';
+  }
+
   function createWASMModule() {
+    if (wasmModuleStarted) return;
+    if (!checkWasmCompatibility()) {
+      window.WASM_COMPATIBILITY_FAILED = true;
+      console.warn('[common.js, createWASMModule] WASM startup blocked: WebAssembly is unavailable or incomplete.');
+      return;
+    }
     if (wasmModuleStarted) return;
     wasmModuleStarted = true;
 
