@@ -9872,13 +9872,22 @@ function savePerformanceStatsOverlayOpacity() {
 }
 
 function updatePerformanceStatsPositionAvailability(enabled) {
-  var button = document.getElementById('selectPerformanceStatsPosition');
-  if (!button) return;
+  var positionButton = document.getElementById('selectPerformanceStatsPosition');
+  if (positionButton) {
+    positionButton.disabled = !enabled;
+    positionButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    positionButton.classList.toggle('is-disabled', !enabled);
+  }
 
-  button.disabled = !enabled;
-  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-  button.classList.toggle('is-disabled', !enabled);
+  var opacityButton = document.getElementById('selectPerformanceStatsOpacity');
+  if (opacityButton) {
+    opacityButton.disabled = !enabled;
+    opacityButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    opacityButton.classList.toggle('is-disabled', !enabled);
+  }
 
+  var opacitySlider = document.getElementById('performanceStatsOpacitySlider');
+  if (opacitySlider) opacitySlider.disabled = !enabled;
 }
 
 function savePerformanceStats() {
@@ -10080,6 +10089,7 @@ function restoreDefaultsSettingsValues() {
   updatePerformanceStatsPositionAvailability(false);
 
   setPerformanceStatsPosition('top-left', true);
+  setPerformanceStatsOverlayOpacity(70, true);
 
   const defaultAutomaticUpdateChecks = true;
   document.querySelector('#automaticUpdateChecksBtn').MaterialSwitch.on();
