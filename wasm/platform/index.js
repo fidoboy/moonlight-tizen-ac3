@@ -9903,8 +9903,11 @@ function savePerformanceStats() {
     }).catch(function(error) {
       console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not update persisted statistics availability:', error);
     });
-    if (!chosenPerformanceStats && Views.SelectPerformanceStatsPositionMenu.isActive()) {
+    if (!chosenPerformanceStats &&
+        (Views.SelectPerformanceStatsPositionMenu.isActive() ||
+         Views.SelectPerformanceStatsOpacityMenu.isActive())) {
       closePopupMenu('selectPerformanceStatsPosition');
+      closePopupMenu('selectPerformanceStatsOpacity');
       closeActiveVisibleMenu();
     }
   }, 100);
@@ -10665,8 +10668,13 @@ function loadDirectSmartHubStreamSettings() {
     _directSmartHubStreamSettings = Object.assign({}, snapshot, {
       quitAppAfterDisconnect: stored.quitAppAfterDisconnect === true ||
         stored.quitAppAfterDisconnect === 'true' || stored.quitAppAfterDisconnect === 1,
-      performanceStatsPosition: stored.performanceStatsPosition || 'top-left'
+      performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
+      performanceStatsOverlayOpacity: stored.performanceStatsOverlayOpacity == null
+        ? 70 : stored.performanceStatsOverlayOpacity
     });
+    setPerformanceStatsOverlayOpacity(
+      _directSmartHubStreamSettings.performanceStatsOverlayOpacity, false
+    );
     var directEngine = String(snapshot.streamingEngine || stored.streamingEngine || 'EMSS');
     _directSmartHubNativeLaunch = directEngine === 'ESPLUSPLAYER' || directEngine === 'WMP';
     if (_directSmartHubNativeLaunch) {
