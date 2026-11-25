@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Check JavaScript syntax and gamepad regression tests
         shell: bash
