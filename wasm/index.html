@@ -978,6 +978,20 @@
                     <li class="mdl-menu__item" data-value="bottom-right" data-i18n="Bottom right">Bottom right</li>
                   </ul>
                 </div>
+                <div class="setting-option">
+                  <label data-i18n="Overlay opacity">Overlay opacity</label>
+                  <span class="mdl-list__item-text-body" data-i18n="- Adjust the opacity of the background panel behind the performance statistics overlay.">
+                    - Adjust the opacity of the background panel behind the performance statistics overlay.
+                  </span>
+                  <div id="performanceStatsOpacityMenu">
+                    <button type="button" id="selectPerformanceStatsOpacity" class="mdl-button mdl-js-button mdl-js-ripple-effect">70%</button>
+                  </div>
+                  <div class="performanceStatsOpacityMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectPerformanceStatsOpacity">
+                    <span id="performanceStatsOpacityLowestValue">0%</span>
+                    <input type="range" id="performanceStatsOpacitySlider" class="mdl-slider mdl-js-slider" min="0" max="100" step="1" value="70">
+                    <span id="performanceStatsOpacityHighestValue">100%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
