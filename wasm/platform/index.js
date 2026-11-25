@@ -12080,7 +12080,7 @@ function maybeStartDirectSmartHubLaunch() {
       maybeStartDirectSmartHubLaunch();
     }).catch(function(error) {
       console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not restore app usage history before the direct launch:', error);
-      directSmartHubLaunchFailure(t('Moonlight could not restore its saved app data.'));
+      directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming settings.'));
     });
     return;
   }
