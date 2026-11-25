@@ -1378,7 +1378,7 @@ function startDeferredNormalStartup() {
         window.addEventListener('appcontrol', handleDeepLink);
       }).catch(function(error) {
         console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Normal startup cannot continue without the complete saved preference collection:', error);
-        snackbarLogPersistent(t('Moonlight could not load its saved settings. Streaming cannot start.'));
+        snackbarLogPersistent(t('Moonlight could not load its saved streaming settings.'));
       });
     });
   };
