@@ -9872,37 +9872,44 @@ function savePerformanceStatsOverlayOpacity() {
 }
 
 function updatePerformanceStatsPositionAvailability(enabled) {
+  var subOptions = document.querySelector('#performanceStatsMenu + .setting-sub-options');
+  if (subOptions) {
+    subOptions.classList.toggle('is-disabled', !enabled);
+    subOptions.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
+
   var positionButton = document.getElementById('selectPerformanceStatsPosition');
   if (positionButton) {
     positionButton.disabled = !enabled;
     positionButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    positionButton.classList.toggle('is-disabled', !enabled);
   }
 
   var opacityButton = document.getElementById('selectPerformanceStatsOpacity');
   if (opacityButton) {
     opacityButton.disabled = !enabled;
     opacityButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    opacityButton.classList.toggle('is-disabled', !enabled);
   }
 
   var opacitySlider = document.getElementById('performanceStatsOpacitySlider');
-  if (opacitySlider) opacitySlider.disabled = !enabled;
+  if (opacitySlider) {
+    opacitySlider.disabled = !enabled;
+    opacitySlider.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
 }
 
 function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').prop('checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
-    storeData('performanceStats', chosenPerformanceStats, null).then(function() {
-      var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-      var persistedValue = preferences && preferences.performanceStats;
-      updatePerformanceStatsPositionAvailability(
-        persistedValue === true || persistedValue === 'true' || persistedValue === 1
-      );
-    }).catch(function(error) {
-      console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not update persisted statistics availability:', error);
+
+    // The two child settings follow the switch immediately; do not wait for
+    // a potentially stale preferences snapshot after persistence.
+    updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
+
+    storeData('performanceStats', chosenPerformanceStats, null).catch(function(error) {
+      console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not save performance stats state:', error);
     });
+
     if (!chosenPerformanceStats &&
         (Views.SelectPerformanceStatsPositionMenu.isActive() ||
          Views.SelectPerformanceStatsOpacityMenu.isActive())) {
