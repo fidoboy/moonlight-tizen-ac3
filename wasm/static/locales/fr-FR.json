@@ -684,5 +684,13 @@
   "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Saisissez l’adresse IP de votre appareil WLED. Assurez-vous que votre téléviseur peut y accéder via le réseau local.",
   "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight synchronise les couleurs à l’écran avec votre éclairage LED. Un appareil WLED est nécessaire pour contrôler les lumières.",
   "Overlay opacity": "Opacité de la superposition",
-  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Permet de régler l’opacité du panneau d’arrière-plan des statistiques de performance."
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Permet de régler l’opacité du panneau d’arrière-plan des statistiques de performance.",
+  "The native streaming service is unavailable.": "Le service de streaming natif n’est pas disponible.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight synchronise les couleurs de l’image à l’écran avec les bandes LED. Avant de l’activer, assurez-vous qu’un appareil WLED est configuré avec une adresse IP sur le même réseau que votre téléviseur.",
+  "Moonlight could not initialize its streaming credentials or HTTP connection.": "Moonlight n’a pas pu initialiser ses identifiants de streaming ou sa connexion HTTP.",
+  "Moonlight could not prepare the streaming interface.": "Moonlight n’a pas pu préparer l’interface de streaming.",
+  "Moonlight could not start the selected app.": "Moonlight n’a pas pu démarrer l’application sélectionnée.",
+  "Stopping WMP service...": "Arrêt du service WMP...",
+  "Stopping Ambilight service...": "Arrêt du service Ambilight...",
+  "Requesting to close application %1$s...": "Demande de fermeture de l’application %1$s..."
 }
