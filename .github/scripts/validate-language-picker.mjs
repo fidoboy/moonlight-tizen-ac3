@@ -15,7 +15,7 @@ assert.match(html, /<div[^>]*id=["']language-menu["'][^>]*hidden[^>]*>/,
 assert.match(html, /<script[^>]+src=["'][^"']*assets\/language-switcher\.js(?:\?[^"']*)?["']/,
   "index.html must load the language-switcher script");
 
-assert.match(html, /\.language-menu\\[hidden\\]\\s*\\{\\s*display:\\s*none;/,
+assert.match(html, /\.language-menu\[hidden\]\s*\{\s*display:\s*none;/,
   "the hidden language menu must remain visually hidden");
 
 assert.match(script, /function renderLanguagePicker\s*\(/,
