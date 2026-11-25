@@ -997,9 +997,8 @@ function attachListeners() {
   }
   changeUiModeForWasmLoad();
 
-  // Ambilight is deliberately absent from the application startup path.
-  // Its settings UI and compatibility check are initialized only after the
-  // user explicitly opens Settings.
+  // Ambilight preferences are loaded at startup; its settings UI and
+  // compatibility check are initialized only when the user opens Settings.
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
     window.i18n.onRefresh(loadSystemInfo);
   } else {
