@@ -27,7 +27,6 @@ var common = (function() {
       console.warn('[common.js, createWASMModule] WASM startup blocked: WebAssembly is unavailable or incomplete.');
       return;
     }
-    if (wasmModuleStarted) return;
     wasmModuleStarted = true;
 
     Module = {
