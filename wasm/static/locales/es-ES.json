@@ -685,5 +685,7 @@
   "Moonlight could not decode its saved client identifier.": "Moonlight no ha podido descodificar el identificador de cliente guardado.",
   "Moonlight found an invalid saved client identifier.": "Moonlight ha encontrado un identificador de cliente guardado no válido.",
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha encontrado un error no identificado al recuperar la identidad de streaming guardada.",
-  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight sincroniza los colores de la pantalla con la iluminación LED. Se necesita un dispositivo WLED para controlar las luces."
+  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight sincroniza los colores de la pantalla con la iluminación LED. Se necesita un dispositivo WLED para controlar las luces.",
+  "Overlay opacity": "Opacidad del overlay",
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Permite regular la opacidad del fondo del panel de estadísticas de rendimiento."
 }
