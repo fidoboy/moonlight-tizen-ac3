@@ -140,9 +140,9 @@ try {
     #main-content {
       position: relative !important;
       display: flex !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      min-height: 100vh !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      min-height: 0 !important;
       overflow: hidden !important;
     }
     #ambient-trails,
