@@ -95,8 +95,7 @@ try {
       caret-color: transparent !important;
     }
 
-    /* Catalog framing: show only the Apps grid over Moonlight's real background. */
-    header,
+    /* Keep Moonlight's original header and logo; hide unrelated overlays and views. */
     #stream-diagnostics-layer,
     #popup-layer,
     #main-content > :not(#ambient-trails):not(#ambient-bubbles):not(#ambient-symbols):not(#game-grid) {
