@@ -684,5 +684,13 @@
   "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Geben Sie die IP-Adresse Ihres WLED-Geräts ein. Stellen Sie sicher, dass Ihr Fernseher über das lokale Netzwerk darauf zugreifen kann.",
   "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight synchronisiert die Farben auf dem Bildschirm mit Ihrer LED-Beleuchtung. Ein WLED-Gerät ist erforderlich, um die Lichter zu steuern.",
   "Overlay opacity": "Deckkraft des Overlays",
-  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Legt die Deckkraft des Hintergrundfelds des Leistungsstatistik-Overlays fest."
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Legt die Deckkraft des Hintergrundfelds des Leistungsstatistik-Overlays fest.",
+  "The native streaming service is unavailable.": "Der native Streamingdienst ist nicht verfügbar.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight synchronisiert die Farben des Bildes auf dem Bildschirm mit LED-Streifen. Stellen Sie vor der Aktivierung sicher, dass ein WLED-Gerät mit einer IP-Adresse im selben Netzwerk wie Ihr Fernseher eingerichtet ist.",
+  "Moonlight could not initialize its streaming credentials or HTTP connection.": "Moonlight konnte seine Streaming-Anmeldedaten oder HTTP-Verbindung nicht initialisieren.",
+  "Moonlight could not prepare the streaming interface.": "Moonlight konnte die Streaming-Oberfläche nicht vorbereiten.",
+  "Moonlight could not start the selected app.": "Moonlight konnte die ausgewählte App nicht starten.",
+  "Stopping WMP service...": "WMP-Dienst wird beendet...",
+  "Stopping Ambilight service...": "Ambilight-Dienst wird beendet...",
+  "Requesting to close application %1$s...": "Schließen der Anwendung %1$s wird angefordert..."
 }
