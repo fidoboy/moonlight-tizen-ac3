@@ -8577,7 +8577,12 @@ function updateAmbilightAvailability(supported) {
 
   updateAmbilightDescription();
 
-  // Unsupported hardware disables the control but does not overwrite the saved preference.
+  if (!supported) {
+    // Unsupported platforms must never retain an enabled preference. This is
+    // a passive settings check: do not launch, stop, or contact the service.
+    ambilightPreferences.ambilightEnabled = false;
+    storeData('ambilightEnabled', false, null);
+  }
 
   if (switchText && supported) {
     switchText.textContent = t('Enable Ambilight');
