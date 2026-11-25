@@ -2410,7 +2410,7 @@ body[data-color-theme="black-orange"] #background-layer {
     display: flex !important;
     align-items: center;
     box-sizing: border-box;
-    padding: 0 16px !important;
+    padding: 0 24px !important;
     min-width: 0;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
@@ -2430,7 +2430,8 @@ body[data-color-theme="black-orange"] #background-layer {
    not constrain the flex layout and lets the 74rem default width leak out. */
 .performanceStatsOpacityMenu > .mdl-slider__container {
     box-sizing: border-box;
-    display: block;
+    display: flex;
+    align-items: center;
     flex: 1 1 0px;
     width: auto !important;
     min-width: 0;
