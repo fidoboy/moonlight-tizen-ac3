@@ -122,7 +122,7 @@ try {
       // Match the real DOM produced by showApps() in platform/index.js.
       const card = document.createElement('div');
       card.id = `game-container-${index + 1}`;
-      card.className = 'game-container mdl-card mdl-shadow--4dp' + (index === 0 ? ' hovered' : '');
+      card.className = 'game-container mdl-card mdl-shadow--4dp' + (index === 2 ? ' current-game-active hovered' : '');
       card.setAttribute('role', 'link');
       card.setAttribute('tabindex', '0');
       card.setAttribute('aria-label', game.title);
