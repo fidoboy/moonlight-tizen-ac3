@@ -227,38 +227,12 @@
   function initialize() {
     if (initialization) return initialization;
 
-    // Fail closed on Tizen 5.5–6.0 and on platforms where the version cannot be read.
-    // In that case the service is left completely unlaunched, as if it were absent.
-    if (!platformSupportsService()) {
-      initialized = true;
-      supported = false;
-      serviceStarted = false;
-      active = false;
-      initialization = Promise.resolve(false);
-      return initialization;
-    }
-
-    initialization = serialize('initialize').then(function(result) {
-      initialized = true;
-      supported = result.supported === true && result.ok !== false;
-      serviceStarted = false;
-      active = false;
-      // The capability probe exits its ServiceApplication after replying.
-      // Verify that it is gone before allowing a later stream to start.
-      return stopExistingService().then(function() {
-        return supported;
-      });
-    }).catch(function(error) {
-      initialized = true;
-      supported = false;
-      serviceStarted = false;
-      active = false;
-      return stopExistingService().catch(function(cleanupError) {
-        console.warn('[ambilight] Could not clean up after capability probe:', cleanupError);
-      }).then(function() {
-        throw error;
-      });
-    });
+    // Compatibility detection is deliberately limited to the Tizen platform
+    // version. Never launch the native service to probe hardware support:
+    // unsupported TVs may crash when that application is started.
+    supported = platformSupportsService();
+    initialized = true;
+    initialization = Promise.resolve(supported);
     return initialization;
   }
 
@@ -282,7 +256,7 @@
           colorSpace: colorProfile.colorSpace,
           fullRange: colorProfile.fullRange === true,
           captureBackend: captureBackend === 'ppi' ? 'ppi' : 'video_plane'
-        }, true);
+        }, false);
       }).then(function(result) {
         if (result.supported === false) {
           supported = false;
@@ -296,13 +270,11 @@
         active = true;
         return result;
       }).catch(function(error) {
+        // A failed or timed-out start does not prove that this session owns a
+        // running process. Never kill a service we cannot positively identify.
         serviceStarted = false;
         active = false;
-        return stopExistingService().catch(function(cleanupError) {
-          console.warn('[ambilight] Could not clean up after failed startup:', cleanupError);
-        }).then(function() {
-          throw error;
-        });
+        throw error;
       });
     },
 
@@ -321,7 +293,7 @@
     shutdown: function() {
       if (shutdownPromise) return shutdownPromise;
       shutdownPromise = pending.catch(function() {}).then(function() {
-        if (!serviceStarted) return stopExistingService();
+        if (!serviceStarted) return false;
         return launch('shutdown').then(function(result) {
           if (!result.ok) throw new Error(result.error || 'Ambilight service could not be stopped.');
           return waitForServiceStopped(0);
