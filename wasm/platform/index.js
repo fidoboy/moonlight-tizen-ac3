@@ -9858,7 +9858,13 @@ function setPerformanceStatsOverlayOpacity(value, persist) {
 
   window._performanceStatsOverlayOpacity = opacity;
   var slider = document.getElementById('performanceStatsOpacitySlider');
-  if (slider) slider.value = opacity;
+  if (slider) {
+    if (slider.MaterialSlider && typeof slider.MaterialSlider.change === 'function') {
+      slider.MaterialSlider.change(String(opacity));
+    } else {
+      slider.value = String(opacity);
+    }
+  }
   $('#selectPerformanceStatsOpacity').text(opacity + '%');
 
   if (persist) {
