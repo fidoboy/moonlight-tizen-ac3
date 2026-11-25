@@ -3,7 +3,7 @@
 
   var SERVICE_APP_ID = 'MoonLightS.MoonlightAmbilight';
   var OPERATION = 'http://tizen.org/appcontrol/operation/default';
-  // Ambilight service compatibility starts at Tizen 6.0.
+  // Ambilight service compatibility starts at Tizen 6.5.
   var MINIMUM_SERVICE_PLATFORM_VERSION = '6.5';
 
   function platformSupportsService() {
