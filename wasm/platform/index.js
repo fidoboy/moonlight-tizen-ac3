@@ -1032,6 +1032,7 @@ function attachListeners() {
   $('.streamingEngineMenu li').on('click', saveStreamingEngine);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
+  $('#performanceStatsOpacitySlider').on('input', savePerformanceStatsOverlayOpacity);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
@@ -9850,6 +9851,26 @@ function savePerformanceStatsPosition() {
   setPerformanceStatsPosition($(this).data('value'), true);
 }
 
+function setPerformanceStatsOverlayOpacity(value, persist) {
+  var opacity = Number(value);
+  if (!Number.isFinite(opacity)) opacity = 70;
+  opacity = Math.max(0, Math.min(100, Math.round(opacity)));
+
+  window._performanceStatsOverlayOpacity = opacity;
+  var slider = document.getElementById('performanceStatsOpacitySlider');
+  if (slider) slider.value = opacity;
+  $('#selectPerformanceStatsOpacity').text(opacity + '%');
+
+  if (persist) {
+    storeData('performanceStatsOverlayOpacity', opacity, null);
+  }
+  return opacity;
+}
+
+function savePerformanceStatsOverlayOpacity() {
+  setPerformanceStatsOverlayOpacity($('#performanceStatsOpacitySlider').val(), true);
+}
+
 function updatePerformanceStatsPositionAvailability(enabled) {
   var button = document.getElementById('selectPerformanceStatsPosition');
   if (!button) return;
@@ -11135,6 +11156,12 @@ function loadUserDataCb() {
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay position.');
   getData('performanceStatsPosition', function(positionValue) {
     setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
+  });
+
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay opacity.');
+  getData('performanceStatsOverlayOpacity', function(opacityValue) {
+    var savedOpacity = opacityValue && opacityValue.performanceStatsOverlayOpacity;
+    setPerformanceStatsOverlayOpacity(savedOpacity == null ? 70 : savedOpacity, false);
   });
 
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performanceStats preferences.');
