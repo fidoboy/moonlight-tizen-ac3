@@ -142,7 +142,7 @@ function createEnvironment(platformVersion) {
 
 (async function() {
   const env = createEnvironment('6.5');
-  assert.strictEqual(await env.api.initialize(), true);
+  assert.strictEqual(await env.api.checkPlatformCompatibility(), true);
   assert.deepStrictEqual(env.commands, [],
     'the Tizen-version compatibility check must never launch the native service');
   assert.strictEqual(env.running().length, 0,
@@ -183,19 +183,19 @@ function createEnvironment(platformVersion) {
   assert.strictEqual(env.api.isActive(), false);
 
   const tizen60 = createEnvironment('6.0');
-  assert.strictEqual(await tizen60.api.initialize(), true,
+  assert.strictEqual(await tizen60.api.checkPlatformCompatibility(), true,
     'Tizen 6.0 must pass the minimum platform version check');
   assert.deepStrictEqual(tizen60.commands, [], 'Tizen 6.0 version check must not launch the service');
   assert.strictEqual(tizen60.running().length, 0,
     'the Tizen 6.0 capability probe must leave no resident service process');
 
   const unsupported = createEnvironment('5.5');
-  assert.strictEqual(await unsupported.api.initialize(), false);
+  assert.strictEqual(await unsupported.api.checkPlatformCompatibility(), false);
   assert.deepStrictEqual(unsupported.commands, [],
     'platforms below Tizen 6.0 must not launch the optional service');
 
   const noService = createEnvironment('6.5');
-  assert.strictEqual(await noService.api.initialize(), true);
+  assert.strictEqual(await noService.api.checkPlatformCompatibility(), true);
   assert.deepStrictEqual(noService.commands, [],
     'compatibility detection must not inspect or launch the service');
   assert.strictEqual(await noService.api.shutdown(), false,
