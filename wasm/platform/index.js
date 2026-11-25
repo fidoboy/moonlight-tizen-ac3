@@ -9854,7 +9854,7 @@ function savePerformanceStatsPosition() {
 function setPerformanceStatsOverlayOpacity(value, persist) {
   var opacity = Number(value);
   if (!Number.isFinite(opacity)) opacity = 70;
-  opacity = Math.max(0, Math.min(100, Math.round(opacity)));
+  opacity = Math.max(0, Math.min(100, Math.round(opacity / 5) * 5));
 
   window._performanceStatsOverlayOpacity = opacity;
   var slider = document.getElementById('performanceStatsOpacitySlider');
