@@ -2040,6 +2040,7 @@ function handleMessage(msg) {
     };
 
   } else if (msg.indexOf('AmbilightProfile: ') === 0) {
+    if (streamTerminationTransitionActive) return;
     var ambilightParts = msg.replace('AmbilightProfile: ', '').split('|');
     var ambilightHdr = ambilightParts[0] === '1';
     var ambilightColorSpace = parseInt(ambilightParts[1], 10);
@@ -2064,6 +2065,7 @@ function handleMessage(msg) {
       updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1], negotiatedAudio[2]);
     }
   } else if (msg === 'Connection Established') {
+    if (streamTerminationTransitionActive) return;
     setPerformanceStatsPill('emss', window._activeStreamingEngine === 'EMSS');
     setPerformanceStatsPill('wmp', window._activeStreamingEngine === 'ESPLUSPLAYER');
     setPerformanceStatsPill('game', window._activeStreamingEngine === 'EMSS' && window._requestedGameMode === true);
