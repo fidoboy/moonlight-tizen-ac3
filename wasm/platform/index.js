@@ -360,31 +360,19 @@ function quitRemoteAppAfterStartupFailure() {
 }
 
 function shutdownAmbilightForStreamIfEnabled(context) {
-  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
-    if (!preference || preference.ambilightEnabled !== true) return false;
-    if (!window.moonlightAmbilight ||
-        typeof window.moonlightAmbilight.shutdown !== 'function') return false;
-    return window.moonlightAmbilight.shutdown().catch(function(error) {
-      console.warn('[ambilight] Could not clean up ' + context + ':', error);
-      return false;
-    });
-  }).catch(function(error) {
-    console.warn('[ambilight] Could not read the enabled preference during ' + context + '; skipping shutdown:', error);
+  if (!window.moonlightAmbilight ||
+      typeof window.moonlightAmbilight.shutdown !== 'function') return Promise.resolve(false);
+  return window.moonlightAmbilight.shutdown().catch(function(error) {
+    console.warn('[ambilight] Could not clean up ' + context + ':', error);
     return false;
   });
 }
 
 function stopAmbilightForStreamIfEnabled(context) {
-  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
-    if (!preference || preference.ambilightEnabled !== true) return false;
-    if (!window.moonlightAmbilight ||
-        typeof window.moonlightAmbilight.stop !== 'function') return false;
-    return window.moonlightAmbilight.stop().catch(function(error) {
-      console.warn('[ambilight] Could not stop capture during ' + context + ':', error);
-      return false;
-    });
-  }).catch(function(error) {
-    console.warn('[ambilight] Could not read the enabled preference during ' + context + '; skipping stop:', error);
+  if (!window.moonlightAmbilight ||
+      typeof window.moonlightAmbilight.stop !== 'function') return Promise.resolve(false);
+  return window.moonlightAmbilight.stop().catch(function(error) {
+    console.warn('[ambilight] Could not stop capture during ' + context + ':', error);
     return false;
   });
 }
@@ -8644,7 +8632,7 @@ function initializeAmbilightSupport() {
     updateAmbilightAvailability(supported === true);
     return supported === true;
   }).catch(function(error) {
-    console.warn('[ambilight] Service/capture capability check failed:', error);
+    console.warn('[ambilight] Tizen platform-version check failed:', error);
     updateAmbilightAvailability(false);
     return false;
   });
