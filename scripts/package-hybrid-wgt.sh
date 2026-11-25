@@ -424,7 +424,7 @@ EXPECT
   openssl pkcs12 -legacy -in "/home/tizen/tizen-studio/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.p12" \
     -clcerts -nokeys -passin "pass:$distributor_password" -out "$distributor_certificate"
   python3 scripts/verify-tizen-xmlsig.py "$signature_check" \
-    "$author_certificate" "$distributor_certificate" /runner-temp/xml-c14n
+    "$author_certificate" "$distributor_certificate" "$RUNNER_TEMP/xml-c14n"
 
   # 5. Validate the final signed WGT, not the unsigned tz pack output.
   python3 - "$output" "$service_tpk" "$wmp_tpk" "$source" <<'PY'

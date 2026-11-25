@@ -161,9 +161,7 @@ def audit_web_payload(files, label):
     require("index.html" in available and "config.xml" in available,
             f"{label}: embedded app is missing index.html or config.xml")
 
-    _, config_refs, inner_profiles = xml_references(files["config.xml"], "config.xml")
-    require({"vss_default", "vss_landscape", "vss_portrait"} <= inner_profiles,
-            f"{label}: inner config.xml is missing one or more splash profiles")
+    _, config_refs, _ = xml_references(files["config.xml"], "config.xml")
 
     checked = 0
     for value, source in config_refs:
@@ -254,34 +252,29 @@ def audit_outer_package(files, label):
             f"{label}: outer app icon must point to res/wgt/icon.png")
     require("res/wgt/index.html" in app_control_sources,
             f"{label}: outer AppControl entry must point to res/wgt/index.html")
-    require({"vss_default", "vss_landscape", "vss_portrait"} <= profiles,
-            f"{label}: outer config.xml is missing a splash profile")
-
-    # The outer hybrid manifest must resolve its splash resources from the
-    # original Moonlight Web payload; no duplicate package-root copies exist.
+    # The hybrid package intentionally has no native splash videos or
+    # generated static splash images.
+    obsolete_splash_assets = sorted(
+        name for name in available
+        if name.endswith((
+            "launch-screen.mp4",
+            "launch-screen-portrait.mp4",
+            "launch-screen.png",
+            "launch-screen-portrait.png",
+        ))
+    )
+    require(
+        not obsolete_splash_assets,
+        f"{label}: obsolete splash assets are present: {obsolete_splash_assets}",
+    )
     splash_references = [
         value for value, source in references
         if any(source.endswith("@" + attribute) for attribute in ("video", "background_image", "image"))
     ]
-    expected = {
-        "res/wgt/static/res/launch-screen.mp4",
-        "res/wgt/static/res/launch-screen-portrait.mp4",
-        "res/wgt/static/res/launch-screen.png",
-        "res/wgt/static/res/launch-screen-portrait.png",
-    }
-    require(expected <= set(splash_references),
-            f"{label}: outer config.xml does not reference all Moonlight splash assets under res/wgt/static/res")
-    for name in expected:
-        require(name in available and files[name],
-                f"{label}: missing or empty embedded splash resource {name}")
-    forbidden = {
-        "static/res/launch-screen.mp4",
-        "static/res/launch-screen-portrait.mp4",
-        "static/res/launch-screen.png",
-        "static/res/launch-screen-portrait.png",
-    }
-    require(not (forbidden & available),
-            f"{label}: duplicate package-root splash assets are present")
+    require(
+        not any("launch-screen" in value for value in splash_references),
+        f"{label}: outer config.xml still references obsolete splash assets",
+    )
     return len(references)
 
 def audit_wmp_elf(archive, label):
@@ -408,7 +401,7 @@ def main():
             print(f"  Inner config references resolved: {inner_config_checks}.")
             print(f"  HTML/CSS/JS/runtime references checked: {web_checks}.")
             print(f"  Outer config references resolved: {outer_checks}.")
-            print(f"  Both splash videos, both splash images, four WASM files and "
+            print(f"  No native splash videos or generated splash images; four WASM files and "
                   f"{len(LOCALE_FILES)} locale JSON files verified.")
     except (OSError, zipfile.BadZipFile, AuditError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
