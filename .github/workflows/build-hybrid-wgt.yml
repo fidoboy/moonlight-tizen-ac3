@@ -58,10 +58,16 @@ jobs:
           : "${ENABLE_NATIVE_TRACES:=false}"
           matrix='{"include":[]}'
           if [[ "$BUILD_RELEASE" == "true" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"release","build_variant":"release","dotnet_configuration":"Release","debug_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight"}]' <<< "$matrix")"
+            matrix="$(jq -c '.include += [
+              {"variant":"release","build_variant":"release","dotnet_configuration":"Release","debug_mode":"false","force_game_mode":"false","show_private_data":"false","enable_native_traces":"false","base_wgt":"MoonlightWeb-base.wgt","output_name":"Moonlight.wgt","artifact_name":"Moonlight"},
+              {"variant":"release-forcegm","build_variant":"release","dotnet_configuration":"Release","debug_mode":"false","force_game_mode":"true","show_private_data":"false","enable_native_traces":"false","base_wgt":"Moonlight-ForceGM-base.wgt","output_name":"Moonlight-ForceGM.wgt","artifact_name":"Moonlight-ForceGM"}
+            ]' <<< "$matrix")"
           fi
           if [[ "$BUILD_DEBUG" == "true" ]]; then
-            matrix="$(jq -c '.include += [{"variant":"debug","build_variant":"debug","dotnet_configuration":"Debug","debug_mode":"true","show_private_data":env.SHOW_PRIVATE_DATA,"enable_native_traces":env.ENABLE_NATIVE_TRACES,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"}]' <<< "$matrix")"
+            matrix="$(jq -c --arg private_data "$SHOW_PRIVATE_DATA" --arg native_traces "$ENABLE_NATIVE_TRACES" '.include += [
+              {"variant":"debug","build_variant":"debug","dotnet_configuration":"Debug","debug_mode":"true","force_game_mode":"false","show_private_data":$private_data,"enable_native_traces":$native_traces,"base_wgt":"Moonlight-Debug-base.wgt","output_name":"Moonlight-Debug.wgt","artifact_name":"Moonlight-Debug"},
+              {"variant":"debug-forcegm","build_variant":"debug","dotnet_configuration":"Debug","debug_mode":"true","force_game_mode":"true","show_private_data":$private_data,"enable_native_traces":$native_traces,"base_wgt":"Moonlight-Debug-ForceGM-base.wgt","output_name":"Moonlight-Debug-ForceGM.wgt","artifact_name":"Moonlight-Debug-ForceGM"}
+            ]' <<< "$matrix")"
           fi
           if [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]]; then
             echo "::error::No build variant is enabled. Select Release and/or Debug."
@@ -195,6 +201,7 @@ jobs:
             -e EMSDK=/opt/emscripten-release-bundle/emsdk \
             -e BUILD_TYPE=release \
             -e DEBUG_MODE=${{ matrix.debug_mode }} \
+            -e FORCE_GAME_MODE=${{ matrix.force_game_mode }} \
             -e LOG_SHOW_PRIVATE_DATA=${{ matrix.show_private_data }} \
             -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
             -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
