@@ -134,6 +134,8 @@ const SyncFunctions = {
     const activeStreamingEngine = getSelectedStreamingEngine();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
     window._ambilightStreamStartRequested = false;
+    window._ambilightStartedForCurrentStream = false;
+    window._ambilightStartPromise = null;
     window._streamConnectionEstablished = false;
     window._ambilightColorProfile = null;
     window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
@@ -1409,10 +1411,6 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
-    // Stop only the service started by this Moonlight instance.
-    if (typeof window.stopAmbilightForStreamIfEnabled === 'function') {
-      window.stopAmbilightForStreamIfEnabled('stream termination');
-    }
     // Prevent a delayed WMP profile callback from restarting Ambilight after
     // this stream has already entered teardown.
     window._streamConnectionEstablished = false;
@@ -1992,9 +1990,15 @@ function handleMessage(msg) {
 
       if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
         sequence = sequence.then(function() {
-          return runClosingStep('Ambilight shutdown', t('Stopping Ambilight service...'), function() {
-            return window.moonlightAmbilight.shutdown();
-          }, 5000);
+          return Promise.resolve(window._ambilightStartPromise).catch(function() {}).then(function() {
+            if (window._ambilightStartedForCurrentStream !== true) return null;
+            return runClosingStep('Ambilight shutdown', t('Stopping Ambilight service...'), function() {
+              return window.moonlightAmbilight.shutdown();
+            }, 5000).then(function(result) {
+              window._ambilightStartedForCurrentStream = false;
+              return result;
+            });
+          });
         });
       }
 
