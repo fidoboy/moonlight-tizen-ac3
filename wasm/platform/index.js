@@ -10437,7 +10437,6 @@ var configSummaryRefreshPromise = null;
 var configSummaryRevision = 0;
 
 var STREAMING_PREFERENCE_KEYS = [
-  'ambilightEnabled', 'ambilightWledIp', 'ambilightCaptureBackend',
   'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
   'rumbleFeedback', 'mouseEmulation', 'mouseEmulationStick', 'selectHoldStreamMenu', 'flipABfaceButtons',
   'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
@@ -10445,6 +10444,10 @@ var STREAMING_PREFERENCE_KEYS = [
   'hdrMode', 'fullRange', 'gameMode', 'disableWarnings', 'performanceStats',
   'dolbyChannelLayout', 'dolbyDecodingMode', 'streamingEngine', 'optimizeBitrate', 'showConfigSummaryBar', 'performanceStatsPosition', 'streamTransitionBackground', 'colorTheme', 'quitAppAfterDisconnect'
 ];
+
+var DIRECT_STREAM_PREFERENCE_KEYS = STREAMING_PREFERENCE_KEYS.concat([
+  'ambilightEnabled', 'ambilightWledIp', 'ambilightCaptureBackend'
+]);
 
 function applyPersistedPreferenceToSnapshot(key, value) {
   if (!configSummarySnapshot || !configSummarySnapshot.preferences) return;
@@ -10508,7 +10511,7 @@ function readStreamingSettingsSnapshot() {
       else openIndexDB(resolve);
     } catch (error) { reject(error); }
   }).then(function() {
-    return readStoredPreferences(STREAMING_PREFERENCE_KEYS);
+    return readStoredPreferences(DIRECT_STREAM_PREFERENCE_KEYS);
   }), 10000, 'Saved streaming preferences load').then(function(stored) {
     var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var defaults = {
@@ -10526,7 +10529,7 @@ function readStreamingSettingsSnapshot() {
       colorTheme: COLOR_THEME_DEFAULT, quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom',
       ambilightEnabled: false, ambilightWledIp: null, ambilightCaptureBackend: 'video_plane'
     };
-    var missingKeys = STREAMING_PREFERENCE_KEYS.filter(function(key) {
+    var missingKeys = DIRECT_STREAM_PREFERENCE_KEYS.filter(function(key) {
       return stored[key] == null && Object.prototype.hasOwnProperty.call(defaults, key);
     });
     var persistDefaults = missingKeys.length ? new Promise(function(resolve, reject) {
