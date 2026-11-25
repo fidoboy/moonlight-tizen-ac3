@@ -2397,15 +2397,16 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
 }
 
-/* Keep the opacity slider and its endpoint labels inside the dropdown.
-   Use flexbox here because older Tizen WebKit versions do not reliably support
-   CSS Grid; the slider must shrink instead of pushing the final label out. */
+/* Keep both opacity endpoints visibly inside the dropdown.
+   Flexbox is supported by the older Tizen WebKit target; the slider takes only
+   the space left between the fixed-width labels and the panel's inner padding. */
 .performanceStatsOpacityMenu {
     display: flex !important;
     align-items: center;
     box-sizing: border-box;
     padding: 0 16px !important;
     min-width: 0;
+    column-gap: 8px;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
@@ -2413,19 +2414,13 @@ body[data-color-theme="black-orange"] #background-layer {
     margin: 0;
     white-space: nowrap;
 }
-.performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue {
-    margin-right: 10px;
-}
-.performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
-    margin-left: 10px;
-    margin-right: 16px;
-}
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
     display: block;
     flex: 1 1 0px;
-    width: 0 !important;
+    width: 100% !important;
     min-width: 0;
+    max-width: 100%;
     margin: 0;
 }
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
