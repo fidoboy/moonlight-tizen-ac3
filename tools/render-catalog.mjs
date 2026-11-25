@@ -67,22 +67,35 @@ try {
     ];
 
     for (const [index, game] of games.entries()) {
+      // Match the real DOM produced by showApps() in platform/index.js.
       const card = document.createElement('div');
-      card.className = 'mdl-card mdl-shadow--4dp' + (index === 0 ? ' hovered' : '');
+      card.id = `game-container-${index + 1}`;
+      card.className = 'game-container mdl-card mdl-shadow--4dp' + (index === 0 ? ' hovered' : '');
+      card.setAttribute('role', 'link');
+      card.setAttribute('tabindex', '0');
       card.setAttribute('aria-label', game.title);
-      const image = document.createElement('img');
-      image.src = game.image;
-      image.alt = '';
-      image.style.opacity = '1';
-      image.style.zIndex = '0';
-      image.style.objectFit = 'cover';
+
+      const cell = document.createElement('div');
+      cell.id = `game-${index + 1}`;
+      cell.className = 'mdl-card__title mdl-card--expand';
+
       const title = document.createElement('div');
-      title.className = 'mdl-card__title game-title';
+      title.className = 'game-title mdl-card__title-text';
+
       const text = document.createElement('span');
       text.className = 'game-text';
       text.textContent = game.title;
+      if (game.title.length <= 20) text.classList.add('disable-animation');
+
       title.append(text);
-      card.append(image, title);
+      cell.append(title);
+      card.append(cell);
+
+      const image = document.createElement('img');
+      image.src = game.image;
+      image.alt = '';
+      image.className = 'fade-in';
+      card.append(image);
       grid.append(card);
     }
 
