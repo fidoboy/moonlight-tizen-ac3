@@ -373,7 +373,9 @@ function shutdownAmbilightForStreamIfEnabled(context) {
 
 window.stopAmbilightForStreamIfEnabled = function(context) {
   if (!window.moonlightAmbilight ||
-      typeof window.moonlightAmbilight.stop !== 'function') return Promise.resolve(false);
+      typeof window.moonlightAmbilight.stop !== 'function' ||
+      typeof window.moonlightAmbilight.isActive !== 'function' ||
+      !window.moonlightAmbilight.isActive()) return Promise.resolve(false);
   return window.moonlightAmbilight.stop().catch(function(error) {
     console.warn('[ambilight] Could not stop capture during ' + context + ':', error);
     return false;
