@@ -992,15 +992,13 @@ function attachListeners() {
   }
   changeUiModeForWasmLoad();
 
-  // Refresh dynamic Ambilight status after translations are applied.
-  // Its description is state-driven and must not be overwritten by data-i18n.
+  // Ambilight is deliberately absent from the application startup path.
+  // Its settings UI and compatibility check are initialized only after the
+  // user explicitly opens Settings.
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
     window.i18n.onRefresh(loadSystemInfo);
-    window.i18n.onRefresh(updateAmbilightDescription);
   } else {
-    // Fallback if i18n is not present
     loadSystemInfo();
-    updateAmbilightDescription();
   }
 
   const i18nInitPromise = (window.i18n && typeof window.i18n.init === 'function')
@@ -1021,7 +1019,6 @@ function attachListeners() {
   });
 
   initIpAddressFields();
-  initAmbilightWledIpFields();
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
@@ -1043,10 +1040,6 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
-  $('#ambilightSwitch').on('click', saveAmbilightPreference);
-  $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
-    .on('change', saveAmbilightWledIp);
-  loadAmbilightPreferences();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -4241,8 +4234,13 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
-  // Defer the optional Ambilight capability probe until the user opens Settings.
-  // This keeps the native service out of the normal application startup path.
+  // Do not touch Ambilight during Moonlight startup. Initialize its settings
+  // controls and perform the passive platform-version check only after the user
+  // explicitly opens Settings.
+  initAmbilightWledIpFields();
+  $('#ambilightSwitch').off('click', saveAmbilightPreference).on('click', saveAmbilightPreference);
+  $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
+    .off('change', saveAmbilightWledIp).on('change', saveAmbilightWledIp);
   checkAmbilightPlatformCompatibility();
 
   // Remove the background layer entirely while Settings is displayed.
