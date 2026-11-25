@@ -94,6 +94,42 @@ try {
       transition: none !important;
       caret-color: transparent !important;
     }
+
+    /* Catalog framing: show only the Apps grid over Moonlight's real background. */
+    header,
+    #stream-diagnostics-layer,
+    #popup-layer,
+    #main-content > :not(#ambient-trails):not(#ambient-bubbles):not(#ambient-symbols):not(#game-grid) {
+      display: none !important;
+    }
+    #main-content {
+      position: relative !important;
+      display: flex !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      min-height: 100vh !important;
+      overflow: hidden !important;
+    }
+    #ambient-trails,
+    #ambient-bubbles,
+    #ambient-symbols {
+      display: block !important;
+    }
+    #game-grid {
+      position: relative !important;
+      z-index: 1 !important;
+      display: flex !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 100% !important;
+      box-sizing: border-box !important;
+      align-items: center !important;
+      justify-content: center !important;
+      align-content: center !important;
+      flex-flow: row wrap !important;
+      margin: 0 !important;
+      padding: 40px 80px !important;
+    }
     #game-grid .mdl-card.hovered { transform: scale(1.12); }
     #game-grid .mdl-card img { opacity: 1 !important; }`;
     document.head.append(freeze);
