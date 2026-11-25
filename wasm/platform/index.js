@@ -8596,12 +8596,7 @@ function updateAmbilightAvailability(supported) {
 
   updateAmbilightDescription();
 
-  if (!supported) {
-    // An unavailable service must also clear the persisted preference so it
-    // cannot be restored as enabled if the capability check later changes.
-    // Preserve the user's saved preference; unsupported hardware only disables the UI.
-
-  }
+  // Unsupported hardware disables the control but does not overwrite the saved preference.
 
   if (switchText && supported) {
     switchText.textContent = t('Enable Ambilight');
