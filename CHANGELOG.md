@@ -7,6 +7,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Added
 - **Live stream indicators in the performance overlay:** Added compact visual indicators for the active streaming engine, negotiated video codec and HDR, audio codec, decoding mode and channel layout, network connection type, and confirmed Game Mode. Each indicator lights up according to the effective state detected or negotiated for the current streaming session, rather than merely reflecting the saved preferences.
+- **Performance statistics overlay opacity:** Added an adjustable opacity slider (0–100%) for the overlay's background panel, with a default value of 70%. The setting is saved independently of the main performance statistics toggle and does not affect the opacity of the text or graphs.
 
 ### Changed
 - **Stream shutdown sequence:** Made the closing transition report its work in a visible, sequential status flow. WMP service termination, Ambilight shutdown, local audio restoration, optional remote application closure, and return to the Apps view are handled in order. Each operation has a bounded wait; failures and timeouts are recorded without preventing the interface from recovering.
