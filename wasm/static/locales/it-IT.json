@@ -684,5 +684,13 @@
   "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Inserisci l’indirizzo IP del dispositivo WLED. Assicurati che sia raggiungibile dal televisore tramite la rete locale.",
   "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight sincronizza i colori sullo schermo con l’illuminazione LED. È necessario un dispositivo WLED per controllare le luci.",
   "Overlay opacity": "Opacità della sovrapposizione",
-  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Regola l’opacità dello sfondo del pannello delle statistiche sulle prestazioni."
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Regola l’opacità dello sfondo del pannello delle statistiche sulle prestazioni.",
+  "The native streaming service is unavailable.": "Il servizio di streaming nativo non è disponibile.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight sincronizza i colori dell’immagine sullo schermo con le strisce LED. Prima di attivarlo, assicurati che un dispositivo WLED sia configurato con un indirizzo IP sulla stessa rete del televisore.",
+  "Moonlight could not initialize its streaming credentials or HTTP connection.": "Moonlight non è riuscito a inizializzare le credenziali di streaming o la connessione HTTP.",
+  "Moonlight could not prepare the streaming interface.": "Moonlight non è riuscito a preparare l’interfaccia di streaming.",
+  "Moonlight could not start the selected app.": "Moonlight non è riuscito ad avviare l’app selezionata.",
+  "Stopping WMP service...": "Arresto del servizio WMP...",
+  "Stopping Ambilight service...": "Arresto del servizio Ambilight...",
+  "Requesting to close application %1$s...": "Richiesta di chiusura dell’applicazione %1$s..."
 }
