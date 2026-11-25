@@ -1851,12 +1851,15 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 
 #performance-stats .performance-stats-pills {
-    display: flex;
+    /* An inline flex row shrink-wraps its pills and contributes its full width
+       to the overlay's intrinsic width instead of overflowing as a block. */
+    display: inline-flex;
+    flex: 0 0 auto;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
     margin: 0 0 7px;
-    width: max-content;
+    width: auto;
     max-width: none;
 }
 #performance-stats .performance-stats-pill {
