@@ -808,6 +808,29 @@ function getSmartHubPreviewFileName(serverUid, appId) {
 }
 
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
+var _previewAppsReady = false;
+var _previewAppsLoadPromise = null;
+
+// Restore the complete app-usage/Preview cache before any code can mutate and
+// persist it. This is application data, deliberately separate from preferences.
+function ensurePreviewAppsLoaded() {
+  if (_previewAppsReady) return Promise.resolve(_previewApps);
+  if (_previewAppsLoadPromise) return _previewAppsLoadPromise;
+
+  _previewAppsLoadPromise = new Promise(function(resolve, reject) {
+    getData('previewApps', function(storedPreview) {
+      var restored = storedPreview && storedPreview.previewApps;
+      _previewApps = restored && typeof restored === 'object' && !Array.isArray(restored)
+        ? restored : {};
+      _previewAppsReady = true;
+      resolve(_previewApps);
+    }, reject);
+  }).catch(function(error) {
+    _previewAppsLoadPromise = null;
+    throw error;
+  });
+  return _previewAppsLoadPromise;
+}
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
@@ -8117,16 +8140,20 @@ function saveHosts() {
 }
 
 function savePreviewApps() {
-  // This cache is shared by Smart Hub Preview and the main UI, so persist it
-  // even when Smart Hub Preview is unavailable on the current device.
-  console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
-  return storeData('previewApps', _previewApps, null);
+  // Never replace the persisted cache with a partially initialized in-memory
+  // object. This also protects legacy callers that do not await restoration.
+  return ensurePreviewAppsLoaded().then(function() {
+    // This cache is shared by Smart Hub Preview and the main UI, so persist it
+    // even when Smart Hub Preview is unavailable on the current device.
+    console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
+    return storeData('previewApps', _previewApps, null);
+  });
 }
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
 // image metadata for applications that remain in the host's current app list.
 function incrementAppRunCount(host, appId, appTitle) {
-  if (!host || !host.serverUid || appId == null) {
+  if (!_previewAppsReady || !host || !host.serverUid || appId == null) {
     return;
   }
 
@@ -8163,7 +8190,7 @@ function incrementAppRunCount(host, appId, appTitle) {
 // Update the persistent per-host app list while preserving Smart Hub Preview
 // image metadata and usage statistics for applications that remain in the host's current app list.
 function cacheHostAppList(host, appList) {
-  if (!host || !host.serverUid || !Array.isArray(appList)) {
+  if (!_previewAppsReady || !host || !host.serverUid || !Array.isArray(appList)) {
     return;
   }
 
@@ -11575,8 +11602,13 @@ function loadHTTPCertsCb() {
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
         // Finish the startup message only after the saved-host list has been read and revived.
-        var savedHostsSnackbarPromise = Promise.resolve(window.startupEngineSnackbarPromise)
-          .then(function() {
+        var savedHostsSnackbarPromise = ensurePreviewAppsLoaded().catch(function(error) {
+          // Keep the normal UI usable, but all Preview-cache writers remain
+          // blocked until a later successful read; never overwrite history with {}.
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not restore the cached app lists:', error);
+        }).then(function() {
+          return Promise.resolve(window.startupEngineSnackbarPromise);
+        }).then(function() {
             return dismissPersistentSnackbar();
           });
         if (hasConfiguredHosts && isInGame !== true) {
@@ -11610,12 +11642,8 @@ function loadHTTPCertsCb() {
           hosts[hostUID] = revivedHost;
         }
         isHostsLoaded = true;
-        // Restore the cached preview metadata only. Do not publish Smart Hub tiles
-        // during startup: host app lists have not yet been refreshed from the hosts.
-        // The normal update path runs after a host's current app list is retrieved.
-        getData('previewApps', function(storedPreview) {
-          _previewApps = (storedPreview.previewApps != null) ? storedPreview.previewApps : {};
-        });
+        // Preview/app-usage cache restoration is awaited before host cards and
+        // discovery can trigger app-list cache updates.
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
         // Restore saved hosts locally before checking them and discovering new hosts.
@@ -12047,6 +12075,15 @@ function maybeStartDirectSmartHubLaunch() {
     return;
   }
   if (!isStartupHttpReady) return;
+  if (!_previewAppsReady) {
+    ensurePreviewAppsLoaded().then(function() {
+      maybeStartDirectSmartHubLaunch();
+    }).catch(function(error) {
+      console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not restore app usage history before the direct launch:', error);
+      directSmartHubLaunchFailure(t('Moonlight could not restore its saved app data.'));
+    });
+    return;
+  }
 
   _directSmartHubLaunchStarted = true;
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
