@@ -8635,12 +8635,16 @@ function checkAmbilightPlatformCompatibility() {
   }
 
   ambilightInitializationPromise = window.moonlightAmbilight.checkPlatformCompatibility().then(function(supported) {
-    updateAmbilightAvailability(supported === true);
-    return supported === true;
+    return loadAmbilightPreferencesFromStorage().then(function() {
+      updateAmbilightAvailability(supported === true);
+      return supported === true;
+    });
   }).catch(function(error) {
     console.warn('[ambilight] Tizen platform-version check failed:', error);
-    updateAmbilightAvailability(false);
-    return false;
+    return loadAmbilightPreferencesFromStorage().then(function() {
+      updateAmbilightAvailability(false);
+      return false;
+    });
   });
 
   return ambilightInitializationPromise;
