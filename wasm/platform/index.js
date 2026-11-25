@@ -1026,10 +1026,6 @@ function attachListeners() {
       window.i18n.populateLanguageMenu(saveLanguagePreference);
     }
 
-    // Start the optional Ambilight capability probe only after the locale is ready,
-    // so its checking and result descriptions are rendered in the selected language.
-    initializeAmbilightSupport();
-
     // Normal initialization reaches this point only after the HTML launch
     // presentation has completed. The localized loading message appears once hosts are ready.
     isStartupLocaleReady = true;
@@ -4257,6 +4253,10 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Defer the optional Ambilight capability probe until the user opens Settings.
+  // This keeps the native service out of the normal application startup path.
+  initializeAmbilightSupport();
+
   // Remove the background layer entirely while Settings is displayed.
   $('#background-layer').hide();
 
