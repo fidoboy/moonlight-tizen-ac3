@@ -682,5 +682,7 @@
   "Moonlight found an invalid saved client identifier.": "O Moonlight encontrou um identificador de cliente salvo inválido.",
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "O Moonlight encontrou um erro não identificado ao recuperar a identidade de streaming salva.",
   "Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.": "Digite o endereço IP do seu dispositivo WLED. Verifique se ele pode ser acessado pela TV por meio da rede local.",
-  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "O Ambilight sincroniza as cores na tela com a sua iluminação LED. É necessário um dispositivo WLED para controlar as luzes."
+  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "O Ambilight sincroniza as cores na tela com a sua iluminação LED. É necessário um dispositivo WLED para controlar as luzes.",
+  "Overlay opacity": "Opacidade da sobreposição",
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Ajusta a opacidade do fundo do painel de estatísticas de desempenho."
 }
