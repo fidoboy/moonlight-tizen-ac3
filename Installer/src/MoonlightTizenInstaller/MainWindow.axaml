@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MoonlightTizenInstaller.MainWindow"
+        Width="760" Height="520"
+        MinWidth="640" MinHeight="440"
+        Title="Moonlight Tizen Installer">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="28">
+    <StackPanel Spacing="6">
+      <TextBlock Text="Moonlight para Samsung TV" FontSize="25" FontWeight="SemiBold" />
+      <TextBlock Text="Instalador guiado" Opacity="0.7" />
+    </StackPanel>
+    <Border Grid.Row="1" Margin="0,24" Padding="24" CornerRadius="8"
+            BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+      <StackPanel Spacing="12" VerticalAlignment="Center">
+        <TextBlock Text="Preparado para comenzar" FontSize="19" />
+        <TextBlock Text="Conecta el televisor a la misma red local. El asistente buscará el dispositivo y preparará la instalación." TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Salir" IsCancel="True" />
+      <Button Content="Siguiente" IsDefault="True" />
+    </StackPanel>
+  </Grid>
+</Window>
