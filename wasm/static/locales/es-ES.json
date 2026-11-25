@@ -687,5 +687,10 @@
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight ha encontrado un error no identificado al recuperar la identidad de streaming guardada.",
   "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight sincroniza los colores de la pantalla con la iluminación LED. Se necesita un dispositivo WLED para controlar las luces.",
   "Overlay opacity": "Opacidad del overlay",
-  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Permite regular la opacidad del fondo del panel de estadísticas de rendimiento."
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Permite regular la opacidad del fondo del panel de estadísticas de rendimiento.",
+  "The native streaming service is unavailable.": "El servicio de streaming nativo no está disponible.",
+  "Ambilight synchronizes the colors of the on-screen image with LED strips. Before enabling it, make sure you have a WLED device configured with an IP address on the same network as your TV.": "Ambilight sincroniza los colores de la imagen en pantalla con las tiras LED. Antes de activarlo, asegúrate de tener configurado un dispositivo WLED con una dirección IP en la misma red que el televisor.",
+  "Moonlight could not initialize its streaming credentials or HTTP connection.": "Moonlight no pudo inicializar las credenciales de streaming ni la conexión HTTP.",
+  "Moonlight could not prepare the streaming interface.": "Moonlight no pudo preparar la interfaz de streaming.",
+  "Moonlight could not start the selected app.": "Moonlight no pudo iniciar la aplicación seleccionada."
 }
