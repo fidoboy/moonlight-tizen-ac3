@@ -1077,12 +1077,26 @@ function attachListeners() {
   $('#automaticUpdateChecksSwitch').on('click', saveAutomaticUpdateChecks);
   $('#restartAppBtn').on('click', restartAppDialog);
 
-  const registerMenu = (elementId, view) => {
+  const registerMenu = (elementId, view, matchTriggerWidth) => {
     $(`#${elementId}`).on('click', () => {
       if (view.isActive()) {
         Navigation.pop();
       } else {
         Navigation.push(view);
+        if (matchTriggerWidth) {
+          // MDL creates a separate menu container. Size that container from
+          // the actual trigger, rather than from the settings pane percentage.
+          setTimeout(() => {
+            const trigger = document.getElementById(elementId);
+            const menu = document.querySelector('.mdl-menu[for="' + elementId + '"]');
+            const container = menu && menu.closest('.mdl-menu__container');
+            if (!trigger || !container || !container.classList.contains('is-visible')) return;
+            const triggerWidth = trigger.getBoundingClientRect().width;
+            if (triggerWidth > 0) {
+              container.style.setProperty('width', triggerWidth + 'px', 'important');
+            }
+          }, 0);
+        }
       }
     });
   }
@@ -1102,6 +1116,7 @@ function attachListeners() {
   registerMenu('selectCodec', Views.SelectCodecMenu);
   registerMenu('selectH264Level', Views.SelectH264LevelMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
+  registerMenu('selectPerformanceStatsOpacity', Views.SelectPerformanceStatsOpacityMenu, true);
   registerMenu('selectConfigSummaryPosition', Views.ConfigSummaryPositionMenu);
 
   $(window).resize(fullscreenWasmModule);
