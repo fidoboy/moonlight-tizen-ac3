@@ -1,8 +1,6 @@
 ## Highlights
 
-- **Experimental native WMP streaming:** Added an alternative Samsung-native playback engine. EMSS remains the recommended option.
-- **Expanded audio and Ambilight support:** Added Opus passthrough, AC-3/E-AC-3 software decoding, Dolby audio fallback, and optional WLED-based ambient lighting.
-- **Richer performance statistics:** Added more audio and streaming diagnostics, with a configurable overlay background opacity.
-- **Improved TV diagnostics and controls:** Expanded System Info and added controller usability improvements.
-- **More reliable streaming and shutdown:** Improved native WMP lifecycle handling, stream shutdown sequencing, and Moonlight Common C networking and synchronization.
-- **Standard and ForceGM packages:** Restored separate packages so TV models that require forced Game Mode can use the appropriate variant.
+- **Live stream indicators:** Added real-time indicators for the streaming engine, video and audio codecs, HDR, decoding mode, network type, and Game Mode.
+- **Standard and ForceGM packages:** Restored separate packages so each TV model can use the appropriate Game Mode behaviour.
+- **More reliable streaming and shutdown:** Improved native WMP lifecycle handling, stream-closing sequence, video depacketization, and network-statistics synchronization.
+- **Targeted fixes:** Fixed remote app shutdown for Smart Hub shortcut streams and automatic bitrate changes persisting after disabling the feature.
