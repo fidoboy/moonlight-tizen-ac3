@@ -166,9 +166,6 @@ const SyncFunctions = {
   },
   // no parameters
   'stopRequest': (...args) => {
-    if (typeof window.stopAmbilightForStreamIfEnabled === 'function') {
-      window.stopAmbilightForStreamIfEnabled('stream termination');
-    }
     // Begin the same UI termination path for both engines before sending the
     // engine-specific stop signal. Unsolicited terminations converge on the same
     // helper from handleMessage('streamTerminated: ...') below.
@@ -1413,6 +1410,10 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Stop only the service started by this Moonlight instance.
+    if (typeof window.stopAmbilightForStreamIfEnabled === 'function') {
+      window.stopAmbilightForStreamIfEnabled('stream termination');
+    }
     // Prevent a delayed WMP profile callback from restarting Ambilight after
     // this stream has already entered teardown.
     window._streamConnectionEstablished = false;
@@ -2053,8 +2054,8 @@ function handleMessage(msg) {
       fullRange: ambilightFullRange
     };
     window._ambilightNegotiatedProfileReady = true;
-    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
-      window.notifyAmbilightStreamReadinessChanged(false);
+    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled(false);
     }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
@@ -2084,8 +2085,8 @@ function handleMessage(msg) {
     // its profile only after the first accepted native video frame; wait for that
     // event rather than guessing from the requested HDR toggle.
     window._streamConnectionEstablished = true;
-    if (typeof window.notifyAmbilightStreamReadinessChanged === 'function') {
-      window.notifyAmbilightStreamReadinessChanged(false);
+    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled(false);
     }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
