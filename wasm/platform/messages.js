@@ -366,6 +366,19 @@ var performanceStatsEnabled = null;
 var performanceStatsPendingSnapshot = null;
 var performanceStatsFirstRevealAt = 0;
 var performanceStatsRevealTimer = null;
+
+// Keep the existing 70% panel opacity as the default for older installations.
+if (window._performanceStatsOverlayOpacity == null) {
+  window._performanceStatsOverlayOpacity = 70;
+}
+
+function getPerformanceStatsOverlayBackground() {
+  var opacity = Number(window._performanceStatsOverlayOpacity);
+  if (!Number.isFinite(opacity)) opacity = 70;
+  opacity = Math.max(0, Math.min(100, opacity));
+  return 'rgba(0, 0, 0, ' + (opacity / 100) + ')';
+}
+
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -2231,7 +2244,7 @@ function handleMessage(msg) {
             nativeStatsOverlay.style.display = 'inline-block';
             nativeStatsOverlay.style.opacity = '0';
             nativeStatsOverlay.style.visibility = 'hidden';
-            nativeStatsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+            nativeStatsOverlay.style.background = getPerformanceStatsOverlayBackground();
             performanceStatsPendingFirstReveal = true;
           } else {
             // Invalidate any pending first-reveal work before fading out. The
@@ -2299,7 +2312,7 @@ function handleMessage(msg) {
         ? { statsText: sourceStatsText }
         : null;
     }
-    statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+    statsOverlay.style.background = getPerformanceStatsOverlayBackground();
 
     if (overlayWasVisible) {
       var statsElements = ensurePerformanceStatsOverlayElements();
