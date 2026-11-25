@@ -1364,18 +1364,19 @@ function startDeferredNormalStartup() {
       // Restore the cached update badge only after the normal UI is visible and the
       // HTML launch presentation has completed. Keep it aligned with host recovery.
       restoreUpdateBadgeFromCache();
-      loadUserData();
+      loadUserData().then(function() {
+        if (typeof window.startNormalStartupWasm === 'function') {
+          window.startNormalStartupWasm();
+        } else {
+          console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+        }
 
-      if (typeof window.startNormalStartupWasm === 'function') {
-        window.startNormalStartupWasm();
-      } else {
-        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-      }
+        // Deep links are independent of Preview publication support, but must not
+        // start a stream before the complete persisted preference collection is ready.
+        handleDeepLink();
+        window.addEventListener('appcontrol', handleDeepLink);
+      });
     });
-
-    // Deep links are independent of Preview publication support.
-    handleDeepLink();
-    window.addEventListener('appcontrol', handleDeepLink);
   };
 
   var startStartupWork = function() {
@@ -10472,6 +10473,7 @@ window.persistedPreferences = persistedPreferences;
 window.persistedPreferencesReady = false;
 
 function readStoredPreferences() {
+  if (persistedPreferencesReady) return Promise.resolve(persistedPreferences);
   return new Promise(function(resolve, reject) {
     try {
       var transaction = db.transaction(storeName, 'readonly');
@@ -10764,13 +10766,20 @@ function loadDirectSmartHubStreamSettings() {
 
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
-  openIndexDB(function() {
-    readStoredPreferences().then(function() {
-      loadUserDataCb();
-    }).catch(function(error) {
-      // Preserve the existing per-setting recovery path if the bulk read fails.
-      console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
-      loadUserDataCb();
+  return new Promise(function(resolve) {
+    openIndexDB(function() {
+      readStoredPreferences().then(function() {
+        loadUserDataCb();
+        resolve();
+      }).catch(function(error) {
+        // Preserve the existing per-setting recovery path if the bulk read fails.
+        console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
+        loadUserDataCb();
+        resolve();
+      });
+    }, function(error) {
+      console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not open IndexedDB to preload the preference collection:', error);
+      resolve();
     });
   });
 }
