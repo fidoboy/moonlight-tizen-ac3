@@ -132,9 +132,8 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
-    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
     window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
-    window._ambilightNegotiatedProfileReady = false;
+    window._ambilightStreamStartRequested = false;
     window._streamConnectionEstablished = false;
     window._ambilightColorProfile = null;
     window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
@@ -1417,8 +1416,8 @@ function handleMessage(msg) {
     // Prevent a delayed WMP profile callback from restarting Ambilight after
     // this stream has already entered teardown.
     window._streamConnectionEstablished = false;
-    window._ambilightNegotiatedProfileReady = false;
-    if (typeof resetAmbilightStreamStartupState === 'function') resetAmbilightStreamStartupState();
+    window._ambilightColorProfile = null;
+    window._ambilightStreamStartRequested = false;
     // Lock and reset the transition immediately, before teardown work or any
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
@@ -2053,9 +2052,8 @@ function handleMessage(msg) {
       colorSpace: ambilightColorSpace,
       fullRange: ambilightFullRange
     };
-    window._ambilightNegotiatedProfileReady = true;
     if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
-      window.startAmbilightForStreamIfEnabled(false);
+      window.startAmbilightForStreamIfEnabled();
     }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
     var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
@@ -2086,7 +2084,7 @@ function handleMessage(msg) {
     // event rather than guessing from the requested HDR toggle.
     window._streamConnectionEstablished = true;
     if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
-      window.startAmbilightForStreamIfEnabled(false);
+      window.startAmbilightForStreamIfEnabled();
     }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
