@@ -2402,13 +2402,49 @@ const Views = {
       unmark(this.view.current());
     },
   },
+  SelectPerformanceStatsOpacityMenu: {
+    isActive: () => isPopupMenuActive('performanceStatsOpacityMenu'),
+    view: new ListView(() => [document.getElementById('performanceStatsOpacitySlider')]),
+    up: function() {},
+    down: function() {},
+    left: function() {
+      var slider = document.getElementById('performanceStatsOpacitySlider');
+      if (!slider || slider.disabled) return;
+      slider.stepDown();
+      slider.dispatchEvent(new Event('input'));
+    },
+    right: function() {
+      var slider = document.getElementById('performanceStatsOpacitySlider');
+      if (!slider || slider.disabled) return;
+      slider.stepUp();
+      slider.dispatchEvent(new Event('input'));
+    },
+    accept: function() {
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectPerformanceStatsOpacity'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectPerformanceStatsOpacity');
+      closeActiveVisibleMenu();
+      focusElement('selectPerformanceStatsOpacity');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
   AdvancedSettings: {
     view: new ListView(() => [
       'unlockAllFpsBtn',
       'optimizeBitrateBtn',
       'disableWarningsBtn',
       'performanceStatsBtn',
-      'selectPerformanceStatsPosition'
+      'selectPerformanceStatsPosition',
+      'selectPerformanceStatsOpacity'
     ]),
     up: function() {
       this.view.prevOption();
