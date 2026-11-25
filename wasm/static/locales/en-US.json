@@ -684,5 +684,7 @@
   "Moonlight could not decode its saved client identifier.": "Moonlight could not decode its saved client identifier.",
   "Moonlight found an invalid saved client identifier.": "Moonlight found an invalid saved client identifier.",
   "Moonlight encountered an unidentified error while recovering its saved streaming identity.": "Moonlight encountered an unidentified error while recovering its saved streaming identity.",
-  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights."
+  "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.": "Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.",
+  "Overlay opacity": "Overlay opacity",
+  "- Adjust the opacity of the background panel behind the performance statistics overlay.": "- Adjust the opacity of the background panel behind the performance statistics overlay."
 }
