@@ -171,6 +171,7 @@ var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
 var ambilightSupportState = 'checking';
 var ambilightInitializationPromise = null;
+var ambilightSettingsUiInitialized = false;
 var ambilightStreamStartPromise = null;
 var ambilightStreamStartGeneration = 0;
 var ambilightStreamStartedGeneration = -1;
@@ -4237,10 +4238,13 @@ function showSettings() {
   // Do not touch Ambilight during Moonlight startup. Initialize its settings
   // controls and perform the passive platform-version check only after the user
   // explicitly opens Settings.
-  initAmbilightWledIpFields();
-  $('#ambilightSwitch').off('click', saveAmbilightPreference).on('click', saveAmbilightPreference);
-  $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
-    .off('change', saveAmbilightWledIp).on('change', saveAmbilightWledIp);
+  if (!ambilightSettingsUiInitialized) {
+    initAmbilightWledIpFields();
+    $('#ambilightSwitch').on('click', saveAmbilightPreference);
+    $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
+      .on('change', saveAmbilightWledIp);
+    ambilightSettingsUiInitialized = true;
+  }
   checkAmbilightPlatformCompatibility();
 
   // Remove the background layer entirely while Settings is displayed.
