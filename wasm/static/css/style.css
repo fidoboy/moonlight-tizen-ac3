@@ -1256,31 +1256,50 @@ body[data-color-theme="black-orange"] #background-layer {
     box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 
-/* Keep the Ambilight address editor consistent with the Add Host MDL fields. */
+/* The WLED address is a regular nested setting, with the same title/body/control
+   hierarchy and spacing as the other child settings. */
 #ambilightWledIpContainer {
     margin-top: 15px;
+}
+#ambilightWledIpContainer > .setting-option {
+    margin: 25px 0 0;
 }
 #ambilightWledIpInputField {
     display: block;
     width: 100%;
     max-width: 100%;
     padding: 0;
-}
-#ambilightWledIpInputField .mdl-textfield__label,
-#ambilightWledIpSelectFields .mdl-textfield__label {
-    top: -12px;
+    margin-top: 12px;
 }
 #ambilightWledIpTextInput {
     width: 100%;
-    height: 38px;
+    height: 44px;
     box-sizing: border-box;
+    padding: 0 12px;
     color: var(--theme-text-primary);
-    background-color: var(--theme-surface);
+    background-color: var(--theme-surface-selected);
+    font-size: 1.65rem;
+    letter-spacing: 0.5px;
+}
+#ambilightWledIpSelectFields .ip-address-select-field {
+    height: 44px;
+    padding: 0 12px;
+    color: var(--theme-text-primary);
+    background-color: var(--theme-surface-selected);
+    font-size: 1.65rem;
+    letter-spacing: 0.5px;
+    text-indent: 0;
+}
+#ambilightWledIpSelectFields .ip-address-select-field.hovered,
+#ambilightWledIpSelectFields .ip-address-select-field:hover,
+#ambilightWledIpTextInput:hover,
+#ambilightWledIpTextInput:focus {
+    box-shadow: 0 0 1px 2px var(--theme-accent);
 }
 #ambilightWledIpSelectFields {
     display: none;
     width: 100%;
-    padding: 22px 0 0;
+    padding: 12px 0 0;
     box-sizing: border-box;
 }
 #supportQrCode {
@@ -1821,12 +1840,51 @@ body[data-color-theme="black-orange"] #background-layer {
     position: absolute;
     top: 10px;
     left: 10px;
+    width: max-content;
+    max-width: none;
     padding: 20px;
     border-radius: 8px;
     font-size: 16px;
     font-weight: 500;
     line-height: 1.2;
     white-space: pre-wrap;
+}
+
+#performance-stats .performance-stats-pills {
+    /* Give the pill row an explicit max-content width. As a block-level flex
+       item, its full width participates in the overlay's intrinsic sizing, so
+       the panel expands around the row instead of letting it invade the padding. */
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 0 0 7px;
+    width: max-content;
+    max-width: none;
+}
+#performance-stats .performance-stats-pill {
+    display: inline-block;
+    padding: 3px 3px 1px;
+    border: 1px solid rgba(150, 150, 150, 0.20);
+    border-radius: 3px;
+    background: transparent;
+    color: rgba(170, 170, 170, 0.28);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+    margin: 0 3px 3px 0;
+}
+#performance-stats .performance-stats-pill.is-active {
+    border-color: rgba(60, 205, 115, 0.6);
+    background: rgba(30, 150, 75, 0.16);
+    color: #35c879;
+}
+#performance-stats .performance-stats-pill[data-pill="softdec"].is-active {
+    border-color: rgba(235, 190, 55, 0.65);
+    background: rgba(200, 155, 25, 0.15);
+    color: #f2cc45;
 }
 
 #performance-stats .performance-stats-text {
@@ -2041,6 +2099,12 @@ body[data-color-theme="black-orange"] #background-layer {
 #settings-right-pane .mdl-menu__container {
     width: calc(100% - 160px) !important;
 }
+/* MDL positions this generated menu container from the trigger button.
+   The opacity setting is nested 42px farther right (24px margin, 16px padding,
+   2px border), so reserve those extra 42px to keep its right edge aligned. */
+#performanceStatsOpacitySetting > .mdl-menu__container {
+    width: calc(100% - 202px) !important;
+}
 
 .settings-options {
     width: auto;
@@ -2061,6 +2125,12 @@ body[data-color-theme="black-orange"] #background-layer {
 
 .setting-sub-options > .setting-option {
     margin: 25px 0 0;
+}
+
+.setting-sub-options.is-disabled {
+    opacity: 0.52;
+    filter: grayscale(0.55);
+    pointer-events: none;
 }
 
 #dolbyAudioHeading .dolby-audio-heading-icon {
@@ -2205,7 +2275,7 @@ body[data-color-theme="black-orange"] #background-layer {
     border: 1px solid #FFA620;
 }
 #selectStreamingEngine, #selectResolution, #selectFramerate, #selectBitrate, #selectLanguage, #selectAmbientBackground, #selectConfigSummaryPosition, #removeAllHostsBtn,
-#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #navigationGuideBtn,
+#selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #selectAudioJitter, #selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectPerformanceStatsOpacity, #selectMouseEmulationStick, #navigationGuideBtn,
 #checkUpdatesBtn, #restartAppBtn {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
@@ -2215,7 +2285,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #discoverNewHostsAtStartupBtn, #sortAppsListBtn, #sortAppsByUsageBtn, #optimizeGamesBtn, #quitAppAfterDisconnectBtn, #removeAllHostsBtn, #rumbleFeedbackBtn, #mouseEmulationBtn, #selectHoldStreamMenuBtn,
 #flipABfaceButtonsBtn, #flipXYfaceButtonsBtn, #selectAudioBackend, #selectAudio, #selectDolbyChannelLayout, #selectDolbyDecodingMode, #ac3AudioModeBtn, #audioSyncBtn,
 #selectAudioJitter, #playHostAudioBtn, #decryptHostAudioBtn,
-#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectMouseEmulationStick, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
+#selectCodec, #selectH264Level, #selectPerformanceStatsPosition, #selectPerformanceStatsOpacity, #selectMouseEmulationStick, #hdrModeBtn, #fullRangeBtn, #gameModeBtn, #unlockAllFpsBtn, #optimizeBitrateBtn,
 #disableWarningsBtn, #performanceStatsBtn, #automaticUpdateChecksBtn, #navigationGuideBtn, #checkUpdatesBtn, #restartAppBtn {
     color: var(--theme-text-primary);
     background-color: var(--theme-surface);
@@ -2268,14 +2338,14 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-menu__item.hovered, .mdl-menu__item:hover, .mdl-menu__item:focus {
     background-color: var(--theme-surface-hover);
 }
-.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
+.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu, .performanceStatsOpacityMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
 .mouseEmulationStickMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 
-.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
+.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu, .performanceStatsOpacityMenu,
 .languageMenu, .streamingEngineMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
 .mouseEmulationStickMenu, .mdl-menu__outline {
@@ -2283,12 +2353,12 @@ body[data-color-theme="black-orange"] #background-layer {
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
 }
-.videoBitrateMenu, .audioJitterMenu {
+.videoBitrateMenu, .performanceStatsOpacityMenu, .audioJitterMenu {
     background-color: var(--theme-surface-deep);
     display: flex;
     align-items: center;
 }
-.videoBitrateMenu, .audioJitterMenu, .mdl-menu__container {
+.videoBitrateMenu, .performanceStatsOpacityMenu, .audioJitterMenu, .mdl-menu__container {
     height: 20% !important;
 }
 .mdl-slider {
@@ -2320,19 +2390,64 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-slider.is-upgraded:focus:not(:active)::-webkit-slider-thumb {
     box-shadow: 0 0 0 10px var(--theme-accent-40);
 }
-#bitrateLowestValue, #jitterLowestValue {
+#bitrateLowestValue, #performanceStatsOpacityLowestValue, #jitterLowestValue {
     color: var(--theme-text-primary);
     margin: 0 -12px 0 14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
-#bitrateHighestValue, #jitterHighestValue {
+#bitrateHighestValue, #performanceStatsOpacityHighestValue, #jitterHighestValue {
     color: var(--theme-text-primary);
     margin: 0 12px 0 -14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
+
+/* Keep both opacity endpoints visibly inside the dropdown.
+   Flexbox is supported by the older Tizen WebKit target; the slider takes only
+   the space left between the fixed-width labels and the panel's inner padding. */
+.performanceStatsOpacityMenu {
+    display: flex !important;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 24px !important;
+    min-width: 0;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
+.performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue {
+    margin-right: 8px;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
+    margin-left: 8px;
+}
+/* MDL wraps the range input in .mdl-slider__container during upgrade.
+   Make that generated wrapper the flexible item; sizing only the input does
+   not constrain the flex layout and lets the 74rem default width leak out. */
+.performanceStatsOpacityMenu > .mdl-slider__container {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    flex: 1 1 0px;
+    width: auto !important;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+.performanceStatsOpacityMenu > .mdl-slider__container > #performanceStatsOpacitySlider {
+    box-sizing: border-box;
+    display: block;
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
+#performanceStatsOpacityLowestValue.hovered, #performanceStatsOpacityHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
     background-color: var(--theme-surface-deep);
 }
@@ -2346,12 +2461,13 @@ body[data-color-theme="black-orange"] #background-layer {
 #configSummaryPositionMenu > #selectConfigSummaryPosition, #dolbyChannelLayoutMenu > #selectDolbyChannelLayout, #dolbyDecodingModeMenu > #selectDolbyDecodingMode,
 #audioJitterMenu > #selectAudioJitter, #videoCodecMenu > #selectCodec,
 #h264LevelMenu > #selectH264Level, #performanceStatsPositionMenu > #selectPerformanceStatsPosition,
-#mouseEmulationStickMenu > #selectMouseEmulationStick {
+#performanceStatsOpacityMenu > #selectPerformanceStatsOpacity, #mouseEmulationStickMenu > #selectMouseEmulationStick {
     color: var(--theme-text-primary);
     background: url('../res/ic_arrow_drop_down_48px.svg') 94.8% 50% no-repeat var(--theme-surface);
 }
 
-#performanceStatsPositionMenu > #selectPerformanceStatsPosition {
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition,
+#performanceStatsOpacityMenu > #selectPerformanceStatsOpacity {
     background-image: url('../res/ic_arrow_drop_down_48px.svg') !important;
     background-position: 94.8% 50% !important;
     background-repeat: no-repeat !important;
@@ -2359,7 +2475,10 @@ body[data-color-theme="black-orange"] #background-layer {
 
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition.hovered,
 #performanceStatsPositionMenu > #selectPerformanceStatsPosition:hover,
-#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus {
+#performanceStatsPositionMenu > #selectPerformanceStatsPosition:focus,
+#performanceStatsOpacityMenu > #selectPerformanceStatsOpacity.hovered,
+#performanceStatsOpacityMenu > #selectPerformanceStatsOpacity:hover,
+#performanceStatsOpacityMenu > #selectPerformanceStatsOpacity:focus {
     background-color: var(--theme-surface-hover);
 }
 #removeAllHostsIcon, #navigationGuideIcon, #checkUpdatesIcon,
@@ -2383,6 +2502,7 @@ body[data-color-theme="black-orange"] #background-layer {
 #goBackBtn:hover, #goBackBtn:focus, #restoreDefaultsBtn:hover, #restoreDefaultsBtn:focus,
 #selectStreamingEngine:hover, #selectStreamingEngine:focus, #selectResolution:hover, #selectResolution:focus, #selectFramerate:hover, #selectFramerate:focus, #selectBitrate:hover, #selectBitrate:focus,
 #selectPerformanceStatsPosition:hover, #selectPerformanceStatsPosition:focus, #selectPerformanceStatsPosition.hovered,
+#selectPerformanceStatsOpacity:hover, #selectPerformanceStatsOpacity:focus, #selectPerformanceStatsOpacity.hovered,
 #framePacingBtn:hover, #framePacingBtn:focus, #ambilightBtn:hover, #ambilightBtn:focus, #selectLanguage:hover, #selectLanguage:focus, #selectAmbientBackground:hover, #selectAmbientBackground:focus, #selectConfigSummaryPosition:hover, #selectConfigSummaryPosition:focus, #ipAddressFieldModeBtn:hover, #ipAddressFieldModeBtn:focus,
 #navigationSoundBtn:hover, #navigationSoundBtn:focus, #streamTransitionBackgroundBtn:hover, #streamTransitionBackgroundBtn:focus, #screensaverBtn:hover, #screensaverBtn:focus, #sortAppsListBtn:hover,
 #discoverNewHostsAtStartupBtn:hover, #discoverNewHostsAtStartupBtn:focus, #selectMouseEmulationStick:hover, #selectMouseEmulationStick:focus, #sortAppsListBtn:focus, #sortAppsByUsageBtn:hover, #sortAppsByUsageBtn:focus, #optimizeGamesBtn:hover, #optimizeGamesBtn:focus, #quitAppAfterDisconnectBtn:hover, #quitAppAfterDisconnectBtn:focus, #removeAllHostsBtn:hover, #removeAllHostsBtn:focus, #rumbleFeedbackBtn:hover,

@@ -7,8 +7,8 @@
       "owner": "moonlight-stream",
       "repo": "moonlight-common-c",
       "branch": "master",
-      "baseline_sha": "d5b38a3ac63927a11bebd8337df024f11eba34d5",
-      "baseline_label": "Reviewed and integrated through upstream commit d5b38a3 (2026-11-11)",
+      "baseline_sha": "b4ee1cea3d19e13c0b37c26585e6b1ee174effcb",
+      "baseline_label": "Reviewed upstream through b4ee1ce (2026-11-22); applicable fixes selectively integrated; unsupported codec extensions deferred",
       "note": "HIGHEST RISK: the vendored tree contains important local Tizen and Dolby Digital/AC-3/E-AC-3 changes, including audio negotiation/streaming and platform adaptations. Never replace or bulk-merge the directory. Review upstream commits and diffs individually, port only compatible fixes, and explicitly preserve/test the local patches."
     },
     {
@@ -39,8 +39,8 @@
       "repo": "moonlight-embedded",
       "branch": "master",
       "path": "libgamestream",
-      "baseline_sha": "f32e415aea6797d261d6b470dcf8bf18727341c2",
-      "baseline_label": "Reviewed upstream through f32e415 (2026-06-06; vendored Tizen subset)",
+      "baseline_sha": "33142e58ebd576085a076f4ce24881d20b3c4ef5",
+      "baseline_label": "Reviewed upstream through 33142e5 (2026-11-23; vendored Tizen subset)",
       "note": "MEDIUM RISK: the vendored subset has local Tizen-specific changes, including IPv6/HTTP handling, and this SHA is an approximate monitoring reference—not an exact snapshot pin. Inspect relevant changes within libgamestream, compare affected files, and port selectively while preserving local behavior; never overwrite the directory wholesale."
     },
     {

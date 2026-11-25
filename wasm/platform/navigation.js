@@ -1817,7 +1817,7 @@ const Views = {
     },
   },
   SelectBitrateMenu: {
-    isActive: () => isPopupMenuActive('videoBitrateMenu'),
+    isActive: () => isPopupMenuActive('selectBitrate'),
     view: new ListView(() => 
       document.getElementById('videoBitrateMenu')
       .parentNode.children[3].children[1].children),
@@ -2402,13 +2402,48 @@ const Views = {
       unmark(this.view.current());
     },
   },
+  SelectPerformanceStatsOpacityMenu: {
+    isActive: () => isPopupMenuActive('selectPerformanceStatsOpacity'),
+    view: new ListView(() =>
+      document.getElementById('performanceStatsOpacityMenu')
+      .parentNode.children[3].children[1].children),
+    up: function() {},
+    down: function() {},
+    left: function() {
+      performanceStatsOpacitySlider.stepDown();
+      performanceStatsOpacitySlider.dispatchEvent(new Event('input'));
+    },
+    right: function() {
+      performanceStatsOpacitySlider.stepUp();
+      performanceStatsOpacitySlider.dispatchEvent(new Event('input'));
+    },
+    accept: function() {
+      clickElement(this.view.current());
+      closeActiveVisibleMenu();
+      setTimeout(() => focusElement('selectPerformanceStatsOpacity'), 250);
+    },
+    back: function() {
+      closePopupMenu('selectPerformanceStatsOpacity');
+      closeActiveVisibleMenu();
+      focusElement('selectPerformanceStatsOpacity');
+    },
+    press: function() {},
+    switch: function() {},
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
   AdvancedSettings: {
     view: new ListView(() => [
       'unlockAllFpsBtn',
       'optimizeBitrateBtn',
       'disableWarningsBtn',
       'performanceStatsBtn',
-      'selectPerformanceStatsPosition'
+      'selectPerformanceStatsPosition',
+      'selectPerformanceStatsOpacity'
     ]),
     up: function() {
       this.view.prevOption();

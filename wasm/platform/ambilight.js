@@ -3,8 +3,7 @@
 
   var SERVICE_APP_ID = 'MoonLightS.MoonlightAmbilight';
   var OPERATION = 'http://tizen.org/appcontrol/operation/default';
-  // Tizen API 9 (tizen90) maps to Tizen 6.5. Older TVs still install and run
-  // Moonlight, but must never be asked to launch this optional .NET service.
+  // Ambilight service compatibility starts at Tizen 6.5.
   var MINIMUM_SERVICE_PLATFORM_VERSION = '6.5';
 
   function platformSupportsService() {
@@ -64,6 +63,10 @@
       data.push(new tizen.ApplicationControlData('wledIp', [settings.ip]));
       data.push(new tizen.ApplicationControlData('wledPort', [String(settings.port || 21324)]));
       data.push(new tizen.ApplicationControlData('ledCount', [String(settings.ledCount || 73)]));
+      data.push(new tizen.ApplicationControlData('hdr', [settings.hdr === true ? 'true' : 'false']));
+      data.push(new tizen.ApplicationControlData('colorSpace', [String(settings.colorSpace === 0 || settings.colorSpace === 2 ? settings.colorSpace : 1)]));
+      data.push(new tizen.ApplicationControlData('fullRange', [settings.fullRange === true ? 'true' : 'false']));
+      data.push(new tizen.ApplicationControlData('captureBackend', [settings.captureBackend === 'ppi' ? 'ppi' : 'video_plane']));
     }
 
     var control = new tizen.ApplicationControl(OPERATION, null, null, null, data);
@@ -221,56 +224,39 @@
     });
   }
 
-  function initialize() {
+  function checkPlatformCompatibility() {
     if (initialization) return initialization;
 
-    // Fail closed on Tizen 5.5–6.0 and on platforms where the version cannot be read.
-    // In that case the service is left completely unlaunched, as if it were absent.
-    if (!platformSupportsService()) {
-      initialized = true;
-      supported = false;
-      serviceStarted = false;
-      active = false;
-      initialization = Promise.resolve(false);
-      return initialization;
-    }
-
-    initialization = serialize('initialize').then(function(result) {
-      initialized = true;
-      supported = result.supported === true && result.ok !== false;
-      serviceStarted = false;
-      active = false;
-      // The capability probe exits its ServiceApplication after replying.
-      // Verify that it is gone before allowing a later stream to start.
-      return stopExistingService().then(function() {
-        return supported;
-      });
-    }).catch(function(error) {
-      initialized = true;
-      supported = false;
-      serviceStarted = false;
-      active = false;
-      return stopExistingService().catch(function(cleanupError) {
-        console.warn('[ambilight] Could not clean up after capability probe:', cleanupError);
-      }).then(function() {
-        throw error;
-      });
-    });
+    // Compatibility detection is deliberately limited to the Tizen platform
+    // version. Never launch the native service to probe hardware support:
+    // unsupported TVs may crash when that application is started.
+    supported = platformSupportsService();
+    initialized = true;
+    initialization = Promise.resolve(supported);
     return initialization;
   }
 
   window.moonlightAmbilight = {
-    initialize: initialize,
+    checkPlatformCompatibility: checkPlatformCompatibility,
 
     isSupported: function() {
       return initialized && supported;
     },
 
-    start: function(ip, port, ledCount) {
+    start: function(ip, port, ledCount, colorProfile, captureBackend) {
       if (!ip) return Promise.reject(new Error('WLED IP address is required.'));
-      return initialize().then(function(available) {
+      return checkPlatformCompatibility().then(function(available) {
         if (!available) throw new Error('Ambilight capture is not supported on this TV.');
-        return serialize('start', { ip: ip, port: port, ledCount: ledCount }, true);
+        colorProfile = colorProfile || {};
+        return serialize('start', {
+          ip: ip,
+          port: port,
+          ledCount: ledCount,
+          hdr: colorProfile.hdr === true,
+          colorSpace: colorProfile.colorSpace,
+          fullRange: colorProfile.fullRange === true,
+          captureBackend: captureBackend === 'ppi' ? 'ppi' : 'video_plane'
+        }, false);
       }).then(function(result) {
         if (result.supported === false) {
           supported = false;
@@ -284,13 +270,11 @@
         active = true;
         return result;
       }).catch(function(error) {
+        // A failed or timed-out start does not prove that this session owns a
+        // running process. Never kill a service we cannot positively identify.
         serviceStarted = false;
         active = false;
-        return stopExistingService().catch(function(cleanupError) {
-          console.warn('[ambilight] Could not clean up after failed startup:', cleanupError);
-        }).then(function() {
-          throw error;
-        });
+        throw error;
       });
     },
 
@@ -309,7 +293,7 @@
     shutdown: function() {
       if (shutdownPromise) return shutdownPromise;
       shutdownPromise = pending.catch(function() {}).then(function() {
-        if (!serviceStarted) return stopExistingService();
+        if (!serviceStarted) return false;
         return launch('shutdown').then(function(result) {
           if (!result.ok) throw new Error(result.error || 'Ambilight service could not be stopped.');
           return waitForServiceStopped(0);

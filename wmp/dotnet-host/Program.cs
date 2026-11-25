@@ -11,7 +11,10 @@ namespace MoonlightWmpHost
     {
         private static EngineApi _engine;
         private static App _instance;
-        private static int _exitRequested;
+        private static readonly object ExitGate = new object();
+        private static bool _exitDeferred;
+        private static bool _exitPending;
+        private static bool _exitRequested;
         private static bool _isSupervisorProcess;
 
         private static void Lifecycle(string phase, string detail)
@@ -30,16 +33,65 @@ namespace MoonlightWmpHost
             }
         }
 
-        // Keep the control port alive briefly after the terminal events so the
-        // WebApp can retrieve the final diagnostic snapshot before shutdown.
+        // Direct Smart Hub launches keep WMP alive after stream termination so
+        // Moonlight can still use its native HTTP client to send /cancel and
+        // complete the follow-up host refresh. Other launch paths retain the
+        // original automatic shutdown behavior.
+        internal static void SetExitDeferred(bool deferred)
+        {
+            lock (ExitGate)
+            {
+                _exitDeferred = deferred;
+                _exitPending = false;
+            }
+            Lifecycle("exit_deferral_configured", deferred ? "enabled" : "disabled");
+        }
+
         internal static void RequestExitAfterSession()
         {
-            if (Interlocked.Exchange(ref _exitRequested, 1) != 0)
+            bool scheduleExit = false;
+            lock (ExitGate)
             {
-                Lifecycle("exit_request_ignored_duplicate", null);
-                return;
+                if (_exitRequested)
+                {
+                    Lifecycle("exit_request_ignored_duplicate", null);
+                    return;
+                }
+
+                if (_exitDeferred)
+                {
+                    _exitPending = true;
+                    Lifecycle("exit_request_deferred", "waiting_for_webapp_release");
+                    return;
+                }
+
+                _exitRequested = true;
+                scheduleExit = true;
             }
 
+            if (scheduleExit) ScheduleExitAfterSession();
+        }
+
+        internal static void ReleaseExitAfterSession()
+        {
+            bool scheduleExit = false;
+            lock (ExitGate)
+            {
+                _exitDeferred = false;
+                if (_exitPending && !_exitRequested)
+                {
+                    _exitRequested = true;
+                    scheduleExit = true;
+                }
+            }
+
+            Lifecycle("exit_deferral_released", scheduleExit
+                ? "pending_exit_scheduled" : "no_pending_exit");
+            if (scheduleExit) ScheduleExitAfterSession();
+        }
+
+        private static void ScheduleExitAfterSession()
+        {
             Lifecycle("exit_request_scheduled", "delay_ms=1500");
             HostProtocol.NotifySupervisorExpectedExit("WMP orderly exit requested after session termination");
             ThreadPool.QueueUserWorkItem(delegate(object state)

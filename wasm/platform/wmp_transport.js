@@ -98,7 +98,7 @@
   var SERVICE_STOP_VERIFY_DELAY_MS = 100;
   var SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS = 5000;
 
-  function getRunningServiceContexts(applicationId) {
+  function getRunningServiceContexts(applicationId, timeoutMs) {
     applicationId = applicationId || SERVICE_APP_ID;
     return new Promise(function(resolve, reject) {
       try {
@@ -111,7 +111,7 @@
           if (settled) return;
           settled = true;
           reject(makeError('checking the native service state timed out'));
-        }, SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
+        }, timeoutMs || SERVICE_LIFECYCLE_CALLBACK_TIMEOUT_MS);
         tizen.application.getAppsContext(function(contexts) {
           if (settled) return;
           settled = true;
@@ -588,6 +588,8 @@
         global._esplusAudioQuality = nativeAudioQuality === 0 || nativeAudioQuality === 1
           ? nativeAudioQuality : null;
         if (global._esplusActiveAudioCodec &&
+            typeof global.isBitrateOptimizationEnabled === 'function' &&
+            global.isBitrateOptimizationEnabled() &&
             typeof global.updateOptimizedBitrateAfterNegotiation === 'function') {
           var audioPreferences = global.configSummarySnapshot && global.configSummarySnapshot.preferences;
           var audioConfig = audioPreferences && audioPreferences.audioConfig;
@@ -1068,7 +1070,12 @@
 
     var serializedPayload;
     try {
-      serializedPayload = JSON.stringify(payload === undefined ? {} : payload);
+      // http_init carries PEM credentials in dedicated arg_* MessagePort
+      // fields. Keep the generic payload envelope small; embedding both PEM
+      // values here would duplicate them and exceed the control-message limit.
+      serializedPayload = command === 'http_init'
+        ? '{}'
+        : JSON.stringify(payload === undefined ? {} : payload);
     } catch (error) {
       debugLog('request payload serialization failed', {
         command: command,
@@ -1092,6 +1099,14 @@
       parameters: summarizePayload(command, payload)
     });
 
+    // Network-backed native operations need bounded reply waits. Existing
+    // commands retain their previous timeout behavior.
+    var commandTimeoutMs = command === 'open_url' ? 30000 :
+      (command === 'pair' ? 60000 :
+      (command === 'release_session' ? 60000 :
+      (command === 'make_cert' || command === 'http_init' ||
+       command === 'cancel_request' ? 10000 : undefined)));
+
     return connect(false).then(function() {
       if (command === 'start_session') {
         startSessionPending = true;
@@ -1105,13 +1120,17 @@
         throw makeError('native service process terminated during startup: ' +
           (supervisorTerminationDetail || 'supervisor notification received'));
       }
-      return command === 'start_session' ? waitForServiceReady(0) : true;
+      var engineCommands = command === 'start_session' ||
+        command === 'make_cert' || command === 'http_init' ||
+        command === 'open_url' || command === 'pair' ||
+        command === 'cancel_request';
+      return engineCommands ? waitForServiceReady(0) : true;
     }).then(function() {
       if (command === 'start_session' && supervisorTerminationObserved) {
         throw makeError('native service process terminated during startup: ' +
           (supervisorTerminationDetail || 'supervisor notification received'));
       }
-      return sendConnectedRequest(command, serializedPayload, payload);
+      return sendConnectedRequest(command, serializedPayload, payload, commandTimeoutMs);
     }).then(function(response) {
       if (command === 'start_session' && response.status === 'ok' &&
           response.payload && response.payload.accepted === true) {
@@ -2035,6 +2054,21 @@
       });
     },
     request: request,
+    makeCert: function() { return request('make_cert'); },
+    httpInit: function(certPem, keyPem, uniqueId) {
+      return request('http_init', {
+        certPem: certPem, keyPem: keyPem, uniqueId: uniqueId
+      });
+    },
+    openUrl: function(url, ppk) {
+      return request('open_url', {url: url, ppk: ppk});
+    },
+    pair: function(serverMajor, address, httpPort, pin) {
+      return request('pair', {
+        serverMajor: serverMajor, address: address, httpPort: httpPort, pin: pin
+      });
+    },
+    cancelRequest: function() { return request('cancel_request'); },
     ping: function() { return request('ping'); },
     getStatus: function() { return request('get_status'); },
     getLogs: function() { return request('get_new_logs'); },
@@ -2063,6 +2097,7 @@
         });
       }
       requestParameters.debugMode = global.DEBUG_MODE === true;
+      requestParameters.deferExitUntilReleased = !!global._directSmartHubLaunch;
       startupDiagnosticTerminalEventSeen = false;
       startupDiagnosticFinalSnapshotRequested = false;
       return request('start_session', requestParameters);
@@ -2070,6 +2105,30 @@
     stopStream: function() {
       resetGamepadShortcutState();
       return request('stop_session');
+    },
+    releaseSession: function() {
+      return request('release_session');
+    },
+    waitForTermination: function(timeoutMs) {
+      var timeout = Number(timeoutMs) > 0 ? Number(timeoutMs) : 5000;
+      var deadline = Date.now() + timeout;
+      function check() {
+        var remaining = deadline - Date.now();
+        if (remaining <= 0) return Promise.reject(makeError('native WMP service termination timed out'));
+        var inspectionTimeout = Math.min(1000, remaining);
+        return Promise.all([
+          getRunningServiceContexts(SERVICE_APP_ID, inspectionTimeout),
+          getRunningServiceContexts(SUPERVISOR_APP_ID, inspectionTimeout)
+        ]).then(function(contextGroups) {
+          if (contextGroups[0].length === 0 && contextGroups[1].length === 0) return true;
+          remaining = deadline - Date.now();
+          if (remaining <= 0) throw makeError('native WMP service or supervisor termination timed out');
+          return new Promise(function(resolve) {
+            global.setTimeout(resolve, Math.min(100, remaining));
+          }).then(check);
+        });
+      }
+      return check();
     },
     sendKey: sendKey,
     setStreamMenuInputBlocked: setStreamMenuInputBlocked,

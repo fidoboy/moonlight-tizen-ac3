@@ -44,13 +44,22 @@ var common = (function() {
    * PPB_Messaging.PostMessage() (in C) or pp::Instance().PostMessage() (in
    * C++).
    */
-  function attachDefaultListeners() {
-    var listenerDiv = document.getElementById('listener');
-    listenerDiv.addEventListener('message', handleMessage, true);
+  var wasmMessageBridgeAttached = false;
 
-    // Direct Smart Hub launches need only the WASM message bridge. Do not bind
-    // the main UI controls, navigation, discovery or settings event handlers.
+  function attachWasmMessageBridge() {
+    if (wasmMessageBridgeAttached) return;
+    var listenerDiv = document.getElementById('listener');
+    if (!listenerDiv) return;
+    listenerDiv.addEventListener('message', handleMessage, true);
+    wasmMessageBridgeAttached = true;
+  }
+
+  function attachDefaultListeners() {
+    // Direct Smart Hub launches defer the WASM message bridge until the saved
+    // engine is known. Native WMP needs neither the bridge nor WASM callbacks.
     if (window._directSmartHubLaunch) return;
+
+    attachWasmMessageBridge();
     if (typeof window.attachListeners !== 'undefined') {
       window.attachListeners();
     }
@@ -126,8 +135,13 @@ var common = (function() {
       window._directSmartHubLocalePromise.catch(function(error) {
         console.warn('[common.js] Could not load direct-stream translations:', error);
       });
-      // Start WebAssembly immediately; only its message bridge is attached above.
-      createWASMModule();
+      // The direct-launch engine is read from IndexedDB by index.js. Defer
+      // both the WASM message bridge and runtime until that selection is known.
+      // Native WMP must not install WASM callbacks or load the module.
+      window.startDirectSmartHubWasm = function() {
+        attachWasmMessageBridge();
+        createWASMModule();
+      };
     } else {
       // Normal startup waits until the localized UI has been displayed for 500 ms.
       window.startNormalStartupWasm = createWASMModule;

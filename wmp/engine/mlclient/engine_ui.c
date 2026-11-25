@@ -7,6 +7,7 @@
 #define _GNU_SOURCE
 #include <openssl/bio.h>
 #include <openssl/pem.h>
+#include <openssl/x509.h>
 #include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,6 +64,12 @@ int ml_engine_http_init(const char *cert_pem, const char *key_pem, const char *u
   EVP_PKEY *key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
   BIO_free_all(bio);
   if (!key) { X509_free(cert); MLT("ml_engine_http_init -> 2 (key)"); return 2; }
+  if (X509_check_private_key(cert, key) != 1) {
+    X509_free(cert);
+    EVP_PKEY_free(key);
+    MLT("ml_engine_http_init -> 3 (certificate/private key mismatch)");
+    return 3;
+  }
 
   size_t clen = strlen(cert_pem);
   char *hex = malloc(clen * 2 + 1);

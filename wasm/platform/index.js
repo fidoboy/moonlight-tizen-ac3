@@ -169,8 +169,11 @@ var isStartupHttpReady = false;
 var isStartupHostsLoaded = false;
 var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
+var isStartupPreferencesReady = false;
 var ambilightSupportState = 'checking';
 var ambilightInitializationPromise = null;
+var ambilightSettingsUiInitialized = false;
+var ambilightPreferences = { ambilightEnabled: false, ambilightWledIp: null, ambilightCaptureBackend: 'video_plane' };
 var isStartupUiRestored = false;
 var isDeferredStartupScheduled = false;
 var isDeferredStartupStarted = false;
@@ -243,6 +246,7 @@ const STREAM_OPERATION_TIMEOUTS = {
   hostLaunch: 15000, streamConnection: 15000
 };
 const SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS = 4500;
+const SMART_HUB_STARTUP_CLEANUP_TIMEOUT_MS = 20000;
 var streamStartupWatchdogTimeout = null;
 var streamStartupFailureHandled = false;
 var streamStartupGeneration = 0;
@@ -349,11 +353,30 @@ function quitRemoteAppAfterStartupFailure() {
   });
 }
 
+function shutdownAmbilightForStreamIfEnabled(context) {
+  if (!window.moonlightAmbilight ||
+      typeof window.moonlightAmbilight.shutdown !== 'function' ||
+      typeof window.moonlightAmbilight.isActive !== 'function' ||
+      !window.moonlightAmbilight.isActive()) return Promise.resolve(false);
+  return window.moonlightAmbilight.shutdown().catch(function(error) {
+    console.warn('[ambilight] Could not clean up ' + context + ':', error);
+    return false;
+  });
+}
+
+window.stopAmbilightForStreamIfEnabled = function(context) {
+  if (!window.moonlightAmbilight ||
+      typeof window.moonlightAmbilight.stop !== 'function' ||
+      typeof window.moonlightAmbilight.isActive !== 'function' ||
+      !window.moonlightAmbilight.isActive()) return Promise.resolve(false);
+  return window.moonlightAmbilight.stop().catch(function(error) {
+    console.warn('[ambilight] Could not stop capture during ' + context + ':', error);
+    return false;
+  });
+}
+
 function streamStartupTimeoutFailure(stage, customMessage) {
   if (streamStartupFailureHandled) return;
-  streamStartupFailureHandled = true;
-  streamStartupGeneration++;
-  window._streamStartupFailureHandled = true;
   var message = customMessage || (stage === 'video'
     ? t('The host connected, but no video frame was received in time.')
     : (stage === 'initialization'
@@ -362,13 +385,21 @@ function streamStartupTimeoutFailure(stage, customMessage) {
   var transitionMessage = stage === 'video'
     ? t('Connection ended. Frame loss detected.')
     : message;
+
+  // Direct Smart Hub startup errors are terminal immediately. Do not run the
+  // regular recovery path, which can issue more requests or rewrite the status.
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(transitionMessage);
+    return;
+  }
+
+  streamStartupFailureHandled = true;
+  streamStartupGeneration++;
+  window._streamStartupFailureHandled = true;
   console.error('%c[index.js, streamStartupTimeoutFailure]', 'color: red;', message);
 
-  if (!isInGame && window.moonlightAmbilight &&
-      typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().catch(function(error) {
-      console.warn('[ambilight] Could not clean up after stream startup timeout:', error);
-    });
+  if (!isInGame) {
+    shutdownAmbilightForStreamIfEnabled('stream startup timeout');
   }
   if (isInGame) {
     try {
@@ -424,17 +455,17 @@ function streamStartupTimeoutFailure(stage, customMessage) {
 // sequence, while retaining the host API status code and its original message.
 function streamStartupApiFailure(host, message, errorCode, apiMessage) {
   if (streamStartupFailureHandled) return;
+  // Direct Smart Hub failures must not enter the normal Apps/Hosts recovery UI.
+  if (_directSmartHubLaunch) {
+    directSmartHubLaunchFailure(message);
+    return;
+  }
   streamStartupFailureHandled = true;
   streamStartupGeneration++;
   window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
 
-  if (window.moonlightAmbilight &&
-      typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().catch(function(error) {
-      console.warn('[ambilight] Could not clean up after host launch failure:', error);
-    });
-  }
+  shutdownAmbilightForStreamIfEnabled('host launch failure');
 
   var numericErrorCode = errorCode == null || errorCode === ''
     ? null : Number(errorCode);
@@ -777,6 +808,29 @@ function getSmartHubPreviewFileName(serverUid, appId) {
 }
 
 var _previewApps = {}; // Per-host app cache for Smart Hub Preview: {serverUid: {hostname, address, apps: [{id, title, imageUri}]}}
+var _previewAppsReady = false;
+var _previewAppsLoadPromise = null;
+
+// Restore the complete app-usage/Preview cache before any code can mutate and
+// persist it. This is application data, deliberately separate from preferences.
+function ensurePreviewAppsLoaded() {
+  if (_previewAppsReady) return Promise.resolve(_previewApps);
+  if (_previewAppsLoadPromise) return _previewAppsLoadPromise;
+
+  _previewAppsLoadPromise = new Promise(function(resolve, reject) {
+    getData('previewApps', function(storedPreview) {
+      var restored = storedPreview && storedPreview.previewApps;
+      _previewApps = restored && typeof restored === 'object' && !Array.isArray(restored)
+        ? restored : {};
+      _previewAppsReady = true;
+      resolve(_previewApps);
+    }, reject);
+  }).catch(function(error) {
+    _previewAppsLoadPromise = null;
+    throw error;
+  });
+  return _previewAppsLoadPromise;
+}
 
 // Experimental direct launch state for Smart Hub app tiles.
 var _directSmartHubLaunch = window._directSmartHubLaunch || null;
@@ -787,6 +841,8 @@ var _directSmartHubStreamSettings = null;
 var _directSmartHubLaunchStarted = false;
 var _directSmartHubLaunchFailed = false;
 var _directSmartHubNativeLaunch = false;
+var _wasmModuleDidLoad = false;
+var _directSmartHubHttpInitStarted = false;
 
 const REPEAT_DELAY = 350; // Repeat delay set to 350ms (milliseconds)
 const REPEAT_INTERVAL = 100; // Repeat interval set to 100ms (milliseconds)
@@ -957,15 +1013,12 @@ function attachListeners() {
   }
   changeUiModeForWasmLoad();
 
-  // Refresh dynamic Ambilight status after translations are applied.
-  // Its description is state-driven and must not be overwritten by data-i18n.
+  // Ambilight preferences are loaded at startup; its settings UI and
+  // compatibility check are initialized only when the user opens Settings.
   if (window.i18n && typeof window.i18n.onRefresh === 'function') {
     window.i18n.onRefresh(loadSystemInfo);
-    window.i18n.onRefresh(updateAmbilightDescription);
   } else {
-    // Fallback if i18n is not present
     loadSystemInfo();
-    updateAmbilightDescription();
   }
 
   const i18nInitPromise = (window.i18n && typeof window.i18n.init === 'function')
@@ -979,10 +1032,6 @@ function attachListeners() {
       window.i18n.populateLanguageMenu(saveLanguagePreference);
     }
 
-    // Start the optional Ambilight capability probe only after the locale is ready,
-    // so its checking and result descriptions are rendered in the selected language.
-    initializeAmbilightSupport();
-
     // Normal initialization reaches this point only after the HTML launch
     // presentation has completed. The localized loading message appears once hosts are ready.
     isStartupLocaleReady = true;
@@ -990,7 +1039,6 @@ function attachListeners() {
   });
 
   initIpAddressFields();
-  initAmbilightWledIpFields();
 
   $('#addHostContainer').on('click', addHostDialog);
   $('#settingsBtn').on('click', showSettings);
@@ -1008,14 +1056,11 @@ function attachListeners() {
   $('.streamingEngineMenu li').on('click', saveStreamingEngine);
   $('.performanceStatsPositionMenu li').on('click', savePerformanceStatsPosition);
   $('#bitrateSlider').on('input', saveBitrate);
+  $('#performanceStatsOpacitySlider').on('input', savePerformanceStatsOverlayOpacity);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
-  $('#ambilightSwitch').on('click', saveAmbilightPreference);
-  $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
-    .on('change', saveAmbilightWledIp);
-  loadAmbilightPreferences();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -1056,12 +1101,26 @@ function attachListeners() {
   $('#automaticUpdateChecksSwitch').on('click', saveAutomaticUpdateChecks);
   $('#restartAppBtn').on('click', restartAppDialog);
 
-  const registerMenu = (elementId, view) => {
+  const registerMenu = (elementId, view, matchTriggerWidth) => {
     $(`#${elementId}`).on('click', () => {
       if (view.isActive()) {
         Navigation.pop();
       } else {
         Navigation.push(view);
+        if (matchTriggerWidth) {
+          // MDL creates a separate menu container. Size that container from
+          // the actual trigger, rather than from the settings pane percentage.
+          setTimeout(() => {
+            const trigger = document.getElementById(elementId);
+            const menu = document.querySelector('.mdl-menu[for="' + elementId + '"]');
+            const container = menu && menu.closest('.mdl-menu__container');
+            if (!trigger || !container || !container.classList.contains('is-visible')) return;
+            const triggerWidth = trigger.getBoundingClientRect().width;
+            if (triggerWidth > 0) {
+              container.style.setProperty('width', triggerWidth + 'px', 'important');
+            }
+          }, 0);
+        }
       }
     });
   }
@@ -1081,6 +1140,7 @@ function attachListeners() {
   registerMenu('selectCodec', Views.SelectCodecMenu);
   registerMenu('selectH264Level', Views.SelectH264LevelMenu);
   registerMenu('selectPerformanceStatsPosition', Views.SelectPerformanceStatsPositionMenu);
+  registerMenu('selectPerformanceStatsOpacity', Views.SelectPerformanceStatsOpacityMenu, true);
   registerMenu('selectConfigSummaryPosition', Views.ConfigSummaryPositionMenu);
 
   $(window).resize(fullscreenWasmModule);
@@ -1328,18 +1388,22 @@ function startDeferredNormalStartup() {
       // Restore the cached update badge only after the normal UI is visible and the
       // HTML launch presentation has completed. Keep it aligned with host recovery.
       restoreUpdateBadgeFromCache();
-      loadUserData();
+      loadUserData().then(function() {
+        if (typeof window.startNormalStartupWasm === 'function') {
+          window.startNormalStartupWasm();
+        } else {
+          console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
+        }
 
-      if (typeof window.startNormalStartupWasm === 'function') {
-        window.startNormalStartupWasm();
-      } else {
-        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Deferred WebAssembly startup hook is unavailable.');
-      }
+        // Deep links are independent of Preview publication support, but must not
+        // start a stream before the complete persisted preference collection is ready.
+        handleDeepLink();
+        window.addEventListener('appcontrol', handleDeepLink);
+      }).catch(function(error) {
+        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Normal startup cannot continue without the complete saved preference collection:', error);
+        snackbarLogPersistent(t('Moonlight could not load its saved streaming settings.'));
+      });
     });
-
-    // Deep links are independent of Preview publication support.
-    handleDeepLink();
-    window.addEventListener('appcontrol', handleDeepLink);
   };
 
   var startStartupWork = function() {
@@ -1365,11 +1429,64 @@ function startDeferredNormalStartup() {
 
 function maybeRestoreUiAfterStartup() {
   // Repeated calls from HTTP/host callbacks are harmless: index.html made the route decision once.
-  if (_directSmartHubLaunch || !isStartupLocaleReady) return;
+  if (_directSmartHubLaunch || !isStartupLocaleReady || !isStartupPreferencesReady) return;
   maybePrepareNormalStartup();
 }
 
+function startDirectSmartHubHttpInitialization() {
+  if (!_directSmartHubLaunch || !_directSmartHubSettingsReady ||
+      _directSmartHubLaunchFailed || _directSmartHubHttpInitStarted) {
+    return;
+  }
+
+  var directWmpSelected = _directSmartHubNativeLaunch === true;
+  // Both engines wait until the Smart Hub stream transition has completed its
+  // visible-entry sequence before starting engine-specific initialization.
+  if (window._directSmartHubTransitionReady !== true) return;
+  if (!directWmpSelected && !_wasmModuleDidLoad) return;
+
+  _directSmartHubHttpInitStarted = true;
+  if (!directWmpSelected) {
+    loadHTTPCerts();
+    return;
+  }
+
+  // WMP is a prerequisite for every native identity/HTTP operation. Fully
+  // start and validate the supervised service before opening IndexedDB for
+  // the saved certificate and unique ID.
+  var transport = window.ESPlusPlayerTransport;
+  if (!transport || typeof transport.prepare !== 'function') {
+    directSmartHubLaunchFailure(t('The native streaming service is unavailable.'));
+    return;
+  }
+
+  $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
+  Promise.resolve().then(function() {
+    return withOperationTimeout(
+      transport.prepare(),
+      STREAM_OPERATION_TIMEOUTS.streamConnection,
+      'Native service preparation'
+    );
+  }).then(function() {
+    if (_directSmartHubLaunchFailed) return;
+    loadHTTPCerts();
+  }).catch(function(error) {
+    console.error('%c[index.js, startDirectSmartHubHttpInitialization]', 'color: red;', 'Could not prepare the native playback service before loading the saved streaming identity:', error);
+    directSmartHubLaunchFailure(t('The local device could not prepare the native video playback service.'));
+  });
+}
+
 function moduleDidLoad() {
+  _wasmModuleDidLoad = true;
+  if (_directSmartHubLaunch) {
+    // Direct EMSS begins its HTTP initialization only after the delayed WASM
+    // runtime has loaded; its encryption polling also belongs after this point.
+    if (_directSmartHubNativeLaunch !== true) {
+      startStreamEncryptionStatusPolling();
+      startDirectSmartHubHttpInitialization();
+    }
+    return;
+  }
   loadHTTPCerts();
 }
 
@@ -4157,6 +4274,18 @@ function showSettingsMode() {
 
 // Show the Settings list
 function showSettings() {
+  // Do not touch Ambilight during Moonlight startup. Initialize its settings
+  // controls and perform the passive platform-version check only after the user
+  // explicitly opens Settings.
+  if (!ambilightSettingsUiInitialized) {
+    initAmbilightWledIpFields();
+    $('#ambilightSwitch').on('click', saveAmbilightPreference);
+    $('#ambilightWledIpTextInput, #ambilightWledIpField1, #ambilightWledIpField2, #ambilightWledIpField3, #ambilightWledIpField4')
+      .on('change', saveAmbilightWledIp);
+    ambilightSettingsUiInitialized = true;
+  }
+  checkAmbilightPlatformCompatibility();
+
   // Remove the background layer entirely while Settings is displayed.
   $('#background-layer').hide();
 
@@ -4498,16 +4627,22 @@ function renderReleaseNotesMarkdown(markdown, container) {
 
 // Extract only the release notes section from the released update.
 function extractReleaseNotes(releaseNotes) {
-  // Support both upstream "What's Changed" notes and this project's "Highlights" section.
-  const match = String(releaseNotes || '').match(/## (?:What's Changed:?|Highlights)\r?\n+([\s\S]+?)(?=\r?\n+## |\r?\n+\*\*Full Changelog\*\*|$)/);
-  if (!match) return null;
+  const lines = String(releaseNotes || '').split(/\r?\n/);
 
-  return match[1].split('\n').map(function(line) {
-    let cleaned = line.trim();
-    cleaned = cleaned.replace(/\s+by\s+@[^]+$/i, '');
-    if (cleaned && !cleaned.endsWith('.')) cleaned += '.';
-    return cleaned;
-  }).filter(Boolean).join('\n');
+  // Remove the first Markdown level-two heading, regardless of its title.
+  if (lines[0] && /^##\s+/.test(lines[0])) {
+    lines.shift();
+  }
+
+  // Exclude the appended changelog details section and everything after it.
+  const changelogDetailsIndex = lines.findIndex(function(line) {
+    return /^##\s+.*Changelog details\s+/i.test(line);
+  });
+  if (changelogDetailsIndex !== -1) {
+    lines.splice(changelogDetailsIndex);
+  }
+
+  return lines.join('\n').trim() || null;
 }
 
 // Format the update timestamp into a readable string as "dd/mm/yyyy hh:mm"
@@ -4982,14 +5117,10 @@ function wakeOnLanWarningDialog(host) {
 // Restart the application only after the independent Ambilight service has exited.
 function restartApplication() {
   var reload = function() { window.location.reload(true); };
-  if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
-    window.moonlightAmbilight.shutdown().then(reload, function(error) {
-      console.warn('[ambilight] Could not shut down service before restart:', error);
-      reload();
-    });
-  } else {
+  shutdownAmbilightForStreamIfEnabled('application restart').then(reload, function(error) {
+    console.warn('[ambilight] Could not shut down service before restart:', error);
     reload();
-  }
+  });
 }
 
 // Show the Restart Moonlight dialog
@@ -5070,21 +5201,27 @@ function requiredRestartAppDialog() {
 
 // Stop the independent Ambilight service before returning to Smart Hub.
 function exitApplication() {
-  var application = tizen.application.getCurrentApplication();
+  var application;
+  try {
+    application = tizen.application.getCurrentApplication();
+  } catch (error) {
+    console.error('%c[index.js, exitApplication]', 'color: red;', 'Could not obtain the current Tizen application for controlled exit:', error);
+    return;
+  }
+
+  var exitStarted = false;
   var exit = function() {
+    if (exitStarted) return;
+    exitStarted = true;
     try { application.exit(); }
     catch (error) {
       console.error('%c[index.js, exitApplication]', 'color: red;', 'Could not exit Moonlight:', error);
     }
   };
 
-  if (!window.moonlightAmbilight || typeof window.moonlightAmbilight.shutdown !== 'function') {
-    exit();
-    return;
-  }
-
+  // Ambilight shutdown is best-effort; it must not block application exit.
   var exitTimeout = window.setTimeout(exit, 2500);
-  window.moonlightAmbilight.shutdown().then(function() {
+  shutdownAmbilightForStreamIfEnabled('application exit').then(function() {
     window.clearTimeout(exitTimeout);
     exit();
   }).catch(function(error) {
@@ -5441,6 +5578,8 @@ function showApps(host, options) {
 
         // Apply the selected app ordering before caching and rendering the list.
         const sortedAppList = sortAppsForHost(host, appList);
+        // Keep the in-memory fast-start list in exactly the same order as the UI.
+        host._memCachedApplist = sortedAppList.slice();
 
         if (preserveExistingAppGrid) {
           // Reconcile by app ID instead of tearing down the entire visible list.
@@ -5639,12 +5778,13 @@ function showApps(host, options) {
         });
 
         if (preserveExistingAppGrid) {
-          // Reorder only where necessary, retaining DOM nodes and loaded artwork for unchanged apps.
+          // Reorder the actual app cards in the computed sequence. Do not use
+          // grid.children indexes: non-card children must not affect card ordering.
+          // Moving existing nodes preserves their loaded artwork and event handlers.
           const grid = document.getElementById('game-grid');
-          sortedAppList.forEach(function(app, index) {
+          sortedAppList.forEach(function(app) {
             const card = document.getElementById('game-container-' + app.id);
-            const currentAtIndex = grid.children[index] || null;
-            if (card && card !== currentAtIndex) grid.insertBefore(card, currentAtIndex);
+            if (card && card.parentNode === grid) grid.appendChild(card);
           });
         }
 
@@ -5902,7 +6042,10 @@ function showAppsWithCachedList(host) {
         settleRequestTimer();
         if (!isCurrentOperation()) return;
         return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
-          if (isCurrentOperation()) host._memCachedApplist = freshAppList;
+          if (isCurrentOperation()) {
+            // Keep the next fast cached presentation aligned with the active sort settings.
+            host._memCachedApplist = sortAppsForHost(host, freshAppList);
+          }
         });
       }, function(error) {
         settleRequestTimer();
@@ -6265,14 +6408,6 @@ function scheduleStreamTransitionHideAfterVideoReady() {
         }
         // Initial focus recovery runs only after the transition has fully faded.
         restoreEmssVideoFocus();
-        // The transition layer is fully hidden at this point. Only now report
-        // an optional Ambilight startup failure, while the remote video remains visible.
-        if (isInGame && window._ambilightStartupFailed === true) {
-          window._ambilightStartupFailed = false;
-          if (typeof snackbarLog === 'function') {
-            snackbarLog('Ambilight service failed to start.');
-          }
-        }
       });
     }, waitForEncryptionStatus);
   }, 200);
@@ -6378,6 +6513,16 @@ function renderStreamEncryptionStatus(status, targetIds) {
 function pollStreamEncryptionStatus() {
   streamEncryptionStatusPollTimeout = null;
   if (!streamEncryptionStatusPollingActive) return;
+  // WMP owns its stream encryption pipeline natively. Do not wait for or poll
+  // the WebAssembly module once it is selected, including before startRequest
+  // has populated the active-engine state.
+  if ((typeof getSelectedStreamingEngine === 'function' &&
+       getSelectedStreamingEngine() === 'ESPLUSPLAYER') ||
+      (window.getStreamingEngineState &&
+       window.getStreamingEngineState().active === 'ESPLUSPLAYER')) {
+    stopStreamEncryptionStatusPolling();
+    return;
+  }
   if (typeof Module !== 'undefined' && typeof Module.getEncryptionStatus === 'function') {
     var status = Module.getEncryptionStatus();
     if (typeof status === 'number' && status >= 0) {
@@ -6394,11 +6539,17 @@ function pollStreamEncryptionStatus() {
 
 function startStreamEncryptionStatusPolling() {
   stopStreamEncryptionStatusPolling();
+  // Encryption status is reported by the WASM core only for EMSS. The
+  // selected engine must be checked before startRequest sets the active engine.
+  if ((typeof getSelectedStreamingEngine === 'function' &&
+       getSelectedStreamingEngine() === 'ESPLUSPLAYER') ||
+      (window.getStreamingEngineState &&
+       window.getStreamingEngineState().active === 'ESPLUSPLAYER')) return;
   streamEncryptionStatusPollingActive = true;
   pollStreamEncryptionStatus();
 }
 
-function showStreamTransitionBackground(onVisible) {
+function showStreamTransitionBackground(onVisible, showStatusImmediately) {
   // A new transition supersedes any delayed hide requested by the previous stream's
   // video-ready callback. In particular, termination must retain the closing layer.
   cancelStreamVideoReadyTransitionHide();
@@ -6420,18 +6571,26 @@ function showStreamTransitionBackground(onVisible) {
     // Keep the normal Web UI behind the transition while its background fades in.
     showUiLayer('stream-transition-layer');
 
-    // Wait for the background fade to finish, then reveal the progress UI. The
-    // connection work must not begin until that second fade has also completed.
+    // Closing transitions already have a meaningful status before the layer
+    // appears, so reveal it with the background instead of leaving a blank interval.
+    if (showStatusImmediately) {
+      fadeInUiElement('loadingSpinner', 'inline-block');
+    }
+
+    // Startup keeps its original staged reveal. Closing work may start only after
+    // the background entrance has completed and the status has had time to settle.
     streamTransitionStatusTimeout = window.setTimeout(function() {
       streamTransitionStatusTimeout = null;
       if (!streamTransitionVisible || streamTransitionHiding) return;
 
-      fadeInUiElement('loadingSpinner', 'inline-block', function() {
+      var onStatusReady = function() {
         if (typeof onVisible !== 'function') return;
         window.setTimeout(function() {
           if (streamTransitionVisible && !streamTransitionHiding) onVisible();
         }, 400);
-      });
+      };
+      if (showStatusImmediately) onStatusReady();
+      else fadeInUiElement('loadingSpinner', 'inline-block', onStatusReady);
 
       var encryptionStatus = document.getElementById('streamEncryptionStatus');
       var encryptionMessage = document.getElementById('streamEncryptionMessage');
@@ -6444,7 +6603,13 @@ function showStreamTransitionBackground(onVisible) {
 
   var canvas = createStreamTransitionBackground();
   if (!canvas) { streamTransitionVisible = true; revealTransitionContent(); return; }
-  if (streamTransitionVisible) { revealTransitionContent(); return; }
+  // The direct Smart Hub launch marks the transition as active as soon as its
+  // launch route is recognized. That does not mean this canvas has been prepared:
+  // initialize it once here unless the existing canvas/context are already ready.
+  if (streamTransitionVisible && streamTransitionCanvas === canvas && streamTransitionContext) {
+    revealTransitionContent();
+    return;
+  }
 
   streamTransitionCanvas = canvas;
   streamTransitionCanvas.width = Math.max(1, window.innerWidth);
@@ -6591,7 +6756,7 @@ function logStreamModeClosing() {
 
 function showStreamMode(streamWidth, streamHeight, startupGeneration) {
   console.log('%c[index.js, showStreamMode]', 'color: green;', 'Entering "Show Stream" mode.');
-  return new Promise(function(resolve) {
+  return new Promise(function(resolve, reject) {
     var isDirectLaunch = !!window._directSmartHubLaunch;
     var enterFullscreenStreamLayout = function() {
       if (typeof startupGeneration === 'number' && !isStreamStartupCurrent(startupGeneration)) {
@@ -6641,21 +6806,30 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
     window._normalStreamVideoReady = false;
     if (isDirectLaunch) window._directSmartHubVideoReady = false;
     resetStreamEncryptionStatus();
-    if (typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
+    if (getSelectedStreamingEngine() !== 'ESPLUSPLAYER' &&
+        typeof Module !== 'undefined' && typeof Module.resetEncryptionStatus === 'function') {
       Module.resetEncryptionStatus();
     }
     showStreamTransitionBackground(function() {
-      startStreamEncryptionStatusPolling();
+      try {
+        // Direct EMSS loads WASM only after this transition has become visible.
+        // Its encryption polling starts later from moduleDidLoad().
+        if (!isDirectLaunch) {
+          startStreamEncryptionStatusPolling();
+        }
 
-      // Smart Hub launches have no earlier opportunity to load the Stream Menu
-      // fonts. Load them while the transition is visible, before stream startup
-      // continues; ordinary launches retain their existing preparation path.
-      if (isDirectLaunch) {
-        preloadStreamMenuFonts().then(function() {
+        // Smart Hub launches have no earlier opportunity to load the Stream Menu
+        // fonts. Load them while the transition is visible, before stream startup
+        // continues; ordinary launches retain their existing preparation path.
+        if (isDirectLaunch) {
+          preloadStreamMenuFonts().then(function() {
+            enterFullscreenStreamLayout();
+          }).catch(reject);
+        } else {
           enterFullscreenStreamLayout();
-        });
-      } else {
-        enterFullscreenStreamLayout();
+        }
+      } catch (error) {
+        reject(error);
       }
     });
   });
@@ -6663,6 +6837,11 @@ function showStreamMode(streamWidth, streamHeight, startupGeneration) {
 
 // Maximize the size of the Wasm module by scaling and resizing appropriately
 function fullscreenWasmModule(configuredWidth, configuredHeight) {
+  // The native player renders through its own Tizen surface; it has no WASM
+  // video element to resize.
+  if (typeof getSelectedStreamingEngine === 'function' &&
+      getSelectedStreamingEngine() === 'ESPLUSPLAYER') return;
+
   var streamWidth = configuredWidth || $('#selectResolution').data('value').split(':')[0];
   var streamHeight = configuredHeight || $('#selectResolution').data('value').split(':')[1];
   var screenWidth = window.innerWidth;
@@ -6722,9 +6901,11 @@ function startGame(host, appID) {
     var directAppName = _directSmartHubLaunch.appName || String(appID);
     $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
     $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
-    window._directSmartHubTransitionPromise = showStreamMode(
-      directSettings.streamWidth, directSettings.streamHeight, startupGeneration
-    );
+    if (!window._directSmartHubTransitionPromise) {
+      window._directSmartHubTransitionPromise = showStreamMode(
+        directSettings.streamWidth, directSettings.streamHeight, startupGeneration
+      );
+    }
   }
 
   // Start the audio scheduler of the Web Audio backend while we are still running inside the
@@ -6734,8 +6915,13 @@ function startGame(host, appID) {
     startAudioScheduler();
   }
 
-  // Refresh the server info, because the user might have quit the game
-  withOperationTimeout(host.refreshServerInfo(), STREAM_OPERATION_TIMEOUTS.hostRefresh, 'Host information refresh').then(function(ret) {
+  // Refresh the server info, because the user might have quit the game. Defer
+  // invocation so a synchronous host-adapter exception follows the same failure path.
+  withOperationTimeout(
+    Promise.resolve().then(function() { return host.refreshServerInfo(); }),
+    STREAM_OPERATION_TIMEOUTS.hostRefresh,
+    'Host information refresh'
+  ).then(function(ret) {
     if (!isStreamStartupCurrent(startupGeneration)) return;
     if (_directSmartHubLaunch) host.online = true;
     // Smart Hub shortcuts are trusted launch requests: do not enumerate the host's
@@ -6893,9 +7079,8 @@ function startGame(host, appID) {
       var audioSync = streamSettings.audioSync;
       var audioJitter = streamSettings.audioJitter;
       var playHostAudio = streamSettings.playHostAudio;
-      // Request continuous audio only for the native ESPlusPlayer audio path.
-      var continuousAudio = streamSettings.streamingEngine === 'ESPLUSPLAYER' &&
-        streamSettings.audioBackend === 'ESPLUSPLAYER';
+      // Request continuous audio from the host for both EMSS and native ESPlusPlayer streams.
+      var continuousAudio = true;
       var decryptHostAudio = streamSettings.decryptHostAudio;
       var videoCodec = streamSettings.videoCodec;
       var h264Level = streamSettings.h264Level;
@@ -6952,9 +7137,9 @@ function startGame(host, appID) {
       window._activeStreamHostName = host.hostname || '';
       // Every new attempt starts before the sole success boundary.
       window._streamTransitionHiddenForSession = false;
-      // A resume is already running; a new launch becomes eligible for cleanup
-      // immediately before its host.launchApp request is issued.
-      window._remoteStreamAppLaunchRequested = host.currentGame == appID;
+      // Resuming an app that was already running must never authorize cleanup.
+      // A new launch becomes eligible only immediately before host.launchApp is issued.
+      window._remoteStreamAppLaunchRequested = false;
       window._manualStreamStopRequested = false;
 
       // Show the transition first. Only after it is fully visible may the local UI
@@ -7001,14 +7186,13 @@ function startGame(host, appID) {
       }
       $('#loadingSpinnerTitle').text(t(streamTitleMessage, appToStart.title));
 
-      // Ambilight has its own transition phase and starts independently of the
-      // selected video engine. Its failure must not block the game stream.
-      await startAmbilightForStream(true);
+      // The negotiated video profile is supplied by the streaming engine.
+      window._ambilightColorProfile = null;
       if (!isStreamStartupCurrent(startupGeneration)) return;
 
-      // Prepare WMP before asking Sunshine to launch/resume the app. This phase
-      // starts the supervised process, loads the native library and probes ESPlus,
-      // but deliberately does not start a Moonlight session or touch ESPlus playback.
+      // Direct Smart Hub + WMP already prepared the native service before
+      // recovering the saved identity and host. Normal app launches still
+      // perform their own native-service preparation here.
       var nativeServicePrepared = false;
       var abortPreparedNativeService = function() {
         if (!nativeServicePrepared || !window.ESPlusPlayerTransport ||
@@ -7020,7 +7204,7 @@ function startGame(host, appID) {
           console.error('[esplusplayer] Could not clean up WMP after host negotiation failure:', cleanupError);
         });
       };
-      if (streamSettings.streamingEngine === 'ESPLUSPLAYER') {
+      if (!_directSmartHubLaunch && streamSettings.streamingEngine === 'ESPLUSPLAYER') {
         $('#loadingSpinnerMessage').text(t('Preparing native video playback service...'));
         try {
           if (!window.ESPlusPlayerTransport ||
@@ -7096,7 +7280,9 @@ function startGame(host, appID) {
           }
           // Keep the lightweight canvas running until the first native stream frame is visible.
           // Start stream request
-          armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+          if (streamSettings.streamingEngine !== 'ESPLUSPLAYER') {
+            armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+          }
           sendMessage('startRequest', [
             host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
             host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
@@ -7175,7 +7361,9 @@ function startGame(host, appID) {
         }
         // Keep the lightweight canvas running until the first native stream frame is visible.
         // Start stream request
-        armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+        if (streamSettings.streamingEngine !== 'ESPLUSPLAYER') {
+          armStreamStartupWatchdog('connection', STREAM_OPERATION_TIMEOUTS.streamConnection);
+        }
         sendMessage('startRequest', [
           host.address, host.httpPort, streamWidth, streamHeight, frameRate, bitrate.toString(), rikey, rikeyid.toString(),
           host.appVersion, host.gfeVersion, $root.find('sessionUrl0').text().trim(), host.serverCodecModeSupport,
@@ -7523,10 +7711,14 @@ function createStreamMenuDialog() {
     document.exitPointerLock();
   }
   window.addEventListener('mousemove', stopMouseMovePropagation, true);
-  Module._setStreamMenuInputBlocked(1);
-  if (window.ESPlusPlayerTransport &&
-      typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
-    window.ESPlusPlayerTransport.setStreamMenuInputBlocked(true);
+  if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+    if (window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+      window.ESPlusPlayerTransport.setStreamMenuInputBlocked(true);
+    }
+  } else {
+    // Preserve the original EMSS input-blocking path.
+    Module._setStreamMenuInputBlocked(1);
   }
   fadeInUiElement(streamMenuDialogOverlay[0], 'flex');
   showUiDialog(streamMenuDialog[0]);
@@ -7562,10 +7754,14 @@ function closeStreamMenuDialog(returnToStream, onClosed) {
     if (!overlayFadeOutComplete || !dialogFadeOutComplete || closedCallbackCalled) return;
     closedCallbackCalled = true;
     streamMenuDialogOverlay.remove();
-    Module._setStreamMenuInputBlocked(0);
-    if (window.ESPlusPlayerTransport &&
-        typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
-      window.ESPlusPlayerTransport.setStreamMenuInputBlocked(false);
+    if (window._activeStreamingEngine === 'ESPLUSPLAYER') {
+      if (window.ESPlusPlayerTransport &&
+          typeof window.ESPlusPlayerTransport.setStreamMenuInputBlocked === 'function') {
+        window.ESPlusPlayerTransport.setStreamMenuInputBlocked(false);
+      }
+    } else {
+      // Preserve the original EMSS input-blocking path.
+      Module._setStreamMenuInputBlocked(0);
     }
     if (returnToStream) {
       var videoElement = document.getElementById('wasm_module');
@@ -7712,8 +7908,13 @@ function openIndexDB(callback, errorCallback) {
 
   request.onerror = function(e) {
     console.error('%c[index.js, openIndexDB]', 'color: red;', 'Cannot create or access IndexedDB:', e);
-    if (typeof errorCallback === 'function') errorCallback(request.error || e);
-    if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
+    var openError = request.error || e;
+    if (typeof errorCallback === 'function') {
+      openError.moonlightReadStage = 'database-open';
+      errorCallback(openError);
+    } else if (_directSmartHubLaunch) {
+      directSmartHubLaunchFailure(t('Moonlight could not load its saved configuration.'));
+    }
   };
 
   request.onsuccess = function(e) {
@@ -7747,16 +7948,37 @@ function callCb(key, value, callbackFunction) {
   callbackFunction(obj);
 }
 
-function getData(key, callbackFunction) {
+function getData(key, callbackFunction, errorCallback) {
   var callbackCompleted = false;
-  function finishRead(value) {
+  function finishRead(value, error) {
     if (callbackCompleted) return;
     callbackCompleted = true;
+    if (error && typeof errorCallback === 'function') {
+      errorCallback(error);
+      return;
+    }
     callCb(key, value, callbackFunction);
   }
 
+  // Preference reads always use the complete in-memory collection. If startup has
+  // not finished loading it yet, wait for that same shared operation first.
+  if (!NON_PREFERENCE_DATA_KEYS || NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
+    ensurePersistedPreferencesLoaded().then(function(preferences) {
+      var value = Object.prototype.hasOwnProperty.call(preferences, key)
+        ? preferences[key] : null;
+      if (DEBUG_MODE) {
+        console.log('%c[index.js, getData]', 'color: green;', 'Reading persisted preference from the loaded collection: ' + key);
+      }
+      finishRead(value);
+    }).catch(function(error) {
+      error.moonlightReadStage = key + '-preferences-load';
+      console.error('%c[index.js, getData]', 'color: red;', 'Could not read preference ' + key + ' because the complete preference collection is unavailable:', error);
+      finishRead({}, error);
+    });
+    return;
+  }
+
   let cb = function() {
-    let value = null;
     try {
       const transaction = db.transaction(storeName, 'readonly');
       const readRequest = transaction.objectStore(storeName).get(key);
@@ -7768,34 +7990,61 @@ function getData(key, callbackFunction) {
               : readRequest.result;
             console.log('%c[index.js, getData]', 'color: green;', 'Reading data from DB key: ' + key + ' with value: ', databaseValue);
           }
-          value = readRequest.result != null ? JSON.parse(readRequest.result) : null;
+          var value = null;
+          if (readRequest.result != null) {
+            try {
+              value = JSON.parse(readRequest.result);
+            } catch (parseError) {
+              parseError.moonlightReadStage = key + '-parse';
+              throw parseError;
+            }
+          }
           finishRead(value);
         } catch (error) {
           console.error('%c[index.js, getData]', 'color: red;', 'Invalid stored value for key ' + key + ':', error);
-          finishRead({});
+          finishRead({}, error);
         }
       };
+      readRequest.onerror = function(event) {
+        var error = readRequest.error || event || new Error('IndexedDB request failed for key: ' + key);
+        error.moonlightReadStage = key + '-read';
+        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', error);
+        finishRead({}, error);
+      };
       transaction.onerror = function(event) {
-        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', transaction.error || event);
-        finishRead({});
+        var error = transaction.error || event || new Error('IndexedDB read failed for key: ' + key);
+        error.moonlightReadStage = key + '-read';
+        console.error('%c[index.js, getData]', 'color: red;', 'Unable to read key ' + key + ' from IndexedDB:', error);
+        finishRead({}, error);
       };
       transaction.onabort = function() {
-        console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', transaction.error);
-        // Match the legacy callback contract on every terminal read outcome.
-        finishRead({});
+        var error = transaction.error || new Error('IndexedDB read transaction aborted for key: ' + key);
+        error.moonlightReadStage = key + '-read';
+        console.error('%c[index.js, getData]', 'color: red;', 'Read transaction aborted for key ' + key + ':', error);
+        finishRead({}, error);
       };
     } catch (error) {
+      error.moonlightReadStage = key + '-read';
       console.error('%c[index.js, getData]', 'color: red;', 'Could not read key ' + key + ' from IndexedDB:', error);
-      finishRead({});
+      finishRead({}, error);
     }
   };
   if (db) cb();
-  else openIndexDB(cb, function(error) {
-    console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
-    finishRead({});
-  });
+  else {
+    try {
+      openIndexDB(cb, function(error) {
+        error = error || new Error('IndexedDB could not be opened while reading key: ' + key);
+        error.moonlightReadStage = 'database-open';
+        console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
+        finishRead({}, error);
+      });
+    } catch (error) {
+      error.moonlightReadStage = 'database-open';
+      console.error('%c[index.js, getData]', 'color: red;', 'IndexedDB could not be opened while reading key ' + key + ':', error);
+      finishRead({}, error);
+    }
+  }
 }
-
 var preferenceRestoreInProgress = false;
 
 function restorePersistedSettingsAfterWriteFailure() {
@@ -7821,7 +8070,7 @@ function storeData(key, data, callbackFunction) {
       if (failureHandled) return;
       failureHandled = true;
       console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
-      if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
+      if (CONFIG_SUMMARY_PREFERENCE_KEYS.indexOf(key) !== -1) {
         configSummaryRevision++;
         // The cached snapshot still represents the last successfully committed state.
         updateConfigSummaryBar();
@@ -7834,11 +8083,18 @@ function storeData(key, data, callbackFunction) {
         const transaction = db.transaction(storeName, 'readwrite');
         transaction.objectStore(storeName).put(JSON.stringify(data), key);
         transaction.oncomplete = function() {
+          if (NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
+            persistedPreferences[key] = data;
+            if (!persistedPreferencesReady) persistedPreferencesPendingWrites[key] = data;
+            if (configSummarySnapshot && configSummarySnapshot.preferences) {
+              configSummarySnapshot.preferences[key] = data;
+            }
+          }
           if (DEBUG_MODE) {
             var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
             console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
           }
-          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
+          if (CONFIG_SUMMARY_PREFERENCE_KEYS.indexOf(key) !== -1) {
             configSummaryRevision++;
             if (configSummarySnapshot) {
               applyPersistedPreferenceToSnapshot(key, data);
@@ -7884,16 +8140,23 @@ function saveHosts() {
 }
 
 function savePreviewApps() {
-  // This cache is shared by Smart Hub Preview and the main UI, so persist it
-  // even when Smart Hub Preview is unavailable on the current device.
-  console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
-  return storeData('previewApps', _previewApps, null);
+  // Never replace the persisted cache with a partially initialized in-memory
+  // object. This also protects legacy callers that do not await restoration.
+  return ensurePreviewAppsLoaded().then(function() {
+    // This cache is shared by Smart Hub Preview and the main UI, so persist it
+    // even when Smart Hub Preview is unavailable on the current device.
+    console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
+    return storeData('previewApps', _previewApps, null);
+  }).catch(function(error) {
+    console.error('%c[index.js, savePreviewApps]', 'color: red;', 'Skipped cache write because saved app data could not be restored:', error);
+    return null;
+  });
 }
 
 // Update the persistent per-host app list while preserving Smart Hub Preview
 // image metadata for applications that remain in the host's current app list.
 function incrementAppRunCount(host, appId, appTitle) {
-  if (!host || !host.serverUid || appId == null) {
+  if (!_previewAppsReady || !host || !host.serverUid || appId == null) {
     return;
   }
 
@@ -7930,7 +8193,7 @@ function incrementAppRunCount(host, appId, appTitle) {
 // Update the persistent per-host app list while preserving Smart Hub Preview
 // image metadata and usage statistics for applications that remain in the host's current app list.
 function cacheHostAppList(host, appList) {
-  if (!host || !host.serverUid || !Array.isArray(appList)) {
+  if (!_previewAppsReady || !host || !host.serverUid || !Array.isArray(appList)) {
     return;
   }
 
@@ -8396,6 +8659,13 @@ function updateAmbilightAvailability(supported) {
 
   updateAmbilightDescription();
 
+  if (!supported) {
+    // Unsupported platforms must never retain an enabled preference. This is
+    // a passive settings check: do not launch, stop, or contact the service.
+    ambilightPreferences.ambilightEnabled = false;
+    storeData('ambilightEnabled', false, null);
+  }
+
   if (switchText && supported) {
     switchText.textContent = t('Enable Ambilight');
   }
@@ -8417,21 +8687,21 @@ function updateAmbilightAvailability(supported) {
   loadAmbilightPreferences();
 }
 
-function initializeAmbilightSupport() {
+function checkAmbilightPlatformCompatibility() {
   if (ambilightInitializationPromise) return ambilightInitializationPromise;
 
   if (!window.moonlightAmbilight ||
-      typeof window.moonlightAmbilight.initialize !== 'function') {
+      typeof window.moonlightAmbilight.checkPlatformCompatibility !== 'function') {
     updateAmbilightAvailability(false);
     ambilightInitializationPromise = Promise.resolve(false);
     return ambilightInitializationPromise;
   }
 
-  ambilightInitializationPromise = window.moonlightAmbilight.initialize().then(function(supported) {
+  ambilightInitializationPromise = window.moonlightAmbilight.checkPlatformCompatibility().then(function(supported) {
     updateAmbilightAvailability(supported === true);
     return supported === true;
   }).catch(function(error) {
-    console.warn('[ambilight] Service/capture capability check failed:', error);
+    console.warn('[ambilight] Tizen platform-version check failed:', error);
     updateAmbilightAvailability(false);
     return false;
   });
@@ -8440,123 +8710,85 @@ function initializeAmbilightSupport() {
 }
 
 function loadAmbilightPreferences() {
-  getData('ambilightEnabled', function(data) {
-    var enabled = ambilightSupportState === 'supported' &&
-      !!(data && data.ambilightEnabled === true);
-    var toggle = document.getElementById('ambilightSwitch');
-    if (toggle) {
-      toggle.checked = enabled;
-      var label = document.getElementById('ambilightBtn');
-      if (label && label.MaterialSwitch) {
-        enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
-        if (ambilightSupportState === 'supported') {
-          label.MaterialSwitch.enable();
-        } else {
-          label.MaterialSwitch.disable();
-        }
-      }
-      toggle.disabled = ambilightSupportState !== 'supported';
+  var enabled = ambilightSupportState === 'supported' &&
+    ambilightPreferences.ambilightEnabled === true;
+  var toggle = document.getElementById('ambilightSwitch');
+  if (toggle) {
+    toggle.checked = enabled;
+    var label = document.getElementById('ambilightBtn');
+    if (label && label.MaterialSwitch) {
+      enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
+      if (ambilightSupportState === 'supported') label.MaterialSwitch.enable();
+      else label.MaterialSwitch.disable();
     }
-    updateAmbilightSettingsVisibility();
-  });
-
-  getData('ambilightWledIp', function(data) {
-    var hasSavedIp = data && typeof data.ambilightWledIp === 'string' &&
-      data.ambilightWledIp.trim().length > 0;
-    var savedIp = hasSavedIp ? data.ambilightWledIp : getDefaultAmbilightWledIp();
-    setAmbilightWledIpValue(savedIp);
-    if (!hasSavedIp) storeData('ambilightWledIp', savedIp, null);
-    updateAmbilightWledIpInputMode();
-  });
+    toggle.disabled = ambilightSupportState !== 'supported';
+  }
+  if (ambilightPreferences.ambilightWledIp) {
+    setAmbilightWledIpValue(ambilightPreferences.ambilightWledIp);
+  } else if (ambilightSettingsUiInitialized) {
+    var defaultIp = getDefaultAmbilightWledIp();
+    ambilightPreferences.ambilightWledIp = defaultIp;
+    setAmbilightWledIpValue(defaultIp);
+    storeData('ambilightWledIp', defaultIp, null);
+  }
+  updateAmbilightSettingsVisibility();
 }
 
 function saveAmbilightPreference() {
   window.setTimeout(function() {
     if (ambilightSupportState !== 'supported') {
-      // Preview mode only reveals the remaining controls. It must not persist
-      // an enabled preference or contact the optional native service.
       updateAmbilightSettingsVisibility();
       return;
     }
 
     var enabled = $('#ambilightSwitch').prop('checked') === true;
+    ambilightPreferences.ambilightEnabled = enabled;
     storeData('ambilightEnabled', enabled, null);
     updateAmbilightSettingsVisibility();
-
-    if (enabled) {
-      if (isInGame) startAmbilightForStream(false);
-    } else if (window.moonlightAmbilight) {
-      window.moonlightAmbilight.stop().catch(function(error) {
-        console.warn('[ambilight] Could not stop capture:', error);
-      });
-    }
   }, 100);
 }
-
 function saveAmbilightWledIp() {
   var ip = getAmbilightWledIpValue();
+  ambilightPreferences.ambilightWledIp = ip;
   storeData('ambilightWledIp', ip, null);
-
-  if (ambilightSupportState === 'supported' &&
-      $('#ambilightSwitch').prop('checked') === true && isInGame) {
-    startAmbilightForStream(false);
-  }
 }
 
-function readAmbilightStoredValue(key) {
-  return new Promise(function(resolve) {
-    getData(key, function(data) {
-      resolve(data || {});
-    });
-  });
-}
+// Start only after both the connection and negotiated video profile are ready.
+window.startAmbilightForStreamIfEnabled = function() {
+  var profile = window._ambilightColorProfile;
+  if (window._ambilightStreamStartRequested === true ||
+      window._streamStartupFailureHandled === true ||
+      window._streamConnectionEstablished !== true ||
+      !profile || ambilightPreferences.ambilightEnabled !== true) return;
 
-function startAmbilightForStream(showTransitionStatus) {
-  if (showTransitionStatus === true) window._ambilightStartupFailed = false;
-  if (!window.moonlightAmbilight) {
-    if (showTransitionStatus === true) window._ambilightStartupFailed = true;
-    return Promise.resolve(false);
+  window._ambilightStreamStartRequested = true;
+  if (!window.moonlightAmbilight) return;
+
+  var ip = ambilightPreferences.ambilightWledIp;
+  if (!ip) {
+    console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+    return;
+  }
+  if (typeof profile.hdr !== 'boolean' ||
+      (profile.colorSpace !== 0 && profile.colorSpace !== 1 && profile.colorSpace !== 2) ||
+      typeof profile.fullRange !== 'boolean') {
+    console.warn('[ambilight] Negotiated video profile is incomplete; skipping startup.');
+    return;
   }
 
-  return initializeAmbilightSupport().then(function(supported) {
-    if (!supported) return false;
-    return Promise.all([
-      readAmbilightStoredValue('ambilightEnabled'),
-      readAmbilightStoredValue('ambilightWledIp')
-    ]);
-  }).then(function(settings) {
-    if (!settings) return false;
-    var enabledData = settings[0];
-    var ipData = settings[1];
-    if (!enabledData || enabledData.ambilightEnabled !== true) return false;
-    var ip = ipData && ipData.ambilightWledIp;
-    if (!ip) {
-      console.warn('[ambilight] Enabled but no WLED IP address is configured.');
-      if (showTransitionStatus === true) window._ambilightStartupFailed = true;
-      return false;
-    }
-
-    if (showTransitionStatus === true) {
-      var status = document.getElementById('loadingSpinnerMessage');
-      if (status) status.textContent = t('Starting Ambilight service...');
-    }
-
-    return window.moonlightAmbilight.start(ip, 21324, 73).then(function() {
-      return true;
-    }).catch(function(error) {
-      console.warn('[ambilight] Could not start capture:', error);
-      if (showTransitionStatus === true) window._ambilightStartupFailed = true;
-      if (window.moonlightAmbilight && !window.moonlightAmbilight.isSupported()) {
-        updateAmbilightAvailability(false);
-      }
-      return false;
-    });
+  var captureBackend = ambilightPreferences.ambilightCaptureBackend === 'ppi' ? 'ppi' : 'video_plane';
+  var startupStatus = document.getElementById('loadingSpinnerMessage');
+  if (startupStatus) startupStatus.textContent = t('Starting Ambilight service...');
+  window._ambilightStartPromise = window.moonlightAmbilight.start(
+    ip, 21324, 73, profile, captureBackend
+  ).then(function() {
+    window._ambilightStartedForCurrentStream = true;
+    return true;
   }).catch(function(error) {
-    console.warn('[ambilight] Could not prepare service for this stream:', error);
-    if (showTransitionStatus === true) window._ambilightStartupFailed = true;
+    console.warn('[ambilight] Could not start service for this stream:', error);
     return false;
   });
-}
+};
 
 function saveNavigationSoundPreference() {
   setTimeout(function() {
@@ -9700,31 +9932,76 @@ function savePerformanceStatsPosition() {
   setPerformanceStatsPosition($(this).data('value'), true);
 }
 
+function setPerformanceStatsOverlayOpacity(value, persist) {
+  var opacity = Number(value);
+  if (!Number.isFinite(opacity)) opacity = 70;
+  opacity = Math.max(0, Math.min(100, Math.round(opacity / 5) * 5));
+
+  window._performanceStatsOverlayOpacity = opacity;
+  var slider = document.getElementById('performanceStatsOpacitySlider');
+  if (slider) {
+    if (slider.MaterialSlider && typeof slider.MaterialSlider.change === 'function') {
+      slider.MaterialSlider.change(String(opacity));
+    } else {
+      slider.value = String(opacity);
+    }
+  }
+  $('#selectPerformanceStatsOpacity').text(opacity + '%');
+
+  if (persist) {
+    storeData('performanceStatsOverlayOpacity', opacity, null);
+  }
+  return opacity;
+}
+
+function savePerformanceStatsOverlayOpacity() {
+  setPerformanceStatsOverlayOpacity($('#performanceStatsOpacitySlider').val(), true);
+}
+
 function updatePerformanceStatsPositionAvailability(enabled) {
-  var button = document.getElementById('selectPerformanceStatsPosition');
-  if (!button) return;
+  var subOptions = document.querySelector('#performanceStatsMenu + .setting-sub-options');
+  if (subOptions) {
+    subOptions.classList.toggle('is-disabled', !enabled);
+    subOptions.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
 
-  button.disabled = !enabled;
-  button.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-  button.classList.toggle('is-disabled', !enabled);
+  var positionButton = document.getElementById('selectPerformanceStatsPosition');
+  if (positionButton) {
+    positionButton.disabled = !enabled;
+    positionButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
 
+  var opacityButton = document.getElementById('selectPerformanceStatsOpacity');
+  if (opacityButton) {
+    opacityButton.disabled = !enabled;
+    opacityButton.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
+
+  var opacitySlider = document.getElementById('performanceStatsOpacitySlider');
+  if (opacitySlider) {
+    opacitySlider.disabled = !enabled;
+    opacitySlider.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
 }
 
 function savePerformanceStats() {
   setTimeout(() => {
     const chosenPerformanceStats = $('#performanceStatsSwitch').prop('checked');
     console.log('%c[index.js, savePerformanceStats]', 'color: green;', 'Saving performance stats state: ' + chosenPerformanceStats);
-    storeData('performanceStats', chosenPerformanceStats, null).then(function() {
-      var preferences = configSummarySnapshot && configSummarySnapshot.preferences;
-      var persistedValue = preferences && preferences.performanceStats;
-      updatePerformanceStatsPositionAvailability(
-        persistedValue === true || persistedValue === 'true' || persistedValue === 1
-      );
-    }).catch(function(error) {
-      console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not update persisted statistics availability:', error);
+
+    // The two child settings follow the switch immediately; do not wait for
+    // a potentially stale preferences snapshot after persistence.
+    updatePerformanceStatsPositionAvailability(chosenPerformanceStats);
+
+    storeData('performanceStats', chosenPerformanceStats, null).catch(function(error) {
+      console.error('%c[index.js, savePerformanceStats]', 'color: red;', 'Could not save performance stats state:', error);
     });
-    if (!chosenPerformanceStats && Views.SelectPerformanceStatsPositionMenu.isActive()) {
+
+    if (!chosenPerformanceStats &&
+        (Views.SelectPerformanceStatsPositionMenu.isActive() ||
+         Views.SelectPerformanceStatsOpacityMenu.isActive())) {
       closePopupMenu('selectPerformanceStatsPosition');
+      closePopupMenu('selectPerformanceStatsOpacity');
       closeActiveVisibleMenu();
     }
   }, 100);
@@ -9909,6 +10186,7 @@ function restoreDefaultsSettingsValues() {
   updatePerformanceStatsPositionAvailability(false);
 
   setPerformanceStatsPosition('top-left', true);
+  setPerformanceStatsOverlayOpacity(70, true);
 
   const defaultAutomaticUpdateChecks = true;
   document.querySelector('#automaticUpdateChecksBtn').MaterialSwitch.on();
@@ -10237,63 +10515,104 @@ function loadSystemInfo() {
   });
 }
 
-function readStoredPreferences(keys) {
+// Keep every persisted user preference available independently of which UI is shown.
+// The other records in this object store are application data, not preferences.
+var persistedPreferences = {};
+var persistedPreferencesPendingWrites = {};
+var persistedPreferencesReady = false;
+var persistedPreferencesLoadPromise = null;
+var NON_PREFERENCE_DATA_KEYS = ['cert', 'hosts', 'previewApps', 'uniqueid'];
+window.persistedPreferences = persistedPreferences;
+window.persistedPreferencesReady = false;
+
+function readStoredPreferences() {
+  if (persistedPreferencesReady) return Promise.resolve(persistedPreferences);
   return new Promise(function(resolve, reject) {
     try {
       var transaction = db.transaction(storeName, 'readonly');
       var objectStore = transaction.objectStore(storeName);
       var values = {};
-      var remaining = keys.length;
       var failed = false;
-      if (remaining === 0) {
-        transaction.oncomplete = function() { resolve(values); };
-        return;
+
+      function fail(error) {
+        if (failed) return;
+        failed = true;
+        reject(error);
       }
-      keys.forEach(function(key) {
-        var request = objectStore.get(key);
-        request.onsuccess = function() {
-          if (failed) return;
+
+      var request = objectStore.openCursor();
+      request.onsuccess = function(event) {
+        if (failed) return;
+        var cursor = event.target.result;
+        if (!cursor) return;
+
+        var key = String(cursor.key);
+        if (NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
           try {
-            var storedValue = request.result != null ? JSON.parse(request.result) : null;
+            var storedValue = cursor.value != null ? JSON.parse(cursor.value) : null;
             values[key] = storedValue !== null && typeof storedValue === 'object' &&
               Object.prototype.hasOwnProperty.call(storedValue, key) ? storedValue[key] : storedValue;
-            remaining--;
           } catch (error) {
-            failed = true;
-            reject(new Error('Invalid stored setting "' + key + '": ' + error.message));
+            fail(new Error('Invalid stored setting "' + key + '": ' + error.message));
+            return;
           }
-        };
-        request.onerror = function() {
-          if (failed) return;
-          failed = true;
-          reject(request.error || new Error('Could not read setting: ' + key));
-        };
-      });
+        }
+        cursor.continue();
+      };
+      request.onerror = function() {
+        fail(request.error || new Error('Could not read persisted preferences.'));
+      };
       transaction.oncomplete = function() {
-        if (!failed && remaining === 0) resolve(values);
-        else if (!failed) reject(new Error('IndexedDB completed without returning every requested setting.'));
+        if (failed) return;
+        Object.keys(persistedPreferences).forEach(function(key) {
+          delete persistedPreferences[key];
+        });
+        Object.keys(values).forEach(function(key) {
+          persistedPreferences[key] = values[key];
+        });
+        Object.keys(persistedPreferencesPendingWrites).forEach(function(key) {
+          persistedPreferences[key] = persistedPreferencesPendingWrites[key];
+          delete persistedPreferencesPendingWrites[key];
+        });
+        persistedPreferencesReady = true;
+        window.persistedPreferencesReady = true;
+        resolve(persistedPreferences);
       };
       transaction.onerror = function() {
-        if (failed) return;
-        failed = true;
-        reject(transaction.error || new Error('Could not read streaming settings.'));
+        fail(transaction.error || new Error('Could not read persisted preferences.'));
       };
       transaction.onabort = function() {
-        if (failed) return;
-        failed = true;
-        reject(transaction.error || new Error('Streaming settings read was aborted.'));
+        fail(transaction.error || new Error('Persisted-preferences read was aborted.'));
       };
-    } catch (error) { reject(error); }
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
-// Smart Hub launches read only stream-related preferences. They are kept as plain
-// data and never applied to the hidden Material Design controls or UI subsystems.
+function ensurePersistedPreferencesLoaded() {
+  if (persistedPreferencesReady) return Promise.resolve(persistedPreferences);
+  if (persistedPreferencesLoadPromise) return persistedPreferencesLoadPromise;
+
+  persistedPreferencesLoadPromise = new Promise(function(resolve, reject) {
+    openIndexDB(function() {
+      readStoredPreferences().then(resolve, reject);
+    }, reject);
+  }).catch(function(error) {
+    persistedPreferencesLoadPromise = null;
+    throw error;
+  });
+  return persistedPreferencesLoadPromise;
+}
+
+
+// Restore the complete persisted preference collection before either startup path continues.
 var configSummarySnapshot = null;
 var configSummaryRefreshPromise = null;
 var configSummaryRevision = 0;
 
-var STREAMING_PREFERENCE_KEYS = [
+// This list only controls configuration-summary refreshes; it is not a preference-loading list.
+var CONFIG_SUMMARY_PREFERENCE_KEYS = [
   'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
   'rumbleFeedback', 'mouseEmulation', 'mouseEmulationStick', 'selectHoldStreamMenu', 'flipABfaceButtons',
   'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
@@ -10358,14 +10677,11 @@ function refreshPersistedSettingDependencies() {
 }
 
 function readStreamingSettingsSnapshot() {
-  return withOperationTimeout(new Promise(function(resolve, reject) {
-    try {
-      if (db) resolve();
-      else openIndexDB(resolve);
-    } catch (error) { reject(error); }
-  }).then(function() {
-    return readStoredPreferences(STREAMING_PREFERENCE_KEYS);
-  }), 10000, 'Saved streaming preferences load').then(function(stored) {
+  return withOperationTimeout(
+    ensurePersistedPreferencesLoaded(),
+    10000,
+    'Saved streaming preferences load'
+  ).then(function(stored) {
     var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var defaults = {
       resolution: '1280:720', frameRate: '60', bitrate: 10,
@@ -10379,10 +10695,11 @@ function readStreamingSettingsSnapshot() {
       dolbyChannelLayout: 'Back', dolbyDecodingMode: 'Hardware',
       streamingEngine: 'EMSS', optimizeBitrate: false,
       performanceStatsPosition: 'top-left', streamTransitionBackground: true,
-      colorTheme: COLOR_THEME_DEFAULT, quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom'
+      colorTheme: COLOR_THEME_DEFAULT, quitAppAfterDisconnect: false, showConfigSummaryBar: 'bottom',
+      ambilightEnabled: false, ambilightWledIp: null, ambilightCaptureBackend: 'video_plane'
     };
-    var missingKeys = STREAMING_PREFERENCE_KEYS.filter(function(key) {
-      return stored[key] == null && Object.prototype.hasOwnProperty.call(defaults, key);
+    var missingKeys = Object.keys(defaults).filter(function(key) {
+      return stored[key] == null;
     });
     var persistDefaults = missingKeys.length ? new Promise(function(resolve, reject) {
       try {
@@ -10391,13 +10708,23 @@ function readStreamingSettingsSnapshot() {
         missingKeys.forEach(function(key) {
           objectStore.put(JSON.stringify(defaults[key]), key);
         });
-        transaction.oncomplete = function() { resolve(); };
+        transaction.oncomplete = function() {
+          missingKeys.forEach(function(key) { persistedPreferences[key] = defaults[key]; });
+          resolve();
+        };
         transaction.onerror = function() { reject(transaction.error || new Error('Could not persist default streaming preferences.')); };
         transaction.onabort = function() { reject(transaction.error || new Error('Default streaming preference write was aborted.')); };
       } catch (error) { reject(error); }
     }) : Promise.resolve();
     return persistDefaults.then(function() {
     var values = Object.assign({}, defaults, stored);
+    ambilightPreferences.ambilightEnabled = values.ambilightEnabled === true ||
+      values.ambilightEnabled === 'true' || values.ambilightEnabled === 1;
+    ambilightPreferences.ambilightWledIp =
+      typeof values.ambilightWledIp === 'string' && values.ambilightWledIp.trim()
+        ? values.ambilightWledIp.trim() : null;
+    ambilightPreferences.ambilightCaptureBackend = values.ambilightCaptureBackend === 'ppi'
+      ? 'ppi' : 'video_plane';
     function boolValue(value, fallback) {
       if (value == null) return fallback;
       return value === true || value === 'true' || value === 1;
@@ -10467,12 +10794,18 @@ function readStreamingSettingsSnapshot() {
 
 function loadDirectSmartHubStreamSettings() {
   return readStreamingSettingsSnapshot().then(function(snapshot) {
+    if (_directSmartHubLaunchFailed) return null;
     var stored = snapshot.preferences;
     _directSmartHubStreamSettings = Object.assign({}, snapshot, {
       quitAppAfterDisconnect: stored.quitAppAfterDisconnect === true ||
         stored.quitAppAfterDisconnect === 'true' || stored.quitAppAfterDisconnect === 1,
-      performanceStatsPosition: stored.performanceStatsPosition || 'top-left'
+      performanceStatsPosition: stored.performanceStatsPosition || 'top-left',
+      performanceStatsOverlayOpacity: stored.performanceStatsOverlayOpacity == null
+        ? 70 : stored.performanceStatsOverlayOpacity
     });
+    setPerformanceStatsOverlayOpacity(
+      _directSmartHubStreamSettings.performanceStatsOverlayOpacity, false
+    );
     var directEngine = String(snapshot.streamingEngine || stored.streamingEngine || 'EMSS');
     _directSmartHubNativeLaunch = directEngine === 'ESPLUSPLAYER' || directEngine === 'WMP';
     if (_directSmartHubNativeLaunch) {
@@ -10491,6 +10824,7 @@ function loadDirectSmartHubStreamSettings() {
     maybeStartDirectSmartHubLaunch();
     return _directSmartHubStreamSettings;
   }).catch(function(error) {
+    if (_directSmartHubLaunchFailed) return null;
     console.error('%c[index.js, loadDirectSmartHubStreamSettings]', 'color: red;', 'Could not load direct stream preferences:', error);
     directSmartHubLaunchFailure('Moonlight could not load its saved streaming settings.');
     throw error;
@@ -10499,10 +10833,26 @@ function loadDirectSmartHubStreamSettings() {
 
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
-  openIndexDB(loadUserDataCb);
+  return ensurePersistedPreferencesLoaded().then(function() {
+    loadUserDataCb();
+  });
 }
 
 function loadUserDataCb() {
+  // Load Ambilight preferences with the rest of Moonlight's saved settings.
+  getData('ambilightEnabled', function(value) {
+    ambilightPreferences.ambilightEnabled = value.ambilightEnabled === true;
+  });
+  getData('ambilightWledIp', function(value) {
+    ambilightPreferences.ambilightWledIp =
+      typeof value.ambilightWledIp === 'string' && value.ambilightWledIp.trim()
+        ? value.ambilightWledIp.trim() : null;
+  });
+  getData('ambilightCaptureBackend', function(value) {
+    ambilightPreferences.ambilightCaptureBackend = value.ambilightCaptureBackend === 'ppi'
+      ? 'ppi' : 'video_plane';
+  });
+
   getData('streamingEngine', function(previousValue) {
     var engine = previousValue && previousValue.streamingEngine;
     if (engine === 'WMP') engine = 'ESPLUSPLAYER';
@@ -10959,6 +11309,12 @@ function loadUserDataCb() {
     setPerformanceStatsPosition(positionValue && positionValue.performanceStatsPosition, false);
   });
 
+  console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performance overlay opacity.');
+  getData('performanceStatsOverlayOpacity', function(opacityValue) {
+    var savedOpacity = opacityValue && opacityValue.performanceStatsOverlayOpacity;
+    setPerformanceStatsOverlayOpacity(savedOpacity == null ? 70 : savedOpacity, false);
+  });
+
   console.log('%c[index.js, loadUserDataCb]', 'color: green;', 'Load stored performanceStats preferences.');
   getData('performanceStats', function(previousValue) {
     if (previousValue.performanceStats == null) {
@@ -11038,51 +11394,183 @@ function loadHTTPCerts() {
 
 function loadHTTPCertsCb() {
   console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Load the HTTP certificate and unique ID if they are already available.');
+  var directWmpSelected = !!_directSmartHubLaunch &&
+    _directSmartHubNativeLaunch === true;
+  function nativeCredentialReadFailed(error) {
+    if (_directSmartHubLaunchFailed) return;
+    var stage = error && error.moonlightReadStage;
+    var messageByStage = {
+      'database-open': 'Moonlight could not open its saved data database.',
+      'cert-read': 'Moonlight could not read its saved certificate from IndexedDB.',
+      'cert-parse': 'Moonlight could not decode its saved certificate data.',
+      'uniqueid-read': 'Moonlight could not read its saved client identifier from IndexedDB.',
+      'uniqueid-parse': 'Moonlight could not decode its saved client identifier.'
+    };
+    var message = messageByStage[stage] || 'Moonlight encountered an unidentified error while recovering its saved streaming identity.';
+    console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not safely recover the persisted WMP identity at stage ' + (stage || 'unknown') + ':', error);
+    directSmartHubLaunchFailure(t(message));
+  }
+  // Every direct Smart Hub launch treats an identity-read failure as terminal;
+  // normal in-app launches retain their existing IndexedDB recovery behavior.
+  var certReadErrorCallback = _directSmartHubLaunch
+    ? nativeCredentialReadFailed
+    : undefined;
+  var uniqueidReadErrorCallback = _directSmartHubLaunch
+    ? nativeCredentialReadFailed
+    : undefined;
   getData('cert', function(savedCert) {
+    if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
     if (savedCert.cert != null) { // We have a saved cert
       pairingCert = savedCert.cert;
     }
 
     getData('uniqueid', function(savedUniqueid) {
+      if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
       if (savedUniqueid && savedUniqueid.uniqueid != null) { // We have a saved uniqueid
         myUniqueid = savedUniqueid.uniqueid;
       } else {
         myUniqueid = uniqueid();
-        storeData('uniqueid', myUniqueid, null);
+        if (!_directSmartHubLaunch) storeData('uniqueid', myUniqueid, null);
       }
 
-      if (!pairingCert) { // We couldn't load a cert. Let's attempt to generate a new one.
-        console.warn('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Warning: Local certificate not found! Generating a new one...');
-        sendMessage('makeCert', []).then(function(cert) {
-          storeData('cert', cert, null);
-          pairingCert = cert;
-          console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate: ', cert);
-        }, function(failedCert) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed to generate a new certificate! Returned error was: \n', failedCert + '!');
-          if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials.'));
-        }).then(function(ret) {
-          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
-            isStartupHttpReady = true;
-            if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
-            else maybeRestoreUiAfterStartup();
-          }, function(failedInit) {
-            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
-            if (_directSmartHubLaunch) directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming connection.'));
-          });
+      var directWmpNativeCredentials = directWmpSelected &&
+        window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.prepare === 'function' &&
+        typeof window.ESPlusPlayerTransport.makeCert === 'function' &&
+        typeof window.ESPlusPlayerTransport.httpInit === 'function';
+
+      if (directWmpSelected && !directWmpNativeCredentials) {
+        directSmartHubLaunchFailure(t('The native streaming service is unavailable.'));
+      } else if (directWmpNativeCredentials) {
+        // Only Smart Hub + WMP uses the native certificate/HTTP API. The
+        // existing WASM path below remains untouched for EMSS and normal launch.
+        // Start and verify the supervised native service now, while the
+        // stream is still idle. prepare() does not create a playback session.
+        var nativeCertificateGenerated = false;
+        var nativeCredentialPromise = Promise.resolve().then(function() {
+          if (_directSmartHubLaunchFailed) return null;
+          return savedUniqueid && savedUniqueid.uniqueid != null
+            ? Promise.resolve()
+            : storeData('uniqueid', myUniqueid, null);
+        }).then(function() {
+          if (_directSmartHubLaunchFailed) return null;
+          // startDirectSmartHubHttpInitialization has already prepared and
+          // verified WMP before loadHTTPCertsCb began reading this identity.
+          return pairingCert
+            ? pairingCert
+            : window.ESPlusPlayerTransport.makeCert().then(function(response) {
+              var payload = response && response.payload ? response.payload : {};
+              if (!response || response.status !== 'ok' ||
+                  typeof payload.certPem !== 'string' || !payload.certPem ||
+                  typeof payload.keyPem !== 'string' || !payload.keyPem) {
+                throw new Error('Native WMP certificate generation returned an invalid response.');
+              }
+              nativeCertificateGenerated = true;
+              return {
+                cert: payload.certPem,
+                privateKey: payload.keyPem
+              };
+            });
         });
-      } else {
-        sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+
+        nativeCredentialPromise.then(function(cert) {
+          if (_directSmartHubLaunchFailed) return null;
+          return window.ESPlusPlayerTransport.httpInit(
+            cert.cert, cert.privateKey, myUniqueid
+          ).then(function(response) {
+            if (_directSmartHubLaunchFailed) return cert;
+            var payload = response && response.payload ? response.payload : {};
+            if (!response || response.status !== 'ok' ||
+                typeof payload.code !== 'number' || payload.code !== 0) {
+              throw new Error('Native WMP HTTP initialization failed.');
+            }
+            if (!nativeCertificateGenerated || _directSmartHubLaunchFailed) return cert;
+            return storeData('cert', cert, null).then(function() {
+              if (_directSmartHubLaunchFailed) return cert;
+              pairingCert = cert;
+              console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated and persistently stored new certificate through native WMP transport.');
+              return cert;
+            });
+          });
+        }).then(function() {
+          if (_directSmartHubLaunchFailed) return;
           isStartupHttpReady = true;
           if (_directSmartHubLaunch) maybeStartDirectSmartHubLaunch();
           else maybeRestoreUiAfterStartup();
-        }, function(failedInit) {
-          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
-            if (_directSmartHubLaunch) directSmartHubLaunchFailure('Moonlight could not initialize its streaming connection.');
+        }).catch(function(error) {
+          if (_directSmartHubLaunchFailed) return;
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Native WMP certificate/HTTP initialization failed:', error);
+          if (_directSmartHubLaunch) {
+            directSmartHubLaunchFailure(t('Moonlight could not initialize its streaming credentials or HTTP connection.'));
+          }
         });
+      } else if (_directSmartHubLaunch) {
+        // Direct EMSS must stop the credential chain at the first failure. In
+        // particular, a failed makeCert must never fall through into httpInit.
+        var directCredentialStage = 'credentials';
+        var directEmssCredentialPromise = Promise.resolve().then(function() {
+          if (_directSmartHubLaunchFailed) return null;
+          if (savedUniqueid && savedUniqueid.uniqueid != null) return null;
+          return storeData('uniqueid', myUniqueid, null);
+        }).then(function() {
+          if (_directSmartHubLaunchFailed || pairingCert) return pairingCert;
+          return sendMessage('makeCert', []).then(function(cert) {
+            if (_directSmartHubLaunchFailed) return null;
+            if (!cert || !cert.cert || !cert.privateKey) {
+              throw new Error('WASM certificate generation returned an invalid response.');
+            }
+            return storeData('cert', cert, null).then(function() {
+              if (_directSmartHubLaunchFailed) return null;
+              pairingCert = cert;
+              return cert;
+            });
+          });
+        });
+        directEmssCredentialPromise.then(function(cert) {
+          if (_directSmartHubLaunchFailed || !cert) return null;
+          directCredentialStage = 'http';
+          return sendMessage('httpInit', [cert.cert, cert.privateKey, myUniqueid]);
+        }).then(function() {
+          if (_directSmartHubLaunchFailed) return;
+          isStartupHttpReady = true;
+          maybeStartDirectSmartHubLaunch();
+        }).catch(function(error) {
+          if (_directSmartHubLaunchFailed) return;
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Direct EMSS credential/HTTP initialization failed:', error);
+          directSmartHubLaunchFailure(directCredentialStage === 'http'
+            ? t('Moonlight could not initialize its streaming connection.')
+            : t('Moonlight could not initialize its streaming credentials.'));
+        });
+      } else {
+        if (!pairingCert) { // We couldn't load a cert. Let's attempt to generate a new one.
+          console.warn('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Warning: Local certificate not found! Generating a new one...');
+          sendMessage('makeCert', []).then(function(cert) {
+            storeData('cert', cert, null);
+            pairingCert = cert;
+            console.info('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Generated new certificate: ', cert);
+          }, function(failedCert) {
+            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed to generate a new certificate! Returned error was: \n', failedCert + '!');
+          }).then(function(ret) {
+            sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+              isStartupHttpReady = true;
+              maybeRestoreUiAfterStartup();
+            }, function(failedInit) {
+              console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
+            });
+          });
+        } else {
+          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
+            isStartupHttpReady = true;
+            maybeRestoreUiAfterStartup();
+          }, function(failedInit) {
+            console.error('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Error: Failed HTTP initialization! Returned error was: ', failedInit + '!');
+          });
+        }
       }
 
       // load previously connected hosts, which have been killed into an object, and revive them back into a class
       getData('hosts', function(previousValue) {
+        if (_directSmartHubLaunch && _directSmartHubLaunchFailed) return;
         if (_directSmartHubLaunch) {
           var savedHosts = previousValue.hosts != null ? previousValue.hosts : {};
           var targetUID = _directSmartHubLaunch.serverUid;
@@ -11117,8 +11605,13 @@ function loadHTTPCertsCb() {
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         var hasConfiguredHosts = Object.keys(hosts).length > 0;
         // Finish the startup message only after the saved-host list has been read and revived.
-        var savedHostsSnackbarPromise = Promise.resolve(window.startupEngineSnackbarPromise)
-          .then(function() {
+        var savedHostsSnackbarPromise = ensurePreviewAppsLoaded().catch(function(error) {
+          // Keep the normal UI usable, but all Preview-cache writers remain
+          // blocked until a later successful read; never overwrite history with {}.
+          console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not restore the cached app lists:', error);
+        }).then(function() {
+          return Promise.resolve(window.startupEngineSnackbarPromise);
+        }).then(function() {
             return dismissPersistentSnackbar();
           });
         if (hasConfiguredHosts && isInGame !== true) {
@@ -11152,12 +11645,8 @@ function loadHTTPCertsCb() {
           hosts[hostUID] = revivedHost;
         }
         isHostsLoaded = true;
-        // Restore the cached preview metadata only. Do not publish Smart Hub tiles
-        // during startup: host app lists have not yet been refreshed from the hosts.
-        // The normal update path runs after a host's current app list is retrieved.
-        getData('previewApps', function(storedPreview) {
-          _previewApps = (storedPreview.previewApps != null) ? storedPreview.previewApps : {};
-        });
+        // Preview/app-usage cache restoration is awaited before host cards and
+        // discovery can trigger app-list cache updates.
         console.log('%c[index.js, loadHTTPCertsCb]', 'color: green;', 'Restored previously configured hosts from local storage.');
 
         // Restore saved hosts locally before checking them and discovering new hosts.
@@ -11172,9 +11661,14 @@ function loadHTTPCertsCb() {
             return runInitialHostDiscovery(hasConfiguredHosts);
           });
         });
-      });
-    });
-  });
+      }, directWmpSelected ? function(error) {
+        if (_directSmartHubLaunchFailed) return;
+        console.error('%c[index.js, loadHTTPCertsCb]', 'color: red;', 'Could not retrieve the requested host from IndexedDB:', error);
+        isHostsLoaded = true;
+        directSmartHubLaunchFailure(t('Moonlight could not retrieve the requested host from saved data.'));
+      } : null);
+    }, uniqueidReadErrorCallback);
+  }, certReadErrorCallback);
 }
 
 // A Smart Hub app shortcut is a single-purpose launch. It never navigates
@@ -11183,6 +11677,10 @@ function beginDirectSmartHubLaunch(actionData) {
   if (_directSmartHubLaunch || !actionData || !actionData.serverUid ||
       actionData.appId === null || actionData.appId === undefined) return;
 
+  // Smart Hub enters directly into its launch transition; treat that transition as
+  // active immediately, while showStreamTransitionBackground prepares its canvas
+  // on the first call if it has not already been initialized.
+  streamTransitionVisible = true;
   _directSmartHubLaunch = {
     serverUid: String(actionData.serverUid),
     appId: actionData.appId,
@@ -11195,6 +11693,9 @@ function beginDirectSmartHubLaunch(actionData) {
   _directSmartHubStreamSettings = null;
   _directSmartHubLaunchStarted = false;
   _directSmartHubLaunchFailed = false;
+  window._directSmartHubTransitionStarted = false;
+  window._directSmartHubTransitionReady = false;
+  window._directSmartHubTransitionPromise = null;
   streamStartupFailureHandled = false;
   window._streamStartupFailureHandled = false;
 
@@ -11204,7 +11705,12 @@ function beginDirectSmartHubLaunch(actionData) {
   updateDirectSmartHubStartingStatus();
   armStreamStartupWatchdog('initialization', 15000);
 
-  loadDirectSmartHubStreamSettings().catch(function() {
+  loadDirectSmartHubStreamSettings().then(function() {
+    // Start certificate and HTTP initialization from the direct-launch
+    // lifecycle itself. Smart Hub + WMP takes the native path without waiting
+    // for moduleDidLoad or the WebAssembly runtime.
+    startDirectSmartHubHttpInitialization();
+  }).catch(function() {
     // loadDirectSmartHubStreamSettings already reports the failure and exits.
   });
 
@@ -11231,7 +11737,6 @@ function beginDirectSmartHubLaunch(actionData) {
     _directSmartHubHost = host;
     _directSmartHubHostReady = true;
     api = host;
-    localStorage.setItem('lastOpenedHost', host.serverUid);
     maybeStartDirectSmartHubLaunch();
   }
 
@@ -11403,7 +11908,7 @@ function removeDirectSmartHubPreviewTile() {
 }
 
 function updateDirectSmartHubStartingStatus() {
-  if (!_directSmartHubLaunch) return;
+  if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
   var appName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
   var title = document.getElementById('loadingSpinnerTitle');
   var message = document.getElementById('loadingSpinnerMessage');
@@ -11418,45 +11923,183 @@ if (_directSmartHubLaunch) {
 
 function directSmartHubLaunchFailure(message) {
   if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
+
+  // Make the failure terminal before touching the UI or starting cleanup. Every
+  // asynchronous startup continuation checks this flag before doing more work.
   _directSmartHubLaunchFailed = true;
   streamStartupGeneration++;
   streamStartupFailureHandled = true;
   window._streamStartupFailureHandled = true;
   clearStreamStartupWatchdog();
-  console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', message);
+
+  var failureMessage = message || t('Unable to launch the selected app.');
+  console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', failureMessage);
   var title = document.getElementById('loadingSpinnerTitle');
   var status = document.getElementById('loadingSpinnerMessage');
   if (title) title.textContent = t('Unable to start streaming');
-  if (status) status.textContent = message || t('Unable to launch the selected app.');
+  if (status) status.textContent = failureMessage;
 
-  var exitAfterMessage = function() {
+  // WMP preparation starts a separate native service and supervisor. Tear both
+  // down and verify that their processes are gone before returning to Smart Hub.
+  // The overall deadline is independent of the individual Tizen callbacks: a
+  // stalled native cleanup must never keep the application alive indefinitely.
+  var cleanupPromise = Promise.resolve();
+  if (_directSmartHubNativeLaunch === true) {
+    var transport = window.ESPlusPlayerTransport;
+    if (transport && typeof transport.abortPreparedStartup === 'function') {
+      var nativeCleanup = Promise.resolve().then(function() {
+        return transport.abortPreparedStartup();
+      });
+      cleanupPromise = withOperationTimeout(
+        nativeCleanup,
+        SMART_HUB_STARTUP_CLEANUP_TIMEOUT_MS,
+        'Native WMP startup cleanup'
+      ).catch(function(error) {
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup did not finish before the shutdown deadline; proceeding with controlled application exit:', error);
+      });
+    } else {
+      cleanupPromise = Promise.resolve().then(function() {
+        console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Native WMP cleanup is unavailable; proceeding with controlled application exit without process-state verification.');
+      });
+    }
+  }
+
+  // Do not exit until the error has actually been revealed for the minimum
+  // visibility interval and native cleanup has finished. A late callback cannot
+  // replace the message because all direct-launch status writers are now gated.
+  var errorVisibleForMinimum = false;
+  var cleanupFinished = false;
+  var exitStarted = false;
+  var errorVisibilityTimerStarted = false;
+  var errorVisibilityFallbackTimeout = null;
+  function finishFailureIfReady() {
+    if (exitStarted || !errorVisibleForMinimum || !cleanupFinished) return;
+    exitStarted = true;
+    exitApplication();
+  }
+  var markErrorVisible = function() {
+    if (errorVisibilityTimerStarted) return;
+    errorVisibilityTimerStarted = true;
+    if (errorVisibilityFallbackTimeout !== null) {
+      window.clearTimeout(errorVisibilityFallbackTimeout);
+      errorVisibilityFallbackTimeout = null;
+    }
     window.setTimeout(function() {
-      exitApplication();
+      errorVisibleForMinimum = true;
+      finishFailureIfReady();
     }, SMART_HUB_STARTUP_ERROR_MIN_VISIBLE_MS);
   };
-  if (typeof showStreamTransitionBackground === 'function') showStreamTransitionBackground(exitAfterMessage);
-  else {
+
+  cleanupPromise.then(function() {
+    cleanupFinished = true;
+    finishFailureIfReady();
+  });
+
+  if (typeof showStreamTransitionBackground === 'function') {
+    try {
+      showStreamTransitionBackground(markErrorVisible, true);
+    } catch (error) {
+      console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not reveal the stream transition while closing:', error);
+      var layer = document.getElementById('stream-transition-layer');
+      if (layer) layer.style.display = 'block';
+      markErrorVisible();
+    }
+  } else {
     var layer = document.getElementById('stream-transition-layer');
     if (layer) layer.style.display = 'block';
-    exitAfterMessage();
+    markErrorVisible();
   }
+
+  // The transition's animation/reveal callback is asynchronous. If it never
+  // arrives (for example, because the animation frame cannot be scheduled),
+  // force the status layer visible and start the same minimum-read interval.
+  errorVisibilityFallbackTimeout = window.setTimeout(function() {
+    if (errorVisibilityTimerStarted || exitStarted) return;
+    try {
+      showUiLayer('stream-transition-layer');
+      fadeInUiElement('loadingSpinner', 'inline-block');
+    } catch (error) {
+      var fallbackLayer = document.getElementById('stream-transition-layer');
+      if (fallbackLayer) fallbackLayer.style.display = 'block';
+      var fallbackSpinner = document.getElementById('loadingSpinner');
+      if (fallbackSpinner) {
+        fallbackSpinner.style.display = 'inline-block';
+        fallbackSpinner.style.opacity = '1';
+      }
+      console.error('%c[index.js, directSmartHubLaunchFailure]', 'color: red;', 'Could not animate the error status into view; forced its visibility:', error);
+    }
+    markErrorVisible();
+  }, 2000);
 }
 
 function maybeStartDirectSmartHubLaunch() {
   if (!_directSmartHubLaunch || _directSmartHubLaunchStarted || _directSmartHubLaunchFailed ||
-      !_directSmartHubHostReady || !_directSmartHubSettingsReady || !isStartupHttpReady) return;
-  _directSmartHubLaunchStarted = true;
+      !_directSmartHubSettingsReady) return;
+
+  // Show the Smart Hub transition before starting either engine. WASM loading
+  // and native-service preparation are both deferred until its entry sequence
+  // has completed; this deliberately does not depend on host readiness.
+  if (window._directSmartHubTransitionReady !== true) {
+    if (window._directSmartHubTransitionStarted !== true) {
+      window._directSmartHubTransitionStarted = true;
+      var directSettings = _directSmartHubStreamSettings;
+      if (!directSettings) {
+        directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming settings.'));
+        return;
+      }
+      var directAppName = _directSmartHubLaunch.appName || String(_directSmartHubLaunch.appId);
+      $('#loadingSpinnerTitle').text(t('Starting %1$s...', directAppName));
+      $('#loadingSpinnerMessage').text(t('Switching to streaming mode...'));
+      window._directSmartHubTransitionPromise = showStreamMode(
+        directSettings.streamWidth, directSettings.streamHeight
+      );
+      window._directSmartHubTransitionPromise.then(function() {
+        if (!_directSmartHubLaunch || _directSmartHubLaunchFailed) return;
+        window._directSmartHubTransitionReady = true;
+        if (_directSmartHubNativeLaunch === true) {
+          startDirectSmartHubHttpInitialization();
+        } else if (typeof window.startDirectSmartHubWasm === 'function') {
+          window.startDirectSmartHubWasm();
+        } else {
+          directSmartHubLaunchFailure(t('Moonlight could not initialize the streaming interface.'));
+        }
+      }, function(error) {
+        console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not reveal the Smart Hub stream transition before engine startup:', error);
+        directSmartHubLaunchFailure(t('Moonlight could not prepare the streaming interface.'));
+      });
+    }
+    return;
+  }
+
+  if (!_directSmartHubHostReady) return;
   var host = _directSmartHubHost;
   if (!host || !host.paired) {
     directSmartHubLaunchFailure(t('The selected host is no longer available on Moonlight.'));
     return;
   }
+  if (!isStartupHttpReady) return;
+  if (!_previewAppsReady) {
+    ensurePreviewAppsLoaded().then(function() {
+      maybeStartDirectSmartHubLaunch();
+    }).catch(function(error) {
+      console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'Could not restore app usage history before the direct launch:', error);
+      directSmartHubLaunchFailure(t('Moonlight could not load its saved streaming settings.'));
+    });
+    return;
+  }
+
+  _directSmartHubLaunchStarted = true;
   console.log('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: green;', 'Checking selected host and launching app ' + _directSmartHubLaunch.appId + ' directly.');
   // startGame performs one host-specific server-info refresh before launching.
   // Do not run the background host-polling path for a direct Smart Hub request.
-  api = host;
-  localStorage.setItem('lastOpenedHost', host.serverUid);
-  startGame(host, _directSmartHubLaunch.appId);
+  try {
+    api = host;
+    localStorage.setItem('lastOpenedHost', host.serverUid);
+    startGame(host, _directSmartHubLaunch.appId);
+  } catch (error) {
+    console.error('%c[index.js, maybeStartDirectSmartHubLaunch]', 'color: red;', 'A synchronous error interrupted the direct Smart Hub launch:', error);
+    directSmartHubLaunchFailure(t('Moonlight could not start the selected app.'));
+  }
 }
 
 // Do not create the summary bar until the persisted preference has been loaded.
@@ -11773,7 +12416,15 @@ function onWindowLoad() {
   }
 
   isStartupWindowLoaded = true;
-  maybeRestoreUiAfterStartup();
+  ensurePersistedPreferencesLoaded().then(function() {
+    isStartupPreferencesReady = true;
+    maybeRestoreUiAfterStartup();
+  }).catch(function(error) {
+    // Keep the existing startup recovery path available if a stored value is corrupt.
+    console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Could not preload the complete preference collection:', error);
+    isStartupPreferencesReady = true;
+    maybeRestoreUiAfterStartup();
+  });
 
   // Normal startup restoration, including WebAssembly and stored-data loading,
   // is reached only after the HTML launch presentation has completed.

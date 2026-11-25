@@ -132,6 +132,14 @@ const SyncFunctions = {
     // Use only the explicitly selected engine. An unknown/unavailable preference
     // must fail closed; it must never be interpreted as permission to use EMSS.
     const activeStreamingEngine = getSelectedStreamingEngine();
+    window._requestedGameMode = args[28] === true || args[28] === 1 || args[28] === 'true';
+    window._ambilightStreamStartRequested = false;
+    window._ambilightStartedForCurrentStream = false;
+    window._ambilightStartPromise = null;
+    window._streamConnectionEstablished = false;
+    window._ambilightColorProfile = null;
+    window._ambilightRequestedFullRange = args[27] === true || args[27] === 1 || args[27] === 'true';
+    window._confirmedGameMode = false;
     resetStreamingEngineState(activeStreamingEngine);
     window._esplusActiveAudioCodec = null;
     window._esplusAudioQuality = null;
@@ -159,11 +167,6 @@ const SyncFunctions = {
   },
   // no parameters
   'stopRequest': (...args) => {
-    if (window.moonlightAmbilight) {
-      window.moonlightAmbilight.stop().catch(function(error) {
-        console.warn('[ambilight] Could not stop native service:', error);
-      });
-    }
     // Begin the same UI termination path for both engines before sending the
     // engine-specific stop signal. Unsolicited terminations converge on the same
     // helper from handleMessage('streamTerminated: ...') below.
@@ -363,6 +366,19 @@ var performanceStatsEnabled = null;
 var performanceStatsPendingSnapshot = null;
 var performanceStatsFirstRevealAt = 0;
 var performanceStatsRevealTimer = null;
+
+// Keep the existing 70% panel opacity as the default for older installations.
+if (window._performanceStatsOverlayOpacity == null) {
+  window._performanceStatsOverlayOpacity = 70;
+}
+
+function getPerformanceStatsOverlayBackground() {
+  var opacity = Number(window._performanceStatsOverlayOpacity);
+  if (!Number.isFinite(opacity)) opacity = 70;
+  opacity = Math.max(0, Math.min(100, opacity));
+  return 'rgba(0, 0, 0, ' + (opacity / 100) + ')';
+}
+
 const PERFORMANCE_STATS_GRAPH_SECONDS = 60;
 const PERFORMANCE_STATS_GRAPH_HEIGHT = 160;
 
@@ -471,6 +487,78 @@ function isPerformanceStatsOverlayVisible() {
   return overlayStyle.display !== 'none' && overlayStyle.visibility !== 'hidden';
 }
 
+// Compact negotiated/session indicators shown in the performance overlay.
+var PERFORMANCE_STATS_PILL_DEFINITIONS = [
+  ['emss', 'EMSS'], ['wmp', 'WMP nat.'], ['h264', 'H264'], ['hevc', 'HEVC'],
+  ['av1', 'AV1'], ['hdr', 'HDR'], ['opus', 'OPUS'], ['dd', 'DD'],
+  ['ddplus', 'DD+'], ['harddec', 'Hard dec.'], ['softdec', 'Soft dec.'],
+  ['stereo', 'Stereo'], ['51', '5.1'], ['71', '7.1'], ['wifi', 'WiFi'],
+  ['eth', 'Eth.'], ['game', 'Game']
+];
+window._performanceStatsPillState = window._performanceStatsPillState || {};
+function setPerformanceStatsPill(name, active) {
+  if (!Object.prototype.hasOwnProperty.call(window._performanceStatsPillState, name)) return;
+  window._performanceStatsPillState[name] = active === true;
+  var pill = document.querySelector('#performance-stats .performance-stats-pill[data-pill="' + name + '"]');
+  if (pill) pill.classList.toggle('is-active', active === true);
+}
+function resetPerformanceStatsPills() {
+  PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+    window._performanceStatsPillState[def[0]] = false;
+  });
+  var pills = document.querySelectorAll('#performance-stats .performance-stats-pill');
+  Array.prototype.forEach.call(pills, function(pill) { pill.classList.remove('is-active', 'is-soft-active'); });
+}
+function ensurePerformanceStatsPills(container) {
+  var row = container.querySelector('.performance-stats-pills');
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'performance-stats-pills';
+    row.setAttribute('aria-label', 'Stream feature indicators');
+    PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+      var pill = document.createElement('span');
+      pill.className = 'performance-stats-pill';
+      pill.dataset.pill = def[0];
+      pill.textContent = def[1];
+      row.appendChild(pill);
+    });
+    container.insertBefore(row, container.firstChild);
+  }
+  PERFORMANCE_STATS_PILL_DEFINITIONS.forEach(function(def) {
+    var active = window._performanceStatsPillState[def[0]] === true;
+    var pill = row.querySelector('[data-pill="' + def[0] + '"]');
+    if (pill) pill.classList.toggle('is-active', active);
+  });
+  return row;
+}
+function updatePerformanceStatsNetworkPills() {
+  if (typeof tizen === 'undefined' || !tizen.systeminfo ||
+      typeof tizen.systeminfo.getPropertyValue !== 'function') return;
+  try {
+    tizen.systeminfo.getPropertyValue('NETWORK', function(networkInfo) {
+      var type = networkInfo && networkInfo.networkType ? String(networkInfo.networkType).toUpperCase() : '';
+      var isWifi = type.indexOf('WIFI') !== -1;
+      var isEthernet = type.indexOf('ETHERNET') !== -1 || type.indexOf('ETH') === 0;
+      setPerformanceStatsPill('wifi', isWifi);
+      setPerformanceStatsPill('eth', isEthernet);
+    }, function() {
+      // Leave the network indicators inactive if the platform cannot report it.
+    });
+  } catch (e) {
+    // SystemInfo can be unavailable on some firmware versions.
+  }
+}
+function updatePerformanceStatsPillsFromNegotiatedAudio(message) {
+  var values = String(message || '').split('|');
+  var codec = values[0];
+  var channels = Number(values[1]);
+  setPerformanceStatsPill('opus', codec === 'OPUS');
+  setPerformanceStatsPill('dd', codec === 'AC3');
+  setPerformanceStatsPill('ddplus', codec === 'EAC3');
+  setPerformanceStatsPill('stereo', channels === 2);
+  setPerformanceStatsPill('51', channels === 6);
+  setPerformanceStatsPill('71', channels === 8);
+}
 function ensurePerformanceStatsOverlayElements() {
   var container = document.getElementById('performance-stats');
   if (!container) return null;
@@ -527,6 +615,8 @@ function ensurePerformanceStatsOverlayElements() {
     container.appendChild(encryptionStatus);
   }
 
+  ensurePerformanceStatsPills(container);
+
   // Keep the selected engine visible above the shared statistics for both
   // renderers. This is UI metadata, not an engine-specific performance metric.
   var engineElement = container.querySelector('.performance-stats-engine');
@@ -564,12 +654,17 @@ function ensurePerformanceStatsOverlayElements() {
   container.insertBefore(slowOpusIndicator, engineElement);
   slowOpusIndicator.style.display = window._slowOpusDecoderActive === true ? 'table' : 'none';
 
+  // Keep the feature indicators as the first element in the overlay, above
+  // the slow-Opus notice and the selected streaming engine.
+  var pillsRow = container.querySelector('.performance-stats-pills');
+  if (pillsRow) container.insertBefore(pillsRow, container.firstChild);
+
   var activeEngine = window._activeStreamingEngine;
   var engineLabelElement = engineElement.querySelector('.performance-stats-label');
   var engineValueElement = engineElement.querySelector('.performance-stats-value');
   engineLabelElement.textContent = activeEngine ? 'Motor:' : '';
   engineValueElement.textContent = activeEngine === 'ESPLUSPLAYER'
-    ? 'Nativo'
+    ? t('Native')
     : activeEngine === 'EMSS' ? 'EMSS' : '';
 
   // The stream-negotiation result is cached by the transition screen. Reuse it
@@ -967,6 +1062,36 @@ function drawHostProcessingLatencyGraph() {
 
 // Render statistics as two-column rows: labels on the left and values on the right.
 function renderPerformanceStatsText(textElement, text, sourceText) {
+  var rawStats = String(sourceText || '');
+  var videoLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Video stream:') === 0; })[0] || '';
+  var audioLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Audio stream:') === 0; })[0] || '';
+  var decoderLine = rawStats.split('\n').filter(function(line) { return line.indexOf('Decoding mode:') === 0; })[0] || '';
+  setPerformanceStatsPill('h264', /H\.?264/i.test(videoLine));
+  setPerformanceStatsPill('hevc', /HEVC|H\.?265/i.test(videoLine));
+  setPerformanceStatsPill('av1', /AV1/i.test(videoLine));
+  setPerformanceStatsPill('hdr', /HDR/i.test(videoLine));
+  setPerformanceStatsPill('harddec', /Decoding mode:\s*Hardware/i.test(decoderLine));
+  setPerformanceStatsPill('softdec', /Decoding mode:\s*Software/i.test(decoderLine));
+  var audioCodec = audioLine.match(/Audio stream:\s*(OPUS|AC-3|E-AC-3)/i);
+  var audioLayout = audioLine.match(/\((Stereo|5\.1|7\.1)(?:,\s*\d+\s*channels?)?,\s*[\d.]+\s*kbps\)/i);
+  if (audioCodec) {
+    var normalizedAudioCodec = audioCodec[1].toUpperCase();
+    setPerformanceStatsPill('opus', normalizedAudioCodec === 'OPUS');
+    setPerformanceStatsPill('dd', normalizedAudioCodec === 'AC-3');
+    setPerformanceStatsPill('ddplus', normalizedAudioCodec === 'E-AC-3');
+  }
+  if (audioLayout) {
+    var normalizedLayout = audioLayout[1];
+    setPerformanceStatsPill('stereo', normalizedLayout === 'Stereo');
+    setPerformanceStatsPill('51', normalizedLayout === '5.1');
+    setPerformanceStatsPill('71', normalizedLayout === '7.1');
+  }
+  // The decoder mode is embedded in brackets in the Audio stream line.
+  // It is a guaranteed choice for enabled audio: Hardware or Software.
+  var hardwareDecoding = /\[\s*Hardware\s*\]/i.test(audioLine);
+  var softwareDecoding = /\[\s*Software\s*\]/i.test(audioLine);
+  setPerformanceStatsPill('harddec', hardwareDecoding);
+  setPerformanceStatsPill('softdec', !hardwareDecoding && (softwareDecoding || audioLine.indexOf('Audio stream:') === 0));
   textElement.textContent = '';
   var sourceLines = String(sourceText || '').split('\n');
   String(text || '').split('\n').forEach(function(line, lineIndex) {
@@ -1085,6 +1210,8 @@ function renderPerformanceStatsText(textElement, text, sourceText) {
 
 function beginPerformanceStatsStream() {
   performanceStatsStreamTerminated = false;
+  resetPerformanceStatsPills();
+  updatePerformanceStatsNetworkPills();
   performanceStatsEnabled = null;
   window._slowOpusDecoderActive = false;
   var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
@@ -1297,13 +1424,19 @@ function handleMessage(msg) {
 
   // If it's a recognized event, notify the appropriate function
   if (msg.indexOf('streamTerminated: ') === 0) {
+    // Prevent a delayed WMP profile callback from restarting Ambilight after
+    // this stream has already entered teardown.
+    window._streamConnectionEstablished = false;
+    window._ambilightColorProfile = null;
+    window._ambilightStreamStartRequested = false;
     // Lock and reset the transition immediately, before teardown work or any
     // callback can expose stale startup text from the previous session.
     streamTerminationTransitionActive = true;
     var errorCode = parseInt(msg.replace('streamTerminated: ', ''));
-    // Snapshot the sole success boundary before teardown resets any session state.
-    var streamTransitionWasHidden = window._streamTransitionHiddenForSession === true;
-    var streamRemoteAppLaunchRequested = window._remoteStreamAppLaunchRequested === true;
+    var streamRemoteAppLaunchRequestedAtTermination = window._remoteStreamAppLaunchRequested === true;
+    // Preserve the phase-1/phase-2 boundary before resetting per-session state.
+    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
+    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
     window._streamTransitionHiddenForSession = false;
     window._remoteStreamAppLaunchRequested = false;
     var initialClosingAppName = window._activeStreamAppName || t('Apps');
@@ -1315,7 +1448,8 @@ function handleMessage(msg) {
     window._activeStreamingEngineConfirmed = false;
     // Reset the native gamepad's local mouse mode even if polling has already
     // stopped; it must never leak into the next streaming session.
-    if (typeof Module !== 'undefined' &&
+    if (window._activeStreamingEngine !== 'ESPLUSPLAYER' &&
+        typeof Module !== 'undefined' &&
         typeof Module._resetGamepadMouseEmulation === 'function') {
       Module._resetGamepadMouseEmulation();
     }
@@ -1370,10 +1504,6 @@ function handleMessage(msg) {
       isInGame = false;
       return;
     }
-
-    // Snapshot the sole stream-success boundary before any termination path resets it.
-    var streamTransitionWasHiddenAtTermination = window._streamTransitionHiddenForSession === true;
-    var manualStreamStopAtTermination = window._manualStreamStopRequested === true;
 
     // A direct Smart Hub launch is a single-purpose session: never return to Moonlight's home UI.
     // The host app is closed for manual termination and pre-success startup failures, but
@@ -1439,7 +1569,8 @@ function handleMessage(msg) {
         window._directSmartHubStreamSettings.quitAppAfterDisconnect);
       var shouldQuitDirectHostApp = directQuitPreferenceEnabled && (
         manualStreamStopAtTermination ||
-        (!streamTransitionWasHiddenAtTermination && directStreamHasError) ||
+        (!streamTransitionWasHiddenAtTermination && directStreamHasError &&
+          streamRemoteAppLaunchRequestedAtTermination) ||
         (!directStreamHasError && errorCode === 0)
       );
       var exitDirectLaunch = function() {
@@ -1457,19 +1588,73 @@ function handleMessage(msg) {
         window.setTimeout(exitDirectLaunch, directStreamHasError ? 4500 : 3000);
       };
 
+      var waitForDirectWmpTermination = function() {
+        if (window._activeStreamingEngine !== 'ESPLUSPLAYER' ||
+            !window.ESPlusPlayerTransport ||
+            typeof window.ESPlusPlayerTransport.waitForTermination !== 'function') {
+          finishDirectLaunch();
+          return;
+        }
+
+        // stop_session acknowledges the request, but the native service and
+        // supervisor must both disappear before Moonlight exits.
+        try {
+          withOperationTimeout(
+            window.ESPlusPlayerTransport.waitForTermination(5000),
+            6000,
+            'WMP service shutdown'
+          ).then(finishDirectLaunch, function(failedWmpShutdown) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'WMP service or supervisor did not terminate before direct Smart Hub exit:', failedWmpShutdown);
+            finishDirectLaunch();
+          });
+        } catch (failedWmpShutdown) {
+          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not wait for WMP service termination before direct Smart Hub exit:', failedWmpShutdown);
+          finishDirectLaunch();
+        }
+      };
+
+      var releaseDirectWmpSession = function() {
+        if (window._activeStreamingEngine !== 'ESPLUSPLAYER' ||
+            !window.ESPlusPlayerTransport ||
+            typeof window.ESPlusPlayerTransport.releaseSession !== 'function') {
+          waitForDirectWmpTermination();
+          return;
+        }
+
+        // WMP defers its process exit for direct Smart Hub sessions until this
+        // acknowledgement. The native side waits for the session worker and all
+        // queued/in-flight native HTTP operations before scheduling its exit.
+        try {
+          window.ESPlusPlayerTransport.releaseSession().then(waitForDirectWmpTermination, function(releaseError) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not release the deferred WMP session shutdown:', releaseError);
+            waitForDirectWmpTermination();
+          });
+        } catch (releaseError) {
+          console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start the deferred WMP session release:', releaseError);
+          waitForDirectWmpTermination();
+        }
+      };
+
       var showDirectClosingTransition = function() {
         if (shouldQuitDirectHostApp && window.api && typeof window.api.quitApp === 'function') {
+          var quitRequest;
           try {
-            withOperationTimeout(window.api.quitApp(), 10000, 'Host app shutdown').then(finishDirectLaunch, function(failedQuitApp) {
-              console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
-              finishDirectLaunch();
-            });
+            // Do not impose a shorter UI timeout than the native HTTP request:
+            // releasing WMP while /cancel or the follow-up /serverinfo is still
+            // running would recreate the original lifecycle race.
+            quitRequest = window.api.quitApp();
           } catch (failedQuitApp) {
             console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Could not start host app shutdown after direct Smart Hub session:', failedQuitApp);
-            finishDirectLaunch();
+            releaseDirectWmpSession();
+            return;
           }
+
+          Promise.resolve(quitRequest).then(releaseDirectWmpSession, function(failedQuitApp) {
+            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after direct Smart Hub session:', failedQuitApp);
+            releaseDirectWmpSession();
+          });
         } else {
-          finishDirectLaunch();
+          releaseDirectWmpSession();
         }
       };
 
@@ -1481,12 +1666,6 @@ function handleMessage(msg) {
         showDirectClosingTransition();
       }
       return;
-    }
-
-    if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
-      window.moonlightAmbilight.shutdown().catch(function(error) {
-        console.warn('[ambilight] Could not shut down service after stream termination:', error);
-      });
     }
 
     logStreamTerminationRecovery('termination received', {errorCode: errorCode, engine: window._activeStreamingEngine || null});
@@ -1581,49 +1760,10 @@ function handleMessage(msg) {
     // Prepare the closing copy immediately before requesting the existing transition.
     // This replaces startup-phase text without changing when or how the transition appears.
     window._normalStreamVideoReady = false;
-    var resolveLocalAudioRestoration;
-    var localAudioRestoration = new Promise(function(resolve) {
-      resolveLocalAudioRestoration = resolve;
-    });
-    var restoreLocalAudioAfterTransitionAppears = function() {
+    var beginClosingOperations = function() {
       logStreamTerminationRecovery('closing transition visible');
-      if (window._directSmartHubLaunch) {
-        resolveLocalAudioRestoration();
-        return;
-      }
-      var restoration = typeof setNavigationSoundEnabled === 'function'
-        ? withOperationTimeout(setNavigationSoundEnabled(navigationSoundPreferenceEnabled), 10000, 'Local audio restoration')
-        : Promise.resolve();
-      if (hasStreamError) {
-        // Do not hold the user on the transition for local UI audio restoration after
-        // a connection failure. The interface can return immediately while audio
-        // restoration completes independently in the background.
-        Promise.resolve(restoration).catch(function(audioRestoreError) {
-          console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
-        });
-        resolveLocalAudioRestoration();
-        return;
-      }
-      $('#loadingSpinnerMessage').text(t('Restoring local audio engine...'));
-      Promise.resolve(restoration).catch(function(audioRestoreError) {
-        // A sound-effects failure must not strand the user in the closing transition.
-        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Could not restore the local UI audio engine:', audioRestoreError);
-      }).then(function() {
-        $('#loadingSpinnerMessage').text(transitionStatusMessage);
-        resolveLocalAudioRestoration();
-      });
+      window.setTimeout(runClosingSequence, 0);
     };
-    // Set both text fields before the transition can become visible. The title is
-    // specific to the closing phase; the status starts with its closing-phase message.
-    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
-    $('#loadingSpinnerMessage').text(transitionStatusMessage);
-    if (typeof showStreamTransitionBackground === "function") {
-      showStreamTransitionBackground(restoreLocalAudioAfterTransitionAppears);
-    } else {
-      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
-      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
-      restoreLocalAudioAfterTransitionAppears();
-    }
     // Mirror Moonlight for Windows: quit the host app after graceful/manual disconnect
     // only. An unexpected connection failure must not terminate the host application.
     var persistedPreferences = window.configSummarySnapshot && window.configSummarySnapshot.preferences;
@@ -1632,29 +1772,30 @@ function handleMessage(msg) {
       persistedPreferences.quitAppAfterDisconnect === 'true' ||
       persistedPreferences.quitAppAfterDisconnect === 1
     );
-    // Preserve the existing graceful/manual-disconnect behavior. In addition,
-    // a startup failure before the transition was hidden must make a best-effort
-    // attempt to close the remote app. Once hidden, unexpected errors never do.
+    // Close the remote app for explicit user stops, normal host-reported ends,
+    // and errors before the initial stream transition has disappeared. Errors
+    // after that success boundary must leave the remote app running.
+    var isPreSuccessStartupFailure = hasStreamError && !streamTransitionWasHiddenAtTermination &&
+      streamRemoteAppLaunchRequestedAtTermination;
     var shouldQuitHostApp = !!quitAfterDisconnect && (
       manualStreamStopRequested ||
-      (hasStreamError && !streamTransitionWasHidden) ||
-      (errorCode === 0 && !hasStreamError)
+      (errorCode === 0 && !hasStreamError) ||
+      isPreSuccessStartupFailure
     );
-    var startupRemoteAppQuit = Promise.resolve();
-    if (hasStreamError && !streamTransitionWasHidden && !manualStreamStopRequested &&
-        streamRemoteAppLaunchRequested && shouldQuitHostApp &&
-        window._activeStreamAppName && window._activeStreamAppName !== t('Apps') &&
-        api && typeof api.quitApp === 'function') {
-      console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting best-effort host app shutdown after stream startup failure.');
-      try {
-        startupRemoteAppQuit = withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown after startup failure').then(function() {
-          console.info('%c[messages.js, handleMessage]', 'color: gray;', 'Host app shutdown request completed after startup failure.');
-        }, function(error) {
-          console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown failed after startup failure:', error);
-        });
-      } catch (error) {
-        console.warn('%c[messages.js, handleMessage]', 'color: gray;', 'Best-effort host app shutdown could not be started:', error);
-      }
+    // All authorized requests run while the closing transition is visible.
+    var shouldQuitHostAppDuringTransition = !!shouldQuitHostApp &&
+      (!hasStreamError || isPreSuccessStartupFailure) &&
+      activeStreamAppName !== t('Apps') && api && typeof api.quitApp === 'function';
+    // Keep the original termination reason as the first closing status. Later
+    // operations advance the same status line instead of replacing this message early.
+    $('#loadingSpinnerTitle').text(t('Closing %1$s...', activeStreamAppName));
+    $('#loadingSpinnerMessage').text(transitionStatusMessage);
+    if (typeof showStreamTransitionBackground === "function") {
+      showStreamTransitionBackground(beginClosingOperations, true);
+    } else {
+      var fallbackTransitionLayer = document.getElementById('stream-transition-layer');
+      if (fallbackTransitionLayer) fallbackTransitionLayer.style.display = 'block';
+      beginClosingOperations();
     }
 
     var returnToHostsAfterRecoveryFailure = function(failure) {
@@ -1786,7 +1927,7 @@ function handleMessage(msg) {
         if (errorQuitButton) errorQuitButton.disabled = false;
         logStreamTerminationRecovery('opening shared stream error dialog', {errorCode: errorCode, hasApiMessage: !!streamErrorApiMessage});
         warningDialog(t('Error'), streamErrorDialogMessage, function() {
-          startupRemoteAppQuit.then(refreshHostAndReturnToApps);
+          refreshHostAndReturnToApps();
         }, true, 'OK', {
           code: Number.isFinite(errorCode) && errorCode !== 0 ? errorCode : null,
           apiMessage: streamErrorApiMessage
@@ -1794,23 +1935,9 @@ function handleMessage(msg) {
         return;
       }
 
-      window.setTimeout(function() {
-        // Resume ordinary UI state and flush deferred UI actions only after the full
-        // transition fadeout and the additional 200 ms breathing room.
-        if (shouldQuitHostApp && api && typeof api.quitApp === 'function') {
-          console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Attempting to quit the host app after graceful disconnection.');
-          withOperationTimeout(api.quitApp(), 10000, 'Host app shutdown').then(function() {
-            console.log('%c[messages.js, handleMessage]', 'color: gray;', 'Host app quit request completed.');
-            refreshHostAndReturnToApps();
-          }, function(failedQuitApp) {
-            console.error('%c[messages.js, handleMessage]', 'color: gray;', 'Failed to quit the host app after disconnection:', failedQuitApp);
-            snackbarLogLong('Could not automatically quit the host app.');
-            refreshHostAndReturnToApps();
-          });
-        } else {
-          refreshHostAndReturnToApps();
-        }
-      }, 200);
+      // The remote app shutdown request has already completed (or failed) while
+      // the closing transition was visible. Refresh the host and Apps list now.
+      window.setTimeout(refreshHostAndReturnToApps, 200);
     };
 
     var hideTransitionAndBeginRecovery = function() {
@@ -1836,26 +1963,123 @@ function handleMessage(msg) {
       showAppsMode(true, hideTransitionAndBeginRecovery, true);
     };
 
-    // Do not continue recovery or reveal the Apps UI until the local audio engine
-    // has been recreated and click.mp3 has been decoded.
-    localAudioRestoration.then(function() {
-      logStreamTerminationRecovery('local audio restoration released');
-      var remainingTransitionMs = streamTerminationMinimumVisibleMs -
-        (Date.now() - streamTerminationTransitionShownAt);
-      if (remainingTransitionMs > 0) {
-        window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
-      } else {
-        showAppsUiBeforeTransitionCloses();
-      }
-    });
+    // Run every shutdown operation serially. Each step has a hard upper bound;
+    // failures are logged and converted to a resolved step so later cleanup always runs.
+    var runClosingStep = function(operationName, statusMessage, operation, timeoutMs, onFailure) {
+      $('#loadingSpinnerMessage').text(statusMessage);
+      logStreamTerminationRecovery('closing operation started', {operation: operationName});
+      var pendingOperation = Promise.resolve().then(operation);
+      return withOperationTimeout(pendingOperation, timeoutMs, operationName).then(function(result) {
+        logStreamTerminationRecovery('closing operation completed', {operation: operationName});
+        return result;
+      }, function(error) {
+        console.warn('%c[messages.js, handleMessage]', 'color: gray;', operationName + ' did not complete; continuing shutdown:', error);
+        logStreamTerminationRecovery('closing operation failed or timed out; continuing', {
+          operation: operationName,
+          message: error && error.message ? error.message : String(error)
+        });
+        if (typeof onFailure === 'function') onFailure(error);
+        return null;
+      });
+    };
 
+    var runClosingSequence = function() {
+      var sequence = Promise.resolve();
+
+      // streamTerminated is the stream's terminal event. For ESPlusPlayer, wait
+      // separately for the native WMP ServiceApplication process to disappear.
+      if (window._activeStreamingEngine === 'ESPLUSPLAYER' && window.ESPlusPlayerTransport &&
+          typeof window.ESPlusPlayerTransport.waitForTermination === 'function') {
+        sequence = sequence.then(function() {
+          return runClosingStep('WMP service shutdown', t('Stopping WMP service...'), function() {
+            return window.ESPlusPlayerTransport.waitForTermination(5000);
+          }, 5000);
+        });
+      }
+
+      if (window.moonlightAmbilight && typeof window.moonlightAmbilight.shutdown === 'function') {
+        sequence = sequence.then(function() {
+          return Promise.resolve(window._ambilightStartPromise).catch(function() {}).then(function() {
+            if (window._ambilightStartedForCurrentStream !== true) return null;
+            return runClosingStep('Ambilight shutdown', t('Stopping Ambilight service...'), function() {
+              return window.moonlightAmbilight.shutdown();
+            }, 5000).then(function(result) {
+              window._ambilightStartedForCurrentStream = false;
+              return result;
+            });
+          });
+        });
+      }
+
+      if (!window._directSmartHubLaunch) {
+        sequence = sequence.then(function() {
+          return runClosingStep('Local audio restoration', t('Restoring local audio engine...'), function() {
+            return typeof setNavigationSoundEnabled === 'function'
+              ? setNavigationSoundEnabled(navigationSoundPreferenceEnabled)
+              : Promise.resolve();
+          }, 10000);
+        });
+      }
+
+      if (shouldQuitHostAppDuringTransition) {
+        sequence = sequence.then(function() {
+          logStreamTerminationRecovery('requesting host app shutdown during closing transition', {
+            appName: activeStreamAppName
+          });
+          return runClosingStep('Host app shutdown', t('Requesting to close application %1$s...', activeStreamAppName), function() {
+            return api.quitApp();
+          }, 10000);
+        });
+      }
+
+      sequence.then(function() {
+        $('#loadingSpinnerMessage').text(t('Loading Apps...'));
+        logStreamTerminationRecovery('closing operations sequence completed');
+        var remainingTransitionMs = streamTerminationMinimumVisibleMs -
+          (Date.now() - streamTerminationTransitionShownAt);
+        if (remainingTransitionMs > 0) {
+          window.setTimeout(showAppsUiBeforeTransitionCloses, remainingTransitionMs);
+        } else {
+          showAppsUiBeforeTransitionCloses();
+        }
+      }).catch(function(unexpectedSequenceError) {
+        // Defensive final guard: no unexpected cleanup exception may strand the UI.
+        console.error('%c[messages.js, handleMessage]', 'color: red;', 'Unexpected closing sequence failure; continuing to Apps recovery:', unexpectedSequenceError);
+        $('#loadingSpinnerMessage').text(t('Loading Apps...'));
+        showAppsUiBeforeTransitionCloses();
+      });
+    };
+
+  } else if (msg.indexOf('AmbilightProfile: ') === 0) {
+    if (streamTerminationTransitionActive) return;
+    var ambilightParts = msg.replace('AmbilightProfile: ', '').split('|');
+    var ambilightHdr = ambilightParts[0] === '1';
+    var ambilightColorSpace = parseInt(ambilightParts[1], 10);
+    var ambilightFullRange = ambilightParts[2] === '1';
+    if (ambilightColorSpace !== 0 && ambilightColorSpace !== 1 && ambilightColorSpace !== 2) {
+      ambilightColorSpace = ambilightHdr ? 2 : 1;
+    }
+    window._ambilightColorProfile = {
+      hdr: ambilightHdr,
+      colorSpace: ambilightColorSpace,
+      fullRange: ambilightFullRange
+    };
+    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled();
+    }
   } else if (msg.indexOf('NegotiatedAudio: ') === 0) {
-    var negotiatedAudio = msg.replace('NegotiatedAudio: ', '').split('|');
+    var negotiatedAudioMessage = msg.replace('NegotiatedAudio: ', '');
+    updatePerformanceStatsPillsFromNegotiatedAudio(negotiatedAudioMessage);
+    var negotiatedAudio = negotiatedAudioMessage.split('|');
     if (typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
       updateOptimizedBitrateAfterNegotiation(negotiatedAudio[0], negotiatedAudio[1], negotiatedAudio[2]);
     }
   } else if (msg === 'Connection Established') {
+    if (streamTerminationTransitionActive) return;
+    setPerformanceStatsPill('emss', window._activeStreamingEngine === 'EMSS');
+    setPerformanceStatsPill('wmp', window._activeStreamingEngine === 'ESPLUSPLAYER');
+    setPerformanceStatsPill('game', window._activeStreamingEngine === 'EMSS' && window._requestedGameMode === true);
     if (window._activeStreamingEngine === 'ESPLUSPLAYER' &&
         typeof isBitrateOptimizationEnabled === 'function' && isBitrateOptimizationEnabled() &&
         typeof updateOptimizedBitrateAfterNegotiation === 'function') {
@@ -1867,6 +2091,14 @@ function handleMessage(msg) {
     confirmStreamingEngineConnection();
     // Ignore late native notifications after the startup sequence has already been aborted.
     if (window._streamStartupFailureHandled) return;
+
+    // EMSS publishes its profile immediately before this event. WMP publishes
+    // its profile only after the first accepted native video frame; wait for that
+    // event rather than guessing from the requested HDR toggle.
+    window._streamConnectionEstablished = true;
+    if (typeof window.startAmbilightForStreamIfEnabled === 'function') {
+      window.startAmbilightForStreamIfEnabled();
+    }
     if (typeof clearStreamStartupWatchdog === 'function') clearStreamStartupWatchdog();
     console.info('[stream]', 'Stream connection established.');
     // Stop the connection watchdog; do not impose a separate first-frame deadline.
@@ -2006,7 +2238,7 @@ function handleMessage(msg) {
             nativeStatsOverlay.style.display = 'inline-block';
             nativeStatsOverlay.style.opacity = '0';
             nativeStatsOverlay.style.visibility = 'hidden';
-            nativeStatsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+            nativeStatsOverlay.style.background = getPerformanceStatsOverlayBackground();
             performanceStatsPendingFirstReveal = true;
           } else {
             // Invalidate any pending first-reveal work before fading out. The
@@ -2030,6 +2262,9 @@ function handleMessage(msg) {
         $('#performance-stats').text('');
       });
     }
+  } else if (msg.indexOf('GameModeStatus: ') === 0) {
+    window._confirmedGameMode = msg.replace('GameModeStatus: ', '').trim() === '1';
+    setPerformanceStatsPill('game', window._confirmedGameMode);
   } else if (msg.indexOf('SlowOpusDecoderStatus: ') === 0) {
     window._slowOpusDecoderActive = msg.replace('SlowOpusDecoderStatus: ', '').trim() === '1';
     var slowOpusIndicator = document.querySelector('#performance-stats .performance-stats-slow-opus');
@@ -2071,7 +2306,7 @@ function handleMessage(msg) {
         ? { statsText: sourceStatsText }
         : null;
     }
-    statsOverlay.style.background = 'rgba(0, 0, 0, 0.70)';
+    statsOverlay.style.background = getPerformanceStatsOverlayBackground();
 
     if (overlayWasVisible) {
       var statsElements = ensurePerformanceStatsOverlayElements();

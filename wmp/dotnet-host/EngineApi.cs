@@ -181,6 +181,25 @@ namespace MoonlightWmpHost
             string audioConfig, int fullRange, int audioEnabled, int gameMode);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate int MakeCertFn(out IntPtr certPem, out IntPtr keyPem);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        internal delegate int HttpInitFn(string certPem, string keyPem, string uniqueId);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        internal delegate int OpenUrlFn(string url, string ppk, out IntPtr output, out int outputLength);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        internal delegate int PairFn(int serverMajor, string address, int httpPort, string pin,
+            out IntPtr serverCertPem);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void CancelRequestFn();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal delegate void FreeFn(IntPtr pointer);
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int EsplusProbeFn(ref EsplusApi api, [Out] byte[] report, uint capacity);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -228,6 +247,12 @@ namespace MoonlightWmpHost
         internal readonly SetConnectionWarningsEnabledFn SetConnectionWarningsEnabled;
         internal readonly LastErrorFn LastError;
         internal readonly StartSessionV2Fn StartSessionV2;
+        internal readonly MakeCertFn MakeCert;
+        internal readonly HttpInitFn HttpInit;
+        internal readonly OpenUrlFn OpenUrl;
+        internal readonly PairFn Pair;
+        internal readonly CancelRequestFn CancelRequest;
+        internal readonly FreeFn Free;
 
         private readonly EsplusProbeFn _esplusProbe;
         private readonly EsplusNameFn _esplusProbeResultName;
@@ -287,6 +312,12 @@ namespace MoonlightWmpHost
             LastError = Bind<LastErrorFn>(resolve, "ml_engine_last_error");
             StartSessionV2 = Bind<StartSessionV2Fn>(
                 resolve, "ml_engine_start_session_v2");
+            MakeCert = Bind<MakeCertFn>(resolve, "ml_engine_make_cert");
+            HttpInit = Bind<HttpInitFn>(resolve, "ml_engine_http_init");
+            OpenUrl = Bind<OpenUrlFn>(resolve, "ml_engine_open_url");
+            Pair = Bind<PairFn>(resolve, "ml_engine_pair");
+            CancelRequest = Bind<CancelRequestFn>(resolve, "ml_engine_cancel_request");
+            Free = Bind<FreeFn>(resolve, "ml_engine_free");
 
             // ESPlus discovery is deliberately delegated to the existing native
             // implementation. C# never resolves or calls proprietary ESPlus APIs.

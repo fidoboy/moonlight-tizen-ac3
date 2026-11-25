@@ -213,7 +213,42 @@ NvHTTP.prototype = {
 
     return fetch(preflightUrl, fetchOptions).then(function() {
       clearTimeout(timeoutId);
-      // The host accepted an HTTP connection. Perform the authenticated request in C++.
+      // In the Smart Hub direct-launch + WMP path, perform the authenticated
+      // request through the already-running native WMP service. All other
+      // startup paths retain the original WASM message bridge unchanged.
+      var useNativeWmpHttp = window._directSmartHubLaunch &&
+        typeof window.getSelectedStreamingEngine === 'function' &&
+        window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+        window.ESPlusPlayerTransport &&
+        typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+      if (useNativeWmpHttp) {
+        return window.ESPlusPlayerTransport.openUrl(url, ppkstr).then(function(response) {
+          var payload = response && response.payload ? response.payload : {};
+          if (!response || response.status !== 'ok' ||
+              typeof payload.dataBase64 !== 'string') {
+            return Promise.reject(payload && typeof payload.code === 'number'
+              ? payload.code : -1);
+          }
+
+          var responseBuffer = _base64ToArrayBuffer(payload.dataBase64);
+          var responseBytes = new Uint8Array(responseBuffer);
+          var binary = '';
+          for (var i = 0; i < responseBytes.length; i++) {
+            binary += String.fromCharCode(responseBytes[i]);
+          }
+          try {
+            return decodeURIComponent(escape(binary));
+          } catch (decodeError) {
+            // Preserve the bytes as a binary string if the host response is
+            // not valid UTF-8, matching the legacy bridge's string contract.
+            return binary;
+          }
+        });
+      }
+
+      // Normal startup, EMSS, and every non-deeplink request continue using
+      // the original authenticated WASM HTTP bridge.
       return sendMessage('openUrl', [url, ppkstr, false, 5000]);
     }, function(e) {
       clearTimeout(timeoutId);
@@ -1217,29 +1252,64 @@ NvHTTP.prototype = {
   },
 
   launchApp: function(appId, mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
-    return sendMessage('openUrl', [
-      this._baseUrlHttps + '/launch?' + this._buildUidStr() + '&appid=' + appId + '&mode=' + mode +
+    var launchUrl = this._baseUrlHttps + '/launch?' + this._buildUidStr() + '&appid=' + appId + '&mode=' + mode +
       '&additionalStates=1&sops=' + sops + '&rikey=' + rikey + '&rikeyid=' + rikeyid + '&hdrMode=' + enableHdr +
       '&localAudioPlayMode=' + localAudio + '&surroundAudioInfo=' + surroundAudioInfo +
-      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : ''), this.ppkstr, false
-    ]);
+      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : '');
+
+    // Direct Smart Hub launches using WMP must perform /launch through the
+    // native HTTP client, whose TLS identity was initialized by WMP httpInit().
+    // Keep the existing WASM bridge for every other launch path.
+    var useNativeWmpHttp = window._directSmartHubLaunch &&
+      typeof window.getSelectedStreamingEngine === 'function' &&
+      window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+    return useNativeWmpHttp
+      ? this._openUrlWithTimeout(launchUrl, this.ppkstr)
+      : sendMessage('openUrl', [launchUrl, this.ppkstr, false]);
   },
 
   resumeApp: function(mode, sops, rikey, rikeyid, enableHdr, localAudio, surroundAudioInfo, gamepadMask, continuousAudio) {
-    return sendMessage('openUrl', [
-      this._baseUrlHttps + '/resume?' + this._buildUidStr() + '&mode=' + mode +
+    var resumeUrl = this._baseUrlHttps + '/resume?' + this._buildUidStr() + '&mode=' + mode +
       '&additionalStates=1&sops=' + sops + '&rikey=' + rikey + '&rikeyid=' + rikeyid + '&hdrMode=' + enableHdr +
       '&localAudioPlayMode=' + localAudio + '&surroundAudioInfo=' + surroundAudioInfo +
-      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : ''), this.ppkstr, false
-    ]);
+      '&remoteControllersBitmap=' + gamepadMask + '&gcmap=' + gamepadMask + (continuousAudio ? '&continuousAudio=1' : '');
+
+    // Direct Smart Hub launches using WMP must perform /resume through the
+    // native HTTP client, whose TLS identity was initialized by WMP httpInit().
+    // Keep the existing WASM bridge for every other launch path.
+    var useNativeWmpHttp = window._directSmartHubLaunch &&
+      typeof window.getSelectedStreamingEngine === 'function' &&
+      window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+    return useNativeWmpHttp
+      ? this._openUrlWithTimeout(resumeUrl, this.ppkstr)
+      : sendMessage('openUrl', [resumeUrl, this.ppkstr, false]);
   },
 
   quitApp: function() {
-    // Refresh server info after quitting because it may silently fail if the session belongs to a different client
-    return sendMessage('openUrl', [
-      this._baseUrlHttps + '/cancel?' + this._buildUidStr(), this.ppkstr, false
-    ]).then(this.refreshServerInfo());
-    // TODO: We should probably bubble this up to our caller.
+    var cancelUrl = this._baseUrlHttps + '/cancel?' + this._buildUidStr();
+
+    // Direct Smart Hub launches using WMP must perform /cancel through the
+    // native HTTP client. WASM is not initialized in this startup path.
+    var useNativeWmpHttp = window._directSmartHubLaunch &&
+      typeof window.getSelectedStreamingEngine === 'function' &&
+      window.getSelectedStreamingEngine() === 'ESPLUSPLAYER' &&
+      window.ESPlusPlayerTransport &&
+      typeof window.ESPlusPlayerTransport.openUrl === 'function';
+
+    var quitRequest = useNativeWmpHttp
+      ? this._openUrlWithTimeout(cancelUrl, this.ppkstr)
+      : sendMessage('openUrl', [cancelUrl, this.ppkstr, false]);
+
+    // Refresh server info only after the cancellation request has completed.
+    return quitRequest.then(function() {
+      return this.refreshServerInfo();
+    }.bind(this));
   },
 
   updateExternalAddressIP4: function() {

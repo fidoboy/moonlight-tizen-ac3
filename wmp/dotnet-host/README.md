@@ -148,9 +148,11 @@ In `WmpSupervisor.cs`, the supervisor:
    it only after video readiness or after WMP has completed its own startup
    failure/stop cleanup.
 4. If the deadline expires, sends the existing
-   `streamTerminated: -1` event directly to the WebApp, then terminates the
-   WMP process by PID. This covers a WMP thread blocked inside native
-   `StartSessionV2`, where WMP cannot run its own timeout or cleanup code.
+   `streamTerminated: -1` event directly to the WebApp, then requests AVOC
+   full-off for both the source scope (`save_type=1`) and global scope
+   (`save_type=0`) before terminating the WMP process by PID. This covers a
+   WMP thread blocked inside native `StartSessionV2`, where WMP cannot run
+   its own timeout or cleanup code.
 5. Does not call `ml_engine_stop()` from the supervisor: doing so would race
    the blocked native call. Terminating the isolated WMP process lets the OS
    reclaim its native handles, ESPlus connection, IPC endpoints, and process
@@ -159,7 +161,8 @@ In `WmpSupervisor.cs`, the supervisor:
    records the terminated application ID, PID, Tizen state, and whether WMP
    had announced an orderly exit, and suppresses notifications for an
    expected WMP exit.
-7. For any other unannounced WMP termination, sends
+7. For any other unannounced WMP termination, independently requests AVOC
+   full-off for the source and global scopes before sending
    `wmpSupervisorTerminated` to the WebApp's trusted reply port, including
    the Tizen event source and process details, then exits itself.
 
@@ -171,6 +174,16 @@ The supervisor does **not** receive a crash dump or a native signal/exit code
 from this event. Its detail identifies the process and the fact that Tizen
 reported its termination; it cannot, by itself, distinguish SIGSEGV, an
 external kill, a runtime failure, or another termination cause.
+
+For an unexpected WMP exit, the supervisor calls the AVOC
+`avoc_set_game_mode` entry point from its own process and issues independent
+off requests for source (`save_type=1`) and global (`save_type=0`) Game Mode.
+The same cleanup runs before the startup watchdog force-kills WMP. Normal
+WMP teardown performs both requests after ESPlus releases the player. The
+supervisor runs AVOC calls on a background thread, waits up to 2.5 seconds
+before continuing, and allows a further 5 seconds before exiting; an unresolved
+call is logged rather than allowed to block process supervision indefinitely.
+The native setter declaration follows the confirmed two-argument C interface documented in `AVOC-TIZEN60-INVESTIGATION.md`.
 
 ### WebApp: recovery path
 
@@ -203,9 +216,10 @@ termination signal being evaluated.
 
 Moonlight Common C remains authoritative for session validity, stream state,
 and normal disconnect decisions. The .NET host serializes engine operations
-and forwards native results. The supervisor reports only Tizen's application
-termination event. JavaScript handles service orchestration, MessagePort
-communication, player integration, and UI event delivery.
+and forwards native results. The supervisor reports Tizen application
+termination and provides the independent AVOC full-off safety path.
+JavaScript handles service orchestration, MessagePort communication, player
+integration, and UI event delivery.
 
 Do not add a JavaScript watchdog, frame-arrival heuristic, or timer that
 independently aborts a session while the native service remains alive.
@@ -226,6 +240,11 @@ The following are implementation facts or explicit unknowns, not guarantees:
 - The supervisor reports termination, not the underlying crash cause. A
   native crash reason requires surviving platform crash logs or other
   diagnostics; the supervisor cannot reconstruct it.
+- The supervisor's separate-process `libavoc.so` P/Invoke and its ability
+  to change AVOC state under the supervisor application's Tizen security
+  context still require on-device verification. AVOC failures are logged
+  independently for source and global scopes; a successful build cannot prove
+  that firmware accepted either request.
 - If the supervisor itself is terminated or crashes, this implementation has
   no second-level supervisor. The existing WebApp Tizen status callback is
   only a fallback and has its previously described limitations.

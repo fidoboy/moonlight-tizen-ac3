@@ -6,7 +6,7 @@
  * succeeds and restored after the ESPlus player is released.
  *
  * In MLT_TRACE builds only, a successful setter call is followed by
- * avoc_check_game_mode() and avoc_get_game_mode(&mode). These
+ * avoc_check_game_mode() and avoc_get_game_mode(save_type, &mode). These
  * calls are diagnostic: they report AVOC's check result and the observed
  * mode, but never change retry policy or stream state.
  *
@@ -24,11 +24,12 @@
 
 #include "mltrace.h"
 
+/* Confirmed public setter ABI: save_type and mode are the two C arguments. */
 typedef int (*avoc_set_game_mode_fn)(int save_type, int on);
 #ifdef MLT_TRACE
 typedef int (*avoc_check_game_mode_fn)(void);
-/* Getter ABI: mode output pointer only. */
-typedef int (*avoc_get_game_mode_fn)(int *mode);
+/* Confirmed getter ABI: save_type input and mode output pointer. */
+typedef int (*avoc_get_game_mode_fn)(int save_type, int *mode);
 #endif
 
 static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -132,7 +133,7 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
             save_type, on, attempt + 1, rc);
     } else {
         MLT("AVOC: Game Mode %s request accepted (save_type=%d)",
-            on ? "activation" : "restoration", save_type);
+            on ? "activation" : "deactivation", save_type);
 #ifdef MLT_TRACE
         /*
          * Keep the verification calls strictly diagnostic and debug-only.
@@ -148,7 +149,7 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
 
         if (s_get_game_mode) {
             int observed_mode = -1;
-            int get_rc = s_get_game_mode(&observed_mode);
+            int get_rc = s_get_game_mode(1, &observed_mode);
             MLT("AVOC debug: avoc_get_game_mode(&mode) -> ret=%d, mode=%d",
                 get_rc, observed_mode);
         } else {
@@ -226,3 +227,18 @@ int ml_avoc_set_game_mode_with_retry(int save_type, int on, int max_retries)
  *
  * -------------------------------------------------------------------------
  */
+
+/*
+ * Clear both AVOC scopes. save_type=1 restores the active source scope;
+ * save_type=0 clears the global Game Mode state as a final safety net.
+ * Always attempt the global operation even if the source operation fails.
+ */
+int ml_avoc_force_game_mode_off(int max_retries)
+{
+    int source_rc = ml_avoc_set_game_mode_with_retry(1, 0, max_retries);
+    int global_rc = ml_avoc_set_game_mode_with_retry(0, 0, max_retries);
+
+    MLT("AVOC full off: source save_type=1 rc=%d; global save_type=0 rc=%d",
+        source_rc, global_rc);
+    return source_rc != 0 ? source_rc : global_rc;
+}

@@ -607,11 +607,14 @@ void ml_engine_stop(void) {
   } else {
     MLT("ml_engine_stop -> no active connection to tear down");
   }
-  /* Restore Game Mode after ESPlus releases the player. */
+  /*
+   * Full off is deliberately performed after ESPlus releases the player.
+   * Clear both the active source scope and the global AVOC scope; the latter
+   * is a safety net for a global Game Mode state left by another path.
+   */
   if (__atomic_exchange_n(&g_avoc_stream_modes_request_sent, 0, __ATOMIC_ACQ_REL)) {
-    int game_mode_rc = ml_avoc_set_game_mode_with_retry(1, 0, 3);
-    (void)game_mode_rc;
-    MLT("TV AVOC: Game Mode restoration completed with raw ret=%d", game_mode_rc);
+    int game_mode_rc = ml_avoc_force_game_mode_off(3);
+    MLT("TV AVOC: full Game Mode off completed with aggregate ret=%d", game_mode_rc);
   }
   MLT("ml_engine_stop -> done");
 }

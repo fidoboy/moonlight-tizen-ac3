@@ -437,12 +437,9 @@ namespace TizenAmbilight
         /// code for 203 nits - a transfer-function ceiling, not scene content. Decoding PQ as BT.601
         /// limited-range threw away the entire upper half of the signal (code 148 came out as 154
         /// instead of 255), which is exactly what "washed out, nothing like the screen" looks like.</summary>
-        /// <summary>Reference luminance mapped to full scale. 203 nits is the HDR convention for
-        /// diffuse white, which is why it is the default. Content varies ABOVE this (highlights run
-        /// 203-4000 nits), and anything over the reference CLIPS - which does not merely lose detail,
-        /// it pins all three channels to 255 and a bright coloured zone renders as WHITE. Raise it for
-        /// very bright films (at the cost of a dimmer picture; raise `gamma` to compensate), lower it
-        /// for dim ones. Live-tunable so the choice is per-content rather than a guess.</summary>
+        /// <summary>Diffuse-white reference in nits. 203 nits is the HDR convention for graphics
+        /// white. Values above it are compressed by a smooth highlight shoulder instead of being
+        /// clipped, preserving saturated highlight colour in the ambient output.</summary>
         public static double HdrPeakNits = 203.0;
 
         static bool _abiWarned;
@@ -475,10 +472,15 @@ namespace TizenAmbilight
                 double den = c2 - c3 * Nm;
                 double nits = den > 1e-9 ? 10000.0 * Math.Pow(num / den, 1.0 / m1) : 0.0;
                 double x = nits / refNits;
-                // Above the 203-nit reference we clip. Further highlight tone-mapping is taste and
-                // belongs downstream, not inside the transfer function.
-                double outp = x <= 0.0 ? 0.0 : 255.0 * Math.Pow(x, 1.0 / 2.4);
-                if (outp > 255.0) outp = 255.0;
+                // Keep diffuse white below the LED ceiling and roll highlights smoothly
+                // toward it. A hard 203-nit clip turns every brighter saturated highlight
+                // into white and destroys the colour information the zones are meant to keep.
+                double linear;
+                if (x <= 0.0) linear = 0.0;
+                else if (x <= 1.0) linear = 0.72 * x;
+                else linear = 0.72 + 0.28 * (1.0 - Math.Exp(-(x - 1.0) / 1.6));
+                if (linear > 1.0) linear = 1.0;
+                double outp = 255.0 * Math.Pow(linear, 1.0 / 2.4);
                 t[code] = (byte)(outp + 0.5);
             }
             return t;
@@ -501,70 +503,105 @@ namespace TizenAmbilight
                                     double kr, double kg, double kb, bool hdr, bool gamut709,
                                     out byte rOut, out byte gOut, out byte bOut)
         {
-            // Clamp to >= 0 rather than forcing 1.0: `sat=0` is a legal control value (the parser
-            // accepts 0..4) and means "no chroma", but forcing it to 1.0 made the setting silently do
-            // nothing. Negative would INVERT the chroma axes, which is never intended.
-            if (saturation < 0) saturation = 0;
-            double u = 128.0 + (U - 128.0) * saturation;
-            double v = 128.0 + (V - 128.0) * saturation;
+            // Preserve the legacy entry point for any diagnostic callers.
+            YuvToRgb(Y, U, V, saturation, kr, kg, kb, hdr, gamut709,
+                     true, hdr ? 2 : 1, out rOut, out gOut, out bOut);
+        }
 
-            int R, G, B;
-            if (hdr)
+        /// <summary>
+        /// Convert an averaged NV12 zone to strip RGB. Range expansion is performed before
+        /// the matrix: limited Y is 16..235 and limited Cb/Cr are 16..240. The matrix is
+        /// selected from the negotiated stream colorspace, not guessed from pixel values.
+        /// HDR uses BT.2020 NCL in the PQ code domain, then luminance-preserving PQ-to-SDR
+        /// mapping and a linear-light BT.2020-to-BT.709 gamut conversion.
+        /// </summary>
+        public static void YuvToRgb(int Y, int U, int V, double saturation,
+                                    double kr, double kg, double kb, bool hdr, bool gamut709,
+                                    bool fullRange, int colorSpace,
+                                    out byte rOut, out byte gOut, out byte bOut)
+        {
+            if (saturation < 0.0) saturation = 0.0;
+            if (saturation > 4.0) saturation = 4.0;
+
+            double yy, cb, cr;
+            if (fullRange)
             {
-                // HDR path: BT.2020 non-constant-luminance, FULL range, matrixed in the PQ CODE domain.
-                double cb = u - 128.0, cr = v - 128.0;
-                int R0 = Clamp255(Y + 1.4746 * cr);
-                int G0 = Clamp255(Y - 0.164553 * cb - 0.571353 * cr);
-                int B0 = Clamp255(Y + 1.8814 * cb);
-
-                // TONE-MAP THE LUMINANCE, SCALE RGB BY THE SAME FACTOR. NOT per channel.
-                //
-                // A convex transfer applied independently to R, G and B WIDENS the gaps between them,
-                // which INVENTS chroma. Measured on real content: +18.4% mean saturation versus this
-                // method (0.455 vs 0.384), and the error is worst exactly where it matters - the most
-                // saturated zones. A warm orange [131,80,40] became [113,85,56]: red pushed, blue
-                // suppressed, i.e. garish instead of authentic. This is the classic "per-channel tone
-                // mapping oversaturates" artifact.
-                //
-                // Scaling every channel by one factor derived from the LUMA keeps hue and chromaticity
-                // intact while still applying the whole PQ->SDR range compression, so the picture keeps
-                // its contrast and punch without the invented colour.
-                double L0 = 0.2627 * R0 + 0.6780 * G0 + 0.0593 * B0;   // BT.2020 luma coefficients
-                byte[] T = PqToSdr();
-                if (L0 <= 0.5)
-                {
-                    int nn = T[Clamp255(L0)];      // neutral: nothing to preserve
-                    R = nn; G = nn; B = nn;
-                }
-                else
-                {
-                    double k = T[Clamp255(L0)] / L0;
-                    R = Clamp255(R0 * k);
-                    G = Clamp255(G0 * k);
-                    B = Clamp255(B0 * k);
-                }
-
-                if (gamut709) ApplyGamut709(ref R, ref G, ref B);
+                yy = Y;
+                cb = U - 128.0;
+                cr = V - 128.0;
             }
             else
             {
-                int yy = Y - 16; if (yy < 0) yy = 0;
-                int uu = (int)Math.Round(u) - 128;
-                int vv = (int)Math.Round(v) - 128;
-
-                R = (298 * yy + 409 * vv + 128) >> 8;
-                G = (298 * yy - 100 * uu - 208 * vv + 128) >> 8;
-                B = (298 * yy + 516 * uu + 128) >> 8;
+                yy = (Y - 16.0) * (255.0 / 219.0);
+                cb = (U - 128.0) * (255.0 / 224.0);
+                cr = (V - 128.0) * (255.0 / 224.0);
             }
 
-            R = (int)Math.Round(R * kr);
-            G = (int)Math.Round(G * kg);
-            B = (int)Math.Round(B * kb);
+            cb *= saturation;
+            cr *= saturation;
 
-            if (R < 0) R = 0; else if (R > 255) R = 255;
-            if (G < 0) G = 0; else if (G > 255) G = 255;
-            if (B < 0) B = 0; else if (B > 255) B = 255;
-            rOut = (byte)R; gOut = (byte)G; bOut = (byte)B;
+            double rd, gd, bd;
+            if (hdr)
+            {
+                // BT.2020 non-constant-luminance matrix, applied to PQ code values.
+                rd = yy + 1.4746 * cr;
+                gd = yy - 0.164553 * cb - 0.571353 * cr;
+                bd = yy + 1.8814 * cb;
+
+                int r0 = Clamp255(rd);
+                int g0 = Clamp255(gd);
+                int b0 = Clamp255(bd);
+
+                // Tone-map one BT.2020 luma value and scale all channels by the same factor.
+                // Independent channel curves would alter chromaticity and oversaturate colours.
+                double luma = 0.2627 * r0 + 0.6780 * g0 + 0.0593 * b0;
+                byte[] table = PqToSdr();
+                int mapped = table[Clamp255(luma)];
+                double scale = luma > 0.5 ? mapped / luma : 0.0;
+                int r = luma > 0.5 ? Clamp255(r0 * scale) : mapped;
+                int g = luma > 0.5 ? Clamp255(g0 * scale) : mapped;
+                int b = luma > 0.5 ? Clamp255(b0 * scale) : mapped;
+
+                if (gamut709)
+                    ApplyGamut709(ref r, ref g, ref b);
+
+                rOut = ApplyGain(r, kr);
+                gOut = ApplyGain(g, kg);
+                bOut = ApplyGain(b, kb);
+                return;
+            }
+
+            // SDR matrix coefficients: Rec.601, Rec.709 and Rec.2020 are distinct.
+            // Rec.2020 SDR fallback uses its matrix without PQ decoding or gamut conversion.
+            if (colorSpace == 0)
+            {
+                rd = yy + 1.4020 * cr;
+                gd = yy - 0.344136 * cb - 0.714136 * cr;
+                bd = yy + 1.7720 * cb;
+            }
+            else if (colorSpace == 2)
+            {
+                // Rec.2020 SDR fallback: same primaries/matrix family, but no PQ
+                // decoding or gamut conversion because the negotiated stream is not HDR.
+                rd = yy + 1.4746 * cr;
+                gd = yy - 0.164553 * cb - 0.571353 * cr;
+                bd = yy + 1.8814 * cb;
+            }
+            else
+            {
+                rd = yy + 1.5748 * cr;
+                gd = yy - 0.187324 * cb - 0.468124 * cr;
+                bd = yy + 1.8556 * cb;
+            }
+
+            rOut = ApplyGain(Clamp255(rd), kr);
+            gOut = ApplyGain(Clamp255(gd), kg);
+            bOut = ApplyGain(Clamp255(bd), kb);
+        }
+
+        static byte ApplyGain(int value, double gain)
+        {
+            return (byte)Clamp255(value * gain);
         }
 
         /// <summary>BT.2020 primaries -> BT.709 primaries, in LINEAR light.

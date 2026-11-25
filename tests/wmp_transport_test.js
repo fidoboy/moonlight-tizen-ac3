@@ -11,6 +11,34 @@ const infoEntries = [];
 const errorEntries = [];
 const manifest = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/tizen-manifest.xml'), 'utf8');
 const hostProtocol = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/HostProtocol.cs'), 'utf8');
+const engineAvoc = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_avoc.c'), 'utf8');
+const engineApi = fs.readFileSync(path.join(__dirname, '../wmp/engine/mlclient/engine_api.c'), 'utf8');
+const supervisor = fs.readFileSync(path.join(__dirname, '../wmp/dotnet-host/WmpSupervisor.cs'), 'utf8');
+const avocInvestigation = fs.readFileSync(path.join(__dirname, '../wmp/AVOC-TIZEN60-INVESTIGATION.md'), 'utf8');
+assert.ok(/typedef int \(\*avoc_set_game_mode_fn\)\(int save_type, int on\)/.test(engineAvoc) && engineAvoc.includes('s_set_game_mode(save_type, on)'),
+  'AVOC setter must use the confirmed two-argument C ABI');
+assert.ok(/typedef int \(\*avoc_get_game_mode_fn\)\(int save_type, int \*mode\)/.test(engineAvoc) &&
+  engineAvoc.includes('s_get_game_mode(1, &observed_mode)'),
+  'trace-only AVOC getter must use the confirmed two-argument C ABI');
+assert.ok(avocInvestigation.includes('typedef int (*avoc_set_game_mode_fn)(int save_type, int mode);'),
+  'AVOC investigation must document the setter as a two-argument C ABI');
+assert.ok(avocInvestigation.includes('typedef int (*avoc_get_game_mode_fn)(int save_type, int *mode);'),
+  'AVOC investigation must document the getter as a two-argument C ABI');
+assert.ok(!avocInvestigation.includes('typedef int (*avoc_get_game_mode_fn)(int reserved, int save_type, int *mode);') &&
+  !avocInvestigation.includes('typedef int (*avoc_set_game_mode_fn)(int save_type, int mode, int'),
+  'AVOC investigation must not describe obsolete or three-argument prototypes');
+assert.ok(/ml_avoc_set_game_mode_with_retry\(1, 0, max_retries\)[\s\S]*ml_avoc_set_game_mode_with_retry\(0, 0, max_retries\)/.test(engineAvoc),
+  'native AVOC full-off must attempt source and global scopes independently');
+assert.ok(engineApi.includes('ml_avoc_force_game_mode_off(3)'),
+  'normal WMP teardown must use the AVOC full-off helper');
+assert.ok(supervisor.includes('AvocSetGameMode(saveType, 0)'),
+  'the independent supervisor must call AVOC with the confirmed two-argument ABI');
+assert.ok(supervisor.includes('ForceGameModeFullOff("WMP startup watchdog termination")'),
+  'the startup watchdog must restore AVOC before force-killing WMP');
+assert.ok(supervisor.includes('ForceGameModeFullOff("unexpected WMP process termination")'),
+  'unexpected WMP process death must trigger AVOC full-off in the supervisor');
+assert.ok(supervisor.includes('cleanupThread.Join(2500)') && supervisor.includes('cleanup.Join(5000)'),
+  'AVOC cleanup waits must be bounded so a stalled firmware call cannot block the WMP watchdog or supervisor exit');
 assert.ok(/case "get_logs":[\s\S]{0,220}SendNewNativeDiagnosticLogs\(appId, remotePort, id\)/.test(hostProtocol),
   'legacy get_logs must use the same incremental cursor as get_new_logs');
 assert.ok(!hostProtocol.includes('SendDiagnosticLogs('),

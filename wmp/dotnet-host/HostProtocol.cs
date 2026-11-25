@@ -22,6 +22,12 @@ namespace MoonlightWmpHost
         private const int StartupTimeoutSeconds = 30;
 
         private static readonly object Gate = new object();
+        // Native libgamestream HTTP state is process-global. Serialize HTTP
+        // operations, while allowing cancel_request to interrupt an active call.
+        private static readonly object NativeHttpGate = new object();
+        private static readonly object NativeHttpActivityGate = new object();
+        private static readonly ManualResetEvent NativeHttpIdle = new ManualResetEvent(true);
+        private static int _nativeHttpPendingOperations;
         private static MessagePort _port;
         private static EngineApi _engine;
         private static Thread _worker;
@@ -90,6 +96,7 @@ namespace MoonlightWmpHost
             internal int GameMode;
             internal int DisableWarnings;
             internal int DebugMode;
+            internal int DeferExitUntilReleased;
         }
 
         internal static bool NotifySupervisorStartupWatchdog(int timeoutSeconds)
@@ -421,6 +428,8 @@ namespace MoonlightWmpHost
 
             if (!TryBool(Arg(bundle, "debugMode"), out value.DebugMode))
                 value.DebugMode = 0; // Optional: older Web clients do not send this field.
+            if (!TryBool(Arg(bundle, "deferExitUntilReleased"), out value.DeferExitUntilReleased))
+                value.DeferExitUntilReleased = 0; // Optional: older Web clients retain automatic exit.
             if (invalidField != null) return false;
             request = value;
             return true;
@@ -908,11 +917,21 @@ namespace MoonlightWmpHost
                     case "toggle_stats":
                         ToggleStats(appId, remotePort, id);
                         return;
+                    case "make_cert":
+                    case "http_init":
+                    case "open_url":
+                    case "pair":
+                    case "cancel_request":
+                        HandleNativeHttpCommand(command, bundle, appId, remotePort, id);
+                        return;
                     case "start_session":
                         StartSession(bundle, appId, remotePort, id);
                         return;
                     case "stop_session":
                         StopSession(appId, remotePort, id);
+                        return;
+                    case "release_session":
+                        ReleaseSession(appId, remotePort, id);
                         return;
                     default:
                         Respond(appId, remotePort, id, "error",
@@ -924,6 +943,201 @@ namespace MoonlightWmpHost
             {
                 Log.Error("WMP MessagePort request failed: " + ex);
             }
+        }
+
+        private static void HandleNativeHttpCommand(
+            string command, Bundle bundle, string appId, string remotePort, string id)
+        {
+            EngineApi engine = _engine;
+            if (engine == null)
+            {
+                Respond(appId, remotePort, id, "error", "{\"error\":\"native_engine_unavailable\"}");
+                return;
+            }
+
+            // Cancellation must not wait for the serialization gate: it is specifically
+            // intended to interrupt an in-flight native HTTP request.
+            if (command == "cancel_request")
+            {
+                try
+                {
+                    engine.CancelRequest();
+                    Respond(appId, remotePort, id, "ok", "{\"cancelled\":true}");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP native HTTP cancellation failed: " + ex);
+                    Respond(appId, remotePort, id, "error", "{\"error\":\"native_call_failed\"}");
+                }
+                return;
+            }
+
+            // Copy MessagePort arguments before leaving the callback: the worker
+            // must not depend on the lifetime of the received Bundle.
+            string certPemArg = Arg(bundle, "certPem");
+            string keyPemArg = Arg(bundle, "keyPem");
+            string uniqueIdArg = Arg(bundle, "uniqueId");
+            string urlArg = Arg(bundle, "url");
+            string ppkArg = Arg(bundle, "ppk");
+            string addressArg = Arg(bundle, "address");
+            string pinArg = Arg(bundle, "pin");
+            int serverMajorArg = 0, httpPortArg = 0;
+            bool pairNumbersValid = TryInt(Arg(bundle, "serverMajor"), out serverMajorArg) &&
+                TryInt(Arg(bundle, "httpPort"), out httpPortArg);
+
+            // Native HTTP calls may block on network I/O. Never run them on the
+            // MessagePort callback thread or on the session lifecycle worker.
+            // Track queued as well as running operations so release_session cannot
+            // overtake a request that has not acquired NativeHttpGate yet.
+            BeginNativeHttpOperation();
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    lock (NativeHttpGate)
+                    {
+                        if (command == "make_cert")
+                        {
+                            IntPtr certPointer = IntPtr.Zero;
+                            IntPtr keyPointer = IntPtr.Zero;
+                            try
+                            {
+                                int code = engine.MakeCert(out certPointer, out keyPointer);
+                                if (code != 0 || certPointer == IntPtr.Zero || keyPointer == IntPtr.Zero)
+                                {
+                                    Respond(appId, remotePort, id, "error",
+                                        "{\"error\":\"make_cert_failed\",\"code\":" +
+                                        code.ToString(CultureInfo.InvariantCulture) + "}");
+                                    return;
+                                }
+                                string cert = Marshal.PtrToStringAnsi(certPointer);
+                                string key = Marshal.PtrToStringAnsi(keyPointer);
+                                Respond(appId, remotePort, id, "ok",
+                                    "{\"certPem\":" + JsonQuote(cert) +
+                                    ",\"keyPem\":" + JsonQuote(key) + "}");
+                            }
+                            finally
+                            {
+                                if (certPointer != IntPtr.Zero) engine.Free(certPointer);
+                                if (keyPointer != IntPtr.Zero) engine.Free(keyPointer);
+                            }
+                            return;
+                        }
+
+                        if (command == "http_init")
+                        {
+                            string cert = certPemArg;
+                            string key = keyPemArg;
+                            string uniqueId = uniqueIdArg;
+                            if (String.IsNullOrEmpty(cert) || String.IsNullOrEmpty(key) ||
+                                String.IsNullOrEmpty(uniqueId) || cert.Length > 32768 ||
+                                key.Length > 32768 || uniqueId.Length > 128)
+                            {
+                                Respond(appId, remotePort, id, "error",
+                                    "{\"error\":\"invalid_request\"}");
+                                return;
+                            }
+                            int code = engine.HttpInit(cert, key, uniqueId);
+                            Respond(appId, remotePort, id, code == 0 ? "ok" : "error",
+                                "{\"code\":" + code.ToString(CultureInfo.InvariantCulture) +
+                                (code == 0 ? "}" : ",\"error\":\"http_init_failed\"}"));
+                            return;
+                        }
+
+                        if (command == "open_url")
+                        {
+                            string url = urlArg;
+                            string ppk = ppkArg;
+                            if (String.IsNullOrEmpty(url) || url.Length > 32768 ||
+                                (ppk != null && ppk.Length > 32768))
+                            {
+                                Respond(appId, remotePort, id, "error",
+                                    "{\"error\":\"invalid_request\"}");
+                                return;
+                            }
+                            IntPtr output = IntPtr.Zero;
+                            int outputLength = 0;
+                            try
+                            {
+                                int code = engine.OpenUrl(url, ppk, out output, out outputLength);
+                                if (code != 0)
+                                {
+                                    Respond(appId, remotePort, id, "error",
+                                        "{\"error\":\"open_url_failed\",\"code\":" +
+                                        code.ToString(CultureInfo.InvariantCulture) + "}");
+                                    return;
+                                }
+                                if (outputLength < 0 || outputLength > 4 * 1024 * 1024 ||
+                                    (outputLength > 0 && output == IntPtr.Zero))
+                                {
+                                    Respond(appId, remotePort, id, "error",
+                                        "{\"error\":\"invalid_native_response\"}");
+                                    return;
+                                }
+                                byte[] bytes = new byte[outputLength];
+                                if (outputLength > 0) Marshal.Copy(output, bytes, 0, outputLength);
+                                string encoded = Convert.ToBase64String(bytes);
+                                Respond(appId, remotePort, id, "ok",
+                                    "{\"dataBase64\":" + JsonQuote(encoded) +
+                                    ",\"length\":" + outputLength.ToString(CultureInfo.InvariantCulture) + "}");
+                            }
+                            finally
+                            {
+                                if (output != IntPtr.Zero) engine.Free(output);
+                            }
+                            return;
+                        }
+
+                        if (command == "pair")
+                        {
+                            int serverMajor = serverMajorArg;
+                            int httpPort = httpPortArg;
+                            string address = addressArg;
+                            string pin = pinArg;
+                            if (!pairNumbersValid || serverMajor <= 0 ||
+                                httpPort <= 0 || httpPort > 65535 ||
+                                String.IsNullOrEmpty(address) || address.Length > 1024 ||
+                                String.IsNullOrEmpty(pin) || pin.Length > 128)
+                            {
+                                Respond(appId, remotePort, id, "error",
+                                    "{\"error\":\"invalid_request\"}");
+                                return;
+                            }
+                            IntPtr certPointer = IntPtr.Zero;
+                            try
+                            {
+                                int code = engine.Pair(serverMajor, address, httpPort, pin,
+                                    out certPointer);
+                                if (code != 0)
+                                {
+                                    Respond(appId, remotePort, id, "error",
+                                        "{\"error\":\"pair_failed\",\"code\":" +
+                                        code.ToString(CultureInfo.InvariantCulture) + "}");
+                                    return;
+                                }
+                                string cert = certPointer == IntPtr.Zero
+                                    ? String.Empty : Marshal.PtrToStringAnsi(certPointer);
+                                Respond(appId, remotePort, id, "ok",
+                                    "{\"serverCertPem\":" + JsonQuote(cert) + "}");
+                            }
+                            finally
+                            {
+                                if (certPointer != IntPtr.Zero) engine.Free(certPointer);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP native HTTP command failed command=" + command + ": " + ex);
+                    Respond(appId, remotePort, id, "error",
+                        "{\"error\":\"native_call_failed\"}");
+                }
+                finally
+                {
+                    EndNativeHttpOperation();
+                }
+            });
         }
 
         private static void ToggleStats(string appId, string remotePort, string id)
@@ -1175,7 +1389,8 @@ namespace MoonlightWmpHost
                 ", fullRange=" + DiagnosticArgument(bundle, "fullRange", false) +
                 ", gameMode=" + DiagnosticArgument(bundle, "gameMode", false) +
                 ", opticalOutputEnabled=" + DiagnosticArgument(bundle, "opticalOutputEnabled", false) +
-                ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false));
+                ", debugMode=" + DiagnosticArgument(bundle, "debugMode", false) +
+                ", deferExitUntilReleased=" + DiagnosticArgument(bundle, "deferExitUntilReleased", false));
         }
 
         private static void StartSession(Bundle bundle, string appId,
@@ -1245,6 +1460,7 @@ namespace MoonlightWmpHost
                 _worker = worker;
             }
 
+            App.SetExitDeferred(request.DeferExitUntilReleased != 0);
             Log.Info("WMP_LIFECYCLE worker_created requestId=" + id);
             Respond(appId, remotePort, id, "ok", "{\"accepted\":true}");
             Log.Info("WMP_LIFECYCLE start_session_accepted requestId=" + id);
@@ -1296,6 +1512,53 @@ namespace MoonlightWmpHost
             Respond(appId, remotePort, id, "ok", "{\"stopped\":true}");
             Event(appId, remotePort, "streamTerminated: 0", null);
             App.RequestExitAfterSession();
+        }
+
+        private static void ReleaseSession(string appId, string remotePort, string id)
+        {
+            // Run the release barrier away from the MessagePort callback thread.
+            // It must not allow WMP to exit while the session worker or any native
+            // HTTP operation submitted before this command is still active.
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                try
+                {
+                    Thread worker;
+                    lock (Gate) worker = _worker;
+                    if (worker != null && worker != Thread.CurrentThread && worker.IsAlive)
+                        worker.Join();
+
+                    NativeHttpIdle.WaitOne();
+                    Respond(appId, remotePort, id, "ok", "{\"released\":true}");
+                    Log.Info("WMP_LIFECYCLE deferred_exit_released after_session_and_native_http_idle");
+                    App.ReleaseExitAfterSession();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("WMP_LIFECYCLE deferred_exit_release_failed " + ex);
+                    Respond(appId, remotePort, id, "error", "{\"error\":\"release_failed\"}");
+                }
+            });
+        }
+
+        private static void BeginNativeHttpOperation()
+        {
+            lock (NativeHttpActivityGate)
+            {
+                _nativeHttpPendingOperations++;
+                NativeHttpIdle.Reset();
+            }
+        }
+
+        private static void EndNativeHttpOperation()
+        {
+            lock (NativeHttpActivityGate)
+            {
+                if (_nativeHttpPendingOperations > 0)
+                    _nativeHttpPendingOperations--;
+                if (_nativeHttpPendingOperations == 0)
+                    NativeHttpIdle.Set();
+            }
         }
 
         private static bool StopWasRequested()
@@ -1457,6 +1720,23 @@ namespace MoonlightWmpHost
                         videoReady = true;
                         Log.Info("WMP ESPlus playback clock advanced after video start; submitted=" +
                             (statsResult == 0 ? stats.Submitted.ToString(CultureInfo.InvariantCulture) : "unknown"));
+
+                        // Publish the profile only after the native decoder has accepted video.
+                        // VideoHdrActive is latched from the actual decode-unit HDR state; the
+                        // requested HDR toggle alone is not sufficient to select the PQ path.
+                        var ambilightStreamInfo = new EngineApi.StreamInfo();
+                        ambilightStreamInfo.StructSize = Marshal.SizeOf(typeof(EngineApi.StreamInfo));
+                        if (_engine.GetStreamInfo(ref ambilightStreamInfo) == 0)
+                        {
+                            bool ambilightHdr = ambilightStreamInfo.VideoHdrActive != 0;
+                            bool ambilightHevc = (ambilightStreamInfo.VideoFormat & 0x0F00u) != 0;
+                            int ambilightColorSpace = request.Hdr != 0 && ambilightHevc ? 2 : 1;
+                            bool ambilightFullRange = request.FullRange != 0;
+                            Event(appId, remotePort, "AmbilightProfile: " +
+                                (ambilightHdr ? "1" : "0") + "|" +
+                                ambilightColorSpace.ToString(CultureInfo.InvariantCulture) + "|" +
+                                (ambilightFullRange ? "1" : "0"), null);
+                        }
                         Event(appId, remotePort, "displayVideo", null);
                     }
                     if (statsResult == 0 && stats.Errors > lastReportedPlayerErrors)

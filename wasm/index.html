@@ -373,24 +373,26 @@
               <label><span data-i18n="Ambilight">Ambilight</span>
                 <span class="badge badge-experimental" data-i18n="Experimental">Experimental</span>
               </label>
-              <span id="ambilightDescription" class="mdl-list__item-text-body">Checking Ambilight support...</span>
+              <span class="mdl-list__item-text-body" data-i18n="Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.">Ambilight synchronizes the colors on screen with your LED lighting. A WLED device is required to control the lights.</span>
               <div id="ambilightMenu">
                 <label id="ambilightBtn" class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="ambilightSwitch">
                   <input type="checkbox" id="ambilightSwitch" class="mdl-switch__input" disabled>
                   <span class="mdl-switch__label" data-i18n="Enable Ambilight">Enable Ambilight</span>
                 </label>
               </div>
-              <div id="ambilightWledIpContainer" style="display: none;">
-                <div id="ambilightWledIpInputField" class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                  <label class="mdl-textfield__label" for="ambilightWledIpTextInput" data-i18n="WLED IP address">WLED IP address</label>
-                  <input type="text" id="ambilightWledIpTextInput" class="mdl-textfield__input" maxlength="15" inputmode="decimal" placeholder="192.168.0.100" autocomplete="off" readonly>
-                </div>
-                <div id="ambilightWledIpSelectFields" class="select-option-field select-option-field-floating-label" style="display: none;">
-                  <label class="mdl-textfield__label" data-i18n="WLED IP address">WLED IP address</label>
-                  <select id="ambilightWledIpField1" class="ip-address-select-field" name="ambilightWledIpField1" tabindex="-1"></select>
-                  <select id="ambilightWledIpField2" class="ip-address-select-field" name="ambilightWledIpField2" tabindex="-1"></select>
-                  <select id="ambilightWledIpField3" class="ip-address-select-field" name="ambilightWledIpField3" tabindex="-1"></select>
-                  <select id="ambilightWledIpField4" class="ip-address-select-field" name="ambilightWledIpField4" tabindex="-1"></select>
+              <div id="ambilightWledIpContainer" class="setting-sub-options" style="display: none;">
+                <div class="setting-option">
+                  <label data-i18n="WLED IP address">WLED IP address</label>
+                  <span class="mdl-list__item-text-body" data-i18n="Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.">Enter the IP address of your WLED device. Make sure it is reachable from your TV over the local network.</span>
+                  <div id="ambilightWledIpInputField" class="mdl-textfield mdl-js-textfield">
+                    <input type="text" id="ambilightWledIpTextInput" class="mdl-textfield__input" maxlength="15" inputmode="decimal" placeholder="192.168.0.100" autocomplete="off" aria-label="WLED IP address" readonly>
+                  </div>
+                  <div id="ambilightWledIpSelectFields" class="select-option-field" style="display: none;">
+                    <select id="ambilightWledIpField1" class="ip-address-select-field" name="ambilightWledIpField1" aria-label="WLED IP address, first octet" tabindex="-1"></select>
+                    <select id="ambilightWledIpField2" class="ip-address-select-field" name="ambilightWledIpField2" aria-label="WLED IP address, second octet" tabindex="-1"></select>
+                    <select id="ambilightWledIpField3" class="ip-address-select-field" name="ambilightWledIpField3" aria-label="WLED IP address, third octet" tabindex="-1"></select>
+                    <select id="ambilightWledIpField4" class="ip-address-select-field" name="ambilightWledIpField4" aria-label="WLED IP address, fourth octet" tabindex="-1"></select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -975,6 +977,20 @@
                     <li class="mdl-menu__item" data-value="bottom-left" data-i18n="Bottom left">Bottom left</li>
                     <li class="mdl-menu__item" data-value="bottom-right" data-i18n="Bottom right">Bottom right</li>
                   </ul>
+                </div>
+                <div id="performanceStatsOpacitySetting" class="setting-option">
+                  <label data-i18n="Overlay opacity">Overlay opacity</label>
+                  <span class="mdl-list__item-text-body" data-i18n="- Adjust the opacity of the background panel behind the performance statistics overlay.">
+                    - Adjust the opacity of the background panel behind the performance statistics overlay.
+                  </span>
+                  <div id="performanceStatsOpacityMenu">
+                    <button type="button" id="selectPerformanceStatsOpacity" class="mdl-button mdl-js-button mdl-js-ripple-effect">70%</button>
+                  </div>
+                  <div class="performanceStatsOpacityMenu mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="selectPerformanceStatsOpacity">
+                    <span id="performanceStatsOpacityLowestValue">0</span>
+                    <input type="range" id="performanceStatsOpacitySlider" class="mdl-slider mdl-js-slider" min="0" max="100" step="5" value="70">
+                    <span id="performanceStatsOpacityHighestValue">100</span>
+                  </div>
                 </div>
               </div>
             </div>
