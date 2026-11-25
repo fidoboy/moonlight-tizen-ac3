@@ -8147,6 +8147,9 @@ function savePreviewApps() {
     // even when Smart Hub Preview is unavailable on the current device.
     console.log('%c[index.js, savePreviewApps]', 'color: green;', 'Saving cached app lists.');
     return storeData('previewApps', _previewApps, null);
+  }).catch(function(error) {
+    console.error('%c[index.js, savePreviewApps]', 'color: red;', 'Skipped cache write because saved app data could not be restored:', error);
+    return null;
   });
 }
 
