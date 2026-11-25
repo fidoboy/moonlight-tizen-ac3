@@ -41,7 +41,7 @@ jobs:
           echo "Workflow dispatch confirmed on master."
 
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: master
           submodules: recursive
