@@ -69,7 +69,14 @@ try {
     const grid = document.getElementById('game-grid');
     grid.replaceChildren();
 
+    const desktopIcon = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+      '<rect x="58" y="76" width="396" height="276" rx="22" fill="none" stroke="#f4f4f4" stroke-width="24"/>' +
+      '<path d="M196 430h120M256 352v78M166 430h180" fill="none" stroke="#f4f4f4" stroke-width="24" stroke-linecap="round"/>' +
+      '</svg>'
+    );
     const games = [
+      { title: 'Desktop', image: desktopIcon },
       { title: 'Cyberpunk 2077', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1091500/library_600x900_2x.jpg' },
       { title: 'The Witcher 3: Wild Hunt', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/292030/library_600x900_2x.jpg' },
       { title: 'Forza Horizon 5', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1551360/library_600x900_2x.jpg' },
@@ -82,6 +89,13 @@ try {
       { title: 'Resident Evil 4', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2050650/library_600x900_2x.jpg' },
       { title: 'God of War', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1593500/library_600x900_2x.jpg' },
       { title: 'Horizon Zero Dawn', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1151640/library_600x900_2x.jpg' },
+      { title: 'Marvel’s Spider-Man Remastered', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1817070/library_600x900_2x.jpg' },
+      { title: 'Starfield', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1716740/library_600x900_2x.jpg' },
+      { title: 'Apex Legends', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1172470/library_600x900_2x.jpg' },
+      { title: 'Destiny 2', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1085660/library_600x900_2x.jpg' },
+      { title: 'Rust', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/252490/library_600x900_2x.jpg' },
+      { title: 'Dota 2', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/570/library_600x900_2x.jpg' },
+      { title: 'Lethal Company', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1966720/library_600x900_2x.jpg' },
     ];
 
     for (const [index, game] of games.entries()) {
