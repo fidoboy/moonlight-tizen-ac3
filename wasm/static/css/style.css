@@ -2397,25 +2397,33 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
 }
 
-/* Keep the opacity slider and its endpoint labels within the dropdown. */
+/* Keep the opacity slider and its endpoint labels inside the dropdown.
+   Use flexbox here because older Tizen WebKit versions do not reliably support
+   CSS Grid; the slider must shrink instead of pushing the final label out. */
 .performanceStatsOpacityMenu {
-    display: grid !important;
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    display: flex !important;
     align-items: center;
-    column-gap: 12px;
     box-sizing: border-box;
-    padding: 0 36px !important;
+    padding: 0 16px !important;
     min-width: 0;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
+    flex: 0 0 auto;
     margin: 0;
     white-space: nowrap;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue {
+    margin-right: 10px;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
+    margin-left: 10px;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
     display: block;
-    width: 100%;
+    flex: 1 1 0px;
+    width: 0 !important;
     min-width: 0;
     margin: 0;
 }
