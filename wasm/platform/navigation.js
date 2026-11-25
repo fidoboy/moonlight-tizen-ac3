@@ -2404,22 +2404,21 @@ const Views = {
   },
   SelectPerformanceStatsOpacityMenu: {
     isActive: () => isPopupMenuActive('selectPerformanceStatsOpacity'),
-    view: new ListView(() => [document.getElementById('performanceStatsOpacitySlider')]),
+    view: new ListView(() =>
+      document.getElementById('performanceStatsOpacityMenu')
+      .parentNode.children[3].children[1].children),
     up: function() {},
     down: function() {},
     left: function() {
-      var slider = document.getElementById('performanceStatsOpacitySlider');
-      if (!slider || slider.disabled) return;
-      slider.stepDown();
-      slider.dispatchEvent(new Event('input'));
+      performanceStatsOpacitySlider.stepDown();
+      performanceStatsOpacitySlider.dispatchEvent(new Event('input'));
     },
     right: function() {
-      var slider = document.getElementById('performanceStatsOpacitySlider');
-      if (!slider || slider.disabled) return;
-      slider.stepUp();
-      slider.dispatchEvent(new Event('input'));
+      performanceStatsOpacitySlider.stepUp();
+      performanceStatsOpacitySlider.dispatchEvent(new Event('input'));
     },
     accept: function() {
+      clickElement(this.view.current());
       closeActiveVisibleMenu();
       setTimeout(() => focusElement('selectPerformanceStatsOpacity'), 250);
     },
