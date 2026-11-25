@@ -2099,10 +2099,10 @@ body[data-color-theme="black-orange"] #background-layer {
 #settings-right-pane .mdl-menu__container {
     width: calc(100% - 160px) !important;
 }
-/* Nested settings start 42px farther to the right than top-level settings.
-   Reduce only their generated MDL menu containers by that same offset so
-   their right edge remains aligned with the settings pane. */
-#settings-right-pane .setting-sub-options .mdl-menu__container {
+/* MDL positions this generated menu container from the trigger button.
+   The opacity setting is nested 42px farther right (24px margin, 16px padding,
+   2px border), so reserve those extra 42px to keep its right edge aligned. */
+#performanceStatsOpacitySetting > .mdl-menu__container {
     width: calc(100% - 202px) !important;
 }
 
