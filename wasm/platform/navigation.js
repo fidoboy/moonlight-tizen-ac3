@@ -1817,7 +1817,7 @@ const Views = {
     },
   },
   SelectBitrateMenu: {
-    isActive: () => isPopupMenuActive('videoBitrateMenu'),
+    isActive: () => isPopupMenuActive('selectBitrate'),
     view: new ListView(() => 
       document.getElementById('videoBitrateMenu')
       .parentNode.children[3].children[1].children),
@@ -2403,7 +2403,7 @@ const Views = {
     },
   },
   SelectPerformanceStatsOpacityMenu: {
-    isActive: () => isPopupMenuActive('performanceStatsOpacityMenu'),
+    isActive: () => isPopupMenuActive('selectPerformanceStatsOpacity'),
     view: new ListView(() => [document.getElementById('performanceStatsOpacitySlider')]),
     up: function() {},
     down: function() {},
