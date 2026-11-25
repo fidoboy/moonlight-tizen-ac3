@@ -169,6 +169,7 @@ var isStartupHttpReady = false;
 var isStartupHostsLoaded = false;
 var isStartupLocaleReady = false;
 var isStartupWindowLoaded = false;
+var isStartupPreferencesReady = false;
 var ambilightSupportState = 'checking';
 var ambilightInitializationPromise = null;
 var ambilightSettingsUiInitialized = false;
@@ -1402,7 +1403,7 @@ function startDeferredNormalStartup() {
 
 function maybeRestoreUiAfterStartup() {
   // Repeated calls from HTTP/host callbacks are harmless: index.html made the route decision once.
-  if (_directSmartHubLaunch || !isStartupLocaleReady) return;
+  if (_directSmartHubLaunch || !isStartupLocaleReady || !isStartupPreferencesReady) return;
   maybePrepareNormalStartup();
 }
 
@@ -10468,6 +10469,7 @@ function loadSystemInfo() {
 var persistedPreferences = {};
 var persistedPreferencesPendingWrites = {};
 var persistedPreferencesReady = false;
+var persistedPreferencesLoadPromise = null;
 var NON_PREFERENCE_DATA_KEYS = ['cert', 'hosts', 'previewApps', 'uniqueid'];
 window.persistedPreferences = persistedPreferences;
 window.persistedPreferencesReady = false;
@@ -10536,6 +10538,22 @@ function readStoredPreferences() {
     }
   });
 }
+
+function ensurePersistedPreferencesLoaded() {
+  if (persistedPreferencesReady) return Promise.resolve(persistedPreferences);
+  if (persistedPreferencesLoadPromise) return persistedPreferencesLoadPromise;
+
+  persistedPreferencesLoadPromise = new Promise(function(resolve, reject) {
+    openIndexDB(function() {
+      readStoredPreferences().then(resolve, reject);
+    }, reject);
+  }).catch(function(error) {
+    persistedPreferencesLoadPromise = null;
+    throw error;
+  });
+  return persistedPreferencesLoadPromise;
+}
+
 
 // Restore the complete persisted preference collection before either startup path continues.
 var configSummarySnapshot = null;
@@ -10607,14 +10625,11 @@ function refreshPersistedSettingDependencies() {
 }
 
 function readStreamingSettingsSnapshot() {
-  return withOperationTimeout(new Promise(function(resolve, reject) {
-    try {
-      if (db) resolve();
-      else openIndexDB(resolve);
-    } catch (error) { reject(error); }
-  }).then(function() {
-    return readStoredPreferences();
-  }), 10000, 'Saved streaming preferences load').then(function(stored) {
+  return withOperationTimeout(
+    ensurePersistedPreferencesLoaded(),
+    10000,
+    'Saved streaming preferences load'
+  ).then(function(stored) {
     var gameModeDefault = parseFloat(platformVer) >= 9.0 || parseFloat(platformVer) === 5.5 ? false : true;
     var defaults = {
       resolution: '1280:720', frameRate: '60', bitrate: 10,
@@ -10766,21 +10781,11 @@ function loadDirectSmartHubStreamSettings() {
 
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
-  return new Promise(function(resolve) {
-    openIndexDB(function() {
-      readStoredPreferences().then(function() {
-        loadUserDataCb();
-        resolve();
-      }).catch(function(error) {
-        // Preserve the existing per-setting recovery path if the bulk read fails.
-        console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
-        loadUserDataCb();
-        resolve();
-      });
-    }, function(error) {
-      console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not open IndexedDB to preload the preference collection:', error);
-      resolve();
-    });
+  return ensurePersistedPreferencesLoaded().catch(function(error) {
+    // Preserve the existing per-setting recovery path if the bulk read fails.
+    console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
+  }).then(function() {
+    loadUserDataCb();
   });
 }
 
@@ -12352,7 +12357,15 @@ function onWindowLoad() {
   }
 
   isStartupWindowLoaded = true;
-  maybeRestoreUiAfterStartup();
+  ensurePersistedPreferencesLoaded().then(function() {
+    isStartupPreferencesReady = true;
+    maybeRestoreUiAfterStartup();
+  }).catch(function(error) {
+    // Keep the existing startup recovery path available if a stored value is corrupt.
+    console.error('%c[index.js, onWindowLoad]', 'color: red;', 'Could not preload the complete preference collection:', error);
+    isStartupPreferencesReady = true;
+    maybeRestoreUiAfterStartup();
+  });
 
   // Normal startup restoration, including WebAssembly and stored-data loading,
   // is reached only after the HTML launch presentation has completed.
