@@ -1905,12 +1905,8 @@ function handleMessage(msg) {
     // Keep the Web UI hidden while the closing transition is shown. Reveal it only
     // shortly before the transition starts fading out, avoiding a flash of the page
     // background behind the animated starfield.
-    var hostAppQuitFailedDuringTransition = false;
     var beginRecoveryAfterTransition = function() {
       logStreamTerminationRecovery('closing transition hidden; Apps UI shown');
-      if (hostAppQuitFailedDuringTransition && !hasStreamError) {
-        snackbarLogLong('Could not automatically quit the host app.');
-      }
       if (hasStreamError) {
         // The transition is now fully hidden and the Apps interface is visible.
         // Keep the error modal open until the user acknowledges it; refresh the
@@ -2032,9 +2028,7 @@ function handleMessage(msg) {
           });
           return runClosingStep('Host app shutdown', t('Requesting to close application %1$s...', activeStreamAppName), function() {
             return api.quitApp();
-          }, 10000, function() {
-            hostAppQuitFailedDuringTransition = true;
-          });
+          }, 10000);
         });
       }
 
