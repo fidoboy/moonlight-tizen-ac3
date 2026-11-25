@@ -2406,13 +2406,18 @@ body[data-color-theme="black-orange"] #background-layer {
     box-sizing: border-box;
     padding: 0 16px !important;
     min-width: 0;
-    column-gap: 8px;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     flex: 0 0 auto;
     margin: 0;
     white-space: nowrap;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue {
+    margin-right: 8px;
+}
+.performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
+    margin-left: 8px;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
