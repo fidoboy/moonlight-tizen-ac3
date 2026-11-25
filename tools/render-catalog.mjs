@@ -70,18 +70,18 @@ try {
     grid.replaceChildren();
 
     const games = [
-      { title: 'Cyberpunk 2077', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900_2x.jpg' },
-      { title: 'The Witcher 3: Wild Hunt', image: 'https://cdn.akamai.steamstatic.com/steam/apps/292030/library_600x900_2x.jpg' },
-      { title: 'Forza Horizon 5', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1551360/library_600x900_2x.jpg' },
-      { title: 'Red Dead Redemption 2', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1174180/library_600x900_2x.jpg' },
-      { title: 'Baldur’s Gate 3', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1086940/library_600x900_2x.jpg' },
-      { title: 'Elden Ring', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/library_600x900_2x.jpg' },
-      { title: 'Grand Theft Auto V', image: 'https://cdn.akamai.steamstatic.com/steam/apps/271590/library_600x900_2x.jpg' },
-      { title: 'Sekiro: Shadows Die Twice', image: 'https://cdn.akamai.steamstatic.com/steam/apps/814380/library_600x900_2x.jpg' },
-      { title: 'Hogwarts Legacy', image: 'https://cdn.akamai.steamstatic.com/steam/apps/990080/library_600x900_2x.jpg' },
-      { title: 'Resident Evil 4', image: 'https://cdn.akamai.steamstatic.com/steam/apps/2050650/library_600x900_2x.jpg' },
-      { title: 'God of War', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1593500/library_600x900_2x.jpg' },
-      { title: 'Horizon Zero Dawn', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1151640/library_600x900_2x.jpg' },
+      { title: 'Cyberpunk 2077', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1091500/library_600x900_2x.jpg' },
+      { title: 'The Witcher 3: Wild Hunt', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/292030/library_600x900_2x.jpg' },
+      { title: 'Forza Horizon 5', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1551360/library_600x900_2x.jpg' },
+      { title: 'Red Dead Redemption 2', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1174180/library_600x900_2x.jpg' },
+      { title: 'Baldur’s Gate 3', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1086940/library_600x900_2x.jpg' },
+      { title: 'Elden Ring', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/library_600x900_2x.jpg' },
+      { title: 'Grand Theft Auto V', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/271590/library_600x900_2x.jpg' },
+      { title: 'Sekiro: Shadows Die Twice', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/814380/library_600x900_2x.jpg' },
+      { title: 'Hogwarts Legacy', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/990080/library_600x900_2x.jpg' },
+      { title: 'Resident Evil 4', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2050650/library_600x900_2x.jpg' },
+      { title: 'God of War', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1593500/library_600x900_2x.jpg' },
+      { title: 'Horizon Zero Dawn', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1151640/library_600x900_2x.jpg' },
     ];
 
     for (const [index, game] of games.entries()) {
@@ -172,7 +172,23 @@ try {
   }, { theme });
 
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(300);
+  // Wait for all cover images to finish decoding before taking the screenshot.
+  const imageResults = await page.evaluate(async () => {
+    const images = [...document.querySelectorAll('#game-grid img')];
+    return Promise.all(images.map(async (image) => {
+      try {
+        await image.decode();
+        return { src: image.currentSrc, loaded: image.naturalWidth > 0 };
+      } catch {
+        return { src: image.currentSrc || image.src, loaded: false };
+      }
+    }));
+  });
+  const failedImages = imageResults.filter((image) => !image.loaded);
+  if (failedImages.length) {
+    console.warn(`Could not load ${failedImages.length} game cover(s):`);
+    failedImages.forEach((image) => console.warn(image.src));
+  }
   await mkdir(resolve(output, '..'), { recursive: true });
   await page.screenshot({ path: output, type: 'jpeg', quality: 95 });
   console.log(`Rendered ${output} (1920x1080 JPEG)`);
