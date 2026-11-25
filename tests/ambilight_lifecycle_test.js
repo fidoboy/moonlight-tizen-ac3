@@ -143,18 +143,18 @@ function createEnvironment(platformVersion) {
 (async function() {
   const env = createEnvironment('6.5');
   assert.strictEqual(await env.api.initialize(), true);
-  assert.deepStrictEqual(env.commands, ['initialize']);
+  assert.deepStrictEqual(env.commands, [],
+    'the Tizen-version compatibility check must never launch the native service');
   assert.strictEqual(env.running().length, 0,
-    'the capability probe must leave no resident Ambilight process');
+    'compatibility detection must not create a resident Ambilight process');
 
-  env.addStaleService();
   await env.api.start('192.168.0.100', 21324, 73, {
     hdr: true,
     colorSpace: 2,
     fullRange: false,
     captureBackend: 'video_plane'
   });
-  assert.deepStrictEqual(env.payloads[1], {
+  assert.deepStrictEqual(env.payloads[0], {
     command: 'start',
     wledIp: '192.168.0.100',
     wledPort: '21324',
@@ -164,17 +164,17 @@ function createEnvironment(platformVersion) {
     fullRange: 'false',
     captureBackend: 'video_plane'
   }, 'the negotiated HDR profile and default capture backend must be forwarded to the service');
-  assert.deepStrictEqual(env.killed, ['stale-ambilight'],
-    'a stale service process must be killed before the new stream starts');
-  assert.deepStrictEqual(env.commands, ['initialize', 'start']);
+  assert.deepStrictEqual(env.killed, [],
+    'starting this stream must not kill a service process it did not start');
+  assert.deepStrictEqual(env.commands, ['start']);
   assert.strictEqual(env.running().length, 1);
   assert.strictEqual(env.api.isActive(), true);
 
   await env.api.start('192.168.0.100', 21324, 73, null, 'ppi');
   assert.strictEqual(env.payloads[2].captureBackend, 'ppi',
     'PPI must be selectable explicitly through the AppControl API');
-  assert.strictEqual(env.killed.length, 2,
-    'restarting Ambilight during a stream must replace the existing process');
+  assert.strictEqual(env.killed.length, 0,
+    'restarting Ambilight must not kill unrelated service processes');
   assert.strictEqual(env.commands.filter(command => command === 'start').length, 2);
 
   await env.api.shutdown();
@@ -185,7 +185,7 @@ function createEnvironment(platformVersion) {
   const tizen60 = createEnvironment('6.0');
   assert.strictEqual(await tizen60.api.initialize(), true,
     'Tizen 6.0 must pass the minimum platform version check');
-  assert.deepStrictEqual(tizen60.commands, ['initialize']);
+  assert.deepStrictEqual(tizen60.commands, [], 'Tizen 6.0 version check must not launch the service');
   assert.strictEqual(tizen60.running().length, 0,
     'the Tizen 6.0 capability probe must leave no resident service process');
 
@@ -193,6 +193,15 @@ function createEnvironment(platformVersion) {
   assert.strictEqual(await unsupported.api.initialize(), false);
   assert.deepStrictEqual(unsupported.commands, [],
     'platforms below Tizen 6.0 must not launch the optional service');
+
+  const noService = createEnvironment('6.5');
+  assert.strictEqual(await noService.api.initialize(), true);
+  assert.deepStrictEqual(noService.commands, [],
+    'compatibility detection must not inspect or launch the service');
+  assert.strictEqual(await noService.api.shutdown(), false,
+    'shutdown must be a no-op unless this app instance started the service');
+  assert.deepStrictEqual(noService.killed, [],
+    'shutdown must never kill a service that this app instance did not start');
 
   console.log('Ambilight service lifecycle tests passed.');
 })().catch(error => {
