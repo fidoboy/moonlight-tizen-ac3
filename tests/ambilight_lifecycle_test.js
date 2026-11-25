@@ -171,7 +171,7 @@ function createEnvironment(platformVersion) {
   assert.strictEqual(env.api.isActive(), true);
 
   await env.api.start('192.168.0.100', 21324, 73, null, 'ppi');
-  assert.strictEqual(env.payloads[2].captureBackend, 'ppi',
+  assert.strictEqual(env.payloads[1].captureBackend, 'ppi',
     'PPI must be selectable explicitly through the AppControl API');
   assert.strictEqual(env.killed.length, 0,
     'restarting Ambilight must not kill unrelated service processes');
