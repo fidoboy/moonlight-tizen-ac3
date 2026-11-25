@@ -5550,6 +5550,8 @@ function showApps(host, options) {
 
         // Apply the selected app ordering before caching and rendering the list.
         const sortedAppList = sortAppsForHost(host, appList);
+        // Keep the in-memory fast-start list in exactly the same order as the UI.
+        host._memCachedApplist = sortedAppList.slice();
 
         if (preserveExistingAppGrid) {
           // Reconcile by app ID instead of tearing down the entire visible list.
@@ -6012,7 +6014,10 @@ function showAppsWithCachedList(host) {
         settleRequestTimer();
         if (!isCurrentOperation()) return;
         return Promise.resolve(reconcileVisibleAppGrid(host, freshAppList, true)).then(function() {
-          if (isCurrentOperation()) host._memCachedApplist = freshAppList;
+          if (isCurrentOperation()) {
+            // Keep the next fast cached presentation aligned with the active sort settings.
+            host._memCachedApplist = sortAppsForHost(host, freshAppList);
+          }
         });
       }, function(error) {
         settleRequestTimer();
