@@ -2425,10 +2425,21 @@ body[data-color-theme="black-orange"] #background-layer {
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     margin-left: 8px;
 }
-.performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
+/* MDL wraps the range input in .mdl-slider__container during upgrade.
+   Make that generated wrapper the flexible item; sizing only the input does
+   not constrain the flex layout and lets the 74rem default width leak out. */
+.performanceStatsOpacityMenu > .mdl-slider__container {
     box-sizing: border-box;
     display: block;
     flex: 1 1 0px;
+    width: auto !important;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+.performanceStatsOpacityMenu > .mdl-slider__container > #performanceStatsOpacitySlider {
+    box-sizing: border-box;
+    display: block;
     width: 100% !important;
     min-width: 0;
     max-width: 100%;
