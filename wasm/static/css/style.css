@@ -2397,21 +2397,26 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
 }
 
-/* Keep both endpoint labels and the slider within the dropdown's content area. */
+/* Keep both slider menus on the same three-column layout. The endpoint
+   labels stay inside the panel while the slider uses all remaining width. */
+.videoBitrateMenu,
 .performanceStatsOpacityMenu {
     display: grid !important;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
-    column-gap: 12px;
+    column-gap: 10px;
     box-sizing: border-box;
-    padding: 0 28px !important;
+    padding: 0 18px !important;
     min-width: 0;
 }
+.videoBitrateMenu > #bitrateLowestValue,
+.videoBitrateMenu > #bitrateHighestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     margin: 0;
     white-space: nowrap;
 }
+.videoBitrateMenu > #bitrateSlider,
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
     display: block;
