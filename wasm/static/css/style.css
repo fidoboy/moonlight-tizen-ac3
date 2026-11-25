@@ -2397,21 +2397,25 @@ body[data-color-theme="black-orange"] #background-layer {
     letter-spacing: 0.5px;
 }
 
-/* The opacity slider lives in a narrower nested settings panel. Keep both
-   endpoint labels at their natural width and let only the slider absorb the
-   reduced space, so the right-hand label retains its edge margin. */
+/* Keep the opacity control and endpoint labels inside the dropdown's
+   horizontal padding. Only the slider may shrink to fit the available space. */
+.performanceStatsOpacityMenu {
+    box-sizing: border-box;
+    padding: 0 24px;
+    gap: 12px;
+}
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     flex: 0 0 auto;
+    margin: 0;
     white-space: nowrap;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
+    box-sizing: border-box;
     flex: 1 1 0;
     width: 0;
     min-width: 0;
-}
-#performanceStatsOpacityHighestValue {
-    margin-right: 24px;
+    margin: 0;
 }
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
 #performanceStatsOpacityLowestValue.hovered, #performanceStatsOpacityHighestValue.hovered,
