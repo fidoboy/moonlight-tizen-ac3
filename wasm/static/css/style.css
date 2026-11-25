@@ -2392,6 +2392,11 @@ body[data-color-theme="black-orange"] #background-layer {
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
+
+/* Keep the wider "100%" label clear of the opacity menu's right edge. */
+#performanceStatsOpacityHighestValue {
+    margin-right: 24px;
+}
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
 #performanceStatsOpacityLowestValue.hovered, #performanceStatsOpacityHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
