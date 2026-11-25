@@ -1376,6 +1376,9 @@ function startDeferredNormalStartup() {
         // start a stream before the complete persisted preference collection is ready.
         handleDeepLink();
         window.addEventListener('appcontrol', handleDeepLink);
+      }).catch(function(error) {
+        console.error('%c[index.js, startDeferredNormalStartup]', 'color: red;', 'Normal startup cannot continue without the complete saved preference collection:', error);
+        snackbarLogPersistent(t('Moonlight could not load its saved settings. Streaming cannot start.'));
       });
     });
   };
@@ -7934,6 +7937,24 @@ function getData(key, callbackFunction, errorCallback) {
     callCb(key, value, callbackFunction);
   }
 
+  // Preference reads always use the complete in-memory collection. If startup has
+  // not finished loading it yet, wait for that same shared operation first.
+  if (!NON_PREFERENCE_DATA_KEYS || NON_PREFERENCE_DATA_KEYS.indexOf(key) === -1) {
+    ensurePersistedPreferencesLoaded().then(function(preferences) {
+      var value = Object.prototype.hasOwnProperty.call(preferences, key)
+        ? preferences[key] : null;
+      if (DEBUG_MODE) {
+        console.log('%c[index.js, getData]', 'color: green;', 'Reading persisted preference from the loaded collection: ' + key);
+      }
+      finishRead(value);
+    }).catch(function(error) {
+      error.moonlightReadStage = key + '-preferences-load';
+      console.error('%c[index.js, getData]', 'color: red;', 'Could not read preference ' + key + ' because the complete preference collection is unavailable:', error);
+      finishRead({}, error);
+    });
+    return;
+  }
+
   let cb = function() {
     try {
       const transaction = db.transaction(storeName, 'readonly');
@@ -8026,7 +8047,7 @@ function storeData(key, data, callbackFunction) {
       if (failureHandled) return;
       failureHandled = true;
       console.error('%c[index.js, storeData]', 'color: red;', 'Unable to store key ' + key + ':', error);
-      if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
+      if (CONFIG_SUMMARY_PREFERENCE_KEYS.indexOf(key) !== -1) {
         configSummaryRevision++;
         // The cached snapshot still represents the last successfully committed state.
         updateConfigSummaryBar();
@@ -8050,7 +8071,7 @@ function storeData(key, data, callbackFunction) {
             var databaseValue = key === 'cert' && !LOG_SHOW_PRIVATE_DATA ? '--- HIDDEN ---' : data;
             console.log('%c[index.js, storeData]', 'color: green;', 'Stored IndexedDB key: ' + key + ' with value: ', databaseValue);
           }
-          if (STREAMING_PREFERENCE_KEYS.indexOf(key) !== -1) {
+          if (CONFIG_SUMMARY_PREFERENCE_KEYS.indexOf(key) !== -1) {
             configSummaryRevision++;
             if (configSummarySnapshot) {
               applyPersistedPreferenceToSnapshot(key, data);
@@ -10560,7 +10581,8 @@ var configSummarySnapshot = null;
 var configSummaryRefreshPromise = null;
 var configSummaryRevision = 0;
 
-var STREAMING_PREFERENCE_KEYS = [
+// This list only controls configuration-summary refreshes; it is not a preference-loading list.
+var CONFIG_SUMMARY_PREFERENCE_KEYS = [
   'resolution', 'frameRate', 'bitrate', 'framePacing', 'optimizeGames',
   'rumbleFeedback', 'mouseEmulation', 'mouseEmulationStick', 'selectHoldStreamMenu', 'flipABfaceButtons',
   'flipXYfaceButtons', 'audioBackend', 'audioConfig', 'ac3AudioMode', 'audioSync',
@@ -10781,10 +10803,7 @@ function loadDirectSmartHubStreamSettings() {
 
 function loadUserData() {
   console.log('%c[index.js, loadUserData]', 'color: green;', 'Loading stored user data...');
-  return ensurePersistedPreferencesLoaded().catch(function(error) {
-    // Preserve the existing per-setting recovery path if the bulk read fails.
-    console.error('%c[index.js, loadUserData]', 'color: red;', 'Could not preload the complete preference collection; continuing with the existing individual reads:', error);
-  }).then(function() {
+  return ensurePersistedPreferencesLoaded().then(function() {
     loadUserDataCb();
   });
 }
