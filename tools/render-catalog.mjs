@@ -57,13 +57,31 @@ try {
 
     document.getElementById('host-grid')?.remove();
     document.getElementById('settings-list')?.remove();
+    // Apps mode exposes only artwork regeneration and the gamepad test action.
+    ['settingsBtn', 'refreshHostsBtn', 'supportBtn', 'restoreDefaultsBtn'].forEach((id) => {
+      const button = document.getElementById(id);
+      if (button) button.style.display = 'none';
+    });
+    const gamepadButton = document.getElementById('gamepadTestBtn');
+    if (gamepadButton) { gamepadButton.hidden = false; gamepadButton.style.display = ''; }
+    const regenerateButton = document.getElementById('regenerateAppImagesBtn');
+    if (regenerateButton) { regenerateButton.hidden = false; regenerateButton.style.display = ''; }
     const grid = document.getElementById('game-grid');
     grid.replaceChildren();
 
     const games = [
-      { title: 'Cyberpunk 2077', image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg' },
-      { title: 'The Witcher 3: Wild Hunt', image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1wyy.jpg' },
-      { title: 'Forza Horizon 5', image: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2ekt.jpg' },
+      { title: 'Cyberpunk 2077', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900_2x.jpg' },
+      { title: 'The Witcher 3: Wild Hunt', image: 'https://cdn.akamai.steamstatic.com/steam/apps/292030/library_600x900_2x.jpg' },
+      { title: 'Forza Horizon 5', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1551360/library_600x900_2x.jpg' },
+      { title: 'Red Dead Redemption 2', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1174180/library_600x900_2x.jpg' },
+      { title: 'Baldur’s Gate 3', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1086940/library_600x900_2x.jpg' },
+      { title: 'Elden Ring', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1245620/library_600x900_2x.jpg' },
+      { title: 'Grand Theft Auto V', image: 'https://cdn.akamai.steamstatic.com/steam/apps/271590/library_600x900_2x.jpg' },
+      { title: 'Sekiro: Shadows Die Twice', image: 'https://cdn.akamai.steamstatic.com/steam/apps/814380/library_600x900_2x.jpg' },
+      { title: 'Hogwarts Legacy', image: 'https://cdn.akamai.steamstatic.com/steam/apps/990080/library_600x900_2x.jpg' },
+      { title: 'Resident Evil 4', image: 'https://cdn.akamai.steamstatic.com/steam/apps/2050650/library_600x900_2x.jpg' },
+      { title: 'God of War', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1593500/library_600x900_2x.jpg' },
+      { title: 'Horizon Zero Dawn', image: 'https://cdn.akamai.steamstatic.com/steam/apps/1151640/library_600x900_2x.jpg' },
     ];
 
     for (const [index, game] of games.entries()) {
@@ -136,16 +154,17 @@ try {
       position: relative !important;
       z-index: 1 !important;
       display: flex !important;
-      width: 100% !important;
-      height: 100% !important;
-      min-height: 100% !important;
+      flex: 1 1 auto !important;
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
       box-sizing: border-box !important;
       align-items: center !important;
-      justify-content: center !important;
-      align-content: center !important;
+      justify-content: flex-start !important;
+      align-content: flex-start !important;
       flex-flow: row wrap !important;
-      margin: 0 !important;
-      padding: 40px 80px !important;
+      margin: 15px 0 !important;
+      padding: 15px 80px !important;
     }
     #game-grid .mdl-card.hovered { transform: scale(1.12); }
     #game-grid .mdl-card img { opacity: 1 !important; }`;
