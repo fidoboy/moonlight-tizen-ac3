@@ -172,6 +172,8 @@ var isStartupWindowLoaded = false;
 var ambilightSupportState = 'checking';
 var ambilightInitializationPromise = null;
 var ambilightSettingsUiInitialized = false;
+var ambilightPreferences = { ambilightEnabled: false, ambilightWledIp: null, ambilightCaptureBackend: null };
+var ambilightPreferencesPromise = null;
 var ambilightStreamStartPromise = null;
 var ambilightStreamStartGeneration = 0;
 var ambilightStreamStartedGeneration = -1;
@@ -1041,6 +1043,7 @@ function attachListeners() {
   $('#ipAddressFieldModeSwitch').on('click', saveIpAddressFieldMode);
   $('.configSummaryPositionMenu li').on('click', saveConfigSummaryPosition);
   $('#navigationSoundSwitch').on('click', saveNavigationSoundPreference);
+  loadAmbilightPreferencesFromStorage();
   $('#streamTransitionBackgroundSwitch').on('click', saveStreamTransitionBackground);
   $('#screensaverSwitch').on('click', saveScreensaverPreference);
   $('.ambientBackgroundMenu li').on('click', saveAmbientBackgroundPreset);
@@ -8596,7 +8599,8 @@ function updateAmbilightAvailability(supported) {
   if (!supported) {
     // An unavailable service must also clear the persisted preference so it
     // cannot be restored as enabled if the capability check later changes.
-    storeData('ambilightEnabled', false, null);
+    // Preserve the user's saved preference; unsupported hardware only disables the UI.
+
   }
 
   if (switchText && supported) {
@@ -8642,35 +8646,50 @@ function checkAmbilightPlatformCompatibility() {
   return ambilightInitializationPromise;
 }
 
-function loadAmbilightPreferences() {
-  getData('ambilightEnabled', function(data) {
-    var enabled = ambilightSupportState === 'supported' &&
-      !!(data && data.ambilightEnabled === true);
-    var toggle = document.getElementById('ambilightSwitch');
-    if (toggle) {
-      toggle.checked = enabled;
-      var label = document.getElementById('ambilightBtn');
-      if (label && label.MaterialSwitch) {
-        enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
-        if (ambilightSupportState === 'supported') {
-          label.MaterialSwitch.enable();
-        } else {
-          label.MaterialSwitch.disable();
-        }
-      }
-      toggle.disabled = ambilightSupportState !== 'supported';
-    }
-    updateAmbilightSettingsVisibility();
+function loadAmbilightPreferencesFromStorage() {
+  if (ambilightPreferencesPromise) return ambilightPreferencesPromise;
+  ambilightPreferencesPromise = Promise.all([
+    readAmbilightStoredValue('ambilightEnabled'),
+    readAmbilightStoredValue('ambilightWledIp'),
+    readAmbilightStoredValue('ambilightCaptureBackend')
+  ]).then(function(values) {
+    ambilightPreferences.ambilightEnabled = values[0].ambilightEnabled === true;
+    ambilightPreferences.ambilightWledIp =
+      typeof values[1].ambilightWledIp === 'string' && values[1].ambilightWledIp.trim()
+        ? values[1].ambilightWledIp.trim() : null;
+    ambilightPreferences.ambilightCaptureBackend = values[2].ambilightCaptureBackend === 'ppi'
+      ? 'ppi' : 'video_plane';
+    return ambilightPreferences;
+  }).catch(function(error) {
+    console.warn('[ambilight] Could not load saved preferences:', error);
+    return ambilightPreferences;
   });
+  return ambilightPreferencesPromise;
+}
 
-  getData('ambilightWledIp', function(data) {
-    var hasSavedIp = data && typeof data.ambilightWledIp === 'string' &&
-      data.ambilightWledIp.trim().length > 0;
-    var savedIp = hasSavedIp ? data.ambilightWledIp : getDefaultAmbilightWledIp();
-    setAmbilightWledIpValue(savedIp);
-    if (!hasSavedIp) storeData('ambilightWledIp', savedIp, null);
-    updateAmbilightWledIpInputMode();
-  });
+function loadAmbilightPreferences() {
+  var enabled = ambilightSupportState === 'supported' &&
+    ambilightPreferences.ambilightEnabled === true;
+  var toggle = document.getElementById('ambilightSwitch');
+  if (toggle) {
+    toggle.checked = enabled;
+    var label = document.getElementById('ambilightBtn');
+    if (label && label.MaterialSwitch) {
+      enabled ? label.MaterialSwitch.on() : label.MaterialSwitch.off();
+      if (ambilightSupportState === 'supported') label.MaterialSwitch.enable();
+      else label.MaterialSwitch.disable();
+    }
+    toggle.disabled = ambilightSupportState !== 'supported';
+  }
+  if (ambilightPreferences.ambilightWledIp) {
+    setAmbilightWledIpValue(ambilightPreferences.ambilightWledIp);
+  } else if (ambilightSettingsUiInitialized) {
+    var defaultIp = getDefaultAmbilightWledIp();
+    ambilightPreferences.ambilightWledIp = defaultIp;
+    setAmbilightWledIpValue(defaultIp);
+    storeData('ambilightWledIp', defaultIp, null);
+  }
+  updateAmbilightSettingsVisibility();
 }
 
 function saveAmbilightPreference() {
@@ -8683,6 +8702,7 @@ function saveAmbilightPreference() {
     }
 
     var enabled = $('#ambilightSwitch').prop('checked') === true;
+    ambilightPreferences.ambilightEnabled = enabled;
     storeData('ambilightEnabled', enabled, null);
     updateAmbilightSettingsVisibility();
 
@@ -8701,6 +8721,7 @@ function saveAmbilightPreference() {
 
 function saveAmbilightWledIp() {
   var ip = getAmbilightWledIpValue();
+  ambilightPreferences.ambilightWledIp = ip;
   storeData('ambilightWledIp', ip, null);
 
   if (ambilightSupportState === 'supported' && isInGame) {
@@ -8756,11 +8777,11 @@ function startAmbilightForStreamIfEnabled(showTransitionStatus, generation) {
       window._ambilightNegotiatedProfileReady !== true ||
       generation !== ambilightStreamStartGeneration) return Promise.resolve(false);
 
-  return readAmbilightStoredValue('ambilightEnabled').then(function(preference) {
+  return loadAmbilightPreferencesFromStorage().then(function(preference) {
     if (generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
-    var enabled = preference && preference.ambilightEnabled === true;
+    var enabled = preference.ambilightEnabled === true;
     if (!enabled) {
       if (showTransitionStatus === true) window._ambilightStartupFailed = false;
       return false;
@@ -8785,13 +8806,10 @@ function startAmbilightForStream(showTransitionStatus, generation) {
     if (!supported || generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
-    return Promise.all([
-      readAmbilightStoredValue('ambilightWledIp'),
-      readAmbilightStoredValue('ambilightCaptureBackend')
-    ]);
-  }).then(function(storedValues) {
-    var ipData = storedValues && storedValues[0];
-    var backendData = storedValues && storedValues[1];
+    return loadAmbilightPreferencesFromStorage();
+  }).then(function(preferences) {
+    var ipData = preferences;
+    var backendData = preferences;
     if (!ipData || generation !== ambilightStreamStartGeneration ||
         window._streamConnectionEstablished !== true ||
         window._ambilightNegotiatedProfileReady !== true) return false;
