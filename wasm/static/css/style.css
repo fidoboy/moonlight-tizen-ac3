@@ -2418,6 +2418,7 @@ body[data-color-theme="black-orange"] #background-layer {
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     margin-left: 10px;
+    margin-right: 16px;
 }
 .performanceStatsOpacityMenu > #performanceStatsOpacitySlider {
     box-sizing: border-box;
