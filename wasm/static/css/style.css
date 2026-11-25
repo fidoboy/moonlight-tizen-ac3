@@ -2328,14 +2328,14 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-menu__item.hovered, .mdl-menu__item:hover, .mdl-menu__item:focus {
     background-color: var(--theme-surface-hover);
 }
-.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
+.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu, .performanceStatsOpacityMenu,
 .languageMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
 .mouseEmulationStickMenu, .mdl-menu__container {
     width: 59.4% !important;
 }
 
-.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu,
+.videoResolutionMenu, .videoFramerateMenu, .videoBitrateMenu, .performanceStatsOpacityMenu,
 .languageMenu, .streamingEngineMenu, .ambientBackgroundMenu, .audioBackendMenu, .audioConfigMenu, .dolbyChannelLayoutMenu, .dolbyDecodingModeMenu, .audioJitterMenu,
 .videoCodecMenu, .h264LevelMenu, .performanceStatsPositionMenu, .configSummaryPositionMenu,
 .mouseEmulationStickMenu, .mdl-menu__outline {
@@ -2343,7 +2343,7 @@ body[data-color-theme="black-orange"] #background-layer {
     top: 2.5px !important;
     border-radius: 0 0 8px 8px;
 }
-.videoBitrateMenu, .audioJitterMenu {
+.videoBitrateMenu, .performanceStatsOpacityMenu, .audioJitterMenu {
     background-color: var(--theme-surface-deep);
     display: flex;
     align-items: center;
@@ -2380,19 +2380,20 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-slider.is-upgraded:focus:not(:active)::-webkit-slider-thumb {
     box-shadow: 0 0 0 10px var(--theme-accent-40);
 }
-#bitrateLowestValue, #jitterLowestValue {
+#bitrateLowestValue, #performanceStatsOpacityLowestValue, #jitterLowestValue {
     color: var(--theme-text-primary);
     margin: 0 -12px 0 14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
-#bitrateHighestValue, #jitterHighestValue {
+#bitrateHighestValue, #performanceStatsOpacityHighestValue, #jitterHighestValue {
     color: var(--theme-text-primary);
     margin: 0 12px 0 -14px;
     font-size: 1.45rem;
     letter-spacing: 0.5px;
 }
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
+#performanceStatsOpacityLowestValue.hovered, #performanceStatsOpacityHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
     background-color: var(--theme-surface-deep);
 }
