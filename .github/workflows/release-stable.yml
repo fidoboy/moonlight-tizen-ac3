@@ -380,34 +380,27 @@ jobs:
         with:
           path: ffmpeg-install
           key: ffmpeg-wasm-9.0.2-${{ runner.os }}-emsdk-6.1-v5-${{ hashFiles('ffmpeg/**', '!ffmpeg-build/**', '!ffmpeg-install/**', 'scripts/build-ffmpeg.sh', 'scripts/build-moonlight-web.sh') }}
-      - name: Build standard and ForceGM release Web payloads inside optimized v5 image
+      - name: Build release Web payload once inside optimized v5 image
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/moonlight-home"
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER}/moonlight-tizen-build-env:6.1-v5"
-          for variant in standard forcegm; do
-            if [[ "$variant" == "standard" ]]; then
-              force_game_mode=false
-            else
-              force_game_mode=true
-            fi
-            docker run --rm --user "$(id -u):$(id -g)" \
-              -v "$GITHUB_WORKSPACE:/workspace" \
-              -v "$RUNNER_TEMP:/runner-temp" \
-              -w /workspace \
-              -e HOME=/runner-temp/moonlight-home \
-              -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
-              -e EMSDK=/opt/emscripten-release-bundle/emsdk \
-              -e BUILD_TYPE=release \
-              -e DEBUG_MODE=false \
-              -e FORCE_GAME_MODE="$force_game_mode" \
-              -e LOG_SHOW_PRIVATE_DATA=false \
-              -e OFFICIAL_RELEASE=true \
-              -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
-              -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
-              "$image" bash scripts/build-moonlight-web.sh "/runner-temp/moonlight-web-$variant"
-          done
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$RUNNER_TEMP:/runner-temp" \
+            -w /workspace \
+            -e HOME=/runner-temp/moonlight-home \
+            -e CCACHE_DIR=/runner-temp/moonlight-home/.cache/ccache \
+            -e EMSDK=/opt/emscripten-release-bundle/emsdk \
+            -e BUILD_TYPE=release \
+            -e DEBUG_MODE=false \
+            -e FORCE_GAME_MODE=false \
+            -e LOG_SHOW_PRIVATE_DATA=false \
+            -e OFFICIAL_RELEASE=true \
+            -e REPO_OWNER="$GITHUB_REPOSITORY_OWNER" \
+            -e REPO_NAME="${GITHUB_REPOSITORY#*/}" \
+            "$image" bash scripts/build-moonlight-web.sh "/runner-temp/moonlight-web"
 
       - name: Save FFmpeg WebAssembly build cache
         if: success() && steps.restore-ffmpeg-cache.outputs.cache-hit != 'true'
@@ -430,26 +423,55 @@ jobs:
           path: ${{ runner.temp }}/moonlight-home/.cache/ccache
           key: moonlight-web-ccache-${{ runner.os }}-${{ github.ref_name }}-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Extract unsigned standard and ForceGM Moonlight Web files
+      - name: Prepare standard and ForceGM Web payloads from one build
         shell: bash
         run: |
           set -euo pipefail
-          for variant in standard forcegm; do
-            project="$RUNNER_TEMP/web-$variant"
-            cp -a "$RUNNER_TEMP/moonlight-web-$variant/web" "$project"
+          source="$RUNNER_TEMP/moonlight-web/web"
+          test -s "$source/config.xml"
+          test -s "$source/index.html"
+          test -s "$source/moonlight-wasm.js"
+          test -s "$source/moonlight-wasm.wasm"
+          test -s "$source/service/service.js"
+
+          # Both WGTs use the exact same compiled Web files. Only the
+          # Samsung Game Mode metadata differs between their config.xml files.
+          cp -a "$source" "$RUNNER_TEMP/web-standard"
+          cp -a "$source" "$RUNNER_TEMP/web-forcegm"
+
+          standard_config="$RUNNER_TEMP/web-standard/config.xml"
+          forcegm_config="$RUNNER_TEMP/web-forcegm/config.xml"
+          if grep -Fq 'key="http://samsung.com/tv/metadata/use.game.mode"' "$standard_config"; then
+            echo "::error::Standard release unexpectedly contains the ForceGM metadata."
+            exit 1
+          fi
+
+          python3 - "$forcegm_config" <<'PY'
+          import sys
+          from pathlib import Path
+
+          config = Path(sys.argv[1])
+          content = config.read_text(encoding="utf-8")
+          marker = '<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"'
+          metadata = '<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    '
+          if 'key="http://samsung.com/tv/metadata/use.game.mode"' in content:
+              raise SystemExit("ForceGM metadata already exists in the source config.xml")
+          if content.count(marker) != 1:
+              raise SystemExit(f"Expected exactly one voiceguide metadata insertion point; found {content.count(marker)}")
+          config.write_text(content.replace(marker, metadata + marker, 1), encoding="utf-8")
+          PY
+
+          grep -Fq 'key="http://samsung.com/tv/metadata/use.game.mode" value="true"' "$forcegm_config"
+          if grep -Fq 'key="http://samsung.com/tv/metadata/use.game.mode"' "$standard_config"; then
+            echo "::error::Standard release unexpectedly contains the ForceGM metadata."
+            exit 1
+          fi
+          for project in "$RUNNER_TEMP/web-standard" "$RUNNER_TEMP/web-forcegm"; do
             test -s "$project/config.xml"
             test -s "$project/index.html"
             test -s "$project/moonlight-wasm.js"
             test -s "$project/moonlight-wasm.wasm"
             test -s "$project/service/service.js"
-            if [[ "$variant" == "standard" ]]; then
-              if grep -Fq 'key="http://samsung.com/tv/metadata/use.game.mode"' "$project/config.xml"; then
-                echo "::error::Standard release unexpectedly contains the ForceGM metadata."
-                exit 1
-              fi
-            else
-              grep -Fq 'key="http://samsung.com/tv/metadata/use.game.mode" value="true"' "$project/config.xml"
-            fi
           done
 
       - name: Package standard and ForceGM hybrid WGTs
