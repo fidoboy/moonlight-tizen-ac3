@@ -71,12 +71,32 @@ try {
 
     const desktopIcon = 'data:image/svg+xml,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
-      '<rect x="58" y="76" width="396" height="276" rx="22" fill="none" stroke="#f4f4f4" stroke-width="24"/>' +
-      '<path d="M196 430h120M256 352v78M166 430h180" fill="none" stroke="#f4f4f4" stroke-width="24" stroke-linecap="round"/>' +
+      '<rect width="512" height="512" fill="#282C38"/>' +
+      '<rect x="142" y="132" width="228" height="166" rx="14" fill="none" stroke="#f4f4f4" stroke-width="18"/>' +
+      '<path d="M224 370h64M256 298v72M204 370h104" fill="none" stroke="#f4f4f4" stroke-width="18" stroke-linecap="round"/>' +
+      '</svg>'
+    );
+    const retrobatLogo = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+      '<rect width="512" height="512" fill="#171923"/>' +
+      '<path d="M118 194c8-34 38-58 73-58h130c35 0 65 24 73 58l23 101c8 35-32 61-60 39l-49-39H204l-49 39c-28 22-68-4-60-39z" fill="#e34b62"/>' +
+      '<path d="M166 215h62m-31-31v62" stroke="#fff" stroke-width="17" stroke-linecap="round"/>' +
+      '<circle cx="336" cy="207" r="12" fill="#fff"/><circle cx="366" cy="237" r="12" fill="#fff"/>' +
+      '<text x="256" y="405" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="48" font-weight="700" letter-spacing="2">RETROBAT</text>' +
+      '</svg>'
+    );
+    const playniteLogo = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+      '<rect width="512" height="512" fill="#171923"/>' +
+      '<path d="M135 366V143h127c73 0 116 37 116 101s-43 102-116 102h-49v20z" fill="#7b68ee"/>' +
+      '<path d="M213 204v79h47c29 0 45-14 45-40s-16-39-45-39z" fill="#171923"/>' +
+      '<text x="256" y="430" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="48" font-weight="700">PLAYNITE</text>' +
       '</svg>'
     );
     const games = [
       { title: 'Desktop', image: desktopIcon },
+      { title: 'Retrobat', image: retrobatLogo },
+      { title: 'Playnite', image: playniteLogo },
       { title: 'Cyberpunk 2077', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1091500/library_600x900_2x.jpg' },
       { title: 'The Witcher 3: Wild Hunt', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/292030/library_600x900_2x.jpg' },
       { title: 'Forza Horizon 5', image: 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1551360/library_600x900_2x.jpg' },
