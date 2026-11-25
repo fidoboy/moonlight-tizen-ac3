@@ -8666,8 +8666,7 @@ function saveAmbilightWledIp() {
   storeData('ambilightWledIp', ip, null);
 }
 
-// The negotiated profile and connection event can arrive in either order.
-// Start once, and only when the saved preference is enabled.
+// Start only after both the connection and negotiated video profile are ready.
 window.startAmbilightForStreamIfEnabled = function() {
   var profile = window._ambilightColorProfile;
   if (window._ambilightStreamStartRequested === true ||
@@ -8678,26 +8677,29 @@ window.startAmbilightForStreamIfEnabled = function() {
   window._ambilightStreamStartRequested = true;
   if (!window.moonlightAmbilight) return;
 
-  window.moonlightAmbilight.checkPlatformCompatibility().then(function(supported) {
-    if (!supported || window._streamConnectionEstablished !== true) return false;
-    var ip = ambilightPreferences.ambilightWledIp;
-    if (!ip) {
-      console.warn('[ambilight] Enabled but no WLED IP address is configured.');
-      return false;
-    }
-    if (typeof profile.hdr !== 'boolean' ||
-        (profile.colorSpace !== 0 && profile.colorSpace !== 1 && profile.colorSpace !== 2) ||
-        typeof profile.fullRange !== 'boolean') {
-      console.warn('[ambilight] Negotiated video profile is incomplete; skipping startup.');
-      return false;
-    }
-    var captureBackend = ambilightPreferences.ambilightCaptureBackend === 'ppi' ? 'ppi' : 'video_plane';
-    return window.moonlightAmbilight.start(ip, 21324, 73, profile, captureBackend).then(function() {
-      if (window._streamConnectionEstablished !== true) return window.moonlightAmbilight.stop();
-      return true;
-    });
+  var ip = ambilightPreferences.ambilightWledIp;
+  if (!ip) {
+    console.warn('[ambilight] Enabled but no WLED IP address is configured.');
+    return;
+  }
+  if (typeof profile.hdr !== 'boolean' ||
+      (profile.colorSpace !== 0 && profile.colorSpace !== 1 && profile.colorSpace !== 2) ||
+      typeof profile.fullRange !== 'boolean') {
+    console.warn('[ambilight] Negotiated video profile is incomplete; skipping startup.');
+    return;
+  }
+
+  var captureBackend = ambilightPreferences.ambilightCaptureBackend === 'ppi' ? 'ppi' : 'video_plane';
+  var startupStatus = document.getElementById('loadingSpinnerMessage');
+  if (startupStatus) startupStatus.textContent = t('Starting Ambilight service...');
+  window._ambilightStartPromise = window.moonlightAmbilight.start(
+    ip, 21324, 73, profile, captureBackend
+  ).then(function() {
+    window._ambilightStartedForCurrentStream = true;
+    return true;
   }).catch(function(error) {
     console.warn('[ambilight] Could not start service for this stream:', error);
+    return false;
   });
 };
 
