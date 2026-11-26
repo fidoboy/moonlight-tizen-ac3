@@ -41,7 +41,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         new(0.69f, 0.88f, 0.90f)
     ];
 
-    private const string VertexShaderSource = """
+    private const string VertexShaderDesktopSource = """
         #version 120
         attribute vec3 a_position;
         attribute float a_size;
@@ -74,7 +74,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         }
         """;
 
-    private const string FragmentShaderSource = """
+    private const string FragmentShaderDesktopSource = """
         #version 120
         varying vec3 v_color;
         varying float v_alpha;
@@ -95,6 +95,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     private GlFunctions? _gl;
     private uint _program;
     private uint _vertexBuffer;
+    private uint _vertexArray;
     private int _widthUniform;
     private int _heightUniform;
     private int _timeUniform;
@@ -133,7 +134,15 @@ public sealed class StarFieldControl : OpenGlControlBase
     protected override void OnOpenGlInit(GlInterface gl)
     {
         _gl = new GlFunctions(gl);
-        _program = CreateProgram(_gl, VertexShaderSource, FragmentShaderSource);
+        var (vertexSource, fragmentSource) = GetShaderSources(GlVersion);
+        _program = CreateProgram(_gl, vertexSource, fragmentSource);
+
+        if ((GlVersion.Type == GlProfileType.OpenGL && GlVersion.Major >= 3 && !GlVersion.IsCompatibilityProfile) ||
+            (GlVersion.Type == GlProfileType.OpenGLES && GlVersion.Major >= 3))
+        {
+            _gl.GenVertexArrays(1, out _vertexArray);
+            _gl.BindVertexArray(_vertexArray);
+        }
         _widthUniform = _gl.GetUniformLocation(_program, "u_width");
         _heightUniform = _gl.GetUniformLocation(_program, "u_height");
         _timeUniform = _gl.GetUniformLocation(_program, "u_time");
@@ -179,6 +188,8 @@ public sealed class StarFieldControl : OpenGlControlBase
         _gl.Uniform1f(_timeUniform, (float)(elapsedSeconds * SpeedPixelsPerSecond));
 
         _gl.BindBuffer(ArrayBuffer, _vertexBuffer);
+        if (_vertexArray != 0)
+            _gl.BindVertexArray(_vertexArray);
 
         var stride = 7 * sizeof(float);
         var position = _gl.GetAttribLocation(_program, "a_position");
@@ -211,10 +222,13 @@ public sealed class StarFieldControl : OpenGlControlBase
 
         if (_vertexBuffer != 0)
             functions.DeleteBuffers(1, ref _vertexBuffer);
+        if (_vertexArray != 0)
+            functions.DeleteVertexArrays(1, ref _vertexArray);
         if (_program != 0)
             functions.DeleteProgram(_program);
 
         _vertexBuffer = 0;
+        _vertexArray = 0;
         _program = 0;
         _gl = null;
     }
@@ -224,6 +238,41 @@ public sealed class StarFieldControl : OpenGlControlBase
         _vertexBuffer = 0;
         _program = 0;
         _gl = null;
+    }
+
+    private static (string Vertex, string Fragment) GetShaderSources(GlVersion version)
+    {
+        if (version.Type == GlProfileType.OpenGLES && version.Major >= 3)
+        {
+            return (VertexShaderDesktopSource.Replace("#version 120", "#version 300 es")
+                        .Replace("attribute ", "in ").Replace("varying ", "out ")
+                        .Replace("        #version 300 es", "        #version 300 es\\n        precision highp float;"),
+                    FragmentShaderDesktopSource.Replace("#version 120", "#version 300 es")
+                        .Replace("varying ", "in ")
+                        .Replace("        #version 300 es", "        #version 300 es\\n        precision mediump float;")
+                        .Replace("void main()", "out vec4 fragmentColor;\\n        void main()")
+                        .Replace("gl_FragColor", "fragmentColor"));
+        }
+
+        if (version.Type == GlProfileType.OpenGLES)
+        {
+            return (VertexShaderDesktopSource.Replace("#version 120", "#version 100")
+                        .Replace("        #version 100", "        #version 100\\n        precision highp float;"),
+                    FragmentShaderDesktopSource.Replace("#version 120", "#version 100")
+                        .Replace("        #version 100", "        #version 100\\n        precision mediump float;"));
+        }
+
+        if (version.Major >= 3 && !version.IsCompatibilityProfile)
+        {
+            return (VertexShaderDesktopSource.Replace("#version 120", "#version 150")
+                        .Replace("attribute ", "in ").Replace("varying ", "out "),
+                    FragmentShaderDesktopSource.Replace("#version 120", "#version 150")
+                        .Replace("varying ", "in ")
+                        .Replace("void main()", "out vec4 fragmentColor;\\n        void main()")
+                        .Replace("gl_FragColor", "fragmentColor"));
+        }
+
+        return (VertexShaderDesktopSource, FragmentShaderDesktopSource);
     }
 
     private static uint CreateProgram(GlFunctions gl, string vertexSource, string fragmentSource)
@@ -292,7 +341,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GetProgramivDelegate(uint program, uint name, out int value);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GetProgramInfoLogDelegate(uint program, int capacity, out int length, StringBuilder log);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate int GetLocationDelegate(uint program, [MarshalAs(UnmanagedType.LPStr)] string name);
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GenBuffersDelegate(int count, out uint buffer);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GenBuffersDelegate(int count, out uint buffer);\n        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void BindVertexArrayDelegate(uint array);\n        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void DeleteVertexArraysDelegate(int count, ref uint array);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void DeleteBuffersDelegate(int count, ref uint buffer);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void BindBufferDelegate(uint target, uint buffer);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void BufferDataDelegate(uint target, IntPtr size, IntPtr data, uint usage);
@@ -321,7 +370,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         private readonly ProgramDelegate _useProgram;
         private readonly GetLocationDelegate _getUniformLocation;
         private readonly GetLocationDelegate _getAttribLocation;
-        private readonly GenBuffersDelegate _genBuffers;
+        private readonly GenBuffersDelegate _genBuffers;\n        private readonly BindVertexArrayDelegate? _bindVertexArray;\n        private readonly DeleteVertexArraysDelegate? _deleteVertexArrays;
         private readonly DeleteBuffersDelegate _deleteBuffers;
         private readonly BindBufferDelegate _bindBuffer;
         private readonly BufferDataDelegate _bufferData;
@@ -353,7 +402,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             _useProgram = Load<ProgramDelegate>(gl, "glUseProgram");
             _getUniformLocation = Load<GetLocationDelegate>(gl, "glGetUniformLocation");
             _getAttribLocation = Load<GetLocationDelegate>(gl, "glGetAttribLocation");
-            _genBuffers = Load<GenBuffersDelegate>(gl, "glGenBuffers");
+            _genBuffers = Load<GenBuffersDelegate>(gl, "glGenBuffers");\n            _bindVertexArray = TryLoad<BindVertexArrayDelegate>(gl, "glBindVertexArray");\n            _deleteVertexArrays = TryLoad<DeleteVertexArraysDelegate>(gl, "glDeleteVertexArrays");
             _deleteBuffers = Load<DeleteBuffersDelegate>(gl, "glDeleteBuffers");
             _bindBuffer = Load<BindBufferDelegate>(gl, "glBindBuffer");
             _bufferData = Load<BufferDataDelegate>(gl, "glBufferData");
@@ -369,7 +418,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             _drawArrays = Load<DrawArraysDelegate>(gl, "glDrawArrays");
         }
 
-        private static T Load<T>(GlInterface gl, string name) where T : Delegate
+        private static T? TryLoad<T>(GlInterface gl, string name) where T : Delegate\n        {\n            var address = gl.GetProcAddress(name);\n            return address == IntPtr.Zero ? null : Marshal.GetDelegateForFunctionPointer<T>(address);\n        }\n\n        private static T Load<T>(GlInterface gl, string name) where T : Delegate
         {
             var address = gl.GetProcAddress(name);
             if (address == IntPtr.Zero)
@@ -392,7 +441,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         public void UseProgram(uint program) => _useProgram(program);
         public int GetUniformLocation(uint program, string name) => _getUniformLocation(program, name);
         public int GetAttribLocation(uint program, string name) => _getAttribLocation(program, name);
-        public void GenBuffers(int count, out uint buffer) => _genBuffers(count, out buffer);
+        public void GenBuffers(int count, out uint buffer) => _genBuffers(count, out buffer);\n        public void BindVertexArray(uint array) => _bindVertexArray?.Invoke(array);\n        public void DeleteVertexArrays(int count, ref uint array) => _deleteVertexArrays?.Invoke(count, ref array);
         public void DeleteBuffers(int count, ref uint buffer) => _deleteBuffers(count, ref buffer);
         public void BindBuffer(uint target, uint buffer) => _bindBuffer(target, buffer);
         public void BufferData(uint target, IntPtr size, IntPtr data, uint usage) => _bufferData(target, size, data, usage);
