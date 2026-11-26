@@ -326,13 +326,16 @@ public sealed partial class MainWindow : Window
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
             hostIpDescription.Text = useRelay
-                ? "TV-Store ha anunciado un relay SDB activo. Introduce exactamente 127.0.0.1 en Host PC IP:"
-                : "Para la conexión SDB directa, introduce la dirección IPv4 de este ordenador en Host PC IP:";
+                ? "Introduce exactamente 127.0.0.1 en Host PC IP:"
+                : "Introduce la dirección IPv4 de este ordenador en Host PC IP:";
         SetWizardStep(2);
     }
 
     private async Task SelectTelevisionAsync(DiscoveredTelevision device)
     {
+        if (_tvStoreChosen)
+            return;
+
         _selectedTelevision = device;
         _selectedDuid = null;
         _tvStoreHandoff = false;
@@ -351,7 +354,7 @@ public sealed partial class MainWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
-                    status.Text = message;
+                    status.Text = HideInternalProtocolNames(message);
             }));
 
         try
@@ -381,10 +384,13 @@ public sealed partial class MainWindow : Window
                         searchingPanel.IsVisible = false;
                     if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel)
                         tvStorePanel.IsVisible = true;
-                    if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
-                        tvStoreStatus.Text = "Completa la instalación en el televisor pulsando «Aceptar» en el mensaje de confirmación.";
+                        if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                        tvStoreStatus.Text = "Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor.";
                     if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
-                        summary.Text = "Completa la instalación en TV-Store.";
+                    {
+                        summary.Text = string.Empty;
+                        summary.IsVisible = false;
+                    }
                     SetWizardStep(3);
                     return;
                 }
@@ -430,7 +436,7 @@ public sealed partial class MainWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
-                    status.Text = message;
+                    status.Text = HideInternalProtocolNames(message);
             }));
 
         try
@@ -468,12 +474,6 @@ public sealed partial class MainWindow : Window
         {
             if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
         }
-    }
-
-    private async void OnContinueWithSdbClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_selectedTelevision is { } television)
-            await ContinueWithSdbInstallationAsync(television);
     }
 
     private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -683,9 +683,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private static string HideInternalProtocolNames(string message) =>
+        message.Replace("SDB", "conexión", StringComparison.OrdinalIgnoreCase);
+
     private void SetOperationStatus(string message)
     {
         if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
-            status.Text = message;
+            status.Text = HideInternalProtocolNames(message);
     }
 }
