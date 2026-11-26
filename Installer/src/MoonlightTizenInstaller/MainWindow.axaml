@@ -5,6 +5,7 @@
         MinWidth="760" MinHeight="640"
         Background="Transparent"
         TransparencyLevelHint="Transparent"
+        WindowStartupLocation="CenterScreen"
         Foreground="#F5F8FF"
         Title="Moonlight for Tizen Installer"
         SystemDecorations="None"
@@ -255,19 +256,25 @@
                       Click="OnGenerateCertificateClick" Classes="primary" />
             </StackPanel>
           </Border>
-          <StackPanel Name="TvStoreResultPanel" Spacing="16" IsVisible="False">
+          <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
+                IsVisible="False" VerticalAlignment="Center">
             <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
-                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3" HorizontalAlignment="Left">
-              <Path Name="TvStoreResultIcon" Data="M 18,39 L 31,51 L 57,25"
-                    Width="38" Height="38" Stretch="Uniform" Stroke="#35C978"
-                    StrokeThickness="5" StrokeLineCap="Round"
-                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Grid>
+                <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
+                      Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
+                      StrokeThickness="2.8" StrokeLineCap="Round" StrokeLineJoin="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
             </Border>
-            <TextBlock Name="TvStoreResultTitle" Text="Paquete transferido correctamente"
-                       FontSize="22" FontWeight="Bold" />
-            <TextBlock Name="TvStoreResultMessage" TextWrapping="Wrap" Foreground="#D6E1F2"
-                       FontSize="15" />
-          </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Name="TvStoreResultTitle" Text="Transferencia completada"
+                         FontSize="22" FontWeight="Bold" />
+              <TextBlock Name="TvStoreResultMessage" TextWrapping="Wrap" Foreground="#D6E1F2"
+                         FontSize="15" />
+            </StackPanel>
+          </Grid>
         </StackPanel>
 
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
