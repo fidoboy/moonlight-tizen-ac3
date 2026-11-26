@@ -10,7 +10,7 @@ Self-contained desktop installer for Moonlight on Samsung Tizen TVs.
 - `assets/`: installer artwork and bundled Moonlight WGT inputs.
 - `build/`: per-platform self-contained publishing scripts.
 
-The installer embeds the release WGT at build time. It must not download the WGT at runtime.
+The final installer is intended to embed the release WGT at build time; the current build workflow only compiles the desktop application and does not yet assemble release artifacts or embed a WGT. Runtime WGT downloads are not part of the design.
 
 ## Certificate subsystem
 
@@ -39,7 +39,7 @@ If they are absent, existing profiles can still be recovered and reused, but new
 
 Samsung authentication is performed in the system browser through the upstream loopback callback. Certificate profile files retain the upstream Apps2Samsung layout, including its `password.txt` file; the installer currently protects them by storing the profile directory under the current user's local application data and must not sync it to cloud storage. A future platform-specific secret-store migration should replace plaintext password persistence without breaking archive compatibility.
 
-The certificate subsystem is integrated, but the end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the signed WGT still has to be handed to the separate TV installation stage. No SDB transport or TV installation functionality is included. WGT signing uses the local `TizenWgtSigner` implementation from `TizenSdb.Core` and does not require a TV connection or Tizen Studio.
+The certificate and local WGT-signing subsystem is integrated and covered by the four-platform compile workflow. The end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the signed WGT still has to be handed to the separate TV installation stage. No SDB transport or TV installation functionality is included. WGT signing uses the local `TizenWgtSigner` implementation from `TizenSdb.Core` and does not require a TV connection or Tizen Studio.
 
 ## Upstream source and licensing
 
