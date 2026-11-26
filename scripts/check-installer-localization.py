@@ -22,6 +22,15 @@ PLACEHOLDER_RE = re.compile(r"\{\d+\}")
 def unescape_csharp(value: str) -> str:
     return bytes(value, "utf-8").decode("unicode_escape") if "\\" in value else value
 
+def normalize_interpolated(message: str) -> str:
+    index = 0
+    def replace_expression(match: re.Match[str]) -> str:
+        nonlocal index
+        placeholder = "{" + str(index) + "}"
+        index += 1
+        return placeholder
+    return re.sub(r"\\{(?!\\d+\\})[^{}]+\\}", replace_expression, message)
+
 def fail(errors: list[str]) -> None:
     if errors:
         print("Installer localization validation failed:")
@@ -78,20 +87,13 @@ expected: set[str] = set()
 # Every literal passed to the runtime translator must exist in the table.
 for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', all_source, re.S):
     for literal in re.findall(r'"((?:\\.|[^"\\])*)"', call.group(1)):
-        expected.add(unescape_csharp(literal).replace("{{", "{").replace("}}", "}"))
+        expected.add(normalize_interpolated(unescape_csharp(literal).replace("{{", "{").replace("}}", "}")))
 
 # Progress strings emitted by the Core services are also displayed to users.
 # Normalize interpolated expressions to numbered placeholders and mirror the
 # UI's removal of percentage values and internal SDB terminology.
 for report in re.finditer(r'progress\?\.Report\(\s*\$?"((?:\\.|[^"\\])*)"\s*\)', all_source):
-    message = unescape_csharp(report.group(1)).replace("SDB", "conexión")
-    placeholder_index = 0
-    def replace_expression(_match: re.Match[str]) -> str:
-        nonlocal_placeholder = replace_expression.counter
-        replace_expression.counter += 1
-        return "{" + str(nonlocal_placeholder) + "}"
-    replace_expression.counter = 0
-    message = re.sub(r"\{[^{}]+\}", replace_expression, message)
+    message = normalize_interpolated(unescape_csharp(report.group(1)).replace("SDB", "conexión"))
     message = re.sub(r"\s*\{\d+\}\s*%", "", message).strip()
     expected.add(message)
 
@@ -113,6 +115,11 @@ for key in missing:
 # A dictionary entry must still be referenced by the installer source/markup;
 # this catches stale keys left behind after UI copy is removed or renamed.
 normalized_source = all_source.replace("{{", "{").replace("}}", "}")
+normalized_interpolated_sources = [
+    normalize_interpolated(unescape_csharp(match.group(1)).replace("SDB", "conexión"))
+    for match in re.finditer(r'\$"((?:\\.|[^"\\])*)"', all_source)
+]
+normalized_source += "\\n" + "\\n".join(normalized_interpolated_sources)
 unused = sorted(key for key in keys if key not in normalized_source)
 for key in unused:
     errors.append(f"Unused translation key: {key!r}")
