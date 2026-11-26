@@ -9,7 +9,5 @@ public static class PlatformService
     public static bool IsLinux => OperatingSystem.IsLinux();
     public static bool IsMacOS => OperatingSystem.IsMacOS();
 
-    public static X509KeyStorageFlags SigningCertificateFlags =>
-        X509KeyStorageFlags.Exportable |
-        (IsWindows ? X509KeyStorageFlags.EphemeralKeySet : X509KeyStorageFlags.PersistKeySet);
+    public static X509KeyStorageFlags SigningCertificateFlags => X509KeyStorageFlags.Exportable;
 }

@@ -1,26 +1,44 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MoonlightTizenInstaller.MainWindow"
-        Width="760" Height="520"
-        MinWidth="640" MinHeight="440"
+        Width="760" Height="600"
+        MinWidth="640" MinHeight="520"
         Title="Moonlight Tizen Installer">
   <Grid RowDefinitions="Auto,*,Auto" Margin="28">
     <StackPanel Spacing="6">
       <TextBlock Text="Moonlight para Samsung TV" FontSize="25" FontWeight="SemiBold" />
       <TextBlock Text="Instalador guiado" Opacity="0.7" />
     </StackPanel>
-    <Border Grid.Row="1" Margin="0,24" Padding="24" CornerRadius="8"
-            BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+    <ScrollViewer Grid.Row="1" Margin="0,24">
       <StackPanel Spacing="14">
-        <TextBlock Text="Certificados de firma" FontSize="19" />
-        <TextBlock Name="CertificateStatus" Text="Consultando perfiles…" TextWrapping="Wrap" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="Recuperar certificados…" Click="OnImportCertificatesClick" />
-          <Button Content="Exportar certificados…" Click="OnExportCertificatesClick" />
-        </StackPanel>
-        <TextBlock Text="La emisión de un certificado nuevo se activará cuando el asistente haya identificado el DUID del televisor y estén disponibles los materiales CA autorizados." TextWrapping="Wrap" Opacity="0.75" />
+        <Border Padding="20" CornerRadius="8" BorderThickness="1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Certificados de firma" FontSize="19" />
+            <TextBlock Name="CertificateStatus" Text="Consultando perfiles…" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Recuperar certificados…" Click="OnImportCertificatesClick" />
+              <Button Content="Exportar certificados…" Click="OnExportCertificatesClick" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border Padding="20" CornerRadius="8" BorderThickness="1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Emitir o renovar un perfil" FontSize="19" />
+            <TextBlock Text="Introduce el DUID del televisor. El descubrimiento automático lo rellenará cuando esté integrado." TextWrapping="Wrap" />
+            <TextBox Name="TelevisionDuid" Watermark="DUID del televisor" />
+            <ComboBox Name="CertificateLevel" SelectedIndex="0">
+              <ComboBoxItem Content="Public" />
+              <ComboBoxItem Content="Partner" />
+            </ComboBox>
+            <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" Click="OnEnsureCertificateClick" />
+            <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
+          </StackPanel>
+        </Border>
+        <TextBlock Text="Los materiales CA de Samsung/Tizen no se distribuyen con el instalador. La emisión requiere que estén instalados desde una fuente autorizada." TextWrapping="Wrap" Opacity="0.7" />
       </StackPanel>
-    </Border>
+    </ScrollViewer>
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
       <Button Content="Salir" IsCancel="True" />
       <Button Content="Siguiente" IsDefault="True" IsEnabled="False" />
