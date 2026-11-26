@@ -1,6 +1,8 @@
 ## Highlights
 
-- **Live stream indicators:** Added real-time indicators for the streaming engine, video and audio codecs, HDR, decoding mode, network type, and Game Mode.
-- **Standard and ForceGM packages:** Restored separate packages so each TV model can use the appropriate Game Mode behaviour.
-- **More reliable streaming and shutdown:** Improved native WMP lifecycle handling, stream-closing sequence, video depacketization, and network-statistics synchronization.
-- **Targeted fixes:** Fixed remote app shutdown for Smart Hub shortcut streams and automatic bitrate changes persisting after disabling the feature.
+- **New standalone desktop installer:** Install Moonlight on your Samsung TV using a self-contained application available for Windows (x64), Linux (x64), macOS (Intel), and macOS (Apple Silicon). The installer includes everything required, including the Moonlight Tizen app itself, which is automatically transferred to your TV. No need to install .NET, Python, Tizen Studio, or Apps2Samsung. You can also choose between the **Normal package** and the **Forced game mode package** during installation.
+
+## Other changes
+
+- Minor cosmetic improvements to the user interface.
+- Updated translations and improved the pairing dialog, including clearer PIN instructions.
