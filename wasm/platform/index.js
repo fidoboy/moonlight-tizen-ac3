@@ -2949,9 +2949,10 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     // Rollback to 'Cancel' button text when opening
     $('#cancelPairing').text('Cancel');
 
-    // Change the dialog text element to include the random PIN number
+    // Keep the PIN on its own line and visually separate it from the instructions.
+    var formattedPin = '<br><span class="pairing-pin">' + randomNumber + '</span>';
     $('#pairingDialogText').html(
-      t('Please enter the following PIN on the target PC: %1$s<br><br>', randomNumber) + 
+      t('Please enter the following PIN on the target PC: %1$s<br><br>', formattedPin) + 
       t('If your host PC is running Sunshine (all GPUs), navigate to the Sunshine Web UI to enter the PIN.<br><br>') + 
       t('Alternatively, if your host PC has NVIDIA GameStream (NVIDIA-only), navigate to the GeForce Experience to enter the PIN.<br><br>') + 
       t('This dialog will close once the pairing is complete.')
