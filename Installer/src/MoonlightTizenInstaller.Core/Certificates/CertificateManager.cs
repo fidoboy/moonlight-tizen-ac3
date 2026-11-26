@@ -67,6 +67,27 @@ public sealed class CertificateManager
         catch { return false; }
     }
 
+    public (string Subject, DateTime IssuedOn, DateTime ExpiresOn)? GetCertificateDetailsForTelevision(string televisionDuid)
+    {
+        var profile = GetUsableForTelevision(televisionDuid);
+        if (profile is null)
+            return null;
+
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(
+                profile.AuthorCertificatePath, profile.Password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            return (certificate.GetNameInfo(X509NameType.SimpleName, false),
+                certificate.NotBefore, certificate.NotAfter);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public Task<CertificateProfile> EnsureForTelevisionAsync(
         string televisionDuid,
         CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner,
