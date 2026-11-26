@@ -20,10 +20,9 @@ public sealed class App : Application
         {
             // Only certificate profiles/backups are persistent. SDB keys and all other
             // operational state live in a unique temporary directory for this process.
-            var certificateDirectory = Path.Combine(
+            var dataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "MoonlightTizenInstaller",
-                "certificates");
+                "MoonlightTizenInstaller");
 
             _sessionDirectory = Path.Combine(
                 Path.GetTempPath(),
@@ -34,7 +33,7 @@ public sealed class App : Application
 
             var caDirectory = Path.Combine(AppContext.BaseDirectory, "certificate-authorities");
             Certificates = new CertificateManager(
-                new CertificateInstallerOptions(certificateDirectory, caDirectory));
+                new CertificateInstallerOptions(dataDirectory, caDirectory));
 
             var discovery = new TelevisionDiscoveryService(Path.Combine(_sessionDirectory, "sdb"));
             desktop.MainWindow = new MainWindow(Certificates, discovery);
