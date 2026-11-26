@@ -555,7 +555,7 @@ public sealed partial class MainWindow : Window
         };
         var storeIcon = new Avalonia.Controls.Shapes.Path
         {
-            Data = Avalonia.Media.Geometry.Parse("M 10,16 L 38,16 L 35,44 L 13,44 Z M 17,16 C 17,5 31,5 31,16"),
+            Data = Avalonia.Media.Geometry.Parse("M 4,16 L 44,16 L 40,44 L 8,44 Z M 14,16 C 14,4 34,4 34,16"),
             Stroke = Avalonia.Media.Brushes.White,
             StrokeThickness = 3,
             StrokeLineCap = Avalonia.Media.PenLineCap.Round,
@@ -572,11 +572,14 @@ public sealed partial class MainWindow : Window
             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Child = new Grid
+            Child = new Viewbox
             {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
-                Children = { storeIcon }
+                Width = 44,
+                Height = 44,
+                Stretch = Avalonia.Media.Stretch.Uniform,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Child = storeIcon
             }
         };
         storeIcon.Width = 48;
@@ -712,11 +715,20 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
             install.IsEnabled = certificateReady && !_discoveryInProgress;
 
-        var certificateStatus = this.FindControl<TextBlock>("CertificateOperationStatus");
-        if (hasDuid && certificateStatus is not null)
-            certificateStatus.Text = certificateReady
-                ? "El certificado Partner guardado en este equipo es válido y cubre este televisor."
-                : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado Partner» para obtenerlo.";
+        if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
+            normalPanel.IsVisible = hasDuid && !certificateReady;
+        if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
+            readyPanel.IsVisible = hasDuid && certificateReady;
+        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
+            certificateStatus.IsVisible = false;
+        if (hasDuid && certificateReady)
+        {
+            var details = _certificates.GetCertificateDetailsForTelevision(_selectedDuid!);
+            if (this.FindControl<TextBlock>("CertificateIssuerDetails") is { } issuer)
+                issuer.Text = details?.Subject ?? "Certificado de firma instalado";
+            if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity && details is not null)
+                validity.Text = $"Emitido: {details.IssuedOn.ToLocalTime():d} · Caduca: {details.ExpiresOn.ToLocalTime():d}";
+        }
 
         if (_wizardStep == 4)
             SetWizardStep(4);
@@ -740,7 +752,10 @@ public sealed partial class MainWindow : Window
 
         if (button is not null) button.IsEnabled = false;
         if (status is not null)
-            status.Text = "Se abrirá el portal de certificados. Inicia sesión y autoriza la generación del certificado.";
+        {
+            status.IsVisible = true;
+            status.Text = "Abriendo el sitio web para iniciar sesión…";
+        }
 
         try
         {
@@ -753,7 +768,7 @@ public sealed partial class MainWindow : Window
                 }));
 
             if (status is not null)
-                status.Text = "El perfil Partner se ha generado y guardado.";
+                status.Text = "El certificado se ha generado y guardado.";
         }
         catch (OperationCanceledException)
         {
