@@ -372,7 +372,7 @@ public sealed partial class MainWindow : Window
                 }));
 
             if (status is not null)
-                status.Text = $"Certificado Partner generado y guardado para este equipo. Válido hasta {File.GetLastWriteTime(profile.AuthorP12):yyyy-MM-dd} (fecha del archivo).";
+                status.Text = "El perfil Partner se ha generado y guardado. Comprobando su validez…";
         }
         catch (OperationCanceledException)
         {
@@ -407,7 +407,7 @@ public sealed partial class MainWindow : Window
         {
             Directory.CreateDirectory(temporaryDirectory);
             const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
-            SetOperationStatus("Comprobando o preparando el perfil de firma Partner…");
+            SetOperationStatus("Comprobando el perfil de firma Partner…");
             var profile = _certificates.GetUsableForTelevision(duid, level)
                 ?? throw new InvalidOperationException("El certificado Partner no está disponible o ha caducado. Genera o renueva el certificado antes de instalar.");
 
@@ -453,8 +453,7 @@ public sealed partial class MainWindow : Window
         {
             try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
             catch { /* Best-effort cleanup of the temporary signed WGT. */ }
-            if (button is not null)
-                button.IsEnabled = TizenDuid.IsValid(_selectedDuid) && !_discoveryInProgress;
+            SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
     }
 
