@@ -164,7 +164,9 @@ public sealed class TvStoreHandoffService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        var fileName = Path.GetFileName(packagePath);
+        // TV-Store identifies the catalog application by its canonical release filename.
+        // Never expose the installer temporary/random filename to its upload endpoint.
+        const string fileName = "Moonlight.wgt";
         string localSha256;
         long localSize;
         await using (var source = File.OpenRead(packagePath))
