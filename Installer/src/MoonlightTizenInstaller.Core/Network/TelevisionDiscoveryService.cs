@@ -7,34 +7,50 @@ using TizenSdb.SdbClient;
 
 namespace MoonlightTizenInstaller.Core.Network;
 
-public sealed record DiscoveredTelevision(string IpAddress, string? Duid, string? Name)
+public sealed record DiscoveredTelevision(
+    string IpAddress,
+    string? Duid,
+    string? Name,
+    int SdbPort,
+    bool TvStoreRelayAvailable)
 {
-    public string DisplayName => string.IsNullOrWhiteSpace(Duid)
-        ? $"{(string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name)} ({IpAddress}) — Developer Mode no disponible"
-        : string.IsNullOrWhiteSpace(Name)
-            ? $"{IpAddress} — {Duid}"
-            : $"{Name} ({IpAddress}) — {Duid}";
+    public const int DirectSdbPort = 26101;
+    public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
+
+    public string DisplayName
+    {
+        get
+        {
+            var name = string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name;
+            var endpoint = UsesTvStoreRelay ? $"SDB relay :{SdbPort}" : $"SDB :{SdbPort}";
+            return string.IsNullOrWhiteSpace(Duid)
+                ? $"{name} ({IpAddress}) — DUID no disponible"
+                : $"{name} ({IpAddress}) — {endpoint} — {Duid}";
+        }
+    }
 }
 
 /// <summary>
-/// Discovers Samsung TVs on the directly connected IPv4 LANs through the Samsung TV REST API.
-/// DUID retrieval is optional and is attempted only when the SDB developer port is available.
-/// This allows the TV-Store installation hand-off to work without Developer Mode.
+/// Finds Samsung TVs through the Samsung REST API, then obtains their DUID over SDB.
+/// When Apps2Samsung TV-Store exposes an enabled and listening relay, the installer verifies
+/// that route and prefers it; otherwise it falls back to the TV's conventional SDB port.
+/// A TV without an automatically retrieved DUID is never considered ready for installation.
 /// </summary>
 public sealed class TelevisionDiscoveryService
 {
-    private const int SdbPort = 26101;
+    private const int SdbPort = DiscoveredTelevision.DirectSdbPort;
+    private const int TvStoreServicePort = 8077;
     private const int ProbeTimeoutMilliseconds = 650;
     private const int MaxHostsPerInterface = 4096;
     private const int MaxConcurrentProbes = 96;
     private static readonly Regex ValidDuid = new("^[A-Za-z0-9]{10,64}$", RegexOptions.Compiled);
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
     private readonly string _sdbKeyDirectory;
 
     public TelevisionDiscoveryService(string sdbKeyDirectory)
     {
         _sdbKeyDirectory = sdbKeyDirectory;
         Directory.CreateDirectory(_sdbKeyDirectory);
-        // Persist the SDB host key in the installer's per-user data directory, not ~/.sdb.
         SdbTcpDevice.KeyDirectory = _sdbKeyDirectory;
     }
 
@@ -70,11 +86,13 @@ public sealed class TelevisionDiscoveryService
             .ToArray();
     }
 
-
     /// <summary>
-    /// Returns the private IPv4 address of the active LAN interface to enter in the TV's
-    /// Developer Mode "Host PC IP" field. Prefer an interface with a default gateway.
+    /// Returns the IPv4 address to enter in Developer Mode. TV-Store's relay requires
+    /// Host PC IP 127.0.0.1; direct SDB requires this computer's LAN address.
     /// </summary>
+    public string? GetDeveloperModeHostIp(bool useTvStoreRelay) =>
+        useTvStoreRelay ? IPAddress.Loopback.ToString() : GetHostIpv4Address();
+
     public string? GetHostIpv4Address()
     {
         var candidates = new List<(IPAddress Address, bool HasGateway, int Metric)>();
@@ -148,85 +166,124 @@ public sealed class TelevisionDiscoveryService
         return candidates.ToList();
     }
 
-    private static async Task<bool> IsSdbPortOpenAsync(IPAddress address, CancellationToken cancellationToken)
+    private static async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(
+        IPAddress address,
+        CancellationToken cancellationToken)
+    {
+        var apiInfo = await TryGetTelevisionApiInfoAsync(address, cancellationToken).ConfigureAwait(false);
+        if (apiInfo is null)
+            return null;
+
+        // TV-Store 0.3.15+ exposes GET /relay on its service port. Require its JSON status
+        // to say enabled and listening; an open HTTP port alone does not prove a usable relay.
+        var relayPort = await TryGetActiveTvStoreRelayPortAsync(address, cancellationToken).ConfigureAwait(false);
+        string? duid = null;
+        var selectedPort = SdbPort;
+
+        if (relayPort is { } availableRelayPort &&
+            await IsTcpPortOpenAsync(address, availableRelayPort, cancellationToken).ConfigureAwait(false))
+        {
+            duid = await TryReadDuidAsync(address, availableRelayPort, cancellationToken).ConfigureAwait(false);
+            if (duid is not null)
+                selectedPort = availableRelayPort;
+        }
+
+        // TV-Store is optional. If its relay is absent, disabled, inaccessible, or cannot
+        // complete an SDB handshake, fall back to the conventional Developer Mode endpoint.
+        if (duid is null && await IsTcpPortOpenAsync(address, SdbPort, cancellationToken).ConfigureAwait(false))
+        {
+            duid = await TryReadDuidAsync(address, SdbPort, cancellationToken).ConfigureAwait(false);
+            selectedPort = SdbPort;
+        }
+
+        return new DiscoveredTelevision(address.ToString(), duid, apiInfo.Name, selectedPort, relayPort is not null);
+    }
+
+    private static async Task<int?> TryGetActiveTvStoreRelayPortAsync(
+        IPAddress address,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await Http.GetAsync($"http://{address}:{TvStoreServicePort}/relay", cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var json = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+            if (json?["ok"]?.GetValue<bool>() != true)
+                return null;
+
+            var relay = json["relay"];
+            if (relay?["enabled"]?.GetValue<bool>() != true || relay["listening"]?.GetValue<bool>() != true)
+                return null;
+
+            var port = relay["port"]?.GetValue<int>();
+            if (port is null or < 1024 or > 65535 || port == SdbPort || port == TvStoreServicePort)
+                return null;
+
+            return port;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { return null; }
+    }
+
+    private static async Task<bool> IsTcpPortOpenAsync(IPAddress address, int port, CancellationToken cancellationToken)
     {
         try
         {
             using var client = new TcpClient();
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(ProbeTimeoutMilliseconds);
-            await client.ConnectAsync(address, SdbPort, timeout.Token).ConfigureAwait(false);
+            await client.ConnectAsync(address, port, timeout.Token).ConfigureAwait(false);
             return true;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
         catch (SocketException) { return false; }
     }
 
-    private static async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(IPAddress address, CancellationToken cancellationToken)
+    private async Task<string?> TryReadDuidAsync(IPAddress address, int port, CancellationToken cancellationToken)
     {
-        // The Samsung TV REST API is independent of Developer Mode/SDB. It is enough to identify
-        // the TV for the TV-Store hand-off installation route.
-        var name = await TryGetTvNameAsync(address, cancellationToken).ConfigureAwait(false);
-        if (name is null)
-            return null;
+        SdbTcpDevice.KeyDirectory = _sdbKeyDirectory;
+        await using var device = new SdbTcpDevice(address, port);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
 
-        // DUID is optional: only certificate issuance and local signing need the developer channel.
-        string? duid = null;
-        if (await IsSdbPortOpenAsync(address, cancellationToken).ConfigureAwait(false))
-            duid = await TryReadDuidAsync(address, cancellationToken).ConfigureAwait(false);
-
-        return new DiscoveredTelevision(address.ToString(), duid, name);
-    }
-
-    private static async Task<string?> TryReadDuidAsync(IPAddress address, CancellationToken cancellationToken)
-    {
-        await using var device = new SdbTcpDevice(address, SdbPort);
-        for (var attempt = 1; attempt <= 3; attempt++)
+        try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(10));
-            try
-            {
-                await device.ConnectAsync(timeout.Token).ConfigureAwait(false);
-                var response = await device.ShellCommandAsync("0 getduid", timeout.Token).ConfigureAwait(false);
-                var duid = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .FirstOrDefault(line => ValidDuid.IsMatch(line));
-                if (duid is not null)
-                    return duid;
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch { /* Samsung TVs can close a fresh SDB session mid-handshake; retry on a fresh socket. */ }
-
-            try { await device.DisconnectAsync().ConfigureAwait(false); } catch { }
-            if (attempt < 3)
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+            await device.ConnectAsync(timeout.Token).ConfigureAwait(false);
+            var response = await device.ShellCommandAsync("0 getduid", timeout.Token).ConfigureAwait(false);
+            return response.Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault(line => ValidDuid.IsMatch(line));
         }
-        return null;
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { return null; }
     }
 
     private static bool IsPrivateIpv4(IPAddress address)
     {
         var bytes = address.GetAddressBytes();
-        return bytes[0] == 10 ||
-               (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
-               (bytes[0] == 192 && bytes[1] == 168);
+        return bytes[0] == 10 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) || (bytes[0] == 192 && bytes[1] == 168);
     }
 
-    private static async Task<string?> TryGetTvNameAsync(IPAddress address, CancellationToken cancellationToken)
+    private static async Task<TelevisionApiInfo?> TryGetTelevisionApiInfoAsync(IPAddress address, CancellationToken cancellationToken)
     {
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-            using var response = await http.GetAsync($"http://{address}:8001/api/v2/", cancellationToken).ConfigureAwait(false);
+            using var response = await Http.GetAsync($"http://{address}:8001/api/v2/", cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 return null;
+
             var json = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
             var device = json?["device"];
             if (device is null)
                 return null;
+
             var name = device["name"]?.GetValue<string>();
-            return string.IsNullOrWhiteSpace(name) ? "Samsung TV" : WebUtility.HtmlDecode(name);
+            return new TelevisionApiInfo(
+                string.IsNullOrWhiteSpace(name) ? "Samsung TV" : WebUtility.HtmlDecode(name),
+                device["developerIP"]?.GetValue<string>());
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { return null; }
     }
 
@@ -236,8 +293,7 @@ public sealed class TelevisionDiscoveryService
         return ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
     }
 
-    private static IPAddress FromUInt32(uint value) =>
-        new(new[] { (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value });
+    private static IPAddress FromUInt32(uint value) => new(new[] { (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value });
 
     private sealed class ByteArrayComparer : IComparer<byte[]>
     {
