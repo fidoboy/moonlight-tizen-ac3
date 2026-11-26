@@ -168,6 +168,30 @@ internal static class InstallerLocalization
 
         // Apply can run again after a manual choice. Resolve text already translated
         // during the initial English fallback back to its source entry first.
+        // Match parameterized messages emitted by discovery, signing and installation
+        // services, preserving their runtime values while translating the surrounding copy.
+        foreach (var pair in Translations)
+        {
+            if (!pair.Key.Contains('{'))
+                continue;
+
+            var pattern = System.Text.RegularExpressions.Regex.Escape(pair.Key);
+            pattern = System.Text.RegularExpressions.Regex.Replace(
+                pattern, @"\\\\\{(\\d+)\\\\\}", match => $@"(?<p{match.Groups[1].Value}>.*?)");
+            var match = System.Text.RegularExpressions.Regex.Match(
+                value, $@"^{pattern}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            if (!match.Success)
+                continue;
+
+            var translated = pair.Value[Math.Max(_localeIndex, 0)];
+            foreach (System.Text.RegularExpressions.Match placeholder in
+                     System.Text.RegularExpressions.Regex.Matches(pair.Key, @"\\{(\\d+)\\}"))
+                translated = translated.Replace(
+                    placeholder.Value, match.Groups[$"p{placeholder.Groups[1].Value}"].Value,
+                    StringComparison.Ordinal);
+            return translated;
+        }
+
         foreach (var pair in Translations)
             if (Array.IndexOf(pair.Value, value) >= 0)
                 return pair.Value[Math.Max(_localeIndex, 0)];
