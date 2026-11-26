@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../MoonlightTizenInstaller.Core/MoonlightTizenInstaller.Core.csproj" />
@@ -13,5 +17,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
+    <EmbeddedResource Include="Moonlight.wgt" Condition="Exists('Moonlight.wgt')">
+      <LogicalName>Moonlight.wgt</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>
