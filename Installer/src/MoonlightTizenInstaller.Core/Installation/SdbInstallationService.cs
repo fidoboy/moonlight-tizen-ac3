@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MoonlightTizenInstaller.Core.Network;
 using TizenSdb.SdbClient;
 
 namespace MoonlightTizenInstaller.Core.Installation;
