@@ -58,7 +58,9 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" IsEnabled="False" Click="OnEnsureCertificateClick" />
               <Button Name="SignWgtButton" Content="Firmar paquete incluido…" HorizontalAlignment="Left" IsEnabled="False" Click="OnSignWgtClick" />
+              <Button Name="InstallWgtButton" Content="Enviar a TV-Store para instalar" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
             </StackPanel>
+            <TextBlock Text="La instalación sin SDB utiliza Apps2Samsung TV-Store: el paquete se transfiere por red y debes confirmar «Instalar» en la pantalla del televisor. TV-Store debe estar instalado y tener un certificado de firma configurado." TextWrapping="Wrap" Opacity="0.7" />
             <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
           </StackPanel>
         </Border>
