@@ -184,18 +184,16 @@
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="Padding" Value="0" />
                 <Setter Property="Margin" Value="0" />
-              </Style>
-              <Style Selector="ListBoxItem:pointerover">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="Transparent" />
-              </Style>
-              <Style Selector="ListBoxItem:selected">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="Transparent" />
-              </Style>
-              <Style Selector="ListBoxItem:selected:pointerover">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="Transparent" />
+                <!-- Replace the platform item template: its default container paints a
+                     rectangular hover/selection surface behind the rounded device card. -->
+                <Setter Property="Template">
+                  <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                  </ControlTemplate>
+                </Setter>
               </Style>
             </ListBox.Styles>
             <ListBox.ItemTemplate>
@@ -310,10 +308,10 @@
             </StackPanel>
           </Button>
         </StackPanel>
-        <Button Name="WizardBackButton" Grid.Column="1" Content="Atrás"
-                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
-        <Button Name="WizardExitButton" Grid.Column="2" Content="Salir"
+        <Button Name="WizardExitButton" Grid.Column="1" Content="Salir"
                 Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardExitClick" />
+        <Button Name="WizardBackButton" Grid.Column="2" Content="Atrás"
+                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
         <Button Name="WizardNextButton" Grid.Column="3" Content="Comenzar"
                 Width="110" MinWidth="110" Click="OnWizardNextClick" Classes="primary" />
       </Grid>
