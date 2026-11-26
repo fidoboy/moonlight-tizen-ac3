@@ -62,9 +62,11 @@ public sealed class StarFieldControl : OpenGlControlBase
 
             // Match the website canvas projection: X and Y use the same
             // world-space depth, while the viewport applies its own aspect ratio.
-            // Stretch the field vertically so its elliptical footprint fills
-            // more of the shallow installer header instead of appearing flattened.
-            const float verticalSpread = 1.65;
+            // Compensate for the header's wide, shallow viewport and then
+            // deliberately expand the vertical field to 1.8x its horizontal
+            // screen-space scale. The previous fixed multiplier was mostly
+            // cancelled by the viewport aspect ratio.
+            float verticalSpread = 1.8 * u_width / u_height;
             gl_Position = vec4(a_position.x * u_width / (2.0 * z),
                                -a_position.y * u_width * verticalSpread / (2.0 * z), 0.0, 1.0);
 
