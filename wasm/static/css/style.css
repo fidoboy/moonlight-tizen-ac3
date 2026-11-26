@@ -1384,6 +1384,25 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: normal;
     letter-spacing: 0.5px;
 }
+
+/* Emphasize the pairing PIN as a distinct, easy-to-read element. */
+#pairingDialogText .pairing-pin {
+    display: block;
+    width: fit-content;
+    min-width: 190px;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 14px auto 18px;
+    padding: 12px 26px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-align: center;
+}
 #updateAppDialogText .update-release-notes-intro {
     margin: 0 0 1.1rem;
 }
