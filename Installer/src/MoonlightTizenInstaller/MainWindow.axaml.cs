@@ -939,7 +939,7 @@ public sealed partial class MainWindow : Window
     {
         var displayMessage = message;
         var match = System.Text.RegularExpressions.Regex.Match(
-            message, @"(?<phase>Transfiriendo|Instalando).*?(?<percent>\\d{1,3})\\s*%",
+            message, @"(?<phase>Transfiriendo|Instalando).*?(?<percent>\d{1,3})\s*%",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (match.Success && int.TryParse(match.Groups["percent"].Value, out var percent))
         {
@@ -953,7 +953,7 @@ public sealed partial class MainWindow : Window
                 progressBar.Value = overallProgress;
             }
             displayMessage = message[..match.Index] + message[(match.Index + match.Length)..];
-            displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\\s{2,}", " ").Trim();
+            displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s{2,}", " ").Trim();
         }
 
         if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
