@@ -1,0 +1,42 @@
+name: Build Moonlight Tizen Installer
+
+on:
+  push:
+    paths:
+      - "Installer/**"
+      - ".github/workflows/build-installer.yml"
+  pull_request:
+    paths:
+      - "Installer/**"
+      - ".github/workflows/build-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build installer (${{ matrix.rid }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - win-x64
+          - linux-x64
+          - osx-x64
+          - osx-arm64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj
+
+      - name: Build
+        run: dotnet build Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --no-restore
