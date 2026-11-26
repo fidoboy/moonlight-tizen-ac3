@@ -830,7 +830,10 @@ public sealed partial class MainWindow : Window
             previousResult.IsVisible = false;
         if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
         {
-            progressBar.IsIndeterminate = true;
+            progressBar.IsIndeterminate = false;
+            progressBar.Minimum = 0;
+            progressBar.Maximum = 100;
+            progressBar.Value = 0;
             progressBar.IsVisible = true;
         }
         SetOperationStatus("Preparando la instalación…");
@@ -881,7 +884,18 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowInstallationResult(false, $"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(ex.Message)}");
+            var errorMessage = ex.Message;
+            if (errorMessage.Contains("author certificate", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("author cert", StringComparison.OrdinalIgnoreCase) ||
+                errorMessage.Contains("author-certificate", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowInstallationResult(false,
+                    "Tizen ha rechazado la instalación porque el certificado de autor no coincide con el de la versión de Moonlight que ya está instalada. Desinstala primero Moonlight desde el televisor y vuelve a ejecutar este instalador. No generes otro certificado: eso no resolverá esta incompatibilidad.");
+            }
+            else
+            {
+                ShowInstallationResult(false, $"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(errorMessage)}");
+            }
         }
         finally
         {
@@ -923,7 +937,26 @@ public sealed partial class MainWindow : Window
 
     private void SetOperationStatus(string message)
     {
+        var displayMessage = message;
+        var match = System.Text.RegularExpressions.Regex.Match(
+            message, @"(?<phase>Transfiriendo|Instalando).*?(?<percent>\\d{1,3})\\s*%",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (match.Success && int.TryParse(match.Groups["percent"].Value, out var percent))
+        {
+            percent = Math.Clamp(percent, 0, 100);
+            var overallProgress = match.Groups["phase"].Value.Equals("Instalando", StringComparison.OrdinalIgnoreCase)
+                ? 50 + percent / 2.0
+                : percent / 2.0;
+            if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
+            {
+                progressBar.IsIndeterminate = false;
+                progressBar.Value = overallProgress;
+            }
+            displayMessage = message[..match.Index] + message[(match.Index + match.Length)..];
+            displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\\s{2,}", " ").Trim();
+        }
+
         if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
-            status.Text = HideInternalProtocolNames(message);
+            status.Text = HideInternalProtocolNames(displayMessage);
     }
 }
