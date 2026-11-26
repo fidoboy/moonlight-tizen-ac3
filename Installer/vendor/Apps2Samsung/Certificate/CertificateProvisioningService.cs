@@ -97,13 +97,14 @@ namespace Apps2Samsung.Certificate
             (bool HasAuthor, HashSet<string> Covered, bool NeedsFullProfile, bool NeedsDistributorOnly) Assess()
             {
                 bool hasAuthor = HasUsableAuthorCert(profileDir);
+                bool hasDistributor = HasUsableDistributorCert(profileDir);
                 var covered = hasAuthor
                     ? GetCoveredDuids(profileDir)
                     : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 bool duidsCovered = covered.Contains(deviceDuid) && manual.All(covered.Contains);
 
                 bool needsFullProfile = forceLogin || !hasAuthor;
-                bool needsDistributorOnly = !needsFullProfile && !duidsCovered;
+                bool needsDistributorOnly = !needsFullProfile && (!hasDistributor || !duidsCovered);
                 return (hasAuthor, covered, needsFullProfile, needsDistributorOnly);
             }
 
@@ -196,6 +197,31 @@ namespace Apps2Samsung.Certificate
             catch (Exception ex)
             {
                 Trace.WriteLine($"[Cert] Author cert check failed for '{certDir}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>True when the distributor PKCS#12 exists, can be opened and is currently valid.</summary>
+        public static bool HasUsableDistributorCert(string certDir)
+        {
+            try
+            {
+                var distributorP12 = Path.Combine(certDir, DistributorFileName);
+                if (!File.Exists(distributorP12))
+                    return false;
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return false;
+#pragma warning disable SYSLIB0057
+                using var cert = new X509Certificate2(distributorP12, password, PlatformService.SigningCertificateFlags);
+#pragma warning restore SYSLIB0057
+                var now = DateTime.UtcNow;
+                return cert.NotBefore.ToUniversalTime() <= now &&
+                       cert.NotAfter.ToUniversalTime() >= now;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[Cert] Distributor cert check failed for '{certDir}': {ex.Message}");
                 return false;
             }
         }
