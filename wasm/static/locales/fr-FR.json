@@ -364,6 +364,7 @@
   "PAIRED": "ASSOCIÉ",
   "PLAY/PAUSE": "LECTURE/PAUSE",
   "Pair State: %1$s": "État de l’association : %1$s",
+  "On your desktop computer, open your GameStream host’s web interface and enter the PIN.<br><br>": "Sur votre ordinateur, ouvrez l’interface Web de votre hôte GameStream et saisissez le code PIN.<br><br>",
   "Pairing": "Association",
   "Partial encryption warning: audio": "ATTENTION : la connexion n’est que partiellement sécurisée, le flux audio n’est pas chiffré.",
   "Partial encryption warning: video": "ATTENTION : la connexion n’est que partiellement sécurisée, le flux vidéo n’est pas chiffré.",
