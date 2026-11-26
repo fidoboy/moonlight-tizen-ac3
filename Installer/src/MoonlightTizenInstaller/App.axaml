@@ -26,6 +26,27 @@
       <Setter Property="Background" Value="#C1E1FF" />
       <Setter Property="BorderBrush" Value="#C1E1FF" />
     </Style>
+    <Style Selector="Button.window-control">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="Button.window-control:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.footer-link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="2" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="Button.footer-link:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
     <Style Selector="ComboBox">
       <Setter Property="Background" Value="#14213A" />
       <Setter Property="Foreground" Value="#F5F8FF" />
