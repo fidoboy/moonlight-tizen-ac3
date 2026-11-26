@@ -61,8 +61,11 @@ public sealed class CertificateManager
             authorPath, distributorPath, password, profileDirectory, profileName, level);
     }
 
-    public bool IsReadyForTelevision(string televisionDuid) =>
-        GetUsableForTelevision(televisionDuid) is not null;
+    public bool IsReadyForTelevision(string televisionDuid)
+    {
+        try { return GetUsableForTelevision(televisionDuid) is not null; }
+        catch { return false; }
+    }
 
     public Task<CertificateProfile> EnsureForTelevisionAsync(
         string televisionDuid,
@@ -73,6 +76,7 @@ public sealed class CertificateManager
         if (!TizenDuid.IsValid(televisionDuid))
             throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
 
+        CertificateSecrets.EnsureAvailable();
         return _provisioning.EnsureAsync(
             televisionDuid,
             level,
