@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MoonlightTizenInstaller"
         x:Class="MoonlightTizenInstaller.MainWindow"
         Width="900" Height="720"
         MinWidth="760" MinHeight="640"
@@ -23,6 +24,7 @@
         </LinearGradientBrush>
       </Border.Background>
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
+        <local:StarFieldControl Grid.ColumnSpan="3" IsHitTestVisible="False" Opacity="0.9" />
         <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
                     Background="Transparent">
@@ -265,7 +267,7 @@
                        Foreground="#ACBAD0" TextWrapping="Wrap" />
           </StackPanel>
           <Border Name="CertificateReadyPanel" IsVisible="False" Background="#101A2D"
-                  BorderBrush="#35C978" BorderThickness="1" CornerRadius="12" Padding="20">
+                  BorderBrush="#35C978" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,12,0,0">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
               <Border Width="68" Height="68" CornerRadius="12" Background="#173F2B"
                       HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -289,7 +291,7 @@
                 <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
                       Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
                       StrokeThickness="2.8" StrokeLineCap="Round"
-                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,19,0,0" />
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Grid>
             </Border>
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
