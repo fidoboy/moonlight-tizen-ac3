@@ -219,7 +219,7 @@ public sealed partial class MainWindow : Window
                         $"Moonlight.wgt se ha transferido y su SHA-256 se ha verificado ({handoff.Size:N0} bytes).\n\n" +
                         $"{launchMessage}\n\n" +
                         "En la pantalla del televisor debe aparecer la solicitud de instalación de Moonlight. Selecciona «Instalar» y acepta la confirmación de TV-Store. " +
-                        "El instalador no necesita realizar ninguna otra operación por esta vía.";
+                        "El instalador no necesita realizar ninguna otra operación por esta vía. Si TV-Store no consigue completar la instalación (por ejemplo, porque no tiene un certificado configurado), vuelve a esta ventana y pulsa «Continuar mediante SDB».";
                 }
                 return;
             }
