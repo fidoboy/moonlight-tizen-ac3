@@ -128,7 +128,20 @@ public sealed class SdbInstallationService
         progress?.Report("Uninstalling Moonlight…");
 
         await using var device = new SdbTcpDevice(IPAddress.Parse(televisionIp), sdbPort);
-        await device.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await device.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (sdbPort != DiscoveredTelevision.DirectSdbPort)
+        {
+            throw new SdbEndpointUnavailableException(
+                $"The SDB endpoint {televisionIp}:{sdbPort} is no longer available.",
+                ex);
+        }
 
         var output = new StringBuilder();
         await foreach (var line in device.ShellCommandLinesAsync(
