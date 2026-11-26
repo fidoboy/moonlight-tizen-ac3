@@ -102,9 +102,24 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && test -n "$pm" \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
+    && grep -Fq "Samsung Certificate Extension" /tmp/tizen-extra-repositories.txt \
     && "$pm" install --accept-license --no-java-check \
         "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+    && "$pm" install --accept-license --no-java-check "Samsung Certificate Extension" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
+    && author_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_author_ca.cer -print -quit)" \
+    && partner_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_partner2.crt -print -quit)" \
+    && certificate_manager="$(find "$TIZEN_STUDIO" -type f -iname '*certificate*manager*' -perm -u+x -print -quit)" \
+    && test -n "$author_ca" && test -s "$author_ca" \
+    && test -n "$partner_ca" && test -s "$partner_ca" \
+    && test -n "$certificate_manager" && test -x "$certificate_manager" \
+    && mkdir -p /home/tizen/certificate-authorities \
+    && cp "$author_ca" /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
+    && cp "$partner_ca" /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
+    && test -s /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
+    && test -s /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
+    && echo "Samsung Certificate Extension manager: $certificate_manager" \
+    && ls -l /home/tizen/certificate-authorities \
     && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \
