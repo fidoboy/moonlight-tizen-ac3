@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
@@ -34,6 +35,7 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        InstallerLocalization.Apply(this);
         Closed += (_, _) =>
         {
             _brandBitmap?.Dispose();
@@ -266,13 +268,13 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = "Detectando televisores con TizenOS en la red local…";
+        if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T("Detectando televisores con TizenOS en la red local…");
 
         try
         {
             var progress = new Progress<string>(message =>
             {
-                if (searchStatus is not null) searchStatus.Text = HideInternalProtocolNames(message);
+                if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
             });
             var devices = await _discovery.DiscoverAsync(progress);
 
