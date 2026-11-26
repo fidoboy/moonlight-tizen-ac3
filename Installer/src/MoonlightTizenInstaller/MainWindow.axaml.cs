@@ -323,7 +323,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
-        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = HideInternalProtocolNames(message);
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
@@ -388,7 +388,7 @@ public sealed partial class MainWindow : Window
                     if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel)
                         tvStorePanel.IsVisible = true;
                     if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
-                        tvStoreStatus.Text = "Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor.";
+                        tvStoreStatus.Text = InstallerLocalization.T("Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor.");
                     if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
                     {
                         summary.Text = string.Empty;
@@ -509,7 +509,7 @@ public sealed partial class MainWindow : Window
     {
         var message = new TextBlock
         {
-            Text = $"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({television.IpAddress}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?",
+            Text = InstallerLocalization.T($"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({{0}}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?").Replace("{0}", television.IpAddress),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             FontSize = 15
@@ -648,7 +648,7 @@ public sealed partial class MainWindow : Window
                 level,
                 progress: message => Dispatcher.UIThread.Post(() =>
                 {
-                    if (status is not null) status.Text = HideInternalProtocolNames(message);
+                    if (status is not null) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
                 }));
 
             if (status is not null)
