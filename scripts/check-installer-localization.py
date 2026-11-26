@@ -30,7 +30,7 @@ def fail(errors: list[str]) -> None:
         sys.exit(1)
 
 localization = LOCALIZATION.read_text(encoding="utf-8")
-source_files = [*PROJECT_SOURCE.rglob("*.cs"), *PROJECT_SOURCE.rglob("*.axaml")]
+source_files = [path for path in [*PROJECT_SOURCE.rglob("*.cs"), *PROJECT_SOURCE.rglob("*.axaml")] if path != LOCALIZATION]
 source_text = {path: path.read_text(encoding="utf-8") for path in source_files}
 all_source = "\n".join(source_text.values())
 errors: list[str] = []
