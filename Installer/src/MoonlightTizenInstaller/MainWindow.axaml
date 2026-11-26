@@ -157,18 +157,17 @@
             <Border Background="#14213A" BorderBrush="#3E94F5" BorderThickness="1"
                     CornerRadius="12" Padding="18">
               <StackPanel Spacing="10">
-                <TextBlock Text="Activa Developer Mode" FontSize="19" FontWeight="SemiBold" />
-                <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
-                <TextBlock Text="2. Con el mando a distancia, introduce 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
-                <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
+                <TextBlock Text="Enable Developer Mode" FontSize="19" FontWeight="SemiBold" />
+                <TextBlock Text="1. Turn on the TV and open the Apps section." TextWrapping="Wrap" />
+                <TextBlock Text="2. Using the remote, enter 12345 to open the Developer Mode menu." TextWrapping="Wrap" />
+                <TextBlock Text="3. Turn Developer Mode ON." TextWrapping="Wrap" />
                 <TextBlock Name="DeveloperModeHostIpDescription"
-                           Text="4. En Host PC IP, introduce esta dirección:" TextWrapping="Wrap" />
+                           Text="4. Enter this address in Host PC IP:" TextWrapping="Wrap" />
                 <Border Background="#080D19" CornerRadius="8" Padding="12">
                   <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…"
                              FontSize="23" FontWeight="Bold" Foreground="#A7D3FF" />
                 </Border>
-                <TextBlock Name="DeveloperModeRestartInstructions"
-                           Text="5. Confirm the settings, then restart the TV by pressing and holding its power button for at least two seconds. This is required to apply the changes. Then click Retry here."
+                <TextBlock Text="5. Confirm the settings, then restart the TV by pressing and holding its power button for at least two seconds. This is required to apply the changes. Then click Retry here."
                            TextWrapping="Wrap" Foreground="#F5F8FF" />
                 <Button Name="RetryTelevisionDiscoveryButton"
                         HorizontalAlignment="Center" Margin="0,8,0,0"
