@@ -37,6 +37,16 @@ public sealed partial class MainWindow : Window
         _discovery = discovery;
         InitializeComponent();
         InstallerLocalization.Apply(this);
+        if (!InstallerLocalization.HasSupportedSystemLocale)
+        {
+            if (this.FindControl<StackPanel>("WelcomePage") is { } welcome)
+            {
+                var languagePanel = this.FindControl<Border>("LanguageSelectionPanel");
+                if (languagePanel is not null) languagePanel.IsVisible = true;
+            }
+            if (this.FindControl<Button>("WizardNextButton") is { } startButton)
+                startButton.IsEnabled = false;
+        }
         Closed += (_, _) =>
         {
             _brandBitmap?.Dispose();
@@ -74,6 +84,18 @@ public sealed partial class MainWindow : Window
             finishButton.Click += OnFinishTvStoreHandoffClick;
         if (this.FindControl<ComboBox>("TelevisionSelection") is { } selector)
             selector.SelectionChanged += OnTelevisionSelectionChanged;
+    }
+
+    private void OnLanguageSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var selector = this.FindControl<ComboBox>("LanguageSelection");
+        if (selector?.SelectedIndex is not int index || index < 0)
+            return;
+
+        InstallerLocalization.SelectLocale(index);
+        InstallerLocalization.Apply(this);
+        if (this.FindControl<Button>("WizardNextButton") is { } startButton)
+            startButton.IsEnabled = true;
     }
 
     private void SetWizardStep(int step)
