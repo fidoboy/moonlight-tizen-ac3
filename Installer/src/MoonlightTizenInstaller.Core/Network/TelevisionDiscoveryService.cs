@@ -135,7 +135,7 @@ public sealed class TelevisionDiscoveryService
             {
                 await device.ConnectAsync(timeout.Token).ConfigureAwait(false);
                 var response = await device.ShellCommandAsync("0 getduid", timeout.Token).ConfigureAwait(false);
-                var duid = response.Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                var duid = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .FirstOrDefault(line => ValidDuid.IsMatch(line));
                 if (duid is not null)
                 {
