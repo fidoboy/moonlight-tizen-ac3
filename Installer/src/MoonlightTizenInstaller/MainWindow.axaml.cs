@@ -255,7 +255,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             _discoveryInProgress = false;
-            if (this.FindControl<Button>("NextButton") is { } nextButton) nextButton.IsEnabled = true;
+            if (this.FindControl<Button>("NextButton") is { } navigationButton) navigationButton.IsEnabled = true;
             SetTelevisionActionsEnabled(_selectedTelevision is not null);
             if (retry is not null) retry.IsEnabled = true;
         }
