@@ -23,6 +23,8 @@ public sealed partial class MainWindow : Window
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
     private bool _tvStoreHandoff;
+    private bool _tvStoreDeclined;
+    private bool _tvStoreChosen;
     private bool _installationCompleted;
     private int _wizardStep = 1;
 
@@ -66,8 +68,6 @@ public sealed partial class MainWindow : Window
 
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
-        if (this.FindControl<Button>("ContinueWithSdbButton") is { } sdbFallbackButton)
-            sdbFallbackButton.Click += OnContinueWithSdbClick;
         if (this.FindControl<ComboBox>("TelevisionSelection") is { } selector)
             selector.SelectionChanged += OnTelevisionSelectionChanged;
     }
@@ -356,50 +356,38 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            // This probe is read-only. TV-Store is never launched and no package is
-            // transferred until the user explicitly accepts the hand-off prompt.
-            var tvStoreDetected = await _tvStoreInstaller.IsInstalledAsync(device.IpAddress);
-            var useTvStore = tvStoreDetected && await AskToUseTvStoreAsync(device);
-            if (!useTvStore)
+            // Once the user declines TV-Store, do not probe for it again during
+            // this installer session. The normal installation path is used directly.
+            if (!_tvStoreDeclined && !_tvStoreChosen)
             {
-                await ContinueWithSdbInstallationAsync(device);
-                return;
-            }
-
-            TvStoreHandoffService.HandoffResult? handoff;
-            try
-            {
-                handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                progress.Report($"TV-Store no ha podido completar el envío ({ex.Message}). Se continuará mediante SDB.");
-                handoff = null;
-            }
-
-            if (handoff is not null)
-            {
-                _tvStoreHandoff = true;
-                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
-                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                var tvStoreDetected = await _tvStoreInstaller.IsInstalledAsync(device.IpAddress);
+                if (tvStoreDetected)
                 {
-                    var launchMessage = handoff.TvStoreOpened
-                        ? "TV-Store se ha abierto en el televisor."
-                        : "No se ha podido traer TV-Store al primer plano; si no aparece, ábrelo desde el televisor.";
-                    tvStoreStatus.Text =
-                        $"Moonlight.wgt se ha transferido y su SHA-256 se ha verificado ({handoff.Size:N0} bytes).\n\n" +
-                        $"{launchMessage}\n\n" +
-                        "El instalador no necesita realizar ninguna otra operación por esta vía. Si TV-Store no consigue completar la instalación (por ejemplo, porque no tiene un certificado configurado), vuelve a esta ventana y pulsa «Continuar mediante SDB».";
+                    var useTvStore = await AskToUseTvStoreAsync(device);
+                    if (!useTvStore)
+                    {
+                        _tvStoreDeclined = true;
+                        await ContinueWithSdbInstallationAsync(device);
+                        return;
+                    }
+
+                    _tvStoreChosen = true;
+                    _tvStoreHandoff = true;
+                    var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
+                    if (handoff is null)
+                        throw new InvalidOperationException("No se ha podido enviar Moonlight a TV-Store.");
+
+                    if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel)
+                        searchingPanel.IsVisible = false;
+                    if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel)
+                        tvStorePanel.IsVisible = true;
+                    if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                        tvStoreStatus.Text = "Completa la instalación en el televisor pulsando «Aceptar» en el mensaje de confirmación.";
+                    if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
+                        summary.Text = "Completa la instalación en TV-Store.";
+                    SetWizardStep(3);
+                    return;
                 }
-                if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
-                    summary.Text = $"El paquete se ha transferido correctamente a TV-Store en {device.IpAddress}. Completa la confirmación en el televisor.";
-                SetWizardStep(3);
-                return;
             }
 
             await ContinueWithSdbInstallationAsync(device);
@@ -410,7 +398,17 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions($"No se ha podido completar la instalación mediante TV-Store ni preparar la conexión SDB ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
+            if (_tvStoreChosen)
+            {
+                _tvStoreHandoff = true;
+                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
+                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
+                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                    tvStoreStatus.Text = $"No se ha podido preparar el envío a TV-Store: {ex.Message}";
+                SetWizardStep(3);
+            }
+            else
+                ShowDeveloperModeInstructions($"No se ha podido preparar la conexión con el televisor ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
         }
         finally
         {
@@ -426,7 +424,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
-            searchStatus.Text = "TV-Store no se va a utilizar. Preparando la instalación directa mediante SDB…";
+            searchStatus.Text = "Preparando la instalación en el televisor…";
 
         var progress = new Progress<string>(message =>
             Dispatcher.UIThread.Post(() =>
@@ -444,9 +442,7 @@ public sealed partial class MainWindow : Window
             if (TizenDuid.IsValid(withDuid.Duid))
             {
                 if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
-                var connectionMessage = withDuid.UsesTvStoreRelay
-                    ? $"Conexión SDB preparada mediante el relay de TV-Store ({withDuid.IpAddress}:{withDuid.SdbPort}). DUID detectado automáticamente: {withDuid.Duid}"
-                    : $"Conexión SDB directa preparada ({withDuid.IpAddress}:{withDuid.SdbPort}). DUID detectado automáticamente: {withDuid.Duid}";
+                var connectionMessage = $"Conexión preparada con la TV ({withDuid.IpAddress}).";
                 if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
                     summary.Text = connectionMessage;
                 if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
@@ -455,18 +451,18 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                ShowDeveloperModeInstructions("No se ha podido obtener automáticamente el DUID mediante SDB. Activa o revisa Developer Mode y pulsa Reintentar.");
+                ShowDeveloperModeInstructions("No se ha podido establecer la conexión con el televisor. Activa o revisa Developer Mode y pulsa Reintentar.");
             }
 
             SetTelevisionActionsEnabled(true);
         }
         catch (OperationCanceledException)
         {
-            ShowDeveloperModeInstructions("La conexión SDB no se ha completado. Comprueba la configuración de Developer Mode y pulsa Reintentar.");
+            ShowDeveloperModeInstructions("La conexión no se ha completado. Comprueba la configuración de Developer Mode y pulsa Reintentar.");
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions($"No se ha podido preparar la instalación directa mediante SDB ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
+            ShowDeveloperModeInstructions($"No se ha podido preparar la instalación ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
         }
         finally
         {
@@ -513,7 +509,7 @@ public sealed partial class MainWindow : Window
         };
         var normalButton = new Button
         {
-            Content = "No, continuar con la instalación normal",
+            Content = "No",
             MinWidth = 230
         };
         var buttons = new StackPanel
@@ -572,7 +568,7 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
             if (status is not null)
-                status.Text = "Es necesario detectar automáticamente una TV mediante SDB antes de generar el certificado.";
+                status.Text = "Es necesario detectar automáticamente un televisor antes de generar el certificado.";
             return;
         }
 
@@ -613,7 +609,7 @@ public sealed partial class MainWindow : Window
         var duid = GetSelectedDuid();
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            SetOperationStatus("No se puede instalar: es obligatorio detectar automáticamente un DUID válido mediante SDB.");
+            SetOperationStatus("No se puede instalar: no se ha podido identificar correctamente el televisor.");
             return;
         }
         if (television is null)
@@ -641,9 +637,7 @@ public sealed partial class MainWindow : Window
 
             var installProgress = new Progress<string>(message =>
                 Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
-            var endpointDescription = television.UsesTvStoreRelay
-                ? $"relay de TV-Store ({television.IpAddress}:{television.SdbPort})"
-                : $"SDB directo ({television.IpAddress}:{television.SdbPort})";
+            var endpointDescription = "la conexión con el televisor";
 
             SdbInstallationService.InstallationResult result;
             try
@@ -654,13 +648,13 @@ public sealed partial class MainWindow : Window
             }
             catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
             {
-                SetOperationStatus("El relay de TV-Store ha dejado de aceptar conexiones. Se intentará la conexión SDB directa por el puerto 26101…");
+                SetOperationStatus("Se ha perdido la conexión con el televisor. Se intentará restablecerla…");
                 result = await _sdbInstaller.InstallAsync(
                     television.IpAddress,
                     DiscoveredTelevision.DirectSdbPort,
                     signedPackagePath,
                     installProgress);
-                endpointDescription = $"SDB directo ({television.IpAddress}:{DiscoveredTelevision.DirectSdbPort})";
+                endpointDescription = "la conexión restablecida con el televisor";
             }
 
             SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
