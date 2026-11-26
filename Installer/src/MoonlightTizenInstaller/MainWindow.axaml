@@ -34,7 +34,10 @@
             <StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False">
               <TextBlock Text="Paquete entregado a TV-Store" FontSize="18" FontWeight="SemiBold" />
               <TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap" />
-              <Button Content="Finalizar" HorizontalAlignment="Left" Click="OnFinishTvStoreHandoffClick" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Finalizar" HorizontalAlignment="Left" Click="OnFinishTvStoreHandoffClick" />
+                <Button Content="Continuar mediante SDB" HorizontalAlignment="Left" Click="OnContinueWithSdbClick" />
+              </StackPanel>
             </StackPanel>
             <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
               <TextBlock Text="Activa Developer Mode para obtener el DUID" FontSize="16" FontWeight="SemiBold" />
