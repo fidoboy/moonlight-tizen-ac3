@@ -239,6 +239,8 @@ public sealed partial class MainWindow : Window
         _selectedTelevision = device;
         _selectedDuid = null;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
+        if (this.FindControl<Border>("CertificatePanel") is { } certificatePanel) certificatePanel.IsVisible = true;
+        if (this.FindControl<StackPanel>("TelevisionActionsPanel") is { } actionsPanel) actionsPanel.IsVisible = true;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
             searchStatus.Text = "TV-Store no se va a utilizar. Preparando la instalación directa mediante SDB…";
