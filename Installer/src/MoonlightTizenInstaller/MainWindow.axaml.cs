@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window
     private bool _tvStoreDeclined;
     private bool _tvStoreChosen;
     private bool _installationCompleted;
+    private bool _installationFinished;
     private bool _manualLanguageSelected;
     private int _wizardStep = 1;
 
@@ -164,7 +165,7 @@ public sealed partial class MainWindow : Window
                 2 => !_discoveryInProgress,
                 3 => _selectedTelevision is not null && !_discoveryInProgress && !_tvStoreHandoff,
                 4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
-                _ => _installationCompleted
+                _ => _installationFinished
             });
         }
     }
@@ -188,7 +189,10 @@ public sealed partial class MainWindow : Window
                 if (_tvStoreHandoff)
                     Close();
                 else if (TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!))
+                {
                     SetWizardStep(5);
+                    await InstallWgtAsync();
+                }
                 break;
             case 5:
                 if (_installationCompleted)
@@ -794,7 +798,10 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        await InstallWgtAsync();
+
+    private async Task InstallWgtAsync()
     {
         var television = _selectedTelevision;
         var duid = GetSelectedDuid();
@@ -809,8 +816,16 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var button = this.FindControl<Button>("InstallWgtButton");
-        if (button is not null) button.IsEnabled = false;
+        if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } progressPanel)
+            progressPanel.IsVisible = true;
+        if (this.FindControl<Grid>("InstallationResultPanel") is { } previousResult)
+            previousResult.IsVisible = false;
+        if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
+        {
+            progressBar.IsIndeterminate = true;
+            progressBar.IsVisible = true;
+        }
+        SetOperationStatus("Preparando la instalación…");
         var temporaryDirectory = Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
         var signedPackagePath = Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
 
@@ -850,28 +865,49 @@ public sealed partial class MainWindow : Window
 
             SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
             _installationCompleted = true;
-            if (this.FindControl<Button>("WizardNextButton") is { } finish)
-            {
-                finish.Content = "Finalizar";
-                finish.IsEnabled = true;
-            }
-            if (this.FindControl<Button>("WizardExitButton") is { } exit)
-                exit.IsVisible = false;
+            ShowInstallationResult(true, $"Moonlight se ha instalado correctamente en el televisor (paquete {result.PackageId}).");
         }
         catch (OperationCanceledException)
         {
-            SetOperationStatus("Instalación cancelada.");
+            ShowInstallationResult(false, "La instalación se ha cancelado antes de completarse.");
         }
         catch (Exception ex)
         {
-            SetOperationStatus($"No se pudo instalar Moonlight: {ex.Message}");
+            ShowInstallationResult(false, $"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(ex.Message)}");
         }
         finally
         {
             try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
             catch { /* Best-effort cleanup of the temporary signed WGT. */ }
+            _installationFinished = true;
+            if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
+                progressBar.IsVisible = false;
+            if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } progressPanel)
+                progressPanel.IsVisible = false;
+            SetWizardStep(5);
             SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
+    }
+
+    private void ShowInstallationResult(bool success, string message)
+    {
+        if (this.FindControl<Grid>("InstallationResultPanel") is { } resultPanel)
+            resultPanel.IsVisible = true;
+        if (this.FindControl<Border>("InstallationResultIconCircle") is { } iconCircle)
+        {
+            var color = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
+            iconCircle.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
+            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(color);
+        }
+        if (this.FindControl<Avalonia.Controls.Shapes.Path>("InstallationResultIcon") is { } icon)
+        {
+            icon.Data = Avalonia.Media.Geometry.Parse(success ? "M 3,12 L 9,18 L 21,6" : "M 6,6 L 18,18 M 18,6 L 6,18");
+            icon.Stroke = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
+        }
+        if (this.FindControl<TextBlock>("InstallationResultTitle") is { } title)
+            title.Text = InstallerLocalization.T(success ? "Instalación completada" : "No se ha podido instalar Moonlight");
+        if (this.FindControl<TextBlock>("InstallationResultMessage") is { } resultMessage)
+            resultMessage.Text = message;
     }
 
     private static string HideInternalProtocolNames(string message) =>
