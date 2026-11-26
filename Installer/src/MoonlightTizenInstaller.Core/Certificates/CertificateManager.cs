@@ -15,6 +15,7 @@ public sealed class CertificateManager
 {
     private readonly CertificateInstallerOptions _options;
     private readonly CertificateProvisioningService _provisioning;
+    private readonly WgtSigningService _signer = new();
 
     public CertificateManager(CertificateInstallerOptions options)
     {
@@ -34,6 +35,14 @@ public sealed class CertificateManager
     }
 
     public string ProfileStorePath => _options.ProfileStorePath;
+
+    public Task<string> SignWgtAsync(
+        string inputPath,
+        string outputPath,
+        CertificateProfile profile,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        _signer.SignCopyAsync(inputPath, outputPath, profile, progress, cancellationToken);
 
     /// <summary>
     /// Reuses an existing profile where possible. A Samsung browser sign-in is only triggered

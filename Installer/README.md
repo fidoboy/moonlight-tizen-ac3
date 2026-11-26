@@ -19,6 +19,7 @@ The installer now compiles the selected Apps2Samsung certificate source subset i
 - Reusing an existing Samsung signing profile when its author certificate is valid and its distributor certificate covers the selected TV DUID.
 - Starting Samsung SignInGate authentication and issuing a full author/distributor profile when required.
 - Reissuing only the distributor certificate when the author identity can be retained but the selected TV DUID is not covered.
+- Signing a WGT locally with the resulting author/distributor PKCS#12 pair, writing a separate signed copy and leaving the original package untouched.
 - Enumerating, exporting, previewing and importing certificate profiles.
 - Maintaining automatic backups outside the application installation directory.
 
@@ -38,7 +39,7 @@ If they are absent, existing profiles can still be recovered and reused, but new
 
 Samsung authentication is performed in the system browser through the upstream loopback callback. Certificate profile files retain the upstream Apps2Samsung layout, including its `password.txt` file; the installer currently protects them by storing the profile directory under the current user's local application data and must not sync it to cloud storage. A future platform-specific secret-store migration should replace plaintext password persistence without breaking archive compatibility.
 
-The certificate subsystem is integrated, but the end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the package-signing stage must consume the returned author/distributor PKCS#12 paths. No SDB or TV installation functionality is included in this certificate-only integration.
+The certificate subsystem is integrated, but the end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the signed WGT still has to be handed to the separate TV installation stage. No SDB transport or TV installation functionality is included. WGT signing uses the local `TizenWgtSigner` implementation from `TizenSdb.Core` and does not require a TV connection or Tizen Studio.
 
 ## Upstream source and licensing
 

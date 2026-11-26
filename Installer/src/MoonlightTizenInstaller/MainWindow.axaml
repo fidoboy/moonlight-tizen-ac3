@@ -32,7 +32,10 @@
               <ComboBoxItem Content="Public" />
               <ComboBoxItem Content="Partner" />
             </ComboBox>
-            <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" Click="OnEnsureCertificateClick" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" Click="OnEnsureCertificateClick" />
+              <Button Name="SignWgtButton" Content="Firmar WGT…" HorizontalAlignment="Left" Click="OnSignWgtClick" />
+            </StackPanel>
             <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
           </StackPanel>
         </Border>

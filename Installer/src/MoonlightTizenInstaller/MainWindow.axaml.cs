@@ -86,6 +86,72 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void OnSignWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var duid = this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
+        var level = this.FindControl<ComboBox>("CertificateLevel")?.SelectedIndex == 1
+            ? CertificatePrivilegeLevel.Partner
+            : CertificatePrivilegeLevel.Public;
+        var status = this.FindControl<TextBlock>("CertificateOperationStatus");
+        var button = this.FindControl<Button>("SignWgtButton");
+
+        if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
+        {
+            SetOperationStatus("Introduce primero un DUID válido del televisor.");
+            return;
+        }
+
+        try
+        {
+            var inputDialog = new OpenFileDialog
+            {
+                Title = "Seleccionar WGT que se va a firmar",
+                AllowMultiple = false,
+                Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
+            };
+            var inputs = await inputDialog.ShowAsync(this);
+            if (inputs is not { Length: > 0 })
+                return;
+
+            var outputDialog = new SaveFileDialog
+            {
+                Title = "Guardar WGT firmado",
+                InitialFileName = Path.GetFileNameWithoutExtension(inputs[0]) + "-signed.wgt",
+                Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
+            };
+            var output = await outputDialog.ShowAsync(this);
+            if (string.IsNullOrWhiteSpace(output))
+                return;
+
+            if (button is not null)
+                button.IsEnabled = false;
+            SetOperationStatus("Comprobando o preparando el perfil de firma…");
+
+            var profile = await _certificates.EnsureForTelevisionAsync(
+                duid,
+                level,
+                progress: message => Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
+
+            var signedPath = await _certificates.SignWgtAsync(
+                inputs[0],
+                output,
+                profile,
+                new Progress<string>(message => SetOperationStatus(message)));
+
+            SetOperationStatus($"WGT firmado: {signedPath}");
+            RefreshCertificateStatus();
+        }
+        catch (Exception ex)
+        {
+            SetOperationStatus($"No se pudo firmar el WGT: {ex.Message}");
+        }
+        finally
+        {
+            if (button is not null)
+                button.IsEnabled = true;
+        }
+    }
+
     private async void OnExportCertificatesClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         try
