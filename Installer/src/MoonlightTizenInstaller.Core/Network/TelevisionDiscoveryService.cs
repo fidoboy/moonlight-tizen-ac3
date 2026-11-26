@@ -15,11 +15,12 @@ public sealed record DiscoveredTelevision(
     bool TvStoreRelayAvailable)
 {
     public const int DirectSdbPort = 26101;
+    public const int TvStoreRelayPort = 26201;
     public string? DeveloperIp { get; init; }
     public bool IsDeveloperModeIpValid { get; init; }
     public bool IsDeveloperModeIpInvalid => !IsDeveloperModeIpValid;
     public string StatusText { get; init; } = "Not available";
-    public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
+    public bool UsesTvStoreRelay => SdbPort == TvStoreRelayPort;
     public string FriendlyName => string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
 
     public string DisplayName
