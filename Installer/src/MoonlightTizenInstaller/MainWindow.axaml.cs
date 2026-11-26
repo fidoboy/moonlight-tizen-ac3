@@ -377,13 +377,29 @@ public sealed partial class MainWindow : Window
                 _bundledWgtPath, signedPackagePath, profile,
                 new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
 
+            var installProgress = new Progress<string>(message =>
+                Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
             var endpointDescription = television.UsesTvStoreRelay
                 ? $"relay de TV-Store ({television.IpAddress}:{television.SdbPort})"
                 : $"SDB directo ({television.IpAddress}:{television.SdbPort})";
-            SetOperationStatus($"Instalando Moonlight mediante {endpointDescription}…");
-            var result = await _sdbInstaller.InstallAsync(
-                television.IpAddress, television.SdbPort, signedPackagePath,
-                new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+
+            SdbInstallationService.InstallationResult result;
+            try
+            {
+                SetOperationStatus($"Instalando Moonlight mediante {endpointDescription}…");
+                result = await _sdbInstaller.InstallAsync(
+                    television.IpAddress, television.SdbPort, signedPackagePath, installProgress);
+            }
+            catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
+            {
+                SetOperationStatus("El relay de TV-Store ha dejado de aceptar conexiones. Se intentará la conexión SDB directa por el puerto 26101…");
+                result = await _sdbInstaller.InstallAsync(
+                    television.IpAddress,
+                    DiscoveredTelevision.DirectSdbPort,
+                    signedPackagePath,
+                    installProgress);
+                endpointDescription = $"SDB directo ({television.IpAddress}:{DiscoveredTelevision.DirectSdbPort})";
+            }
 
             SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
             RefreshCertificateStatus();
