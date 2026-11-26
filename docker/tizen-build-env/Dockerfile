@@ -103,10 +103,15 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Certificate Extension" /tmp/tizen-extra-repositories.txt \
+    && certificate_extension_index="$(awk '/^[[:space:]]*Index[[:space:]]*:/ { index=$3 } /^[[:space:]]*Name[[:space:]]*:[[:space:]]*Samsung Certificate Extension[[:space:]]*$/ { print index; exit }' /tmp/tizen-extra-repositories.txt)" \
+    && test -n "$certificate_extension_index" \
+    && "$pm" extra -act "$certificate_extension_index" \
     && "$pm" install --accept-license --no-java-check \
         "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
-    && "$pm" install --accept-license --no-java-check "Samsung Certificate Extension" \
+    && "$pm" install --accept-license --no-java-check "cert-add-on" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
+    && awk '$1 == "i" && $2 == "cert-add-on" { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
+       || { echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; } \
     && author_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_author_ca.cer -print -quit)" \
     && partner_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_partner2.crt -print -quit)" \
     && certificate_manager="$(find "$TIZEN_STUDIO" -type f -iname '*certificate*manager*' -perm -u+x -print -quit)" \
