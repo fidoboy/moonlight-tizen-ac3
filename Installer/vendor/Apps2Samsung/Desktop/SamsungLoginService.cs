@@ -5,6 +5,7 @@ using Apps2Samsung.Samsung;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -17,7 +18,7 @@ namespace Apps2Samsung.Services
 {
     public class SamsungLoginService : ISamsungLoginService
     {
-        private IWebHost? _callbackServer;
+        private IHost? _callbackServer;
 
         private string CallbackUrl => SamsungOAuth.LoopbackRedirectUri;
 
@@ -83,11 +84,13 @@ namespace Apps2Samsung.Services
 
         public async Task StartCallbackServer()
         {
-            _callbackServer = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls($"http://{Constants.Samsung.LoopbackHost}:{SamsungOAuth.CallbackPort}")
-                .Configure(app =>
+            _callbackServer = Host.CreateDefaultBuilder()
+                .ConfigureWebHostDefaults(webHost =>
                 {
+                    webHost
+                        .UseUrls($"http://{Constants.Samsung.LoopbackHost}:{SamsungOAuth.CallbackPort}")
+                        .Configure(app =>
+                        {
                     app.Run(async context =>
                     {
                         if (context.Request.Path == SamsungOAuth.CallbackPath &&
@@ -158,7 +161,7 @@ namespace Apps2Samsung.Services
 
                         context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                         await context.Response.WriteAsync("Not Found");
-                    });
+                        });
                 })
                 .Build();
 
