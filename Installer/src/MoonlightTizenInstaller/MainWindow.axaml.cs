@@ -145,16 +145,18 @@ public sealed partial class MainWindow : Window
             exit.IsVisible = !_tvStoreHandoff && !_installationCompleted;
         if (next is not null)
         {
-            next.IsVisible = !_tvStoreHandoff;
-            next.Content = InstallerLocalization.T(_wizardStep switch
-            {
-                1 => "Comenzar",
-                2 => "Continuar",
-                3 => "Instalar",
-                4 => "Ir a instalación",
-                _ => "Finalizar"
-            });
-            next.IsEnabled = _wizardStep switch
+            next.IsVisible = !_tvStoreHandoff || _wizardStep == 4;
+            next.Content = InstallerLocalization.T(_tvStoreHandoff
+                ? "Finalizar"
+                : _wizardStep switch
+                {
+                    1 => "Comenzar",
+                    2 => "Continuar",
+                    3 => "Instalar",
+                    4 => "Ir a instalación",
+                    _ => "Finalizar"
+                });
+            next.IsEnabled = _tvStoreHandoff && _wizardStep == 4 || _wizardStep switch
             {
                 1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                 2 => !_discoveryInProgress,
@@ -181,7 +183,9 @@ public sealed partial class MainWindow : Window
                     await SelectTelevisionAsync(selectedTelevision);
                 break;
             case 4:
-                if (TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!))
+                if (_tvStoreHandoff)
+                    Close();
+                else if (TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!))
                     SetWizardStep(5);
                 break;
             case 5:
@@ -308,6 +312,53 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            // TV-Store is checked during discovery, before the connection page is shown.
+            // Declining it disables further checks for the rest of this installer session.
+            if (!_tvStoreDeclined && !_tvStoreChosen)
+            {
+                foreach (var device in devices)
+                {
+                    if (searchStatus is not null)
+                        searchStatus.Text = $"Comprobando opciones de instalación en {device.IpAddress}…";
+                    if (!await _tvStoreInstaller.IsInstalledAsync(device.IpAddress))
+                        continue;
+
+                    var useTvStore = await AskToUseTvStoreAsync(device);
+                    if (!useTvStore)
+                    {
+                        _tvStoreDeclined = true;
+                        break;
+                    }
+
+                    _tvStoreChosen = true;
+                    _tvStoreHandoff = true;
+                    _selectedTelevision = device;
+                    if (searchStatus is not null)
+                        searchStatus.Text = "Transfiriendo Moonlight a TV-Store…";
+
+                    try
+                    {
+                        var handoffProgress = new Progress<string>(message =>
+                        {
+                            if (searchStatus is not null)
+                                searchStatus.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
+                        });
+                        var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(
+                            device.IpAddress, _bundledWgtPath, handoffProgress);
+                        ShowTvStoreResult(handoff is not null);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        ShowTvStoreResult(false, "La transferencia se ha cancelado antes de completarse.");
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowTvStoreResult(false, $"No se ha podido transferir el paquete a TV-Store: {HideInternalProtocolNames(ex.Message)}");
+                    }
+                    return;
+                }
+            }
+
             if (cards is not null)
             {
                 cards.ItemsSource = devices;
@@ -366,100 +417,47 @@ public sealed partial class MainWindow : Window
         if (_tvStoreChosen)
             return;
 
-        _selectedTelevision = device;
-        _selectedDuid = null;
-        _tvStoreHandoff = false;
+        // TV-Store has already been checked during step 2. The connection step
+        // now proceeds directly through the normal installation preparation.
+        await ContinueWithSdbInstallationAsync(device);
+    }
 
-        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
-        if (this.FindControl<ListBox>("TelevisionCards") is { } cards) cards.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
-        if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
-        if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
-            searchStatus.Text = $"Preparando la conexión con la TV en {device.IpAddress}…";
-        SetTelevisionActionsEnabled(false);
-        if (this.FindControl<Button>("WizardNextButton") is { } nextButton)
-            nextButton.IsEnabled = false;
-
-        IProgress<string> progress = new Progress<string>(message =>
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
-                    status.Text = HideInternalProtocolNames(message);
-            }));
-
-        try
+    private void ShowTvStoreResult(bool success, string? failureDetails = null)
+    {
+        _tvStoreHandoff = true;
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
+            searching.IsVisible = false;
+        if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
+            normalPanel.IsVisible = false;
+        if (this.FindControl<TextBlock>("CertificateStepLabel") is { } stepLabel)
+            stepLabel.Text = InstallerLocalization.T("PASO 4 · RESULTADO");
+        if (this.FindControl<TextBlock>("CertificatePageTitle") is { } title)
+            title.Text = InstallerLocalization.T("Resultado de la transferencia");
+        if (this.FindControl<TextBlock>("CertificatePageDescription") is { } description)
+            description.IsVisible = false;
+        if (this.FindControl<StackPanel>("TvStoreResultPanel") is { } resultPanel)
+            resultPanel.IsVisible = true;
+        if (this.FindControl<Border>("TvStoreResultIconCircle") is { } iconCircle)
+            iconCircle.Background = new Avalonia.Media.SolidColorBrush(
+                Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
+        if (this.FindControl<Avalonia.Controls.Shapes.Path>("TvStoreResultIcon") is { } icon)
         {
-            // Once the user declines TV-Store, do not probe for it again during
-            // this installer session. The normal installation path is used directly.
-            if (!_tvStoreDeclined && !_tvStoreChosen)
-            {
-                var tvStoreDetected = await _tvStoreInstaller.IsInstalledAsync(device.IpAddress);
-                if (tvStoreDetected)
-                {
-                    var useTvStore = await AskToUseTvStoreAsync(device);
-                    if (!useTvStore)
-                    {
-                        _tvStoreDeclined = true;
-                        await ContinueWithSdbInstallationAsync(device);
-                        return;
-                    }
-
-                    _tvStoreChosen = true;
-                    _tvStoreHandoff = true;
-                    var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
-                    if (handoff is null)
-                        throw new InvalidOperationException("No se ha podido enviar Moonlight a TV-Store.");
-
-                    if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel)
-                        searchingPanel.IsVisible = false;
-                    if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel)
-                        tvStorePanel.IsVisible = true;
-                    if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
-                        tvStoreStatus.Text = InstallerLocalization.T("Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor.");
-                    if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
-                    {
-                        summary.Text = string.Empty;
-                        summary.IsVisible = false;
-                    }
-                    SetWizardStep(3);
-                    return;
-                }
-            }
-
-            await ContinueWithSdbInstallationAsync(device);
+            icon.Data = Avalonia.Media.Geometry.Parse(success
+                ? "M 18,39 L 31,51 L 57,25"
+                : "M 20,20 L 56,56 M 56,20 L 20,56");
+            icon.Stroke = new Avalonia.Media.SolidColorBrush(
+                Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
         }
-        catch (OperationCanceledException)
-        {
-            if (_tvStoreChosen)
-            {
-                _tvStoreHandoff = true;
-                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
-                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
-                    tvStoreStatus.Text = "No se ha podido completar el envío a TV-Store.";
-                SetWizardStep(3);
-            }
-            else
-                ShowDeveloperModeInstructions("La operación no se ha completado. Comprueba la conexión con el televisor y pulsa Reintentar.");
-        }
-        catch (Exception ex)
-        {
-            if (_tvStoreChosen)
-            {
-                _tvStoreHandoff = true;
-                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
-                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
-                    tvStoreStatus.Text = $"No se ha podido preparar el envío a TV-Store: {ex.Message}";
-                SetWizardStep(3);
-            }
-            else
-                ShowDeveloperModeInstructions($"No se ha podido preparar la conexión con el televisor ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
-        }
-        finally
-        {
-            if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-        }
+        if (this.FindControl<TextBlock>("TvStoreResultTitle") is { } resultTitle)
+            resultTitle.Text = InstallerLocalization.T(success
+                ? "Paquete transferido correctamente"
+                : "No se ha podido transferir el paquete");
+        if (this.FindControl<TextBlock>("TvStoreResultMessage") is { } resultMessage)
+            resultMessage.Text = InstallerLocalization.T(success
+                ? "Moonlight.wgt se ha transferido correctamente a TV-Store. Para completar la instalación, acepta el mensaje de confirmación que aparecerá en la televisión. Si no aparece, abre TV-Store en el televisor y confirma allí la instalación."
+                : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. " +
+                  (failureDetails ?? "Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer."));
+        SetWizardStep(4);
     }
 
     private async Task ContinueWithSdbInstallationAsync(DiscoveredTelevision device)
