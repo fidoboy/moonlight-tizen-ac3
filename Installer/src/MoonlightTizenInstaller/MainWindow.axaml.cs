@@ -203,7 +203,20 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
+            TvStoreHandoffService.HandoffResult? handoff;
+            try
+            {
+                handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                progress.Report($"TV-Store no ha podido completar el envío ({ex.Message}). Se continuará mediante SDB.");
+                handoff = null;
+            }
             if (handoff is not null)
             {
                 if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
