@@ -11,10 +11,11 @@ namespace MoonlightTizenInstaller;
 /// </summary>
 public sealed class StarFieldControl : Control
 {
-    private const int StarCount = 1000;
+    private const int StarCount = 400;
     private const double MaxDepth = 1500.0;
-    private const double Speed = 1.0;
+    private const double Speed = 0.65;
     private const double MinimumSpawnRadius = 0.22;
+    private const int OpacityLevels = 8;
 
     private static readonly Color[] StarColors =
     [
@@ -27,9 +28,7 @@ public sealed class StarFieldControl : Control
 
     private readonly Random _random = new();
     private readonly Star[] _stars = Enumerable.Range(0, StarCount).Select(_ => new Star()).ToArray();
-    private readonly IBrush[] _brushes = StarColors
-        .Select(color => (IBrush)new SolidColorBrush(color))
-        .ToArray();
+    private readonly IBrush[,] _brushes = CreateBrushes();
     private readonly DispatcherTimer _timer;
     private double _initializedWidth;
     private double _initializedHeight;
@@ -41,6 +40,24 @@ public sealed class StarFieldControl : Control
         public double Z;
         public double Size;
         public int ColorIndex;
+    }
+
+    private static IBrush[,] CreateBrushes()
+    {
+        var brushes = new IBrush[StarColors.Length, OpacityLevels];
+        for (var colorIndex = 0; colorIndex < StarColors.Length; colorIndex++)
+        {
+            var color = StarColors[colorIndex];
+            for (var level = 0; level < OpacityLevels; level++)
+            {
+                var opacity = level / (double)(OpacityLevels - 1);
+                var alpha = (byte)Math.Round(color.A * opacity);
+                brushes[colorIndex, level] = new SolidColorBrush(
+                    Color.FromArgb(alpha, color.R, color.G, color.B));
+            }
+        }
+
+        return brushes;
     }
 
     public StarFieldControl()
@@ -77,7 +94,7 @@ public sealed class StarFieldControl : Control
 
         _initializedWidth = width;
         _initializedHeight = height;
-        var radiusLimit = Math.Min(width, height) / 2.0;
+        var radiusLimit = width / 2.0;
 
         foreach (var star in _stars)
         {
@@ -91,7 +108,7 @@ public sealed class StarFieldControl : Control
     private void ResetStar(Star star, double width, double height)
     {
         star.Z = MaxDepth;
-        SetStarPosition(star, Math.Min(width, height) / 2.0);
+        SetStarPosition(star, width / 2.0);
         star.ColorIndex = _random.Next(StarColors.Length);
     }
 
@@ -126,14 +143,14 @@ public sealed class StarFieldControl : Control
 
             // Use one shared scale on both axes so the perspective field remains circular
             // even when the header itself is a wide, shallow rectangle.
-            var projectionScale = Math.Min(width, height) / 2.0;
+            var projectionScale = width / 2.0;
             var x = (star.X / star.Z) * projectionScale + width / 2.0;
             var y = (star.Y / star.Z) * projectionScale + height / 2.0;
             var radius = (1.0 - star.Z / MaxDepth) * star.Size * 1.6;
             var dx = x - width / 2.0;
             var dy = y - height / 2.0;
             var centerDistance = Math.Sqrt(dx * dx + dy * dy) /
-                (Math.Min(width, height) * 0.5);
+                (width * 0.5);
 
             // Stars close to the vanishing point should be tiny and almost invisible.
             var fade = Math.Clamp((centerDistance - 0.08) / 0.55, 0.0, 1.0);
@@ -144,11 +161,11 @@ public sealed class StarFieldControl : Control
                 y < -radius || y > height + radius || fade <= 0.01)
                 continue;
 
-            using (context.PushOpacity(0.04 + 0.96 * fade))
-            {
-                context.DrawEllipse(_brushes[star.ColorIndex], null,
-                    new Point(x, y), radius, radius);
-            }
+            var opacityLevel = Math.Clamp(
+                (int)Math.Round((0.04 + 0.96 * fade) * (OpacityLevels - 1)),
+                0, OpacityLevels - 1);
+            context.DrawEllipse(_brushes[star.ColorIndex, opacityLevel], null,
+                new Point(x, y), radius, radius);
         }
     }
 }
