@@ -307,14 +307,14 @@ namespace Apps2Samsung.Services
             var parser = new Org.BouncyCastle.X509.X509CertificateParser();
 
             var leafBc = parser.ReadCertificate(signedCertBytes);
-            using var leafDot = new X509Certificate2(leafBc.GetEncoded());
+            using var leafDot = X509CertificateLoader.LoadCertificate(leafBc.GetEncoded());
 
             X509Certificate2? candidateDot = null;
             string requested = Path.Combine(caPath, caFile);
             if (File.Exists(requested))
             {
                 var bc = parser.ReadCertificate(await File.ReadAllBytesAsync(requested));
-                candidateDot = new X509Certificate2(bc.GetEncoded());
+                candidateDot = X509CertificateLoader.LoadCertificate(bc.GetEncoded());
             }
 
             // --- Load all CAs in folder as fallback pool ---
@@ -328,7 +328,7 @@ namespace Apps2Samsung.Services
                     try
                     {
                         var caTemp = parser.ReadCertificate(await File.ReadAllBytesAsync(p));
-                        allCaDot.Add(new X509Certificate2(caTemp.GetEncoded()));
+                        allCaDot.Add(X509CertificateLoader.LoadCertificate(caTemp.GetEncoded()));
                     }
                     catch { /* ignore bad files */ }
                 }
@@ -385,9 +385,8 @@ namespace Apps2Samsung.Services
             {
                 try
                 {
-                    var verify = new X509Certificate2Collection();
                     // For a one-off verification, EphemeralKeySet is fine
-                    verify.Import(target, password, X509KeyStorageFlags.EphemeralKeySet);
+                    var verify = X509CertificateLoader.LoadPkcs12CollectionFromFile(target, password, X509KeyStorageFlags.EphemeralKeySet);
 
                     var leaf = verify.Cast<X509Certificate2>().FirstOrDefault(c => c.HasPrivateKey)
                                ?? throw new InvalidOperationException("PFX sanity failed: no leaf with private key.");

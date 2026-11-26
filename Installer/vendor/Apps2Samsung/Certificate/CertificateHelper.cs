@@ -52,12 +52,12 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
                     continue;
                 try
                 {
-                    var cert = new X509Certificate2(
+                    var cert = X509CertificateLoader.LoadPkcs12FromFile(
                         p12Path,
                         password,
                         PlatformService.SigningCertificateFlags);
 
-                    var dist = new X509Certificate2(
+                    var dist = X509CertificateLoader.LoadPkcs12FromFile(
                         p12Path.Replace("author.p12", "distributor.p12"),
                         password,
                         PlatformService.SigningCertificateFlags);
@@ -137,7 +137,7 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
                 if (!File.Exists(distributorP12Path))
                     return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                using var dist = new X509Certificate2(distributorP12Path, password, PlatformService.SigningCertificateFlags);
+                using var dist = X509CertificateLoader.LoadPkcs12FromFile(distributorP12Path, password, PlatformService.SigningCertificateFlags);
                 return DuidsOf(dist);
             }
             catch (Exception ex)

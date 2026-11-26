@@ -5,6 +5,7 @@ using Apps2Samsung.Samsung;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -17,7 +18,7 @@ namespace Apps2Samsung.Services
 {
     public class SamsungLoginService : ISamsungLoginService
     {
-        private IWebHost? _callbackServer;
+        private IHost? _callbackServer;
 
         private string CallbackUrl => SamsungOAuth.LoopbackRedirectUri;
 
@@ -83,82 +84,85 @@ namespace Apps2Samsung.Services
 
         public async Task StartCallbackServer()
         {
-            _callbackServer = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls($"http://{Constants.Samsung.LoopbackHost}:{SamsungOAuth.CallbackPort}")
-                .Configure(app =>
+            _callbackServer = Host.CreateDefaultBuilder()
+                .ConfigureWebHostDefaults(webHost =>
                 {
-                    app.Run(async context =>
-                    {
-                        if (context.Request.Path == SamsungOAuth.CallbackPath &&
-                            context.Request.Method == "POST")
+                    webHost
+                        .UseUrls($"http://{Constants.Samsung.LoopbackHost}:{SamsungOAuth.CallbackPort}")
+                        .Configure(app =>
                         {
-                            string body = await new StreamReader(context.Request.Body).ReadToEndAsync();
-
-                            string? state = null;
-                            string? codeEncoded = null;
-
-                            var parts = body.Split('&', StringSplitOptions.RemoveEmptyEntries);
-
-                            foreach (var part in parts)
+                            app.Run(async context =>
                             {
-                                var kv = part.Split('=', 2);
-                                if (kv.Length != 2) continue;
-
-                                if (kv[0] == "state")
-                                    state = WebUtility.UrlDecode(kv[1]);
-
-                                if (kv[0] == "code")
-                                    codeEncoded = Uri.UnescapeDataString(kv[1]);
-                            }
-
-                            // Reject a callback whose state doesn't round-trip (CSRF / stray callback).
-                            if (!SamsungOAuth.IsValidState(state))
-                            {
-                                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                                await context.Response.WriteAsync("Invalid login response (state mismatch).");
-                                return;
-                            }
-
-                            if (string.IsNullOrWhiteSpace(codeEncoded))
-                            {
-                                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                                await context.Response.WriteAsync("Invalid login response (missing code).");
-                                return;
-                            }
-
-                            try
-                            {
-                                var auth = JsonSerializer.Deserialize<SamsungAuth>(
-                                    codeEncoded,
-                                    JsonSerializerOptionsProvider.Default);
-
-                                if (auth != null)
+                                if (context.Request.Path == SamsungOAuth.CallbackPath &&
+                                    context.Request.Method == "POST")
                                 {
-                                    auth.state = state;
-                                    CallbackReceived?.Invoke(auth);
+                                    string body = await new StreamReader(context.Request.Body).ReadToEndAsync();
 
-                                    context.Response.StatusCode = (int)HttpStatusCode.OK;
-                                    await context.Response.WriteAsync("Login successful. You can close this window.");
+                                    string? state = null;
+                                    string? codeEncoded = null;
+
+                                    var parts = body.Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+                                    foreach (var part in parts)
+                                    {
+                                        var kv = part.Split('=', 2);
+                                        if (kv.Length != 2) continue;
+
+                                        if (kv[0] == "state")
+                                            state = WebUtility.UrlDecode(kv[1]);
+
+                                        if (kv[0] == "code")
+                                            codeEncoded = Uri.UnescapeDataString(kv[1]);
+                                    }
+
+                                    // Reject a callback whose state doesn't round-trip (CSRF / stray callback).
+                                    if (!SamsungOAuth.IsValidState(state))
+                                    {
+                                        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                                        await context.Response.WriteAsync("Invalid login response (state mismatch).");
+                                        return;
+                                    }
+
+                                    if (string.IsNullOrWhiteSpace(codeEncoded))
+                                    {
+                                        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                                        await context.Response.WriteAsync("Invalid login response (missing code).");
+                                        return;
+                                    }
+
+                                    try
+                                    {
+                                        var auth = JsonSerializer.Deserialize<SamsungAuth>(
+                                            codeEncoded,
+                                            JsonSerializerOptionsProvider.Default);
+
+                                        if (auth != null)
+                                        {
+                                            auth.state = state!;
+                                            CallbackReceived?.Invoke(auth);
+
+                                            context.Response.StatusCode = (int)HttpStatusCode.OK;
+                                            await context.Response.WriteAsync("Login successful. You can close this window.");
+                                            return;
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                                        await context.Response.WriteAsync(
+                                            $"[CallbackServer] JSON parse error: {ex.Message}\n\nDecoded JSON:\n{codeEncoded}");
+                                        return;
+                                    }
+
+                                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                                    await context.Response.WriteAsync("Invalid login response.");
                                     return;
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                                await context.Response.WriteAsync(
-                                    $"[CallbackServer] JSON parse error: {ex.Message}\n\nDecoded JSON:\n{codeEncoded}");
-                                return;
-                            }
 
-                            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                            await context.Response.WriteAsync("Invalid login response.");
-                            return;
-                        }
-
-                        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                        await context.Response.WriteAsync("Not Found");
-                    });
+                                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                                await context.Response.WriteAsync("Not Found");
+                            });
+                        });
                 })
                 .Build();
 

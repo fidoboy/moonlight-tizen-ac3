@@ -13,12 +13,10 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
 
         public string GetEncryptedString(string plainText)
         {
-            using var tdes = new TripleDESCryptoServiceProvider
-            {
-                Key = KeyBytes,
-                Mode = CipherMode.ECB,
-                Padding = PaddingMode.PKCS7
-            };
+            using var tdes = TripleDES.Create();
+            tdes.Key = KeyBytes;
+            tdes.Mode = CipherMode.ECB;
+            tdes.Padding = PaddingMode.PKCS7;
 
             var data = Encoding.UTF8.GetBytes(plainText);
             byte[] encrypted = tdes.CreateEncryptor().TransformFinalBlock(data, 0, data.Length);
