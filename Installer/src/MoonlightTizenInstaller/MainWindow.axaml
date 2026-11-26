@@ -173,7 +173,7 @@
           <TextBlock Name="ConnectionSummary" Text="Pulsa «Instalar» cuando estés listo para comenzar."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <ListBox Name="TelevisionCards" IsVisible="False" SelectionMode="Single"
-                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                   HorizontalAlignment="Stretch"
                    Background="Transparent" BorderThickness="0"
                    SelectionChanged="OnTelevisionSelectionChanged">
             <ListBox.Styles>
@@ -189,7 +189,7 @@
                     <Path Data="M 3,4 L 21,4 L 21,17 L 3,17 Z M 9,21 L 15,21 M 12,17 L 12,21"
                           Width="28" Height="28" Stretch="Uniform"
                           Stroke="#A7D3FF" StrokeThickness="1.8"
-                          StrokeLineCap="Round" StrokeLineJoin="Round"
+                          StrokeLineCap="Round"
                           VerticalAlignment="Center" />
                     <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                       <TextBlock Text="{Binding FriendlyName}" FontSize="16" FontWeight="SemiBold"
