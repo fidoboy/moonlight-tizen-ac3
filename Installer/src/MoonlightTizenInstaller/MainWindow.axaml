@@ -142,7 +142,8 @@
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Buscando tu TV con TizenOS" FontSize="28" FontWeight="Bold" />
+          <TextBlock Name="TelevisionPageTitle" Text="Searching for your TizenOS TV" FontSize="28" FontWeight="Bold" />
+          <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Foreground="#ACBAD0" />
           <TextBlock Name="TelevisionDiscoveryHint"
                      Text="Los televisores de la red local se detectan automáticamente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
@@ -182,7 +183,6 @@
               </StackPanel>
             </Border>
           </StackPanel>
-          <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Foreground="#ACBAD0" />
         </StackPanel>
 
         <StackPanel Name="ConnectionPage" Spacing="14" IsVisible="False">
