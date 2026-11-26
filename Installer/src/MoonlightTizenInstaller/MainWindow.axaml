@@ -357,11 +357,11 @@
               </StackPanel>
             </Border>
           </StackPanel>
-          <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
-                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
+          <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="30"
+                IsVisible="False" VerticalAlignment="Top" Margin="0,26,0,0">
             <Border Name="InstallationResultIconCircle" Width="76" Height="76" CornerRadius="38"
                     Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                    HorizontalAlignment="Center" VerticalAlignment="Top">
               <Path Name="InstallationResultIcon" Data="M 3,12 L 9,18 L 21,6"
                     Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
                     StrokeThickness="2.8" StrokeLineCap="Round"
@@ -377,7 +377,7 @@
                          IsVisible="False" TextWrapping="Wrap" Foreground="#ACBAD0"
                          FontSize="14" Margin="0,8,0,0" />
               <Button Name="UninstallAndRetryButton" Content="Uninstall &amp; retry"
-                      IsVisible="False" HorizontalAlignment="Center" Margin="0,13,0,0"
+                      IsVisible="False" HorizontalAlignment="Center" Margin="0,23,0,0"
                       Click="OnUninstallAndRetryClick" Classes="primary" />
             </StackPanel>
           </Grid>
