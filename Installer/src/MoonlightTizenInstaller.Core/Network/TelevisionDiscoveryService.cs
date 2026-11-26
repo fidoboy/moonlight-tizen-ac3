@@ -21,7 +21,7 @@ public sealed record DiscoveredTelevision(
     {
         get
         {
-            var name = string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name;
+            var name = string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
             var endpoint = UsesTvStoreRelay ? $"SDB relay :{SdbPort}" : $"SDB :{SdbPort}";
             return string.IsNullOrWhiteSpace(Duid)
                 ? $"{name} ({IpAddress}) — {endpoint}"
