@@ -5,9 +5,9 @@ using System.Text.Json.Nodes;
 namespace MoonlightTizenInstaller.Core.Installation;
 
 /// <summary>
-/// Hands the bundled WGT to an installed and reachable Apps2Samsung TV-Store.
-/// This is a preferred, optional route: when it cannot be confirmed or refuses the
-/// package, the caller must continue with the normal DUID/Partner/SDB installation.
+/// Hands the bundled WGT to an installed and reachable TV-Store instance.
+/// The caller must treat a failed handoff as a terminal result when the user has
+/// explicitly chosen this route; it must not silently fall back to another installer.
 /// </summary>
 public sealed class TvStoreHandoffService
 {
@@ -36,8 +36,8 @@ public sealed class TvStoreHandoffService
     }
 
     /// <summary>
-    /// Returns null when TV-Store is not installed/reachable, cannot be started, or refuses
-    /// the upload. A non-null result means the WGT is waiting in TV-Store for the user to accept.
+    /// Returns null when TV-Store is not reachable, cannot be started, or refuses the upload.
+    /// A non-null result means the WGT is waiting in TV-Store for the user to accept.
     /// It does not mean that the user has completed installation.
     /// </summary>
     public async Task<HandoffResult?> TrySendForInstallationAsync(
@@ -58,7 +58,7 @@ public sealed class TvStoreHandoffService
         {
             if (!await IsTvStoreInstalledAsync(televisionIp, cancellationToken).ConfigureAwait(false))
             {
-                progress?.Report("TV-Store no está instalado o no se puede confirmar su presencia. Se continuará con la instalación SDB.");
+                progress?.Report("TV-Store no está instalado o no se puede confirmar su presencia.");
                 return null;
             }
 
@@ -66,7 +66,7 @@ public sealed class TvStoreHandoffService
             launchAccepted = await LaunchTvStoreAsync(televisionIp, cancellationToken).ConfigureAwait(false);
             if (!launchAccepted)
             {
-                progress?.Report("No se ha podido iniciar TV-Store. Se continuará con la instalación SDB.");
+                progress?.Report("No se ha podido iniciar TV-Store.");
                 return null;
             }
 
@@ -83,7 +83,7 @@ public sealed class TvStoreHandoffService
 
         if (!serviceAvailable)
         {
-            progress?.Report("TV-Store está instalado, pero su servicio de recepción no ha quedado disponible. Se continuará con la instalación SDB.");
+            progress?.Report("TV-Store está instalado, pero su servicio de recepción no ha quedado disponible.");
             return null;
         }
 
@@ -91,7 +91,7 @@ public sealed class TvStoreHandoffService
         var upload = await UploadAsync(televisionIp, packagePath, progress, cancellationToken).ConfigureAwait(false);
         if (upload is null)
         {
-            progress?.Report("TV-Store no ha aceptado o no ha verificado el paquete. Se continuará con la instalación SDB.");
+            progress?.Report("TV-Store no ha aceptado o no ha verificado el paquete.");
             return null;
         }
 
