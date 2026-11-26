@@ -47,6 +47,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         attribute float a_size;
         attribute vec3 a_color;
         uniform float u_width;
+        uniform float u_height;
         uniform float u_time;
         varying vec3 v_color;
         varying float v_alpha;
@@ -58,9 +59,10 @@ public sealed class StarFieldControl : OpenGlControlBase
 
             // The same width-based scale on both axes keeps the field circular
             // even though the header is a wide, shallow rectangle.
-            float projection = u_width / (2.0 * z);
-            gl_Position = vec4(a_position.x * projection,
-                               -a_position.y * projection, 0.0, 1.0);
+            float xProjection = u_width / (2.0 * z);
+            float yProjection = (u_width * u_width) / (2.0 * u_height * z);
+            gl_Position = vec4(a_position.x * xProjection,
+                               -a_position.y * yProjection, 0.0, 1.0);
 
             float radialDistance = length(a_position.xy) / z;
             float fade = smoothstep(0.08, 0.63, radialDistance);
@@ -94,6 +96,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     private uint _program;
     private uint _vertexBuffer;
     private int _widthUniform;
+    private int _heightUniform;
     private int _timeUniform;
     private long _startTimestamp;
 
@@ -132,6 +135,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         _gl = new GlFunctions(gl);
         _program = CreateProgram(_gl, VertexShaderSource, FragmentShaderSource);
         _widthUniform = _gl.GetUniformLocation(_program, "u_width");
+        _heightUniform = _gl.GetUniformLocation(_program, "u_height");
         _timeUniform = _gl.GetUniformLocation(_program, "u_time");
 
         _gl.GenBuffers(1, out _vertexBuffer);
@@ -168,6 +172,7 @@ public sealed class StarFieldControl : OpenGlControlBase
 
         _gl.UseProgram(_program);
         _gl.Uniform1f(_widthUniform, pixelWidth);
+        _gl.Uniform1f(_heightUniform, pixelHeight);
 
         var elapsedSeconds = (Stopwatch.GetTimestamp() - _startTimestamp) /
             (double)Stopwatch.Frequency;
