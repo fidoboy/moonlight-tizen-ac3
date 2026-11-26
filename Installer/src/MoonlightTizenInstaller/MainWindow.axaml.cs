@@ -189,6 +189,7 @@ public sealed partial class MainWindow : Window
             return;
 
         _discoveryInProgress = true;
+        if (this.FindControl<Button>("NextButton") is { } nextButton) nextButton.IsEnabled = false;
         _selectedDuid = null;
         _selectedTelevision = null;
         SetTelevisionActionsEnabled(false);
@@ -254,6 +255,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             _discoveryInProgress = false;
+            if (this.FindControl<Button>("NextButton") is { } nextButton) nextButton.IsEnabled = true;
             SetTelevisionActionsEnabled(_selectedTelevision is not null);
             if (retry is not null) retry.IsEnabled = true;
         }
