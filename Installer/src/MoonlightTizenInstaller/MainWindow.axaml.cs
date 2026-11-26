@@ -14,6 +14,7 @@ public sealed partial class MainWindow : Window
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
     private readonly SdbInstallationService _sdbInstaller = new();
+    private readonly TvStoreHandoffService _tvStoreInstaller = new();
     private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
@@ -109,7 +110,7 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = "Buscando televisores Samsung y obteniendo automáticamente el DUID mediante SDB…";
+        if (searchStatus is not null) searchStatus.Text = "Detectando televisores Samsung y comprobando primero la vía de instalación TV-Store…";
 
         try
         {
@@ -128,7 +129,7 @@ public sealed partial class MainWindow : Window
 
             if (devices.Count == 1)
             {
-                SelectTelevision(devices[0]);
+                await SelectTelevisionAsync(devices[0]);
                 return;
             }
 
@@ -164,7 +165,7 @@ public sealed partial class MainWindow : Window
         if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = message;
-        var useRelay = _selectedTelevision?.TvStoreRelayAvailable == true;
+        var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
@@ -173,47 +174,90 @@ public sealed partial class MainWindow : Window
                 : "Para la conexión SDB directa, introduce la dirección IPv4 de este ordenador en Host PC IP:";
     }
 
-    private void SelectTelevision(DiscoveredTelevision device)
+    private async Task SelectTelevisionAsync(DiscoveredTelevision device)
     {
         _selectedTelevision = device;
-        _selectedDuid = device.Duid;
-        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
-        if (TizenDuid.IsValid(device.Duid))
-        {
-            if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
-            if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                status.Text = device.UsesTvStoreRelay
-                    ? $"Conexión SDB verificada mediante el relay de TV-Store ({device.IpAddress}:{device.SdbPort}). DUID: {device.Duid}"
-                    : $"Conexión SDB directa verificada ({device.IpAddress}:{device.SdbPort}). DUID: {device.Duid}";
-        }
-        else
-        {
-            ShowDeveloperModeInstructions("Se ha detectado el televisor, pero no se ha podido obtener automáticamente su DUID. El DUID es obligatorio para continuar. Activa o revisa Developer Mode y pulsa Reintentar.");
-        }
-        SetTelevisionActionsEnabled(true);
-    }
+        _selectedDuid = null;
 
-    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
-        {
-            _selectedTelevision = selected;
-            _selectedDuid = selected.Duid;
-            if (TizenDuid.IsValid(selected.Duid))
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
+        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+        if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
+        if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
+            searchStatus.Text = $"Comprobando si TV-Store está instalado y puede recibir Moonlight en {device.IpAddress}…";
+        SetTelevisionActionsEnabled(false);
+
+        var progress = new Progress<string>(message =>
+            Dispatcher.UIThread.Post(() =>
             {
-                if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+                if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
+                    status.Text = message;
+            }));
+
+        try
+        {
+            var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(device.IpAddress, _bundledWgtPath, progress);
+            if (handoff is not null)
+            {
+                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
+                if (this.FindControl<Border>("CertificatePanel") is { } certificatePanel) certificatePanel.IsVisible = false;
+                if (this.FindControl<StackPanel>("TelevisionActionsPanel") is { } actionsPanel) actionsPanel.IsVisible = false;
+                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
+                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                {
+                    var launchMessage = handoff.TvStoreOpened
+                        ? "TV-Store se ha abierto en el televisor."
+                        : "No se ha podido traer TV-Store al primer plano; si no aparece, ábrelo desde el televisor.";
+                    tvStoreStatus.Text =
+                        $"Moonlight.wgt se ha transferido y su SHA-256 se ha verificado ({handoff.Size:N0} bytes).\n\n" +
+                        $"{launchMessage}\n\n" +
+                        "En la pantalla del televisor debe aparecer la solicitud de instalación de Moonlight. Selecciona «Instalar» y acepta la confirmación de TV-Store. " +
+                        "El instalador no necesita realizar ninguna otra operación por esta vía.";
+                }
+                return;
+            }
+
+            if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } fallbackStatus)
+                fallbackStatus.Text = "TV-Store no está disponible para esta instalación. Se continúa con la instalación directa mediante SDB…";
+
+            var withDuid = await _discovery.RetrieveDuidAsync(device, progress);
+            _selectedTelevision = withDuid;
+            _selectedDuid = withDuid.Duid;
+
+            if (TizenDuid.IsValid(withDuid.Duid))
+            {
+                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
+                if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activationPanel) activationPanel.IsVisible = false;
                 if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                    status.Text = selected.UsesTvStoreRelay
-                        ? $"Televisor seleccionado. Relay de TV-Store activo en el puerto {selected.SdbPort}. DUID: {selected.Duid}"
-                        : $"Televisor seleccionado. SDB directo en el puerto {selected.SdbPort}. DUID: {selected.Duid}";
+                    status.Text = withDuid.UsesTvStoreRelay
+                        ? $"TV-Store no ha podido completar la transferencia. DUID obtenido automáticamente mediante el relay SDB ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}"
+                        : $"TV-Store no está disponible. DUID obtenido automáticamente mediante SDB directo ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}";
             }
             else
             {
-                ShowDeveloperModeInstructions("No se ha podido obtener automáticamente el DUID de este televisor. Activa o revisa Developer Mode y pulsa Reintentar.", keepSelectionPanel: true);
+                ShowDeveloperModeInstructions("TV-Store no está disponible y no se ha podido obtener automáticamente el DUID mediante SDB. Activa o revisa Developer Mode y pulsa Reintentar.");
             }
+
             SetTelevisionActionsEnabled(true);
         }
+        catch (OperationCanceledException)
+        {
+            ShowDeveloperModeInstructions("La operación no se ha completado. Comprueba la conexión con el televisor y pulsa Reintentar.");
+        }
+        catch (Exception ex)
+        {
+            ShowDeveloperModeInstructions($"No se ha podido completar la instalación mediante TV-Store ni preparar la conexión SDB ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
+        }
+        finally
+        {
+            if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
+        }
+    }
+
+    private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
+            await SelectTelevisionAsync(selected);
         else
         {
             _selectedTelevision = null;
@@ -222,6 +266,8 @@ public sealed partial class MainWindow : Window
             SetTelevisionActionsEnabled(false);
         }
     }
+
+    private void OnFinishTvStoreHandoffClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 
     private void SetTelevisionActionsEnabled(bool enabled)
     {
