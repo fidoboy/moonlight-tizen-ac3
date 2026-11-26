@@ -79,7 +79,8 @@ Although Tizen is primarily associated with Samsung TVs, Samsung also licenses i
 
 ## 📦 Installation
 
-The best option—since it's the simplest—is to install Moonlight directly from the Apps2Samsung catalog by selecting the [fidoboy · Dolby] version from the available options. That way, you'll always have the latest version. You can also download `Moonlight.wgt` (or `Moonlight-ForceGM.wgt` if your TV model requires it to allow enable the Game Mode) from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it using [Apps2Samsung](https://apps2samsung.com/#download) with the browse button to select a custom WGT or Tizen Studio. Both methods require enabling Developer Mode on the TV. See the [Installation Guide](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/docs/Installation-Guide.md) for step-by-step instructions.
+The best option—since it’s the simplest—is to install Moonlight using the installation wizard on your desktop computer; you can [download it here](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest). You can also do this very easily from the Apps2Samsung app catalog by selecting the [fidoboy · Enhanced · Dolby] version from the available options. This way, you’ll always have the latest version. You can also download `Moonlight.wgt` (or `Moonlight-ForceGM.wgt` if your TV model requires it to enable game mode) from the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) and install it via [Apps2Samsung](https://apps2samsung.com/#download), using the “Browse” button to select a custom WGT file, or through Tizen Studio. All of these methods require enabling developer mode on your TV. See the [Installation Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Installation-Guide.html) for step-by-step instructions.
+
 
 ---
 
