@@ -167,7 +167,7 @@ public sealed class TelevisionDiscoveryService
         return candidates.ToList();
     }
 
-    private static async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(
+    private async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(
         IPAddress address,
         CancellationToken cancellationToken)
     {
