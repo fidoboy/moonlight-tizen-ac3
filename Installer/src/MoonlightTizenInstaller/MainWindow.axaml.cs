@@ -479,10 +479,8 @@ public sealed partial class MainWindow : Window
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? InstallerLocalization.T("No se ha podido determinar una IPv4 privada");
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
             hostIpDescription.Text = useRelay
-                ? InstallerLocalization.T("Introduce exactamente 127.0.0.1 en Host PC IP:")
-                : InstallerLocalization.T("Introduce la dirección IPv4 de este ordenador en Host PC IP:");
-        if (this.FindControl<TextBlock>("DeveloperModeRestartInstructions") is { } restartInstructions)
-            restartInstructions.Text = InstallerLocalization.T("5. Confirm the settings, then restart the TV by pressing and holding its power button for at least two seconds. This is required to apply the changes. Then click Retry here.");
+                ? InstallerLocalization.T("Enter exactly 127.0.0.1 in Host PC IP:")
+                : InstallerLocalization.T("Enter this computer's IPv4 address in Host PC IP:");
         SetWizardStep(2);
     }
 
