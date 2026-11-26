@@ -36,9 +36,7 @@ public sealed partial class MainWindow : Window
     private async void OnEnsureCertificateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var duid = this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
-        var level = this.FindControl<ComboBox>("CertificateLevel")?.SelectedIndex == 1
-            ? CertificatePrivilegeLevel.Partner
-            : CertificatePrivilegeLevel.Public;
+        const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
         var status = this.FindControl<TextBlock>("CertificateOperationStatus");
         var button = this.FindControl<Button>("EnsureCertificateButton");
 
@@ -89,9 +87,7 @@ public sealed partial class MainWindow : Window
     private async void OnSignWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var duid = this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
-        var level = this.FindControl<ComboBox>("CertificateLevel")?.SelectedIndex == 1
-            ? CertificatePrivilegeLevel.Partner
-            : CertificatePrivilegeLevel.Public;
+        const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
         var status = this.FindControl<TextBlock>("CertificateOperationStatus");
         var button = this.FindControl<Button>("SignWgtButton");
 

@@ -16,9 +16,9 @@ The final installer is intended to embed the release WGT at build time; the curr
 
 The installer now compiles the selected Apps2Samsung certificate source subset into its Core project through linked source files. `CertificateManager` is the installer-owned entry point for:
 
-- Reusing an existing Samsung signing profile when its author certificate is valid and its distributor certificate covers the selected TV DUID.
-- Starting Samsung SignInGate authentication and issuing a full author/distributor profile when required.
-- Reissuing only the distributor certificate when the author identity can be retained but the selected TV DUID is not covered.
+- Reusing an existing Samsung Partner signing profile when its author certificate is valid and its distributor certificate covers the selected TV DUID.
+- Starting Samsung SignInGate authentication and issuing a full Partner author/distributor profile when required.
+- Reissuing only the Partner distributor certificate when the author identity can be retained but the selected TV DUID is not covered.
 - Signing a WGT locally with the resulting author/distributor PKCS#12 pair, writing a separate signed copy and leaving the original package untouched.
 - Enumerating, exporting, previewing and importing certificate profiles.
 - Maintaining automatic backups outside the application installation directory.
@@ -30,8 +30,9 @@ The profile store and backups are kept in the user's local application-data dire
 The installer does not bundle or download Samsung/Tizen SDK authority materials. The current adapter expects the following files in the `certificate-authorities` directory next to the executable:
 
 - `vd_tizen_dev_author_ca.cer`
-- `vd_tizen_dev_public2.crt` for Public distributor profiles
-- `vd_tizen_dev_partner2.crt` for Partner distributor profiles
+- `vd_tizen_dev_partner2.crt` for the Partner distributor profile used by Moonlight
+
+The certificate core retains support for Public profiles for potential future use, but the Moonlight installer does not expose a level selector and always requests Partner.
 
 If they are absent, existing profiles can still be recovered and reused, but new certificate issuance is blocked with an explicit diagnostic. The origin and redistribution terms of these inputs will be reviewed separately for the GHCR development image.
 

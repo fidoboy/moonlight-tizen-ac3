@@ -28,10 +28,6 @@
             <TextBlock Text="Emitir o renovar un perfil" FontSize="19" />
             <TextBlock Text="Introduce el DUID del televisor. El descubrimiento automático lo rellenará cuando esté integrado." TextWrapping="Wrap" />
             <TextBox Name="TelevisionDuid" Watermark="DUID del televisor" />
-            <ComboBox Name="CertificateLevel" SelectedIndex="0">
-              <ComboBoxItem Content="Public" />
-              <ComboBoxItem Content="Partner" />
-            </ComboBox>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" Click="OnEnsureCertificateClick" />
               <Button Name="SignWgtButton" Content="Firmar WGT…" HorizontalAlignment="Left" Click="OnSignWgtClick" />
