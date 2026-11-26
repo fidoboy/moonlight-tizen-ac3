@@ -89,6 +89,23 @@
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
           <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
                      FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" />
+          <Border Name="LanguageSelectionPanel" IsVisible="False" Background="#14213A"
+                  BorderBrush="#3E94F5" BorderThickness="1" CornerRadius="12"
+                  Padding="16" MaxWidth="730" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="8">
+              <TextBlock Name="LanguageSelectionLabel" Text="Select the installer language" FontWeight="SemiBold" />
+              <ComboBox Name="LanguageSelection" SelectedIndex="-1" MinWidth="260"
+                        HorizontalAlignment="Left" SelectionChanged="OnLanguageSelectionChanged">
+                <ComboBoxItem Content="English (United States)" />
+                <ComboBoxItem Content="Deutsch" />
+                <ComboBoxItem Content="Español" />
+                <ComboBoxItem Content="Français" />
+                <ComboBoxItem Content="Italiano" />
+                <ComboBoxItem Content="Português (Brasil)" />
+                <ComboBoxItem Content="Русский" />
+              </ComboBox>
+            </StackPanel>
+          </Border>
           <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="16" Padding="22" Margin="0,10,0,0">
             <StackPanel Spacing="10">
