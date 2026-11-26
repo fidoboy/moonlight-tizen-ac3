@@ -31,6 +31,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     private const uint SrcAlpha = 0x0302;
     private const uint OneMinusSrcAlpha = 0x0303;
     private const uint ColorBufferBit = 0x00004000;
+    private const uint Framebuffer = 0x8D40;
     private const uint ProgramPointSize = 0x8642;
 
     private static readonly Vector3[] StarColors =
@@ -180,6 +181,9 @@ public sealed class StarFieldControl : OpenGlControlBase
         var pixelWidth = Math.Max(1, (int)Math.Ceiling(Bounds.Width * scale));
         var pixelHeight = Math.Max(1, (int)Math.Ceiling(Bounds.Height * scale));
 
+        // Avalonia supplies the off-screen framebuffer for this control. Bind it explicitly
+        // before clearing or drawing; otherwise the stars may be rendered into another target.
+        _gl.BindFramebuffer(Framebuffer, unchecked((uint)fb));
         _gl.Viewport(0, 0, pixelWidth, pixelHeight);
         _gl.ClearColor(0f, 0f, 0f, 0f);
         _gl.Clear(ColorBufferBit);
@@ -361,6 +365,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void EnableVertexAttribArrayDelegate(uint index);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void VertexAttribPointerDelegate(uint index, int size, uint type, [MarshalAs(UnmanagedType.I1)] bool normalized, int stride, IntPtr pointer);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void Uniform1fDelegate(int location, float value);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void BindFramebufferDelegate(uint target, uint framebuffer);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void ViewportDelegate(int x, int y, int width, int height);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void ClearColorDelegate(float red, float green, float blue, float alpha);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void ClearDelegate(uint mask);
@@ -394,6 +399,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         private readonly EnableVertexAttribArrayDelegate _disableVertexAttribArray;
         private readonly VertexAttribPointerDelegate _vertexAttribPointer;
         private readonly Uniform1fDelegate _uniform1f;
+        private readonly BindFramebufferDelegate _bindFramebuffer;
         private readonly ViewportDelegate _viewport;
         private readonly ClearColorDelegate _clearColor;
         private readonly ClearDelegate _clear;
@@ -429,6 +435,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             _disableVertexAttribArray = Load<EnableVertexAttribArrayDelegate>(gl, "glDisableVertexAttribArray");
             _vertexAttribPointer = Load<VertexAttribPointerDelegate>(gl, "glVertexAttribPointer");
             _uniform1f = Load<Uniform1fDelegate>(gl, "glUniform1f");
+            _bindFramebuffer = Load<BindFramebufferDelegate>(gl, "glBindFramebuffer");
             _viewport = Load<ViewportDelegate>(gl, "glViewport");
             _clearColor = Load<ClearColorDelegate>(gl, "glClearColor");
             _clear = Load<ClearDelegate>(gl, "glClear");
@@ -482,6 +489,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         public void DisableVertexAttribArray(uint index) => _disableVertexAttribArray(index);
         public void VertexAttribPointer(uint index, int size, uint type, bool normalized, int stride, IntPtr pointer) => _vertexAttribPointer(index, size, type, normalized, stride, pointer);
         public void Uniform1f(int location, float value) => _uniform1f(location, value);
+        public void BindFramebuffer(uint target, uint framebuffer) => _bindFramebuffer(target, framebuffer);
         public void Viewport(int x, int y, int width, int height) => _viewport(x, y, width, height);
         public void ClearColor(float red, float green, float blue, float alpha) => _clearColor(red, green, blue, alpha);
         public void Clear(uint mask) => _clear(mask);
