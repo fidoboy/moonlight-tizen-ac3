@@ -807,12 +807,20 @@ public sealed partial class MainWindow : Window
         var duid = GetSelectedDuid();
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            SetOperationStatus("No se puede instalar: no se ha podido identificar correctamente el televisor.");
+            ShowInstallationResult(false, "No se ha podido identificar correctamente el televisor. Vuelve al paso anterior y repite la detección.");
+            _installationFinished = true;
+            if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } invalidProgress)
+                invalidProgress.IsVisible = false;
+            SetWizardStep(5);
             return;
         }
         if (television is null)
         {
-            SetOperationStatus("No se ha seleccionado un televisor.");
+            ShowInstallationResult(false, "No se ha seleccionado un televisor. Vuelve al paso anterior y selecciona el dispositivo.");
+            _installationFinished = true;
+            if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } missingProgress)
+                missingProgress.IsVisible = false;
+            SetWizardStep(5);
             return;
         }
 
