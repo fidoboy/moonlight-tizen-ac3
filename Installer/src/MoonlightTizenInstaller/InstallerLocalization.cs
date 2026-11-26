@@ -90,13 +90,13 @@ internal static class InstallerLocalization
     public static string T(string value)
     {
         if (Translations.TryGetValue(value, out var direct))
-            return direct[_localeIndex];
+            return direct[Math.Max(_localeIndex, 0)];
 
         // Apply can run again after a manual choice. Resolve text already translated
         // during the initial English fallback back to its source entry first.
         foreach (var pair in Translations)
             if (Array.IndexOf(pair.Value, value) >= 0)
-                return pair.Value[_localeIndex];
+                return pair.Value[Math.Max(_localeIndex, 0)];
 
         return value;
     }
