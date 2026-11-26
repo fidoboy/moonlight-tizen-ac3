@@ -10,7 +10,7 @@
         Title="Moonlight for Tizen Installer"
         SystemDecorations="None"
         ShowInTaskbar="True">
-  <Border Margin="12" Background="Transparent" BoxShadow="0 5 24 0 #A0000000">
+  <Border Margin="12" CornerRadius="12" Background="Transparent" BoxShadow="0 5 24 0 #A0000000">
   <Border CornerRadius="12" BorderBrush="#40516D" BorderThickness="1" Background="#080D19" ClipToBounds="True">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Border Grid.Row="0" Padding="30,22" PointerPressed="OnTitleBarPointerPressed"
