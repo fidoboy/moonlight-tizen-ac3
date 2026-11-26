@@ -30,7 +30,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     private const uint Blend = 0x0BE2;
     private const uint SrcAlpha = 0x0302;
     private const uint OneMinusSrcAlpha = 0x0303;
-    private const uint ColorBufferBit = 0x00004000;
+    private const uint ColorBufferBit = 0x00004000;\n    private const uint ProgramPointSize = 0x8642;
 
     private static readonly Vector3[] StarColors =
     [
@@ -70,7 +70,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             v_color = a_color;
 
             float radius = (1.0 - z / 1500.0) * a_size * 3.2;
-            gl_PointSize = max(1.0, radius);
+            gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
 
@@ -134,7 +134,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     protected override void OnOpenGlInit(GlInterface gl)
     {
         _gl = new GlFunctions(gl);
-        var (vertexSource, fragmentSource) = GetShaderSources(GlVersion);
+        var (vertexSource, fragmentSource) = GetShaderSources(GlVersion);\n        _isOpenGles = GlVersion.Type == GlProfileType.OpenGLES;
         _program = CreateProgram(_gl, vertexSource, fragmentSource);
 
         if ((GlVersion.Type == GlProfileType.OpenGL && GlVersion.Major >= 3 && !GlVersion.IsCompatibilityProfile) ||
@@ -181,7 +181,7 @@ public sealed class StarFieldControl : OpenGlControlBase
 
         _gl.UseProgram(_program);
         _gl.Uniform1f(_widthUniform, pixelWidth);
-        _gl.Uniform1f(_heightUniform, pixelHeight);
+        _gl.Uniform1f(_heightUniform, pixelHeight);\n        _gl.Uniform1f(_scaleUniform, (float)scale);
 
         var elapsedSeconds = (Stopwatch.GetTimestamp() - _startTimestamp) /
             (double)Stopwatch.Frequency;
