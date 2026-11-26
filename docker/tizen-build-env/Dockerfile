@@ -64,6 +64,7 @@ RUN apt-get update \
 # Tizen 5.5 ARM sysroot and framework headers/libraries under one stable path.
 COPY wmp/engine/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
 COPY wmp/engine/build/build-static-crypto.sh /opt/wmp-build/build-static-crypto.sh
+COPY docker/tizen-build-env/fetch-samsung-cas.py /opt/tizen-build/fetch-samsung-cas.py
 RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-build/build-static-crypto.sh \
     && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
     && mkdir -p /opt/wmp-backport-deps \
@@ -113,16 +114,14 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && if ! awk '$1 == "i" && $2 == "cert-add-on" { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt; then \
          echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; \
        fi \
-    && certificate_manager_jar="$(find "$TIZEN_STUDIO" -type f -name 'org.tizen.common.cert_*.jar' -print -quit)" \
-    && if [ -z "$certificate_manager_jar" ] || [ ! -s "$certificate_manager_jar" ]; then \
-         echo "Samsung Certificate Manager JAR not found under $TIZEN_STUDIO" >&2; exit 1; \
-       fi \
     && mkdir -p /home/tizen/certificate-authorities \
-    && unzip -p "$certificate_manager_jar" res/ca/vd_tizen_dev_author_ca.cer > /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
-    && unzip -p "$certificate_manager_jar" res/ca/vd_tizen_dev_partner2.crt > /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
-    && test -s /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
-    && test -s /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
-    && echo "Samsung CA files extracted from: $certificate_manager_jar" \
+    && python3 /opt/tizen-build/fetch-samsung-cas.py /home/tizen/certificate-authorities \
+    && for ca in vd_tizen_dev_author_ca.cer vd_tizen_dev_partner2.crt; do \
+         test -s "/home/tizen/certificate-authorities/$ca" \
+         && openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform DER -noout -subject >/dev/null 2>&1 \
+            || openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform PEM -noout -subject >/dev/null 2>&1 \
+            || { echo "Invalid Samsung CA certificate: $ca" >&2; exit 1; }; \
+       done \
     && ls -l /home/tizen/certificate-authorities \
     && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
