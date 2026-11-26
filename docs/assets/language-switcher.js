@@ -4,13 +4,13 @@
   const STORAGE_KEY = "moonlight-tizen-site-language-v2";
   const TEXT = {
     "Downloads installation paragraph":[
-      "For most users, we recommend installing Moonlight from the Apps2Samsung catalog and selecting {{catalog}}. You can also download the WGT file directly if you prefer to install it manually or need a specific build.",
-      "Para la mayoría de los usuarios, recomendamos instalar Moonlight desde el catálogo de Apps2Samsung y seleccionar {{catalog}}. También puedes descargar directamente el archivo WGT si prefieres instalarlo manualmente o necesitas una compilación específica.",
-      "Für die meisten Nutzer empfehlen wir, Moonlight über den Apps2Samsung-Katalog zu installieren und {{catalog}} auszuwählen. Sie können die WGT-Datei auch direkt herunterladen, wenn Sie die App manuell installieren möchten oder eine bestimmte Version benötigen.",
-      "Pour la plupart des utilisateurs, nous recommandons d’installer Moonlight depuis le catalogue Apps2Samsung et de sélectionner {{catalog}}. Vous pouvez également télécharger directement le fichier WGT si vous préférez l’installer manuellement ou si vous avez besoin d’une version précise.",
-      "Per la maggior parte degli utenti, consigliamo di installare Moonlight dal catalogo Apps2Samsung e selezionare {{catalog}}. Puoi anche scaricare direttamente il file WGT se preferisci installarlo manualmente o hai bisogno di una versione specifica.",
-      "Большинству пользователей мы рекомендуем установить Moonlight из каталога Apps2Samsung и выбрать {{catalog}}. Вы также можете скачать файл WGT напрямую, если предпочитаете установить приложение вручную или вам нужна определённая сборка.",
-      "Para a maioria dos usuários, recomendamos instalar o Moonlight pelo catálogo do Apps2Samsung e selecionar {{catalog}}. Você também pode baixar o arquivo WGT diretamente se preferir instalá-lo manualmente ou precisar de uma versão específica."
+      "The easiest option is to download the installer for your computer below. It guides you through the installation process. Alternatively, you can use Apps2Samsung or download an unsigned WGT package for manual installation.",
+      "La opción más sencilla es descargar el instalador correspondiente a tu ordenador. Te guiará durante el proceso de instalación. También puedes utilizar Apps2Samsung o descargar un paquete WGT sin firmar para instalarlo manualmente.",
+      "Am einfachsten ist es, das passende Installationsprogramm für Ihren Computer herunterzuladen. Es führt Sie durch den Installationsvorgang. Alternativ können Sie Apps2Samsung verwenden oder ein unsigniertes WGT-Paket zur manuellen Installation herunterladen.",
+      "La solution la plus simple consiste à télécharger le programme d’installation correspondant à votre ordinateur. Il vous guidera tout au long de l’installation. Vous pouvez également utiliser Apps2Samsung ou télécharger un paquet WGT non signé pour une installation manuelle.",
+      "L’opzione più semplice è scaricare il programma di installazione adatto al proprio computer. Ti guiderà durante la procedura. In alternativa, puoi usare Apps2Samsung o scaricare un pacchetto WGT non firmato per l’installazione manuale.",
+      "Самый простой способ — скачать установщик для вашего компьютера. Он проведёт вас через процесс установки. Также можно воспользоваться Apps2Samsung или скачать неподписанный пакет WGT для ручной установки.",
+      "A opção mais simples é baixar o instalador correspondente ao seu computador. Ele orientará você durante o processo de instalação. Como alternativa, use o Apps2Samsung ou baixe um pacote WGT não assinado para instalação manual."
     ],
     "The WGT is hosted by":["The WGT is hosted by","El WGT está alojado en","Das WGT wird gehostet von","Le WGT est hébergé par","Il WGT è ospitato da","WGT размещён на","O WGT está hospedado no"],
     ". No installer, paid hosting, or separate account is required to download it.":[". No installer, paid hosting, or separate account is required to download it.",". No se necesita instalador, alojamiento de pago ni una cuenta adicional para descargarlo.",". Zum Herunterladen sind weder ein Installer noch kostenpflichtiges Hosting oder ein separates Konto erforderlich.",". Aucun installateur, hébergement payant ou compte supplémentaire n’est nécessaire pour le télécharger.",". Non sono necessari un programma di installazione, un hosting a pagamento o un account separato per scaricarlo.",". Для загрузки не нужны установщик, платный хостинг или отдельная учётная запись.",". Não é necessário instalador, hospedagem paga ou uma conta separada para baixá-lo."],
@@ -38,6 +38,11 @@
     ],
     "experimental Sunshine branch maintained for this project":["experimental Sunshine branch maintained for this project","rama experimental de Sunshine mantenida para este proyecto","experimentellen Sunshine-Branch, der für dieses Projekt gepflegt wird","branche expérimentale de Sunshine maintenue pour ce projet","branch sperimentale di Sunshine mantenuto per questo progetto","экспериментальной ветке Sunshine, поддерживаемой для этого проекта","branch experimental do Sunshine mantido para este projeto"],
     "Vibeshine installer":["Vibeshine installer","Instalador de Vibeshine","Vibeshine-Installer","Programme d’installation de Vibeshine","Programma di installazione di Vibeshine","Установщик Vibeshine","Instalador do Vibeshine"],
+    "Download installer":["Download installer","Descargar instalador","Installationsprogramm herunterladen","Télécharger le programme d’installation","Scarica il programma di installazione","Скачать установщик","Baixar instalador"],
+    "Windows x64":["Windows x64","Windows x64","Windows x64","Windows x64","Windows x64","Windows x64","Windows x64"],
+    "Linux x64":["Linux x64","Linux x64","Linux x64","Linux x64","Linux x64","Linux x64","Linux x64"],
+    "macOS Intel":["macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel"],
+    "macOS Apple silicon":["macOS Apple silicon","macOS Apple Silicon","macOS Apple Silicon","macOS Apple silicon","macOS Apple silicon","macOS Apple silicon","macOS Apple silicon"],
     "EXE":["EXE","EXE","EXE","EXE","EXE","EXE","EXE"]
   };
   const indexFor = code => {
