@@ -11,6 +11,7 @@ internal static class InstallerLocalization
     private static readonly Dictionary<string, string[]> Translations = new()
     {
         ["Inicio"] = ["Welcome", "Willkommen", "Inicio", "Accueil", "Benvenuto", "Início", "Начало"],
+        ["Select the installer language"] = ["Select the installer language", "Installationssprache auswählen", "Selecciona el idioma del instalador", "Choisissez la langue du programme d’installation", "Seleziona la lingua del programma di installazione", "Selecione o idioma do instalador", "Выберите язык установщика"],
         ["Televisor"] = ["TV", "Fernseher", "Televisor", "Téléviseur", "Televisore", "Televisor", "Телевизор"],
         ["Conexión"] = ["Connection", "Verbindung", "Conexión", "Connexion", "Connessione", "Conexão", "Подключение"],
         ["Certificado"] = ["Certificate", "Zertifikat", "Certificado", "Certificat", "Certificato", "Certificado", "Сертификат"],
