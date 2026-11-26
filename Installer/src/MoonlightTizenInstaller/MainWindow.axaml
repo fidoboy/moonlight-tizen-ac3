@@ -25,7 +25,7 @@
       </Border.Background>
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
         <local:StarFieldControl Grid.ColumnSpan="3" Margin="-30,-22" IsHitTestVisible="False" Opacity="0.9" />
-        <Image Name="MoonlightBrandLogo" Width="72" Height="72" Stretch="Uniform" Margin="0" />
+        <Image Name="MoonlightBrandLogo" Width="72" Height="72" Stretch="Uniform" Margin="0,0,18,0" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
                     Background="Transparent">
           <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="50"
@@ -108,7 +108,8 @@
           <TextBlock Text="Instala Moonlight en tu TV con TizenOS."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
           <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
-                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" Margin="0" />
+                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730"
+                     HorizontalAlignment="Left" Margin="0" />
           <Border Name="LanguageSelectionPanel" IsVisible="False" Background="#14213A"
                   BorderBrush="#3E94F5" BorderThickness="1" CornerRadius="12"
                   Padding="16" MaxWidth="730" HorizontalAlignment="Stretch">
