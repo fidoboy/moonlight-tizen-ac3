@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
+    private bool _televisionDiscoveryFailed;
     private bool _tvStoreHandoff;
     private bool _tvStoreDeclined;
     private bool _tvStoreChosen;
@@ -172,7 +173,7 @@ public sealed partial class MainWindow : Window
                 ((_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
                 {
                     1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
-                    2 => true,
+                    2 => !_televisionDiscoveryFailed,
                     3 => _selectedTelevision is not null && !_tvStoreHandoff,
                     4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
                     _ => _installationFinished
@@ -299,6 +300,7 @@ public sealed partial class MainWindow : Window
             return;
 
         _discoveryInProgress = true;
+        _televisionDiscoveryFailed = false;
         SetWizardStep(_wizardStep);
         _selectedDuid = null;
         _selectedTelevision = null;
@@ -371,6 +373,7 @@ public sealed partial class MainWindow : Window
 
             if (devices.Count == 0)
             {
+                _televisionDiscoveryFailed = true;
                 ShowDeveloperModeInstructions(
                     InstallerLocalization.T("No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."));
                 return;
