@@ -49,6 +49,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         attribute vec3 a_color;
         uniform float u_width;
         uniform float u_height;
+        uniform float u_scale;
         uniform float u_time;
         varying vec3 v_color;
         varying float v_alpha;
@@ -99,6 +100,7 @@ public sealed class StarFieldControl : OpenGlControlBase
     private uint _vertexArray;
     private int _widthUniform;
     private int _heightUniform;
+    private int _scaleUniform;
     private int _timeUniform;
     private long _startTimestamp;
 
@@ -147,6 +149,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         }
         _widthUniform = _gl.GetUniformLocation(_program, "u_width");
         _heightUniform = _gl.GetUniformLocation(_program, "u_height");
+        _scaleUniform = _gl.GetUniformLocation(_program, "u_scale");
         _timeUniform = _gl.GetUniformLocation(_program, "u_time");
 
         _gl.GenBuffers(1, out _vertexBuffer);
@@ -178,7 +181,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         _gl.Viewport(0, 0, pixelWidth, pixelHeight);
         _gl.ClearColor(0f, 0f, 0f, 0f);
         _gl.Clear(ColorBufferBit);
-        _gl.Enable(Blend);
+        if (!_isOpenGles)\n            _gl.Enable(ProgramPointSize);\n        _gl.Enable(Blend);
         _gl.BlendFunc(SrcAlpha, OneMinusSrcAlpha);
 
         _gl.UseProgram(_program);
