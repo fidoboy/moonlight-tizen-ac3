@@ -15,7 +15,12 @@ public sealed record DiscoveredTelevision(
     bool TvStoreRelayAvailable)
 {
     public const int DirectSdbPort = 26101;
-    public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
+    public const int TvStoreRelayPort = 26201;
+    public string? DeveloperIp { get; init; }
+    public bool IsDeveloperModeIpValid { get; init; }
+    public bool IsDeveloperModeIpInvalid => !IsDeveloperModeIpValid;
+    public string StatusText { get; init; } = "Not available";
+    public bool UsesTvStoreRelay => SdbPort == TvStoreRelayPort;
     public string FriendlyName => string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
 
     public string DisplayName
@@ -46,7 +51,7 @@ public sealed class TelevisionDiscoveryService
     private static readonly Regex ValidDuid = new("^[A-Za-z0-9]{10,64}$", RegexOptions.Compiled);
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
     private readonly string _sdbKeyDirectory;
-    private sealed record TelevisionApiInfo(string Name, string? DeveloperIp);
+    private sealed record TelevisionApiInfo(string? Name, string? DeveloperIp);
 
     public TelevisionDiscoveryService(string sdbKeyDirectory)
     {
@@ -57,14 +62,15 @@ public sealed class TelevisionDiscoveryService
 
     public async Task<IReadOnlyList<DiscoveredTelevision>> DiscoverAsync(
         IProgress<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<DiscoveredTelevision>? discoveredProgress = null)
     {
         SdbTcpDevice.KeyDirectory = _sdbKeyDirectory;
         var addresses = GetCandidateAddresses();
         if (addresses.Count == 0)
             return Array.Empty<DiscoveredTelevision>();
 
-        progress?.Report("Detectando televisores con TizenOS en la red local…");
+        progress?.Report("Scanning the local network for TizenOS TVs. Please be patient; this process may take some time...");
         using var gate = new SemaphoreSlim(MaxConcurrentProbes);
         var found = new System.Collections.Concurrent.ConcurrentBag<DiscoveredTelevision>();
 
@@ -75,7 +81,10 @@ public sealed class TelevisionDiscoveryService
             {
                 var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
                 if (television is not null)
+                {
                     found.Add(television);
+                    discoveredProgress?.Report(television);
+                }
             }
             finally
             {
@@ -184,7 +193,10 @@ public sealed class TelevisionDiscoveryService
         var tryRelayFirst = relayAvailable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo.DeveloperIp));
 
         var selectedPort = tryRelayFirst ? relayPort!.Value : SdbPort;
-        return new DiscoveredTelevision(address.ToString(), null, apiInfo.Name, selectedPort, relayAvailable);
+        return new DiscoveredTelevision(address.ToString(), null, apiInfo.Name, selectedPort, relayAvailable)
+        {
+            DeveloperIp = apiInfo.DeveloperIp
+        };
     }
 
     private static async Task<int?> TryGetActiveTvStoreRelayPortAsync(
@@ -314,7 +326,7 @@ public sealed class TelevisionDiscoveryService
 
             var name = device["name"]?.GetValue<string>();
             return new TelevisionApiInfo(
-                string.IsNullOrWhiteSpace(name) ? "Samsung TV" : WebUtility.HtmlDecode(name),
+                string.IsNullOrWhiteSpace(name) ? null : WebUtility.HtmlDecode(name),
                 device["developerIP"]?.GetValue<string>());
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

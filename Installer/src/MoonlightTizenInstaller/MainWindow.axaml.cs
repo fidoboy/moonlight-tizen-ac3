@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using System.Globalization;
+using System.Net;
 using System.Diagnostics;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -27,11 +28,14 @@ public sealed partial class MainWindow : Window
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
+    private bool _televisionDiscoveryFailed;
     private bool _tvStoreHandoff;
     private bool _tvStoreDeclined;
     private bool _tvStoreChosen;
     private bool _installationCompleted;
     private bool _installationFinished;
+    private string? _signedPackagePathForRetry;
+    private string? _signedPackageDirectoryForRetry;
     private bool _manualLanguageSelected;
     private int _wizardStep = 1;
 
@@ -40,6 +44,7 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        Closed += (_, _) => CleanupRetryPackage();
         InstallerLocalization.Apply(this);
         if (!InstallerLocalization.HasSupportedSystemLocale)
         {
@@ -143,7 +148,10 @@ public sealed partial class MainWindow : Window
         var next = this.FindControl<Button>("WizardNextButton");
         var exit = this.FindControl<Button>("WizardExitButton");
         if (back is not null)
+        {
             back.IsVisible = _wizardStep > 1 && !_tvStoreHandoff && _wizardStep < 5;
+            back.IsEnabled = !_discoveryInProgress;
+        }
         if (exit is not null)
         {
             exit.IsVisible = _wizardStep == 5 || (!_tvStoreHandoff && !_installationCompleted);
@@ -160,19 +168,20 @@ public sealed partial class MainWindow : Window
                 : _wizardStep switch
                 {
                     1 => "Comenzar",
-                    2 => "Continuar",
-                    3 => "Siguiente",
+                    2 => "Next",
+                    3 => "Next",
                     4 => "Instalar",
                     _ => "Finalizar"
                 });
-            next.IsEnabled = (_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
-            {
-                1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
-                2 => !_discoveryInProgress,
-                3 => _selectedTelevision is not null && !_discoveryInProgress && !_tvStoreHandoff,
-                4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
-                _ => _installationFinished
-            });
+            next.IsEnabled = !_discoveryInProgress &&
+                ((_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
+                {
+                    1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
+                    2 => !_televisionDiscoveryFailed,
+                    3 => _selectedTelevision is { IsDeveloperModeIpValid: true } && !_tvStoreHandoff,
+                    4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
+                    _ => _installationFinished
+                }));
         }
     }
 
@@ -188,7 +197,7 @@ public sealed partial class MainWindow : Window
                 SetWizardStep(3);
                 break;
             case 3:
-                if (_selectedTelevision is { } selectedTelevision)
+                if (_selectedTelevision is { IsDeveloperModeIpValid: true } selectedTelevision)
                     await SelectTelevisionAsync(selectedTelevision);
                 break;
             case 4:
@@ -295,6 +304,10 @@ public sealed partial class MainWindow : Window
             return;
 
         _discoveryInProgress = true;
+        _televisionDiscoveryFailed = false;
+        if (this.FindControl<TextBlock>("TelevisionPageTitle") is { } pageTitle)
+            pageTitle.Text = InstallerLocalization.T("Searching for your TizenOS TV");
+        SetWizardStep(_wizardStep);
         _selectedDuid = null;
         _selectedTelevision = null;
         _tvStoreHandoff = false;
@@ -305,7 +318,15 @@ public sealed partial class MainWindow : Window
         var retry = this.FindControl<Button>("RetryTelevisionDiscoveryButton");
         var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
         var searchStatus = this.FindControl<TextBlock>("TelevisionSearchStatus");
+        var discoveryHint = this.FindControl<TextBlock>("TelevisionDiscoveryHint");
+        var foundList = this.FindControl<StackPanel>("TelevisionFoundList");
 
+        if (foundList is not null) foundList.Children.Clear();
+        if (discoveryHint is not null)
+        {
+            discoveryHint.Text = InstallerLocalization.T("Los televisores de la red local se detectan automáticamente.");
+            discoveryHint.IsVisible = true;
+        }
         if (searching is not null) searching.IsVisible = true;
         if (activation is not null) activation.IsVisible = false;
         if (cards is not null)
@@ -316,7 +337,8 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T("Detectando televisores con TizenOS en la red local…");
+        if (searchStatus is not null)
+            searchStatus.Text = InstallerLocalization.T("Scanning the local network for TizenOS TVs. Please be patient; this process may take some time...");
 
         try
         {
@@ -324,10 +346,42 @@ public sealed partial class MainWindow : Window
             {
                 if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
             });
-            var devices = await _discovery.DiscoverAsync(progress);
+            var discoveredProgress = new Progress<DiscoveredTelevision>(television =>
+            {
+                if (foundList is null)
+                    return;
+
+                var row = new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    Spacing = 8,
+                    Margin = new Avalonia.Thickness(0, 2, 0, 0),
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                };
+                row.Children.Add(new TextBlock
+                {
+                    Text = "✓",
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#35C978")),
+                    FontWeight = Avalonia.Media.FontWeight.Bold,
+                    FontSize = 15,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                });
+                row.Children.Add(new TextBlock
+                {
+                    Text = $"{television.FriendlyName} ({television.IpAddress})",
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#D6E1F2")),
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                });
+                foundList.Children.Add(row);
+            });
+            var devices = await _discovery.DiscoverAsync(progress, discoveredProgress: discoveredProgress);
 
             if (devices.Count == 0)
             {
+                _televisionDiscoveryFailed = true;
+                if (this.FindControl<TextBlock>("TelevisionPageTitle") is { } resultPageTitle)
+                    resultPageTitle.Text = InstallerLocalization.T("No TV was found on the network");
                 ShowDeveloperModeInstructions(
                     InstallerLocalization.T("No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."));
                 return;
@@ -380,20 +434,41 @@ public sealed partial class MainWindow : Window
                 }
             }
 
+            var localHostIp = _discovery.GetDeveloperModeHostIp(useTvStoreRelay: false);
+            devices = devices.Select(device =>
+            {
+                var hasDeveloperIp = !string.IsNullOrWhiteSpace(device.DeveloperIp);
+                var isValid = hasDeveloperIp &&
+                    (device.UsesTvStoreRelay ||
+                     (IPAddress.TryParse(device.DeveloperIp!.Trim(), out var developerIp) &&
+                      IPAddress.TryParse(localHostIp, out var localAddress) && developerIp.Equals(localAddress)));
+
+                return device with
+                {
+                    IsDeveloperModeIpValid = isValid,
+                    StatusText = InstallerLocalization.T(isValid ? "Ready" : "Not available")
+                };
+            }).ToArray();
+
+            if (this.FindControl<Border>("InvalidDeviceWarning") is { } invalidDeviceWarning)
+                invalidDeviceWarning.IsVisible = devices.Any(device => device.IsDeveloperModeIpInvalid);
+
             if (cards is not null)
             {
                 cards.ItemsSource = devices;
-                cards.SelectedIndex = devices.Count == 1 ? 0 : -1;
+                cards.SelectedIndex = devices.Count == 1 && devices[0].IsDeveloperModeIpValid ? 0 : -1;
                 cards.IsVisible = true;
             }
 
-            _selectedTelevision = devices.Count == 1 ? devices[0] : null;
+            _selectedTelevision = devices.Count == 1 && devices[0].IsDeveloperModeIpValid
+                ? devices[0]
+                : null;
             if (searching is not null) searching.IsVisible = false;
             if (this.FindControl<TextBlock>("ConnectionSummary") is { } connectionSummary)
             {
                 connectionSummary.Text = devices.Count > 1
-                    ? InstallerLocalization.T("Se han detectado los siguientes dispositivos. Selecciona el que quieras utilizar y pulsa el botón de «Instalar» cuando estés listo para comenzar.")
-                    : InstallerLocalization.T("Se ha detectado el siguiente dispositivo. Pulsa el botón de «Instalar» cuando estés listo para comenzar.");
+                    ? InstallerLocalization.T("The following devices have been detected. Select the one you want to use, then click the “Next” button when you are ready to continue.")
+                    : InstallerLocalization.T("The following device has been detected. Click the “Next” button when you are ready to continue.");
             }
             if (status is not null) status.Text = string.Empty;
             SetWizardStep(3);
@@ -422,20 +497,21 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (this.FindControl<ListBox>("TelevisionCards") is { } cards) cards.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryHint") is { } hint) hint.IsVisible = false;
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? InstallerLocalization.T("No se ha podido determinar una IPv4 privada");
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
             hostIpDescription.Text = useRelay
-                ? InstallerLocalization.T("Introduce exactamente 127.0.0.1 en Host PC IP:")
-                : InstallerLocalization.T("Introduce la dirección IPv4 de este ordenador en Host PC IP:");
+                ? InstallerLocalization.T("Enter exactly 127.0.0.1 in Host PC IP:")
+                : InstallerLocalization.T("Enter this computer's IPv4 address in Host PC IP:");
         SetWizardStep(2);
     }
 
     private async Task SelectTelevisionAsync(DiscoveredTelevision device)
     {
-        if (_tvStoreChosen)
+        if (_tvStoreChosen || !device.IsDeveloperModeIpValid)
             return;
 
         // TV-Store has already been checked during step 2. The connection step
@@ -549,22 +625,42 @@ public sealed partial class MainWindow : Window
 
     private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        _selectedTelevision = this.FindControl<ListBox>("TelevisionCards")?.SelectedItem as DiscoveredTelevision;
+        var cards = this.FindControl<ListBox>("TelevisionCards");
+        var selectedTelevision = cards?.SelectedItem as DiscoveredTelevision;
+        if (selectedTelevision is { IsDeveloperModeIpValid: false })
+        {
+            cards!.SelectedItem = null;
+            selectedTelevision = null;
+        }
+
+        _selectedTelevision = selectedTelevision;
         _selectedDuid = null;
-        if (this.FindControl<Button>("WizardNextButton") is { } installButton)
-            installButton.IsEnabled = _selectedTelevision is not null && !_discoveryInProgress;
+        SetWizardStep(_wizardStep);
     }
 
 
     private async Task<bool> AskToUseTvStoreAsync(DiscoveredTelevision television)
     {
+        var localizedMessage = InstallerLocalization.T("TV-Store is installed on one of your devices: {0}. Would you like to try using it to complete the Moonlight installation there?");
+        var messageParts = localizedMessage.Split("{0}", 2);
+        var deviceLabel = string.IsNullOrWhiteSpace(television.Name)
+            ? television.IpAddress
+            : $"{television.Name} ({television.IpAddress})";
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T($"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({{0}}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?").Replace("{0}", television.IpAddress),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             FontSize = 15
         };
+        // TextBlock.Inlines is nullable in Avalonia; initialize it before adding runs.
+        message.Inlines ??= new Avalonia.Controls.Documents.InlineCollection();
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[0]));
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(deviceLabel)
+        {
+            FontWeight = Avalonia.Media.FontWeight.Bold
+        });
+        if (messageParts.Length > 1)
+            message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[1]));
         var storeIcon = new Avalonia.Controls.Shapes.Path
         {
             Data = Avalonia.Media.Geometry.Parse("M 4,16 L 44,16 L 40,44 L 8,44 Z M 14,16 C 14,4 34,4 34,16"),
@@ -807,7 +903,14 @@ public sealed partial class MainWindow : Window
     private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
         await InstallWgtAsync();
 
-    private async Task InstallWgtAsync()
+    private async void OnUninstallAndRetryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+            retryButton.IsEnabled = false;
+        await InstallWgtAsync(uninstallAndRetry: true);
+    }
+
+    private async Task InstallWgtAsync(bool uninstallAndRetry = false)
     {
         var television = _selectedTelevision;
         var duid = GetSelectedDuid();
@@ -843,20 +946,52 @@ public sealed partial class MainWindow : Window
             progressBar.IsVisible = true;
         }
         SetOperationStatus(InstallerLocalization.T("Preparando la instalación…"));
-        var temporaryDirectory = Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
-        var signedPackagePath = Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
+        var temporaryDirectory = uninstallAndRetry
+            ? _signedPackageDirectoryForRetry ?? throw new InvalidOperationException("The signed package prepared for retry is no longer available.")
+            : Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
+        var signedPackagePath = uninstallAndRetry
+            ? _signedPackagePathForRetry ?? throw new InvalidOperationException("The signed package prepared for retry is no longer available.")
+            : Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
+        var preserveSignedPackageForRetry = false;
 
         try
         {
-            Directory.CreateDirectory(temporaryDirectory);
             const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
-            SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
-            var profile = _certificates.GetUsableForTelevision(duid, level)
-                ?? throw new InvalidOperationException(InstallerLocalization.T("El certificado Partner no está disponible o ha caducado. Genera o renueva el certificado antes de instalar."));
+            if (!uninstallAndRetry)
+            {
+                Directory.CreateDirectory(temporaryDirectory);
+                SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
+                var profile = _certificates.GetUsableForTelevision(duid, level)
+                    ?? throw new InvalidOperationException(InstallerLocalization.T("The Partner certificate is unavailable or has expired. Generate or renew it before installing."));
 
-            await _certificates.SignWgtAsync(
-                _bundledWgtPath, signedPackagePath, profile,
-                new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                await _certificates.SignWgtAsync(
+                    _bundledWgtPath, signedPackagePath, profile,
+                    new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+            }
+            else
+            {
+                if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } uninstallBar)
+                    uninstallBar.IsIndeterminate = true;
+                SetOperationStatus(InstallerLocalization.T("Uninstalling Moonlight…"));
+                try
+                {
+                    await _sdbInstaller.UninstallAsync(
+                        television.IpAddress, television.SdbPort, signedPackagePath,
+                        new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                }
+                catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
+                {
+                    SetOperationStatus(InstallerLocalization.T("Se ha perdido la conexión con el televisor. Se intentará restablecerla…"));
+                    await _sdbInstaller.UninstallAsync(
+                        television.IpAddress, DiscoveredTelevision.DirectSdbPort, signedPackagePath,
+                        new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                }
+                if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } installBar)
+                {
+                    installBar.IsIndeterminate = false;
+                    installBar.Value = 0;
+                }
+            }
 
             var installProgress = new Progress<string>(message =>
                 Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
@@ -892,8 +1027,22 @@ public sealed partial class MainWindow : Window
                 errorMessage.Contains("author cert", StringComparison.OrdinalIgnoreCase) ||
                 errorMessage.Contains("author-certificate", StringComparison.OrdinalIgnoreCase))
             {
+                preserveSignedPackageForRetry = true;
+                _signedPackagePathForRetry = signedPackagePath;
+                _signedPackageDirectoryForRetry = temporaryDirectory;
                 ShowInstallationResult(false,
-                    InstallerLocalization.T("Tizen ha rechazado la instalación porque el certificado de autor no coincide con el de la versión de Moonlight que ya está instalada. Desinstala primero Moonlight desde el televisor y vuelve a ejecutar este instalador. No generes otro certificado: eso no resolverá esta incompatibilidad."));
+                    InstallerLocalization.T("Tizen rejected the installation because the certificate of the currently installed version does not match the certificate of the version you are trying to install. The installed version must be removed before this signed package can be installed."));
+                if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
+                {
+                    retryInstructions.Text = InstallerLocalization.T("If you want to uninstall the current version and try again, click “Uninstall & retry”.");
+                    retryInstructions.IsVisible = true;
+                }
+                if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+                {
+                    retryButton.Content = InstallerLocalization.T("Uninstall & retry");
+                    retryButton.IsEnabled = true;
+                    retryButton.IsVisible = true;
+                }
             }
             else
             {
@@ -902,8 +1051,13 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
-            catch { /* Best-effort cleanup of the temporary signed WGT. */ }
+            if (!preserveSignedPackageForRetry)
+            {
+                try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
+                catch { /* Best-effort cleanup of the temporary signed WGT. */ }
+                _signedPackagePathForRetry = null;
+                _signedPackageDirectoryForRetry = null;
+            }
             _installationFinished = true;
             if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } finalProgressBar)
                 finalProgressBar.IsVisible = false;
@@ -912,6 +1066,18 @@ public sealed partial class MainWindow : Window
             SetWizardStep(5);
             SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
+    }
+
+    private void CleanupRetryPackage()
+    {
+        if (!string.IsNullOrWhiteSpace(_signedPackageDirectoryForRetry) &&
+            Directory.Exists(_signedPackageDirectoryForRetry))
+        {
+            try { Directory.Delete(_signedPackageDirectoryForRetry, recursive: true); }
+            catch { /* Best-effort cleanup when the installer window closes. */ }
+        }
+        _signedPackagePathForRetry = null;
+        _signedPackageDirectoryForRetry = null;
     }
 
     private void ShowInstallationResult(bool success, string message)
@@ -935,6 +1101,13 @@ public sealed partial class MainWindow : Window
             title.Text = InstallerLocalization.T(success ? "Instalación completada" : "No se ha podido instalar Moonlight");
         if (this.FindControl<TextBlock>("InstallationResultMessage") is { } resultMessage)
             resultMessage.Text = message;
+        if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
+            retryInstructions.IsVisible = false;
+        if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+        {
+            retryButton.IsVisible = false;
+            retryButton.IsEnabled = true;
+        }
     }
 
     private static string HideInternalProtocolNames(string message) =>
