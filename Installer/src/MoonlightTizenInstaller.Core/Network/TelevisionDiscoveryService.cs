@@ -73,7 +73,7 @@ public sealed class TelevisionDiscoveryService
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
+                var television = await TryDiscoverTelevisionAsync(ip, cancellationToken, retrieveDuid: false).ConfigureAwait(false);
                 if (television is not null)
                     found.Add(television);
             }
@@ -169,7 +169,8 @@ public sealed class TelevisionDiscoveryService
 
     private async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(
         IPAddress address,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool retrieveDuid)
     {
         var apiInfo = await TryGetTelevisionApiInfoAsync(address, cancellationToken).ConfigureAwait(false);
         if (apiInfo is null)
@@ -183,30 +184,26 @@ public sealed class TelevisionDiscoveryService
         var developerUsesLoopback = string.Equals(apiInfo.DeveloperIp?.Trim(), IPAddress.Loopback.ToString(), StringComparison.Ordinal);
         var tryRelayFirst = relayAvailable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo.DeveloperIp));
 
+        var selectedPort = tryRelayFirst ? relayPort!.Value : SdbPort;
         string? duid = null;
-        var selectedPort = SdbPort;
 
-        if (tryRelayFirst)
+        if (retrieveDuid)
         {
-            duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
-            if (duid is not null)
-                selectedPort = relayPort.Value;
-        }
+            if (tryRelayFirst)
+                duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
 
-        // TV-Store is optional. Direct SDB is always attempted when the relay is not the
-        // configured route, or when a relay handshake fails.
-        if (duid is null && await IsTcpPortOpenAsync(address, SdbPort, cancellationToken).ConfigureAwait(false))
-        {
-            duid = await TryReadDuidAsync(address, SdbPort, cancellationToken).ConfigureAwait(false);
-            selectedPort = SdbPort;
-        }
+            if (duid is null && await IsTcpPortOpenAsync(address, SdbPort, cancellationToken).ConfigureAwait(false))
+            {
+                duid = await TryReadDuidAsync(address, SdbPort, cancellationToken).ConfigureAwait(false);
+                selectedPort = SdbPort;
+            }
 
-        // A manually enabled relay can still be used when the direct route did not work.
-        if (duid is null && relayAvailable && !tryRelayFirst)
-        {
-            duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
-            if (duid is not null)
-                selectedPort = relayPort.Value;
+            if (duid is null && relayAvailable && !tryRelayFirst)
+            {
+                duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
+                if (duid is not null)
+                    selectedPort = relayPort.Value;
+            }
         }
 
         return new DiscoveredTelevision(address.ToString(), duid, apiInfo.Name, selectedPort, relayAvailable);
@@ -252,6 +249,43 @@ public sealed class TelevisionDiscoveryService
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return false; }
         catch (SocketException) { return false; }
+    }
+
+    /// <summary>
+    /// Reads the DUID only after the optional TV-Store hand-off has been attempted.
+    /// The selected endpoint follows Developer Mode's Host PC IP; direct SDB and the
+    /// confirmed TV-Store relay are tried as fallbacks when the preferred route fails.
+    /// </summary>
+    public async Task<DiscoveredTelevision> RetrieveDuidAsync(
+        DiscoveredTelevision television,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(television);
+        var address = IPAddress.Parse(television.IpAddress);
+        var ports = new List<int> { television.SdbPort };
+        if (television.SdbPort != SdbPort)
+            ports.Add(SdbPort);
+
+        if (television.TvStoreRelayAvailable)
+        {
+            var relayPort = await TryGetActiveTvStoreRelayPortAsync(address, cancellationToken).ConfigureAwait(false);
+            if (relayPort is { } port && !ports.Contains(port))
+                ports.Add(port);
+        }
+
+        foreach (var port in ports)
+        {
+            progress?.Report($"Obteniendo automáticamente el DUID mediante SDB en {television.IpAddress}:{port}…");
+            if (!await IsTcpPortOpenAsync(address, port, cancellationToken).ConfigureAwait(false))
+                continue;
+
+            var duid = await TryReadDuidAsync(address, port, cancellationToken).ConfigureAwait(false);
+            if (duid is not null)
+                return television with { Duid = duid, SdbPort = port };
+        }
+
+        return television with { Duid = null };
     }
 
     private async Task<string?> TryReadDuidAsync(IPAddress address, int port, CancellationToken cancellationToken)
