@@ -192,7 +192,8 @@ namespace Apps2Samsung.Certificate
 #pragma warning disable SYSLIB0057 // matches the proven loader used elsewhere; legacy PKCS#12 support
                 using var cert = new X509Certificate2(authorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
-                return cert.NotAfter.Date >= DateTime.Today;
+                var now = DateTime.UtcNow;
+                return cert.NotBefore.ToUniversalTime() <= now && cert.NotAfter.ToUniversalTime() >= now;
             }
             catch (Exception ex)
             {
