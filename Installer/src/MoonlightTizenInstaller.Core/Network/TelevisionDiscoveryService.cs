@@ -51,7 +51,7 @@ public sealed class TelevisionDiscoveryService
     private static readonly Regex ValidDuid = new("^[A-Za-z0-9]{10,64}$", RegexOptions.Compiled);
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
     private readonly string _sdbKeyDirectory;
-    private sealed record TelevisionApiInfo(string Name, string? DeveloperIp);
+    private sealed record TelevisionApiInfo(string? Name, string? DeveloperIp);
 
     public TelevisionDiscoveryService(string sdbKeyDirectory)
     {
@@ -326,7 +326,7 @@ public sealed class TelevisionDiscoveryService
 
             var name = device["name"]?.GetValue<string>();
             return new TelevisionApiInfo(
-                string.IsNullOrWhiteSpace(name) ? "Samsung TV" : WebUtility.HtmlDecode(name),
+                string.IsNullOrWhiteSpace(name) ? null : WebUtility.HtmlDecode(name),
                 device["developerIP"]?.GetValue<string>());
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
