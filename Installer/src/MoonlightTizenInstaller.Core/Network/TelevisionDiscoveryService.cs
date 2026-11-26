@@ -24,17 +24,16 @@ public sealed record DiscoveredTelevision(
             var name = string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name;
             var endpoint = UsesTvStoreRelay ? $"SDB relay :{SdbPort}" : $"SDB :{SdbPort}";
             return string.IsNullOrWhiteSpace(Duid)
-                ? $"{name} ({IpAddress}) — DUID no disponible"
+                ? $"{name} ({IpAddress}) — {endpoint}"
                 : $"{name} ({IpAddress}) — {endpoint} — {Duid}";
         }
     }
 }
 
 /// <summary>
-/// Finds Samsung TVs through the Samsung REST API, then obtains their DUID over SDB.
-/// When Apps2Samsung TV-Store exposes an enabled and listening relay, the installer verifies
-/// that route and prefers it; otherwise it falls back to the TV's conventional SDB port.
-/// A TV without an automatically retrieved DUID is never considered ready for installation.
+/// Finds Samsung TVs through the Samsung REST API without requiring Developer Mode.
+/// The caller first attempts the optional TV-Store upload hand-off; only if that route cannot
+/// complete does it retrieve the DUID automatically over the verified SDB route.
 /// </summary>
 public sealed class TelevisionDiscoveryService
 {
@@ -73,7 +72,7 @@ public sealed class TelevisionDiscoveryService
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var television = await TryDiscoverTelevisionAsync(ip, cancellationToken, retrieveDuid: false).ConfigureAwait(false);
+                var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
                 if (television is not null)
                     found.Add(television);
             }
@@ -169,8 +168,7 @@ public sealed class TelevisionDiscoveryService
 
     private async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(
         IPAddress address,
-        CancellationToken cancellationToken,
-        bool retrieveDuid)
+        CancellationToken cancellationToken)
     {
         var apiInfo = await TryGetTelevisionApiInfoAsync(address, cancellationToken).ConfigureAwait(false);
         if (apiInfo is null)
@@ -185,28 +183,7 @@ public sealed class TelevisionDiscoveryService
         var tryRelayFirst = relayAvailable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo.DeveloperIp));
 
         var selectedPort = tryRelayFirst ? relayPort!.Value : SdbPort;
-        string? duid = null;
-
-        if (retrieveDuid)
-        {
-            if (tryRelayFirst)
-                duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
-
-            if (duid is null && await IsTcpPortOpenAsync(address, SdbPort, cancellationToken).ConfigureAwait(false))
-            {
-                duid = await TryReadDuidAsync(address, SdbPort, cancellationToken).ConfigureAwait(false);
-                selectedPort = SdbPort;
-            }
-
-            if (duid is null && relayAvailable && !tryRelayFirst)
-            {
-                duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
-                if (duid is not null)
-                    selectedPort = relayPort.Value;
-            }
-        }
-
-        return new DiscoveredTelevision(address.ToString(), duid, apiInfo.Name, selectedPort, relayAvailable);
+        return new DiscoveredTelevision(address.ToString(), null, apiInfo.Name, selectedPort, relayAvailable);
     }
 
     private static async Task<int?> TryGetActiveTvStoreRelayPortAsync(
