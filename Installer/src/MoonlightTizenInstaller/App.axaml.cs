@@ -31,7 +31,7 @@ public sealed class App : Application
 
             Directory.CreateDirectory(_sessionDirectory);
 
-            var caDirectory = Path.Combine(AppContext.BaseDirectory, "certificate-authorities");
+            var caDirectory = Path.Combine(dataDirectory, "certificate-authorities");
             Certificates = new CertificateManager(
                 new CertificateInstallerOptions(dataDirectory, caDirectory));
 
