@@ -17,7 +17,7 @@ public sealed class StarFieldControl : OpenGlControlBase
 {
     private const int StarCount = 1100;
     private const float MaxDepth = 1500f;
-    private const float SpeedPixelsPerSecond = 70f;
+    private const float SpeedPixelsPerSecond = 120f;
 
     private const uint VertexShaderType = 0x8B31;
     private const uint FragmentShaderType = 0x8B30;
@@ -70,15 +70,15 @@ public sealed class StarFieldControl : OpenGlControlBase
             gl_Position = vec4(a_position.x * u_width / (2.0 * z),
                                -a_position.y * u_width * verticalSpread / (2.0 * z), 0.0, 1.0);
 
-            // The website does not fade stars by their distance from the center.
-            // Keep their opacity consistent so the full field remains evenly populated.
-            v_alpha = 1.0;
+            // Fade stars in as they approach, rather than showing every depth
+            // at full opacity. Keep a little visibility in the far field.
+            float depth = 1.0 - z / 1500.0;
+            v_alpha = 0.12 + 0.88 * smoothstep(0.0, 1.0, depth);
             v_color = a_color;
 
-            // Increase size gently with depth: nearby stars are only about 25% larger
-            // than distant ones, keeping the perspective subtle.
-            float depthScale = 0.85 + (1.0 - z / 1500.0) * 0.25;
-            float radius = depthScale * a_size * 3.6;
+            // gl_PointSize is the point's diameter. This reproduces the website's
+            // depth-dependent radius while retaining a subtle but visible size range.
+            float radius = depth * a_size * 6.0;
             gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
