@@ -217,28 +217,8 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } fallbackStatus)
-                fallbackStatus.Text = "TV-Store no está disponible para esta instalación. Se continúa con la instalación directa mediante SDB…";
+            await ContinueWithSdbInstallationAsync(device);
 
-            var withDuid = await _discovery.RetrieveDuidAsync(device, progress);
-            _selectedTelevision = withDuid;
-            _selectedDuid = withDuid.Duid;
-
-            if (TizenDuid.IsValid(withDuid.Duid))
-            {
-                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-                if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activationPanel) activationPanel.IsVisible = false;
-                if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                    status.Text = withDuid.UsesTvStoreRelay
-                        ? $"TV-Store no ha podido completar la transferencia. DUID obtenido automáticamente mediante el relay SDB ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}"
-                        : $"TV-Store no está disponible. DUID obtenido automáticamente mediante SDB directo ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}";
-            }
-            else
-            {
-                ShowDeveloperModeInstructions("TV-Store no está disponible y no se ha podido obtener automáticamente el DUID mediante SDB. Activa o revisa Developer Mode y pulsa Reintentar.");
-            }
-
-            SetTelevisionActionsEnabled(true);
         }
         catch (OperationCanceledException)
         {
@@ -252,6 +232,63 @@ public sealed partial class MainWindow : Window
         {
             if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
         }
+    }
+
+    private async Task ContinueWithSdbInstallationAsync(DiscoveredTelevision device)
+    {
+        _selectedTelevision = device;
+        _selectedDuid = null;
+        if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
+        if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
+            searchStatus.Text = "TV-Store no se va a utilizar. Preparando la instalación directa mediante SDB…";
+
+        var progress = new Progress<string>(message =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
+                    status.Text = message;
+            }));
+
+        try
+        {
+            var withDuid = await _discovery.RetrieveDuidAsync(device, progress);
+            _selectedTelevision = withDuid;
+            _selectedDuid = withDuid.Duid;
+
+            if (TizenDuid.IsValid(withDuid.Duid))
+            {
+                if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+                if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+                    status.Text = withDuid.UsesTvStoreRelay
+                        ? $"DUID obtenido automáticamente mediante el relay SDB ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}"
+                        : $"DUID obtenido automáticamente mediante SDB directo ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}";
+            }
+            else
+            {
+                ShowDeveloperModeInstructions("No se ha podido obtener automáticamente el DUID mediante SDB. Activa o revisa Developer Mode y pulsa Reintentar.");
+            }
+
+            SetTelevisionActionsEnabled(true);
+        }
+        catch (OperationCanceledException)
+        {
+            ShowDeveloperModeInstructions("La conexión SDB no se ha completado. Comprueba la configuración de Developer Mode y pulsa Reintentar.");
+        }
+        catch (Exception ex)
+        {
+            ShowDeveloperModeInstructions($"No se ha podido preparar la instalación directa mediante SDB ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
+        }
+        finally
+        {
+            if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
+        }
+    }
+
+    private async void OnContinueWithSdbClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_selectedTelevision is { } television)
+            await ContinueWithSdbInstallationAsync(television);
     }
 
     private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
