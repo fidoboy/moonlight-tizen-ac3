@@ -75,7 +75,7 @@ public sealed class StarFieldControl : Control
             {
                 star.Z -= Speed * (2.0 - star.Z / MaxDepth);
                 if (star.Z <= 0)
-                    ResetStar(star, width, height);
+                    ResetStar(star, width);
             }
 
             InvalidateVisual();
@@ -105,7 +105,7 @@ public sealed class StarFieldControl : Control
 
     }
 
-    private void ResetStar(Star star, double width, double height)
+    private void ResetStar(Star star, double width)
     {
         star.Z = MaxDepth;
         SetStarPosition(star, width / 2.0);
