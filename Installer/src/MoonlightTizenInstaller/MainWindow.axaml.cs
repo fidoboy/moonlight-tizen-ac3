@@ -12,6 +12,8 @@ public sealed partial class MainWindow : Window
 {
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
+    private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
+    private bool _bundledWgtAvailable;
     private string? _selectedDuid;
     private bool _discoveryInProgress;
 
@@ -20,6 +22,11 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        _bundledWgtAvailable = File.Exists(_bundledWgtPath);
+        if (this.FindControl<TextBlock>("BundledWgtStatus") is { } packageStatus)
+            packageStatus.Text = _bundledWgtAvailable
+                ? $"Paquete incluido: Moonlight.wgt ({new FileInfo(_bundledWgtPath).Length / 1024:N0} KB)"
+                : "No se encuentra el paquete Moonlight.wgt incluido en esta distribución.";
         RefreshCertificateStatus();
         Opened += async (_, _) => await DiscoverTelevisionsAsync();
     }
@@ -152,7 +159,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure)
             ensure.IsEnabled = enabled && !_discoveryInProgress;
         if (this.FindControl<Button>("SignWgtButton") is { } sign)
-            sign.IsEnabled = enabled && !_discoveryInProgress;
+            sign.IsEnabled = enabled && !_discoveryInProgress && _bundledWgtAvailable;
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
@@ -235,19 +242,15 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var inputDialog = new OpenFileDialog
-            {
-                Title = "Seleccionar WGT que se va a firmar",
-                AllowMultiple = false,
-                Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
-            };
-            var inputs = await inputDialog.ShowAsync(this);
-            if (inputs is not { Length: > 0 }) return;
+            if (!_bundledWgtAvailable || !File.Exists(_bundledWgtPath))
+                throw new FileNotFoundException(
+                    "La distribución no contiene el paquete Moonlight.wgt esperado.",
+                    _bundledWgtPath);
 
             var outputDialog = new SaveFileDialog
             {
                 Title = "Guardar WGT firmado",
-                InitialFileName = Path.GetFileNameWithoutExtension(inputs[0]) + "-signed.wgt",
+                InitialFileName = "Moonlight-signed.wgt",
                 Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
             };
             var output = await outputDialog.ShowAsync(this);
@@ -263,7 +266,7 @@ public sealed partial class MainWindow : Window
                 progress: message => Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
 
             var signedPath = await _certificates.SignWgtAsync(
-                inputs[0],
+                _bundledWgtPath,
                 output,
                 profile,
                 new Progress<string>(message => SetOperationStatus(message)));
