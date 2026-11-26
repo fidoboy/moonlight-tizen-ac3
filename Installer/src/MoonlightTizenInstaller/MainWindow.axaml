@@ -26,13 +26,14 @@
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <TextBlock Text="Conectar con el televisor" FontSize="19" />
-            <TextBlock Text="El instalador necesita detectar y conectar con una TV Samsung mediante SDB para obtener su DUID. No es posible continuar introduciéndolo manualmente." TextWrapping="Wrap" />
+            <TextBlock Text="Los televisores Samsung se detectan por su API de red. Enviar Moonlight a Apps2Samsung TV-Store no requiere Developer Mode ni SDB. La conexión de desarrollo solo es necesaria para obtener el DUID, gestionar certificados y firmar localmente." TextWrapping="Wrap" />
             <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
               <ProgressBar IsIndeterminate="True" Height="6" />
               <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y comprobando la conexión SDB…" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
-              <TextBlock Text="Activa el modo desarrollador en tu Samsung TV" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="Comprueba la conexión con el televisor" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="La instalación mediante TV-Store no necesita Developer Mode. Comprueba primero que el televisor está encendido y conectado a la misma red local. Si quieres gestionar certificados o firmar el paquete localmente, activa Developer Mode siguiendo estos pasos:" TextWrapping="Wrap" />
               <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
               <TextBlock Text="2. Con el mando a distancia, introduce la secuencia 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
               <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
@@ -41,7 +42,7 @@
                 <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…" FontSize="20" FontWeight="SemiBold" />
               </Border>
               <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Comprueba que el ordenador y la TV están conectados a la misma red local." TextWrapping="Wrap" />
-              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. La búsqueda y la lectura del DUID se repetirán automáticamente." TextWrapping="Wrap" Opacity="0.8" />
+              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección de televisores y, si Developer Mode está activo, también se intentará leer el DUID." TextWrapping="Wrap" Opacity="0.8" />
               <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
             </StackPanel>
             <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
