@@ -15,6 +15,13 @@ public static class CertificateSecrets
 
     public static string? Get(string profileName) => Store.Value.Get(Key(profileName));
 
+    public static void EnsureAvailable()
+    {
+        var probeKey = "vault-check:" + Guid.NewGuid().ToString("N");
+        Store.Value.Set(probeKey, Guid.NewGuid().ToString("N"));
+        Store.Value.Delete(probeKey);
+    }
+
     public static string GetRequired(string profileName) =>
         Get(profileName) ?? throw new InvalidOperationException(
             $"No secure password is available for certificate profile '{profileName}'. Import its original certificate archive or sign in again.");

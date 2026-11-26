@@ -22,15 +22,22 @@ public sealed partial class MainWindow : Window
 
     private void RefreshCertificateStatus()
     {
-        var profiles = _certificates.GetRecoverableProfiles();
         var status = this.FindControl<TextBlock>("CertificateStatus");
         if (status is null)
             return;
 
-        status.Text = profiles.Count == 0
-            ? "No hay perfiles de firma recuperables en este equipo."
-            : string.Join(Environment.NewLine, profiles.Select(profile =>
-                $"{profile.ProfileName} — válido hasta {profile.NotAfterUtc:yyyy-MM-dd} — {profile.Duids.Count} TV(s)"));
+        try
+        {
+            var profiles = _certificates.GetRecoverableProfiles();
+            status.Text = profiles.Count == 0
+                ? "No hay perfiles de firma recuperables en este equipo."
+                : string.Join(Environment.NewLine, profiles.Select(profile =>
+                    $"{profile.ProfileName} — válido hasta {profile.NotAfterUtc:yyyy-MM-dd} — {profile.Duids.Count} TV(s)"));
+        }
+        catch (Exception ex)
+        {
+            status.Text = $"No se pudo acceder al almacén seguro de contraseñas del sistema: {ex.Message}";
+        }
     }
 
     private async void OnEnsureCertificateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

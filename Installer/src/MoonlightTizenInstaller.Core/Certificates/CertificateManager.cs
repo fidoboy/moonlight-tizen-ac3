@@ -59,6 +59,7 @@ public sealed class CertificateManager
         if (!TizenDuid.IsValid(televisionDuid))
             throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
 
+        CertificateSecrets.EnsureAvailable();
         ValidateAuthorityFilesOnlyWhenIssuanceIsRequired(televisionDuid, level, additionalDuids, forceNewAuthorCertificate);
         return _provisioning.EnsureAsync(
             televisionDuid,
