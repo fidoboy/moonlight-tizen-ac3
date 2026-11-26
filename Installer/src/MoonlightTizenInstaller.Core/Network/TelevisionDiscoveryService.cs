@@ -177,26 +177,38 @@ public sealed class TelevisionDiscoveryService
         // TV-Store 0.3.15+ exposes GET /relay on its service port. Require its JSON status
         // to say enabled and listening; an open HTTP port alone does not prove a usable relay.
         var relayPort = await TryGetActiveTvStoreRelayPortAsync(address, cancellationToken).ConfigureAwait(false);
+        var relayAvailable = relayPort is { } candidateRelayPort &&
+                             await IsTcpPortOpenAsync(address, candidateRelayPort, cancellationToken).ConfigureAwait(false);
+        var developerUsesLoopback = string.Equals(apiInfo.DeveloperIp?.Trim(), IPAddress.Loopback.ToString(), StringComparison.Ordinal);
+        var tryRelayFirst = relayAvailable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo.DeveloperIp));
+
         string? duid = null;
         var selectedPort = SdbPort;
 
-        if (relayPort is { } availableRelayPort &&
-            await IsTcpPortOpenAsync(address, availableRelayPort, cancellationToken).ConfigureAwait(false))
+        if (tryRelayFirst)
         {
-            duid = await TryReadDuidAsync(address, availableRelayPort, cancellationToken).ConfigureAwait(false);
+            duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
             if (duid is not null)
-                selectedPort = availableRelayPort;
+                selectedPort = relayPort.Value;
         }
 
-        // TV-Store is optional. If its relay is absent, disabled, inaccessible, or cannot
-        // complete an SDB handshake, fall back to the conventional Developer Mode endpoint.
+        // TV-Store is optional. Direct SDB is always attempted when the relay is not the
+        // configured route, or when a relay handshake fails.
         if (duid is null && await IsTcpPortOpenAsync(address, SdbPort, cancellationToken).ConfigureAwait(false))
         {
             duid = await TryReadDuidAsync(address, SdbPort, cancellationToken).ConfigureAwait(false);
             selectedPort = SdbPort;
         }
 
-        return new DiscoveredTelevision(address.ToString(), duid, apiInfo.Name, selectedPort, relayPort is not null);
+        // A manually enabled relay can still be used when the direct route did not work.
+        if (duid is null && relayAvailable && !tryRelayFirst)
+        {
+            duid = await TryReadDuidAsync(address, relayPort!.Value, cancellationToken).ConfigureAwait(false);
+            if (duid is not null)
+                selectedPort = relayPort.Value;
+        }
+
+        return new DiscoveredTelevision(address.ToString(), duid, apiInfo.Name, selectedPort, relayAvailable);
     }
 
     private static async Task<int?> TryGetActiveTvStoreRelayPortAsync(
