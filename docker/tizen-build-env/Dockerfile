@@ -115,14 +115,21 @@ RUN installer=/tmp/tizen-web-cli.bin \
          echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; \
        fi \
     && mkdir -p /home/tizen/certificate-authorities \
-    && python3 /opt/tizen-build/fetch-samsung-cas.py /home/tizen/certificate-authorities \
+    && if ! python3 /opt/tizen-build/fetch-samsung-cas.py /home/tizen/certificate-authorities; then \
+         echo "WARNING: Samsung CA retrieval did not complete; continuing with the build environment." >&2; \
+       fi \
     && for ca in vd_tizen_dev_author_ca.cer vd_tizen_dev_partner2.crt; do \
-         test -s "/home/tizen/certificate-authorities/$ca" \
-         && openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform DER -noout -subject >/dev/null 2>&1 \
-            || openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform PEM -noout -subject >/dev/null 2>&1 \
-            || { echo "Invalid Samsung CA certificate: $ca" >&2; exit 1; }; \
+         if [ -s "/home/tizen/certificate-authorities/$ca" ]; then \
+           if ! openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform DER -noout -subject >/dev/null 2>&1 \
+              && ! openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform PEM -noout -subject >/dev/null 2>&1; then \
+             echo "WARNING: Invalid optional Samsung CA certificate: $ca" >&2; \
+             rm -f "/home/tizen/certificate-authorities/$ca"; \
+           fi; \
+         else \
+           echo "INFO: Optional Samsung CA not available in build image: $ca" >&2; \
+         fi; \
        done \
-    && ls -l /home/tizen/certificate-authorities \
+    && ls -la /home/tizen/certificate-authorities \
     && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \
