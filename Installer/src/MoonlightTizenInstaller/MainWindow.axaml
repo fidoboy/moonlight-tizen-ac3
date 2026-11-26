@@ -11,7 +11,7 @@
     </StackPanel>
     <ScrollViewer Grid.Row="1" Margin="0,24">
       <StackPanel Spacing="14">
-        <Border Padding="20" CornerRadius="8" BorderThickness="1"
+        <Border Name="CertificatePanel" Padding="20" CornerRadius="8" BorderThickness="1"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <TextBlock Text="Certificados de firma" FontSize="19" />
@@ -26,14 +26,19 @@
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <TextBlock Text="Conectar con el televisor" FontSize="19" />
-            <TextBlock Text="Los televisores Samsung se detectan por su API de red, pero para continuar es obligatorio obtener automáticamente el DUID mediante SDB. El instalador usa el puerto 26101 de forma convencional y, si confirma que el relay de Apps2Samsung TV-Store está activo, utiliza el puerto anunciado por ese relay. TV-Store es opcional." TextWrapping="Wrap" />
+            <TextBlock Text="El instalador intenta primero enviar Moonlight a Apps2Samsung TV-Store, si está instalado y su servicio de recepción está disponible. Si no puede completar esa transferencia, continúa por SDB: obtiene automáticamente el DUID, prepara el certificado y realiza la instalación directa. Nunca se solicita introducir el DUID manualmente." TextWrapping="Wrap" />
             <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
               <ProgressBar IsIndeterminate="True" Height="6" />
-              <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y obteniendo automáticamente el DUID mediante SDB…" TextWrapping="Wrap" />
+              <TextBlock Name="TelevisionSearchStatus" Text="Detectando televisores y comprobando primero la disponibilidad de TV-Store…" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False">
+              <TextBlock Text="Paquete entregado a TV-Store" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap" />
+              <Button Content="Finalizar" HorizontalAlignment="Left" Click="OnFinishTvStoreHandoffClick" />
             </StackPanel>
             <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
               <TextBlock Text="Activa Developer Mode para obtener el DUID" FontSize="16" FontWeight="SemiBold" />
-              <TextBlock Text="El DUID es obligatorio para preparar el certificado y continuar con la instalación. El instalador nunca te pedirá que lo escribas manualmente. Comprueba que el televisor está encendido y conectado a la misma red local y sigue estos pasos para activar Developer Mode:" TextWrapping="Wrap" />
+              <TextBlock Text="Esta es la vía alternativa de instalación directa. El DUID es obligatorio para preparar el certificado y continuar por SDB. El instalador nunca te pedirá que lo escribas manualmente. Comprueba que el televisor está encendido y conectado a la misma red local y sigue estos pasos para activar Developer Mode:" TextWrapping="Wrap" />
               <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
               <TextBlock Text="2. Con el mando a distancia, introduce la secuencia 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
               <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
@@ -42,7 +47,7 @@
                 <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…" FontSize="20" FontWeight="SemiBold" />
               </Border>
               <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Comprueba que el ordenador y la TV están conectados a la misma red local." TextWrapping="Wrap" />
-              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección y se intentará leer automáticamente el DUID a través del relay confirmado o del puerto SDB convencional." TextWrapping="Wrap" Opacity="0.8" />
+              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección; primero se comprobará TV-Store y, si no puede utilizarse, se intentará obtener automáticamente el DUID por el relay SDB o por el puerto convencional." TextWrapping="Wrap" Opacity="0.8" />
               <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
             </StackPanel>
             <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
@@ -56,13 +61,15 @@
               </ComboBox>
             </StackPanel>
             <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Opacity="0.8" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <StackPanel Name="TelevisionActionsPanel" Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" IsEnabled="False" Click="OnEnsureCertificateClick" />
               <Button Name="SignWgtButton" Content="Firmar paquete incluido…" HorizontalAlignment="Left" IsEnabled="False" Click="OnSignWgtClick" />
-              <Button Name="InstallWgtButton" Content="Instalar Moonlight en el televisor" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
+              <Button Name="InstallWgtButton" Content="Instalar Moonlight mediante SDB" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
+              </StackPanel>
+              <TextBlock Text="Esta acción solo se habilita si la vía preferente de TV-Store no está disponible y se ha obtenido automáticamente un DUID válido. Si el relay de TV-Store está activo, se utiliza como transporte SDB; de lo contrario, se conecta al puerto SDB convencional." TextWrapping="Wrap" Opacity="0.7" />
+              <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
             </StackPanel>
-            <TextBlock Text="La instalación se realiza mediante SDB y requiere un DUID válido. Si Apps2Samsung TV-Store está instalado y su relay responde como activo, el instalador lo utiliza automáticamente; si no, conecta directamente al puerto SDB estándar." TextWrapping="Wrap" Opacity="0.7" />
-            <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
           </StackPanel>
         </Border>
         <TextBlock Text="Los materiales CA de Samsung/Tizen no se distribuyen con el instalador. La emisión requiere que estén instalados desde una fuente autorizada." TextWrapping="Wrap" Opacity="0.7" />
