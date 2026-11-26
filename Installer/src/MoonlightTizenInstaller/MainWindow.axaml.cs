@@ -372,7 +372,7 @@ public sealed partial class MainWindow : Window
                 }));
 
             if (status is not null)
-                status.Text = "El perfil Partner se ha generado y guardado. Comprobando su validez…";
+                status.Text = "El perfil Partner se ha generado y guardado.";
         }
         catch (OperationCanceledException)
         {
