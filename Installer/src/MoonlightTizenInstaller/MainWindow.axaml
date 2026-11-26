@@ -290,7 +290,7 @@
           <Border Name="CertificateNormalPanel" Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="12" Padding="20">
             <StackPanel Spacing="12">
-              <TextBlock Text="Como es la primera vez que instalas Moonlight desde este ordenador, necesitas preparar un certificado. Inicia sesión en el sitio web de Samsung con tu cuenta o crea una si aún no tienes una. El certificado quedará guardado en la cuenta del usuario actual de este equipo; en próximas instalaciones se reutilizará automáticamente y no tendrás que repetir este proceso."
+              <TextBlock Text="Because this is the first time you are installing Moonlight from this computer, you need to prepare a certificate. Sign in to the Samsung website with your account, or create one if you do not have one yet. The certificate will be stored in the current user account on this computer and reused automatically for future installations."
                          TextWrapping="Wrap" Foreground="#D6E1F2" />
               <TextBlock Name="CertificateOperationStatus" IsVisible="False" TextWrapping="Wrap" Foreground="#D6E1F2" />
               <Button Name="GenerateCertificateButton"
@@ -372,6 +372,13 @@
                          FontSize="22" FontWeight="Bold" />
               <TextBlock Name="InstallationResultMessage" TextWrapping="Wrap"
                          Foreground="#D6E1F2" FontSize="15" />
+              <TextBlock Name="InstallationRetryInstructions"
+                         Text="If you want to uninstall the current version and try again, click “Uninstall &amp; retry”."
+                         IsVisible="False" TextWrapping="Wrap" Foreground="#ACBAD0"
+                         FontSize="14" Margin="0,8,0,0" />
+              <Button Name="UninstallAndRetryButton" Content="Uninstall &amp; retry"
+                      IsVisible="False" HorizontalAlignment="Left" Margin="0,8,0,0"
+                      Click="OnUninstallAndRetryClick" Classes="primary" />
             </StackPanel>
           </Grid>
         </StackPanel>
