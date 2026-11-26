@@ -28,7 +28,7 @@ TV-Store is the preferred route when it is installed and its service can be reac
 4. It verifies the received size and SHA-256 against the local file, then asks the TV to bring TV-Store to the foreground.
 5. The desktop installer tells the user to accept «Instalar» on the TV-Store screen. Once the hand-off is complete, the installer offers «Finalizar» and closes without performing certificate preparation or SDB installation.
 
-TV-Store performs signing with the certificate already configured in TV-Store itself. This route does not use the installer's local Partner profile, does not require a DUID, and does not require Developer Mode. A successful upload and hash match confirm delivery to TV-Store, not that the user has accepted or completed installation. If TV-Store is absent, inaccessible, cannot start, or refuses/does not verify the package, the installer falls back to direct SDB installation instead of stopping.
+TV-Store performs signing with the certificate already configured in TV-Store itself. This route does not use the installer's local Partner profile, does not require a DUID, and does not require Developer Mode. A successful upload and hash match confirm delivery to TV-Store, not that the user has accepted or completed installation. If TV-Store is absent, inaccessible, cannot start, or refuses/does not verify the package, the installer falls back to direct SDB installation instead of stopping. After a successful hand-off the user can finish and close the installer; if TV-Store later cannot complete installation (for example, because it has no signing certificate configured), the hand-off screen also offers an explicit «Continue through SDB» fallback.
 
 ## Fallback installation through SDB
 
