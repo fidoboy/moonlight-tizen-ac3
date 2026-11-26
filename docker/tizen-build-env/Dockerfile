@@ -110,22 +110,25 @@ RUN installer=/tmp/tizen-web-cli.bin \
         "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
     && "$pm" install --accept-license --no-java-check "cert-add-on" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
-    && awk '$1 == "i" && $2 == "cert-add-on" { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
-       || { echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; } \
-    && echo "Locating Samsung certificate files in $TIZEN_STUDIO" \
-    && find "$TIZEN_STUDIO" -type f \\( -name 'vd_tizen_dev_author_ca.cer' -o -name 'vd_tizen_dev_partner2.crt' -o -iname '*certificate*manager*' \\) -print \
+    && if ! awk '$1 == "i" && $2 == "cert-add-on" { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt; then \
+         echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; \
+       fi \
     && author_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_author_ca.cer -print -quit)" \
     && partner_ca="$(find "$TIZEN_STUDIO" -type f -name vd_tizen_dev_partner2.crt -print -quit)" \
-    && certificate_manager="$(find "$TIZEN_STUDIO" -type f -iname '*certificate*manager*' -perm -u+x -print -quit)" \
-    && { test -n "$author_ca" && test -s "$author_ca" || { echo "Samsung author CA not found or empty" >&2; exit 1; }; } \
-    && { test -n "$partner_ca" && test -s "$partner_ca" || { echo "Samsung partner CA not found or empty" >&2; exit 1; }; } \
-    && { test -n "$certificate_manager" && test -x "$certificate_manager" || { echo "Executable Certificate Manager not found" >&2; exit 1; }; } \
+    && if [ -z "$author_ca" ] || [ ! -s "$author_ca" ]; then \
+         echo "Missing or empty vd_tizen_dev_author_ca.cer under $TIZEN_STUDIO" >&2; \
+         find "$TIZEN_STUDIO" -type f -iname '*author*ca*' -o -iname '*partner*2*' >&2 || true; exit 1; \
+       fi \
+    && if [ -z "$partner_ca" ] || [ ! -s "$partner_ca" ]; then \
+         echo "Missing or empty vd_tizen_dev_partner2.crt under $TIZEN_STUDIO" >&2; \
+         find "$TIZEN_STUDIO" -type f \( -iname '*author*ca*' -o -iname '*partner*2*' \) -print >&2; exit 1; \
+       fi \
     && mkdir -p /home/tizen/certificate-authorities \
     && cp "$author_ca" /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
     && cp "$partner_ca" /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
     && test -s /home/tizen/certificate-authorities/vd_tizen_dev_author_ca.cer \
     && test -s /home/tizen/certificate-authorities/vd_tizen_dev_partner2.crt \
-    && echo "Samsung Certificate Extension manager: $certificate_manager" \
+    && echo "Samsung CA files copied from: $author_ca and $partner_ca" \
     && ls -l /home/tizen/certificate-authorities \
     && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
