@@ -728,8 +728,8 @@ public sealed partial class MainWindow : Window
                 issuer.Text = details?.Subject ?? "Certificado de firma instalado";
             if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity && details is not null)
                 validity.Text = InstallerLocalization.T("Emitido: {0} · Caduca: {1}")
-                    .Replace("{0}", details.IssuedOn.ToLocalTime().ToString("d"))
-                    .Replace("{1}", details.ExpiresOn.ToLocalTime().ToString("d"));
+                    .Replace("{0}", details.Value.IssuedOn.ToLocalTime().ToString("d"))
+                    .Replace("{1}", details.Value.ExpiresOn.ToLocalTime().ToString("d"));
         }
 
         if (_wizardStep == 4)
