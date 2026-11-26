@@ -10,10 +10,10 @@
         public string userId { get; set; } = null!;
         public string client_id { get; set; } = null!;
         public string inputEmailID { get; set; } = null!;
-        public string api_server_url { get; set; }
-        public string auth_server_url { get; set; }
+        public string api_server_url { get; set; } = null!;
+        public string auth_server_url { get; set; } = null!;
         public bool close { get; set; }
-        public string closedAction { get; set; }
-        public string state { get; set; }
+        public string closedAction { get; set; } = null!;
+        public string state { get; set; } = null!;
     }
 }
