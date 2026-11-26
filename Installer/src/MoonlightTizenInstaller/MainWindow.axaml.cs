@@ -194,7 +194,7 @@ public sealed partial class MainWindow : Window
             searchStatus.Text = $"Comprobando si TV-Store está instalado y puede recibir Moonlight en {device.IpAddress}…";
         SetTelevisionActionsEnabled(false);
 
-        var progress = new Progress<string>(message =>
+        IProgress<string> progress = new Progress<string>(message =>
             Dispatcher.UIThread.Post(() =>
             {
                 if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
