@@ -290,7 +290,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
+            if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
         }
     }
 
