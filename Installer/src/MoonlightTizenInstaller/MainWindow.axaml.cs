@@ -545,7 +545,6 @@ public sealed partial class MainWindow : Window
             Stroke = Avalonia.Media.Brushes.White,
             StrokeThickness = 3,
             StrokeLineCap = Avalonia.Media.PenLineCap.Round,
-            StrokeLineJoin = Avalonia.Media.PenLineJoin.Round,
             Fill = Avalonia.Media.Brushes.Transparent,
             Width = 48,
             Height = 48,
