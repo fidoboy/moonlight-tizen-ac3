@@ -320,8 +320,8 @@ public sealed partial class MainWindow : Window
             if (this.FindControl<TextBlock>("ConnectionSummary") is { } connectionSummary)
             {
                 connectionSummary.Text = devices.Count > 1
-                    ? InstallerLocalization.T("Se han detectado varios televisores. Selecciona el que quieras utilizar para instalar Moonlight y pulsa «Instalar» cuando estés listo para comenzar.")
-                    : InstallerLocalization.T("Pulsa «Instalar» cuando estés listo para comenzar.");
+                    ? InstallerLocalization.T("Se han detectado los siguientes dispositivos. Selecciona el que quieras utilizar y pulsa el botón de «Instalar» cuando estés listo para comenzar.")
+                    : InstallerLocalization.T("Se ha detectado el siguiente dispositivo. Pulsa el botón de «Instalar» cuando estés listo para comenzar.");
             }
             if (status is not null) status.Text = string.Empty;
             SetWizardStep(3);
