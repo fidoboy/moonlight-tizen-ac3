@@ -1,10 +1,6 @@
 namespace MoonlightTizenInstaller.Core;
 
-/// <summary>
-/// Coordinates the guided TV discovery, certificate preparation, package signing
-/// and installation workflow. Platform-specific UI and persistence stay outside
-/// this assembly.
-/// </summary>
+/// <summary>Coordinates the guided installer workflow.</summary>
 public interface IInstallerWorkflow
 {
     Task DiscoverTelevisionsAsync(CancellationToken cancellationToken);

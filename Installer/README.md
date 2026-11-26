@@ -4,22 +4,44 @@ Self-contained desktop installer for Moonlight on Samsung Tizen TVs.
 
 ## Layout
 
-- `src/MoonlightTizenInstaller/`: Avalonia desktop application and guided workflow.
-- `src/MoonlightTizenInstaller.Core/`: installer-owned workflow and service adapters.
+- `src/MoonlightTizenInstaller/`: Avalonia desktop application.
+- `src/MoonlightTizenInstaller.Core/`: installer-owned workflow and certificate façade.
 - `vendor/Apps2Samsung/`: restricted GPL-3.0-only source subset for Samsung certificate issuance, recovery and signing-profile handling.
 - `assets/`: installer artwork and bundled Moonlight WGT inputs.
 - `build/`: per-platform self-contained publishing scripts.
 
 The installer embeds the release WGT at build time. It must not download the WGT at runtime.
 
-## Certificate subsystem provenance
+## Certificate subsystem
+
+The installer now compiles the selected Apps2Samsung certificate source subset into its Core project through linked source files. `CertificateManager` is the installer-owned entry point for:
+
+- Reusing an existing Samsung signing profile when its author certificate is valid and its distributor certificate covers the selected TV DUID.
+- Starting Samsung SignInGate authentication and issuing a full author/distributor profile when required.
+- Reissuing only the distributor certificate when the author identity can be retained but the selected TV DUID is not covered.
+- Enumerating, exporting, previewing and importing certificate profiles.
+- Maintaining automatic backups outside the application installation directory.
+
+The profile store and backups are kept in the user's local application-data directory. Upstream profile format is retained for compatibility with Apps2Samsung certificate archives.
+
+### Certificate authority inputs
+
+The installer does not bundle or download Samsung/Tizen SDK authority materials. The current adapter expects the following files in the `certificate-authorities` directory next to the executable:
+
+- `vd_tizen_dev_author_ca.cer`
+- `vd_tizen_dev_public2.crt` for Public distributor profiles
+- `vd_tizen_dev_partner2.crt` for Partner distributor profiles
+
+If they are absent, existing profiles can still be recovered and reused, but new certificate issuance is blocked with an explicit diagnostic. The origin and redistribution terms of these inputs will be reviewed separately for the GHCR development image.
+
+### Security and operational notes
+
+Samsung authentication is performed in the system browser through the upstream loopback callback. Certificate profile files retain the upstream Apps2Samsung layout, including its `password.txt` file; the installer currently protects them by storing the profile directory under the current user's local application data and must not sync it to cloud storage. A future platform-specific secret-store migration should replace plaintext password persistence without breaking archive compatibility.
+
+The certificate subsystem is integrated, but the end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the package-signing stage must consume the returned author/distributor PKCS#12 paths. No SDB or TV installation functionality is included in this certificate-only integration.
+
+## Upstream source and licensing
 
 The selected Apps2Samsung source baseline is commit `aae32ed4ea762bef3f6310f2f65aeb16752f8e78` (beta). The vendored source and its scope are documented in `vendor/Apps2Samsung/UPSTREAM.md`; the full GPL-3.0-only text and third-party notices are included alongside it.
 
-The subset is deliberately limited to Samsung author/distributor certificate provisioning, profile validation and archive/backup handling, Samsung SignInGate callback authentication, and the models/helpers those paths depend on. SDB, TV discovery, package installation, catalog, remote-control, Jellyfin, mobile UI and unrelated Apps2Samsung features are not included.
-
-No Samsung/Tizen SDK assets or CA binaries/private keys are included. Their redistribution terms will be reviewed separately for the existing GHCR development image, as requested.
-
-## Integration status
-
-The upstream certificate source has been copied into the vendor area verbatim. It is not yet compiled into the installer: several upstream abstractions are coupled to Apps2Samsung-wide configuration and helper contracts. Those dependencies must be isolated behind installer-owned services before the certificate workflow can be considered operational. The current Avalonia window remains a scaffold, not a usable installer.
+No Samsung/Tizen SDK assets or CA binaries/private keys are included. Samsung and Tizen marks remain the property of their respective owners. This project is not affiliated with Samsung.
