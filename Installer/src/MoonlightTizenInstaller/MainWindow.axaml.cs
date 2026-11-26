@@ -356,45 +356,57 @@ public sealed partial class MainWindow : Window
 
     private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var televisionIp = _selectedTvIp;
-        if (string.IsNullOrWhiteSpace(televisionIp))
+        var television = _selectedTelevision;
+        var duid = GetSelectedDuid();
+        if (television is null || string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            SetOperationStatus("Es necesario seleccionar un televisor.");
+            SetOperationStatus("No se puede instalar: es obligatorio detectar automáticamente un DUID válido mediante SDB.");
             return;
         }
 
         var button = this.FindControl<Button>("InstallWgtButton");
         if (button is not null) button.IsEnabled = false;
+        var temporaryDirectory = Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
+        var signedPackagePath = Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
 
         try
         {
-            SetOperationStatus("Preparando el envío a Apps2Samsung TV-Store…");
-            var result = await _tvStoreInstaller.SendForInstallationAsync(
-                televisionIp,
-                _bundledWgtPath,
+            Directory.CreateDirectory(temporaryDirectory);
+            const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
+            SetOperationStatus("Comprobando o preparando el perfil de firma Partner…");
+            var profile = await _certificates.EnsureForTelevisionAsync(
+                duid, level,
+                progress: message => Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
+
+            await _certificates.SignWgtAsync(
+                _bundledWgtPath, signedPackagePath, profile,
                 new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
 
-            SetOperationStatus(
-                $"Moonlight.wgt se ha transferido a TV-Store ({result.Size:N0} bytes; SHA-256 verificado)." +
-                Environment.NewLine +
-                (result.TvStoreOpened
-                    ? "Mira la pantalla del televisor y confirma la instalación pulsando «Instalar»."
-                    : "Abre Apps2Samsung TV-Store en el televisor y confirma la instalación pulsando «Instalar».") +
-                Environment.NewLine +
-                "TV-Store realizará la firma con el certificado que tenga configurado.");
+            var endpointDescription = television.UsesTvStoreRelay
+                ? $"relay de TV-Store ({television.IpAddress}:{television.SdbPort})"
+                : $"SDB directo ({television.IpAddress}:{television.SdbPort})";
+            SetOperationStatus($"Instalando Moonlight mediante {endpointDescription}…");
+            var result = await _sdbInstaller.InstallAsync(
+                television.IpAddress, television.SdbPort, signedPackagePath,
+                new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+
+            SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
+            RefreshCertificateStatus();
         }
         catch (OperationCanceledException)
         {
-            SetOperationStatus("Envío cancelado.");
+            SetOperationStatus("Instalación cancelada.");
         }
         catch (Exception ex)
         {
-            SetOperationStatus($"No se pudo enviar Moonlight a TV-Store: {ex.Message}");
+            SetOperationStatus($"No se pudo instalar Moonlight: {ex.Message}");
         }
         finally
         {
+            try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
+            catch { /* Best-effort cleanup of the temporary signed WGT. */ }
             if (button is not null)
-                button.IsEnabled = _selectedTvIp is not null && !_discoveryInProgress;
+                button.IsEnabled = TizenDuid.IsValid(_selectedDuid) && !_discoveryInProgress;
         }
     }
 
