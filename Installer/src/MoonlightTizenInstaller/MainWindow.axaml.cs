@@ -122,7 +122,7 @@ public sealed partial class MainWindow : Window
             if (devices.Count == 0)
             {
                 ShowDeveloperModeInstructions(
-                    "No se ha podido detectar ninguna TV con Developer Mode y conexión SDB activos.");
+                    "No se ha detectado ninguna TV Samsung en la red local. Comprueba que está encendida y conectada a la misma red que este equipo.");
                 return;
             }
 
@@ -182,7 +182,9 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection)
             selection.IsVisible = false;
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-            status.Text = $"Conexión SDB verificada: {device.DisplayName}. DUID: {device.Duid}";
+            status.Text = device.Duid is not null
+                ? $"Conexión SDB verificada: {device.DisplayName}. DUID: {device.Duid}"
+                : $"Televisor detectado por la API de red: {device.DisplayName}. La instalación mediante TV-Store está disponible; la gestión de certificados y la firma local requieren Developer Mode.";
         SetTelevisionActionsEnabled(true);
     }
 
@@ -193,7 +195,9 @@ public sealed partial class MainWindow : Window
             _selectedDuid = selected.Duid;
             _selectedTvIp = selected.IpAddress;
             if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                status.Text = $"Televisor seleccionado: {selected.DisplayName}. DUID: {selected.Duid}";
+                status.Text = selected.Duid is not null
+                    ? $"Televisor seleccionado: {selected.DisplayName}. DUID: {selected.Duid}"
+                    : $"Televisor seleccionado: {selected.DisplayName}. Instalación por TV-Store disponible; Developer Mode no está activo.";
             SetTelevisionActionsEnabled(true);
         }
         else
@@ -206,10 +210,11 @@ public sealed partial class MainWindow : Window
 
     private void SetTelevisionActionsEnabled(bool enabled)
     {
+        var hasDuid = enabled && TizenDuid.IsValid(_selectedDuid);
         if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure)
-            ensure.IsEnabled = enabled && !_discoveryInProgress;
+            ensure.IsEnabled = hasDuid && !_discoveryInProgress;
         if (this.FindControl<Button>("SignWgtButton") is { } sign)
-            sign.IsEnabled = enabled && !_discoveryInProgress;
+            sign.IsEnabled = hasDuid && !_discoveryInProgress;
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
             install.IsEnabled = _selectedTvIp is not null && !_discoveryInProgress;
     }
