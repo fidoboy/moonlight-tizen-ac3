@@ -32,6 +32,7 @@
     <Compile Include="../../vendor/Apps2Samsung/Extensions/ProgressCallback.cs" Link="Vendor/ProgressCallback.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Desktop/SamsungLoginService.cs" Link="Vendor/SamsungLoginService.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Core/PlatformService.cs" Link="Vendor/PlatformService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Core/JsonSerializerOptionsProvider.cs" Link="Vendor/JsonSerializerOptionsProvider.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Core/Constants.cs" Link="Vendor/Constants.cs" />
   </ItemGroup>
 </Project>
