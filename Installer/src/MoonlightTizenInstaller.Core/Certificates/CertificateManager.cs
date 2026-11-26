@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Apps2Samsung.Certificate;
 using Apps2Samsung.Extensions;
 using Apps2Samsung.Interfaces;
@@ -8,8 +10,8 @@ using Apps2Samsung.Samsung;
 namespace MoonlightTizenInstaller.Core.Certificates;
 
 /// <summary>
-/// Installer-owned façade over the narrowly vendored Apps2Samsung certificate workflow.
-/// Keeps upstream implementation details out of the desktop UI.
+/// Keeps one Partner signing profile in the installer's private application-data directory.
+/// Samsung CA authorities are embedded in this installer and materialized automatically.
 /// </summary>
 public sealed class CertificateManager
 {
@@ -17,16 +19,18 @@ public sealed class CertificateManager
     private readonly CertificateProvisioningService _provisioning;
     private readonly WgtSigningService _signer = new();
 
+    private static readonly string[] AuthorityResources =
+    {
+        "authorities.vd_tizen_dev_author_ca.cer.b64",
+        "authorities.vd_tizen_dev_public2.crt.b64",
+        "authorities.vd_tizen_dev_partner2.crt.b64"
+    };
+
     public CertificateManager(CertificateInstallerOptions options)
     {
         _options = options;
         Directory.CreateDirectory(options.ProfileStorePath);
-        Directory.CreateDirectory(options.BackupDirectory);
-
-        CertificateBackups.Configure(
-            options.ProfileStorePath,
-            options.BackupIndexPath,
-            new FolderBackupTarget(options.BackupDirectory, options.BackupDirectory));
+        EnsureAuthorityFiles();
 
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
         var certificateService = new TizenCertificateService(http, CertificateEndpoints.Default);
@@ -34,7 +38,53 @@ public sealed class CertificateManager
         _provisioning = new CertificateProvisioningService(certificateService, loginService);
     }
 
-    public string ProfileStorePath => _options.ProfileStorePath;
+    public CertificateProfile? GetUsableForTelevision(
+        string televisionDuid,
+        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner)
+    {
+        if (!TizenDuid.IsValid(televisionDuid))
+            return null;
+
+        var profileName = CertificateProvisioningService.ProfileName(level);
+        var profileDirectory = Path.Combine(_options.ProfileStorePath, profileName);
+        var authorPath = Path.Combine(profileDirectory, "author.p12");
+        var distributorPath = Path.Combine(profileDirectory, "distributor.p12");
+        var password = CertificateSecrets.GetOrMigrate(profileDirectory);
+
+        if (string.IsNullOrEmpty(password) ||
+            !IsCertificateCurrentlyValid(authorPath, password) ||
+            !IsCertificateCurrentlyValid(distributorPath, password) ||
+            !CertificateProvisioningService.GetCoveredDuids(profileDirectory).Contains(televisionDuid))
+            return null;
+
+        return new CertificateProfile(
+            authorPath, distributorPath, password, profileDirectory, profileName, level);
+    }
+
+    public bool IsReadyForTelevision(string televisionDuid)
+    {
+        try { return GetUsableForTelevision(televisionDuid) is not null; }
+        catch { return false; }
+    }
+
+    public Task<CertificateProfile> EnsureForTelevisionAsync(
+        string televisionDuid,
+        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner,
+        Action<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TizenDuid.IsValid(televisionDuid))
+            throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
+
+        CertificateSecrets.EnsureAvailable();
+        return _provisioning.EnsureAsync(
+            televisionDuid,
+            level,
+            _options.ProfileStorePath,
+            _options.CertificateAuthorityDirectory,
+            progress: progress is null ? null : new ProgressCallback(progress),
+            ct: cancellationToken);
+    }
 
     public Task<string> SignWgtAsync(
         string inputPath,
@@ -44,99 +94,40 @@ public sealed class CertificateManager
         CancellationToken cancellationToken = default) =>
         _signer.SignCopyAsync(inputPath, outputPath, profile, progress, cancellationToken);
 
-    /// <summary>
-    /// Reuses an existing profile where possible. A Samsung browser sign-in is only triggered
-    /// when a new author certificate or a distributor renewal is actually required.
-    /// </summary>
-    public Task<CertificateProfile> EnsureForTelevisionAsync(
-        string televisionDuid,
-        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Public,
-        IEnumerable<string>? additionalDuids = null,
-        bool forceNewAuthorCertificate = false,
-        Action<string>? progress = null,
-        CancellationToken cancellationToken = default)
+    private void EnsureAuthorityFiles()
     {
-        if (!TizenDuid.IsValid(televisionDuid))
-            throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
-
-        CertificateSecrets.EnsureAvailable();
-        ValidateAuthorityFilesOnlyWhenIssuanceIsRequired(televisionDuid, level, additionalDuids, forceNewAuthorCertificate);
-        return _provisioning.EnsureAsync(
-            televisionDuid,
-            level,
-            _options.ProfileStorePath,
-            _options.CertificateAuthorityDirectory,
-            additionalDuids,
-            forceNewAuthorCertificate,
-            progress: progress is null ? null : new ProgressCallback(progress),
-            ct: cancellationToken);
-    }
-
-    public IReadOnlyList<CertificateArchiveProfile> GetRecoverableProfiles() =>
-        CertificateArchive.UsableProfiles(_options.ProfileStorePath)
-            .Select(item => item.Profile)
-            .ToArray();
-
-    public IReadOnlyList<CertificateArchiveProfile> ExportProfiles(Stream destination)
-    {
-        ArgumentNullException.ThrowIfNull(destination);
-        return CertificateArchive.ExportAll(destination, _options.ProfileStorePath, includePassword: true);
-    }
-
-    public CertificateArchivePreview PreviewImport(Stream source)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        return CertificateArchive.Preview(source, _options.ProfileStorePath);
-    }
-
-    public CertificateArchiveImportResult ImportProfiles(Stream source)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        return CertificateArchive.Import(source, _options.ProfileStorePath);
-    }
-
-    public CertificateBackupStatus? GetBackupStatus() => CertificateBackups.Status();
-
-    private void ValidateAuthorityFilesOnlyWhenIssuanceIsRequired(
-        string televisionDuid,
-        CertificatePrivilegeLevel level,
-        IEnumerable<string>? additionalDuids,
-        bool forceNewAuthorCertificate)
-    {
-        var profileDirectory = Path.Combine(_options.ProfileStorePath, CertificateProvisioningService.ProfileName(level));
-        var hasAuthor = !forceNewAuthorCertificate && CertificateProvisioningService.HasUsableAuthorCert(profileDirectory);
-        var coveredDuids = hasAuthor
-            ? CertificateProvisioningService.GetCoveredDuids(profileDirectory)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var extraDuids = (additionalDuids ?? Enumerable.Empty<string>())
-            .Where(TizenDuid.IsValid)
-            .ToArray();
-        var alreadyCovered = coveredDuids.Contains(televisionDuid) && extraDuids.All(coveredDuids.Contains);
-
-        // Existing profiles that already cover this TV can be reused without SDK CA materials.
-        if (hasAuthor && alreadyCovered)
-            return;
-
-        var distributorFile = level == CertificatePrivilegeLevel.Partner
-            ? "vd_tizen_dev_partner2.crt"
-            : "vd_tizen_dev_public2.crt";
-        var required = new[]
+        Directory.CreateDirectory(_options.CertificateAuthorityDirectory);
+        var assembly = Assembly.GetExecutingAssembly();
+        foreach (var resourceName in AuthorityResources)
         {
-            "vd_tizen_dev_author_ca.cer",
-            distributorFile
-        };
-        var missing = required
-            .Select(name => Path.Combine(_options.CertificateAuthorityDirectory, name))
-            .Where(path => !File.Exists(path))
-            .Select(Path.GetFileName)
-            .ToArray();
+            var fileName = resourceName["authorities.".Length..^4];
+            var target = Path.Combine(_options.CertificateAuthorityDirectory, fileName);
+            using var source = assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException($"No se encontró el recurso de autoridad '{resourceName}'.");
+            using var memory = new MemoryStream();
+            source.CopyTo(memory);
+            var certificateBytes = Convert.FromBase64String(System.Text.Encoding.ASCII.GetString(memory.ToArray()).Trim());
+            File.WriteAllBytes(target, certificateBytes);
+        }
+    }
 
-        if (missing.Length > 0)
+    private static bool IsCertificateCurrentlyValid(string path, string password)
+    {
+        try
         {
-            throw new InvalidOperationException(
-                "Faltan materiales de autoridad de certificados Tizen requeridos para firmar: " +
-                string.Join(", ", missing) +
-                ". Deben proporcionarse desde el entorno de desarrollo autorizado; el instalador no los descarga ni los redistribuye.");
+            if (!File.Exists(path))
+                return false;
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(
+                path, password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            var now = DateTime.UtcNow;
+            return certificate.NotBefore.ToUniversalTime() <= now &&
+                   certificate.NotAfter.ToUniversalTime() >= now;
+        }
+        catch
+        {
+            return false;
         }
     }
 }

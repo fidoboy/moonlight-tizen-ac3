@@ -18,8 +18,8 @@ public sealed class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Only certificate profiles/backups are persistent. SDB keys and all other
-            // operational state live in a unique temporary directory for this process.
+            // The signing profile and extracted Samsung authorities persist between runs.
+            // SDB keys and all other operational state live in a unique temporary directory.
             var dataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "MoonlightTizenInstaller");
@@ -31,7 +31,7 @@ public sealed class App : Application
 
             Directory.CreateDirectory(_sessionDirectory);
 
-            var caDirectory = Path.Combine(AppContext.BaseDirectory, "certificate-authorities");
+            var caDirectory = Path.Combine(dataDirectory, "certificate-authorities");
             Certificates = new CertificateManager(
                 new CertificateInstallerOptions(dataDirectory, caDirectory));
 
