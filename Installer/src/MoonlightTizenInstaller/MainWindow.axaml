@@ -75,7 +75,7 @@
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
       <Grid Margin="42,34">
         <StackPanel Name="WelcomePage" Spacing="18" IsVisible="True">
-          <TextBlock Text="INSTALADOR OFICIAL DE ESTE PROYECTO" Foreground="#A7D3FF"
+          <TextBlock Text="ASISTENTE DE INSTALACIÓN" Foreground="#A7D3FF"
                      FontSize="12" FontWeight="Bold" />
           <TextBlock Text="Instala Moonlight en tu Samsung TV."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
