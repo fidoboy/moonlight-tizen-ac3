@@ -339,6 +339,9 @@ public sealed partial class MainWindow : Window
             _discoveryInProgress = false;
             SetTelevisionActionsEnabled(_selectedTelevision is not null);
             if (retry is not null) retry.IsEnabled = true;
+            // Re-evaluate the step button after discovery has finished. For multiple
+            // devices it remains disabled until the user selects one of the cards.
+            SetWizardStep(_wizardStep);
         }
     }
 
@@ -548,18 +551,21 @@ public sealed partial class MainWindow : Window
             Height = 76,
             CornerRadius = new Avalonia.CornerRadius(16),
             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Child = new Grid
+            Child = new Viewbox
             {
-                Width = 76,
-                Height = 76,
+                Width = 48,
+                Height = 48,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Children = { storeIcon }
+                Child = storeIcon
             }
         };
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        storeIcon.Width = 48;
+        storeIcon.Height = 48;
+        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
