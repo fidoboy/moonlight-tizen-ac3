@@ -652,6 +652,8 @@ public sealed partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             FontSize = 15
         };
+        // TextBlock.Inlines is nullable in Avalonia; initialize it before adding runs.
+        message.Inlines ??= new Avalonia.Controls.Documents.InlineCollection();
         message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[0]));
         message.Inlines.Add(new Avalonia.Controls.Documents.Run(deviceLabel)
         {
