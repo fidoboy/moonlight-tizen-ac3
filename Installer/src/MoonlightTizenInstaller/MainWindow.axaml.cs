@@ -156,14 +156,14 @@ public sealed partial class MainWindow : Window
                     4 => "Ir a instalación",
                     _ => "Finalizar"
                 });
-            next.IsEnabled = _tvStoreHandoff && _wizardStep == 4 || _wizardStep switch
+            next.IsEnabled = (_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
             {
                 1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                 2 => !_discoveryInProgress,
                 3 => _selectedTelevision is not null && !_discoveryInProgress && !_tvStoreHandoff,
                 4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
                 _ => _installationCompleted
-            };
+            });
         }
     }
 
@@ -458,10 +458,14 @@ public sealed partial class MainWindow : Window
                 ? "Paquete transferido correctamente"
                 : "No se ha podido transferir el paquete");
         if (this.FindControl<TextBlock>("TvStoreResultMessage") is { } resultMessage)
-            resultMessage.Text = InstallerLocalization.T(success
+        {
+            var message = InstallerLocalization.T(success
                 ? "Moonlight.wgt se ha transferido correctamente a TV-Store. Para completar la instalación, acepta el mensaje de confirmación que aparecerá en la televisión. Si no aparece, abre TV-Store en el televisor y confirma allí la instalación."
-                : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. " +
-                  (failureDetails ?? "Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer."));
+                : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer.");
+            resultMessage.Text = string.IsNullOrWhiteSpace(failureDetails)
+                ? message
+                : $"{message}{Environment.NewLine}{Environment.NewLine}{HideInternalProtocolNames(failureDetails)}";
+        }
         SetWizardStep(4);
     }
 
