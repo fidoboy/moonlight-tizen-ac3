@@ -7,52 +7,29 @@ description: "Premiers pas avec Moonlight Tizen et les hôtes compatibles GameSt
 
 # Guide de démarrage rapide
 
-Ce guide présente le chemin le plus court entre l'installation et un flux fonctionnel sur un Samsung Smart TV.
+Suivez ces étapes pour installer Moonlight et commencer à diffuser sur votre Samsung Smart TV.
 
 ## 1. Vérifier la configuration
 
-Vous aurez besoin de :
+Vous avez besoin d'un Samsung Smart TV exécutant Tizen 5.5 ou ultérieur, d'un PC équipé d'un hôte compatible GameStream tel que Sunshine, et d'une connexion réseau stable entre les deux. Le GPU de l'hôte doit prendre en charge l'encodage matériel.
 
-- Un Samsung Smart TV exécutant Tizen 5.5 ou ultérieur.
-- Un PC exécutant Sunshine ou un autre hôte compatible GameStream.
-- Un GPU hôte capable d'encoder matériellement.
-- Une connexion réseau stable entre le téléviseur et le PC. Ethernet pour l'hôte et un Wi-Fi 5 GHz fiable ou Ethernet pour le téléviseur constituent un bon point de départ.
-- Une manette compatible si vous voulez jouer avec une manette.
+## 2. Installer Moonlight
 
-Consultez les [prérequis du README](../#compatibility) pour plus de détails.
+**Recommandé : utilisez l'[installateur Moonlight pour ordinateur](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest).** Téléchargez l'installateur adapté à votre ordinateur (Windows, Linux ou macOS), puis lancez-le. Il inclut l'application Tizen et la transfère sur votre téléviseur. L'ordinateur et le téléviseur doivent être connectés au même réseau local.
 
-## 2. Installer le client
+**Autres méthodes :** installez l'application avec [Apps2Samsung](https://apps2samsung.com/) ou utilisez Tizen Studio. Consultez le [Guide d'installation](Installation-Guide-fr.html) pour plus de détails.
 
-**Méthode recommandée : passer par le site officiel d'[Apps2Samsung](https://apps2samsung.com/).** Téléchargez et lancez Apps2Samsung sur votre ordinateur, sélectionnez votre téléviseur, recherchez **Moonlight** dans son catalogue d'applications et choisissez la variante `fidoboy · Enhanced · Dolby`. C'est la méthode la plus simple : Apps2Samsung prépare et signe le paquet pour vous.
+## 3. Se connecter à l'hôte
 
-**Alternative : installation manuelle du WGT.** Téléchargez `Moonlight.wgt` depuis la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest), puis installez-le avec l'une de ces méthodes :
+1. Installez et démarrez sur votre PC un hôte compatible GameStream, tel que [Sunshine](https://app.lizardbyte.dev/Sunshine/) ou [Vibeshine](https://github.com/Nonary/vibeshine/releases).
+2. Ouvrez Moonlight sur le téléviseur et sélectionnez votre PC lorsqu'il apparaît.
+3. Saisissez le PIN affiché par Moonlight dans l'interface d'association de l'hôte sur votre PC.
+4. Sélectionnez un jeu ou le bureau pour commencer le streaming.
 
-- **Apps2Samsung :** choisissez **Custom WGT / TPK** et sélectionnez le fichier téléchargé.
-- **Tizen Studio :** connectez le téléviseur avec le mode développeur activé et installez le paquet avec les outils de déploiement Tizen et un profil de certificat accepté par le téléviseur. Consultez le [Guide d'installation](Installation-Guide-fr.html) pour plus de détails.
+## 4. Audio Dolby (facultatif)
 
-## 3. Configurer l'hôte et l'associer
+Pour le passthrough Dolby, utilisez [Vibeshine 2.0.3 ou version ultérieure](https://github.com/Nonary/vibeshine/releases/tag/2.0.3) et activez **Enable Dolby Digital** dans les paramètres audio de Moonlight. Consultez la [Présentation des fonctionnalités](Features-Overview-fr.html) pour plus de détails.
 
-1. Installez et démarrez sur le PC n’importe quel serveur hôte compatible avec GameStream. Exemples : [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) et [Punktfunk](https://docs.punktfunk.unom.io/docs/install). D’autres logiciels hôtes compatibles peuvent également fonctionner.
-2. Vérifiez que le PC et le téléviseur peuvent communiquer sur le même réseau et que le pare-feu de l'hôte autorise les connexions de streaming.
-3. Lancez Moonlight sur le téléviseur et sélectionnez l'hôte lorsqu'il apparaît.
-4. Moonlight affiche un PIN. Ouvrez l'interface Web du serveur hôte sur le PC, saisissez ce PIN dans la section d'association et confirmez.
-5. Sélectionnez un jeu ou le bureau pour commencer le streaming.
+## 5. Ajuster le flux
 
-Pour une nouvelle installation, commencez avec une résolution, une fréquence d'images et un débit prudents. Augmentez-les une fois la stabilité confirmée.
-
-## 4. Activer la sortie optique Dolby (facultatif)
-
-Le passthrough Dolby est officiellement pris en charge par [Vibeshine 2.0.3 ou version ultérieure](https://github.com/Nonary/vibeshine/releases/tag/2.0.3). **Recommandation : utilisez Vibeshine comme hôte de streaming pour profiter de l’audio Dolby.**
-
-**Alternative : version expérimentale de Sunshine.** Le passthrough Dolby est également disponible dans la [branche expérimentale de Sunshine maintenue pour ce projet](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3), qui attend encore l’examen du projet en amont. Téléchargez la version Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) ou [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip).
-
-1. Reliez la sortie optique du téléviseur au récepteur ou au système audio.
-2. Dans les paramètres audio du téléviseur, choisissez un mode qui transmet un bitstream Dolby compatible au lieu d'imposer le PCM stéréo. Les libellés varient selon le modèle.
-3. Dans Settings de Moonlight, activez **Enable Dolby Digital** et sélectionnez stéréo ou 5.1.
-4. Démarrez un flux et affichez l'overlay de performances avec **Ctrl+Alt+Shift+S**. Vérifiez si la ligne audio indique OPUS, AC-3 ou E-AC-3 et la disposition de canaux attendue.
-
-Si l'hôte ne propose que OPUS, le flux continuera à utiliser OPUS. Un réglage activé côté client ne peut pas faire envoyer du Dolby à un hôte OPUS uniquement.
-
-## 5. Ajuster le streaming
-
-Une fois le premier flux fonctionnel, ajustez résolution, fréquence d'images, débit, codec vidéo et réglages audio selon les capacités du téléviseur et du réseau. Consultez la [Présentation des fonctionnalités](Features-Overview-fr.html) et la [FAQ](../Frequently-Asked-Questions.html).
+Une fois le streaming opérationnel, ajustez la résolution, la fréquence d'images, le débit, le codec vidéo et les paramètres audio selon votre téléviseur et votre réseau. Consultez la [FAQ](../Frequently-Asked-Questions.html) en cas de besoin.
