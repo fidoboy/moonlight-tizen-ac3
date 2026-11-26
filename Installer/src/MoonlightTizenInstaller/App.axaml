@@ -66,9 +66,10 @@
       <Setter Property="Foreground" Value="#78B8FF" />
     </Style>
     <Style Selector="RadioButton:checked">
-      <Setter Property="Foreground" Value="#78B8FF" />
-      <Setter Property="Background" Value="#78B8FF" />
-      <Setter Property="BorderBrush" Value="#78B8FF" />
+      <Setter Property="Foreground" Value="#F5F8FF" />
+    </Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#CheckGlyph">
+      <Setter Property="Fill" Value="#78B8FF" />
     </Style>
     <Style Selector="ComboBox">
       <Setter Property="Background" Value="#14213A" />
