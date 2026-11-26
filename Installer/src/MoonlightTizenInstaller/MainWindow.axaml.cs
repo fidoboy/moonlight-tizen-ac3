@@ -153,6 +153,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             _discoveryInProgress = false;
+            SetTelevisionActionsEnabled(_selectedTelevision is not null);
             if (retry is not null) retry.IsEnabled = true;
         }
     }
@@ -293,7 +294,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            if (button is not null) button.IsEnabled = _selectedDuid is not null;
+            if (button is not null) button.IsEnabled = TizenDuid.IsValid(_selectedDuid) && !_discoveryInProgress;
         }
     }
 
@@ -344,7 +345,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             if (this.FindControl<Button>("SignWgtButton") is { } sign)
-                sign.IsEnabled = _selectedDuid is not null;
+                sign.IsEnabled = TizenDuid.IsValid(_selectedDuid) && !_discoveryInProgress;
         }
     }
 
