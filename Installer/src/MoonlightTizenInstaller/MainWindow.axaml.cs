@@ -434,10 +434,11 @@ public sealed partial class MainWindow : Window
             var localHostIp = _discovery.GetDeveloperModeHostIp(useTvStoreRelay: false);
             devices = devices.Select(device =>
             {
-                var hasDeveloperIp = IPAddress.TryParse(device.DeveloperIp?.Trim(), out var developerIp);
+                var hasDeveloperIp = !string.IsNullOrWhiteSpace(device.DeveloperIp);
                 var isValid = hasDeveloperIp &&
                     (device.UsesTvStoreRelay ||
-                     (IPAddress.TryParse(localHostIp, out var localAddress) && developerIp.Equals(localAddress)));
+                     (IPAddress.TryParse(device.DeveloperIp!.Trim(), out var developerIp) &&
+                      IPAddress.TryParse(localHostIp, out var localAddress) && developerIp.Equals(localAddress)));
 
                 return device with
                 {
