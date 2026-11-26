@@ -143,7 +143,8 @@
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
           <TextBlock Text="Buscando tu TV con TizenOS" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="Los televisores de la red local se detectan automáticamente."
+          <TextBlock Name="TelevisionDiscoveryHint"
+                     Text="Los televisores de la red local se detectan automáticamente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
             <ProgressBar IsIndeterminate="True" Height="6" />
