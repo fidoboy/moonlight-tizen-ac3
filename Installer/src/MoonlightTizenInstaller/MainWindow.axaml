@@ -264,7 +264,7 @@
               <Grid>
                 <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
                       Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
-                      StrokeThickness="2.8" StrokeLineCap="Round" StrokeLineJoin="Round"
+                      StrokeThickness="2.8" StrokeLineCap="Round"
                       HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Grid>
             </Border>
