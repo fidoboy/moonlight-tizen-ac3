@@ -29,7 +29,7 @@ def normalize_interpolated(message: str) -> str:
         placeholder = "{" + str(index) + "}"
         index += 1
         return placeholder
-    return re.sub(r"\\{(?!\\d+\\})[^{}]+\\}", replace_expression, message)
+    return re.sub(r"\{(?!\d+\})[^{}]+\}", replace_expression, message)
 
 def fail(errors: list[str]) -> None:
     if errors:
@@ -119,7 +119,7 @@ normalized_interpolated_sources = [
     normalize_interpolated(unescape_csharp(match.group(1)).replace("SDB", "conexión"))
     for match in re.finditer(r'\$"((?:\\.|[^"\\])*)"', all_source)
 ]
-normalized_source += "\\n" + "\\n".join(normalized_interpolated_sources)
+normalized_source += "\n" + "\n".join(normalized_interpolated_sources)
 unused = sorted(key for key in keys if key not in normalized_source)
 for key in unused:
     errors.append(f"Unused translation key: {key!r}")
