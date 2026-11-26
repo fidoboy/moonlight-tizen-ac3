@@ -103,7 +103,7 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Certificate Extension" /tmp/tizen-extra-repositories.txt \
-    && certificate_extension_index="$(awk '/^[[:space:]]*Index[[:space:]]*:/ { index=$3 } /^[[:space:]]*Name[[:space:]]*:[[:space:]]*Samsung Certificate Extension[[:space:]]*$/ { print index; exit }' /tmp/tizen-extra-repositories.txt)" \
+    && certificate_extension_index="$(awk '/^[[:space:]]*Index[[:space:]]*:/ { repo_index=$3 } /^[[:space:]]*Name[[:space:]]*:[[:space:]]*Samsung Certificate Extension[[:space:]]*$/ { print repo_index; exit }' /tmp/tizen-extra-repositories.txt)" \
     && test -n "$certificate_extension_index" \
     && "$pm" extra -act "$certificate_extension_index" \
     && "$pm" install --accept-license --no-java-check \
