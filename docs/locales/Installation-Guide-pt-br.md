@@ -7,7 +7,7 @@ description: "Métodos para instalar o Moonlight Tizen em TVs Samsung Smart TV."
 
 # Guia de instalação
 
-A opção mais simples e recomendada é usar o instalador desktop do Moonlight. Apps2Samsung e Tizen Studio continuam como métodos alternativos.
+A opção mais simples e recomendada é usar o instalador para desktop para transferir o Moonlight para a TV. Você também pode usar o aplicativo Apps2Samsung ou, se for um usuário mais experiente, a plataforma de desenvolvimento Tizen Studio. O aplicativo também é distribuído em pacotes WGT não assinados, mas não é possível instalá-lo diretamente na TV nesse formato.
 
 ## Método A: usar o instalador desktop do Moonlight
 
