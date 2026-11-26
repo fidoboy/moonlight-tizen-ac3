@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using System.Globalization;
+using System.Net;
 using System.Diagnostics;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -174,7 +175,7 @@ public sealed partial class MainWindow : Window
                 {
                     1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                     2 => !_televisionDiscoveryFailed,
-                    3 => _selectedTelevision is not null && !_tvStoreHandoff,
+                    3 => _selectedTelevision is { IsDeveloperModeIpValid: true } && !_tvStoreHandoff,
                     4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
                     _ => _installationFinished
                 }));
@@ -193,7 +194,7 @@ public sealed partial class MainWindow : Window
                 SetWizardStep(3);
                 break;
             case 3:
-                if (_selectedTelevision is { } selectedTelevision)
+                if (_selectedTelevision is { IsDeveloperModeIpValid: true } selectedTelevision)
                     await SelectTelevisionAsync(selectedTelevision);
                 break;
             case 4:
@@ -430,14 +431,34 @@ public sealed partial class MainWindow : Window
                 }
             }
 
+            var localHostIp = _discovery.GetDeveloperModeHostIp(useTvStoreRelay: false);
+            devices = devices.Select(device =>
+            {
+                var hasDeveloperIp = IPAddress.TryParse(device.DeveloperIp?.Trim(), out var developerIp);
+                var isValid = hasDeveloperIp &&
+                    (device.UsesTvStoreRelay ||
+                     (IPAddress.TryParse(localHostIp, out var localAddress) && developerIp.Equals(localAddress)));
+
+                return device with
+                {
+                    IsDeveloperModeIpValid = isValid,
+                    StatusText = InstallerLocalization.T(isValid ? "Ready" : "Not available")
+                };
+            }).ToArray();
+
+            if (this.FindControl<Border>("InvalidDeviceWarning") is { } invalidDeviceWarning)
+                invalidDeviceWarning.IsVisible = devices.Any(device => device.IsDeveloperModeIpInvalid);
+
             if (cards is not null)
             {
                 cards.ItemsSource = devices;
-                cards.SelectedIndex = devices.Count == 1 ? 0 : -1;
+                cards.SelectedIndex = devices.Count == 1 && devices[0].IsDeveloperModeIpValid ? 0 : -1;
                 cards.IsVisible = true;
             }
 
-            _selectedTelevision = devices.Count == 1 ? devices[0] : null;
+            _selectedTelevision = devices.Count == 1 && devices[0].IsDeveloperModeIpValid
+                ? devices[0]
+                : null;
             if (searching is not null) searching.IsVisible = false;
             if (this.FindControl<TextBlock>("ConnectionSummary") is { } connectionSummary)
             {
@@ -486,7 +507,7 @@ public sealed partial class MainWindow : Window
 
     private async Task SelectTelevisionAsync(DiscoveredTelevision device)
     {
-        if (_tvStoreChosen)
+        if (_tvStoreChosen || !device.IsDeveloperModeIpValid)
             return;
 
         // TV-Store has already been checked during step 2. The connection step
@@ -600,10 +621,17 @@ public sealed partial class MainWindow : Window
 
     private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        _selectedTelevision = this.FindControl<ListBox>("TelevisionCards")?.SelectedItem as DiscoveredTelevision;
+        var cards = this.FindControl<ListBox>("TelevisionCards");
+        var selectedTelevision = cards?.SelectedItem as DiscoveredTelevision;
+        if (selectedTelevision is { IsDeveloperModeIpValid: false })
+        {
+            cards!.SelectedItem = null;
+            selectedTelevision = null;
+        }
+
+        _selectedTelevision = selectedTelevision;
         _selectedDuid = null;
-        if (this.FindControl<Button>("WizardNextButton") is { } installButton)
-            installButton.IsEnabled = _selectedTelevision is not null && !_discoveryInProgress;
+        SetWizardStep(_wizardStep);
     }
 
 
