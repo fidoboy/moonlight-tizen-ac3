@@ -129,7 +129,7 @@ public sealed partial class MainWindow : Window
             next.IsEnabled = _wizardStep switch
             {
                 1 => true,
-                2 => _selectedTelevision is not null && TizenDuid.IsValid(_selectedDuid),
+                2 => _selectedTelevision is not null && !_discoveryInProgress,
                 3 => TizenDuid.IsValid(_selectedDuid),
                 4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
                 _ => _installationCompleted
@@ -146,8 +146,8 @@ public sealed partial class MainWindow : Window
                 await DiscoverTelevisionsAsync();
                 break;
             case 2:
-                if (TizenDuid.IsValid(_selectedDuid))
-                    SetWizardStep(3);
+                if (_selectedTelevision is { } selectedTelevision)
+                    await SelectTelevisionAsync(selectedTelevision);
                 break;
             case 3:
                 if (TizenDuid.IsValid(_selectedDuid))
@@ -265,7 +265,7 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = "Detectando televisores Samsung y comprobando primero la vía de instalación TV-Store…";
+        if (searchStatus is not null) searchStatus.Text = "Detectando televisores con TizenOS en la red local…";
 
         try
         {
@@ -284,7 +284,11 @@ public sealed partial class MainWindow : Window
 
             if (devices.Count == 1)
             {
-                await SelectTelevisionAsync(devices[0]);
+                _selectedTelevision = devices[0];
+                if (searching is not null) searching.IsVisible = false;
+                if (status is not null)
+                    status.Text = $"Se ha detectado una TV con TizenOS en {devices[0].IpAddress}. Pulsa «Siguiente» para continuar.";
+                SetWizardStep(2);
                 return;
             }
 
@@ -296,7 +300,8 @@ public sealed partial class MainWindow : Window
             if (searching is not null) searching.IsVisible = false;
             if (selectionPanel is not null) selectionPanel.IsVisible = true;
             if (status is not null)
-                status.Text = $"Se han detectado {devices.Count} televisores. Es necesario seleccionar uno para continuar.";
+                status.Text = $"Se han detectado {devices.Count} televisores con TizenOS. Selecciona uno y pulsa «Siguiente» para continuar.";
+            SetWizardStep(2);
         }
         catch (OperationCanceledException)
         {
@@ -341,7 +346,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
-            searchStatus.Text = $"Comprobando si TV-Store está instalado y puede recibir Moonlight en {device.IpAddress}…";
+            searchStatus.Text = $"Preparando la conexión con la TV en {device.IpAddress}…";
         SetTelevisionActionsEnabled(false);
 
         IProgress<string> progress = new Progress<string>(message =>
@@ -353,6 +358,16 @@ public sealed partial class MainWindow : Window
 
         try
         {
+            // This probe is read-only. TV-Store is never launched and no package is
+            // transferred until the user explicitly accepts the hand-off prompt.
+            var tvStoreDetected = await _tvStoreInstaller.IsInstalledAsync(device.IpAddress);
+            var useTvStore = tvStoreDetected && await AskToUseTvStoreAsync(device);
+            if (!useTvStore)
+            {
+                await ContinueWithSdbInstallationAsync(device);
+                return;
+            }
+
             TvStoreHandoffService.HandoffResult? handoff;
             try
             {
@@ -467,17 +482,58 @@ public sealed partial class MainWindow : Window
             await ContinueWithSdbInstallationAsync(television);
     }
 
-    private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
-            await SelectTelevisionAsync(selected);
-        else
+        _selectedTelevision = this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem as DiscoveredTelevision;
+        _selectedDuid = null;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+            status.Text = _selectedTelevision is null
+                ? "Selecciona una TV con TizenOS para continuar."
+                : $"TV seleccionada: {_selectedTelevision.IpAddress}. Pulsa «Siguiente» para continuar.";
+        SetWizardStep(2);
+    }
+
+
+    private async Task<bool> AskToUseTvStoreAsync(DiscoveredTelevision television)
+    {
+        var message = new TextBlock
         {
-            _selectedTelevision = null;
-            _selectedDuid = null;
-            if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
-            SetTelevisionActionsEnabled(false);
-        }
+            Text = $"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({television.IpAddress}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(22, 22, 22, 16),
+            MaxWidth = 440
+        };
+        var useButton = new Button
+        {
+            Content = "Sí, utilizar TV-Store",
+            MinWidth = 170,
+            Classes = { "primary" }
+        };
+        var normalButton = new Button
+        {
+            Content = "No, continuar con la instalación normal",
+            MinWidth = 230
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Spacing = 10,
+            Margin = new Avalonia.Thickness(22, 0, 22, 20),
+            Children = { normalButton, useButton }
+        };
+        var dialog = new Window
+        {
+            Title = "TV-Store detectado",
+            Width = 540,
+            SizeToContent = Avalonia.Controls.SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel { Spacing = 8, Children = { message, buttons } }
+        };
+        useButton.Click += (_, _) => dialog.Close(true);
+        normalButton.Click += (_, _) => dialog.Close(false);
+        return await dialog.ShowDialog<bool>(this);
     }
 
     private void OnFinishTvStoreHandoffClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
@@ -496,7 +552,7 @@ public sealed partial class MainWindow : Window
         if (hasDuid && certificateStatus is not null)
             certificateStatus.Text = certificateReady
                 ? "El certificado Partner guardado en este equipo es válido y cubre este televisor."
-                : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado con Samsung» para obtenerlo.";
+                : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado Partner» para obtenerlo.";
 
         if (_wizardStep == 4)
             SetWizardStep(4);
@@ -520,7 +576,7 @@ public sealed partial class MainWindow : Window
 
         if (button is not null) button.IsEnabled = false;
         if (status is not null)
-            status.Text = "Se abrirá la página de Samsung. Inicia sesión y autoriza la generación del certificado.";
+            status.Text = "Se abrirá el portal de certificados. Inicia sesión y autoriza la generación del certificado.";
 
         try
         {
