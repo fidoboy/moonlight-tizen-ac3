@@ -22,5 +22,8 @@
     <EmbeddedResource Include="Moonlight.wgt" Condition="Exists('Moonlight.wgt')">
       <LogicalName>Moonlight.wgt</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Moonlight-ForceGM.wgt" Condition="Exists('Moonlight-ForceGM.wgt')">
+      <LogicalName>Moonlight-ForceGM.wgt</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>
