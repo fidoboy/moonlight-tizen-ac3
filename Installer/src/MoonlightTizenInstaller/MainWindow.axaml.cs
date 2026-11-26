@@ -15,7 +15,7 @@ public sealed partial class MainWindow : Window
     private readonly TelevisionDiscoveryService _discovery;
     private readonly SdbInstallationService _sdbInstaller = new();
     private readonly TvStoreHandoffService _tvStoreInstaller = new();
-    private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
+    private readonly string _bundledWgtPath = Path.Combine(Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
@@ -25,6 +25,18 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        Closed += (_, _) =>
+        {
+            try
+            {
+                if (File.Exists(_bundledWgtPath))
+                    File.Delete(_bundledWgtPath);
+            }
+            catch
+            {
+                // Best-effort cleanup of the temporary embedded WGT.
+            }
+        };
         Opened += async (_, _) =>
         {
             if (!await EnsureBundledWgtAvailableAsync())
@@ -47,17 +59,36 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            if (File.Exists(_bundledWgtPath) && new FileInfo(_bundledWgtPath).Length > 0)
+            if (!File.Exists(_bundledWgtPath) || new FileInfo(_bundledWgtPath).Length == 0)
+            {
+                await using var resource = typeof(MainWindow).Assembly.GetManifestResourceStream("Moonlight.wgt");
+                if (resource is null)
+                    throw new FileNotFoundException("El paquete Moonlight.wgt no está integrado en el ejecutable.");
+
+                await using var destination = new FileStream(
+                    _bundledWgtPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                await resource.CopyToAsync(destination);
+            }
+
+            if (new FileInfo(_bundledWgtPath).Length > 0)
                 return true;
         }
         catch
         {
-            // Treat inaccessible or invalid package resources as a missing mandatory resource.
+            try
+            {
+                if (File.Exists(_bundledWgtPath))
+                    File.Delete(_bundledWgtPath);
+            }
+            catch
+            {
+                // Ignore cleanup failures while reporting the missing embedded package.
+            }
         }
 
         var message = new TextBlock
         {
-            Text = "No se encuentra el paquete Moonlight.wgt necesario para ejecutar este instalador.\n\nLa distribución está incompleta o dañada. Descarga de nuevo el instalador.",
+            Text = "El paquete Moonlight.wgt no está integrado en este ejecutable o está dañado. Descarga de nuevo el instalador.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(20)
         };
