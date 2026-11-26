@@ -641,13 +641,24 @@ public sealed partial class MainWindow : Window
 
     private async Task<bool> AskToUseTvStoreAsync(DiscoveredTelevision television)
     {
+        var localizedMessage = InstallerLocalization.T("TV-Store is installed on one of your devices: {0}. Would you like to try using it to complete the Moonlight installation there?");
+        var messageParts = localizedMessage.Split("{0}", 2);
+        var deviceLabel = string.IsNullOrWhiteSpace(television.Name)
+            ? television.IpAddress
+            : $"{television.Name} ({television.IpAddress})";
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T($"TV-Store is installed on one of your devices ({{0}}). Would you like to try using it to complete the Moonlight installation there?").Replace("{0}", string.IsNullOrWhiteSpace(television.Name) ? television.IpAddress : $"{television.Name} ({television.IpAddress})"),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             FontSize = 15
         };
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[0]));
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(deviceLabel)
+        {
+            FontWeight = Avalonia.Media.FontWeight.Bold
+        });
+        if (messageParts.Length > 1)
+            message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[1]));
         var storeIcon = new Avalonia.Controls.Shapes.Path
         {
             Data = Avalonia.Media.Geometry.Parse("M 4,16 L 44,16 L 40,44 L 8,44 Z M 14,16 C 14,4 34,4 34,16"),
