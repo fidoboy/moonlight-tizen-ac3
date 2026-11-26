@@ -467,8 +467,8 @@ public sealed partial class MainWindow : Window
             if (this.FindControl<TextBlock>("ConnectionSummary") is { } connectionSummary)
             {
                 connectionSummary.Text = devices.Count > 1
-                    ? InstallerLocalization.T("Se han detectado los siguientes dispositivos. Selecciona el que quieras utilizar y pulsa el botón de «Instalar» cuando estés listo para comenzar.")
-                    : InstallerLocalization.T("Se ha detectado el siguiente dispositivo. Pulsa el botón de «Instalar» cuando estés listo para comenzar.");
+                    ? InstallerLocalization.T("The following devices have been detected. Select the one you want to use, then click the “Next” button when you are ready to continue.")
+                    : InstallerLocalization.T("The following device has been detected. Click the “Next” button when you are ready to continue.");
             }
             if (status is not null) status.Text = string.Empty;
             SetWizardStep(3);
