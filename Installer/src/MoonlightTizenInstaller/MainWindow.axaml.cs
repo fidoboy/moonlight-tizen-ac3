@@ -723,6 +723,10 @@ public sealed partial class MainWindow : Window
             readyPanel.IsVisible = hasDuid && certificateReady;
         if (this.FindControl<StackPanel>("CertificateReadyIntro") is { } readyIntro)
             readyIntro.IsVisible = hasDuid && certificateReady;
+        if (this.FindControl<TextBlock>("CertificatePageTitle") is { } certificateTitle)
+            certificateTitle.Text = InstallerLocalization.T(certificateReady
+                ? "Certificado de instalación"
+                : "Preparar el certificado de instalación");
         if (certificateReady && this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
             certificateStatus.IsVisible = false;
         if (hasDuid && certificateReady)
