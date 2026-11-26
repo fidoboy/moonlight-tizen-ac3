@@ -304,19 +304,37 @@
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="El paquete se firmará con el perfil Partner y se instalará en el televisor."
-                     Foreground="#ACBAD0" TextWrapping="Wrap" />
-          <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
-                  CornerRadius="12" Padding="20">
-            <StackPanel Spacing="12">
-              <Button Name="InstallWgtButton" Content="Instalar Moonlight"
-                      HorizontalAlignment="Left" IsEnabled="False"
-                      Click="OnInstallWgtClick" Classes="primary" />
-              <TextBlock Name="InstallationOperationStatus" TextWrapping="Wrap"
-                         Foreground="#D6E1F2" />
+          <TextBlock Name="InstallationPageTitle" Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
+          <StackPanel Name="InstallationProgressPanel" Spacing="14">
+            <TextBlock Text="Se está preparando y transfiriendo Moonlight al televisor. Este proceso puede tardar unos instantes."
+                       Foreground="#ACBAD0" TextWrapping="Wrap" />
+            <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
+                    CornerRadius="12" Padding="20">
+              <StackPanel Spacing="14">
+                <TextBlock Name="InstallationOperationStatus" Text="Preparando la instalación…"
+                           TextWrapping="Wrap" Foreground="#D6E1F2" />
+                <ProgressBar Name="InstallationProgressBar" IsIndeterminate="True"
+                             Height="8" Minimum="0" Maximum="100" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+          <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
+                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
+            <Border Name="InstallationResultIconCircle" Width="76" Height="76" CornerRadius="38"
+                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path Name="InstallationResultIcon" Data="M 3,12 L 9,18 L 21,6"
+                    Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
+                    StrokeThickness="2.8" StrokeLineCap="Round"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,24,0,0" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Name="InstallationResultTitle" Text="Instalación completada"
+                         FontSize="22" FontWeight="Bold" />
+              <TextBlock Name="InstallationResultMessage" TextWrapping="Wrap"
+                         Foreground="#D6E1F2" FontSize="15" />
             </StackPanel>
-          </Border>
+          </Grid>
         </StackPanel>
       </Grid>
     </ScrollViewer>
