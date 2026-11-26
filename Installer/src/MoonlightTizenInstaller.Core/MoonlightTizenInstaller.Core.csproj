@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Certificates/Authorities/*.b64">
-      <LogicalName>authorities.%(Filename)</LogicalName>
+      <LogicalName>authorities.%(Filename).b64</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
