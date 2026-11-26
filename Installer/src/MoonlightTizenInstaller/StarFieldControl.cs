@@ -181,7 +181,9 @@ public sealed class StarFieldControl : OpenGlControlBase
         _gl.Viewport(0, 0, pixelWidth, pixelHeight);
         _gl.ClearColor(0f, 0f, 0f, 0f);
         _gl.Clear(ColorBufferBit);
-        if (!_isOpenGles)\n            _gl.Enable(ProgramPointSize);\n        _gl.Enable(Blend);
+        if (!_isOpenGles)
+            _gl.Enable(ProgramPointSize);
+        _gl.Enable(Blend);
         _gl.BlendFunc(SrcAlpha, OneMinusSrcAlpha);
 
         _gl.UseProgram(_program);
