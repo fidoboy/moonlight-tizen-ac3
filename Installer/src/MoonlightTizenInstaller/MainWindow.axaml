@@ -3,12 +3,14 @@
         x:Class="MoonlightTizenInstaller.MainWindow"
         Width="900" Height="720"
         MinWidth="760" MinHeight="640"
-        Background="#080D19"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
         Foreground="#F5F8FF"
         Title="Moonlight for Tizen Installer"
         SystemDecorations="None">
+  <Border Margin="1" CornerRadius="12" BorderBrush="#40516D" BorderThickness="1" Background="#080D19" ClipToBounds="True" BoxShadow="0 8 28 0 #80000000">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
-    <Border Grid.Row="0" Padding="30,22"
+    <Border Grid.Row="0" Padding="30,22" PointerPressed="OnTitleBarPointerPressed"
             BorderBrush="#26344C" BorderThickness="0,0,0,1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
@@ -20,7 +22,7 @@
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
         <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
-                    Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
+                    Background="Transparent">
           <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="43"
                      FontWeight="ExtraBold">
             <TextBlock.Foreground>
@@ -36,10 +38,8 @@
                      HorizontalAlignment="Right" />
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4">
-          <Button Content="_" Width="38" Height="32" Padding="0" FontSize="18"
-                  Background="#26344C" BorderBrush="#40516D" Click="OnMinimizeClick" />
-          <Button Content="×" Width="38" Height="32" Padding="0" FontSize="18"
-                  Background="#26344C" BorderBrush="#40516D" Click="OnWindowCloseClick" />
+          <Button Content="—" Width="38" Height="32" Padding="0" FontSize="18" Classes="window-control" Click="OnMinimizeClick" />
+          <Button Content="×" Width="38" Height="32" Padding="0" FontSize="20" Classes="window-control" Click="OnWindowCloseClick" />
         </StackPanel>
       </Grid>
     </Border>
@@ -228,15 +228,29 @@
     <Border Grid.Row="3" Padding="26,16" Background="#0B1323"
             BorderBrush="#26344C" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <TextBlock Text="Moonlight Tizen · Instalador" Foreground="#71839F"
-                   VerticalAlignment="Center" FontSize="12" />
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="14">
+          <TextBlock Text="Moonlight Tizen · Instalador" Foreground="#71839F" VerticalAlignment="Center" FontSize="12" />
+          <Button Classes="footer-link" Click="OnWebsiteClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Data="M 12,2 A 10,10 0 1 0 12,22 A 10,10 0 1 0 12,2 M 2,12 L 22,12 M 12,2 C 7,7 7,17 12,22 M 12,2 C 17,7 17,17 12,22" Width="14" Height="14" Stretch="Uniform" Stroke="#71839F" StrokeThickness="1.5" />
+              <TextBlock Text="Web site" Foreground="#71839F" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Classes="footer-link" Click="OnGithubClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Data="M 12,1 C 5.9,1 1,5.9 1,12 C 1,16.9 4.2,21 8.7,22 C 9.2,22.1 9.4,21.8 9.4,21.5 L 9.4,19.4 C 6.2,20.1 5.6,18 5.6,18 C 5.2,17 4.3,16.7 4.3,16.7 C 3.3,16 4.4,16 4.4,16 C 5.5,16.1 6.1,17.1 6.1,17.1 C 7.1,18.7 8.6,18.2 9.3,17.9 C 9.4,17.2 9.7,16.7 10,16.4 C 7.4,16.1 4.7,15.1 4.7,11.4 C 4.7,10.3 5.1,9.4 5.7,8.7 C 5.6,8.4 5.2,7.4 5.8,6 C 5.8,6 6.7,5.7 9.4,7.5 C 11.1,7 12.9,7 14.6,7.5 C 17.3,5.7 18.2,6 18.2,6 C 18.8,7.4 18.4,8.4 18.3,8.7 C 18.9,9.4 19.3,10.3 19.3,11.4 C 19.3,15.1 16.6,16.1 14,16.4 C 14.4,16.8 14.7,17.4 14.7,18.3 L 14.7,21.5 C 14.7,21.8 14.9,22.1 15.4,22 C 19.8,21 23,16.9 23,12 C 23,5.9 18.1,1 12,1 Z" Width="14" Height="14" Stretch="Uniform" Fill="#71839F" />
+              <TextBlock Text="Github sources" Foreground="#71839F" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
         <Button Name="WizardBackButton" Grid.Column="1" Content="Atrás"
-                MinWidth="100" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
+                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
         <Button Name="WizardExitButton" Grid.Column="2" Content="Salir"
-                MinWidth="100" Margin="0,0,10,0" Click="OnWizardExitClick" />
+                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardExitClick" />
         <Button Name="WizardNextButton" Grid.Column="3" Content="Comenzar"
-                MinWidth="130" Click="OnWizardNextClick" Classes="primary" />
+                Width="110" MinWidth="110" Click="OnWizardNextClick" Classes="primary" />
       </Grid>
     </Border>
   </Grid>
+  </Border>
 </Window>
