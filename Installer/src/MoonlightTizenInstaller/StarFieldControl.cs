@@ -58,7 +58,7 @@ public sealed class StarFieldControl : Control
             {
                 star.Z -= Speed * (2.0 - star.Z / MaxDepth);
                 if (star.Z <= 0)
-                    ResetStar(star, width);
+                    ResetStar(star, width, height);
             }
 
             InvalidateVisual();
@@ -77,7 +77,7 @@ public sealed class StarFieldControl : Control
 
         _initializedWidth = width;
         _initializedHeight = height;
-        var radiusLimit = width / 2.0;
+        var radiusLimit = Math.Min(width, height) / 2.0;
 
         foreach (var star in _stars)
         {
@@ -88,10 +88,10 @@ public sealed class StarFieldControl : Control
 
     }
 
-    private void ResetStar(Star star, double width)
+    private void ResetStar(Star star, double width, double height)
     {
         star.Z = MaxDepth;
-        SetStarPosition(star, width / 2.0);
+        SetStarPosition(star, Math.Min(width, height) / 2.0);
         star.ColorIndex = _random.Next(StarColors.Length);
     }
 
@@ -124,8 +124,11 @@ public sealed class StarFieldControl : Control
             if (star.Z <= 0)
                 continue;
 
-            var x = (star.X / star.Z) * width / 2.0 + width / 2.0;
-            var y = (star.Y / star.Z) * height / 2.0 + height / 2.0;
+            // Use one shared scale on both axes so the perspective field remains circular
+            // even when the header itself is a wide, shallow rectangle.
+            var projectionScale = Math.Min(width, height) / 2.0;
+            var x = (star.X / star.Z) * projectionScale + width / 2.0;
+            var y = (star.Y / star.Z) * projectionScale + height / 2.0;
             var radius = (1.0 - star.Z / MaxDepth) * star.Size * 1.6;
             var dx = x - width / 2.0;
             var dy = y - height / 2.0;
