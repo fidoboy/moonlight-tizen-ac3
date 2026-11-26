@@ -11,8 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCALIZATION = ROOT / "Installer/src/MoonlightTizenInstaller/InstallerLocalization.cs"
-WINDOW_XAML = ROOT / "Installer/src/MoonlightTizenInstaller/MainWindow.axaml"
-WINDOW_CODE = ROOT / "Installer/src/MoonlightTizenInstaller/MainWindow.axaml.cs"
+PROJECT_SOURCE = ROOT / "Installer/src/MoonlightTizenInstaller"
 EXPECTED_LOCALES = 7
 NON_TRANSLATED_UI_LABELS = {
     "English (United States)", "Deutsch", "Español", "Français",
@@ -31,8 +30,9 @@ def fail(errors: list[str]) -> None:
         sys.exit(1)
 
 localization = LOCALIZATION.read_text(encoding="utf-8")
-xaml = WINDOW_XAML.read_text(encoding="utf-8")
-code = WINDOW_CODE.read_text(encoding="utf-8")
+source_files = [*PROJECT_SOURCE.rglob("*.cs"), *PROJECT_SOURCE.rglob("*.axaml")]
+source_text = {path: path.read_text(encoding="utf-8") for path in source_files}
+all_source = "\n".join(source_text.values())
 errors: list[str] = []
 
 locale_match = re.search(r'Locales\s*=\s*\[(.*?)\]', localization, re.S)
@@ -76,17 +76,20 @@ keys = set(entries)
 expected: set[str] = set()
 
 # Every literal passed to the runtime translator must exist in the table.
-for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', code, re.S):
+for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', all_source, re.S):
     for literal in re.findall(r'"((?:\\.|[^"\\])*)"', call.group(1)):
-        expected.add(unescape_csharp(literal))
+        expected.add(unescape_csharp(literal).replace("{{", "{").replace("}}", "}"))
 
 # Static UI labels in Avalonia markup must be translatable, except native
 # language names and numeric wizard indicators.
-for match in re.finditer(r'\b(?:Text|Content|Header|Watermark|Title)="([^"]*)"', xaml):
-    value = html.unescape(match.group(1)).strip()
-    if not value or value.startswith("{") or value.isdigit() or value in NON_TRANSLATED_UI_LABELS:
+for path, text in source_text.items():
+    if path.suffix != ".axaml":
         continue
-    expected.add(value)
+    for match in re.finditer(r'\b(?:Text|Content|Header|Watermark|Title)="([^"]*)"', text):
+        value = html.unescape(match.group(1)).strip()
+        if not value or value.startswith("{") or value.isdigit() or value in NON_TRANSLATED_UI_LABELS:
+            continue
+        expected.add(value)
 
 missing = sorted(expected - keys)
 for key in missing:
@@ -94,7 +97,7 @@ for key in missing:
 
 # A dictionary entry must still be referenced by the installer source/markup;
 # this catches stale keys left behind after UI copy is removed or renamed.
-unused = sorted(key for key in keys if key not in code and key not in xaml)
+unused = sorted(key for key in keys if key not in all_source)
 for key in unused:
     errors.append(f"Unused translation key: {key!r}")
 
