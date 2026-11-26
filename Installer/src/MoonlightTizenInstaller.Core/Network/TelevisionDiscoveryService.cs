@@ -252,7 +252,7 @@ public sealed class TelevisionDiscoveryService
         {
             await device.ConnectAsync(timeout.Token).ConfigureAwait(false);
             var response = await device.ShellCommandAsync("0 getduid", timeout.Token).ConfigureAwait(false);
-            return response.Split(new[] { '\\r', '\\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            return response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .FirstOrDefault(line => ValidDuid.IsMatch(line));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
