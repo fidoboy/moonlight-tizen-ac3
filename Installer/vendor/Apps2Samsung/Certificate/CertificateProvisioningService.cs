@@ -190,7 +190,7 @@ namespace Apps2Samsung.Certificate
                 if (string.IsNullOrEmpty(password))
                     return false;
 #pragma warning disable SYSLIB0057 // matches the proven loader used elsewhere; legacy PKCS#12 support
-                using var cert = new X509Certificate2(authorP12, password, PlatformService.SigningCertificateFlags);
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(authorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
                 var now = DateTime.UtcNow;
                 return cert.NotBefore.ToUniversalTime() <= now && cert.NotAfter.ToUniversalTime() >= now;
@@ -214,7 +214,7 @@ namespace Apps2Samsung.Certificate
                 if (string.IsNullOrEmpty(password))
                     return false;
 #pragma warning disable SYSLIB0057
-                using var cert = new X509Certificate2(distributorP12, password, PlatformService.SigningCertificateFlags);
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(distributorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
                 var now = DateTime.UtcNow;
                 return cert.NotBefore.ToUniversalTime() <= now &&
@@ -242,7 +242,7 @@ namespace Apps2Samsung.Certificate
                 if (string.IsNullOrEmpty(password))
                     return null;
 #pragma warning disable SYSLIB0057
-                using var cert = new X509Certificate2(authorP12, password, PlatformService.SigningCertificateFlags);
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(authorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
                 return cert.NotAfter.ToLocalTime();
             }
