@@ -62,8 +62,11 @@ public sealed class StarFieldControl : OpenGlControlBase
 
             // Match the website canvas projection: X and Y use the same
             // world-space depth, while the viewport applies its own aspect ratio.
+            // Stretch the field vertically so its elliptical footprint fills
+            // more of the shallow installer header instead of appearing flattened.
+            const float verticalSpread = 1.65;
             gl_Position = vec4(a_position.x * u_width / (2.0 * z),
-                               -a_position.y * u_width / (2.0 * z), 0.0, 1.0);
+                               -a_position.y * u_width * verticalSpread / (2.0 * z), 0.0, 1.0);
 
             // The website does not fade stars by their distance from the center.
             // Keep their opacity consistent so the full field remains evenly populated.
