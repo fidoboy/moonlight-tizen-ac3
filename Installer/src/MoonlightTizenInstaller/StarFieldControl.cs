@@ -15,7 +15,7 @@ namespace MoonlightTizenInstaller;
 /// </summary>
 public sealed class StarFieldControl : OpenGlControlBase
 {
-    private const int StarCount = 850;
+    private const int StarCount = 1100;
     private const float MaxDepth = 1500f;
     private const float SpeedPixelsPerSecond = 58f;
 
@@ -68,11 +68,11 @@ public sealed class StarFieldControl : OpenGlControlBase
                                -a_position.y * yProjection, 0.0, 1.0);
 
             float radialDistance = length(a_position.xy) * u_width / (2.0 * z);
-            float fade = smoothstep(0.03, 0.48, radialDistance);
+            float fade = smoothstep(0.015, 0.30, radialDistance);
             v_alpha = fade;
             v_color = a_color;
 
-            float radius = (1.0 - z / 1500.0) * a_size * 6.0;
+            float radius = (1.0 - z / 1500.0) * a_size * 7.2;
             gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
@@ -86,7 +86,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         {
             float distanceFromCenter = length(gl_PointCoord - vec2(0.5)) * 2.0;
             float edge = 1.0 - smoothstep(0.55, 1.0, distanceFromCenter);
-            float alpha = v_alpha * edge * 0.95;
+            float alpha = v_alpha * edge * 1.0;
             if (alpha < 0.01)
                 discard;
             gl_FragColor = vec4(v_color, alpha);
@@ -126,7 +126,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             data[offset] = (float)(Math.Cos(angle) * radialPosition);
             data[offset + 1] = (float)(Math.Sin(angle) * radialPosition);
             data[offset + 2] = (float)(_random.NextDouble() * MaxDepth);
-            data[offset + 3] = 0.42f + (float)(1.0 - radialPosition) * 0.28f;
+            data[offset + 3] = 0.62f + (float)(1.0 - radialPosition) * 0.30f;
 
             var color = StarColors[_random.Next(StarColors.Length)];
             data[offset + 4] = color.X;
