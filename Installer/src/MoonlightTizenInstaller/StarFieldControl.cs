@@ -66,7 +66,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             gl_Position = vec4(a_position.x * xProjection,
                                -a_position.y * yProjection, 0.0, 1.0);
 
-            float radialDistance = length(a_position.xy) / z;
+            float radialDistance = length(a_position.xy) * u_width / (2.0 * z);
             float fade = smoothstep(0.08, 0.63, radialDistance);
             v_alpha = fade;
             v_color = a_color;
