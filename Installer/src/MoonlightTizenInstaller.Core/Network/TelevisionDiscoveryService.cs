@@ -7,11 +7,13 @@ using TizenSdb.SdbClient;
 
 namespace MoonlightTizenInstaller.Core.Network;
 
-public sealed record DiscoveredTelevision(string IpAddress, string Duid, string? Name)
+public sealed record DiscoveredTelevision(string IpAddress, string? Duid, string? Name)
 {
-    public string DisplayName => string.IsNullOrWhiteSpace(Name)
-        ? $"{IpAddress} — {Duid}"
-        : $"{Name} ({IpAddress}) — {Duid}";
+    public string DisplayName => string.IsNullOrWhiteSpace(Duid)
+        ? $"{(string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name)} ({IpAddress}) — Developer Mode no disponible"
+        : string.IsNullOrWhiteSpace(Name)
+            ? $"{IpAddress} — {Duid}"
+            : $"{Name} ({IpAddress}) — {Duid}";
 }
 
 /// <summary>
@@ -57,7 +59,7 @@ public sealed class TelevisionDiscoveryService
                 if (!await IsSdbPortOpenAsync(ip, cancellationToken).ConfigureAwait(false))
                     return;
 
-                var television = await TryReadTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
+                var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
                 if (television is not null)
                     found.Add(television);
             }
@@ -163,7 +165,23 @@ public sealed class TelevisionDiscoveryService
         catch (SocketException) { return false; }
     }
 
-    private static async Task<DiscoveredTelevision?> TryReadTelevisionAsync(IPAddress address, CancellationToken cancellationToken)
+    private static async Task<DiscoveredTelevision?> TryDiscoverTelevisionAsync(IPAddress address, CancellationToken cancellationToken)
+    {
+        // The Samsung TV REST API is independent of Developer Mode/SDB. It is enough to identify
+        // the TV for the TV-Store hand-off installation route.
+        var name = await TryGetTvNameAsync(address, cancellationToken).ConfigureAwait(false);
+        if (name is null)
+            return null;
+
+        // DUID is optional: only certificate issuance and local signing need the developer channel.
+        string? duid = null;
+        if (await IsSdbPortOpenAsync(address, cancellationToken).ConfigureAwait(false))
+            duid = await TryReadDuidAsync(address, cancellationToken).ConfigureAwait(false);
+
+        return new DiscoveredTelevision(address.ToString(), duid, name);
+    }
+
+    private static async Task<string?> TryReadDuidAsync(IPAddress address, CancellationToken cancellationToken)
     {
         await using var device = new SdbTcpDevice(address, SdbPort);
         for (var attempt = 1; attempt <= 3; attempt++)
@@ -177,10 +195,7 @@ public sealed class TelevisionDiscoveryService
                 var duid = response.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .FirstOrDefault(line => ValidDuid.IsMatch(line));
                 if (duid is not null)
-                {
-                    var name = await TryGetTvNameAsync(address, cancellationToken).ConfigureAwait(false);
-                    return new DiscoveredTelevision(address.ToString(), duid, name);
-                }
+                    return duid;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch { /* Samsung TVs can close a fresh SDB session mid-handshake; retry on a fresh socket. */ }
@@ -209,8 +224,11 @@ public sealed class TelevisionDiscoveryService
             if (!response.IsSuccessStatusCode)
                 return null;
             var json = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
-            var name = json?["device"]?["name"]?.GetValue<string>();
-            return string.IsNullOrWhiteSpace(name) ? null : WebUtility.HtmlDecode(name);
+            var device = json?["device"];
+            if (device is null)
+                return null;
+            var name = device["name"]?.GetValue<string>();
+            return string.IsNullOrWhiteSpace(name) ? "Samsung TV" : WebUtility.HtmlDecode(name);
         }
         catch { return null; }
     }
