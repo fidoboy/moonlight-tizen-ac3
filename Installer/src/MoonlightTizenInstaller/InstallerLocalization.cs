@@ -55,6 +55,8 @@ internal static class InstallerLocalization
         ["Instalar Moonlight"] = ["Install Moonlight", "Moonlight installieren", "Instalar Moonlight", "Installer Moonlight", "Installa Moonlight", "Instalar Moonlight", "Установить Moonlight"],
         ["Atrás"] = ["Back", "Zurück", "Atrás", "Retour", "Indietro", "Voltar", "Назад"],
         ["Salir"] = ["Exit", "Beenden", "Salir", "Quitter", "Esci", "Sair", "Выход"],
+        ["Siguiente"] = ["Next", "Weiter", "Siguiente", "Suivant", "Avanti", "Avançar", "Далее"],
+        ["Instalar"] = ["Install", "Installieren", "Instalar", "Installer", "Installa", "Instalar", "Установить"],
         ["Comenzar"] = ["Start", "Starten", "Comenzar", "Commencer", "Avvia", "Iniciar", "Начать"],
 
         ["• Enciende el televisor y conéctalo a la misma red local que este ordenador."] = ["• Turn on the TV and connect it to the same local network as this computer.", "• Schalte den Fernseher ein und verbinde ihn mit demselben lokalen Netzwerk wie diesen Computer.", "• Enciende el televisor y conéctalo a la misma red local que este ordenador.", "• Allumez le téléviseur et connectez-le au même réseau local que cet ordinateur.", "• Accendi la TV e collegala alla stessa rete locale di questo computer.", "• Ligue a TV e conecte-a à mesma rede local deste computador.", "• Включите телевизор и подключите его к той же локальной сети, что и этот компьютер."],
