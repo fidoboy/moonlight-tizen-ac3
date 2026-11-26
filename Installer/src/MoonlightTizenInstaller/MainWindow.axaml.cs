@@ -271,7 +271,7 @@ public sealed partial class MainWindow : Window
         {
             var progress = new Progress<string>(message =>
             {
-                if (searchStatus is not null) searchStatus.Text = message;
+                if (searchStatus is not null) searchStatus.Text = HideInternalProtocolNames(message);
             });
             var devices = await _discovery.DiscoverAsync(progress);
 
@@ -320,7 +320,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
-        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = message;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = HideInternalProtocolNames(message);
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
             hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
@@ -593,7 +593,7 @@ public sealed partial class MainWindow : Window
                 level,
                 progress: message => Dispatcher.UIThread.Post(() =>
                 {
-                    if (status is not null) status.Text = message;
+                    if (status is not null) status.Text = HideInternalProtocolNames(message);
                 }));
 
             if (status is not null)
