@@ -35,16 +35,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Restore
-        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
-
-      - name: Build
-        run: dotnet build Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --no-restore
-
-      - name: Publish self-contained application
-        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
-
-      - name: Download Moonlight package from latest release
+      - name: Download Moonlight package for embedding
         shell: bash
         run: |
           set -euo pipefail
@@ -55,22 +46,32 @@ jobs:
           wgt_url="$(printf '%s' "$release_json" | jq -er '.assets[] | select(.name == "Moonlight.wgt") | .browser_download_url' | head -n 1)"
           test -n "$wgt_url"
           curl --fail --silent --show-error --location --retry 3 "$wgt_url" \
-            --output artifacts/publish/Moonlight.wgt
-          test -s artifacts/publish/Moonlight.wgt
-          unzip -tq artifacts/publish/Moonlight.wgt
+            --output Installer/src/MoonlightTizenInstaller/Moonlight.wgt
+          test -s Installer/src/MoonlightTizenInstaller/Moonlight.wgt
+          unzip -tq Installer/src/MoonlightTizenInstaller/Moonlight.wgt
 
-      - name: Package application
+      - name: Restore
+        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
+
+      - name: Publish self-contained single-file executable
+        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+
+      - name: Prepare single-file distribution
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p artifacts/dist
-          if [ "${{ matrix.rid }}" = "linux-x64" ]; then
-            tar -C artifacts/publish -czf "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.tar.gz" .
+          executable="MoonlightTizenInstaller"
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            executable="MoonlightTizenInstaller.exe"
           else
-            cd artifacts/publish
-            zip -qr "../dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip" .
+            chmod +x "artifacts/publish/$executable"
           fi
+          test -s "artifacts/publish/$executable"
+          cp "artifacts/publish/$executable" "artifacts/dist/$executable"
+          test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
-      - name: Upload downloadable artifact
+      - name: Upload single executable
         uses: actions/upload-artifact@v4
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
