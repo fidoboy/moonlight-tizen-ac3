@@ -240,17 +240,21 @@ public sealed class TelevisionDiscoveryService
     {
         ArgumentNullException.ThrowIfNull(television);
         var address = IPAddress.Parse(television.IpAddress);
-        var ports = new List<int> { television.SdbPort };
-        if (television.SdbPort != SdbPort)
+        var apiInfo = await TryGetTelevisionApiInfoAsync(address, cancellationToken).ConfigureAwait(false);
+        var relayPort = await TryGetActiveTvStoreRelayPortAsync(address, cancellationToken).ConfigureAwait(false);
+        var relayReachable = relayPort is { } candidatePort &&
+                             await IsTcpPortOpenAsync(address, candidatePort, cancellationToken).ConfigureAwait(false);
+        var developerUsesLoopback = string.Equals(
+            apiInfo?.DeveloperIp?.Trim(), IPAddress.Loopback.ToString(), StringComparison.Ordinal);
+        var preferRelay = relayReachable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo?.DeveloperIp));
+
+        var ports = new List<int>();
+        if (preferRelay && relayPort is { } preferredRelay)
+            ports.Add(preferredRelay);
+        if (!ports.Contains(SdbPort))
             ports.Add(SdbPort);
-
-        if (television.TvStoreRelayAvailable)
-        {
-            var relayPort = await TryGetActiveTvStoreRelayPortAsync(address, cancellationToken).ConfigureAwait(false);
-            if (relayPort is { } port && !ports.Contains(port))
-                ports.Add(port);
-        }
-
+        if (relayReachable && relayPort is { } fallbackRelay && !ports.Contains(fallbackRelay))
+            ports.Add(fallbackRelay);
         foreach (var port in ports)
         {
             progress?.Report($"Obteniendo automáticamente el DUID mediante SDB en {television.IpAddress}:{port}…");
