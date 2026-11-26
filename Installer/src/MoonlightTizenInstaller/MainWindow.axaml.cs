@@ -363,7 +363,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var profile = await _certificates.EnsureForTelevisionAsync(
+            await _certificates.EnsureForTelevisionAsync(
                 duid,
                 level,
                 progress: message => Dispatcher.UIThread.Post(() =>
