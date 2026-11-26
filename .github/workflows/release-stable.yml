@@ -19,9 +19,13 @@ concurrency:
 
 jobs:
   publish:
-    name: Build and publish release WGT
+    name: Build release WGT packages
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      tag_updated: ${{ steps.release-tag.outputs.updated }}
     steps:
       - name: Validate workflow branch
         shell: bash
@@ -453,21 +457,24 @@ jobs:
           test -s dist/Moonlight-ForceGM.wgt
           sha256sum dist/Moonlight.wgt dist/Moonlight-ForceGM.wgt
 
-      - name: Publish public GitHub Release
-        uses: softprops/action-gh-release@v3
+      - name: Prepare WGT packages and release notes for installer builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-inputs
+          cp dist/Moonlight.wgt dist/Moonlight-ForceGM.wgt release-inputs/
+          cp "$RUNNER_TEMP/release-notes.md" release-inputs/release-notes.md
+          test -s release-inputs/Moonlight.wgt
+          test -s release-inputs/Moonlight-ForceGM.wgt
+          test -s release-inputs/release-notes.md
+
+      - name: Upload WGT packages and release notes
+        uses: actions/upload-artifact@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ steps.version.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: Moonlight Tizen with AC-3 support v${{ steps.version.outputs.version }}
-          prerelease: false
-          draft: false
-          make_latest: true
-          fail_on_unmatched_files: true
-          files: |
-            dist/Moonlight.wgt
-            dist/Moonlight-ForceGM.wgt
-          body_path: ${{ runner.temp }}/release-notes.md
+          name: release-inputs
+          path: release-inputs/*
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Delete GitHub Release if the workflow fails
         if: ${{ always() && steps.release-tag.outputs.updated == 'true' && (failure() || cancelled()) }}
@@ -592,3 +599,205 @@ jobs:
             exit 1
           fi
           echo "Deleted unpublished release tag $RELEASE_TAG after workflow failure or cancellation."
+
+  build-installers:
+    name: Build installer (${{ matrix.rid }})
+    needs: publish
+    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - win-x64
+          - linux-x64
+          - osx-x64
+          - osx-arm64
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: master
+
+      - name: Download freshly built WGT packages
+        uses: actions/download-artifact@v6
+        with:
+          name: release-inputs
+          path: release-inputs
+
+      - name: Validate and stage embedded WGT packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package in Moonlight.wgt Moonlight-ForceGM.wgt; do
+            test -s "release-inputs/$package"
+            unzip -tq "release-inputs/$package"
+            cp "release-inputs/$package" "Installer/src/MoonlightTizenInstaller/$package"
+          done
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
+
+      - name: Publish self-contained single-file executable
+        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+
+      - name: Smoke-test Windows application startup
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $executable = Join-Path $PWD "artifacts/publish/MoonlightTizenInstaller.exe"
+          $startupLog = Join-Path $env:TEMP "MoonlightTizenInstaller-startup-error.log"
+          Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $executable -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            $process.Refresh()
+            if ($process.HasExited) {
+              if (Test-Path $startupLog) {
+                Write-Host "Application startup exception:"
+                Get-Content $startupLog
+              }
+              throw "MoonlightTizenInstaller.exe exited during the startup smoke test (exit code $($process.ExitCode))."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
+      - name: Prepare single-file distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/dist
+          executable="MoonlightTizenInstaller"
+          if [ "${{ matrix.rid }}" = "win-x64" ]; then
+            executable="MoonlightTizenInstaller.exe"
+          else
+            chmod +x "artifacts/publish/$executable"
+          fi
+          test -s "artifacts/publish/$executable"
+          cp "artifacts/publish/$executable" "artifacts/dist/$executable"
+          test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
+
+      - name: Upload installer executable
+        uses: actions/upload-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-${{ matrix.rid }}
+          path: artifacts/dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-release:
+    name: Publish complete stable release
+    needs:
+      - publish
+      - build-installers
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release source
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Download WGT packages and release notes
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/download-artifact@v6
+        with:
+          name: release-inputs
+          path: release-inputs
+
+      - name: Download Windows installer
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/download-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-win-x64
+          path: installer-win-x64
+
+      - name: Download Linux installer
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/download-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-linux-x64
+          path: installer-linux-x64
+
+      - name: Download macOS Intel installer
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/download-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-osx-x64
+          path: installer-osx-x64
+
+      - name: Download macOS Apple Silicon installer
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: actions/download-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-osx-arm64
+          path: installer-osx-arm64
+
+      - name: Assemble all six release assets
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp release-inputs/Moonlight.wgt dist/Moonlight.wgt
+          cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
+          cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller-win-x64.exe
+          cp installer-linux-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-linux-x64
+          cp installer-osx-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-x64
+          cp installer-osx-arm64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-arm64
+          cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 6
+          test -s dist/Moonlight.wgt
+          test -s dist/Moonlight-ForceGM.wgt
+          sha256sum dist/*
+
+      - name: Publish public GitHub Release
+        if: needs.publish.result == 'success' && needs.build-installers.result == 'success'
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ needs.publish.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Moonlight Tizen with AC-3 support v${{ needs.publish.outputs.version }}
+          prerelease: false
+          draft: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/Moonlight.wgt
+            dist/Moonlight-ForceGM.wgt
+            dist/MoonlightTizenInstaller-win-x64.exe
+            dist/MoonlightTizenInstaller-linux-x64
+            dist/MoonlightTizenInstaller-osx-x64
+            dist/MoonlightTizenInstaller-osx-arm64
+          body_path: ${{ runner.temp }}/release-notes.md
+
+      - name: Remove unpublished release and tag if installer build or publication fails
+        if: ${{ always() && needs.publish.outputs.tag_updated == 'true' && (needs.publish.result != 'success' || needs.build-installers.result != 'success' || failure() || cancelled()) }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.publish.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_TAG" --yes
+          fi
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" ":refs/tags/$RELEASE_TAG" || {
+            echo "::error::Could not remove the unpublished tag $RELEASE_TAG."
+            exit 1
+          }
+          echo "Removed the unpublished release and tag $RELEASE_TAG."
