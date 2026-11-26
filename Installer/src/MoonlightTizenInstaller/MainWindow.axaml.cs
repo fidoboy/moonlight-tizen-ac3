@@ -169,7 +169,7 @@ public sealed partial class MainWindow : Window
                 {
                     1 => "Comenzar",
                     2 => "Next",
-                    3 => "Siguiente",
+                    3 => "Next",
                     4 => "Instalar",
                     _ => "Finalizar"
                 });
