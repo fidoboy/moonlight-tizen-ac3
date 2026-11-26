@@ -22,7 +22,7 @@ Empfohlen wird der **Moonlight Tizen Installer**. Führe ihn auf einem Windows-,
 - **macOS Intel:** `MoonlightTizenInstaller-osx-x64`
 - **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64`
 
-Die Anwendungen sind eigenständig. .NET, Python, Tizen Studio oder Apps2Samsung müssen nicht installiert werden.
+Der Installer ist eine eigenständige ausführbare Datei, die bereits alles Notwendige enthält, einschließlich der TizenOS-App selbst, die auf deinen Fernseher übertragen wird.
 
 ### 2. Installer starten
 
