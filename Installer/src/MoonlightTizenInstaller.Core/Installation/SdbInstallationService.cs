@@ -7,6 +7,12 @@ using TizenSdb.SdbClient;
 
 namespace MoonlightTizenInstaller.Core.Installation;
 
+public sealed class SdbEndpointUnavailableException : IOException
+{
+    public SdbEndpointUnavailableException(string message, Exception innerException)
+        : base(message, innerException) { }
+}
+
 /// <summary>
 /// Installs a signed WGT through the Samsung SDB protocol. The connection endpoint is selected
 /// during discovery: TV-Store's verified relay when usable, otherwise the conventional port 26101.
@@ -39,7 +45,20 @@ public sealed class SdbInstallationService
 
         progress?.Report($"Conectando por SDB a {televisionIp}:{sdbPort}…");
         await using var device = new SdbTcpDevice(IPAddress.Parse(televisionIp), sdbPort);
-        await device.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await device.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (sdbPort != DiscoveredTelevision.DirectSdbPort)
+        {
+            throw new SdbEndpointUnavailableException(
+                $"El endpoint SDB alternativo {televisionIp}:{sdbPort} ha dejado de estar disponible.",
+                ex);
+        }
 
         var capabilities = await device.CapabilityAsync(cancellationToken).ConfigureAwait(false);
         var sdkToolPath = capabilities.TryGetValue("sdk_toolpath", out var reportedPath) &&
