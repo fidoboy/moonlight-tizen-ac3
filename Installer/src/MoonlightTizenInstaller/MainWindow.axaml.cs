@@ -35,7 +35,14 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
+        if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
+            finishButton.Click += OnFinishTvStoreHandoffClick;
+        if (this.FindControl<Button>("ContinueWithSdbButton") is { } sdbFallbackButton)
+            sdbFallbackButton.Click += OnContinueWithSdbClick;
+    }
 
     private async Task<bool> EnsureBundledWgtAvailableAsync()
     {
