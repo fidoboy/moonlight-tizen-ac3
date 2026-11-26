@@ -8,8 +8,8 @@ public static class Constants
 {
     public static class AppIdentifiers
     {
-        public const string Jelly2SamsDefault = "Jelly2Sams";
-        public const string JellyfinAppName = "org.jellyfin";
+        public const string Jelly2SamsDefault = "Jelly2Sams (default)";
+        public const string JellyfinAppName = "Jellyfin";
     }
 
     public static class Certificate
@@ -21,12 +21,12 @@ public static class Constants
 
     public static class Samsung
     {
-        public const string LoopbackHost = "127.0.0.1";
+        public const string LoopbackHost = "localhost";
     }
 
     public static class TizenVersions
     {
-        public const string PushInstallMax = "5.5";
-        public const string CertificateRequired = "6.0";
+        public const string PushInstallMax = "4.0";
+        public const string CertificateRequired = "7.0";
     }
 }
