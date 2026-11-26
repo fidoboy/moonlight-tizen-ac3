@@ -10,6 +10,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 
 ### Changed
 - Minor cosmetic interface changes.
+- **Early WASM/EMSS compatibility detection:** Added early compatibility checks as groundwork for planned Tizen 5.0 backward compatibility, which aims to expand the supported device range below the current Tizen 5.5 baseline.
 
 ## v1.3.1
 
