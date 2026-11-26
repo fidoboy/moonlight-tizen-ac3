@@ -22,7 +22,7 @@ Abre la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac
 - **macOS Intel:** `MoonlightTizenInstaller-osx-x64`
 - **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64`
 
-Son aplicaciones independientes: no necesitas instalar .NET, Python, Tizen Studio ni Apps2Samsung.
+El instalador es un archivo ejecutable independiente que ya incluye todo lo necesario, incluida la propia aplicación TizenOS, que se transfiere al televisor.
 
 ### 2. Ejecuta el instalador
 
