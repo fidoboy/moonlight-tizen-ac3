@@ -310,9 +310,15 @@ public sealed partial class MainWindow : Window
         var retry = this.FindControl<Button>("RetryTelevisionDiscoveryButton");
         var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
         var searchStatus = this.FindControl<TextBlock>("TelevisionSearchStatus");
+        var discoveryHint = this.FindControl<TextBlock>("TelevisionDiscoveryHint");
         var foundList = this.FindControl<StackPanel>("TelevisionFoundList");
 
         if (foundList is not null) foundList.Children.Clear();
+        if (discoveryHint is not null)
+        {
+            discoveryHint.Text = InstallerLocalization.T("Los televisores de la red local se detectan automáticamente.");
+            discoveryHint.IsVisible = true;
+        }
         if (searching is not null) searching.IsVisible = true;
         if (activation is not null) activation.IsVisible = false;
         if (cards is not null)
@@ -459,6 +465,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (this.FindControl<ListBox>("TelevisionCards") is { } cards) cards.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryHint") is { } hint) hint.IsVisible = false;
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
