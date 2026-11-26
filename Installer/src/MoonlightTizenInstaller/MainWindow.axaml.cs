@@ -481,6 +481,8 @@ public sealed partial class MainWindow : Window
             hostIpDescription.Text = useRelay
                 ? InstallerLocalization.T("Introduce exactamente 127.0.0.1 en Host PC IP:")
                 : InstallerLocalization.T("Introduce la dirección IPv4 de este ordenador en Host PC IP:");
+        if (this.FindControl<TextBlock>("DeveloperModeRestartInstructions") is { } restartInstructions)
+            restartInstructions.Text = InstallerLocalization.T("5. Confirm the settings, then restart the TV by pressing and holding its power button for at least two seconds. This is required to apply the changes. Then click Retry here.");
         SetWizardStep(2);
     }
 
