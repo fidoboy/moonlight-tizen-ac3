@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Avalonia.Platform;
 using MoonlightTizenInstaller.Core.Certificates;
 using MoonlightTizenInstaller.Core.Network;
 using MoonlightTizenInstaller.Core.Installation;
@@ -19,12 +20,14 @@ public sealed partial class MainWindow : Window
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
+    private int _currentStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
     {
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        SetWizardStep(1);
         Closed += (_, _) =>
         {
             try
@@ -42,13 +45,13 @@ public sealed partial class MainWindow : Window
             if (!await EnsureBundledWgtAvailableAsync())
                 return;
 
-            await DiscoverTelevisionsAsync();
         };
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+        Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight-logo.png")));
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
         if (this.FindControl<Button>("ContinueWithSdbButton") is { } sdbFallbackButton)
@@ -119,6 +122,65 @@ public sealed partial class MainWindow : Window
 
     private async void OnDiscoverTelevisionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
         await DiscoverTelevisionsAsync();
+
+    private async void OnNextClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        switch (_currentStep)
+        {
+            case 1:
+                SetWizardStep(2);
+                await DiscoverTelevisionsAsync();
+                break;
+            case 2:
+                if (_selectedTelevision is null && this.FindControl<StackPanel>("TelevisionSelectionPanel")?.IsVisible == true)
+                    SetDiscoveryStatus("Selecciona un televisor para continuar.");
+                break;
+            case 3:
+                if (this.FindControl<StackPanel>("TvStoreHandoffPanel")?.IsVisible == true)
+                    Close();
+                else if (this.FindControl<StackPanel>("TelevisionActivationPanel")?.IsVisible == true)
+                    await DiscoverTelevisionsAsync();
+                else if (_selectedTelevision is not null && TizenDuid.IsValid(_selectedDuid))
+                    SetWizardStep(4);
+                break;
+            case 4:
+                if (_selectedDuid is not null && _certificates.IsReadyForTelevision(_selectedDuid))
+                    SetWizardStep(5);
+                else
+                    SetOperationStatus("Crea o renueva el certificado Partner para continuar.");
+                break;
+            case 5:
+                if (this.FindControl<Button>("InstallWgtButton") is { IsEnabled: true } install)
+                    OnInstallWgtClick(install, e);
+                else
+                    Close();
+                break;
+        }
+    }
+
+    private void SetWizardStep(int step)
+    {
+        _currentStep = Math.Clamp(step, 1, 5);
+        for (var i = 1; i <= 5; i++)
+        {
+            if (this.FindControl<Border>($"Step{i}Page") is { } page)
+                page.IsVisible = i == _currentStep;
+            if (this.FindControl<Border>($"Step{i}Circle") is { } circle)
+                circle.Background = Avalonia.Media.Brush.Parse(i <= _currentStep ? "#78B8FF" : "#26344B");
+            if (this.FindControl<TextBlock>($"Step{i}Label") is { } label)
+                label.Foreground = Avalonia.Media.Brush.Parse(i <= _currentStep ? "#F5F8FF" : "#718099");
+        }
+
+        if (this.FindControl<Button>("NextButton") is { } next)
+            next.Content = _currentStep == 3 && this.FindControl<StackPanel>("TvStoreHandoffPanel")?.IsVisible == true
+                ? "Finalizar" : _currentStep == 5 ? "Instalar" : "Siguiente";
+    }
+
+    private void SetDiscoveryStatus(string message)
+    {
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+            status.Text = message;
+    }
 
     private async Task DiscoverTelevisionsAsync()
     {
@@ -201,6 +263,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
+        SetWizardStep(3);
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = message;
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
@@ -252,6 +315,7 @@ public sealed partial class MainWindow : Window
                 if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
                 if (this.FindControl<StackPanel>("TelevisionActionsPanel") is { } actionsPanel) actionsPanel.IsVisible = false;
                 if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
+                SetWizardStep(3);
                 if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
                 {
                     var launchMessage = handoff.TvStoreOpened
@@ -320,6 +384,7 @@ public sealed partial class MainWindow : Window
             }
 
             SetTelevisionActionsEnabled(true);
+            if (TizenDuid.IsValid(withDuid.Duid)) SetWizardStep(4);
         }
         catch (OperationCanceledException)
         {
@@ -368,8 +433,11 @@ public sealed partial class MainWindow : Window
 
         if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } status && hasDuid)
             status.Text = certificateReady
-                ? "El certificado Partner guardado en este equipo es válido y cubre este televisor."
-                : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado con Samsung» para obtenerlo.";
+                ? "Certificado Partner válido. Puedes continuar."
+                : "No hay un certificado Partner válido para este televisor.";
+
+        if (this.FindControl<Button>("NextButton") is { } next && _currentStep == 4)
+            next.IsEnabled = certificateReady;
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
@@ -403,7 +471,8 @@ public sealed partial class MainWindow : Window
                 }));
 
             if (status is not null)
-                status.Text = "El perfil Partner se ha generado y guardado.";
+                status.Text = "Certificado Partner generado y guardado.";
+            SetWizardStep(5);
         }
         catch (OperationCanceledException)
         {
@@ -470,7 +539,9 @@ public sealed partial class MainWindow : Window
                 endpointDescription = $"SDB directo ({television.IpAddress}:{DiscoveredTelevision.DirectSdbPort})";
             }
 
-            SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
+            SetOperationStatus($"Moonlight se ha instalado correctamente ({result.PackageId}).");
+            if (this.FindControl<Button>("NextButton") is { } next) next.Content = "Cerrar";
+            if (this.FindControl<Button>("InstallWgtButton") is { } installButton) installButton.IsEnabled = false;
         }
         catch (OperationCanceledException)
         {
@@ -490,7 +561,8 @@ public sealed partial class MainWindow : Window
 
     private void SetOperationStatus(string message)
     {
-        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } status)
+        var target = _currentStep == 5 ? "InstallationStatus" : "CertificateOperationStatus";
+        if (this.FindControl<TextBlock>(target) is { } status)
             status.Text = message;
     }
 }
