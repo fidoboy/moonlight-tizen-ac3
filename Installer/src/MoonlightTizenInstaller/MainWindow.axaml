@@ -179,6 +179,23 @@
             <ListBox.Styles>
               <Style Selector="ListBoxItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0" />
+              </Style>
+              <Style Selector="ListBoxItem:pointerover">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+              </Style>
+              <Style Selector="ListBoxItem:selected">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+              </Style>
+              <Style Selector="ListBoxItem:selected:pointerover">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
               </Style>
             </ListBox.Styles>
             <ListBox.ItemTemplate>
@@ -225,12 +242,12 @@
         </StackPanel>
 
         <StackPanel Name="CertificatePage" Spacing="14" IsVisible="False">
-          <TextBlock Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
+          <TextBlock Name="CertificateStepLabel" Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Preparar el certificado de instalación" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá el portal de certificados si hace falta crear uno o renovarlo."
+          <TextBlock Name="CertificatePageTitle" Text="Preparar el certificado de instalación" FontSize="28" FontWeight="Bold" />
+          <TextBlock Name="CertificatePageDescription" Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá el portal de certificados si hace falta crear uno o renovarlo."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
-          <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
+          <Border Name="CertificateNormalPanel" Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="12" Padding="20">
             <StackPanel Spacing="12">
               <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Foreground="#D6E1F2" />
@@ -240,6 +257,19 @@
                       Click="OnGenerateCertificateClick" Classes="primary" />
             </StackPanel>
           </Border>
+          <StackPanel Name="TvStoreResultPanel" Spacing="16" IsVisible="False">
+            <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
+                    Background="#173F2B" HorizontalAlignment="Left">
+              <Path Name="TvStoreResultIcon" Data="M 18,39 L 31,51 L 57,25"
+                    Width="38" Height="38" Stretch="Uniform" Stroke="#35C978"
+                    StrokeThickness="5" StrokeLineCap="Round" StrokeLineJoin="Round"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Name="TvStoreResultTitle" Text="Paquete transferido correctamente"
+                       FontSize="22" FontWeight="Bold" />
+            <TextBlock Name="TvStoreResultMessage" TextWrapping="Wrap" Foreground="#D6E1F2"
+                       FontSize="15" />
+          </StackPanel>
         </StackPanel>
 
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
