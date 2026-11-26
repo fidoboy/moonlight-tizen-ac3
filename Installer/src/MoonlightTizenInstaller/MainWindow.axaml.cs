@@ -157,34 +157,41 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowDeveloperModeInstructions(string message)
+    private void ShowDeveloperModeInstructions(string message, bool keepSelectionPanel = false)
     {
-        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
-            searching.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection)
-            selection.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation)
-            activation.IsVisible = true;
-        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-            status.Text = message;
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
+        if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = message;
+        var useRelay = _selectedTelevision?.TvStoreRelayAvailable == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
-            hostIp.Text = _discovery.GetHostIpv4Address() ?? "No se ha podido determinar una IPv4 privada";
+            hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
+        if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
+            hostIpDescription.Text = useRelay
+                ? "TV-Store ha anunciado un relay SDB activo. Introduce exactamente 127.0.0.1 en Host PC IP:"
+                : "Para la conexión SDB directa, introduce la dirección IPv4 de este ordenador en Host PC IP:";
     }
 
     private void SelectTelevision(DiscoveredTelevision device)
     {
+        _selectedTelevision = device;
         _selectedDuid = device.Duid;
         _selectedTvIp = device.IpAddress;
-        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
-            searching.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation)
-            activation.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection)
-            selection.IsVisible = false;
-        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-            status.Text = device.Duid is not null
-                ? $"Conexión SDB verificada: {device.DisplayName}. DUID: {device.Duid}"
-                : $"Televisor detectado por la API de red: {device.DisplayName}. La instalación mediante TV-Store está disponible; la gestión de certificados y la firma local requieren Developer Mode.";
+        _selectedSdbPort = device.SdbPort;
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
+        if (TizenDuid.IsValid(device.Duid))
+        {
+            if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+            if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+                status.Text = device.UsesTvStoreRelay
+                    ? $"Conexión SDB verificada mediante el relay de TV-Store ({device.IpAddress}:{device.SdbPort}). DUID: {device.Duid}"
+                    : $"Conexión SDB directa verificada ({device.IpAddress}:{device.SdbPort}). DUID: {device.Duid}";
+        }
+        else
+        {
+            ShowDeveloperModeInstructions("Se ha detectado el televisor, pero no se ha podido obtener automáticamente su DUID. El DUID es obligatorio para continuar. Activa o revisa Developer Mode y pulsa Reintentar.");
+        }
         SetTelevisionActionsEnabled(true);
     }
 
@@ -192,18 +199,31 @@ public sealed partial class MainWindow : Window
     {
         if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
         {
+            _selectedTelevision = selected;
             _selectedDuid = selected.Duid;
             _selectedTvIp = selected.IpAddress;
-            if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                status.Text = selected.Duid is not null
-                    ? $"Televisor seleccionado: {selected.DisplayName}. DUID: {selected.Duid}"
-                    : $"Televisor seleccionado: {selected.DisplayName}. Instalación por TV-Store disponible; Developer Mode no está activo.";
+            _selectedSdbPort = selected.SdbPort;
+            if (TizenDuid.IsValid(selected.Duid))
+            {
+                if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+                if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+                    status.Text = selected.UsesTvStoreRelay
+                        ? $"Televisor seleccionado. Relay de TV-Store activo en el puerto {selected.SdbPort}. DUID: {selected.Duid}"
+                        : $"Televisor seleccionado. SDB directo en el puerto {selected.SdbPort}. DUID: {selected.Duid}";
+            }
+            else
+            {
+                ShowDeveloperModeInstructions("No se ha podido obtener automáticamente el DUID de este televisor. Activa o revisa Developer Mode y pulsa Reintentar.", keepSelectionPanel: true);
+            }
             SetTelevisionActionsEnabled(true);
         }
         else
         {
+            _selectedTelevision = null;
             _selectedDuid = null;
             _selectedTvIp = null;
+            _selectedSdbPort = DiscoveredTelevision.DirectSdbPort;
+            if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
             SetTelevisionActionsEnabled(false);
         }
     }
@@ -211,12 +231,9 @@ public sealed partial class MainWindow : Window
     private void SetTelevisionActionsEnabled(bool enabled)
     {
         var hasDuid = enabled && TizenDuid.IsValid(_selectedDuid);
-        if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure)
-            ensure.IsEnabled = hasDuid && !_discoveryInProgress;
-        if (this.FindControl<Button>("SignWgtButton") is { } sign)
-            sign.IsEnabled = hasDuid && !_discoveryInProgress;
-        if (this.FindControl<Button>("InstallWgtButton") is { } install)
-            install.IsEnabled = _selectedTvIp is not null && !_discoveryInProgress;
+        if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure) ensure.IsEnabled = hasDuid && !_discoveryInProgress;
+        if (this.FindControl<Button>("SignWgtButton") is { } sign) sign.IsEnabled = hasDuid && !_discoveryInProgress;
+        if (this.FindControl<Button>("InstallWgtButton") is { } install) install.IsEnabled = hasDuid && !_discoveryInProgress;
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
