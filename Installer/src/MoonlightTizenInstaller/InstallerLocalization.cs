@@ -67,22 +67,39 @@ internal static class InstallerLocalization
         ["No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."] = ["No TizenOS TV was detected on the local network. Make sure it is powered on and connected to the same network as this computer. Enable Developer Mode and run detection again.", "Im lokalen Netzwerk wurde kein TizenOS-Fernseher gefunden. Stelle sicher, dass er eingeschaltet und mit demselben Netzwerk verbunden ist. Aktiviere den Entwicklermodus und starte die Erkennung erneut.", "No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor.", "Aucun téléviseur TizenOS détecté sur le réseau local. Vérifiez qu’il est allumé et connecté au même réseau. Activez le mode développeur puis relancez la détection.", "Nessuna TV con TizenOS rilevata nella rete locale. Verifica che sia accesa e connessa alla stessa rete. Attiva la modalità sviluppatore e ripeti il rilevamento.", "Nenhuma TV com TizenOS foi detectada na rede local. Verifique se está ligada e conectada à mesma rede. Ative o Modo de Desenvolvedor e tente novamente.", "Телевизор с TizenOS в локальной сети не обнаружен. Убедитесь, что он включён и подключён к той же сети. Включите режим разработчика и повторите поиск."]
     };
 
-    private static readonly int LocaleIndex = DetectLocaleIndex();
+    private static int _localeIndex = DetectLocaleIndex();
+    public static bool HasSupportedSystemLocale { get; } = _localeIndex >= 0;
+    public static int LocaleCount => Locales.Length;
 
     private static int DetectLocaleIndex()
     {
-        var culture = CultureInfo.CurrentUICulture;
-        var exact = Array.IndexOf(Locales, culture.Name);
-        if (exact >= 0) return exact;
-        var language = culture.TwoLetterISOLanguageName;
+        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
         for (var i = 0; i < Locales.Length; i++)
             if (Locales[i].StartsWith(language + "-", StringComparison.OrdinalIgnoreCase))
                 return i;
-        return 0;
+        return -1;
     }
 
-    public static string T(string value) =>
-        Translations.TryGetValue(value, out var translations) ? translations[LocaleIndex] : value;
+    public static void SelectLocale(int index)
+    {
+        if (index < 0 || index >= Locales.Length)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        _localeIndex = index;
+    }
+
+    public static string T(string value)
+    {
+        if (Translations.TryGetValue(value, out var direct))
+            return direct[_localeIndex];
+
+        // Apply can run again after a manual choice. Resolve text already translated
+        // during the initial English fallback back to its source entry first.
+        foreach (var pair in Translations)
+            if (Array.IndexOf(pair.Value, value) >= 0)
+                return pair.Value[_localeIndex];
+
+        return value;
+    }
 
     public static void Apply(Window window)
     {
