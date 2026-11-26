@@ -8,7 +8,8 @@
         Foreground="#F5F8FF"
         Title="Moonlight for Tizen Installer"
         SystemDecorations="None">
-  <Border Margin="1" CornerRadius="12" BorderBrush="#40516D" BorderThickness="1" Background="#080D19" ClipToBounds="True" BoxShadow="0 8 28 0 #80000000">
+  <Border Margin="12" Background="Transparent" BoxShadow="0 5 24 0 #A0000000">
+  <Border CornerRadius="12" BorderBrush="#40516D" BorderThickness="1" Background="#080D19" ClipToBounds="True">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Border Grid.Row="0" Padding="30,22" PointerPressed="OnTitleBarPointerPressed"
             BorderBrush="#26344C" BorderThickness="0,0,0,1">
@@ -37,9 +38,20 @@
                      FontFamily="Inter" FontSize="12" Foreground="#ACBAD0"
                      HorizontalAlignment="Right" />
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4">
-          <Button Content="—" Width="38" Height="32" Padding="0" FontSize="18" Classes="window-control" Click="OnMinimizeClick" />
-          <Button Content="×" Width="38" Height="32" Padding="0" FontSize="20" Classes="window-control" Click="OnWindowCloseClick" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top"
+                    HorizontalAlignment="Right" Spacing="2" Margin="0,-12,-16,0">
+          <Button Width="36" Height="36" Padding="0" Classes="window-control"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  Click="OnMinimizeClick">
+            <Path Data="M 3,8 L 13,8" Width="12" Height="12" Stretch="Uniform"
+                  Stroke="#D6E1F2" StrokeThickness="1.4" />
+          </Button>
+          <Button Width="36" Height="36" Padding="0" Classes="window-control"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  Click="OnWindowCloseClick">
+            <Path Data="M 4,4 L 12,12 M 12,4 L 4,12" Width="12" Height="12" Stretch="Uniform"
+                  Stroke="#D6E1F2" StrokeThickness="1.4" />
+          </Button>
         </StackPanel>
       </Grid>
     </Border>
@@ -122,7 +134,7 @@
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
           <TextBlock Text="Buscando tu TV con TizenOS" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="Se detectan automáticamente los televisores de la red local. No se solicitará el DUID manualmente."
+          <TextBlock Text="Los televisores de la red local se detectan automáticamente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
             <ProgressBar IsIndeterminate="True" Height="6" />
@@ -251,6 +263,8 @@
                 Width="110" MinWidth="110" Click="OnWizardNextClick" Classes="primary" />
       </Grid>
     </Border>
+    <Border Name="ModalOverlay" Grid.RowSpan="4" Background="#99000000" IsVisible="False" />
   </Grid>
+  </Border>
   </Border>
 </Window>
