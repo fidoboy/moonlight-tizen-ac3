@@ -27,7 +27,6 @@
           <StackPanel Spacing="12">
             <TextBlock Text="Conectar con el televisor" FontSize="19" />
             <TextBlock Text="El instalador necesita detectar y conectar con una TV Samsung mediante SDB para obtener su DUID. No es posible continuar introduciéndolo manualmente." TextWrapping="Wrap" />
-            <TextBlock Name="BundledWgtStatus" Text="Comprobando el paquete Moonlight incluido…" TextWrapping="Wrap" Opacity="0.8" />
             <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
               <ProgressBar IsIndeterminate="True" Height="6" />
               <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y comprobando la conexión SDB…" TextWrapping="Wrap" />
