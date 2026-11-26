@@ -89,7 +89,6 @@ public sealed class StarFieldControl : Control
             star.ColorIndex = _random.Next(StarColors.Length);
         }
 
-        InvalidateVisual();
     }
 
     private void ResetStar(Star star, double width)
