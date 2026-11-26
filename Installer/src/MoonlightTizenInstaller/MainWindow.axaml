@@ -71,25 +71,25 @@
           </Border>
           <TextBlock Name="StepLabel1" HorizontalAlignment="Center" Text="Inicio" Foreground="#F5F8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator2" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber2" Text="2" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Name="StepLabel2" HorizontalAlignment="Center" Text="Televisor" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator3" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber3" Text="3" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Name="StepLabel3" HorizontalAlignment="Center" Text="Conexión" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="3" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator4" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber4" Text="4" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Name="StepLabel4" HorizontalAlignment="Center" Text="Certificado" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="4" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator5" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber5" Text="5" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
