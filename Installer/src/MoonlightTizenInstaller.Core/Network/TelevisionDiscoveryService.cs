@@ -15,6 +15,10 @@ public sealed record DiscoveredTelevision(
     bool TvStoreRelayAvailable)
 {
     public const int DirectSdbPort = 26101;
+    public string? DeveloperIp { get; init; }
+    public bool IsDeveloperModeIpValid { get; init; }
+    public bool IsDeveloperModeIpInvalid => !IsDeveloperModeIpValid;
+    public string StatusText { get; init; } = "Not available";
     public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
     public string FriendlyName => string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
 
@@ -188,7 +192,10 @@ public sealed class TelevisionDiscoveryService
         var tryRelayFirst = relayAvailable && (developerUsesLoopback || string.IsNullOrWhiteSpace(apiInfo.DeveloperIp));
 
         var selectedPort = tryRelayFirst ? relayPort!.Value : SdbPort;
-        return new DiscoveredTelevision(address.ToString(), null, apiInfo.Name, selectedPort, relayAvailable);
+        return new DiscoveredTelevision(address.ToString(), null, apiInfo.Name, selectedPort, relayAvailable)
+        {
+            DeveloperIp = apiInfo.DeveloperIp
+        };
     }
 
     private static async Task<int?> TryGetActiveTvStoreRelayPortAsync(
