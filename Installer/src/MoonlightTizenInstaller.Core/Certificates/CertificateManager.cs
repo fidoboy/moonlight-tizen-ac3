@@ -77,7 +77,7 @@ public sealed class CertificateManager
         {
 #pragma warning disable SYSLIB0057
             using var certificate = new X509Certificate2(
-                profile.AuthorCertificatePath, profile.Password, X509KeyStorageFlags.EphemeralKeySet);
+                profile.AuthorP12, profile.Password, X509KeyStorageFlags.EphemeralKeySet);
 #pragma warning restore SYSLIB0057
             return (certificate.GetNameInfo(X509NameType.SimpleName, false),
                 certificate.NotBefore, certificate.NotAfter);
