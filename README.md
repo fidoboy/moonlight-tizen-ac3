@@ -128,6 +128,20 @@ This project is developed and maintained independently. Please report reproducib
 ---
 
 
+## ⚠️ Disclaimer
+
+This project is **free and open source**. It is developed out of a genuine passion for the innovative possibilities of communication technology and is provided for users who wish to explore and make use of those possibilities.
+
+The application has been tested across a wide range of devices and with many different combinations of the hardware, software, network, and configuration settings involved in its operation. However, this testing does not guarantee that every feature will be supported or work correctly on every TV model or in every environment. Support for individual features may vary depending on the device, its firmware, connected equipment, host configuration, and other factors.
+
+Users are responsible for carrying out the installation appropriately and configuring the available settings correctly for their own setup. Because the number of possible combinations is too large to predict or validate exhaustively, the project cannot guarantee the same results in every case. By choosing to install and use this software, users are expected to have the knowledge required to operate it, to understand that their particular setup may not behave as expected, and to take responsibility for evaluating alternative solutions if a feature or the application does not work as they intended.
+
+If you have questions or encounter a problem, you can use the project's [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose) to ask questions or report issues. Please consult the [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html) and [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html) before submitting a report.
+
+
+---
+
+
 ## ⚖️ License
 
 This project is licensed under the GNU General Public License v3.0. See the project's [LICENSE](https://github.com/fidoboy/moonlight-tizen-ac3/blob/master/LICENSE) file for the full license text.
