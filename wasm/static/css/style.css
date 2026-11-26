@@ -1392,7 +1392,7 @@ body[data-color-theme="black-orange"] #background-layer {
     min-width: 190px;
     max-width: 100%;
     box-sizing: border-box;
-    margin: 14px auto 18px;
+    margin: 14px auto;
     padding: 12px 26px;
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.9);
@@ -1402,6 +1402,11 @@ body[data-color-theme="black-orange"] #background-layer {
     line-height: 1.2;
     letter-spacing: 0.16em;
     text-align: center;
+}
+/* Remove the extra line breaks after the PIN so the spacing matches above it. */
+#pairingDialogText .pairing-pin + br,
+#pairingDialogText .pairing-pin + br + br {
+    display: none;
 }
 #updateAppDialogText .update-release-notes-intro {
     margin: 0 0 1.1rem;
