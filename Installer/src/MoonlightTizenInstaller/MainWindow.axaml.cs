@@ -284,11 +284,7 @@ public sealed partial class MainWindow : Window
 
             if (devices.Count == 1)
             {
-                _selectedTelevision = devices[0];
-                if (searching is not null) searching.IsVisible = false;
-                if (status is not null)
-                    status.Text = $"Se ha detectado una TV con TizenOS en {devices[0].IpAddress}. Pulsa «Siguiente» para continuar.";
-                SetWizardStep(2);
+                await SelectTelevisionAsync(devices[0]);
                 return;
             }
 
@@ -348,6 +344,8 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
             searchStatus.Text = $"Preparando la conexión con la TV en {device.IpAddress}…";
         SetTelevisionActionsEnabled(false);
+        if (this.FindControl<Button>("WizardNextButton") is { } nextButton)
+            nextButton.IsEnabled = false;
 
         IProgress<string> progress = new Progress<string>(message =>
             Dispatcher.UIThread.Post(() =>
@@ -482,14 +480,18 @@ public sealed partial class MainWindow : Window
             await ContinueWithSdbInstallationAsync(television);
     }
 
-    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _selectedTelevision = this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem as DiscoveredTelevision;
         _selectedDuid = null;
+        if (_selectedTelevision is { } selected)
+        {
+            await SelectTelevisionAsync(selected);
+            return;
+        }
+
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-            status.Text = _selectedTelevision is null
-                ? "Selecciona una TV con TizenOS para continuar."
-                : $"TV seleccionada: {_selectedTelevision.IpAddress}. Pulsa «Siguiente» para continuar.";
+            status.Text = "Selecciona una TV con TizenOS para continuar.";
         SetWizardStep(2);
     }
 
