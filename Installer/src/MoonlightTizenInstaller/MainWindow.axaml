@@ -5,7 +5,8 @@
         MinWidth="760" MinHeight="640"
         Background="#080D19"
         Foreground="#F5F8FF"
-        Title="Moonlight for Tizen Installer">
+        Title="Moonlight for Tizen Installer"
+        SystemDecorations="None">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Border Grid.Row="0" Padding="30,22"
             BorderBrush="#26344C" BorderThickness="0,0,0,1">
@@ -16,9 +17,10 @@
           <GradientStop Color="#0A1020" Offset="1" />
         </LinearGradientBrush>
       </Border.Background>
-      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
         <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3">
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
+                    Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
           <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="43"
                      FontWeight="ExtraBold">
             <TextBlock.Foreground>
@@ -32,6 +34,12 @@
           <TextBlock Text="Enhanced version · with Dolby Digital audio support"
                      FontFamily="Inter" FontSize="12" Foreground="#ACBAD0"
                      HorizontalAlignment="Right" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Spacing="4">
+          <Button Content="_" Width="38" Height="32" Padding="0" FontSize="18"
+                  Background="#26344C" BorderBrush="#40516D" Click="OnMinimizeClick" />
+          <Button Content="×" Width="38" Height="32" Padding="0" FontSize="18"
+                  Background="#26344C" BorderBrush="#40516D" Click="OnWindowCloseClick" />
         </StackPanel>
       </Grid>
     </Border>
