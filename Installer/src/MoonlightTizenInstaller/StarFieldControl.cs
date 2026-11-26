@@ -14,6 +14,7 @@ public sealed class StarFieldControl : Control
     private const int StarCount = 1000;
     private const double MaxDepth = 1500.0;
     private const double Speed = 1.0;
+    private const double MinimumSpawnRadius = 0.22;
 
     private static readonly Color[] StarColors =
     [
@@ -80,12 +81,8 @@ public sealed class StarFieldControl : Control
 
         foreach (var star in _stars)
         {
-            var angle = _random.NextDouble() * Math.PI * 2.0;
-            var distance = Math.Sqrt(_random.NextDouble()) * radiusLimit;
-            star.X = Math.Cos(angle) * distance;
-            star.Y = Math.Sin(angle) * distance;
+            SetStarPosition(star, radiusLimit);
             star.Z = _random.NextDouble() * MaxDepth;
-            star.Size = (1.0 - distance / radiusLimit) * 0.1 + 0.5;
             star.ColorIndex = _random.Next(StarColors.Length);
         }
 
@@ -94,12 +91,21 @@ public sealed class StarFieldControl : Control
     private void ResetStar(Star star, double width)
     {
         star.Z = MaxDepth;
+        SetStarPosition(star, width / 2.0);
+        star.ColorIndex = _random.Next(StarColors.Length);
+    }
+
+    private void SetStarPosition(Star star, double radiusLimit)
+    {
         var angle = _random.NextDouble() * Math.PI * 2.0;
-        var distance = Math.Sqrt(_random.NextDouble()) * (width / 2.0);
+        var radialPosition = MinimumSpawnRadius +
+            (1.0 - MinimumSpawnRadius) * Math.Sqrt(_random.NextDouble());
+        var distance = radialPosition * radiusLimit;
         star.X = Math.Cos(angle) * distance;
         star.Y = Math.Sin(angle) * distance;
-        star.Size = (1.0 - distance / (width / 2.0)) * 0.1 + 0.5;
-        star.ColorIndex = _random.Next(StarColors.Length);
+
+        // Keep stars consistently small rather than letting them become large discs.
+        star.Size = 0.20 + (1.0 - radialPosition) * 0.12;
     }
 
     public override void Render(DrawingContext context)
@@ -120,14 +126,26 @@ public sealed class StarFieldControl : Control
 
             var x = (star.X / star.Z) * width / 2.0 + width / 2.0;
             var y = (star.Y / star.Z) * height / 2.0 + height / 2.0;
-            var radius = (1.0 - star.Z / MaxDepth) * star.Size * 3.0;
+            var radius = (1.0 - star.Z / MaxDepth) * star.Size * 1.6;
+            var dx = x - width / 2.0;
+            var dy = y - height / 2.0;
+            var centerDistance = Math.Sqrt(dx * dx + dy * dy) /
+                (Math.Min(width, height) * 0.5);
+
+            // Stars close to the vanishing point should be tiny and almost invisible.
+            var fade = Math.Clamp((centerDistance - 0.08) / 0.55, 0.0, 1.0);
+            fade = fade * fade * (3.0 - 2.0 * fade);
+            radius *= 0.18 + 0.82 * fade;
 
             if (x < -radius || x > width + radius ||
-                y < -radius || y > height + radius)
+                y < -radius || y > height + radius || fade <= 0.01)
                 continue;
 
-            context.DrawEllipse(_brushes[star.ColorIndex], null,
-                new Point(x, y), radius, radius);
+            using (context.PushOpacity(0.04 + 0.96 * fade))
+            {
+                context.DrawEllipse(_brushes[star.ColorIndex], null,
+                    new Point(x, y), radius, radius);
+            }
         }
     }
 }
