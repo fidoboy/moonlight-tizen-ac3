@@ -376,8 +376,8 @@ public sealed partial class MainWindow : Window
             if (devices.Count == 0)
             {
                 _televisionDiscoveryFailed = true;
-                if (this.FindControl<TextBlock>("TelevisionPageTitle") is { } pageTitle)
-                    pageTitle.Text = InstallerLocalization.T("No TV was found on the network");
+                if (this.FindControl<TextBlock>("TelevisionPageTitle") is { } resultPageTitle)
+                    resultPageTitle.Text = InstallerLocalization.T("No TV was found on the network");
                 ShowDeveloperModeInstructions(
                     InstallerLocalization.T("No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."));
                 return;
