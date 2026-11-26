@@ -259,10 +259,10 @@
           </Border>
           <StackPanel Name="TvStoreResultPanel" Spacing="16" IsVisible="False">
             <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
-                    Background="#173F2B" HorizontalAlignment="Left">
+                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3" HorizontalAlignment="Left">
               <Path Name="TvStoreResultIcon" Data="M 18,39 L 31,51 L 57,25"
                     Width="38" Height="38" Stretch="Uniform" Stroke="#35C978"
-                    StrokeThickness="5" StrokeLineCap="Round" StrokeLineJoin="Round"
+                    StrokeThickness="5" StrokeLineCap="Round"
                     HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <TextBlock Name="TvStoreResultTitle" Text="Paquete transferido correctamente"
