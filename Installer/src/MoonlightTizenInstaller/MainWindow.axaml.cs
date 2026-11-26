@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using System.Globalization;
+using System.Diagnostics;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
@@ -556,9 +557,16 @@ public sealed partial class MainWindow : Window
             Height = 76,
             CornerRadius = new Avalonia.CornerRadius(16),
             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
-            Child = storeIcon,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Child = new Grid
+            {
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+                Children = { storeIcon }
+            }
         };
+        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
@@ -574,14 +582,14 @@ public sealed partial class MainWindow : Window
             MinWidth = 190,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
-        var buttons = new Grid
+        var buttons = new StackPanel
         {
-            ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("*,*"),
-            ColumnSpacing = 12,
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Spacing = 12,
             Margin = new Avalonia.Thickness(0, 20, 0, 0),
             Children = { normalButton, useButton }
         };
-        Grid.SetColumn(useButton, 1);
         var messageLayout = new Grid
         {
             ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("Auto,*"),
@@ -603,19 +611,67 @@ public sealed partial class MainWindow : Window
             SystemDecorations = SystemDecorations.None,
             ShowInTaskbar = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101A2D")),
+            TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+            Background = Avalonia.Media.Brushes.Transparent,
             Foreground = Avalonia.Media.Brushes.White,
-            Content = content
+            Content = new Border
+            {
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101A2D")),
+                BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#40516D")),
+                BorderThickness = new Avalonia.Thickness(1),
+                CornerRadius = new Avalonia.CornerRadius(14),
+                BoxShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow
+                {
+                    Blur = 28,
+                    OffsetY = 8,
+                    Color = Avalonia.Media.Color.Parse("#A0000000"),
+                    Spread = 2
+                }),
+                ClipToBounds = true,
+                Child = content
+            }
         };
         useButton.Click += (_, _) => dialog.Close(true);
         normalButton.Click += (_, _) => dialog.Close(false);
-        return await dialog.ShowDialog<bool>(this);
+        var previousOpacity = Opacity;
+        try
+        {
+            Opacity = 0.48;
+            return await dialog.ShowDialog<bool>(this);
+        }
+        finally
+        {
+            Opacity = previousOpacity;
+        }
     }
 
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            BeginMoveDrag(e);
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        if (e.Source is Control source && source.GetVisualAncestors().OfType<Button>().Any())
+            return;
+
+        BeginMoveDrag(e);
+    }
+
+    private void OnWebsiteClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        OpenExternalLink("https://fidoboy.github.io/moonlight-tizen-ac3/");
+
+    private void OnGithubClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        OpenExternalLink("https://github.com/fidoboy/moonlight-tizen-ac3");
+
+    private static void OpenExternalLink(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Opening a project link is best-effort and must not interrupt installation.
+        }
     }
 
     private void OnMinimizeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
