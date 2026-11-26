@@ -143,7 +143,10 @@ public sealed partial class MainWindow : Window
         var next = this.FindControl<Button>("WizardNextButton");
         var exit = this.FindControl<Button>("WizardExitButton");
         if (back is not null)
+        {
             back.IsVisible = _wizardStep > 1 && !_tvStoreHandoff && _wizardStep < 5;
+            back.IsEnabled = !_discoveryInProgress;
+        }
         if (exit is not null)
         {
             exit.IsVisible = _wizardStep == 5 || (!_tvStoreHandoff && !_installationCompleted);
@@ -165,14 +168,15 @@ public sealed partial class MainWindow : Window
                     4 => "Instalar",
                     _ => "Finalizar"
                 });
-            next.IsEnabled = (_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
-            {
-                1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
-                2 => !_discoveryInProgress,
-                3 => _selectedTelevision is not null && !_discoveryInProgress && !_tvStoreHandoff,
-                4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
-                _ => _installationFinished
-            });
+            next.IsEnabled = !_discoveryInProgress &&
+                ((_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
+                {
+                    1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
+                    2 => true,
+                    3 => _selectedTelevision is not null && !_tvStoreHandoff,
+                    4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
+                    _ => _installationFinished
+                }));
         }
     }
 
@@ -295,6 +299,7 @@ public sealed partial class MainWindow : Window
             return;
 
         _discoveryInProgress = true;
+        SetWizardStep(_wizardStep);
         _selectedDuid = null;
         _selectedTelevision = null;
         _tvStoreHandoff = false;
