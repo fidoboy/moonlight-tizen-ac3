@@ -109,7 +109,7 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = "Buscando televisores y comprobando la conexión SDB…";
+        if (searchStatus is not null) searchStatus.Text = "Buscando televisores Samsung por red (el DUID se consultará solo si SDB está disponible)…";
 
         try
         {
@@ -144,11 +144,11 @@ public sealed partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            ShowDeveloperModeInstructions("La búsqueda no se ha completado. Comprueba la configuración de Developer Mode y vuelve a intentarlo.");
+            ShowDeveloperModeInstructions("La búsqueda no se ha completado. Comprueba que el televisor está encendido y conectado a la red y vuelve a intentarlo.");
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions($"No se ha podido completar la detección ({ex.Message}). Comprueba la configuración de Developer Mode y vuelve a intentarlo.");
+            ShowDeveloperModeInstructions($"No se ha podido completar la detección ({ex.Message}). Comprueba la conexión de red y vuelve a intentarlo.");
         }
         finally
         {
