@@ -101,7 +101,7 @@
     </Border>
 
     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-      <Grid Margin="42,34">
+      <Grid Margin="42,29">
         <StackPanel Name="WelcomePage" Spacing="18" IsVisible="True">
           <TextBlock Text="ASISTENTE DE INSTALACIÓN" Foreground="#A7D3FF"
                      FontSize="12" FontWeight="Bold" />
@@ -109,7 +109,7 @@
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
           <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
                      FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730"
-                     HorizontalAlignment="Left" Margin="0" />
+                     HorizontalAlignment="Left" Margin="0,-5,0,0" />
           <Border Name="LanguageSelectionPanel" IsVisible="False" Background="#14213A"
                   BorderBrush="#3E94F5" BorderThickness="1" CornerRadius="12"
                   Padding="16" MaxWidth="730" HorizontalAlignment="Stretch">
@@ -128,7 +128,7 @@
             </StackPanel>
           </Border>
           <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
-                  CornerRadius="16" Padding="22" Margin="0,10,0,0">
+                  CornerRadius="16" Padding="22" Margin="0,5,0,0">
             <StackPanel Spacing="10">
               <TextBlock Text="Antes de empezar" FontSize="18" FontWeight="SemiBold" />
               <TextBlock Text="• Enciende el televisor y conéctalo a la misma red local que este ordenador."
@@ -138,13 +138,13 @@
             </StackPanel>
           </Border>
           <TextBlock Text="Seleccione el tipo de instalación de Moonlight que quiere utilizar."
-                     Foreground="#D6E1F2" TextWrapping="Wrap" Margin="0,2,0,0" />
-          <StackPanel Orientation="Horizontal" Spacing="28" Margin="0,0,0,4">
-            <RadioButton Name="StandardWgtOption" GroupName="MoonlightWgtVariant"
-                         Content="WGT Normal" IsChecked="True" />
-            <RadioButton Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
-                         Content="WGT Modo Juego forzado" />
-          </StackPanel>
+                     Foreground="#D6E1F2" TextWrapping="Wrap" Margin="0,0,0,0" />
+          <Grid ColumnDefinitions="*,*" Margin="36,-4,36,4">
+            <RadioButton Grid.Column="0" Name="StandardWgtOption" GroupName="MoonlightWgtVariant"
+                         HorizontalAlignment="Center" Content="WGT Normal" IsChecked="True" />
+            <RadioButton Grid.Column="1" Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
+                         HorizontalAlignment="Center" Content="WGT Modo Juego forzado" />
+          </Grid>
         </StackPanel>
 
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
