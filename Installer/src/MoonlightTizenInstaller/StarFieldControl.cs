@@ -15,7 +15,7 @@ namespace MoonlightTizenInstaller;
 /// </summary>
 public sealed class StarFieldControl : OpenGlControlBase
 {
-    private const int StarCount = 1100;
+    private const int StarCount = 1600;
     private const float MaxDepth = 1500f;
     private const float SpeedPixelsPerSecond = 120f;
 
