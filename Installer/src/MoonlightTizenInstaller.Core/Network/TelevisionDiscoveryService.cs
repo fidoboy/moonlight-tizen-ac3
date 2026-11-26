@@ -47,7 +47,7 @@ public sealed class TelevisionDiscoveryService
         if (addresses.Count == 0)
             return Array.Empty<DiscoveredTelevision>();
 
-        progress?.Report($"Buscando televisores en la red ({addresses.Count} direcciones posibles)…");
+        progress?.Report($"Buscando televisores Samsung en la red ({addresses.Count} direcciones posibles)…");
         using var gate = new SemaphoreSlim(MaxConcurrentProbes);
         var found = new System.Collections.Concurrent.ConcurrentBag<DiscoveredTelevision>();
 
@@ -56,9 +56,6 @@ public sealed class TelevisionDiscoveryService
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (!await IsSdbPortOpenAsync(ip, cancellationToken).ConfigureAwait(false))
-                    return;
-
                 var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
                 if (television is not null)
                     found.Add(television);
