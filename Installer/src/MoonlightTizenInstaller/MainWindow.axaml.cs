@@ -880,9 +880,9 @@ public sealed partial class MainWindow : Window
                 endpointDescription = "la conexión restablecida con el televisor";
             }
 
-            SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
+            SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight mediante {endpointDescription}.");
             _installationCompleted = true;
-            ShowInstallationResult(true, $"Moonlight se ha instalado correctamente en el televisor (paquete {result.PackageId}).");
+            ShowInstallationResult(true, "Moonlight se ha instalado correctamente en el televisor.");
         }
         catch (OperationCanceledException)
         {
@@ -930,6 +930,8 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Avalonia.Controls.Shapes.Path>("InstallationResultIcon") is { } icon)
         {
             icon.Data = Avalonia.Media.Geometry.Parse(success ? "M 3,12 L 9,18 L 21,6" : "M 6,6 L 18,18 M 18,6 L 6,18");
+            // The checkmark has a lower visual center than the cross; compensate slightly upward.
+            icon.Margin = success ? new Avalonia.Thickness(0, -5, 0, 0) : new Avalonia.Thickness(0);
             icon.Stroke = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
         }
         if (this.FindControl<TextBlock>("InstallationResultTitle") is { } title)
