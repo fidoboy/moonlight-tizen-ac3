@@ -25,7 +25,7 @@ public sealed class StarFieldControl : Control
     ];
 
     private readonly Random _random = new();
-    private readonly Star[] _stars = new Star[StarCount];
+    private readonly Star[] _stars = Enumerable.Range(0, StarCount).Select(_ => new Star()).ToArray();
     private readonly IBrush[] _brushes = StarColors
         .Select(color => (IBrush)new SolidColorBrush(color))
         .ToArray();
