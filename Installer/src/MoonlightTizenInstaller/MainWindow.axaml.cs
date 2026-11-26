@@ -22,7 +22,8 @@ public sealed partial class MainWindow : Window
     private readonly TelevisionDiscoveryService _discovery;
     private readonly SdbInstallationService _sdbInstaller = new();
     private readonly TvStoreHandoffService _tvStoreInstaller = new();
-    private readonly string _bundledWgtPath = Path.Combine(Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
+    private string? _bundledWgtPath;
+    private string? _bundledWgtResourceName;
     private Bitmap? _brandBitmap;
     private WindowIcon? _windowIcon;
     private string? _selectedDuid;
@@ -61,7 +62,7 @@ public sealed partial class MainWindow : Window
             _brandBitmap?.Dispose();
             try
             {
-                if (File.Exists(_bundledWgtPath))
+                if (_bundledWgtPath is not null && File.Exists(_bundledWgtPath))
                     File.Delete(_bundledWgtPath);
             }
             catch
@@ -71,9 +72,6 @@ public sealed partial class MainWindow : Window
         };
         Opened += async (_, _) =>
         {
-            if (!await EnsureBundledWgtAvailableAsync())
-                return;
-
             SetWizardStep(1);
         };
     }
@@ -190,6 +188,11 @@ public sealed partial class MainWindow : Window
         switch (_wizardStep)
         {
             case 1:
+                _bundledWgtResourceName = this.FindControl<RadioButton>("ForceGmWgtOption")?.IsChecked == true
+                    ? "Moonlight-ForceGM.wgt"
+                    : "Moonlight.wgt";
+                if (!await EnsureBundledWgtAvailableAsync())
+                    return;
                 SetWizardStep(2);
                 await DiscoverTelevisionsAsync();
                 break;
@@ -235,18 +238,26 @@ public sealed partial class MainWindow : Window
 
     private async Task<bool> EnsureBundledWgtAvailableAsync()
     {
+        var resourceName = _bundledWgtResourceName ?? "Moonlight.wgt";
         try
         {
-            if (!File.Exists(_bundledWgtPath) || new FileInfo(_bundledWgtPath).Length == 0)
-            {
-                await using var resource = typeof(MainWindow).Assembly.GetManifestResourceStream("Moonlight.wgt");
-                if (resource is null)
-                    throw new FileNotFoundException("El paquete Moonlight.wgt no está integrado en el ejecutable.");
+            if (_bundledWgtPath is not null && _bundledWgtResourceName == resourceName &&
+                File.Exists(_bundledWgtPath) && new FileInfo(_bundledWgtPath).Length > 0)
+                return true;
 
-                await using var destination = new FileStream(
-                    _bundledWgtPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                await resource.CopyToAsync(destination);
-            }
+            if (_bundledWgtPath is not null && File.Exists(_bundledWgtPath))
+                File.Delete(_bundledWgtPath);
+
+            _bundledWgtPath = Path.Combine(
+                Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
+
+            await using var resource = typeof(MainWindow).Assembly.GetManifestResourceStream(resourceName);
+            if (resource is null)
+                throw new FileNotFoundException($"El paquete {resourceName} no está integrado en el ejecutable.");
+
+            await using var destination = new FileStream(
+                _bundledWgtPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            await resource.CopyToAsync(destination);
 
             if (new FileInfo(_bundledWgtPath).Length > 0)
                 return true;
@@ -255,7 +266,7 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                if (File.Exists(_bundledWgtPath))
+                if (_bundledWgtPath is not null && File.Exists(_bundledWgtPath))
                     File.Delete(_bundledWgtPath);
             }
             catch
@@ -266,7 +277,7 @@ public sealed partial class MainWindow : Window
 
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T("El paquete Moonlight.wgt no está integrado en este ejecutable o está dañado. Descarga de nuevo el instalador."),
+            Text = InstallerLocalization.T($"El paquete {resourceName} no está integrado en este ejecutable o está dañado. Descarga de nuevo el instalador."),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(20)
         };
@@ -288,7 +299,6 @@ public sealed partial class MainWindow : Window
         };
         closeButton.Click += (_, _) => dialog.Close();
         await dialog.ShowDialog(this);
-        Close();
         return false;
     }
 
@@ -419,7 +429,7 @@ public sealed partial class MainWindow : Window
                                 searchStatus.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
                         });
                         var handoff = await _tvStoreInstaller.TrySendForInstallationAsync(
-                            device.IpAddress, _bundledWgtPath, handoffProgress);
+                            device.IpAddress, _bundledWgtPath ?? throw new FileNotFoundException("The selected WGT package has not been extracted."), handoffProgress);
                         ShowTvStoreResult(handoff is not null);
                     }
                     catch (OperationCanceledException)
@@ -965,7 +975,7 @@ public sealed partial class MainWindow : Window
                     ?? throw new InvalidOperationException(InstallerLocalization.T("The Partner certificate is unavailable or has expired. Generate or renew it before installing."));
 
                 await _certificates.SignWgtAsync(
-                    _bundledWgtPath, signedPackagePath, profile,
+                    _bundledWgtPath ?? throw new FileNotFoundException("The selected WGT package has not been extracted."), signedPackagePath, profile,
                     new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
             }
             else
