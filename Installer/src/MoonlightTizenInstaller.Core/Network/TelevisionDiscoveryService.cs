@@ -70,7 +70,7 @@ public sealed class TelevisionDiscoveryService
         if (addresses.Count == 0)
             return Array.Empty<DiscoveredTelevision>();
 
-        progress?.Report("Detectando televisores con TizenOS en la red local. Por favor, espera...");
+        progress?.Report("Scanning the local network for TizenOS TVs. Please be patient; this process may take some time...");
         using var gate = new SemaphoreSlim(MaxConcurrentProbes);
         var found = new System.Collections.Concurrent.ConcurrentBag<DiscoveredTelevision>();
 
