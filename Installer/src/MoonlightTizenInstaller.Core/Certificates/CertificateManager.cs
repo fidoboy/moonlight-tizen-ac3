@@ -47,7 +47,10 @@ public sealed class CertificateManager
         Action<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        ValidateAuthorityFiles(level);
+        if (!TizenDuid.IsValid(televisionDuid))
+            throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
+
+        ValidateAuthorityFilesOnlyWhenIssuanceIsRequired(televisionDuid, level, additionalDuids, forceNewAuthorCertificate);
         return _provisioning.EnsureAsync(
             televisionDuid,
             level,
@@ -84,8 +87,26 @@ public sealed class CertificateManager
 
     public CertificateBackupStatus? GetBackupStatus() => CertificateBackups.Status();
 
-    private void ValidateAuthorityFiles(CertificatePrivilegeLevel level)
+    private void ValidateAuthorityFilesOnlyWhenIssuanceIsRequired(
+        string televisionDuid,
+        CertificatePrivilegeLevel level,
+        IEnumerable<string>? additionalDuids,
+        bool forceNewAuthorCertificate)
     {
+        var profileDirectory = Path.Combine(_options.ProfileStorePath, CertificateProvisioningService.ProfileName(level));
+        var hasAuthor = !forceNewAuthorCertificate && CertificateProvisioningService.HasUsableAuthorCert(profileDirectory);
+        var coveredDuids = hasAuthor
+            ? CertificateProvisioningService.GetCoveredDuids(profileDirectory)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var extraDuids = (additionalDuids ?? Enumerable.Empty<string>())
+            .Where(TizenDuid.IsValid)
+            .ToArray();
+        var alreadyCovered = coveredDuids.Contains(televisionDuid) && extraDuids.All(coveredDuids.Contains);
+
+        // Existing profiles that already cover this TV can be reused without SDK CA materials.
+        if (hasAuthor && alreadyCovered)
+            return;
+
         var distributorFile = level == CertificatePrivilegeLevel.Partner
             ? "vd_tizen_dev_partner2.crt"
             : "vd_tizen_dev_public2.crt";

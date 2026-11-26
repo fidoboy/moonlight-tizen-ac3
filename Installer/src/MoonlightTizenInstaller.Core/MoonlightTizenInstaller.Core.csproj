@@ -7,5 +7,30 @@
   <ItemGroup>
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
     <PackageReference Include="TizenSdb.Core" Version="1.1.9" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/SamsungAccountEmailMissingException.cs" Link="Vendor/SamsungAccountEmailMissingException.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateProvisioningService.cs" Link="Vendor/CertificateProvisioningService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/TizenCertificateService.cs" Link="Vendor/TizenCertificateService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateHelper.cs" Link="Vendor/CertificateHelper.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateEndpoints.cs" Link="Vendor/CertificateEndpoints.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificatePrivilegeLevel.cs" Link="Vendor/CertificatePrivilegeLevel.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/ITizenCertificateService.cs" Link="Vendor/ITizenCertificateService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CipherUtil.cs" Link="Vendor/CipherUtil.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateBackups.cs" Link="Vendor/CertificateBackups.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateArchive.cs" Link="Vendor/CertificateArchive.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateValidity.cs" Link="Vendor/CertificateValidity.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificatePreference.cs" Link="Vendor/CertificatePreference.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateKind.cs" Link="Vendor/CertificateKind.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Models/ExistingCertificates.cs" Link="Vendor/ExistingCertificates.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Models/SamsungAuth.cs" Link="Vendor/SamsungAuth.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Models/TizenDuid.cs" Link="Vendor/TizenDuid.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Samsung/ISamsungLoginService.cs" Link="Vendor/ISamsungLoginService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Samsung/SamsungOAuth.cs" Link="Vendor/SamsungOAuth.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Extensions/ProgressCallback.cs" Link="Vendor/ProgressCallback.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Desktop/SamsungLoginService.cs" Link="Vendor/SamsungLoginService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Core/PlatformService.cs" Link="Vendor/PlatformService.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Core/Constants.cs" Link="Vendor/Constants.cs" />
   </ItemGroup>
 </Project>
