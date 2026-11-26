@@ -167,7 +167,8 @@
                 <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Después pulsa Reintentar."
                            TextWrapping="Wrap" Foreground="#ACBAD0" />
                 <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar"
-                        HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" Classes="primary" />
+                        HorizontalAlignment="Center" Margin="0,8,0,0"
+                        Click="OnDiscoverTelevisionsClick" Classes="primary" />
               </StackPanel>
             </Border>
           </StackPanel>
