@@ -33,7 +33,12 @@
       <Setter Property="Padding" Value="0" />
     </Style>
     <Style Selector="Button.window-control:pointerover">
-      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Background" Value="#30415C" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.window-control:pressed">
+      <Setter Property="Background" Value="#40516D" />
       <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
     <Style Selector="Button.footer-link">
