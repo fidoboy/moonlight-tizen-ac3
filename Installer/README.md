@@ -5,7 +5,7 @@ Self-contained desktop installer for Moonlight on Samsung Tizen TVs.
 ## Layout
 
 - `src/MoonlightTizenInstaller/`: Avalonia desktop application.
-- `src/MoonlightTizenInstaller.Core/`: installer-owned discovery, TV-Store hand-off and certificate services.
+- `src/MoonlightTizenInstaller.Core/`: installer-owned discovery, SDB installation and certificate services.
 - `vendor/Apps2Samsung/`: restricted GPL-3.0-only source subset for Samsung certificate issuance, recovery and signing-profile handling.
 - `assets/`: installer artwork and bundled Moonlight WGT inputs.
 - `build/`: per-platform self-contained publishing scripts.
@@ -16,25 +16,25 @@ The build workflow downloads `Moonlight.wgt` from the latest project release, va
 
 The installer scans private IPv4 networks and identifies Samsung TVs through the Samsung TV REST API on port 8001. This detection does not require Developer Mode or SDB.
 
-When the SDB developer port (26101) is available, the installer additionally connects through SDB and reads the DUID with `0 getduid`. The DUID is only needed for certificate management and local WGT signing; it is not required for the TV-Store installation hand-off.
+After identifying a TV, the installer must obtain its DUID automatically through SDB using `0 getduid`. A detected TV without a valid DUID is not ready: certificate preparation, local signing and installation remain disabled until Developer Mode is configured and discovery is retried. The installer never asks the user to type a DUID.
 
-## Installation through Apps2Samsung TV-Store
+## Installation through SDB
 
-The primary installation route uses the same no-SDB hand-off protocol as Apps2Samsung:
+The installer installs Moonlight directly through Samsung's SDB protocol; TV-Store is not a prerequisite:
 
-1. The installer checks whether Apps2Samsung TV-Store is responding on the TV at HTTP port 8077.
-2. If necessary, it asks the Samsung TV REST API (port 8001) to launch TV-Store and waits for its upload service.
-3. It sends the bundled `Moonlight.wgt` using `PUT /upload?name=Moonlight.wgt`.
-4. It validates the SHA-256 hash reported by the TV against the local package.
-5. It asks the TV to bring TV-Store to the foreground.
+1. It first checks the Samsung TV REST API on port 8001 to identify each TV on the local network.
+2. It requests `GET http://<TV-IP>:8077/relay`. A relay is considered usable only when TV-Store returns a valid `{ ok: true, relay: { enabled: true, listening: true, port: ... } }` report and the announced TCP port is reachable.
+3. When that relay is confirmed, the installer tries the SDB connection through its reported port (26201 by default). If it is unavailable or cannot provide the DUID, discovery falls back to the conventional SDB port 26101.
+4. The installer obtains the DUID automatically with `0 getduid`. A valid DUID is mandatory in every case, including when TV-Store's relay is used. Without it, installation cannot proceed and the UI displays Developer Mode instructions and a Retry button.
+5. Before installation, the installer prepares/reuses the Partner certificate profile for that DUID, signs a temporary copy of the bundled WGT, transfers it to the TV and invokes `0 vd_appinstall` over the same verified SDB endpoint.
 
-This is deliberately a hand-off, not a silent remote installation: TV-Store displays the pending package on the television and the user must press **Install** on the TV. TV-Store signs the package with the certificate already configured (armed) in TV-Store itself.
+TV-Store is an optional optimization, not an installation dependency. Its relay is a TCP proxy to the TV's local `sdbd`; it does not perform package upload or signing. The relay normally listens on port `26201`, but the installer uses the actual port reported by `/relay` rather than assuming the default.
 
-Consequently, this route requires Apps2Samsung TV-Store to be installed on the television and to have a usable signing certificate configured. The installer does not currently install TV-Store or provision its certificate. A successful upload and matching SHA-256 prove that the file arrived intact; they do not prove that the user confirmed installation or that Tizen accepted the package.
+When Developer Mode's Host PC IP is `127.0.0.1`, the direct SDB port is not reachable from another machine and the TV-Store relay is required. If no working relay is available, configure Host PC IP with the installer's local IPv4 address and restart the TV; the installer then uses port `26101`. If a relay is detected but its SDB handshake cannot obtain a DUID, the UI shows `127.0.0.1` as the Host PC IP value to configure.
 
-The transfer and app-launch operations in this route do not use SDB or Tizen Studio.
+The installer does not request a manually entered DUID and does not claim installation success merely because a file was transferred. It checks the TV's SDB install output for a success indication or an explicit failure.
 
-## Certificate subsystem and optional local signing
+## Certificate subsystem and local signing
 
 The installer also compiles a selected Apps2Samsung certificate source subset into its Core project through linked source files. `CertificateManager` is the installer-owned entry point for:
 
@@ -45,7 +45,7 @@ The installer also compiles a selected Apps2Samsung certificate source subset in
 - Enumerating, exporting, previewing and importing certificate profiles.
 - Maintaining automatic backups outside the application installation directory.
 
-These certificate and local-signing operations do require Developer Mode, SDB access and a valid DUID. They are separate from the TV-Store hand-off route, which uses TV-Store's own armed certificate.
+Certificate preparation, local signing and installation all require Developer Mode, a working SDB endpoint and a valid automatically retrieved DUID. The installation action signs a temporary copy of the bundled WGT with the selected TV's Partner profile and removes that temporary copy after the installation attempt.
 
 The profile store and backups are kept in the user's local application-data directory. Profile passwords are stored through Latchkey in the operating system's secure credential store (Windows Credential Manager, macOS Keychain or Linux Secret Service); they are not persisted as plaintext profile passwords by the installer. Exported `.a2scert` archives may contain sensitive credential material and must be protected accordingly.
 
@@ -60,9 +60,8 @@ If they are absent, existing profiles can still be recovered and reused, but new
 
 ## Current limitations
 
-- The no-SDB route depends on Apps2Samsung TV-Store already being installed and armed with a signing certificate.
-- The user must confirm installation on the television; the desktop installer cannot claim success merely because the upload completed.
-- The installer has not yet verified the final installed state after the user confirms on the TV.
+- The installer detects success from the TV's SDB installation output; it does not independently query the installed-app inventory afterwards.
+- The optional TV-Store relay must be enabled and listening to be selected; otherwise the installer falls back to direct SDB port 26101.
 - Certificate issuance and local signing still require the separately provisioned CA inputs.
 - Real-device end-to-end testing is still required across supported TV models and firmware versions.
 
