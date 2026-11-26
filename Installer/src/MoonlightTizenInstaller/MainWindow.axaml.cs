@@ -278,7 +278,7 @@ public sealed partial class MainWindow : Window
             if (devices.Count == 0)
             {
                 ShowDeveloperModeInstructions(
-                    "No se ha detectado ninguna TV Samsung en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor.");
+                    "No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor.");
                 return;
             }
 
