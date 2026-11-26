@@ -860,8 +860,6 @@ public sealed partial class MainWindow : Window
 
             var installProgress = new Progress<string>(message =>
                 Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
-            var endpointDescription = "la conexión con el televisor";
-
             SdbInstallationService.InstallationResult result;
             try
             {
@@ -877,7 +875,6 @@ public sealed partial class MainWindow : Window
                     DiscoveredTelevision.DirectSdbPort,
                     signedPackagePath,
                     installProgress);
-                endpointDescription = "la conexión restablecida con el televisor";
             }
 
             SetOperationStatus(InstallerLocalization.T("Tizen ha confirmado la instalación de Moonlight."));
