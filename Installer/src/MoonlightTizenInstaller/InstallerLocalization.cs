@@ -60,7 +60,6 @@ internal static class InstallerLocalization
         ["Uninstall & retry"] = ["Uninstall & retry", "Deinstallieren und erneut versuchen", "Desinstalar y reintentar", "Désinstaller et réessayer", "Disinstalla e riprova", "Desinstalar e tentar novamente", "Удалить и повторить попытку"],
         ["Uninstalling Moonlight…"] = ["Uninstalling Moonlight…", "Moonlight wird deinstalliert…", "Desinstalando Moonlight…", "Désinstallation de Moonlight…", "Disinstallazione di Moonlight…", "Desinstalando o Moonlight…", "Удаление Moonlight…"],
         ["No se ha podido instalar Moonlight"] = ["Moonlight could not be installed", "Moonlight konnte nicht installiert werden", "No se ha podido instalar Moonlight", "Impossible d’installer Moonlight", "Impossibile installare Moonlight", "Não foi possível instalar o Moonlight", "Не удалось установить Moonlight"],
-        ["Siguiente"] = ["Next", "Weiter", "Siguiente", "Suivant", "Avanti", "Avançar", "Далее"],
         ["Instalar"] = ["Install", "Installieren", "Instalar", "Installer", "Installa", "Instalar", "Установить"],
         ["Comenzar"] = ["Start", "Starten", "Comenzar", "Commencer", "Avvia", "Iniciar", "Начать"],
 
