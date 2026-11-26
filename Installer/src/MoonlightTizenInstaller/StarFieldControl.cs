@@ -272,9 +272,9 @@ public sealed class StarFieldControl : OpenGlControlBase
 
         if (version.Major >= 3 && !version.IsCompatibilityProfile)
         {
-            return (VertexShaderDesktopSource.Replace("#version 120", "#version 150")
+            return (VertexShaderDesktopSource.Replace("#version 120", "#version 130")
                         .Replace("attribute ", "in ").Replace("varying ", "out "),
-                    FragmentShaderDesktopSource.Replace("#version 120", "#version 150")
+                    FragmentShaderDesktopSource.Replace("#version 120", "#version 130")
                         .Replace("varying ", "in ")
                         .Replace("void main()", "out vec4 fragmentColor;\n        void main()")
                         .Replace("gl_FragColor", "fragmentColor"));
