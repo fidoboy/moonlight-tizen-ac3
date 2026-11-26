@@ -138,7 +138,7 @@ namespace Apps2Samsung.Services
 
                                         if (auth != null)
                                         {
-                                            auth.state = state;
+                                            auth.state = state!;
                                             CallbackReceived?.Invoke(auth);
 
                                             context.Response.StatusCode = (int)HttpStatusCode.OK;
