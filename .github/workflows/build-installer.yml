@@ -5,10 +5,12 @@ on:
     paths:
       - "Installer/**"
       - ".github/workflows/build-installer.yml"
+      - "scripts/check-installer-localization.py"
   pull_request:
     paths:
       - "Installer/**"
       - ".github/workflows/build-installer.yml"
+      - "scripts/check-installer-localization.py"
   workflow_dispatch:
 
 permissions:
