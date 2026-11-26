@@ -20,6 +20,9 @@ internal static class InstallerLocalization
         ["Instala Moonlight en tu TV con TizenOS."] = ["Install Moonlight on your TizenOS TV.", "Installiere Moonlight auf deinem TizenOS-Fernseher.", "Instala Moonlight en tu TV con TizenOS.", "Installez Moonlight sur votre téléviseur TizenOS.", "Installa Moonlight sulla tua TV con TizenOS.", "Instale o Moonlight na sua TV com TizenOS.", "Установите Moonlight на телевизор с TizenOS."],
         ["Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."] = ["This wizard will detect your TV and guide you through the Moonlight installation.", "Dieser Assistent erkennt deinen Fernseher und führt dich durch die Installation von Moonlight.", "Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight.", "Cet assistant détectera votre téléviseur et vous guidera lors de l’installation de Moonlight.", "Questa procedura rileverà la TV e guiderà l’installazione di Moonlight.", "Este assistente detectará sua TV e orientará você durante a instalação do Moonlight.", "Мастер обнаружит телевизор и поможет установить Moonlight."],
         ["Antes de empezar"] = ["Before you begin", "Bevor du beginnst", "Antes de empezar", "Avant de commencer", "Prima di iniziare", "Antes de começar", "Перед началом"],
+        ["Seleccione el tipo de instalación de Moonlight que quiere utilizar."] = ["Select the Moonlight installation type you want to use.", "Wähle den Moonlight-Installationstyp aus, den du verwenden möchtest.", "Seleccione el tipo de instalación de Moonlight que quiere utilizar.", "Sélectionnez le type d’installation de Moonlight que vous souhaitez utiliser.", "Seleziona il tipo di installazione di Moonlight che desideri utilizzare.", "Selecione o tipo de instalação do Moonlight que deseja usar.", "Выберите тип установки Moonlight."],
+        ["WGT Normal"] = ["Standard WGT", "Standard-WGT", "WGT Normal", "WGT standard", "WGT standard", "WGT normal", "Стандартный WGT"],
+        ["WGT Modo Juego forzado"] = ["Force Game Mode WGT", "WGT mit erzwungenem Game Mode", "WGT Modo Juego forzado", "WGT avec mode Jeu forcé", "WGT con modalità Gioco forzata", "WGT com Modo Jogo forçado", "WGT с принудительным игровым режимом"],
         ["PASO 2 · TELEVISOR"] = ["STEP 2 · TV", "SCHRITT 2 · FERNSEHER", "PASO 2 · TELEVISOR", "ÉTAPE 2 · TÉLÉVISEUR", "PASSAGGIO 2 · TV", "ETAPA 2 · TV", "ШАГ 2 · ТЕЛЕВИЗОР"],
         ["Searching for your TizenOS TV"] = ["Searching for your TizenOS TV", "Suche nach deinem TizenOS-Fernseher", "Buscando tu TV con TizenOS", "Recherche de votre téléviseur TizenOS", "Ricerca della TV con TizenOS", "Procurando sua TV com TizenOS", "Поиск телевизора с TizenOS"],
         ["No TV was found on the network"] = ["No TV was found on the network", "Im Netzwerk wurde kein Fernseher gefunden", "No se encontró ninguna TV en la red", "Aucun téléviseur n’a été trouvé sur le réseau", "Nessuna TV trovata nella rete", "Nenhuma TV foi encontrada na rede", "В сети не найден телевизор"],
@@ -212,6 +215,8 @@ internal static class InstallerLocalization
             if (control.Text is { } text) control.Text = T(text);
         foreach (var button in window.GetLogicalDescendants().OfType<Button>())
             if (button.Content is string text) button.Content = T(text);
+        foreach (var radioButton in window.GetLogicalDescendants().OfType<RadioButton>())
+            if (radioButton.Content is string text) radioButton.Content = T(text);
         window.Title = T(window.Title);
     }
 }
