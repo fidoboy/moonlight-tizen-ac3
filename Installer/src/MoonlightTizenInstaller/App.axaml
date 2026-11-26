@@ -52,6 +52,9 @@
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
+    <Style Selector="ProgressBar">
+      <Setter Property="Foreground" Value="#78B8FF" />
+    </Style>
     <Style Selector="ComboBox">
       <Setter Property="Background" Value="#14213A" />
       <Setter Property="Foreground" Value="#F5F8FF" />
