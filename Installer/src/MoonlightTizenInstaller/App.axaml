@@ -1,7 +1,34 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="MoonlightTizenInstaller.App">
+             x:Class="MoonlightTizenInstaller.App"
+             RequestedThemeVariant="Dark">
   <Application.Styles>
     <FluentTheme />
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#17243B" />
+      <Setter Property="Foreground" Value="#F5F8FF" />
+      <Setter Property="BorderBrush" Value="#40516D" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="9" />
+      <Setter Property="Padding" Value="16,10" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="#203554" />
+      <Setter Property="BorderBrush" Value="#78B8FF" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#A8D5FF" />
+      <Setter Property="Foreground" Value="#071224" />
+      <Setter Property="BorderBrush" Value="#A8D5FF" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="#C1E1FF" />
+      <Setter Property="BorderBrush" Value="#C1E1FF" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#14213A" />
+      <Setter Property="Foreground" Value="#F5F8FF" />
+    </Style>
   </Application.Styles>
 </Application>
