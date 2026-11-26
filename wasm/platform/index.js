@@ -2953,8 +2953,7 @@ function pairingDialog(nvhttpHost, onSuccess, onFailure) {
     var formattedPin = '<br><span class="pairing-pin">' + randomNumber + '</span>';
     $('#pairingDialogText').html(
       t('Please enter the following PIN on the target PC: %1$s<br><br>', formattedPin) + 
-      t('If your host PC is running Sunshine (all GPUs), navigate to the Sunshine Web UI to enter the PIN.<br><br>') + 
-      t('Alternatively, if your host PC has NVIDIA GameStream (NVIDIA-only), navigate to the GeForce Experience to enter the PIN.<br><br>') + 
+      t('On your desktop computer, open your GameStream host’s web interface and enter the PIN.<br><br>') + 
       t('This dialog will close once the pairing is complete.')
     );
 
