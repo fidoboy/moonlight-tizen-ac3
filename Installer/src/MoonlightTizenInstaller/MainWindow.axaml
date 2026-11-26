@@ -313,7 +313,7 @@
               <StackPanel Spacing="14">
                 <TextBlock Name="InstallationOperationStatus" Text="Preparando la instalación…"
                            TextWrapping="Wrap" Foreground="#D6E1F2" />
-                <ProgressBar Name="InstallationProgressBar" IsIndeterminate="True"
+                <ProgressBar Name="InstallationProgressBar" IsIndeterminate="False"
                              Height="8" Minimum="0" Maximum="100" />
               </StackPanel>
             </Border>
